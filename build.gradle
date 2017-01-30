@@ -11,6 +11,7 @@ buildscript {
 }
 
 apply plugin: 'java'
+apply plugin: 'groovy'
 apply plugin: 'eclipse'
 apply plugin: 'org.springframework.boot'
 
@@ -52,7 +53,7 @@ dependencies {
 	testCompile("com.github.tomakehurst:wiremock:2.4.1")
 
 	testCompile('org.springframework.boot:spring-boot-starter-test')
-	testCompile('org.spockframework:spock-spring:1.0-groovy-2.4')
+	testCompile("org.springframework.security:spring-security-test")
 	testCompile('com.h2database:h2:1.4.181')
 
 }

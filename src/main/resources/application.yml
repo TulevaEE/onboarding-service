@@ -1,0 +1,20 @@
+server:
+  port: 9000
+
+spring:
+  datasource:
+    platform: POSTGRESQL
+    url: jdbc:postgresql://localhost:5432/tuleva-onboarding
+    username: tuleva-onboarding
+    password: tuleva-onboarding
+    continue-on-error: false
+    test-on-borrow: true
+    test-while-idle: true
+    driver-class-name: org.postgresql.Driver
+    tomcat:
+      driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
+    hibernate:
+      ddl-auto: create-drop

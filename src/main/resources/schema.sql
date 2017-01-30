@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS oauth_client_details (
   autoapprove VARCHAR(256)
 );
 
-
 CREATE TABLE IF NOT EXISTS oauth_access_token (
   token_id VARCHAR(256) PRIMARY KEY,
   token bytea,

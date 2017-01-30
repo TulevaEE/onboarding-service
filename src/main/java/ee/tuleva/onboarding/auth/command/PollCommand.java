@@ -9,6 +9,4 @@ import java.util.UUID;
 @Getter
 @Setter
 public class PollCommand {
-	@NotNull
-    UUID authIdentifier;
 }

@@ -1,0 +1,13 @@
+spring:
+  profiles:
+    active: test
+  datasource:
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+logging.level:
+  org.hibernate.type: TRACE

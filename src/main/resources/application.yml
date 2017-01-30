@@ -7,6 +7,7 @@ spring:
     url: jdbc:postgresql://localhost:5432/tuleva-onboarding
     username: tuleva-onboarding
     password: tuleva-onboarding
+    initialize: true
     continue-on-error: false
     test-on-borrow: true
     test-while-idle: true
@@ -15,4 +16,4 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: none

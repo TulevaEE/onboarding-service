@@ -1,4 +1,4 @@
-create table oauth_client_details (
+CREATE TABLE IF NOT EXISTS oauth_client_details (
   client_id VARCHAR(256) PRIMARY KEY,
   resource_ids VARCHAR(256),
   client_secret VARCHAR(256),
@@ -13,7 +13,7 @@ create table oauth_client_details (
 );
 
 
-create table oauth_access_token (
+CREATE TABLE IF NOT EXISTS oauth_access_token (
   token_id VARCHAR(256) PRIMARY KEY,
   token bytea,
   authentication_id VARCHAR(256),
@@ -23,7 +23,7 @@ create table oauth_access_token (
   refresh_token VARCHAR(256)
 );
 
-create table oauth_refresh_token (
+CREATE TABLE IF NOT EXISTS oauth_refresh_token (
   token_id VARCHAR(256) REFERENCES oauth_access_token,
   token bytea,
   authentication bytea

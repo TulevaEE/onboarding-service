@@ -15,5 +15,4 @@ public class HelloWorldController {
 		return singletonMap("message", "Hello World");
 	}
 
-
 }

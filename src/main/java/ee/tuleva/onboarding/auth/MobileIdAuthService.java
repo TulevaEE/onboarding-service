@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.auth;
 
-import org.springframework.stereotype.Service;
 import com.codeborne.security.AuthenticationException;
 import com.codeborne.security.mobileid.MobileIDAuthenticator;
 import com.codeborne.security.mobileid.MobileIDSession;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service

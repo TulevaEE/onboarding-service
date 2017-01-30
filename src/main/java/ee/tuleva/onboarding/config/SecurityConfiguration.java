@@ -18,8 +18,8 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
         http
         .anonymous().and()
-                .authorizeRequests()
-                .regexMatchers("/.*").permitAll()
+                .authorizeRequests().regexMatchers("/v1/.*").authenticated()
+                .regexMatchers("/").permitAll()
                 .and()
                 .csrf().ignoringAntMatchers("/v1/**");
 

@@ -5,9 +5,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.builders.ApiInfoBuilder;
-import springfox.documentation.builders.PathSelectors;
 import springfox.documentation.builders.RequestHandlerSelectors;
 import springfox.documentation.service.ApiInfo;
+import springfox.documentation.service.Contact;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
 import springfox.documentation.swagger2.annotations.EnableSwagger2;
@@ -15,7 +15,9 @@ import springfox.documentation.swagger2.annotations.EnableSwagger2;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
+import static com.google.common.base.Predicates.or;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
+import static springfox.documentation.builders.PathSelectors.regex;
 
 @Configuration
 @EnableSwagger2
@@ -33,8 +35,7 @@ public class SwaggerConfiguration {
             .apiInfo(apiInfo())
             .select()
                 .apis(RequestHandlerSelectors.any())
-//                .paths(PathSelectors.regex("/v1/.*"))
-                .paths(PathSelectors.regex("/auth.*"))
+                .paths(or(regex("/auth.*"), regex("/v1/.*")))
             .build();
     }
 
@@ -42,7 +43,7 @@ public class SwaggerConfiguration {
         return new ApiInfoBuilder()
             .title("Tuleva onboarding service")
             .description("")
-            .contact("https://github.com/TulevaEE")
+            .contact(new Contact("Tuleva", "https://github.com/TulevaEE", "tonu.pekk@tuleva.ee"))
             .version("1.0")
             .build();
     }

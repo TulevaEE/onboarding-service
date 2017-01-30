@@ -11,8 +11,6 @@ spring:
     test-on-borrow: true
     test-while-idle: true
     driver-class-name: org.postgresql.Driver
-    tomcat:
-      driver-class-name: org.postgresql.Driver
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: true

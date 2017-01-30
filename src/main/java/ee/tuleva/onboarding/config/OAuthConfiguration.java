@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.config;
 
-import org.springframework.boot.autoconfigure.jdbc.DataSourceBuilder;
-import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
@@ -19,20 +18,17 @@ import javax.sql.DataSource;
 @EnableAuthorizationServer
 public class OAuthConfiguration extends AuthorizationServerConfigurerAdapter {
 
-    @Bean
-    @ConfigurationProperties//(prefix = "spring.datasource_oauth")
-    public DataSource oauthDataSource() {
-        return DataSourceBuilder.create().build();
-    }
+    @Autowired
+    DataSource dataSource;
 
     @Bean
     public JdbcClientDetailsService clientDetailsService() {
-        return new JdbcClientDetailsService(oauthDataSource());
+        return new JdbcClientDetailsService(dataSource);
     }
 
     @Bean
     public TokenStore tokenStore() {
-        return new JdbcTokenStore(oauthDataSource());
+        return new JdbcTokenStore(dataSource);
     }
 
     @Override

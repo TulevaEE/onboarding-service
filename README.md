@@ -6,7 +6,7 @@ O-Auth2 based on Mobile-ID and ID-card authentication provider auth calls.
 
 //tuleva offered funds  
 **/available-pension-funds**
-```json
+```js
 [
   {
     id: 1,
@@ -20,7 +20,7 @@ O-Auth2 based on Mobile-ID and ID-card authentication provider auth calls.
 
 //current funds in EVK  
 **/pension-account-statement**
-```json
+```js
 [
   {
     id: 1,
@@ -37,7 +37,7 @@ O-Auth2 based on Mobile-ID and ID-card authentication provider auth calls.
 
 POST **/exchange-applications**  
 Body:
-```json
+```js
 {
   funds: [
     {
@@ -49,7 +49,7 @@ Body:
 }
 ```
 Response:
-```json
+```js
 {
   id: 123,
   ...
@@ -58,13 +58,13 @@ Response:
 
 POST **/selection-applications**  
 Body:
-```json
+```js
 {
   fund: "AE434334344" //isin
 }
 ```
 Response:
-```json
+```js
 {
   id: 123,
   ...
@@ -72,7 +72,7 @@ Response:
 ```
 
 **/users/{id}**
-```json
+```js
 {
   id: 123,
   firstName: "Jordan",
@@ -84,7 +84,7 @@ Response:
 ```
 
 **/initial-capital**
-```json
+```js
 {
   amount: 3000,
   currency: "EUR"
@@ -92,7 +92,7 @@ Response:
 ```
 
 **/orders/{id}**
-```json
+```js
 {
   id: 0, //starting capital, because id is 0
   fund: 1,
@@ -106,7 +106,7 @@ Response:
 
 //available for public  
 **/comparisons/?totalCapital=1000&age=30&monthlyWage=2000&isin=AE233242342**
-```json
+```js
 [
   {
     //fundName: "LHV XL",
@@ -118,7 +118,7 @@ Response:
 ```
 
 **/savings**
-```json
+```js
 {
   amount: 123
 }

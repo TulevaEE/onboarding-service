@@ -71,7 +71,7 @@ Response:
 }
 ```
 
-**/users/{id}**
+**/me**
 ```js
 {
   id: 123,

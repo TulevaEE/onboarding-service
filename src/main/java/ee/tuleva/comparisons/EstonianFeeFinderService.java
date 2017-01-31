@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.Resource;
 import java.io.IOException;
 import java.text.NumberFormat;
 import java.text.ParseException;
@@ -25,9 +26,11 @@ public class EstonianFeeFinderService {
     private static final String feeURLString = "https://www.pensionikeskus.ee/ii-sammas/fondid/fonditasude-vordlused/";
 
     @Autowired
+    @Resource
     ComparisonDAO comparisonDAO;
 
-    @Scheduled(cron = "0 0 0 1 */3 ?")
+    //@Scheduled(cron = "0 0 0 1 */3 ?")
+    @Scheduled(fixedDelay = 3000)
     public void updateFeesFromPensionSystem() throws IOException, ParseException {
 
         Document doc = Jsoup.connect(feeURLString).get();
@@ -70,6 +73,7 @@ public class EstonianFeeFinderService {
                 }
                 sumFee += f;
             }
+
 
             comparisonDAO.addFee(isin, sumFee);
 

@@ -15,6 +15,9 @@ public class ComparisonController {
     @Autowired
     private ComparisonService comparisonService;
 
+    @Autowired
+    private EstonianFeeFinderService estonianFeeFinderService;
+
     @RequestMapping(path = "v1/comparisons/", method = RequestMethod.GET)
     public Map<String, String> comparison(@RequestParam(value = "totalCapital") Double totalCapital, @RequestParam(value = "age") Integer age,
                                           @RequestParam(value = "isin") String isin, @RequestParam(value = "monthlyWage") Double monthlyWage){

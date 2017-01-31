@@ -3,6 +3,8 @@ package ee.tuleva.comparisons;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.Resource;
+import java.text.DecimalFormat;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,6 +18,7 @@ public class ComparisonService {
     private double gainRate = 0.03;
 
     @Autowired
+    @Resource
     ComparisonDAO comparisonDAO;
 
     private double totalFee(double totalCapital, int age, double monthlyWage, String isin) {
@@ -36,6 +39,9 @@ public class ComparisonService {
         //double fvy = yearlyDeposit * ( Math.pow(1+rNet,n) - Math.pow(1+gainRate,n)) / 1 - gainRate + totalCapital * Math.pow(1+rNet, n);
 
         totalFee = fvx - fvy;
+
+        DecimalFormat df = new DecimalFormat("#.##");
+        totalFee = Double.valueOf(df.format(totalFee));
         return totalFee;
 
     }

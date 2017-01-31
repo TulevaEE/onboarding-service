@@ -2,28 +2,24 @@ package ee.tuleva
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.http.MediaType
 import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
 import spock.lang.Specification
 
-import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
 
-@WebMvcTest(HelloWorldController.class)
+@WebMvcTest(IndexController.class)
 @WithMockUser
-class HelloWorldControllerSpec extends Specification {
+class IndexControllerSpec extends Specification {
 
 	@Autowired
 	MockMvc mvc
 
-	def "hello world works"() {
+	def "root redirects to the swagger-ui"() {
 		expect:
 		mvc.perform(get("/"))
-				.andExpect(status().isOk())
-				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-				.andExpect(jsonPath('$.message', is("Hello World")))
+				.andExpect(redirectedUrl("/swagger-ui.html"));
 	}
 
 }

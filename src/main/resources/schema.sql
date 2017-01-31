@@ -34,5 +34,6 @@ CREATE TABLE IF NOT EXISTS users (
   first_name VARCHAR(255) NOT NULL,
   last_name VARCHAR(255) NOT NULL,
   created_date TIMESTAMP NOT NULL,
-  member_number INTEGER
+  member_number INTEGER,
+  CONSTRAINT personal_code UNIQUE (personal_code)
 );

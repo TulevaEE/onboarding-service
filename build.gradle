@@ -34,6 +34,7 @@ dependencies {
 	compile("org.springframework.boot:spring-boot-devtools")
 
 	compile("org.projectlombok:lombok:1.16.12")
+	compile("org.jsoup:jsoup:1.8.1")
 
 	testCompile("com.h2database:h2")
 	testCompile("org.springframework.boot:spring-boot-starter-test") {

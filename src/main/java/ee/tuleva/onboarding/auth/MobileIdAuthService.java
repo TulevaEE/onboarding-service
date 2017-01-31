@@ -15,6 +15,10 @@ public class MobileIdAuthService {
     private static final String KEYSTORE_PATH = "test_keys/keystore.jks";
     private MobileIDAuthenticator mid = new MobileIDAuthenticator(TEST_DIGIDOC_SERVICE_URL);
 
+    public void setMobileIdAuthenticator(MobileIDAuthenticator mobileIDAuthenticator) {
+        this.mid = mobileIDAuthenticator;
+    }
+
     public MobileIdAuthService() {
         System.setProperty("javax.net.ssl.trustStore", KEYSTORE_PATH);
     }

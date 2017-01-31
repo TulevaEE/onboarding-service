@@ -37,6 +37,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
 
         final String clientId = client.getClientId();
         if (clientId == null) {
+            log.error("Failed to authenticate client {}", clientId);
             throw new InvalidRequestException("Unknown Client ID.");
         }
 
@@ -48,16 +49,14 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
         }
 
         User user = userRepository.findByPersonalCode(mobileIDSession.personalCode);
+
+        if (user == null) {
+            log.error("Failed to authenticate user: couldn't find user with personal code {}", mobileIDSession.personalCode);
+            throw new InvalidRequestException("Invalid user credentials.");
+        }
+
         Authentication userAuthentication = new PersonalCodeAuthentication(user, mobileIDSession, null);
         userAuthentication.setAuthenticated(true);
-
-/*
-
-        if (userAuthentication == null) {
-            log.error("Failed to authenticate user: got null authentication");
-            throw new InvalidGrantException("Invalid user credentials.");
-        }
-*/
 
         final OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);
         final OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request,

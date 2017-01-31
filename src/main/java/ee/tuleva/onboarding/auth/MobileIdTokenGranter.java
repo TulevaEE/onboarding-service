@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.auth;
 
 import com.codeborne.security.mobileid.MobileIDSession;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
@@ -8,21 +10,23 @@ import org.springframework.security.oauth2.common.exceptions.InvalidRequestExcep
 import org.springframework.security.oauth2.provider.*;
 import org.springframework.security.oauth2.provider.token.AbstractTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
-import ee.tuleva.onboarding.user.User;
 
 @Slf4j
 public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenGranter {
     public static final String GRANT_TYPE = "mobile_id";
 
-    MobileIdAuthService mobileIdAuthService;
+    private final MobileIdAuthService mobileIdAuthService;
+
+    private final UserRepository userRepository;
 
     public MobileIdTokenGranter(AuthorizationServerTokenServices tokenServices,
-                                ClientDetailsService clientDetailsService, OAuth2RequestFactory requestFactory) {
+                                ClientDetailsService clientDetailsService,
+                                OAuth2RequestFactory requestFactory,
+                                MobileIdAuthService mobileIdAuthService,
+                                UserRepository userRepository) {
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
-    }
-
-    public void setMobileIdAuthService(MobileIdAuthService mobileIdAuthService) {
         this.mobileIdAuthService = mobileIdAuthService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -33,6 +37,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
 
         final String clientId = client.getClientId();
         if (clientId == null) {
+            log.error("Failed to authenticate client {}", clientId);
             throw new InvalidRequestException("Unknown Client ID.");
         }
 
@@ -43,17 +48,15 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
             throw new MobileIdAuthNotCompleteException();
         }
 
-        User user = new User(new Long(12), "isikukood");
+        User user = userRepository.findByPersonalCode(mobileIDSession.personalCode);
+
+        if (user == null) {
+            log.error("Failed to authenticate user: couldn't find user with personal code {}", mobileIDSession.personalCode);
+            throw new InvalidRequestException("Invalid user credentials.");
+        }
+
         Authentication userAuthentication = new PersonalCodeAuthentication(user, mobileIDSession, null);
         userAuthentication.setAuthenticated(true);
-
-/*
-
-        if (userAuthentication == null) {
-            log.error("Failed to authenticate user: got null authentication");
-            throw new InvalidGrantException("Invalid user credentials.");
-        }
-*/
 
         final OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);
         final OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request,

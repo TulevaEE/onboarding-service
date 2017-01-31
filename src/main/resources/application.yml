@@ -22,3 +22,12 @@ spring:
     throw-exception-if-no-handler-found: true
   resources:
 #    add-mappings: false
+
+---
+
+spring:
+  profiles: production
+  datasource:
+    url: ${JDBC_DATABASE_URL}
+    username: ${JDBC_DATABASE_USERNAME}
+    password: ${JDBC_DATABASE_PASSWORD}

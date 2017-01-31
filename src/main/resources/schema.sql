@@ -27,3 +27,12 @@ CREATE TABLE IF NOT EXISTS oauth_refresh_token (
   token bytea,
   authentication bytea
 );
+
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  personalCode CHAR(11) NOT NULL,
+  firstName VARCHAR(255) NOT NULL,
+  lastName VARCHAR(255) NOT NULL,
+  createdDate TIMESTAMP WITH TIME ZONE NOT NULL,
+  memberNumber INTEGER
+);

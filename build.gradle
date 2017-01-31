@@ -24,6 +24,9 @@ targetCompatibility = 1.8
 
 repositories {
 	mavenCentral()
+	maven {
+		url "https://raw.githubusercontent.com/TulevaEE/releases-repo/master/"
+	}
 }
 
 
@@ -39,6 +42,7 @@ dependencies {
 	compile("org.projectlombok:lombok:1.16.12")
 
 	compile('com.codeborne:mobileid:1.1')
+	compile('ee.eesti.xtee6.kpr:xtee-kpr:1.0')
 
 	compile('io.springfox:springfox-swagger2:2.6.1')
 	compile('io.springfox:springfox-swagger-ui:2.6.1')

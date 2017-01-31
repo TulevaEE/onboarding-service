@@ -33,6 +33,6 @@ CREATE TABLE IF NOT EXISTS users (
   personalCode CHAR(11) NOT NULL,
   firstName VARCHAR(255) NOT NULL,
   lastName VARCHAR(255) NOT NULL,
-  createdDate TIMESTAMP WITH TIME ZONE NOT NULL,
+  createdDate TIMESTAMP NOT NULL,
   memberNumber INTEGER
 );

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,6 +13,7 @@ import java.time.Instant;
 @Builder
 @Entity
 @Table(name = "users")
+@AllArgsConstructor
 @NoArgsConstructor
 public class User implements Serializable {
 

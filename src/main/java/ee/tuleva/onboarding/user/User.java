@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
@@ -12,14 +13,13 @@ import java.io.Serializable;
 @Data
 @Builder
 @Entity
-class User implements Serializable {
+@AllArgsConstructor
+public class User implements Serializable {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.AUTO)
 	private Long id;
 
-	private String username;
-
-	private String password;
+	private String personalCode;
 
 }

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.auth;
 
-import com.codeborne.security.AuthenticationException;
 import com.codeborne.security.mobileid.MobileIDAuthenticator;
 import com.codeborne.security.mobileid.MobileIDSession;
 import lombok.extern.slf4j.Slf4j;
@@ -20,30 +19,9 @@ public class MobileIdAuthService {
         System.setProperty("javax.net.ssl.trustStore", KEYSTORE_PATH);
     }
 
-    public MobileIDSession fullLogin(String phoneNumber) {
-        MobileIDSession mobileIDSession;
-        try {
-            mobileIDSession = startLogin(phoneNumber);
-            waitForLogin(mobileIDSession);
-        } catch (AuthenticationException e) {
-            e.printStackTrace();
-            log.info("Mobile ID authentication failed" + e.getMessage());
-            return null;
-        }
-
-        return mobileIDSession;
-    }
-
     public MobileIDSession startLogin(String phoneNumber) {
         MobileIDSession mobileIDSession = mid.startLogin(phoneNumber);
         log.info("Mobile ID authentication with challenge " + mobileIDSession.challenge + " sent to " + phoneNumber);
-        return mobileIDSession;
-    }
-
-    public MobileIDSession waitForLogin(MobileIDSession mobileIDSession) {
-        log.info("Waiting for mobile ID login: " + mobileIDSession.sessCode);
-        mid.waitForLogin(mobileIDSession);
-        log.info("Mobile ID authentication success! First name: " + mobileIDSession.firstName + ", Last name: " + mobileIDSession.lastName + ", Personal code: " + mobileIDSession.personalCode);
         return mobileIDSession;
     }
 

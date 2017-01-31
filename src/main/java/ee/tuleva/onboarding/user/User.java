@@ -1,25 +1,30 @@
 package ee.tuleva.onboarding.user;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
+import javax.persistence.*;
 import java.io.Serializable;
+import java.time.Instant;
 
 @Data
 @Builder
 @Entity
-@AllArgsConstructor
+@Table(name = "users")
 public class User implements Serializable {
 
 	@Id
-	@GeneratedValue(strategy = GenerationType.AUTO)
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
 	private String personalCode;
+
+	private String firstName;
+
+	private String lastName;
+
+	private Instant createdDate;
+
+	private Integer memberNumber;
 
 }

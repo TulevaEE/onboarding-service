@@ -43,8 +43,6 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
             throw new MobileIdAuthNotCompleteException();
         }
 
-        final PersonalCodeCredentials credentials = new PersonalCodeCredentials(mobileIDSession.personalCode);
-
         User user = new User(new Long(12), "isikukood");
         Authentication userAuthentication = new PersonalCodeAuthentication(user, mobileIDSession, null);
         userAuthentication.setAuthenticated(true);

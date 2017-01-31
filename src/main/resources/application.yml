@@ -20,8 +20,10 @@ spring:
       ddl-auto: none
   mvc:
     throw-exception-if-no-handler-found: true
-  resources:
-#    add-mappings: false
+  jackson:
+    date-format: com.fasterxml.jackson.databind.util.ISO8601DateFormat
+    serialization:
+      write_dates_as_timestamps: false
 
 ---
 

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.auth;
 
 import com.codeborne.security.mobileid.MobileIDSession;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
@@ -8,21 +10,23 @@ import org.springframework.security.oauth2.common.exceptions.InvalidRequestExcep
 import org.springframework.security.oauth2.provider.*;
 import org.springframework.security.oauth2.provider.token.AbstractTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
-import ee.tuleva.onboarding.user.User;
 
 @Slf4j
 public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenGranter {
     public static final String GRANT_TYPE = "mobile_id";
 
-    MobileIdAuthService mobileIdAuthService;
+    private final MobileIdAuthService mobileIdAuthService;
+
+    private final UserRepository userRepository;
 
     public MobileIdTokenGranter(AuthorizationServerTokenServices tokenServices,
-                                ClientDetailsService clientDetailsService, OAuth2RequestFactory requestFactory) {
+                                ClientDetailsService clientDetailsService,
+                                OAuth2RequestFactory requestFactory,
+                                MobileIdAuthService mobileIdAuthService,
+                                UserRepository userRepository) {
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
-    }
-
-    public void setMobileIdAuthService(MobileIdAuthService mobileIdAuthService) {
         this.mobileIdAuthService = mobileIdAuthService;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -43,7 +47,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
             throw new MobileIdAuthNotCompleteException();
         }
 
-        User user = new User(new Long(12), "isikukood");
+        User user = userRepository.findByPersonalCode(mobileIDSession.personalCode);
         Authentication userAuthentication = new PersonalCodeAuthentication(user, mobileIDSession, null);
         userAuthentication.setAuthenticated(true);
 

@@ -23,7 +23,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
 @CrossOrigin(origins = "*")
 public class AuthController {
 
-    MobileIdAuthService mobileIdAuthService;
+    private MobileIdAuthService mobileIdAuthService;
 
     @Autowired
     AuthController(MobileIdAuthService mobileIdAuthService) {

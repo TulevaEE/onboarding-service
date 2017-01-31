@@ -21,7 +21,7 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
                 .authorizeRequests().regexMatchers("/v1/.*").authenticated()
                 .regexMatchers("/").permitAll()
                 .and()
-                .csrf().ignoringAntMatchers("/v1/**", "/authenticate", "/authenticate/is-complete");
+                .csrf().ignoringAntMatchers("/v1/**", "/authenticate");
 
     }
 }

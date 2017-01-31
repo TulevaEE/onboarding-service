@@ -40,6 +40,7 @@ dependencies {
 	compile("org.springframework.security.oauth:spring-security-oauth2")
 	compile("cglib:cglib-nodep:3.2.4")
 	compile("org.projectlombok:lombok:1.16.12")
+	compile("org.jsoup:jsoup:1.8.1")
 
 	compile('com.codeborne:mobileid:1.1')
 	compile('ee.eesti.xtee6.kpr:xtee-kpr:1.0')

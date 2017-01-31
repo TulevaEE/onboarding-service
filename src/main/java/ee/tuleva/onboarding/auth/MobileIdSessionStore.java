@@ -1,20 +1,22 @@
 package ee.tuleva.onboarding.auth;
 
 import com.codeborne.security.mobileid.MobileIDSession;
+import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpSession;
 
+@Component
 public class MobileIdSessionStore {
 
     private static String MOBILE_ID_SESSION_VARIABLE = "mobileIdSession";
 
-    public static void save(MobileIDSession mobileIDSession) {
+    public  void save(MobileIDSession mobileIDSession) {
         session().setAttribute(MOBILE_ID_SESSION_VARIABLE, mobileIDSession.toString());
     }
 
-    public static MobileIDSession get() {
+    public MobileIDSession get() {
 
         String serializedSession = (String) session().getAttribute(MOBILE_ID_SESSION_VARIABLE);
         if(serializedSession == null) {

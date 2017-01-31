@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.config;
 
 import ee.tuleva.onboarding.auth.MobileIdAuthService;
+import ee.tuleva.onboarding.auth.MobileIdSessionStore;
 import ee.tuleva.onboarding.auth.MobileIdTokenGranter;
 import ee.tuleva.onboarding.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +31,9 @@ public class OAuthConfiguration extends AuthorizationServerConfigurerAdapter {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private MobileIdSessionStore mobileIdSessionStore;
+
     @Bean
     public JdbcClientDetailsService clientDetailsService() {
         return new JdbcClientDetailsService(dataSource);
@@ -52,13 +56,13 @@ public class OAuthConfiguration extends AuthorizationServerConfigurerAdapter {
 
     @Override
     public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-
         MobileIdTokenGranter mobileIdTokenGranter = new MobileIdTokenGranter(
                 endpoints.getTokenServices(),
                 clientDetailsService(),
                 endpoints.getOAuth2RequestFactory(),
                 mobileIdAuthService,
-                userRepository
+                userRepository,
+                mobileIdSessionStore
         );
 
         endpoints

@@ -57,7 +57,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
 
         if (user == null) {
             log.error("Failed to authenticate user: couldn't find user with personal code {}", mobileIDSession.personalCode);
-            throw new InvalidRequestException("Invalid user credentials.");
+            throw new InvalidRequestException("INVALID_USER_CREDENTIALS");
         }
 
         Authentication userAuthentication = new PersonalCodeAuthentication(user, mobileIDSession, null);

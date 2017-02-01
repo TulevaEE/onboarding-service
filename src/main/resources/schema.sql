@@ -57,6 +57,6 @@ CREATE TABLE IF NOT EXISTS fund (
   isin TEXT,
   name TEXT,
   management_fee_percent REAL,
-  fund_manager INTEGER REFERENCES fund_manager
+  fund_manager_id INTEGER REFERENCES fund_manager
 );
 

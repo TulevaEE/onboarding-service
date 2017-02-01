@@ -1,4 +1,4 @@
-package ee.tuleva.comparisons;
+package ee.tuleva.onboarding.comparisons;
 
 
 import org.jsoup.Jsoup;
@@ -28,7 +28,7 @@ public class EstonianFeeFinderService {
 
     //TODO: schedule after every 3 months
     //@Scheduled(cron = "0 0 0 1 */3 ?")
-    @Scheduled(fixedDelay = 3000)
+    @Scheduled(fixedDelay = 300000)
     public void updateFeesFromPensionSystem() throws IOException, ParseException {
 
         Document doc = Jsoup.connect(feeURLString).get();
@@ -59,14 +59,14 @@ public class EstonianFeeFinderService {
             String[] allFeeValues = tableColValues.split("[^\\d]?%[^\\d]?");
 
             String managementFee = allFeeValues[allFeeValues.length-1];
-            double manFee;
+            float manFee;
             if (managementFee.contains(",")){
                 NumberFormat format = NumberFormat.getInstance(Locale.FRANCE);
                 Number number = format.parse(managementFee);
-                manFee = number.doubleValue();
+                manFee = number.floatValue();
             }
             else {
-                manFee = Double.parseDouble(managementFee);
+                manFee = Float.parseFloat(managementFee);
             }
 
             comparisonDAO.addFee(isin, manFee);

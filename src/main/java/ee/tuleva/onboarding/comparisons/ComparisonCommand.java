@@ -1,4 +1,4 @@
-package ee.tuleva.comparisons;
+package ee.tuleva.onboarding.comparisons;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -11,15 +11,15 @@ import javax.validation.constraints.Size;
 public class ComparisonCommand {
 
     @Min(0)
-    Double totalCapital;
+    Float totalCapital;
     @Min(0)
     Integer age;
     @Min(0)
-    Double monthlyWage;
+    Float monthlyWage;
     @Size(min = 12, max = 12)
     String isin;
 
-    public Double getTotalCapital() {
+    public Float getTotalCapital() {
         return totalCapital;
     }
 
@@ -27,7 +27,7 @@ public class ComparisonCommand {
         return age;
     }
 
-    public Double getMonthlyWage() {
+    public Float getMonthlyWage() {
         return monthlyWage;
     }
 

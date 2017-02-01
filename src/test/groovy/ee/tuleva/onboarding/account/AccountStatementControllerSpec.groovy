@@ -1,15 +1,11 @@
 package ee.tuleva.onboarding.account
 
-import ee.tuleva.ee.tuleva.onboarding.xroad.XRoadClient
-import ee.tuleva.onboarding.auth.AuthController
-import ee.tuleva.onboarding.auth.MobileIdAuthService
-import ee.tuleva.onboarding.auth.MobileIdSessionStore
-import ee.tuleva.onboarding.user.UserController
+import ee.tuleva.domain.fund.FundRepository
+import ee.tuleva.onboarding.xroad.XRoadClient
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.context.annotation.Import
+import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.http.MediaType
 import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
@@ -29,7 +25,15 @@ class AccountStatementControllerSpec extends Specification {
     @Autowired
     MockMvc mvc
 
+    @MockBean
+    XRoadClient xRoadClient;
+
+    @MockBean
+    FundRepository fundRepository;
+
     def "/pension-account-statement endpoint works"() {
+
+
         expect:
         mvc.perform(get("/v1/pension-account-statement"))
                 .andExpect(status().isOk())

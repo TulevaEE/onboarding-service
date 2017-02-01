@@ -1,4 +1,4 @@
-package ee.tuleva.ee.tuleva.onboarding.xroad;
+package ee.tuleva.onboarding.xroad;
 
 
 import ee.eesti.xtee6.kpr.KprV6PortType;

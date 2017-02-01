@@ -11,7 +11,7 @@ import spock.lang.Specification
 
 import javax.servlet.RequestDispatcher
 
-import static org.hamcrest.Matchers.is
+import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -27,13 +27,18 @@ class ErrorHandlingControllerSpec extends Specification {
 	def "error handling works"() {
 		expect:
 		mvc.perform(get("/error")
+				.requestAttr(RequestDispatcher.ERROR_EXCEPTION, new RuntimeException())
 				.requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 403)
 				.requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/asdf")
 				.requestAttr(RequestDispatcher.ERROR_MESSAGE, "oops!"))
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-				.andExpect(jsonPath('$.status', is(403)))
 				.andExpect(jsonPath('$.error', is("Forbidden")))
-				.andExpect(jsonPath('$.message', is("oops!")))
+				.andExpect(jsonPath('$.error_description', is("oops!")))
+				.andExpect(jsonPath('$.exception', is("java.lang.RuntimeException")))
+				.andExpect(jsonPath('$.path', is("/asdf")))
+				.andExpect(jsonPath('$.timestamp', not(isEmptyOrNullString())))
+
+
 	}
 
 }

@@ -46,3 +46,17 @@ CREATE TABLE IF NOT EXISTS initial_capital (
   amount DECIMAL(12,2),
   currency VARCHAR(3)
 );
+
+CREATE TABLE IF NOT EXISTS fund_manager (
+  id SERIAL PRIMARY KEY,
+  name TEXT
+);
+
+CREATE TABLE IF NOT EXISTS pension_funds (
+  id SERIAL PRIMARY KEY,
+  isin TEXT,
+  name TEXT,
+  management_fee_percent REAL,
+  fund_manager INTEGER REFERENCES fund_manager
+);
+

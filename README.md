@@ -11,9 +11,7 @@ O-Auth2 based on Mobile-ID and ID-card authentication provider auth calls.
   {
     id: 1,
     isin: "AE12324344336",
-    name: "STOCK",
-    price: 0.3,
-    pillar: 2
+    name: "STOCK"
   }
 ]
 ```
@@ -43,7 +41,7 @@ Body:
     {
       source: "AE43434334", //isin
       target: "AE43433434", //isin
-      sharePercentage: 100
+      sharePercent: 100
     }
   ]
 }

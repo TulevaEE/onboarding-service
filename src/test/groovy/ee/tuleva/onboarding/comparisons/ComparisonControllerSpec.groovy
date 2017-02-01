@@ -20,10 +20,13 @@ class ComparisonControllerSpec extends Specification {
     String LHVinterestIsin = "EE3600019816";
 
     def "comparison endpoint works" (){
-        expect:
-        mvc.perform(get("/v1/comparisons/?totalCapital=1000&age=30&monthlyWage=2000&isin=EE3600019816"))
+        when:
+        comparisonService.comparedResults(_) >> new Comparison(LHVinterestIsin, 123.0f)
+        then:
+        mvc.perform(get("/v1/comparisons/?totalCapital=1000&age=30&monthlyWage=2000&isin="+LHVinterestIsin))
                 .andExpect(status().isOk())
-                //.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(jsonPath('$.currency',is("EUR"))).andExpect(jsonPath('$.isin', is(LHVinterestIsin)))
 
     }
 

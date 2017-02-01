@@ -48,7 +48,6 @@ public class ComparisonService {
         return w*((float)Math.pow(1+r,n)-(float)Math.pow(1+g,n)) / 1-g + pmt * (float)Math.pow(1+r,n);
     }
 
-    //public Map<String, String> comparedResults (ComparisonCommand cm) throws IsinNotFoundException{
     public Comparison comparedResults (ComparisonCommand cm) throws IsinNotFoundException{
 
         String isin = cm.getIsin();
@@ -58,12 +57,6 @@ public class ComparisonService {
 
         float totalFee = totalFee(totalCapital, age, monthlyWage, isin);
 
-        //Map<String, String> rdata = new HashMap<>();
-        //rdata.put("isin", isin);
-        //rdata.put("totalFee", Float.toString(totalFee));
-        //rdata.put("currency", "EUR");
-
-        //return rdata;
         return new Comparison(isin,totalFee);
     }
 

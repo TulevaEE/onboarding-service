@@ -1,24 +1,31 @@
 package ee.tuleva.onboarding.comparisons;
 
-import lombok.Builder;
-import lombok.Data;
-import org.hibernate.validator.constraints.NotBlank;
-
-import javax.persistence.Entity;
 import java.io.Serializable;
 
-@Data
-@Entity
+
 public class Comparison implements Serializable{
 
     private String isin;
 
     private float totalFee;
 
-    private static String currency = "EUR";
+    private String currency;
 
     public Comparison(String isin, float totalFee) {
         this.isin = isin;
         this.totalFee = totalFee;
+        this.currency = "EUR";
+    }
+
+    public String getIsin() {
+        return isin;
+    }
+
+    public float getTotalFee() {
+        return totalFee;
+    }
+
+    public String getCurrency() {
+        return currency;
     }
 }

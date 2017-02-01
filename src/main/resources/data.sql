@@ -28,8 +28,8 @@ INSERT INTO fund_manager(
       );
 
 INSERT INTO users(
-            id, personal_code, first_name, last_name, created_date, member_number)
-    SELECT 1, '39911223344', 'Tõnu', 'Pekk', '2015-01-31 14:06:01', 1
+            id, personal_code, first_name, last_name, created_date, member_number, phone_number, email)
+    SELECT 1, '39911223344', 'Tõnu', 'Pekk', '2015-01-31 14:06:01', 1, '1234567', 'tonu@tonu.ee'
     WHERE
       NOT EXISTS (
         SELECT * FROM users WHERE id = 1

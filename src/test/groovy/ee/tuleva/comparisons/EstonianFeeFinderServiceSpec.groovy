@@ -5,7 +5,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.web.context.WebApplicationContext
 import spock.lang.Specification
 
-@SpringBootTest
+@SpringBootTest()
 class EstonianFeeFinderServiceSpec extends Specification {
     @Autowired
     WebApplicationContext context

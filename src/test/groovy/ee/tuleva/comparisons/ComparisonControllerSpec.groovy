@@ -20,10 +20,6 @@ class ComparisonControllerSpec extends Specification {
 
     String LHVinterestIsin = "EE3600019816";
 
-    @Autowired
-    ComparisonServiceSpec comparisonService;
-
-
 
 
 }

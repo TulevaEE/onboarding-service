@@ -1,5 +1,6 @@
-package ee.tuleva.domain.fund;
+package ee.tuleva.onboarding.capital;
 
+import ee.tuleva.onboarding.user.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -8,29 +9,29 @@ import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
+import java.math.BigDecimal;
 
 @Data
 @Builder
 @Entity
-@Table(name = "fund")
+@Table(name = "users")
 @AllArgsConstructor
 @NoArgsConstructor
-public class Fund {
+public class InitialCapital {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    private FundManager fundManager;
-
-    @NotBlank
-    private String isin;
-
-    @NotBlank
-    private String name;
-
     @NotNull
-    private Float managementFeePercent;
+    BigDecimal amount;
+
+    @NotBlank
+    @Size(min = 3, max = 3)
+    String currency;
+
+    @OneToOne
+    User user;
 
 }

@@ -15,9 +15,12 @@ import javax.persistence.*;
 @AllArgsConstructor
 @NoArgsConstructor
 public class FundManager {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @NotBlank
     String name;
+
 }

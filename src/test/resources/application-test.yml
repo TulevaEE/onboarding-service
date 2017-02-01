@@ -1,8 +1,6 @@
 debug: true
 
 spring:
-  profiles:
-    active: test
   datasource:
     username: sa
     password:
@@ -14,7 +12,6 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: none
-
 
 logging.level:
   org.hibernate.type: TRACE

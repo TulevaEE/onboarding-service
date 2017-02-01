@@ -18,10 +18,10 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
 
         http
         .anonymous().and()
-                .authorizeRequests().regexMatchers("/v1/.*").authenticated()
+                .authorizeRequests()
                 .regexMatchers("/").permitAll()
                 .and()
-                .csrf().ignoringAntMatchers("/v1/**", "/authenticate", "/authenticate/is-complete");
+                .csrf().ignoringAntMatchers("/v1/**", "/authenticate");
 
     }
 }

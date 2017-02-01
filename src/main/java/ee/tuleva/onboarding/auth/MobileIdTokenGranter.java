@@ -16,32 +16,37 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
     public static final String GRANT_TYPE = "mobile_id";
 
     private final MobileIdAuthService mobileIdAuthService;
-
     private final UserRepository userRepository;
+    private final MobileIdSessionStore mobileIdSessionStore;
 
     public MobileIdTokenGranter(AuthorizationServerTokenServices tokenServices,
                                 ClientDetailsService clientDetailsService,
                                 OAuth2RequestFactory requestFactory,
                                 MobileIdAuthService mobileIdAuthService,
-                                UserRepository userRepository) {
+                                UserRepository userRepository,
+                                MobileIdSessionStore mobileIdSessionStore) {
+
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
+
+        assert mobileIdAuthService != null;
+        assert userRepository != null;
+        assert mobileIdSessionStore != null;
+
         this.mobileIdAuthService = mobileIdAuthService;
         this.userRepository = userRepository;
+        this.mobileIdSessionStore = mobileIdSessionStore;
     }
 
     @Override
     protected OAuth2AccessToken getAccessToken(ClientDetails client, TokenRequest tokenRequest) {
         // grant_type validated in AbstractTokenGranter
-
-        assert mobileIdAuthService != null;
-
         final String clientId = client.getClientId();
         if (clientId == null) {
             log.error("Failed to authenticate client {}", clientId);
             throw new InvalidRequestException("Unknown Client ID.");
         }
 
-        MobileIDSession mobileIDSession = MobileIdSessionStore.get();
+        MobileIDSession mobileIDSession = mobileIdSessionStore.get();
         boolean isComplete = mobileIdAuthService.isLoginComplete(mobileIDSession);
 
         if(!isComplete) {

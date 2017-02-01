@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.validator.constraints.Email;
 import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
@@ -29,6 +30,13 @@ public class User implements Serializable {
 	@Size(min = 11, max = 11)
 	private String personalCode;
 
+	@NotNull
+	@Email
+	private String email;
+
+	@NotBlank
+	private String phoneNumber;
+
 	@NotBlank
 	private String firstName;
 
@@ -39,6 +47,7 @@ public class User implements Serializable {
 	@Past
 	private Instant createdDate;
 
+	@NotNull
 	private Integer memberNumber;
 
 }

@@ -7,10 +7,6 @@ import spock.lang.Specification
 class MobileIdAuthServiceSpec extends Specification {
 
     MobileIdAuthService mobileIdAuthService
-    String samplePhoneNumber = "5532533";
-    MobileIDSession sampleMobileIdSession = new MobileIDSession(
-            123, "challenge", "firstName", "lastName", "personalCode"
-    );
     MobileIDAuthenticator mobileIDAuthenticator = Mock(MobileIDAuthenticator)
 
     def setup() {
@@ -20,18 +16,18 @@ class MobileIdAuthServiceSpec extends Specification {
 
     def "StartLogin: Start mobile id login with a phone number"() {
         given:
-        1 * mobileIDAuthenticator.startLogin(_ as String) >> sampleMobileIdSession
+        1 * mobileIDAuthenticator.startLogin(_ as String) >> MobileIdFixture.sampleMobileIdSession
         when:
-        MobileIDSession mobileIDSession = mobileIdAuthService.startLogin(samplePhoneNumber)
+        MobileIDSession mobileIDSession = mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber)
         then:
-        mobileIDSession == sampleMobileIdSession
+        mobileIDSession == MobileIdFixture.sampleMobileIdSession
     }
 
     def "IsLoginComplete: Fetch state of mobile id login"() {
         given:
-        1 * mobileIDAuthenticator.isLoginComplete(sampleMobileIdSession) >> true
+        1 * mobileIDAuthenticator.isLoginComplete(MobileIdFixture.sampleMobileIdSession) >> true
         when:
-        boolean isLoginComplete = mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
+        boolean isLoginComplete = mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession)
         then:
         isLoginComplete == true
     }

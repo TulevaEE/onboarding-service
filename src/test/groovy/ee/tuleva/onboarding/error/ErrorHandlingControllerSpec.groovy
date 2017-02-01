@@ -16,9 +16,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 
-@WebMvcTest(controllers = ErrorHandlingController.class)
+@WebMvcTest(ErrorHandlingController)
 @WithMockUser
-@Import(DefaultErrorAttributes.class)
+@Import(DefaultErrorAttributes)
 class ErrorHandlingControllerSpec extends Specification {
 
 	@Autowired

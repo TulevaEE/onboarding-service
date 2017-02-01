@@ -24,10 +24,12 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
 public class AuthController {
 
     private MobileIdAuthService mobileIdAuthService;
+    private MobileIdSessionStore mobileIdSessionStore;
 
     @Autowired
-    AuthController(MobileIdAuthService mobileIdAuthService) {
+    AuthController(MobileIdAuthService mobileIdAuthService, MobileIdSessionStore mobileIdSessionStore) {
         this.mobileIdAuthService = mobileIdAuthService;
+        this.mobileIdSessionStore = mobileIdSessionStore;
     }
 
     @ApiOperation(value = "Initiate authentication")
@@ -37,7 +39,7 @@ public class AuthController {
             consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
     public ResponseEntity<AuthenticateResponse> authenticate(@Valid @RequestBody AuthenticateCommand authenticateCommand) {
             MobileIDSession mobileIDSession = mobileIdAuthService.startLogin(authenticateCommand.getPhoneNumber());
-            MobileIdSessionStore.save(mobileIDSession);
+            mobileIdSessionStore.save(mobileIDSession);
         return new ResponseEntity<AuthenticateResponse>(AuthenticateResponse.fromMobileIDSession(mobileIDSession), HttpStatus.OK);
     }
 

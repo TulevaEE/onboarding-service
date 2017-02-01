@@ -33,6 +33,16 @@ CREATE TABLE IF NOT EXISTS users (
   personal_code CHAR(11) NOT NULL,
   first_name VARCHAR(255) NOT NULL,
   last_name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) NOT NULL,
+  phone_number VARCHAR(255) NOT NULL,
   created_date TIMESTAMP NOT NULL,
-  member_number INTEGER
+  member_number INTEGER NOT NULL,
+  CONSTRAINT personal_code UNIQUE (personal_code)
+);
+
+CREATE TABLE IF NOT EXISTS initial_capital (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users,
+  amount DECIMAL(12,2),
+  currency VARCHAR(3)
 );

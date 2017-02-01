@@ -39,3 +39,10 @@ CREATE TABLE IF NOT EXISTS users (
   member_number INTEGER NOT NULL,
   CONSTRAINT personal_code UNIQUE (personal_code)
 );
+
+CREATE TABLE IF NOT EXISTS initial_capital (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users,
+  amount DECIMAL(12,2),
+  currency VARCHAR(3)
+);

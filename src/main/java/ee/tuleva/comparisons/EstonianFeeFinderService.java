@@ -15,9 +15,6 @@ import javax.annotation.Resource;
 import java.io.IOException;
 import java.text.NumberFormat;
 import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Locale;
 
 @Component
@@ -73,7 +70,6 @@ public class EstonianFeeFinderService {
                 }
                 sumFee += f;
             }
-
 
             comparisonDAO.addFee(isin, sumFee);
 

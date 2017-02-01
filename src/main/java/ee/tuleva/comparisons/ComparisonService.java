@@ -1,5 +1,6 @@
 package ee.tuleva.comparisons;
 
+import ee.tuleva.comparisons.exceptions.IsinNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,11 +20,9 @@ public class ComparisonService {
 
     @Autowired
     @Resource
-    ComparisonDAO comparisonDAO;
+    private ComparisonDAO comparisonDAO;
 
-    private double totalFee(double totalCapital, int age, double monthlyWage, String isin) {
-
-        double totalFee = 0;
+    private double totalFee(double totalCapital, int age, double monthlyWage, String isin) throws IsinNotFoundException{
 
         int n = estonianAgeOfRetirement - age;
 
@@ -31,14 +30,13 @@ public class ComparisonService {
 
         double yearlyDeposit = monthlyDeposit * 12;
 
-        //double fvx = yearlyDeposit * ( Math.pow(1+returnRate,n) - Math.pow(1+gainRate,n)) / 1-gainRate + totalCapital * Math.pow(1+returnRate,n);
         double fvx = fv(totalCapital,n, yearlyDeposit,gainRate,returnRate);
+
         double rNet = returnRate - comparisonDAO.getFee(isin);
 
         double fvy = fv(totalCapital,n, yearlyDeposit,gainRate,rNet);
-        //double fvy = yearlyDeposit * ( Math.pow(1+rNet,n) - Math.pow(1+gainRate,n)) / 1 - gainRate + totalCapital * Math.pow(1+rNet, n);
 
-        totalFee = fvx - fvy;
+        double totalFee = fvx - fvy;
 
         DecimalFormat df = new DecimalFormat("#.##");
         totalFee = Double.valueOf(df.format(totalFee));
@@ -50,7 +48,13 @@ public class ComparisonService {
         return w*(Math.pow(1+r,n)-Math.pow(1+g,n)) / 1-g + pmt * Math.pow(1+r,n);
     }
 
-    public Map<String, String> comparedResults(double totalCapital, int age, String isin, double monthlyWage) {
+    //public Map<String, String> comparedResults(double totalCapital, int age, String isin, double monthlyWage) {
+    public Map<String, String> comparedResults (ComparisonCommand cm) throws IsinNotFoundException{
+
+        String isin = cm.getIsin();
+        int age = cm.getAge();
+        double monthlyWage = cm.getMonthlyWage();
+        double totalCapital = cm.getMonthlyWage();
 
         double totalFee = totalFee(totalCapital, age, monthlyWage, isin);
 

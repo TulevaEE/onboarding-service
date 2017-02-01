@@ -1,6 +1,7 @@
 package ee.tuleva.comparisons;
 
 
+import ee.tuleva.comparisons.exceptions.IsinNotFoundException;
 import org.springframework.stereotype.Repository;
 
 import java.util.HashMap;
@@ -41,7 +42,10 @@ public class ComparisonDAO {
 
     private Map<String, Double> EstonianPensionFundFee = new HashMap<>();
 
-    public Double getFee(String isin) {
+    public Double getFee(String isin) throws IsinNotFoundException{
+        if (!EstonianPensionFundFee.containsKey(isin)){
+            throw new IsinNotFoundException("ISIN not valid or we have no data about it");
+        }
         return EstonianPensionFundFee.get(isin);
     }
 

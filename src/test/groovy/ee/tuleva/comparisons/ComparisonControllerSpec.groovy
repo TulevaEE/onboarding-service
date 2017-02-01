@@ -18,11 +18,18 @@ class ComparisonControllerSpec extends Specification {
     @Autowired
     MockMvc mvc
 
-    def "hello world works"() {
+    String LHVinterestIsin = "EE3600019816";
+
+    @Autowired
+    ComparisonService comparisonService;
+
+    def "comparison works"() {
         expect:
-        mvc.perform(get("/"))
+        mvc.perform(get("/comparisons/?totalCapital=1000&age=30&monthlyWage=2000&isin="+LHVinterestIsin))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE)
+                .andExpect(jsonPath('$isin', is (LHVinterestIsin))
+        ))
     }
 
 }

@@ -29,7 +29,7 @@ INSERT INTO fund_manager(
 
 INSERT INTO users(
             id, personal_code, first_name, last_name, created_date, member_number, phone_number, email)
-    SELECT 1, '39911223344', 'Tõnu', 'Pekk', '2015-01-31 14:06:01', 1, '1234567', 'tonu@tonu.ee'
+    SELECT 1, '39911223344', 'Firstname', 'Lastname', '2015-01-31 14:06:01', 1, '1234567', 'first.last@mail.ee'
     WHERE
       NOT EXISTS (
         SELECT * FROM users WHERE id = 1
@@ -57,4 +57,12 @@ INSERT INTO fund(
     WHERE
       NOT EXISTS (
         SELECT * FROM fund WHERE id = 3
+      );
+
+INSERT INTO initial_capital(
+            id, user_id, amount, currency)
+    SELECT 1, 1, 10000.00, 'EUR'
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM initial_capital WHERE id = 1
       );

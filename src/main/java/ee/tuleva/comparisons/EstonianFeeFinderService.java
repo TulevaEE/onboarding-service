@@ -20,7 +20,7 @@ import java.util.Locale;
 @Component
 public class EstonianFeeFinderService {
 
-    private static final String feeURLString = "https://www.pensionikeskus.ee/ii-sammas/fondid/fonditasude-vordlused/";
+    private static final String feeURLString = "http://www.pensionikeskus.ee/ii-sammas/fondid/fonditasude-vordlused/";
 
     @Autowired
     @Resource

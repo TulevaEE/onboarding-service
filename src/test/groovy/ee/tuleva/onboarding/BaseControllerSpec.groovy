@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth;
+package ee.tuleva.onboarding;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;

@@ -35,26 +35,26 @@ INSERT INTO users(
         SELECT * FROM users WHERE id = 1
       );
 
-INSERT INTO pension_funds(
+INSERT INTO fund(
             id, isin, name, management_fee_percent, fund_manager)
     SELECT 1, 'AE123232334', 'Aktsia', 0.35, 1
     WHERE
       NOT EXISTS (
-        SELECT * FROM pension_funds WHERE id = 1
+        SELECT * FROM fund WHERE id = 1
       );
 
-INSERT INTO pension_funds(
+INSERT INTO fund(
             id, isin, name, management_fee_percent, fund_manager)
     SELECT 2, 'AE123232335', 'Võlakirjad', 0.35, 1
     WHERE
       NOT EXISTS (
-        SELECT * FROM pension_funds WHERE id = 1
+        SELECT * FROM fund WHERE id = 1
       );
 
-INSERT INTO pension_funds(
+INSERT INTO fund(
             id, isin, name, management_fee_percent, fund_manager)
     SELECT 3, 'AE123232337', 'LHV XL', 0.95, 2
     WHERE
       NOT EXISTS (
-        SELECT * FROM pension_funds WHERE id = 3
+        SELECT * FROM fund WHERE id = 3
       );

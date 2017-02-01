@@ -52,7 +52,7 @@ CREATE TABLE IF NOT EXISTS fund_manager (
   name TEXT
 );
 
-CREATE TABLE IF NOT EXISTS pension_funds (
+CREATE TABLE IF NOT EXISTS fund (
   id SERIAL PRIMARY KEY,
   isin TEXT,
   name TEXT,

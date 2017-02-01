@@ -10,3 +10,51 @@ INSERT INTO oauth_client_details(
       NOT EXISTS (
         SELECT * FROM oauth_client_details WHERE client_id = 'onboarding-client'
       );
+
+INSERT INTO fund_manager(
+            id, name)
+    SELECT 1, 'Tuleva'
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM fund_manager WHERE name = 'Tuleva'
+      );
+
+INSERT INTO fund_manager(
+            id, name)
+    SELECT 2, 'LHV'
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM fund_manager WHERE name = 'LHV'
+      );
+
+INSERT INTO users(
+            id, personal_code, first_name, last_name, created_date, member_number)
+    SELECT 1, '39911223344', 'Tõnu', 'Pekk', '2015-01-31 14:06:01', 1
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM users WHERE id = 1
+      );
+
+INSERT INTO pension_funds(
+            id, isin, name, management_fee_percent, fund_manager)
+    SELECT 1, 'AE123232334', 'Aktsia', 0.35, 1
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM pension_funds WHERE id = 1
+      );
+
+INSERT INTO pension_funds(
+            id, isin, name, management_fee_percent, fund_manager)
+    SELECT 2, 'AE123232335', 'Võlakirjad', 0.35, 1
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM pension_funds WHERE id = 1
+      );
+
+INSERT INTO pension_funds(
+            id, isin, name, management_fee_percent, fund_manager)
+    SELECT 3, 'AE123232337', 'LHV XL', 0.95, 2
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM pension_funds WHERE id = 3
+      );

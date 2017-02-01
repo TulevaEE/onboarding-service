@@ -15,7 +15,7 @@ import java.math.BigDecimal;
 @Data
 @Builder
 @Entity
-@Table(name = "users")
+@Table(name = "initial_capital")
 @AllArgsConstructor
 @NoArgsConstructor
 public class InitialCapital {

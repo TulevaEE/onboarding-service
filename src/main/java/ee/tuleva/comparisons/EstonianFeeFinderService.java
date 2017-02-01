@@ -58,21 +58,18 @@ public class EstonianFeeFinderService {
             String tableColValues = cols.select("td").text();
             String[] allFeeValues = tableColValues.split("[^\\d]?%[^\\d]?");
 
-            double sumFee = 0;
-            for (String fee:allFeeValues){
-                double f;
-                if (fee.contains(",")){
-                    NumberFormat format = NumberFormat.getInstance(Locale.FRANCE);
-                    Number number = format.parse(fee);
-                    f = number.doubleValue();
-                }
-                else {
-                    f = Double.parseDouble(fee);
-                }
-                sumFee += f;
+            String managementFee = allFeeValues[allFeeValues.length-1];
+            double manFee;
+            if (managementFee.contains(",")){
+                NumberFormat format = NumberFormat.getInstance(Locale.FRANCE);
+                Number number = format.parse(managementFee);
+                manFee = number.doubleValue();
+            }
+            else {
+                manFee = Double.parseDouble(managementFee);
             }
 
-            comparisonDAO.addFee(isin, sumFee);
+            comparisonDAO.addFee(isin, manFee);
 
         }
 

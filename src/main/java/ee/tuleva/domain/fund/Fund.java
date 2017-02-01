@@ -20,12 +20,16 @@ public class Fund {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @ManyToOne
     private FundManager fundManager;
+
     @NotBlank
     private String isin;
+
     @NotBlank
     private String name;
+
     @NotNull
     private Float managementFeePercent;
 

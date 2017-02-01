@@ -4,8 +4,8 @@ import com.codeborne.security.mobileid.MobileIDSession;
 import ee.tuleva.onboarding.auth.command.AuthenticateCommand;
 import ee.tuleva.onboarding.auth.response.AuthenticateResponse;
 import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -21,16 +21,11 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
 @RestController
 @Slf4j
 @CrossOrigin(origins = "*")
+@RequiredArgsConstructor
 public class AuthController {
 
-    private MobileIdAuthService mobileIdAuthService;
-    private MobileIdSessionStore mobileIdSessionStore;
-
-    @Autowired
-    AuthController(MobileIdAuthService mobileIdAuthService, MobileIdSessionStore mobileIdSessionStore) {
-        this.mobileIdAuthService = mobileIdAuthService;
-        this.mobileIdSessionStore = mobileIdSessionStore;
-    }
+    private final MobileIdAuthService mobileIdAuthService;
+    private final MobileIdSessionStore mobileIdSessionStore;
 
     @ApiOperation(value = "Initiate authentication")
     @RequestMapping(

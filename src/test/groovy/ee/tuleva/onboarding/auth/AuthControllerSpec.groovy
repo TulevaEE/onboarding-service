@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth
 
 import com.codeborne.security.mobileid.MobileIDSession
+import ee.tuleva.onboarding.BaseControllerSpec
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletResponse

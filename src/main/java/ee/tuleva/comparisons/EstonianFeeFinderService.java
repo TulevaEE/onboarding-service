@@ -26,6 +26,7 @@ public class EstonianFeeFinderService {
     @Resource
     ComparisonDAO comparisonDAO;
 
+    //TODO: schedule after every 3 months
     //@Scheduled(cron = "0 0 0 1 */3 ?")
     @Scheduled(fixedDelay = 3000)
     public void updateFeesFromPensionSystem() throws IOException, ParseException {

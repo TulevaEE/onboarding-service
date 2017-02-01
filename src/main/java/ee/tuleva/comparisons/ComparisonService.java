@@ -15,8 +15,8 @@ public class ComparisonService {
 
     private static int estonianAgeOfRetirement = 65;
     private static double estonianDepositRate = 0.06;
-    private double returnRate = 0.05;
-    private double gainRate = 0.03;
+    private static double returnRate = 0.05;
+    private static double gainRate = 0.03;
 
     @Autowired
     @Resource
@@ -48,7 +48,6 @@ public class ComparisonService {
         return w*(Math.pow(1+r,n)-Math.pow(1+g,n)) / 1-g + pmt * Math.pow(1+r,n);
     }
 
-    //public Map<String, String> comparedResults(double totalCapital, int age, String isin, double monthlyWage) {
     public Map<String, String> comparedResults (ComparisonCommand cm) throws IsinNotFoundException{
 
         String isin = cm.getIsin();

@@ -13,6 +13,8 @@ public class ComparisonDAO {
     private static Map<Integer, String> codeToIsin;
 
     //TODO: needs tuleva code
+
+    //https://www.pensionikeskus.ee/ii-sammas/fondid/kohustuslikud-pensionifondid/
     static {
         codeToIsin = new HashMap<>();
         codeToIsin.put(44, "EE3600019790"); //Pension Fund LHV 25

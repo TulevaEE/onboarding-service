@@ -6,15 +6,14 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
 import java.text.DecimalFormat;
-import java.util.HashMap;
-import java.util.Map;
 
 
 @Service
 public class ComparisonService {
 
+    //TODO: make rates changeable
     private static int estonianAgeOfRetirement = 65;
-    private static float estonianDepositRate = 0.06f;
+    private static float estonianContributionRate = 0.06f;
     private static float returnRate = 0.05f;
     private static float gainRate = 0.03f;
 
@@ -26,26 +25,25 @@ public class ComparisonService {
 
         int n = estonianAgeOfRetirement - age;
 
-        float monthlyDeposit = estonianDepositRate * monthlyWage;
+        float yearlyContribution = estonianContributionRate * monthlyWage * 12;
 
-        float yearlyDeposit = monthlyDeposit * 12;
+        float fvx = fv(yearlyContribution,n,totalCapital,gainRate,returnRate);
 
-        float fvx = fv(totalCapital,n, yearlyDeposit,gainRate,returnRate);
+        float rNet = returnRate - comparisonDAO.getFee(isin)/100;
 
-        float rNet = returnRate - comparisonDAO.getFee(isin);
-
-        float fvy = fv(totalCapital,n, yearlyDeposit,gainRate,rNet);
+        float fvy = fv(yearlyContribution,n,totalCapital,gainRate,rNet);
 
         float totalFee = fvx - fvy;
 
         DecimalFormat df = new DecimalFormat("#.##");
         totalFee = Float.valueOf(df.format(totalFee));
+
         return totalFee;
 
     }
 
-    private static float fv(float pmt, int n, float w, float g, float r){
-        return w*((float)Math.pow(1+r,n)-(float)Math.pow(1+g,n)) / 1-g + pmt * (float)Math.pow(1+r,n);
+    private static float fv(float yearly, int n, float totalCapital, float g, float r) {
+        return yearly * ((float) Math.pow(1 + r, n) - (float) Math.pow(1 + g, n)) / (r - g) + (totalCapital * (float) Math.pow(1 + r, n));
     }
 
     public Comparison comparedResults (ComparisonCommand cm) throws IsinNotFoundException{
@@ -53,7 +51,7 @@ public class ComparisonService {
         String isin = cm.getIsin();
         int age = cm.getAge();
         float monthlyWage = cm.getMonthlyWage();
-        float totalCapital = cm.getMonthlyWage();
+        float totalCapital = cm.getTotalCapital();
 
         float totalFee = totalFee(totalCapital, age, monthlyWage, isin);
 

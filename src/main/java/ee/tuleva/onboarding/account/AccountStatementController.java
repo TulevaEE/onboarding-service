@@ -41,16 +41,16 @@ public class AccountStatementController {
 
         return Arrays.asList(
                 FundBalance.builder()
-                        .isin("EE1234567890")
-                        .name("My fund")
-                        .manager("Myself")
+                        .isin("EE3600019790")
+                        .name("LHV Pensionifond 25")
+                        .manager("LHV")
                         .price(new BigDecimal("10.03"))
                         .currency("EUR")
                         .build(),
                 FundBalance.builder()
-                        .isin("EE0987654321")
-                        .name("Friends fund")
-                        .manager("Buddy")
+                        .isin("EE3600019808")
+                        .name("LHV Pensionifond 50")
+                        .manager("LHV")
                         .price(new BigDecimal("19.04"))
                         .currency("EUR")
                         .build()

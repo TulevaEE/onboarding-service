@@ -52,4 +52,8 @@ public class User implements Serializable {
 	@NotNull
 	private Instant updatedDate;
 
+	public int getAge() {
+		return PersonalCode.getAge(personalCode);
+	}
+
 }

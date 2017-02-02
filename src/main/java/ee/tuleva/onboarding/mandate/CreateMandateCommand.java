@@ -8,18 +8,22 @@ import java.util.List;
 public class CreateMandateCommand {
 
     @NotNull
-    Long targetFundId;
+    Long futureContributionFundId;
 
     @NotNull
-    List<fundTransferOrder> fundTransferOrders;
+    List<fundTransferExchange> fundTransferExchanges;
 
-    private class fundTransferOrder {
+    private class fundTransferExchange {
+
         @NotNull
         String sourceFundIsin;
         @NotNull
         @Min(1)
         @Max(100)
-        Integer transferPercent;
+        Integer percent;
+        @NotNull
+        Long targetFundId;
+
     }
 
 }

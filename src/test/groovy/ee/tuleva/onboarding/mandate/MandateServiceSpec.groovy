@@ -6,7 +6,7 @@ class MandateServiceSpec extends Specification {
 
     MandateService mandateService = new MandateService();
 
-    def "Save: Saves mandate with generated file"() {
+    def "Save: Saves mandate"() {
 
     }
 }

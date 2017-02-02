@@ -19,7 +19,7 @@ public class MandateController {
     @ApiOperation(value = "Create a mandate")
     @RequestMapping(method = POST, value = "/mandate")
     public Mandate create(@AuthenticationPrincipal User user, CreateMandateCommand createMandateCommand) {
-        return mandateService.save(createMandateCommand);
+        return mandateService.save(user, createMandateCommand);
     }
 
     @ApiOperation(value = "Sign mandate")

@@ -35,21 +35,25 @@ CREATE TABLE IF NOT EXISTS users (
   last_name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,
   phone_number VARCHAR(255) NOT NULL,
-  created_date TIMESTAMP NOT NULL,
   member_number INTEGER NOT NULL,
-  CONSTRAINT personal_code UNIQUE (personal_code)
+  created_date TIMESTAMP NOT NULL,
+  updated_date TIMESTAMP NOT NULL,
+  CONSTRAINT personal_code UNIQUE (personal_code),
+  CONSTRAINT member_number UNIQUE (member_number)
 );
 
 CREATE TABLE IF NOT EXISTS initial_capital (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users,
   amount DECIMAL(12,2),
-  currency VARCHAR(3)
+  currency VARCHAR(3),
+  CONSTRAINT user_id UNIQUE (user_id)
 );
 
 CREATE TABLE IF NOT EXISTS fund_manager (
   id SERIAL PRIMARY KEY,
-  name TEXT
+  name TEXT,
+  CONSTRAINT name UNIQUE (name)
 );
 
 CREATE TABLE IF NOT EXISTS fund (
@@ -57,6 +61,7 @@ CREATE TABLE IF NOT EXISTS fund (
   isin TEXT,
   name TEXT,
   management_fee_percent REAL,
-  fund_manager_id INTEGER REFERENCES fund_manager
+  fund_manager_id INTEGER REFERENCES fund_manager,
+  CONSTRAINT isin UNIQUE (isin)
 );
 

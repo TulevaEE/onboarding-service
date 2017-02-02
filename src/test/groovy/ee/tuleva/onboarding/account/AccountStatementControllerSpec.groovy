@@ -25,7 +25,7 @@ class AccountStatementControllerSpec extends Specification {
         mvc.perform(get("/v1/pension-account-statement"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-                .andExpect(jsonPath('$[1].isin', is("EE0987654321")))
+                .andExpect(jsonPath('$[1].isin', is("EE3600019808")))
     }
 
 }

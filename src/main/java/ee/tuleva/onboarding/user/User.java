@@ -44,10 +44,23 @@ public class User implements Serializable {
 	private String lastName;
 
 	@NotNull
+	private Integer memberNumber;
+
+	@NotNull
 	@Past
 	private Instant createdDate;
 
 	@NotNull
-	private Integer memberNumber;
+	private Instant updatedDate;
+
+	@PreUpdate
+	protected void onUpdate() {
+		updatedDate = Instant.now();
+	}
+
+	@PrePersist
+	protected void onCreate() {
+		createdDate = Instant.now();
+	}
 
 }

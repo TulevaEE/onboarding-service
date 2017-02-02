@@ -75,9 +75,12 @@ Response:
   id: 123,
   firstName: "Jordan",
   lastName: "Valdma",
-  personalIdCode: "38812022762",
-  created: "2017-01-29 20:13:44",
-  memberNumber: 1234 // or null if not a member
+  personalCode: "38812022762",
+  email: "jordan@valdma.ee",
+  phoneNumber: "5555555",
+  createdDate: "2017-01-29 20:13:44",
+  updatedDate: "2017-01-30 21:24:58",
+  age: 30
 }
 ```
 

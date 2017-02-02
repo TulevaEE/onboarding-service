@@ -34,7 +34,6 @@ public class User implements Serializable {
 	@Email
 	private String email;
 
-	@NotBlank
 	private String phoneNumber;
 
 	@NotBlank
@@ -52,15 +51,5 @@ public class User implements Serializable {
 
 	@NotNull
 	private Instant updatedDate;
-
-	@PreUpdate
-	protected void onUpdate() {
-		updatedDate = Instant.now();
-	}
-
-	@PrePersist
-	protected void onCreate() {
-		createdDate = Instant.now();
-	}
 
 }

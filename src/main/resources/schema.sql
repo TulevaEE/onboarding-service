@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
   first_name VARCHAR(255) NOT NULL,
   last_name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,
-  phone_number VARCHAR(255) NOT NULL,
+  phone_number VARCHAR(255),
   member_number INTEGER NOT NULL,
   created_date TIMESTAMP NOT NULL,
   updated_date TIMESTAMP NOT NULL,
@@ -52,13 +52,13 @@ CREATE TABLE IF NOT EXISTS initial_capital (
 
 CREATE TABLE IF NOT EXISTS fund_manager (
   id SERIAL PRIMARY KEY,
-  name TEXT,
+  name VARCHAR(255),
   CONSTRAINT name UNIQUE (name)
 );
 
 CREATE TABLE IF NOT EXISTS fund (
   id SERIAL PRIMARY KEY,
-  isin TEXT,
+  isin VARCHAR(255),
   name TEXT,
   management_fee_percent REAL,
   fund_manager_id INTEGER REFERENCES fund_manager,

@@ -34,29 +34,34 @@ CREATE TABLE IF NOT EXISTS users (
   first_name VARCHAR(255) NOT NULL,
   last_name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,
-  phone_number VARCHAR(255) NOT NULL,
-  created_date TIMESTAMP NOT NULL,
+  phone_number VARCHAR(255),
   member_number INTEGER NOT NULL,
-  CONSTRAINT personal_code UNIQUE (personal_code)
+  created_date TIMESTAMP NOT NULL,
+  updated_date TIMESTAMP NOT NULL,
+  CONSTRAINT personal_code UNIQUE (personal_code),
+  CONSTRAINT member_number UNIQUE (member_number)
 );
 
 CREATE TABLE IF NOT EXISTS initial_capital (
   id SERIAL PRIMARY KEY,
-  user_id INTEGER REFERENCES users,
-  amount DECIMAL(12,2),
-  currency VARCHAR(3)
+  user_id INTEGER NOT NULL REFERENCES users,
+  amount DECIMAL(12,2) NOT NULL,
+  currency VARCHAR(3) NOT NULL,
+  CONSTRAINT user_id UNIQUE (user_id)
 );
 
 CREATE TABLE IF NOT EXISTS fund_manager (
   id SERIAL PRIMARY KEY,
-  name TEXT
+  name VARCHAR(255) NOT NULL,
+  CONSTRAINT name UNIQUE (name)
 );
 
 CREATE TABLE IF NOT EXISTS fund (
   id SERIAL PRIMARY KEY,
-  isin TEXT,
-  name TEXT,
-  management_fee_percent REAL,
-  fund_manager_id INTEGER REFERENCES fund_manager
+  isin VARCHAR(255) NOT NULL,
+  name TEXT NOT NULL,
+  management_fee_percent REAL NOT NULL,
+  fund_manager_id INTEGER NOT NULL REFERENCES fund_manager,
+  CONSTRAINT isin UNIQUE (isin)
 );
 

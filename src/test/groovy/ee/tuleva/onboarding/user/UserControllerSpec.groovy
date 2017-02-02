@@ -15,6 +15,7 @@ import spock.lang.Specification
 import java.time.Instant
 
 import static org.hamcrest.Matchers.is
+import static org.hamcrest.Matchers.isA
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup
@@ -50,8 +51,7 @@ class UserControllerSpec extends Specification {
 				.andExpect(jsonPath('$.personalCode', is("38501010002")))
 				.andExpect(jsonPath('$.createdDate', is("2017-01-31T14:06:01Z")))
 				.andExpect(jsonPath('$.memberNumber', is(3000)))
-
-
+				.andExpect(jsonPath('$.age', isA(Integer)))
 	}
 
 	private MockMvc mockMvcWithAuthenticationPrincipal(User user) {

@@ -25,6 +25,7 @@ class UserRepositorySpec extends Specification {
 				.email("erko@risthein.ee")
 				.phoneNumber("5555555")
 				.createdDate(Instant.parse("2017-01-31T14:06:01Z"))
+				.updatedDate(Instant.parse("2017-01-31T14:06:01Z"))
 				.memberNumber(3000)
 				.build())
 
@@ -41,6 +42,7 @@ class UserRepositorySpec extends Specification {
 		user.email == "erko@risthein.ee"
 		user.phoneNumber == "5555555"
 		user.createdDate == Instant.parse("2017-01-31T14:06:01Z")
+		user.updatedDate == Instant.parse("2017-01-31T14:06:01Z")
 		user.memberNumber == 3000
 	}
 

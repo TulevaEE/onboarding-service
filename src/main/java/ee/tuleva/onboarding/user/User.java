@@ -34,7 +34,6 @@ public class User implements Serializable {
 	@Email
 	private String email;
 
-	@NotBlank
 	private String phoneNumber;
 
 	@NotBlank
@@ -44,10 +43,17 @@ public class User implements Serializable {
 	private String lastName;
 
 	@NotNull
+	private Integer memberNumber;
+
+	@NotNull
 	@Past
 	private Instant createdDate;
 
 	@NotNull
-	private Integer memberNumber;
+	private Instant updatedDate;
+
+	public int getAge() {
+		return PersonalCode.getAge(personalCode);
+	}
 
 }

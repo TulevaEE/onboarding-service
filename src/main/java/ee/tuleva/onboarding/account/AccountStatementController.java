@@ -22,7 +22,7 @@ public class AccountStatementController {
     private IsinAppender isinAppender;
 
     @Autowired
-    AccountStatementController(XRoadClient xRoadClient, IsinAppender isinAppender) {
+    public AccountStatementController(XRoadClient xRoadClient, IsinAppender isinAppender) {
         this.xRoadClient = xRoadClient;
         this.isinAppender = isinAppender;
     }
@@ -30,14 +30,13 @@ public class AccountStatementController {
     @ApiOperation(value = "Get pension register account statement")
     @RequestMapping(method = GET, value = "/pension-account-statement")
     public List<FundBalance> getMyPensionAccountStatement(@AuthenticationPrincipal User user) {
-
         PensionAccountBalanceType request = new PensionAccountBalanceType();
         // todo todays date or null?
         request.setBalanceDate(null);
         PensionAccountBalanceResponseType response = xRoadClient.getPort().pensionAccountBalance(request);
 
         List<FundBalance> fbs = KPRUnitsOsakudToFundBalance.convertList(response.getUnits().getBalance());
-        isinAppender.convertList(fbs);
+        fbs = isinAppender.convertList(fbs);
 
         return fbs;
     }

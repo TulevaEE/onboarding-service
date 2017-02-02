@@ -6,6 +6,8 @@ import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.domain.fund.FundRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +16,7 @@ import java.util.List;
  * Just to append ISIN based on fund name, silly but no key from KPR api.
  * Modifies source object instead of creating new!
  */
+@Service
 public class IsinAppender implements Converter<FundBalance, FundBalance> {
 
     private FundRepository fundRepository;
@@ -39,7 +42,7 @@ public class IsinAppender implements Converter<FundBalance, FundBalance> {
     /**
      * Kept void for clarity, applies changes to same list and list objects.
      */
-    public void convertList(List<FundBalance> in) {
+    public List<FundBalance> convertList(List<FundBalance> in) {
         for (FundBalance fb : in) {
             Fund f = fundRepository.findByName(fb.getName());
 
@@ -47,8 +50,10 @@ public class IsinAppender implements Converter<FundBalance, FundBalance> {
                 throw new RuntimeException("Unable to resolve fund by name!");
             }
 
-            fb.setIsin(f.getName());
+            fb.setIsin(f.getIsin());
         }
+
+        return in;
     }
 
 }

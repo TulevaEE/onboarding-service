@@ -15,8 +15,7 @@ public class KPRUnitsOsakudToFundBalance implements Converter<Balance, FundBalan
                 //.isin("") todo matching from securityName, no key from API?
                 .name(source.getSecurityName())
                 .manager(getFundManagerName(source.getSecurityName()))
-                //source.getNav();
-                .price(source.getAmount())
+                .price(source.getAmount().multiply(source.getNav()))
                 .currency(source.getCurrency())
                 .build();
     }
@@ -33,7 +32,7 @@ public class KPRUnitsOsakudToFundBalance implements Converter<Balance, FundBalan
             throw new RuntimeException("Unable to find fund manager from fund name!");
         }
 
-        return fundname.substring(0, i - 1);
+        return fundname.substring(0, i);
     }
 
 

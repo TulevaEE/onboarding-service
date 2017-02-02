@@ -1,4 +1,4 @@
-package ee.tuleva.comparisons.exceptions;
+package ee.tuleva.onboarding.comparisons.exceptions;
 
 
 import org.springframework.http.HttpStatus;

@@ -22,7 +22,14 @@ public class ErrorHandlingController implements ErrorController {
 	@RequestMapping(value = PATH)
 	Map<String, Object> error(HttpServletRequest request) {
 		RequestAttributes requestAttributes = new ServletRequestAttributes(request);
-		return errorAttributes.getErrorAttributes(requestAttributes, false);
+		Map<String, Object> errors = errorAttributes.getErrorAttributes(requestAttributes, false);
+		renameMessageToErrorDescription(errors);
+		return errors;
+	}
+
+	private void renameMessageToErrorDescription(Map<String, Object> errors) {
+		Object message = errors.remove("message");
+		errors.put("error_description", message);
 	}
 
 	@Override

@@ -21,7 +21,7 @@ public class ComparisonService {
     @Resource
     private ComparisonDAO comparisonDAO;
 
-    private float totalFee(float totalCapital, int age, float monthlyWage, String isin) throws IsinNotFoundException{
+    protected float totalFee(float totalCapital, int age, float monthlyWage, float managementFee) throws IsinNotFoundException{
 
         int n = estonianAgeOfRetirement - age;
 
@@ -29,7 +29,7 @@ public class ComparisonService {
 
         float fvx = fv(yearlyContribution,n,totalCapital,gainRate,returnRate);
 
-        float rNet = returnRate - comparisonDAO.getFee(isin)/100;
+        float rNet = returnRate - managementFee;
 
         float fvy = fv(yearlyContribution,n,totalCapital,gainRate,rNet);
 
@@ -42,18 +42,17 @@ public class ComparisonService {
 
     }
 
-    private static float fv(float yearly, int n, float totalCapital, float g, float r) {
+    protected static float fv(float yearly, int n, float totalCapital, float g, float r) {
         return yearly * ((float) Math.pow(1 + r, n) - (float) Math.pow(1 + g, n)) / (r - g) + (totalCapital * (float) Math.pow(1 + r, n));
     }
 
     public Comparison comparedResults (ComparisonCommand cm) throws IsinNotFoundException{
 
         String isin = cm.getIsin();
-        int age = cm.getAge();
-        float monthlyWage = cm.getMonthlyWage();
-        float totalCapital = cm.getTotalCapital();
 
-        float totalFee = totalFee(totalCapital, age, monthlyWage, isin);
+        float managementFee = comparisonDAO.getFee(isin)/100;
+
+        float totalFee = totalFee(cm.getTotalCapital(), cm.getAge(), cm.getMonthlyWage(), managementFee);
 
         return new Comparison(isin,totalFee);
     }

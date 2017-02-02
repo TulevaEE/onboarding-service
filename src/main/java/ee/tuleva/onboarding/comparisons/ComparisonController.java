@@ -11,24 +11,25 @@ import org.springframework.web.bind.annotation.*;
 import springfox.documentation.annotations.ApiIgnore;
 
 import javax.validation.Valid;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/v1")
 @AllArgsConstructor
 public class ComparisonController {
 
     private final ComparisonService comparisonService;
 
     @ResponseBody
-    @RequestMapping(path = "/comparisons/", method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_UTF8_VALUE})
-    public Comparison comparison(@Valid @ModelAttribute @ApiParam ComparisonCommand comparisonCommand,
-                                          @ApiIgnore Errors errors) throws Exception {
+    @RequestMapping(path = "/v1/comparisons", method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_UTF8_VALUE})
+    public ArrayList<Comparison> comparison(@Valid @ModelAttribute @ApiParam ComparisonCommand comparisonCommand,
+                                            @ApiIgnore Errors errors) throws Exception {
 
         if (errors != null && errors.hasErrors()) {
             throw new ErrorsValidationException(errors);
         }
-        return comparisonService.comparedResults(comparisonCommand);
+        return new ArrayList<>(Collections.singletonList(comparisonService.comparedResults(comparisonCommand)));
 
     }
 

@@ -26,8 +26,14 @@ class ComparisonControllerSpec extends Specification {
         mvc.perform(get("/v1/comparisons/?totalCapital=1000&age=30&monthlyWage=2000&isin="+LHVinterestIsin))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-                .andExpect(jsonPath('$.currency',is("EUR"))).andExpect(jsonPath('$.isin', is(LHVinterestIsin)))
+                .andExpect(jsonPath('$.[0].currency',is("EUR"))).andExpect(jsonPath('$.[0].isin', is(LHVinterestIsin)))
 
+    }
+
+    def "invalid parameter bad request sending"(){
+        expect:
+        mvc.perform(get("/v1/comparisons/?totalCapital=1000&age=70&monthlyWage=2000&isin="+LHVinterestIsin))
+                .andExpect(status().is4xxClientError())
     }
 
 }

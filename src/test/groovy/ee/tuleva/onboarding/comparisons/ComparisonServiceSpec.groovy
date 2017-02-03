@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.comparisons
 
 import spock.lang.Specification
 
-public class ComparisonServiceSpec extends Specification {
+class ComparisonServiceSpec extends Specification {
 
     def service = new ComparisonService()
 

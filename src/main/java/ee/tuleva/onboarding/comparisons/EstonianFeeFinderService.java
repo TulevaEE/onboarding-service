@@ -7,7 +7,6 @@ import ee.tuleva.domain.fund.FundManagerRepository;
 import ee.tuleva.domain.fund.FundRepository;
 import ee.tuleva.onboarding.comparisons.exceptions.FeeSizeException;
 import ee.tuleva.onboarding.comparisons.exceptions.FundManagerNameException;
-import ee.tuleva.onboarding.comparisons.exceptions.IsinNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Attribute;
@@ -39,12 +38,12 @@ public class EstonianFeeFinderService {
 
     //TODO: schedule after every 3 months
     //@Scheduled(cron = "0 0 0 1 */3 ?")
-    @Scheduled(fixedDelay = 300000)
+    @Scheduled(fixedDelay =  2147483647)
     public void fetchFeesFromPensionSystem(){
         updateFeesFromPensionSystem();
     }
 
-    public void updateFeesFromPensionSystem() {
+    private void updateFeesFromPensionSystem() {
 
         try {
             Document doc = Jsoup.connect(feeURLString).get();
@@ -119,7 +118,6 @@ public class EstonianFeeFinderService {
         else {
             fee = Float.parseFloat(managementFee)/100;
         }
-
         if (fee > 0.02 || fee < 0) throw new FeeSizeException();
         return fee;
     }

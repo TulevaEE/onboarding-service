@@ -50,6 +50,30 @@ INSERT INTO fund_manager(
         SELECT * FROM fund_manager WHERE name = 'SEB'
       );
 
+INSERT INTO fund(
+            isin, name, management_fee_rate, fund_manager_id)
+    SELECT 'AE123232334', 'Aktsia', 0.0035, 1
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM fund WHERE id = 1
+      );
+
+INSERT INTO fund(
+            isin, name, management_fee_rate, fund_manager_id)
+    SELECT 'AE123232335', 'Võlakirjad', 0.0035, 1
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM fund WHERE id = 2
+      );
+
+INSERT INTO fund(
+            isin, name, management_fee_rate, fund_manager_id)
+    SELECT 'AE123232337', 'LHV XL', 0.0095, 2
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM fund WHERE id = 3
+      );
+
 INSERT INTO users(
             id, personal_code, first_name, last_name, created_date, updated_date, member_number, phone_number, email)
     SELECT 1, '39911223344', 'Firstname', 'Lastname', '2015-01-31 14:06:01', '2017-01-31 14:06:01', 1, '1234567', 'first.last@mail.ee'

@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import springfox.documentation.annotations.ApiIgnore;
 
 import java.util.List;
 
@@ -24,7 +25,7 @@ public class AvailableFundsController {
     @ApiOperation(value = "Get info about available funds")
     @RequestMapping(method = GET, value = "/available-funds")
     @JsonView(FundView.SkipFundManager.class)
-    public List<Fund> initialCapital(@AuthenticationPrincipal User user) {
+    public List<Fund> initialCapital() {
         //FIXME: extract into a service
         FundManager tulevaFundManager = fundManagerRepository.findByName("Tuleva");
         return fundRepository.findByFundManager(tulevaFundManager);

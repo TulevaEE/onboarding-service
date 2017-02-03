@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS fund (
 CREATE TABLE IF NOT EXISTS mandate (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users,
-  future_contribution_fund_id INTEGER NOT NULL REFERENCES fund,
+  future_contribution_fund_isin VARCHAR NOT NULL,
   mandate bytea NOT NULL,
   created_date TIMESTAMP NOT NULL
 );
@@ -78,6 +78,6 @@ CREATE TABLE IF NOT EXISTS fund_transfer_exchange (
   mandate_id INTEGER NOT NULL REFERENCES mandate,
   percent INTEGER NOT NULL,
   source_fund_isin VARCHAR NOT NULL,
-  target_fund_id INTEGER NOT NULL REFERENCES fund
+  target_fund_isin VARCHAR NOT NULL
 );
 

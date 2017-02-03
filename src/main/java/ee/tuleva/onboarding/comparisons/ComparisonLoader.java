@@ -8,6 +8,6 @@ import org.springframework.context.event.ContextRefreshedEvent;
 public class ComparisonLoader implements ApplicationListener<ContextRefreshedEvent> {
 
     public void onApplicationEvent(ContextRefreshedEvent event) {
-        EstonianFeeFinderService.updateFeesFromPensionSystem();
+//        EstonianFeeFinderService.updateFeesFromPensionSystem();
     }
 }

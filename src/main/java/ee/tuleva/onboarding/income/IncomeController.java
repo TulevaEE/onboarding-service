@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import springfox.documentation.annotations.ApiIgnore;
 
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeConstants;
@@ -27,7 +28,7 @@ public class IncomeController {
 
     @ApiOperation(value = "Returns user last year average salary reverse calculated from 2nd pillar transactions")
     @RequestMapping(method = GET, value = "/average-salary")
-    public Money getMyAverageSalay(@AuthenticationPrincipal User user) {
+    public Money getMyAverageSalay(@ApiIgnore @AuthenticationPrincipal User user) {
         PensionAccountTransactionType request = new PensionAccountTransactionType();
 
         request.setDateFrom(toXMLGregorianCalendar(LocalDate.now().minusYears(1)));

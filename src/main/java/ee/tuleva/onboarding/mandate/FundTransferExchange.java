@@ -1,16 +1,17 @@
 package ee.tuleva.onboarding.mandate;
 
-import com.fasterxml.jackson.annotation.JsonView;
-import ee.tuleva.domain.fund.FundView;
 import lombok.Builder;
 import lombok.Data;
+import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
 
 @Data
 @Entity
 @Table(name = "mandate")
-@Builder
 public class FundTransferExchange {
 
     @Id
@@ -19,5 +20,21 @@ public class FundTransferExchange {
 
     @ManyToOne
     Mandate mandate;
+
+    @NotBlank
+    String sourceFundIsin;
+    @NotNull
+    @Min(0)
+    @Max(100)
+    Integer percent;
+    @NotNull
+    String targetFundIsin;
+
+    @Builder
+    FundTransferExchange(String sourceFundIsin, String targetFundIsin, Integer percent) {
+        this.sourceFundIsin = sourceFundIsin;
+        this.targetFundIsin = targetFundIsin;
+        this.percent = percent;
+    }
 
 }

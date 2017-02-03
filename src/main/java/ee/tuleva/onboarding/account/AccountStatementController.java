@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import springfox.documentation.annotations.ApiIgnore;
 
 import java.util.List;
 
@@ -24,7 +25,7 @@ public class AccountStatementController {
 
     @ApiOperation(value = "Get pension register account statement")
     @RequestMapping(method = GET, value = "/pension-account-statement")
-    public List<FundBalance> getMyPensionAccountStatement(@AuthenticationPrincipal User user) {
+    public List<FundBalance> getMyPensionAccountStatement(@ApiIgnore @AuthenticationPrincipal User user) {
         PensionAccountBalanceType request = new PensionAccountBalanceType();
         request.setBalanceDate(null);
         PensionAccountBalanceResponseType response = xRoadClient.pensionAccountBalance(request, user.getPersonalCode());

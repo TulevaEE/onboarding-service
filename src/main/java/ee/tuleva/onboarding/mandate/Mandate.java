@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.mandate;
 
-import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.domain.fund.Fund;
-import ee.tuleva.domain.fund.FundView;
 import ee.tuleva.onboarding.user.User;
 import lombok.Builder;
 import lombok.Data;
@@ -25,8 +23,7 @@ public class Mandate {
     @ManyToOne
     User user;
 
-    @ManyToOne
-    Fund futureContributionFund;
+    String futureContributionFundIsin;
 
     @NotNull
     @Past
@@ -44,9 +41,9 @@ public class Mandate {
     List<FundTransferExchange> fundTransferExchanges;
 
     @Builder
-    Mandate(User user, Fund futureContributionFund, List<FundTransferExchange> fundTransferExchanges){
+    Mandate(User user, String futureContributionFundIsin, List<FundTransferExchange> fundTransferExchanges){
         this.user = user;
-        this.futureContributionFund = futureContributionFund;
+        this.futureContributionFundIsin = futureContributionFundIsin;
         this.fundTransferExchanges = fundTransferExchanges;
     }
 

@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import static java.lang.Integer.parseInt;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -14,5 +16,18 @@ public class MandateSignatureSession {
 	public int sessCode;
 
 	public String challenge;
+
+	@Override
+	public String toString() {
+		return sessCode + ":::" + challenge;
+	}
+
+	public static MandateSignatureSession fromString(String serializedMobileIDSession) {
+		String[] tokens = serializedMobileIDSession.split(":::");
+		return builder()
+				.sessCode(parseInt(tokens[0]))
+				.challenge(tokens[1])
+				.build();
+	}
 
 }

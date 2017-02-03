@@ -10,8 +10,7 @@ class MobileIdAuthServiceSpec extends Specification {
     MobileIDAuthenticator mobileIDAuthenticator = Mock(MobileIDAuthenticator)
 
     def setup() {
-        mobileIdAuthService = new MobileIdAuthService();
-        mobileIdAuthService.setMobileIdAuthenticator(mobileIDAuthenticator)
+        mobileIdAuthService = new MobileIdAuthService(mobileIDAuthenticator)
     }
 
     def "StartLogin: Start mobile id login with a phone number"() {

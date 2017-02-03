@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.mandate;
 
+import com.fasterxml.jackson.annotation.JsonView;
+import ee.tuleva.onboarding.capital.InitialCapitalView;
 import ee.tuleva.onboarding.user.User;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class MandateController {
 
     @ApiOperation(value = "Create a mandate")
     @RequestMapping(method = POST, value = "/mandate")
+    @JsonView(MandateView.Default.class)
     public Mandate create(@ApiIgnore @AuthenticationPrincipal User user,
                           @Valid @RequestBody CreateMandateCommand createMandateCommand,
                           @ApiIgnore @Valid Errors errors) {

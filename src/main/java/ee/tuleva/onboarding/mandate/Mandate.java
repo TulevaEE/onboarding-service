@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.mandate;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonView;
+import ee.tuleva.domain.fund.Fund;
+import ee.tuleva.onboarding.capital.InitialCapitalView;
 import ee.tuleva.onboarding.user.User;
 import lombok.Builder;
 import lombok.Data;
@@ -19,15 +23,18 @@ public class Mandate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JsonView(MandateView.Default.class)
     private Long id;
 
     @ManyToOne
-    private User user;
+    User user;
 
-    private String futureContributionFundIsin;
+    @JsonView(MandateView.Default.class)
+    String futureContributionFundIsin;
 
     @NotNull
     @Past
+    @JsonView(MandateView.Default.class)
     private Instant createdDate;
 
     @PrePersist
@@ -37,9 +44,8 @@ public class Mandate {
 
     private byte[] mandate;
 
-//    @NotNull
     @OneToMany(cascade = {CascadeType.ALL}, mappedBy = "mandate")
-//    @JoinColumn(name="mandate_id")
+    @JsonView(MandateView.Default.class)
     List<FundTransferExchange> fundTransferExchanges;
 
     @Builder

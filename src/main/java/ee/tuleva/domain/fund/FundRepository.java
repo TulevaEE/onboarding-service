@@ -10,4 +10,7 @@ public interface FundRepository extends CrudRepository<Fund, Long> {
 
     List<Fund> findByFundManager(FundManager fundManager);
 
+    Fund findByIsin(String isin);
+
+
 }

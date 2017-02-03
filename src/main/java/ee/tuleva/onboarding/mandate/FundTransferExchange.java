@@ -11,7 +11,8 @@ import javax.validation.constraints.NotNull;
 
 @Data
 @Entity
-@Table(name = "mandate")
+@Table(name = "fund_transfer_exchange")
+@Builder
 public class FundTransferExchange {
 
     @Id
@@ -19,6 +20,7 @@ public class FundTransferExchange {
     private Long id;
 
     @ManyToOne
+    @JoinColumn(name = "mandate_id", nullable = false)
     Mandate mandate;
 
     @NotBlank
@@ -29,12 +31,5 @@ public class FundTransferExchange {
     Integer percent;
     @NotNull
     String targetFundIsin;
-
-    @Builder
-    FundTransferExchange(String sourceFundIsin, String targetFundIsin, Integer percent) {
-        this.sourceFundIsin = sourceFundIsin;
-        this.targetFundIsin = targetFundIsin;
-        this.percent = percent;
-    }
 
 }

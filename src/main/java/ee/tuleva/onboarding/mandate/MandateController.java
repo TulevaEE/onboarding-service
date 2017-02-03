@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.user.User;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,7 +24,13 @@ public class MandateController {
     @ApiOperation(value = "Create a mandate")
     @RequestMapping(method = POST, value = "/mandate")
     public Mandate create(@ApiIgnore @AuthenticationPrincipal User user,
-                          @Valid @RequestBody CreateMandateCommand createMandateCommand) {
+                          @Valid @RequestBody CreateMandateCommand createMandateCommand,
+                          @ApiIgnore @Valid Errors errors) {
+
+        if (errors.hasErrors()) {
+            throw new ErrorsValidationException(errors);
+        }
+
         return mandateService.save(user, createMandateCommand);
     }
 

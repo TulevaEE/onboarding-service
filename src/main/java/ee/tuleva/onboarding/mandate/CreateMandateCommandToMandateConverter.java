@@ -9,19 +9,22 @@ public class CreateMandateCommandToMandateConverter implements Converter<CreateM
 
     @Override
     public Mandate convert(CreateMandateCommand createMandateCommand) {
+
+        Mandate mandate = new Mandate();
+
         List<FundTransferExchange> fundTransferExchanges =
                 createMandateCommand.getFundTransferExchanges().stream().map( fte -> {
 
                     return FundTransferExchange.builder()
                             .sourceFundIsin(fte.getSourceFundIsin())
                             .targetFundIsin(fte.getTargetFundIsin())
-                            .percent(fte.getPercent()).build();
+                            .percent(fte.getPercent())
+                            .mandate(mandate)
+                            .build();
                 }).collect(Collectors.toList());
 
-
-        return Mandate.builder()
-                .futureContributionFundIsin(createMandateCommand.getFutureContributionFundIsin())
-                .fundTransferExchanges(fundTransferExchanges)
-                .build();
+        mandate.setFundTransferExchanges(fundTransferExchanges);
+        mandate.setFutureContributionFundIsin(createMandateCommand.getFutureContributionFundIsin());
+        return mandate;
     }
 }

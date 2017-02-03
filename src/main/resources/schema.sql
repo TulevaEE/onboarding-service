@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS mandate (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users,
   future_contribution_fund_isin VARCHAR NOT NULL,
-  mandate bytea NOT NULL,
+  mandate bytea,
   created_date TIMESTAMP NOT NULL
 );
 

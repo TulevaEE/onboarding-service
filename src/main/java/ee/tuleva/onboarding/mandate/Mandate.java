@@ -33,7 +33,6 @@ public class Mandate {
     private String futureContributionFundIsin;
 
     @NotNull
-    @Past
     @JsonView(MandateView.Default.class)
     private Instant createdDate;
 

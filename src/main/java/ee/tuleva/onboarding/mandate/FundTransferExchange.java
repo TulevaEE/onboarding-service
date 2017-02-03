@@ -33,7 +33,7 @@ public class FundTransferExchange {
     private String sourceFundIsin;
     @NotNull
     @Min(0)
-    @Max(100)
+    @Max(1)
     @JsonView(MandateView.Default.class)
     private BigDecimal amount;
     @NotNull

@@ -16,7 +16,7 @@ public class MandateFundTransferExchangeCommand {
     private String sourceFundIsin;
     @NotNull
     @Min(0)
-    @Max(100)
+    @Max(1)
     private BigDecimal amount;
     @NotNull
     private String targetFundIsin;

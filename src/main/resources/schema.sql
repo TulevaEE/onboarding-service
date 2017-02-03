@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS mandate (
 CREATE TABLE IF NOT EXISTS fund_transfer_exchange (
   id SERIAL PRIMARY KEY,
   mandate_id INTEGER NOT NULL REFERENCES mandate,
-  percent INTEGER NOT NULL,
+  amount DECIMAL(2,2) NOT NULL,
   source_fund_isin VARCHAR NOT NULL,
   target_fund_isin VARCHAR NOT NULL
 );

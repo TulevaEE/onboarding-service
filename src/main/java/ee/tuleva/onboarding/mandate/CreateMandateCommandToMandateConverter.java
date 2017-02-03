@@ -18,7 +18,7 @@ public class CreateMandateCommandToMandateConverter implements Converter<CreateM
                     return FundTransferExchange.builder()
                             .sourceFundIsin(fte.getSourceFundIsin())
                             .targetFundIsin(fte.getTargetFundIsin())
-                            .percent(fte.getPercent())
+                            .amount(fte.getAmount())
                             .mandate(mandate)
                             .build();
                 }).collect(Collectors.toList());

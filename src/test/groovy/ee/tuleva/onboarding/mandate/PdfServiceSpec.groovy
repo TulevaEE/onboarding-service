@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate
 
+import ee.tuleva.onboarding.mandate.pdf.PdfService
 import spock.lang.Specification
 
 class PdfServiceSpec extends Specification {

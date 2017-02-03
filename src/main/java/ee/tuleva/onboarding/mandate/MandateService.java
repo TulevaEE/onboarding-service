@@ -1,14 +1,13 @@
 package ee.tuleva.onboarding.mandate;
 
-import ee.tuleva.domain.fund.Fund;
-import ee.tuleva.domain.fund.FundRepository;
+import com.codeborne.security.mobileid.MobileIdSignatureFile;
+import com.codeborne.security.mobileid.MobileIdSignatureSession;
+import ee.tuleva.onboarding.mandate.pdf.PdfService;
+import ee.tuleva.onboarding.sign.MobileIdSignService;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -16,6 +15,8 @@ import java.util.stream.Collectors;
 public class MandateService {
 
     private final MandateRepository mandateRepository;
+	private final MobileIdSignService signService;
+	private final PdfService pdfService;
 
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter();
 
@@ -27,4 +28,15 @@ public class MandateService {
         return mandateRepository.save(mandate);
     }
 
+	public MobileIdSignatureSession sign(Long mandateId, User user) {
+		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+		byte[] pdfContent = pdfService.toPdf(mandate);
+		MobileIdSignatureFile file = new MobileIdSignatureFile("mandate.pdf", "application/pdf", pdfContent);
+		return signService.startSign(file, user.getPersonalCode(), user.getPhoneNumber());
+	}
+
+	public String getSignatureStatus(MobileIdSignatureSession session) {
+		byte[] signedFile = signService.getSignedFile(session);
+		return signedFile == null ? "OUTSTANDING_TRANSACTION" : "SIGNATURE";
+	}
 }

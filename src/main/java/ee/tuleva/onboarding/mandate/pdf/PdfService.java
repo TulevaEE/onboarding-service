@@ -1,6 +1,7 @@
-package ee.tuleva.onboarding.mandate;
+package ee.tuleva.onboarding.mandate.pdf;
 
 import com.lowagie.text.DocumentException;
+import ee.tuleva.onboarding.mandate.Mandate;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -13,7 +14,15 @@ import java.io.IOException;
 @Service
 public class PdfService {
 
-    public byte[] print() throws DocumentException, IOException {
+    public byte[] toPdf(Mandate mandate) {
+        try {
+            return generatePdf(mandate);
+        } catch (DocumentException | IOException e) {
+            throw new PdfGenerationException(e);
+        }
+    }
+
+    public byte[] generatePdf(Mandate mandate) throws DocumentException, IOException {
         ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
         templateResolver.setPrefix("templates/pdf/");
         templateResolver.setSuffix(".html");

@@ -16,10 +16,11 @@ class MobileIdSignServiceSpec extends Specification {
         signer.startSign(file, "38501010002", "55555555") >> new MobileIdSignatureSession(1, null, "1234", null)
 
         when:
-        def challenge = service.startSign(file, "38501010002", "55555555")
+        def session = service.startSign(file, "38501010002", "55555555")
 
         then:
-        challenge == "1234"
+        session.challenge == "1234"
+        session.sessCode == 1
     }
 
     def "getSignedFile() works"() {

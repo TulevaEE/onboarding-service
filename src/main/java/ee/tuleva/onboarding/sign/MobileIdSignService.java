@@ -12,9 +12,9 @@ public class MobileIdSignService {
 
 	private final MobileIDAuthenticator signer;
 
-	public String startSign(MobileIdSignatureFile file, String personalCode, String phone) {
+	public MobileIdSignatureSession startSign(MobileIdSignatureFile file, String personalCode, String phone) {
 		MobileIdSignatureSession session = signer.startSign(file, personalCode, phone);
-		return session.challenge;
+		return session;
 	}
 
 	public byte[] getSignedFile(MobileIdSignatureSession session) {

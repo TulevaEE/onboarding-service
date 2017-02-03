@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate;
 
-import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.onboarding.user.User;
 import lombok.Builder;
 import lombok.Data;
@@ -23,9 +22,9 @@ public class Mandate {
     private Long id;
 
     @ManyToOne
-    User user;
+    private User user;
 
-    String futureContributionFundIsin;
+    private String futureContributionFundIsin;
 
     @NotNull
     @Past

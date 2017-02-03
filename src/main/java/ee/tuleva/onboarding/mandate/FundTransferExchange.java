@@ -21,15 +21,17 @@ public class FundTransferExchange {
 
     @ManyToOne
     @JoinColumn(name = "mandate_id", nullable = false)
-    Mandate mandate;
+    private Mandate mandate;
 
     @NotBlank
-    String sourceFundIsin;
+    private String sourceFundIsin;
+
     @NotNull
     @Min(0)
     @Max(100)
-    Integer percent;
+    private Integer percent;
+
     @NotNull
-    String targetFundIsin;
+    private String targetFundIsin;
 
 }

@@ -35,7 +35,7 @@ public class AuthController {
     public ResponseEntity<AuthenticateResponse> authenticate(@Valid @RequestBody AuthenticateCommand authenticateCommand) {
             MobileIDSession mobileIDSession = mobileIdAuthService.startLogin(authenticateCommand.getPhoneNumber());
             mobileIdSessionStore.save(mobileIDSession);
-        return new ResponseEntity<AuthenticateResponse>(AuthenticateResponse.fromMobileIDSession(mobileIDSession), HttpStatus.OK);
+        return new ResponseEntity<>(AuthenticateResponse.fromMobileIDSession(mobileIDSession), HttpStatus.OK);
     }
 
 }

@@ -1,32 +1,42 @@
 package ee.tuleva.onboarding.mandate;
 
-import ee.tuleva.domain.fund.Fund;
-import ee.tuleva.domain.fund.FundRepository;
+import com.codeborne.security.mobileid.MobileIdSignatureFile;
+import com.codeborne.security.mobileid.MobileIdSignatureSession;
+import ee.tuleva.onboarding.mandate.pdf.PdfService;
+import ee.tuleva.onboarding.sign.MobileIdSignService;
 import ee.tuleva.onboarding.user.User;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 @Component
+@RequiredArgsConstructor
+@Transactional(rollbackFor = Exception.class)
 public class MandateService {
 
-    FundRepository fundRepository;
+    private final MandateRepository mandateRepository;
+	private final MobileIdSignService signService;
+	private final PdfService pdfService;
+
+    CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter();
 
     public Mandate save(User user, CreateMandateCommand createMandateCommand) {
-/*
-        createMandateCommand.fundTransferExchanges.stream().forEach( fte -> {
 
-        });
+        Mandate mandate = converter.convert(createMandateCommand);
+        mandate.setUser(user);
 
-        FundTransferExchange fundTransferExchange = FundTransferExchange.builder()
-                .
-
-        Fund futureContributionFund = fundRepository.findOne(createMandateCommand.futureContributionFundId);
-
-        Mandate.builder()
-                .user(user)
-                .futureContributionFund(futureContributionFund)
-                .fundTransferExchanges()
-*/
-        return null;
+        return mandateRepository.save(mandate);
     }
 
+	public MobileIdSignatureSession sign(Long mandateId, User user) {
+		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+		byte[] pdfContent = pdfService.toPdf(mandate);
+		MobileIdSignatureFile file = new MobileIdSignatureFile("mandate.pdf", "application/pdf", pdfContent);
+		return signService.startSign(file, user.getPersonalCode(), user.getPhoneNumber());
+	}
+
+	public String getSignatureStatus(MobileIdSignatureSession session) {
+		byte[] signedFile = signService.getSignedFile(session);
+		return signedFile == null ? "OUTSTANDING_TRANSACTION" : "SIGNATURE";
+	}
 }

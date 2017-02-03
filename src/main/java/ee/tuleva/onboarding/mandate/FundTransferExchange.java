@@ -1,23 +1,43 @@
 package ee.tuleva.onboarding.mandate;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
-import ee.tuleva.domain.fund.FundView;
 import lombok.Builder;
 import lombok.Data;
+import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
 
 @Data
 @Entity
-@Table(name = "mandate")
+@Table(name = "fund_transfer_exchange")
 @Builder
 public class FundTransferExchange {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JsonView(MandateView.Default.class)
     private Long id;
 
+    @JsonIgnore
     @ManyToOne
-    Mandate mandate;
+    @JoinColumn(name = "mandate_id", nullable = false)
+    private Mandate mandate;
+
+    @NotBlank
+    @JsonView(MandateView.Default.class)
+    private String sourceFundIsin;
+    @NotNull
+    @Min(0)
+    @Max(1)
+    @JsonView(MandateView.Default.class)
+    private BigDecimal amount;
+    @NotNull
+    @JsonView(MandateView.Default.class)
+    private String targetFundIsin;
 
 }

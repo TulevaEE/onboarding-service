@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import springfox.documentation.annotations.ApiIgnore;
 
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 
@@ -20,7 +21,7 @@ public class InitialCapitalController {
     @ApiOperation(value = "Get info about current user initial capital")
     @RequestMapping(method = GET, value = "/initial-capital")
     @JsonView(InitialCapitalView.SkipUserField.class)
-    public InitialCapital initialCapital(@AuthenticationPrincipal User user) {
+    public InitialCapital initialCapital(@ApiIgnore @AuthenticationPrincipal User user) {
         return initialCapitalRepository.findByUser(user);
     }
 

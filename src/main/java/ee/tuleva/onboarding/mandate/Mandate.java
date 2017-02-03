@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.mandate;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.domain.fund.Fund;
-import ee.tuleva.domain.fund.FundView;
+import ee.tuleva.onboarding.capital.InitialCapitalView;
 import ee.tuleva.onboarding.user.User;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
@@ -16,20 +18,22 @@ import java.util.List;
 @Data
 @Entity
 @Table(name = "mandate")
+@NoArgsConstructor
 public class Mandate {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JsonView(MandateView.Default.class)
     private Long id;
 
     @ManyToOne
-    User user;
+    private User user;
 
-    @ManyToOne
-    Fund futureContributionFund;
+    @JsonView(MandateView.Default.class)
+    private String futureContributionFundIsin;
 
     @NotNull
-    @Past
+    @JsonView(MandateView.Default.class)
     private Instant createdDate;
 
     @PrePersist
@@ -37,16 +41,16 @@ public class Mandate {
         createdDate = Instant.now();
     }
 
-    byte[] mandate;
+    private byte[] mandate;
 
-    @NotNull
-    @OneToMany
+    @OneToMany(cascade = {CascadeType.ALL}, mappedBy = "mandate")
+    @JsonView(MandateView.Default.class)
     List<FundTransferExchange> fundTransferExchanges;
 
     @Builder
-    Mandate(User user, Fund futureContributionFund, List<FundTransferExchange> fundTransferExchanges){
+    Mandate(User user, String futureContributionFundIsin, List<FundTransferExchange> fundTransferExchanges){
         this.user = user;
-        this.futureContributionFund = futureContributionFund;
+        this.futureContributionFundIsin = futureContributionFundIsin;
         this.fundTransferExchanges = fundTransferExchanges;
     }
 

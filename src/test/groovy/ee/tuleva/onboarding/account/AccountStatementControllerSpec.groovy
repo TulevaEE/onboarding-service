@@ -30,16 +30,16 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
 
     def "/pension-account-statement endpoint works"() {
         given:
-            1 * xRoadClient.pensionAccountBalance(*_) >> resp
-            1 * resp.getUnits() >> units
-            1 * units.getBalance() >> twoFundBalanceFromKPR()
-            2 * fundRepository.findByName("LHV Fund") >> repoFund()
+//            1 * xRoadClient.pensionAccountBalance(*_) >> resp
+//            1 * resp.getUnits() >> units
+//            1 * units.getBalance() >> twoFundBalanceFromKPR()
+//            2 * fundRepository.findByName("LHV Fund") >> repoFund()
         expect:
             mockMvc.perform(get("/v1/pension-account-statement"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-                .andExpect(jsonPath('$[1].isin', is("LV0987654321")))
-                .andExpect(jsonPath('$[1].manager', is("LHV")))
+                .andExpect(jsonPath('$[1].isin', is("EE3600109393")))
+                .andExpect(jsonPath('$[1].manager', is("SwedBank")))
     }
 
     List<PensionAccountBalanceResponseType.Units.Balance> twoFundBalanceFromKPR() {

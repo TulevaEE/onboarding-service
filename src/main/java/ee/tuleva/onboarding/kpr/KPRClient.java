@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.kpr;
 
 
 import ee.eesti.xtee6.kpr.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.net.ssl.*;
@@ -17,14 +18,20 @@ import java.util.UUID;
 public class KPRClient {
 
     private final XRoadClientIdentifierType client;
+    private final String endpoint;
+    private final String xroadInstance;
 
-    public KPRClient() {
+    @Autowired
+    public KPRClient(XRoadConfiguration conf) {
+        this.endpoint = conf.getKprEndpoint();
+        this.xroadInstance = conf.getInstance();
+
         this.client = new XRoadClientIdentifierType();
         client.setObjectType(XRoadObjectType.SUBSYSTEM);
-        client.setXRoadInstance("ee-dev");
-        client.setMemberClass("COM");
-        client.setMemberCode("14041764"); // Tuleva
-        client.setSubsystemCode("tuleva");
+        client.setXRoadInstance(this.xroadInstance);
+        client.setMemberClass(conf.getMemberClass());
+        client.setMemberCode(conf.getMemberCode());
+        client.setSubsystemCode(conf.getSubsystemCode());
 
         try {
             configureBypassSSL();
@@ -36,10 +43,8 @@ public class KPRClient {
     }
 
     private KprV6PortType getPort() {
-        String xRoadEndpoint = "http://localhost:8089/cgi-bin/TreasuryXrdWS/services/TreasuryXrdWS";
-
         KprV6PortType kprV6PortType = new KprV6Service().getKprV6Port();
-        ((BindingProvider)kprV6PortType).getRequestContext().put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, xRoadEndpoint);
+        ((BindingProvider)kprV6PortType).getRequestContext().put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, this.endpoint);
         return kprV6PortType;
     }
 
@@ -48,7 +53,7 @@ public class KPRClient {
 
         XRoadServiceIdentifierType service = new XRoadServiceIdentifierType();
         service.setObjectType(XRoadObjectType.SERVICE);
-        service.setXRoadInstance("ee-dev");
+        service.setXRoadInstance(this.xroadInstance);
         service.setMemberClass("COM");
         service.setMemberCode("10111982"); // EVK
         service.setSubsystemCode("kpr");
@@ -70,7 +75,7 @@ public class KPRClient {
 
         XRoadServiceIdentifierType service = new XRoadServiceIdentifierType();
         service.setObjectType(XRoadObjectType.SERVICE);
-        service.setXRoadInstance("ee-dev");
+        service.setXRoadInstance(this.xroadInstance);
         service.setMemberClass("COM");
         service.setMemberCode("10111982"); // EVK
         service.setSubsystemCode("kpr");

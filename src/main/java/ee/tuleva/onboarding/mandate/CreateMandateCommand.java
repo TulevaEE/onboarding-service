@@ -1,29 +1,20 @@
 package ee.tuleva.onboarding.mandate;
 
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
+import lombok.Getter;
+import lombok.Setter;
+
+import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
 import java.util.List;
 
+@Getter
+@Setter
 public class CreateMandateCommand {
 
+    private String futureContributionFundIsin;
+
+    @Valid
     @NotNull
-    Long futureContributionFundId;
-
-    @NotNull
-    List<fundTransferExchange> fundTransferExchanges;
-
-    private class fundTransferExchange {
-
-        @NotNull
-        String sourceFundIsin;
-        @NotNull
-        @Min(1)
-        @Max(100)
-        Integer percent;
-        @NotNull
-        Long targetFundId;
-
-    }
+    private List<MandateFundTransferExchangeCommand> fundTransferExchanges;
 
 }

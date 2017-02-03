@@ -9,6 +9,7 @@ import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
 
 @Data
 @Builder
@@ -36,6 +37,6 @@ public class Fund {
 
     @NotNull
     @JsonView(FundView.SkipFundManager.class)
-    private Float managementFeePercent;
+    private BigDecimal managementFeeRate;
 
 }

@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS fund (
   id SERIAL PRIMARY KEY,
   isin VARCHAR(255) NOT NULL,
   name TEXT NOT NULL,
-  management_fee_percent REAL NOT NULL,
+  management_fee_rate DECIMAL(12,7) NOT NULL,
   fund_manager_id INTEGER NOT NULL REFERENCES fund_manager,
   CONSTRAINT isin UNIQUE (isin)
 );

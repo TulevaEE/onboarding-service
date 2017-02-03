@@ -1,23 +1,23 @@
 package ee.tuleva.onboarding.mandate;
 
+import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.fasterxml.jackson.annotation.JsonView;
-import ee.tuleva.onboarding.capital.InitialCapitalView;
 import ee.tuleva.onboarding.user.User;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.ui.Model;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import springfox.documentation.annotations.ApiIgnore;
 
 import javax.validation.Valid;
 
-import static org.springframework.web.bind.annotation.RequestMethod.POST;
+import static org.springframework.web.bind.annotation.RequestMethod.*;
 
 @RestController
 @RequestMapping("/v1")
+@SessionAttributes("session")
 @RequiredArgsConstructor
 public class MandateController {
 
@@ -38,9 +38,29 @@ public class MandateController {
     }
 
     @ApiOperation(value = "Sign mandate")
-    @RequestMapping(method = POST, value = "/mandate/{id}/signature")
-    public void sign(@ApiIgnore @AuthenticationPrincipal User user) {
-
+    @RequestMapping(method = PUT, value = "/mandate/{id}/signature")
+    public MandateSignatureResponse startSign(@PathVariable("id") Long mandateId,
+                                              @ApiIgnore @AuthenticationPrincipal User user,
+                                              Model model) {
+        MobileIdSignatureSession session = mandateService.sign(mandateId, user);
+        model.addAttribute("session", new MandateSignatureSession(session.sessCode, session.challenge));
+        return MandateSignatureResponse.builder()
+                .mobileIdChallengeCode(session.challenge)
+                .build();
     }
+
+    @ApiOperation(value = "Is mandate successfully signed")
+    @RequestMapping(method = GET, value = "/mandate/{id}/signature")
+    public MandateSignatureStatusResponse getSignatureStatus(@PathVariable("id") String mandateId,
+                                                             @ApiIgnore @AuthenticationPrincipal User user,
+                                                             @ModelAttribute MandateSignatureSession session,
+                                                             Model model) {
+        String status = mandateService.getSignatureStatus(session);
+        model.addAttribute("session", session);
+        return MandateSignatureStatusResponse.builder()
+                .statusCode(status)
+                .build();
+    }
+
 
 }

@@ -35,11 +35,10 @@ class MandateServiceSpec extends Specification {
 
     def "signature status works"() {
         given:
-        def session = new MobileIdSignatureSession(1)
-        1 * signService.getSignedFile(session) >> file
+        1 * signService.getSignedFile(_) >> file
 
         when:
-        def status = service.getSignatureStatus(session)
+        def status = service.getSignatureStatus(new MandateSignatureSession())
 
         then:
         status == expectedStatus

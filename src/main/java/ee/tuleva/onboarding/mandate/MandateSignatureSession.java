@@ -5,13 +5,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
+
 import static java.lang.Integer.parseInt;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class MandateSignatureSession {
+public class MandateSignatureSession implements Serializable {
 
 	public int sessCode;
 

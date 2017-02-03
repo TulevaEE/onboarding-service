@@ -27,10 +27,10 @@ public class Mandate {
     private Long id;
 
     @ManyToOne
-    User user;
+    private User user;
 
     @JsonView(MandateView.Default.class)
-    String futureContributionFundIsin;
+    private String futureContributionFundIsin;
 
     @NotNull
     @Past

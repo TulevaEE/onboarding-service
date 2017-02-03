@@ -25,18 +25,18 @@ public class FundTransferExchange {
     @JsonIgnore
     @ManyToOne
     @JoinColumn(name = "mandate_id", nullable = false)
-    Mandate mandate;
+    private Mandate mandate;
 
     @NotBlank
     @JsonView(MandateView.Default.class)
-    String sourceFundIsin;
+    private String sourceFundIsin;
     @NotNull
     @Min(0)
     @Max(100)
     @JsonView(MandateView.Default.class)
-    Integer percent;
+    private Integer percent;
     @NotNull
     @JsonView(MandateView.Default.class)
-    String targetFundIsin;
+    private String targetFundIsin;
 
 }

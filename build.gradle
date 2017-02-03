@@ -34,6 +34,7 @@ dependencies {
 	compile('org.springframework.boot:spring-boot-starter-actuator')
 	compile('org.springframework.boot:spring-boot-starter-security')
 	compile('org.springframework.boot:spring-boot-starter-web')
+	compile('org.springframework.boot:spring-boot-starter-thymeleaf')
 	runtime("org.springframework.boot:spring-boot-devtools")
 	runtime('org.postgresql:postgresql')
 	compile("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -50,6 +51,8 @@ dependencies {
 	
 	compile('org.hibernate:hibernate-java8')
 	compile('com.fasterxml.jackson.datatype:jackson-datatype-jsr310')
+
+	compile('org.xhtmlrenderer:flying-saucer-pdf:9.1.1')
 
 	testCompile("com.h2database:h2")
 	testCompile("org.springframework.boot:spring-boot-starter-test") {

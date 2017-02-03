@@ -65,3 +65,19 @@ CREATE TABLE IF NOT EXISTS fund (
   CONSTRAINT isin UNIQUE (isin)
 );
 
+CREATE TABLE IF NOT EXISTS mandate (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users,
+  future_contribution_fund_id INTEGER NOT NULL REFERENCES fund,
+  mandate bytea NOT NULL,
+  created_date TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS fund_transfer_exchange (
+  id SERIAL PRIMARY KEY,
+  mandate_id INTEGER NOT NULL REFERENCES mandate,
+  percent INTEGER NOT NULL,
+  source_fund_isin VARCHAR NOT NULL,
+  target_fund_id INTEGER NOT NULL REFERENCES fund
+);
+

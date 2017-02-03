@@ -43,7 +43,7 @@ dependencies {
 	compile("org.jsoup:jsoup:1.8.1")
 
 	compile('com.codeborne:mobileid:1.1')
-	compile('ee.eesti.xtee6.kpr:xtee-kpr:1.0')
+	compile('ee.eesti.xtee6.kpr:xtee-kpr:1.2')
 
 	compile('io.springfox:springfox-swagger2:2.6.1')
 	compile('io.springfox:springfox-swagger-ui:2.6.1')

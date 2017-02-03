@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.account
 
-import ee.eesti.xtee6.kpr.KprV6PortType
 import ee.eesti.xtee6.kpr.PensionAccountBalanceResponseType
 import ee.tuleva.domain.fund.Fund
 import ee.tuleva.domain.fund.FundRepository
 import ee.tuleva.onboarding.BaseControllerSpec
-import ee.tuleva.onboarding.xroad.XRoadClient
+import ee.tuleva.onboarding.kpr.KPRClient
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 
@@ -21,19 +20,17 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
         mockMvc = getMockMvc(controller)
     }
 
-    XRoadClient xRoadClient = Mock(XRoadClient)
+    KPRClient xRoadClient = Mock(KPRClient)
     FundRepository fundRepository = Mock(FundRepository)
     AccountStatementController controller = new AccountStatementController(xRoadClient, new IsinAppender(fundRepository))
 
-    KprV6PortType port = Mock(KprV6PortType)
     PensionAccountBalanceResponseType resp = Mock(PensionAccountBalanceResponseType)
     PensionAccountBalanceResponseType.Units units = Mock(PensionAccountBalanceResponseType.Units)
 
 
     def "/pension-account-statement endpoint works"() {
         given:
-            1 * xRoadClient.getPort() >> port
-            1 * port.pensionAccountBalance(_) >> resp
+            1 * xRoadClient.pensionAccountBalance(*_) >> resp
             1 * resp.getUnits() >> units
             1 * units.getBalance() >> twoFundBalanceFromKPR()
             2 * fundRepository.findByName("LHV Fund") >> repoFund()

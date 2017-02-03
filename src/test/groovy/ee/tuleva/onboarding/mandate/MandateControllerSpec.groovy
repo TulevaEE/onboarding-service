@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate
 
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.auth.MobileIdSignatureSessionStore
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -63,6 +64,11 @@ class MandateControllerSpec extends BaseControllerSpec {
         @Bean
         MandateService mandateService() {
             return mockFactory.Mock(MandateService)
+        }
+
+        @Bean
+        MobileIdSignatureSessionStore mobileIdSignatureSessionStore() {
+            return mockFactory.Mock(MobileIdSignatureSessionStore)
         }
     }
 }

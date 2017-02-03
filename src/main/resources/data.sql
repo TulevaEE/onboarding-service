@@ -36,24 +36,24 @@ INSERT INTO users(
       );
 
 INSERT INTO fund(
-            isin, name, management_fee_percent, fund_manager_id)
-    SELECT 'AE123232334', 'Aktsia', 0.35, 1
+            isin, name, management_fee_rate, fund_manager_id)
+    SELECT 'AE123232334', 'Aktsia', 0.0035, 1
     WHERE
       NOT EXISTS (
         SELECT * FROM fund WHERE id = 1
       );
 
 INSERT INTO fund(
-            id, isin, name, management_fee_percent, fund_manager_id)
-    SELECT 2, 'AE123232335', 'Võlakirjad', 0.35, 1
+            id, isin, name, management_fee_rate, fund_manager_id)
+    SELECT 2, 'AE123232335', 'Võlakirjad', 0.0035, 1
     WHERE
       NOT EXISTS (
         SELECT * FROM fund WHERE id = 2
       );
 
 INSERT INTO fund(
-            id, isin, name, management_fee_percent, fund_manager_id)
-    SELECT 3, 'AE123232337', 'LHV XL', 0.95, 2
+            id, isin, name, management_fee_rate, fund_manager_id)
+    SELECT 3, 'AE123232337', 'LHV XL', 0.0095, 2
     WHERE
       NOT EXISTS (
         SELECT * FROM fund WHERE id = 3

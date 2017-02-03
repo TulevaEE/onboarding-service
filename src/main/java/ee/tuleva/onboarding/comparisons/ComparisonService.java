@@ -1,27 +1,26 @@
 package ee.tuleva.onboarding.comparisons;
 
+import ee.tuleva.domain.fund.Fund;
+import ee.tuleva.domain.fund.FundRepository;
 import ee.tuleva.onboarding.comparisons.exceptions.IsinNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.Resource;
 import java.text.DecimalFormat;
 
 
 @Service
 public class ComparisonService {
 
-    //TODO: make rates changeable
-    private static int estonianAgeOfRetirement = 65;
-    private static float estonianContributionRate = 0.06f;
-    private static float returnRate = 0.05f;
-    private static float gainRate = 0.03f;
+    private static final int estonianAgeOfRetirement = 65;
+    private static final float estonianContributionRate = 0.06f; //percent from monthly wage
+    private static final float returnRate = 0.05f;
+    private static final float gainRate = 0.03f;
 
     @Autowired
-    @Resource
-    private ComparisonDAO comparisonDAO;
+    private FundRepository fundRepository;
 
-    protected float totalFee(float totalCapital, int age, float monthlyWage, float managementFee) throws IsinNotFoundException{
+    protected float totalFee(float totalCapital, int age, float monthlyWage, float managementFee) {
 
         int n = estonianAgeOfRetirement - age;
 
@@ -29,9 +28,7 @@ public class ComparisonService {
 
         float fvx = fv(yearlyContribution,n,totalCapital,gainRate,returnRate);
 
-        float rNet = returnRate - managementFee;
-
-        float fvy = fv(yearlyContribution,n,totalCapital,gainRate,rNet);
+        float fvy = fv(yearlyContribution,n,totalCapital,gainRate,returnRate - managementFee);
 
         float totalFee = fvx - fvy;
 
@@ -48,13 +45,17 @@ public class ComparisonService {
 
     public Comparison comparedResults (ComparisonCommand cm) throws IsinNotFoundException{
 
-        String isin = cm.getIsin();
+        Fund f = fundRepository.findByIsin(cm.getIsin());
 
-        float managementFee = comparisonDAO.getFee(isin)/100;
+        if (f == null){
+            throw new IsinNotFoundException("Unrecognized ISIN");
+        }
+
+        float managementFee = f.getManagementFeeRate().floatValue();
 
         float totalFee = totalFee(cm.getTotalCapital(), cm.getAge(), cm.getMonthlyWage(), managementFee);
 
-        return new Comparison(isin,totalFee);
+        return new Comparison(cm.getIsin(),totalFee);
     }
 
 

@@ -1,10 +1,7 @@
 package ee.tuleva.domain.fund;
 
 import com.fasterxml.jackson.annotation.JsonView;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
@@ -17,6 +14,7 @@ import java.math.BigDecimal;
 @Table(name = "fund")
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter
 public class Fund {
 
     @Id

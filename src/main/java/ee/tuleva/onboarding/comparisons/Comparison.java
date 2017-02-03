@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.comparisons;
 
+import lombok.Getter;
+
 import java.io.Serializable;
 
-
+@Getter
 public class Comparison implements Serializable{
 
     private String isin;
@@ -17,15 +19,4 @@ public class Comparison implements Serializable{
         this.currency = "EUR";
     }
 
-    public String getIsin() {
-        return isin;
-    }
-
-    public float getTotalFee() {
-        return totalFee;
-    }
-
-    public String getCurrency() {
-        return currency;
-    }
 }

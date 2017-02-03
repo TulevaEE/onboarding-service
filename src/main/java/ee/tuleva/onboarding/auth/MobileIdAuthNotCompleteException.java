@@ -1,11 +1,19 @@
 package ee.tuleva.onboarding.auth;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.security.oauth2.common.exceptions.ClientAuthenticationException;
 
-@ResponseStatus(value= HttpStatus.CONTINUE, reason="AUTHENTICATION_NOT_COMPLETE") //<- TODO: this is not working
-public class MobileIdAuthNotCompleteException extends RuntimeException {
+public class MobileIdAuthNotCompleteException extends ClientAuthenticationException {
     MobileIdAuthNotCompleteException() {
-        super("AUTHENTICATION_NOT_COMPLETE");
+        super("Please keep polling.");
+    }
+
+    @Override
+    public String getOAuth2ErrorCode() {
+        return "AUTHENTICATION_NOT_COMPLETE";
+    }
+
+    @Override
+    public int getHttpErrorCode() {
+        return 200; //TODO: change to something else
     }
 }

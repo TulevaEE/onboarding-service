@@ -33,7 +33,10 @@ public class CORSFilter extends GenericFilterBean {
                 HttpHeaders.AUTHORIZATION);
         response.setHeader("Access-Control-Allow-Headers",  String.join(", ", allowedHeaders));
 
-        if ("OPTIONS".equalsIgnoreCase(((HttpServletRequest) req).getMethod())) {
+        HttpServletRequest request = ((HttpServletRequest) req);
+
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod()) &&
+                request.getRequestURI().startsWith("/oauth/token")) {
             response.setStatus(HttpServletResponse.SC_OK);
         } else {
             chain.doFilter(req, res);

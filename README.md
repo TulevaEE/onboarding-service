@@ -2,10 +2,11 @@
 
 ## Design
 
-![N|Solid](https://cldup.com/dTxpPi9lDf.thumb.png)
+![N|Solid](reference/design.png)
 
 ### API
 [Swagger](https://onboarding-service.tuleva.ee/swagger-ui.html)
+
 [Postman API collection](reference/api.postman_collection)
 
 ### Build pipeline

@@ -30,7 +30,6 @@ public class IncomeController {
     @ApiOperation(value = "Returns user last year average salary reverse calculated from 2nd pillar transactions")
     @RequestMapping(method = GET, value = "/average-salary")
     public Money getMyAverageSalay(@ApiIgnore @AuthenticationPrincipal User user) {
-        /*
         PensionAccountTransactionType request = new PensionAccountTransactionType();
 
         request.setDateFrom(toXMLGregorianCalendar(LocalDate.now().minusYears(1)));
@@ -39,12 +38,6 @@ public class IncomeController {
         PensionAccountTransactionResponseType response = xRoadClient.pensionAccountTransaction(request, user.getPersonalCode());
 
         return AverageIncomeCalculator.calculate(response.getMoney().getTransaction());
-        */
-
-        return Money.builder()
-                .amount(new BigDecimal("2016"))
-                .currency("EUR")
-                .build();
     }
 
 

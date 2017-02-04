@@ -31,7 +31,7 @@ public class IsinAppender implements Converter<FundBalance, FundBalance> {
         Fund f = fundRepository.findByName(source.getName());
         if (f == null) {
             // todo not hiding but we haven't figured out good business actions here
-            throw new RuntimeException("Unable to resolve fund by name!");
+            throw new RuntimeException("Unable to resolve fund by name! name=" + source.getName());
         }
 
         source.setIsin(f.getIsin());
@@ -47,7 +47,7 @@ public class IsinAppender implements Converter<FundBalance, FundBalance> {
             Fund f = fundRepository.findByName(fb.getName());
 
             if (f == null) {
-                throw new RuntimeException("Unable to resolve fund by name!");
+                throw new RuntimeException("Unable to resolve fund by name! name=" + fb.getName());
             }
 
             fb.setIsin(f.getIsin());

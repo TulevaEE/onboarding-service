@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 import javax.net.ssl.*;
 import javax.xml.ws.BindingProvider;
 import javax.xml.ws.Holder;
+import javax.xml.ws.WebServiceException;
+import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -43,6 +45,12 @@ public class KPRClient {
     }
 
     private KprV6PortType getPort() {
+        // copypaste from wsimport non-wrapped java code
+        URL KPRV6SERVICE_WSDL_LOCATION = ee.eesti.xtee6.kpr.KprV6Service.class.getResource("kpr-v6.wsdl");
+        if (KPRV6SERVICE_WSDL_LOCATION == null) {
+            throw new WebServiceException("Cannot find 'kpr-v6.wsdl' wsdl. Place the resource correctly in the classpath.");
+        }
+
         KprV6PortType kprV6PortType = new KprV6Service().getKprV6Port();
         ((BindingProvider)kprV6PortType).getRequestContext().put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, this.endpoint);
         return kprV6PortType;

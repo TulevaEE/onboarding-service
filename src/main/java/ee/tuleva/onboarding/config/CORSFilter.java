@@ -43,9 +43,7 @@ public class CORSFilter extends GenericFilterBean {
 
         HttpServletRequest request = ((HttpServletRequest) req);
 
-        if ("OPTIONS".equalsIgnoreCase(request.getMethod())
-                && request.getRequestURI().startsWith("/oauth/token")
-                ) {
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             response.setStatus(HttpServletResponse.SC_OK);
         } else {
             chain.doFilter(req, res);

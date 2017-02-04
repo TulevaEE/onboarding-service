@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.config;
 
-import com.sun.deploy.util.StringUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
@@ -31,7 +30,7 @@ public class CORSFilter extends GenericFilterBean {
         List<String> allowedHeaders = Arrays.asList(
                 HttpHeaders.CONTENT_TYPE,
                 HttpHeaders.AUTHORIZATION);
-        response.setHeader("Access-Control-Allow-Headers", StringUtils.join(allowedHeaders, ", "));
+        response.setHeader("Access-Control-Allow-Headers",  String.join(", ", allowedHeaders));
 
         chain.doFilter(req, res);
     }

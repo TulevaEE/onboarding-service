@@ -31,6 +31,10 @@ xroad:
   memberClass: COM
   memberCode: 14041764
   subsystemCode: tuleva
+  requestTimeout: 5000
+  connectionTimeout: 3000
+  insecureHTTPS: true
+
 ---
 
 spring:

@@ -15,4 +15,10 @@ public class MandateFixture {
         ]
     }
 
+    public static Mandate sampleMandate() {
+        return Mandate.builder()
+                .fundTransferExchanges(null)
+                .futureContributionFundIsin("sample isin")
+                .build()
+    }
 }

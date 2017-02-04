@@ -14,6 +14,7 @@ import spock.mock.DetachedMockFactory
 
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
@@ -26,6 +27,20 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     @Autowired
     MockMvc mvc
+
+    def "save a mandate"() {
+        expect:
+        mvc
+                .perform(post("/v1/mandate/").content(
+                mapper.writeValueAsString(
+                        MandateFixture.sampleCreateMandateCommand()
+                ))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+//TODO                .andExpect(jsonPath('$.futureContributionFundIsin', is(MandateFixture.sampleMandate().futureContributionFundIsin)))
+
+    }
 
     def "startSign returns the mobile id challenge code"() {
         when:
@@ -63,7 +78,9 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         @Bean
         MandateService mandateService() {
-            return mockFactory.Mock(MandateService)
+            MandateService mandateService = mockFactory.Mock(MandateService)
+//TODO            mandateService.save(_ as User, _ as CreateMandateCommand) >> MandateFixture.sampleMandate()
+            return mandateService
         }
 
         @Bean

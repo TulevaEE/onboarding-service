@@ -77,11 +77,4 @@ class MandateServiceSpec extends Specification {
                 .build()
     }
 
-    Mandate sampleMandate() {
-        return Mandate.builder()
-                .fundTransferExchanges(null)
-                .futureContributionFundIsin("sample isin")
-                .build()
-    }
-
 }

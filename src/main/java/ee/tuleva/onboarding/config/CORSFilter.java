@@ -29,8 +29,11 @@ public class CORSFilter extends GenericFilterBean {
         response.setHeader("Access-Control-Allow-Credentials", "true");
 
         List<String> allowedHeaders = Arrays.asList(
+                "x-requested-with",
                 HttpHeaders.CONTENT_TYPE,
-                HttpHeaders.AUTHORIZATION);
+                HttpHeaders.AUTHORIZATION,
+                HttpHeaders.USER_AGENT
+                );
         response.setHeader("Access-Control-Allow-Headers",  String.join(", ", allowedHeaders));
 
         HttpServletRequest request = ((HttpServletRequest) req);

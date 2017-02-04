@@ -1,0 +1,297 @@
+{
+	"variables": [],
+	"info": {
+		"name": "Tuleva API",
+		"_postman_id": "9e122dc5-8026-5e17-f43e-0d796f421c6c",
+		"description": "",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "tuleva auth",
+			"request": {
+				"url": "{{HOST}}/oauth/token",
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Basic b25ib2FyZGluZy1jbGllbnQ6b25ib2FyZGluZy1jbGllbnQ=",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "grant_type",
+							"value": "mobile_id",
+							"type": "text",
+							"enabled": true
+						},
+						{
+							"key": "client_id",
+							"value": "onboarding-client",
+							"type": "text",
+							"enabled": true
+						},
+						{
+							"key": "redirect_uri",
+							"value": "http://lala.ee",
+							"type": "text",
+							"enabled": false
+						},
+						{
+							"key": "code",
+							"value": "m503QK",
+							"type": "text",
+							"enabled": false
+						},
+						{
+							"key": "",
+							"value": "",
+							"type": "text",
+							"enabled": true
+						}
+					]
+				},
+				"description": ""
+			},
+			"response": []
+		},
+		{
+			"name": "tuleva init auth",
+			"request": {
+				"url": "{{HOST}}/authenticate",
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json;charset=UTF-8",
+						"description": ""
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n   \"phoneNumber\": \"5523533\"\n}"
+				},
+				"description": "Generated from a curl request: \ncurl -X POST --header 'Content-Type: application/json;charset=UTF-8' --header 'Accept: application/json' -d '{ \\ \n   \\\"phoneNumber\\\": \\\"5523533\\\" \\ \n }' 'http://localhost:9000/authenticate'\n"
+			},
+			"response": []
+		},
+		{
+			"name": "tuleva get me",
+			"request": {
+				"url": "{{HOST}}/v1/me",
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json;charset=UTF-8",
+						"description": ""
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"description": ""
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{TOKEN}}",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n   \"phoneNumber\": \"5523533\"\n}"
+				},
+				"description": "Generated from a curl request: \ncurl -X POST --header 'Content-Type: application/json;charset=UTF-8' --header 'Accept: application/json' -d '{ \\ \n   \\\"phoneNumber\\\": \\\"5523533\\\" \\ \n }' 'http://localhost:9000/authenticate'\n"
+			},
+			"response": []
+		},
+		{
+			"name": "tuleva get initial capital",
+			"request": {
+				"url": "{{HOST}}/v1/initial-capital",
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json;charset=UTF-8",
+						"description": ""
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"description": ""
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{TOKEN}}",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n   \"phoneNumber\": \"5523533\"\n}"
+				},
+				"description": "Generated from a curl request: \ncurl -X POST --header 'Content-Type: application/json;charset=UTF-8' --header 'Accept: application/json' -d '{ \\ \n   \\\"phoneNumber\\\": \\\"5523533\\\" \\ \n }' 'http://localhost:9000/authenticate'\n"
+			},
+			"response": []
+		},
+		{
+			"name": "tuleva get available-funds",
+			"request": {
+				"url": "{{HOST}}/v1/available-funds",
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json;charset=UTF-8",
+						"description": ""
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"description": ""
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{TOKEN}}",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n   \"phoneNumber\": \"5523533\"\n}"
+				},
+				"description": "Generated from a curl request: \ncurl -X POST --header 'Content-Type: application/json;charset=UTF-8' --header 'Accept: application/json' -d '{ \\ \n   \\\"phoneNumber\\\": \\\"5523533\\\" \\ \n }' 'http://localhost:9000/authenticate'\n"
+			},
+			"response": []
+		},
+		{
+			"name": "tuleva get pension-account-statement",
+			"request": {
+				"url": "{{HOST}}/v1/pension-account-statement",
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json;charset=UTF-8",
+						"description": ""
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"description": ""
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{TOKEN}}",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n   \"phoneNumber\": \"5523533\"\n}"
+				},
+				"description": "Generated from a curl request: \ncurl -X POST --header 'Content-Type: application/json;charset=UTF-8' --header 'Accept: application/json' -d '{ \\ \n   \\\"phoneNumber\\\": \\\"5523533\\\" \\ \n }' 'http://localhost:9000/authenticate'\n"
+			},
+			"response": []
+		},
+		{
+			"name": "tuleva mandate",
+			"request": {
+				"url": "{{HOST}}/v1/mandate",
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json;charset=UTF-8",
+						"description": ""
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"description": ""
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{TOKEN}}",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fundTransferExchanges\": [\n    {\n      \"amount\": 0.88,\n      \"sourceFundIsin\": \"SOMEISIN\",\n      \"targetFundIsin\": \"AE123232334\"\n    }\n  ],\n  \"futureContributionFundIsin\": \"AE123232334\"\n}"
+				},
+				"description": "Generated from a curl request: \ncurl -X POST --header 'Content-Type: application/json;charset=UTF-8' --header 'Accept: application/json' -d '{ \\ \n   \\\"phoneNumber\\\": \\\"5523533\\\" \\ \n }' 'http://localhost:9000/authenticate'\n"
+			},
+			"response": []
+		},
+		{
+			"name": "tuleva mandate sign",
+			"request": {
+				"url": "{{HOST}}/v1/mandate/14/signature",
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json;charset=UTF-8",
+						"description": ""
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"description": ""
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{TOKEN}}",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fundTransferExchanges\": [\n    {\n      \"percent\": 10,\n      \"sourceFundIsin\": \"SOMEISIN\",\n      \"targetFundIsin\": \"AE123232334\"\n    }\n  ],\n  \"futureContributionFundIsin\": \"AE123232334\"\n}"
+				},
+				"description": "Generated from a curl request: \ncurl -X POST --header 'Content-Type: application/json;charset=UTF-8' --header 'Accept: application/json' -d '{ \\ \n   \\\"phoneNumber\\\": \\\"5523533\\\" \\ \n }' 'http://localhost:9000/authenticate'\n"
+			},
+			"response": []
+		},
+		{
+			"name": "tuleva mandate sign status",
+			"request": {
+				"url": "{{HOST}}/v1/mandate/14/signature",
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json;charset=UTF-8",
+						"description": ""
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"description": ""
+					},
+					{
+						"key": "Authorization",
+						"value": "Bearer {{TOKEN}}",
+						"description": ""
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fundTransferExchanges\": [\n    {\n      \"percent\": 10,\n      \"sourceFundIsin\": \"SOMEISIN\",\n      \"targetFundIsin\": \"AE123232334\"\n    }\n  ],\n  \"futureContributionFundIsin\": \"AE123232334\"\n}"
+				},
+				"description": "Generated from a curl request: \ncurl -X POST --header 'Content-Type: application/json;charset=UTF-8' --header 'Accept: application/json' -d '{ \\ \n   \\\"phoneNumber\\\": \\\"5523533\\\" \\ \n }' 'http://localhost:9000/authenticate'\n"
+			},
+			"response": []
+		}
+	]
+}

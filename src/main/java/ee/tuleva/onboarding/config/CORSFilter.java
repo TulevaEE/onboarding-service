@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.config;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.GenericFilterBean;
@@ -17,12 +19,14 @@ import java.util.List;
 
 @Slf4j
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
 public class CORSFilter extends GenericFilterBean {
 
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
         HttpServletResponse response = (HttpServletResponse) res;
         response.setHeader("Access-Control-Allow-Origin", "https://pension.tuleva.ee");
+        response.setHeader("Access-Control-Allow-Origin", "*");
         response.setHeader("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE");
         response.setHeader("Access-Control-Max-Age", "3600");
         response.setHeader("Access-Control-Allow-Headers", "Authorization");
@@ -41,7 +45,7 @@ public class CORSFilter extends GenericFilterBean {
         HttpServletRequest request = ((HttpServletRequest) req);
 
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())
-//                && request.getRequestURI().startsWith("/oauth/token")
+                && request.getRequestURI().startsWith("/oauth/token")
                 ) {
             response.setStatus(HttpServletResponse.SC_OK);
         } else {

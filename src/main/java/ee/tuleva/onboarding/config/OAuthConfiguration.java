@@ -7,9 +7,7 @@ import ee.tuleva.onboarding.user.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configuration.EnableAuthorizationServer;
@@ -44,7 +42,6 @@ public class OAuthConfiguration {
                     .anonymous().and()
                     .authorizeRequests()
                     .regexMatchers("/v1/comparisons.*").permitAll()
-                    .regexMatchers(HttpMethod.OPTIONS, "/oauth/token").permitAll()
                     .regexMatchers("/v1/.*").authenticated()
                     ;
         }

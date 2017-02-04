@@ -32,7 +32,9 @@ public class CORSFilter extends GenericFilterBean {
                 "x-requested-with",
                 HttpHeaders.CONTENT_TYPE,
                 HttpHeaders.AUTHORIZATION,
-                HttpHeaders.USER_AGENT
+                HttpHeaders.USER_AGENT,
+                HttpHeaders.ORIGIN,
+                HttpHeaders.ACCEPT
                 );
         response.setHeader("Access-Control-Allow-Headers",  String.join(", ", allowedHeaders));
 

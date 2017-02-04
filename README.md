@@ -1,126 +1,17 @@
-# onboarding-service
-Onboarding Service
+# Onboarding-service
 
-## Rest API Proposal
-O-Auth2 based on Mobile-ID and ID-card authentication provider auth calls.
+## Design
 
-//tuleva offered funds  
-**/available-pension-funds**
-```js
-[
-  {
-    id: 1,
-    isin: "AE12324344336",
-    name: "STOCK"
-  }
-]
-```
+![N|Solid](https://cldup.com/dTxpPi9lDf.thumb.png)
 
-//current funds in EVK  
-**/pension-account-statement**
-```js
-[
-  {
-    id: 1,
-    name: "LHV XL", //PF_NIMETUS
-    isin: "AE233242342",
-    manager: "LHV",
-    shares: 10000,
-    price: 0.1,
-    currency: "EUR",
-    pillar: 2
-  }
-]
-```
+### API
+[Swagger](https://onboarding-service.tuleva.ee/swagger-ui.html)
+[Postman API collection](reference/api.postman_collection)
 
-POST **/exchange-applications**  
-Body:
-```js
-{
-  funds: [
-    {
-      source: "AE43434334", //isin
-      target: "AE43433434", //isin
-      sharePercent: 100
-    }
-  ]
-}
-```
-Response:
-```js
-{
-  id: 123,
-  ...
-}
-```
+### Build pipeline
 
-POST **/selection-applications**  
-Body:
-```js
-{
-  fund: "AE434334344" //isin
-}
-```
-Response:
-```js
-{
-  id: 123,
-  ...
-}
-```
+**Dev environment**
+Gradle `bootRun`
 
-**/me**
-```js
-{
-  id: 123,
-  firstName: "Jordan",
-  lastName: "Valdma",
-  personalCode: "38812022762",
-  email: "jordan@valdma.ee",
-  phoneNumber: "5555555",
-  createdDate: "2017-01-29 20:13:44",
-  updatedDate: "2017-01-30 21:24:58",
-  age: 30
-}
-```
-
-**/initial-capital**
-```js
-{
-  amount: 3000,
-  currency: "EUR"
-}
-```
-
-**/orders/{id}**
-```js
-{
-  id: 0, //starting capital, because id is 0
-  fund: 1,
-  amount: 1000,
-  currency: "EUR",
-  price: 0.3,
-  transaction: "BUY",
-  created: "2017-01-29 20:13:44"
-}
-```
-
-//available for public  
-**/comparisons/?totalCapital=1000&age=30&monthlyWage=2000&isin=AE233242342**
-```js
-[
-  {
-    //fundName: "LHV XL",
-    isin: "AE233242342",
-    totalFee: 51546.56,
-    currency: "EUR"
-  }
-]
-```
-
-**/savings**
-```js
-{
-  amount: 123
-}
-```
+**Production**
+Github -> CircleCI (if build is green) -> deploy Heroku

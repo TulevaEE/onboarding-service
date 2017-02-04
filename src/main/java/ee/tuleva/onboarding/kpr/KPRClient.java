@@ -51,7 +51,7 @@ public class KPRClient {
             throw new WebServiceException("Cannot find 'kpr-v6.wsdl' wsdl. Place the resource correctly in the classpath.");
         }
 
-        KprV6PortType kprV6PortType = new KprV6Service().getKprV6Port();
+        KprV6PortType kprV6PortType = new KprV6Service(KPRV6SERVICE_WSDL_LOCATION).getKprV6Port();
         ((BindingProvider)kprV6PortType).getRequestContext().put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, this.endpoint);
         return kprV6PortType;
     }

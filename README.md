@@ -16,3 +16,6 @@ Gradle `bootRun`
 
 **Production**
 Github -> CircleCI (if build is green) -> deploy Heroku
+
+###Comparison maintenance
+Comparison service in package ee.tuleva.onboarding.comparisons can be edited for keeping total fee calculations current with Estonian regulations.

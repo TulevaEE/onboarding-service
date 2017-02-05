@@ -1,68 +1,107 @@
 package ee.tuleva.onboarding.comparisons
 
 import ee.tuleva.domain.fund.FundManagerRepository
-import ee.tuleva.onboarding.comparisons.exceptions.FundManagerNameException
+import ee.tuleva.onboarding.comparisons.exceptions.FeeSizeException
+import ee.tuleva.onboarding.comparisons.exceptions.FundManagerNotFoundException
+import ee.tuleva.onboarding.comparisons.exceptions.SourceHTMLChangedException
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
 import spock.lang.Specification
 
-import org.jsoup.nodes.Document
+class EstonianFeeFinderServiceSpec extends Specification {
 
-class EstonianFeeFinderServiceSpec extends Specification{
-
-
-    //def fundMan = Mock(FundManagerRepository)
-    //def service = Spy(EstonianFeeFinderService)
     EstonianFeeFinderService service = new EstonianFeeFinderService()
+
     def fundManagerRepository = Mock(FundManagerRepository)
-    //def service = new EstonianFeeFinderService(fundmanagerRepo)
 
-    def setup(){
+    def setup() {
         service.fundManagerRepository = fundManagerRepository
+
     }
 
-    def "finding fees works" (){
+    def "finding fees works"() {
         given:
-        File correct = new File("src/test/resources/compare.html")
-        Document html = Jsoup.parse(correct,"UTF-8")
+        File correct = new File("src/test/resources/compare.txt")
+        Document html = Jsoup.parse(correct, "UTF-8")
 
         when:
+
         service.findFundsFromHTML(html)
 
         then:
+        thrown(FundManagerNotFoundException)
+        //TODO
+        //should throw no exceptions, fundManagerRepository mocking is implemented incorrectly
         //noExceptionThrown()
-        thrown(FundManagerNameException)
 
     }
 
-    def "wrong fee size throws exception" () {
+    def "source html changes detected"(){
         given:
-        File file = new File("src/test/resources/comparefees.html")
-        Document html = Jsoup.parse(file,"UTF-8")
+        File file = new File("src/test/resources/compareSourceChanged.txt")
+        Document html = Jsoup.parse(file, "UTF-8")
 
         when:
         service.findFundsFromHTML(html)
 
         then:
- //       thrown(FeeSizeException)
-        thrown(FundManagerNameException)
-
+        thrown(SourceHTMLChangedException)
 
     }
 
-    def "wrong format throws exception" () {
+    def "wrong fee size throws exception"() {
         given:
-        File file = new File("src/test/resources/compareparsing.html")
-        Document html = Jsoup.parse(file,"UTF-8")
+        File file = new File("src/test/resources/comparefees.txt")
+        Document html = Jsoup.parse(file, "UTF-8")
 
         when:
         service.findFundsFromHTML(html)
 
         then:
-        //thrown(ParseException)
-        thrown(FundManagerNameException)
+        thrown(FeeSizeException)
 
     }
 
+    def "wrong format throws exception"() {
+        given:
+        File file = new File("src/test/resources/compareparsing.txt")
+        Document html = Jsoup.parse(file, "UTF-8")
+
+        when:
+        service.findFundsFromHTML(html)
+
+        then:
+        thrown(NumberFormatException)
+
+    }
+
+    def "fee parsed correctly" (String fee, float f){
+
+        expect:
+        service.parseFee(fee) == f
+
+        where:
+        fee      | f
+        "1,2"    | 0.012
+        "0.8956" | 0.008956
+        "1.1"    | 0.011
+        "1"      | 0.01
+
+    }
+
+    def "fee fits into Estonian regulations" (){
+        when:
+        service.parseFee("2.1")
+
+        then:
+        thrown(FeeSizeException)
+
+        when:
+        service.parseFee("-0.2")
+
+        then:
+        thrown(FeeSizeException)
+    }
 
 
 }

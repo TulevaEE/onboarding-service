@@ -6,7 +6,7 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class FundManagerNameException extends Exception {
+public class FundManagerNotFoundException extends ComparisonException {
 
     private String managername;
 

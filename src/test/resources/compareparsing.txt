@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="et" prefix="og: http://ogp.me/ns#" class="no-js">
+
+<head>
+
+  <title>Fonditasude võrdlus - PensionikeskusPensionikeskus</title>
+
+</head>
+
+<body class="page page-id-1717 page-child parent-pageid-301 page-template page-template-funds-fees-type2 page-template-funds-fees-type2-php bg-page-temp3-php">
+  <div class="container container-position">
+    <div class="the-content">
+      <div class="row">
+        <div class="col-md-9 l-border">
+          <div class="article">
+            <div class="statistics">
+              <table class="stats fees table-condensed table-bordered">
+                <!-- <thead> -->
+                <tr class="chapter">
+                  <th data-sorter="false" colspan="4">
+                    <h3>Konservatiivne</h3>
+                  </th>
+                </tr>
+                <tr class="head">
+                  <th width="70%">Fond</th>
+                  <th nowrap>Väljalasketasu</th>
+                  <th nowrap>Tagasivõtmistasu</th>
+                  <th nowrap>Valitsemistasu</th>
+                </tr>
+                <tbody class="data">
+                  <tr class="data">
+                    <td class="name"><a href="/ii-sammas/fondid/kohustuslikud-pensionifondid/45/">LHV Pensionifond Intress</a></td>
+                    <td>0%</td>
+                    <td>0%</td>
+                    <td><span>wrongformat%</span></td>
+                  </tr>
+                  <tr class="data">
+                    <td class="name"><a href="/ii-sammas/fondid/kohustuslikud-pensionifondid/46/">LHV Pensionifond S</a></td>
+                    <td>0%</td>
+                    <td>0%</td>
+                    <td><span>0,79800%</span></td>
+                  </tr>
+                </tbody>
+                <!-- <thead> -->
+                <tr class="chapter">
+                  <th data-sorter="false" colspan="4">
+                    <h3>Tasakaalustatud</h3>
+                  </th>
+                </tr>
+                <tr class="head">
+                  <th width="70%">Fond</th>
+                  <th nowrap>Väljalasketasu</th>
+                  <th nowrap>Tagasivõtmistasu</th>
+                  <th nowrap>Valitsemistasu</th>
+                </tr>
+                <tbody class="data">
+                  <tr class="data">
+                    <td class="name"><a href="/ii-sammas/fondid/kohustuslikud-pensionifondid/44/">LHV Pensionifond 25</a></td>
+                    <td>0%</td>
+                    <td>0%</td>
+                    <td><span>0,96425%</span></td>
+                  </tr>
+                  <tr class="data">
+                    <td class="name"><a href="/ii-sammas/fondid/kohustuslikud-pensionifondid/36/">Swedbank Pensionifond K2 (Tasakaalustatud strateegia)</a></td>
+                    <td>0%</td>
+                    <td>0,1%</td>
+                    <td><span>0.87%</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>

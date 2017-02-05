@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="et" prefix="og: http://ogp.me/ns#" class="no-js">
+
+<head>
+    <title>Kohustuslikud pensionifondid - PensionikeskusPensionikeskus | Page 44</title>
+</head>
+
+<body class="page page-id-1620 page-child parent-pageid-301 page-template page-template-funds-type2 page-template-funds-type2-php paged-44 page-paged-44 bg-page-temp3-php">
+
+    <div class="container container-position">
+        <div class="the-content">
+            <div class="row">
+                <div class="col-md-9 l-border">
+                    <div class="article fund-info">
+
+                        <div style="float: right;"><img src="/wp-content/uploads/2015/01/LHV_logo-150x54.jpg" title="AS LHV Varahaldus" alt="" /></div>
+
+                        <div class="hgroup">
+                            <h1>LHV Pensionifond 25</h1>
+                        </div>
+
+
+                        <p>LHV Pensionifond 25 on tasakaalustatud, hajutatud, eri varaklassidesse investeeriv fond. Fondi investeerimisstrateegia
+                            kohaselt paigutatakse normaalolukorras 15–25% fondi varadest aktsiate varaklassi. Ülejäänud osas
+                            investeeritakse fondi varad valdavalt võlaväärtpaberitesse ja krediidiasutuste hoiustesse. <br
+                            />
+                        </p>
+
+                        <div class="fund-block">
+                            <h3>Fonditasud</h3>
+
+                            <p><span class="fund-field">Väljalasketasu:</span> 0%</p>
+
+                            <p><span class="fund-field">Tagasivõtmistasu:</span> 0%</p>
+
+                            <p><span class="fund-field">Valitsemistasu:</span> 0,96425%
+
+                            </p>
+                        </div>
+                        <div class="fund-block">
+                            <br/>
+                            <p><span class="fund-field">ISIN:</span> EE3600019790</p>
+
+                            <p><span class="fund-field">Lühinimi:</span> SPK25</p>
+
+                            <p><span class="fund-field">Registreerimise kuupäev:</span> 30.05.2002</p>
+
+                            <p><span class="fund-field">Strateegia:</span> Tasakaalustatud </p>
+                        </div>
+
+
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

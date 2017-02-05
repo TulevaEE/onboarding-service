@@ -1,11 +1,23 @@
 package ee.tuleva.onboarding.comparisons;
 
+import ee.tuleva.onboarding.comparisons.exceptions.ComparisonException;
+import ee.tuleva.onboarding.comparisons.exceptions.IsinNotFoundException;
+import ee.tuleva.onboarding.comparisons.exceptions.SourceHTMLChangedException;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
+
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class PensionFundSystemCodeToIsinMap {
+class PensionikeskusCodeToIsin {
 
     private static final Map<Integer, String> map;
+
+    private static final String secondPillarFundsURLString = "http://www.pensionikeskus.ee/ii-sammas/fondid/kohustuslikud-pensionifondid/";
 
     static {
         map = new HashMap<>();
@@ -35,8 +47,41 @@ public class PensionFundSystemCodeToIsinMap {
 
     }
 
-    static String getIsin(int code){
+    static String getIsin(int code) throws ComparisonException, IOException{
+
+        if (!map.containsKey(code)) {
+
+            Document doc = Jsoup.connect(secondPillarFundsURLString+code).get();
+
+            String foundisin = findNewIsinFromHTML(doc);
+
+            map.put(code,foundisin);
+
+        }
         return map.get(code);
+    }
+
+    private static String findNewIsinFromHTML(Document doc) throws IOException, ComparisonException {
+
+        Elements fundData = doc.getElementsByClass("fund-block");
+        if (fundData == null || fundData.isEmpty()) throw new SourceHTMLChangedException();
+
+        Element isinData = fundData.first().select("p").first();
+        if (isinData == null) throw new SourceHTMLChangedException();
+
+        String[] isinDataAttributes = isinData.text().split(" ");
+        if (isinDataAttributes.length != 2) throw new SourceHTMLChangedException();
+
+        String isin = isinDataAttributes[1];
+
+        if (!isinCodeValid(isin)) throw new IsinNotFoundException("Invalid ISIN format scraped from source page");
+
+        return isin;
+
+    }
+
+    private static boolean isinCodeValid(String foundisin) {
+        return foundisin.length() == 12 && foundisin.startsWith("EE");
     }
 
 }

@@ -39,7 +39,7 @@ public class ComparisonService {
 
     }
 
-    protected static float fv(float yearly, int n, float totalCapital, float g, float r) {
+    private static float fv(float yearly, int n, float totalCapital, float g, float r) {
         return yearly * ((float) Math.pow(1 + r, n) - (float) Math.pow(1 + g, n)) / (r - g) + (totalCapital * (float) Math.pow(1 + r, n));
     }
 

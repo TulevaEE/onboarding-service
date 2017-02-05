@@ -18,5 +18,8 @@ public class XRoadConfiguration {
     private String memberClass;
     private String memberCode;
     private String subsystemCode;
+    private int requestTimeout;
+    private int connectionTimeout;
+    private boolean insecureHTTPS = false;
 
 }

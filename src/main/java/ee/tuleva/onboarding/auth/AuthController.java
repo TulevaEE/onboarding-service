@@ -20,7 +20,6 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
 @RestController
 @Slf4j
-@CrossOrigin(origins = "*")
 @RequiredArgsConstructor
 public class AuthController {
 

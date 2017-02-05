@@ -35,8 +35,9 @@ public class MandateService {
 		return signService.startSign(file, user.getPersonalCode(), user.getPhoneNumber());
 	}
 
-	public String getSignatureStatus(MobileIdSignatureSession session) {
-		byte[] signedFile = signService.getSignedFile(session);
+	public String getSignatureStatus(MandateSignatureSession session) {
+		MobileIdSignatureSession mobileIdSignatureSession = new MobileIdSignatureSession(session.getSessCode());
+		byte[] signedFile = signService.getSignedFile(mobileIdSignatureSession);
 		return signedFile == null ? "OUTSTANDING_TRANSACTION" : "SIGNATURE";
 	}
 }

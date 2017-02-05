@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.kpr;
 
 
+import com.sun.xml.ws.client.BindingProviderProperties;
 import ee.eesti.xtee6.kpr.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -8,10 +9,13 @@ import org.springframework.stereotype.Service;
 import javax.net.ssl.*;
 import javax.xml.ws.BindingProvider;
 import javax.xml.ws.Holder;
+import javax.xml.ws.WebServiceException;
+import java.net.URL;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -20,11 +24,15 @@ public class KPRClient {
     private final XRoadClientIdentifierType client;
     private final String endpoint;
     private final String xroadInstance;
+    private final int requestTimeout;
+    private final int connectionTimeout;
 
     @Autowired
     public KPRClient(XRoadConfiguration conf) {
         this.endpoint = conf.getKprEndpoint();
         this.xroadInstance = conf.getInstance();
+        this.requestTimeout = conf.getRequestTimeout();
+        this.connectionTimeout = conf.getConnectionTimeout();
 
         this.client = new XRoadClientIdentifierType();
         client.setObjectType(XRoadObjectType.SUBSYSTEM);
@@ -33,18 +41,30 @@ public class KPRClient {
         client.setMemberCode(conf.getMemberCode());
         client.setSubsystemCode(conf.getSubsystemCode());
 
-        try {
-            configureBypassSSL();
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        } catch (KeyManagementException e) {
-            throw new RuntimeException(e);
+        if (conf.isInsecureHTTPS()) {
+            try {
+                configureBypassSSL();
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
+            } catch (KeyManagementException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
     private KprV6PortType getPort() {
-        KprV6PortType kprV6PortType = new KprV6Service().getKprV6Port();
-        ((BindingProvider)kprV6PortType).getRequestContext().put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, this.endpoint);
+        // copypaste from wsimport non-wrapped java code
+        URL KPRV6SERVICE_WSDL_LOCATION = ee.eesti.xtee6.kpr.KprV6Service.class.getResource("kpr-v6.wsdl");
+        if (KPRV6SERVICE_WSDL_LOCATION == null) {
+            throw new WebServiceException("Cannot find 'kpr-v6.wsdl' wsdl. Place the resource correctly in the classpath.");
+        }
+
+        KprV6PortType kprV6PortType = new KprV6Service(KPRV6SERVICE_WSDL_LOCATION).getKprV6Port();
+        Map<String, Object> requestContext = ((BindingProvider)kprV6PortType).getRequestContext();
+        requestContext.put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, this.endpoint);
+        requestContext.put(BindingProviderProperties.REQUEST_TIMEOUT, this.requestTimeout);
+        requestContext.put(BindingProviderProperties.CONNECT_TIMEOUT, this.connectionTimeout);
+
         return kprV6PortType;
     }
 

@@ -74,12 +74,30 @@ INSERT INTO fund(
         SELECT * FROM fund WHERE id = 3
       );
 
+INSERT INTO fund(
+            isin, name, management_fee_rate, fund_manager_id)
+    SELECT 'EE3600019790', 'Kohustuslik Pensionifond Danske Pension 25', 0.96425, 2
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM fund WHERE id = 4
+      );
+
+
+
 INSERT INTO users(
             id, personal_code, first_name, last_name, created_date, updated_date, member_number, phone_number, email)
     SELECT 1, '39911223344', 'Firstname', 'Lastname', '2015-01-31 14:06:01', '2017-01-31 14:06:01', 1, '1234567', 'first.last@mail.ee'
     WHERE
       NOT EXISTS (
         SELECT * FROM users WHERE id = 1
+      );
+
+INSERT INTO users(
+            id, personal_code, first_name, last_name, created_date, updated_date, member_number, phone_number, email)
+    SELECT 2, '37807256017', 'Ziim', 'Kaba', '2015-01-31 14:06:01', '2017-01-31 14:06:01', 2419, '1234567', 'first.last@mail.ee'
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM users WHERE id = 2
       );
 
 

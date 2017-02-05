@@ -23,13 +23,13 @@ class IncomeControllerSpec extends BaseControllerSpec {
 
     def "/average-salary endpoint works"() {
         given:
-//            1 * xRoadClient.pensionAccountTransaction(_, _) >> getKPRTransactions()
+            1 * xRoadClient.pensionAccountTransaction(_, _) >> getKPRTransactions()
         expect:
         mockMvc.perform(get("/v1/average-salary"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath('$.currency', is("EUR")))
-                .andExpect(jsonPath('$.amount', is(2016)))
+                .andExpect(jsonPath('$.amount', is(2000.0d)))
     }
 
     PensionAccountTransactionResponseType getKPRTransactions() {

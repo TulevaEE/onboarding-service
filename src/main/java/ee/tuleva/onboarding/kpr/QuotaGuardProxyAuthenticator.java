@@ -6,6 +6,8 @@ import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
 import java.net.URL;
 
+import static java.net.Authenticator.RequestorType.PROXY;
+
 /**
  * http://support.quotaguard.com/support/solutions/articles/5000013914-java-quick-start-guide-quotaguard-static
  */
@@ -44,6 +46,8 @@ public class QuotaGuardProxyAuthenticator extends Authenticator{
         System.setProperty("http.proxyPort", String.valueOf(port));
         System.setProperty("https.proxyHost",host);
         System.setProperty("https.proxyPort", String.valueOf(port));
+        System.setProperty("http.nonProxyHosts","*.sk.ee|localhost");
+        System.setProperty("https.nonProxyHosts","*.sk.ee|localhost");
 
         Authenticator.setDefault(this.auth);
     }
@@ -67,7 +71,11 @@ public class QuotaGuardProxyAuthenticator extends Authenticator{
         }
 
         protected PasswordAuthentication getPasswordAuthentication() {
-            return new PasswordAuthentication(user, password.toCharArray());
+            if (PROXY.equals(getRequestorType())) {
+                return new PasswordAuthentication(user, password.toCharArray());
+            }
+
+            return null;
         }
     }
 

@@ -10,7 +10,11 @@ import javax.net.ssl.*;
 import javax.xml.ws.BindingProvider;
 import javax.xml.ws.Holder;
 import javax.xml.ws.WebServiceException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLConnection;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
@@ -52,6 +56,21 @@ public class KPRClient {
         }
     }
 
+
+    /**
+     * For debugging heroku outbound ip
+     */
+    public void tempShowMyIp() {
+        try {
+            URL url = new URL("http://dev.zerotech.ee/herokutest");
+            URLConnection conn = url.openConnection();
+            InputStream is = conn.getInputStream();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     private KprV6PortType getPort() {
         // copypaste from wsimport non-wrapped java code
         URL KPRV6SERVICE_WSDL_LOCATION = ee.eesti.xtee6.kpr.KprV6Service.class.getResource("kpr-v6.wsdl");
@@ -64,6 +83,8 @@ public class KPRClient {
         requestContext.put(BindingProvider.ENDPOINT_ADDRESS_PROPERTY, this.endpoint);
         requestContext.put(BindingProviderProperties.REQUEST_TIMEOUT, this.requestTimeout);
         requestContext.put(BindingProviderProperties.CONNECT_TIMEOUT, this.connectionTimeout);
+
+        tempShowMyIp();
 
         return kprV6PortType;
     }

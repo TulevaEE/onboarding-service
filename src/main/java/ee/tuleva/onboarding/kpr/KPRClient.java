@@ -45,6 +45,8 @@ public class KPRClient {
         client.setMemberCode(conf.getMemberCode());
         client.setSubsystemCode(conf.getSubsystemCode());
 
+        new QuotaGuardProxyAuthenticator();
+
         if (conf.isInsecureHTTPS()) {
             try {
                 configureBypassSSL();
@@ -56,22 +58,13 @@ public class KPRClient {
         }
     }
 
-
-    /**
-     * For debugging heroku outbound ip
-     */
-    public void tempShowMyIp() {
-        try {
-            URL url = new URL("http://dev.zerotech.ee/herokutest");
-            URLConnection conn = url.openConnection();
-            InputStream is = conn.getInputStream();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-
     private KprV6PortType getPort() {
+
+        System.setProperty("http.proxyHost", "eu-west-1-babbage.quotaguard.com");
+        System.setProperty("http.proxyPort", String.valueOf(9293));
+        System.setProperty("https.proxyHost","eu-west-1-babbage.quotaguard.com");
+        System.setProperty("https.proxyPort", String.valueOf(9293));
+
         // copypaste from wsimport non-wrapped java code
         URL KPRV6SERVICE_WSDL_LOCATION = ee.eesti.xtee6.kpr.KprV6Service.class.getResource("kpr-v6.wsdl");
         if (KPRV6SERVICE_WSDL_LOCATION == null) {
@@ -84,13 +77,10 @@ public class KPRClient {
         requestContext.put(BindingProviderProperties.REQUEST_TIMEOUT, this.requestTimeout);
         requestContext.put(BindingProviderProperties.CONNECT_TIMEOUT, this.connectionTimeout);
 
-        tempShowMyIp();
-
         return kprV6PortType;
     }
 
     public PensionAccountTransactionResponseType pensionAccountTransaction(PensionAccountTransactionType request, String idcode) {
-        KprV6PortType port = getPort();
 
         XRoadServiceIdentifierType service = new XRoadServiceIdentifierType();
         service.setObjectType(XRoadObjectType.SERVICE);
@@ -112,8 +102,6 @@ public class KPRClient {
 
 
     public PensionAccountBalanceResponseType pensionAccountBalance(PensionAccountBalanceType request, String idcode) {
-        KprV6PortType port = getPort();
-
         XRoadServiceIdentifierType service = new XRoadServiceIdentifierType();
         service.setObjectType(XRoadObjectType.SERVICE);
         service.setXRoadInstance(this.xroadInstance);

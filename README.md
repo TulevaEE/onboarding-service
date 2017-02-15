@@ -5,17 +5,26 @@
 ![N|Solid](reference/design.png)
 
 ## Tech stack
-Database: PostgreSQL
-Backend: Java 8, Spring Boot, Gradle, Spock for testing
-Frontend: React, ES6, scss, custom bootstrap, enzyme + jest for testing
+**Database**
+PostgreSQL
+**Backend**
+Java 8, Spring Boot, Gradle, Spock for testing
+**Frontend**
+React, ES6, scss, custom bootstrap, enzyme + jest for testing
 
-Error tracking: Rollbar
-Conversion funnel Google Analytics / Mixpanel
+**Error tracking**
+Rollbar
+**Conversion funnel**
+Google Analytics / Mixpanel
 
-Hosting: Heroku
-CI: CircleCI
+**Hosting**
+Heroku
+**CI**
+CircleCI
 
 ### API
+oAuth with mobile-id and id-card sign-in
+
 [Swagger](https://onboarding-service.tuleva.ee/swagger-ui.html)
 
 [Postman API collection](reference/api.postman_collection)

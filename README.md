@@ -9,6 +9,15 @@
 **Database**
 PostgreSQL
 
+Running locally with docker:
+```
+docker run -d --name tuleva-onboarding-database \
+                 -p 5432:5432 \
+                 -e "POSTGRES_USER=tuleva-onboarding" \
+                 -e "POSTGRES_DB=tuleva-onboarding" \
+                 postgres:9.6
+```
+
 **Backend**
 Java 8, Spring Boot, Gradle, Spock for testing
 

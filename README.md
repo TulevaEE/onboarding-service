@@ -6,7 +6,7 @@
 
 ## Tech stack
 
-**Database**
+**Database:**
 PostgreSQL
 
 Running locally with docker:
@@ -18,28 +18,27 @@ docker run -d --name tuleva-onboarding-database \
                  postgres:9.6
 ```
 
-**Backend**
+**Backend:**
 Java 8, Spring Boot, Gradle, Spock for testing
 
-**Frontend**
+**Frontend:**
 React, ES6, scss, custom bootstrap, enzyme + jest for testing
 
 
-**Error tracking**
+**Error tracking:**
 Rollbar
 
-**Conversion funnel**
+**Conversion funnel:**
 Google Analytics / Mixpanel
 
-
-**Hosting**
+**Hosting:**
 Heroku
 
-**CI**
+**CI:**
 CircleCI
 
 ### API
-oAuth with mobile-id and id-card sign-in
+oAuth with mobile-ID and ID-card sign-in
 
 [Swagger](https://onboarding-service.tuleva.ee/swagger-ui.html)
 
@@ -47,11 +46,11 @@ oAuth with mobile-id and id-card sign-in
 
 ### Build pipeline
 
-**Dev environment**
-Gradle `bootRun`
+**Dev environment:**
+`./gradlew bootRun`
 
-**Production**
-Github -> CircleCI (if build is green) -> deploy Heroku
+**Production:**
+Merge GitHub pull request to master -> build in CircleCI -> redeploy to Heroku (if build is green)
 
 ###Comparison maintenance
 Comparison service in package ee.tuleva.onboarding.comparisons can be edited for keeping total fee calculations current with Estonian regulations.

@@ -35,6 +35,10 @@ xroad:
   connectionTimeout: 3000
   insecureHTTPS: true
 
+rollbar:
+  accessToken: 7100e648da5647748cb8c82d3c507aa9 #dont use production key
+  profile: dev
+
 ---
 
 spring:
@@ -44,3 +48,7 @@ spring:
     username: ${JDBC_DATABASE_USERNAME}
     password: ${JDBC_DATABASE_PASSWORD}
     initialize: false
+
+rollbar:
+  accessToken: 7100e648da5647748cb8c82d3c507aa9
+  profile: production

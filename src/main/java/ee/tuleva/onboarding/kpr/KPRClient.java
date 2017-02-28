@@ -10,15 +10,16 @@ import javax.net.ssl.*;
 import javax.xml.ws.BindingProvider;
 import javax.xml.ws.Holder;
 import javax.xml.ws.WebServiceException;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLConnection;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
+import java.security.*;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
@@ -119,21 +120,35 @@ public class KPRClient {
                 new Holder<String>("4.0"));
     }
 
-    private static void configureBypassSSL() throws NoSuchAlgorithmException,
-            KeyManagementException {
-        SSLContext ssl_ctx = SSLContext.getInstance("SSL");
-        TrustManager[] trust_mgr = get_trust_mgr();
-        ssl_ctx.init(null, // key manager
-                trust_mgr, // trust manager
-                new SecureRandom()); // random number generator
-        SSLSocketFactory sf = ssl_ctx.getSocketFactory();
+    private static void configureBypassSelfSignedSSL() throws NoSuchAlgorithmException, KeyManagementException {
+        SSLContext sslContext = SSLContext.getInstance("SSL");
 
-        HttpsURLConnection.setDefaultSSLSocketFactory(sf);
-        HttpsURLConnection.setDefaultHostnameVerifier(new DummyHostVerifier());
-    }
+        KeyManagerFactory factory = null;
+        try {
+            String base64PKCSKeystore = System.getenv("XTEE_KEYSTORE");
+            String keystorePassword = System.getenv("XTEE_KEYSTORE_PASS");
+            byte[] p12 = Base64.getDecoder().decode(base64PKCSKeystore);
+            ByteArrayInputStream bais = new ByteArrayInputStream(p12);
 
-    private static TrustManager[] get_trust_mgr() {
-        TrustManager[] certs = new TrustManager[] { new X509TrustManager() {
+            KeyStore ks = KeyStore.getInstance("pkcs12");
+            ks.load(bais, keystorePassword.toCharArray());
+            bais.close();
+
+            String defaultAlgorithm = KeyManagerFactory.getDefaultAlgorithm();
+            factory = KeyManagerFactory.getInstance(defaultAlgorithm);
+            factory.init(ks, keystorePassword.toCharArray());
+        } catch (KeyStoreException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (CertificateException e) {
+            e.printStackTrace();
+        } catch (UnrecoverableKeyException e) {
+            e.printStackTrace();
+        }
+
+
+        TrustManager[] trustManagers = new TrustManager[] { new X509TrustManager() {
             public X509Certificate[] getAcceptedIssuers() {
                 return null;
             }
@@ -144,9 +159,13 @@ public class KPRClient {
             public void checkServerTrusted(X509Certificate[] certs, String t) {
             }
         } };
-        return certs;
-    }
 
+        sslContext.init(factory.getKeyManagers(), trustManagers, new SecureRandom());
+        SSLSocketFactory sf = sslContext.getSocketFactory();
+        HttpsURLConnection.setDefaultSSLSocketFactory(sf);
+        HttpsURLConnection.setDefaultHostnameVerifier(new DummyHostVerifier());
+    }
+    
     static class DummyHostVerifier implements HostnameVerifier {
         public boolean verify(String name, SSLSession sess) {
             return true;

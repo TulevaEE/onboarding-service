@@ -50,7 +50,7 @@ public class KPRClient {
 
         if (conf.isInsecureHTTPS()) {
             try {
-                configureBypassSSL();
+                configureBypassSelfSignedSSL();
             } catch (NoSuchAlgorithmException e) {
                 throw new RuntimeException(e);
             } catch (KeyManagementException e) {
@@ -123,20 +123,25 @@ public class KPRClient {
     private static void configureBypassSelfSignedSSL() throws NoSuchAlgorithmException, KeyManagementException {
         SSLContext sslContext = SSLContext.getInstance("SSL");
 
-        KeyManagerFactory factory = null;
+        KeyManager[] keyManagers = null;
+
         try {
             String base64PKCSKeystore = System.getenv("XTEE_KEYSTORE");
             String keystorePassword = System.getenv("XTEE_KEYSTORE_PASS");
-            byte[] p12 = Base64.getDecoder().decode(base64PKCSKeystore);
-            ByteArrayInputStream bais = new ByteArrayInputStream(p12);
+            if (base64PKCSKeystore != null) {
+                byte[] p12 = Base64.getDecoder().decode(base64PKCSKeystore);
+                ByteArrayInputStream bais = new ByteArrayInputStream(p12);
 
-            KeyStore ks = KeyStore.getInstance("pkcs12");
-            ks.load(bais, keystorePassword.toCharArray());
-            bais.close();
+                KeyStore ks = KeyStore.getInstance("pkcs12");
+                ks.load(bais, keystorePassword.toCharArray());
+                bais.close();
 
-            String defaultAlgorithm = KeyManagerFactory.getDefaultAlgorithm();
-            factory = KeyManagerFactory.getInstance(defaultAlgorithm);
-            factory.init(ks, keystorePassword.toCharArray());
+                String defaultAlgorithm = KeyManagerFactory.getDefaultAlgorithm();
+                KeyManagerFactory factory = KeyManagerFactory.getInstance(defaultAlgorithm);
+                factory.init(ks, keystorePassword.toCharArray());
+                keyManagers = factory.getKeyManagers();
+            }
+
         } catch (KeyStoreException e) {
             e.printStackTrace();
         } catch (IOException e) {
@@ -160,12 +165,12 @@ public class KPRClient {
             }
         } };
 
-        sslContext.init(factory.getKeyManagers(), trustManagers, new SecureRandom());
+        sslContext.init(keyManagers, trustManagers, new SecureRandom());
         SSLSocketFactory sf = sslContext.getSocketFactory();
         HttpsURLConnection.setDefaultSSLSocketFactory(sf);
         HttpsURLConnection.setDefaultHostnameVerifier(new DummyHostVerifier());
     }
-    
+
     static class DummyHostVerifier implements HostnameVerifier {
         public boolean verify(String name, SSLSession sess) {
             return true;

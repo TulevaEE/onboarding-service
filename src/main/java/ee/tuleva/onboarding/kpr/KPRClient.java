@@ -60,12 +60,6 @@ public class KPRClient {
     }
 
     private KprV6PortType getPort() {
-
-        System.setProperty("http.proxyHost", "eu-west-1-babbage.quotaguard.com");
-        System.setProperty("http.proxyPort", String.valueOf(9293));
-        System.setProperty("https.proxyHost","eu-west-1-babbage.quotaguard.com");
-        System.setProperty("https.proxyPort", String.valueOf(9293));
-
         // copypaste from wsimport non-wrapped java code
         URL KPRV6SERVICE_WSDL_LOCATION = ee.eesti.xtee6.kpr.KprV6Service.class.getResource("kpr-v6.wsdl");
         if (KPRV6SERVICE_WSDL_LOCATION == null) {

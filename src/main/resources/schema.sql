@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS oauth_refresh_token (
 
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
+  active BOOLEAN NOT NULL,
   personal_code CHAR(11) NOT NULL,
   first_name VARCHAR(255) NOT NULL,
   last_name VARCHAR(255) NOT NULL,

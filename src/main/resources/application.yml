@@ -41,6 +41,17 @@ proxy:
 ssl:
   trustAllHTTPSHosts: true
 
+digidoc:
+  service:
+    url: https://tsp.demo.sk.ee/
+
+mobile-id:
+  service:
+    name: Tuleva
+
+keystore:
+  path: "test_keys/keystore.jks"
+
 ---
 
 spring:
@@ -50,6 +61,7 @@ spring:
     username: ${JDBC_DATABASE_USERNAME}
     password: ${JDBC_DATABASE_PASSWORD}
     initialize: false
+
 xroad:
   instance: EE
   kprEndpoint: https://karin.ml.ee/cgi-bin/TreasuryXrdWS/services/TreasuryXrdWS
@@ -57,3 +69,7 @@ xroad:
 ssl:
   keystore: ${SSL_KEYSTORE}
   keystorePassword: ${SSL_KEYSTORE_PASS}
+
+digidoc:
+  service:
+    url: https://digidocservice.sk.ee/

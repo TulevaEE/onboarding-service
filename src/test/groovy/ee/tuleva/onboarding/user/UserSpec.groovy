@@ -34,6 +34,7 @@ class UserSpec extends Specification {
 				.createdDate(createdDate)
 				.updatedDate(updatedDate)
 				.memberNumber(memberNumber)
+				.active(active)
 				.build()
 
 		when:
@@ -46,16 +47,17 @@ class UserSpec extends Specification {
 		violation.getMessage() == message
 
 		where:
-		firstName | lastName   | personalCode   | createdDate                           | updatedDate                           | memberNumber | email              | phone     || propertyName   || message
-		" "       | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | "erko@risthein.ee" | "5555555" || "firstName"    || "may not be empty"
-		"Erko"    | " "        | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | "erko@risthein.ee" | "5555555" || "lastName"     || "may not be empty"
-		"Erko"    | "Risthein" | "385010100029" | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | "erko@risthein.ee" | "5555555" || "personalCode" || "size must be between 11 and 11"
-		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2099-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | "erko@risthein.ee" | "5555555" || "createdDate"  || "must be in the past"
-		"Erko"    | "Risthein" | "38501010002"  | null                                  | Instant.parse("2017-01-31T10:06:01Z") | 3000         | "erko@risthein.ee" | "5555555" || "createdDate"  || "may not be null"
-		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | null                                  | 3000         | "erko@risthein.ee" | "5555555" || "updatedDate"  || "may not be null"
-		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | null         | "erko@risthein.ee" | "5555555" || "memberNumber" || "may not be null"
-		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | null               | "5555555" || "email"        || "may not be null"
-		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | " "                | "5555555" || "email"        || "not a well-formed email address"
+		firstName | lastName   | personalCode   | createdDate                           | updatedDate                           | memberNumber | email              | phone     | active || propertyName   | message
+		" "       | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | "erko@risthein.ee" | "5555555" | true   || "firstName"    | "may not be empty"
+		"Erko"    | " "        | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | "erko@risthein.ee" | "5555555" | true   || "lastName"     | "may not be empty"
+		"Erko"    | "Risthein" | "385010100029" | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | "erko@risthein.ee" | "5555555" | true   || "personalCode" | "size must be between 11 and 11"
+		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2099-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | "erko@risthein.ee" | "5555555" | true   || "createdDate"  | "must be in the past"
+		"Erko"    | "Risthein" | "38501010002"  | null                                  | Instant.parse("2017-01-31T10:06:01Z") | 3000         | "erko@risthein.ee" | "5555555" | true   || "createdDate"  | "may not be null"
+		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | null                                  | 3000         | "erko@risthein.ee" | "5555555" | true   || "updatedDate"  | "may not be null"
+		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | null         | "erko@risthein.ee" | "5555555" | true   || "memberNumber" | "may not be null"
+		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | null               | "5555555" | true   || "email"        | "may not be null"
+		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | " "                | "5555555" | true   || "email"        | "not a well-formed email address"
+		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | 3000         | "erko@risthein.ee" | "5555555" | null   || "active"       | "may not be null"
 	}
 
 	def cleanup() {
@@ -72,6 +74,7 @@ class UserSpec extends Specification {
 				.createdDate(Instant.parse("2017-01-31T10:06:01Z"))
 				.updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
 				.memberNumber(1)
+				.active(true)
 				.build()
 	}
 }

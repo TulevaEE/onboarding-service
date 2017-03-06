@@ -28,6 +28,7 @@ class MandateRepositorySpec extends Specification {
                 .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
                 .updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
                 .memberNumber(3000)
+                .active(true)
                 .build()
         entityManager.persist(user)
         entityManager.flush()

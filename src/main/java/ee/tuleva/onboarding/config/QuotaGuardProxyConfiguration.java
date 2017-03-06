@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.config;
 
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.axis.AxisProperties;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
@@ -59,6 +60,18 @@ public class QuotaGuardProxyConfiguration extends Authenticator {
         System.setProperty("http.proxyPort", String.valueOf(port));
         System.setProperty("https.proxyHost",host);
         System.setProperty("https.proxyPort", String.valueOf(port));
+
+        // hack to get mobile-id axis also properly use proxy.
+        AxisProperties.getProperties().put("proxySet", "true");
+        AxisProperties.setProperty("http.proxyHost", host);
+        AxisProperties.setProperty("http.proxyPort", String.valueOf(port));
+        AxisProperties.setProperty("http.proxyUser", this.user);
+        AxisProperties.setProperty("http.proxyPassword", this.password);
+
+        AxisProperties.setProperty("https.proxyHost", host);
+        AxisProperties.setProperty("https.proxyPort", String.valueOf(port));
+        AxisProperties.setProperty("https.proxyUser", this.user);
+        AxisProperties.setProperty("https.proxyPassword", this.password);
 
         if (this.nonProxyHosts != null) {
             System.setProperty("http.nonProxyHosts", this.nonProxyHosts);

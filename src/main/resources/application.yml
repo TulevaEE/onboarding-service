@@ -36,7 +36,7 @@ xroad:
 
 proxy:
   url: ${QUOTAGUARDSTATIC_URL}
-  nonProxyHosts: "*.sk.ee|localhost"
+  nonProxyHosts: "localhost"
 
 ssl:
   trustAllHTTPSHosts: true
@@ -47,7 +47,7 @@ digidoc:
 
 mobile-id:
   service:
-    name: Tuleva
+    name: "tuleva-onboarding"
 
 keystore:
   path: "test_keys/keystore.jks"

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
+import javax.annotation.PostConstruct;
 import java.net.Authenticator;
 import java.net.MalformedURLException;
 import java.net.PasswordAuthentication;
@@ -24,13 +25,14 @@ public class QuotaGuardProxyConfiguration extends Authenticator {
     private int port;
     private ProxyAuthenticator auth;
 
-    @Value("proxy.url")
+    @Value("${proxy.url}")
     private String proxyUrlEnv;
 
-    @Value("proxy.nonProxyHosts")
+    @Value("${proxy.nonProxyHosts}")
     private String nonProxyHosts;
 
-    public QuotaGuardProxyConfiguration() {
+    @PostConstruct
+    private void initializeProxy() {
         if (this.proxyUrlEnv != null && this.proxyUrlEnv.trim().length() > 0) {
             try {
                 URL proxyUrl = new URL(proxyUrlEnv);
@@ -47,7 +49,6 @@ public class QuotaGuardProxyConfiguration extends Authenticator {
         } else {
             log.warn("Environemnt variable QUOTAGUARDSTATIC_URL is not set, not configuring proxy!");
         }
-
     }
 
     private void setProxy() {

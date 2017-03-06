@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
+import javax.annotation.PostConstruct;
 import javax.net.ssl.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -16,22 +17,23 @@ import java.util.Base64;
 @Configuration
 public class HttpsURLConnectionConfiguration {
 
-    @Value("${ssl.keystore:default null}")
+    @Value("${ssl.keystore:#{null}}")
     private String base64PKCSKeystore;
 
-    @Value("${ssl.keystorePassword:default null}")
+    @Value("${ssl.keystorePassword:#{null}}")
     private String keystorePassword;
 
     @Value("${ssl.trustAllHTTPSHosts}")
     private Boolean trustAllHTTPSHosts;
 
-    public HttpsURLConnectionConfiguration() {
+    @PostConstruct
+    public void initialize() {
 
         KeyManager[] keyManagers = null;
 
         try {
-            if (this.base64PKCSKeystore != null) {
-                byte[] p12 = Base64.getDecoder().decode(base64PKCSKeystore);
+            if (this.base64PKCSKeystore != null && this.base64PKCSKeystore.trim().length() > 0) {
+                byte[] p12 = Base64.getDecoder().decode(this.base64PKCSKeystore);
                 ByteArrayInputStream bais = new ByteArrayInputStream(p12);
 
                 KeyStore ks = KeyStore.getInstance("pkcs12");

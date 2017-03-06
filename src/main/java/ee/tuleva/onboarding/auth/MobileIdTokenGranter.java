@@ -60,6 +60,11 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
             throw new InvalidRequestException("INVALID_USER_CREDENTIALS");
         }
 
+        if (user.getActive() ==  false) {
+            log.info("Failed to login inactive user with personal code {}", mobileIDSession.personalCode);
+            throw new InvalidRequestException("INACTIVE_USER");
+        }
+
         Authentication userAuthentication = new PersonalCodeAuthentication(user, mobileIDSession, null);
         userAuthentication.setAuthenticated(true);
 

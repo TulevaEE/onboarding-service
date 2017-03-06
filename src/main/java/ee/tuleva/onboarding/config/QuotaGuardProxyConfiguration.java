@@ -12,6 +12,7 @@ import java.net.PasswordAuthentication;
 import java.net.URL;
 
 import static java.net.Authenticator.RequestorType.PROXY;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 /**
  * http://support.quotaguard.com/support/solutions/articles/5000013914-java-quick-start-guide-quotaguard-static
@@ -25,15 +26,15 @@ public class QuotaGuardProxyConfiguration extends Authenticator {
     private int port;
     private ProxyAuthenticator auth;
 
-    @Value("${proxy.url}")
+    @Value("${proxy.url:}")
     private String proxyUrlEnv;
 
-    @Value("${proxy.nonProxyHosts}")
+    @Value("${proxy.nonProxyHosts:}")
     private String nonProxyHosts;
 
     @PostConstruct
     private void initializeProxy() {
-        if (this.proxyUrlEnv != null && this.proxyUrlEnv.trim().length() > 0) {
+        if (!isBlank(proxyUrlEnv)) {
             try {
                 URL proxyUrl = new URL(proxyUrlEnv);
                 String authString = proxyUrl.getUserInfo();

@@ -33,11 +33,14 @@ xroad:
   subsystemCode: tuleva
   requestTimeout: 5000
   connectionTimeout: 3000
-  insecureHTTPS: true
 
 proxy:
   url: ${QUOTAGUARDSTATIC_URL}
   nonProxyHosts: "*.sk.ee|localhost"
+
+ssl:
+  trustAllHTTPSHosts: true
+
 ---
 
 spring:
@@ -50,3 +53,7 @@ spring:
 xroad:
   instance: EE
   kprEndpoint: https://karin.ml.ee/cgi-bin/TreasuryXrdWS/services/TreasuryXrdWS
+
+ssl:
+  keystore: ${SSL_KEYSTORE}
+  keystorePassword: ${SSL_KEYSTORE_PASS}

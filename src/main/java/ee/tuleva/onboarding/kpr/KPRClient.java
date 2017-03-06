@@ -6,17 +6,10 @@ import ee.eesti.xtee6.kpr.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import javax.net.ssl.*;
 import javax.xml.ws.BindingProvider;
 import javax.xml.ws.Holder;
 import javax.xml.ws.WebServiceException;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.net.URL;
-import java.security.*;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
@@ -42,16 +35,6 @@ public class KPRClient {
         client.setMemberClass(conf.getMemberClass());
         client.setMemberCode(conf.getMemberCode());
         client.setSubsystemCode(conf.getSubsystemCode());
-
-        if (conf.isInsecureHTTPS()) {
-            try {
-                configureBypassSelfSignedSSL();
-            } catch (NoSuchAlgorithmException e) {
-                throw new RuntimeException(e);
-            } catch (KeyManagementException e) {
-                throw new RuntimeException(e);
-            }
-        }
     }
 
     private KprV6PortType getPort() {
@@ -71,7 +54,6 @@ public class KPRClient {
     }
 
     public PensionAccountTransactionResponseType pensionAccountTransaction(PensionAccountTransactionType request, String idcode) {
-
         XRoadServiceIdentifierType service = new XRoadServiceIdentifierType();
         service.setObjectType(XRoadObjectType.SERVICE);
         service.setXRoadInstance(this.xroadInstance);
@@ -107,63 +89,6 @@ public class KPRClient {
                 new Holder<String>("EE" + idcode),
                 new Holder<String>(UUID.randomUUID().toString()),
                 new Holder<String>("4.0"));
-    }
-
-    private static void configureBypassSelfSignedSSL() throws NoSuchAlgorithmException, KeyManagementException {
-        SSLContext sslContext = SSLContext.getInstance("SSL");
-
-        KeyManager[] keyManagers = null;
-
-        try {
-            String base64PKCSKeystore = System.getenv("XTEE_KEYSTORE");
-            String keystorePassword = System.getenv("XTEE_KEYSTORE_PASS");
-            if (base64PKCSKeystore != null) {
-                byte[] p12 = Base64.getDecoder().decode(base64PKCSKeystore);
-                ByteArrayInputStream bais = new ByteArrayInputStream(p12);
-
-                KeyStore ks = KeyStore.getInstance("pkcs12");
-                ks.load(bais, keystorePassword.toCharArray());
-                bais.close();
-
-                String defaultAlgorithm = KeyManagerFactory.getDefaultAlgorithm();
-                KeyManagerFactory factory = KeyManagerFactory.getInstance(defaultAlgorithm);
-                factory.init(ks, keystorePassword.toCharArray());
-                keyManagers = factory.getKeyManagers();
-            }
-
-        } catch (KeyStoreException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (CertificateException e) {
-            e.printStackTrace();
-        } catch (UnrecoverableKeyException e) {
-            e.printStackTrace();
-        }
-
-
-        TrustManager[] trustManagers = new TrustManager[] { new X509TrustManager() {
-            public X509Certificate[] getAcceptedIssuers() {
-                return null;
-            }
-
-            public void checkClientTrusted(X509Certificate[] certs, String t) {
-            }
-
-            public void checkServerTrusted(X509Certificate[] certs, String t) {
-            }
-        } };
-
-        sslContext.init(keyManagers, trustManagers, new SecureRandom());
-        SSLSocketFactory sf = sslContext.getSocketFactory();
-        HttpsURLConnection.setDefaultSSLSocketFactory(sf);
-        HttpsURLConnection.setDefaultHostnameVerifier(new DummyHostVerifier());
-    }
-
-    static class DummyHostVerifier implements HostnameVerifier {
-        public boolean verify(String name, SSLSession sess) {
-            return true;
-        }
     }
 
 

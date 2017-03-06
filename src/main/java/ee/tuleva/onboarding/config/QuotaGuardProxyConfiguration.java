@@ -27,7 +27,7 @@ public class QuotaGuardProxyConfiguration extends Authenticator {
     @Value("proxy.url")
     private String proxyUrlEnv;
 
-    @Value("proxy.nonProxyHosts}")
+    @Value("proxy.nonProxyHosts")
     private String nonProxyHosts;
 
     public QuotaGuardProxyConfiguration() {

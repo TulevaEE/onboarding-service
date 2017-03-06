@@ -20,6 +20,5 @@ public class XRoadConfiguration {
     private String subsystemCode;
     private int requestTimeout;
     private int connectionTimeout;
-    private boolean insecureHTTPS = false;
 
 }

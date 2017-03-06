@@ -34,10 +34,6 @@ xroad:
   requestTimeout: 5000
   connectionTimeout: 3000
 
-proxy:
-  url: ${QUOTAGUARDSTATIC_URL}
-  nonProxyHosts: "localhost"
-
 ssl:
   trustAllHTTPSHosts: true
 
@@ -49,8 +45,8 @@ mobile-id:
   service:
     name: "tuleva-onboarding"
 
-keystore:
-  path: "test_keys/keystore.jks"
+truststore:
+  path: "test_keys/truststore.jks"
 
 ---
 
@@ -69,6 +65,10 @@ xroad:
 ssl:
   keystore: ${SSL_KEYSTORE}
   keystorePassword: ${SSL_KEYSTORE_PASS}
+
+proxy:
+  url: ${QUOTAGUARDSTATIC_URL}
+  nonProxyHosts: "localhost"
 
 digidoc:
   service:

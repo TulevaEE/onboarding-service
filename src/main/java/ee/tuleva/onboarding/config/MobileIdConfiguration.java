@@ -11,15 +11,15 @@ public class MobileIdConfiguration {
 	@Value("${digidoc.service.url}")
 	private String digidocServiceUrl;
 
-	@Value("${keystore.path}")
-	private String keystorePath;
+	@Value("${truststore.path}")
+	private String trustStorePath;
 
 	@Value("${mobile-id.service.name}")
 	private String serviceName;
 
 	@Bean
 	MobileIDAuthenticator mobileIDAuthenticator() {
-		System.setProperty("javax.net.ssl.trustStore", keystorePath);
+		System.setProperty("javax.net.ssl.trustStore", trustStorePath);
 		return new MobileIDAuthenticator(digidocServiceUrl, serviceName);
 	}
 

@@ -34,6 +34,8 @@ Google Analytics / Mixpanel
 **Hosting:**
 Heroku
 
+For static IP - quotaguard static Heroku plugin
+
 **CI:**
 CircleCI
 

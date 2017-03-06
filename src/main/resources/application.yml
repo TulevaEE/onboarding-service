@@ -35,6 +35,9 @@ xroad:
   connectionTimeout: 3000
   insecureHTTPS: true
 
+proxy:
+  url: ${QUOTAGUARDSTATIC_URL}
+  nonProxyHosts: "*.sk.ee|localhost"
 ---
 
 spring:

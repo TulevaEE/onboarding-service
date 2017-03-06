@@ -12,10 +12,7 @@ import javax.xml.ws.Holder;
 import javax.xml.ws.WebServiceException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -45,8 +42,6 @@ public class KPRClient {
         client.setMemberClass(conf.getMemberClass());
         client.setMemberCode(conf.getMemberCode());
         client.setSubsystemCode(conf.getSubsystemCode());
-
-        new QuotaGuardProxyAuthenticator();
 
         if (conf.isInsecureHTTPS()) {
             try {

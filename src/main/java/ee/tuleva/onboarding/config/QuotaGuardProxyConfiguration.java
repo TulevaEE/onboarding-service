@@ -1,5 +1,9 @@
-package ee.tuleva.onboarding.kpr;
+package ee.tuleva.onboarding.config;
 
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Configuration;
 
 import java.net.Authenticator;
 import java.net.MalformedURLException;
@@ -11,15 +15,23 @@ import static java.net.Authenticator.RequestorType.PROXY;
 /**
  * http://support.quotaguard.com/support/solutions/articles/5000013914-java-quick-start-guide-quotaguard-static
  */
-public class QuotaGuardProxyAuthenticator extends Authenticator{
-    private String user, password, host;
+@Slf4j
+@Configuration
+public class QuotaGuardProxyConfiguration extends Authenticator {
+    private String user;
+    private String password;
+    private String host;
     private int port;
     private ProxyAuthenticator auth;
 
-    public QuotaGuardProxyAuthenticator() {
-        String proxyUrlEnv = System.getenv("QUOTAGUARDSTATIC_URL");
+    @Value("proxy.url")
+    private String proxyUrlEnv;
 
-        if (proxyUrlEnv != null) {
+    @Value("proxy.nonProxyHosts}")
+    private String nonProxyHosts;
+
+    public QuotaGuardProxyConfiguration() {
+        if (this.proxyUrlEnv != null && this.proxyUrlEnv.trim().length() > 0) {
             try {
                 URL proxyUrl = new URL(proxyUrlEnv);
                 String authString = proxyUrl.getUserInfo();
@@ -27,13 +39,13 @@ public class QuotaGuardProxyAuthenticator extends Authenticator{
                 password = authString.split(":")[1];
                 host = proxyUrl.getHost();
                 port = proxyUrl.getPort();
-                auth = new ProxyAuthenticator(user,password);
+                auth = new ProxyAuthenticator(user, password);
                 setProxy();
             } catch (MalformedURLException e) {
                 throw new RuntimeException(e);
             }
         } else {
-            System.err.println("You need to set the environment variable QUOTAGUARDSTATIC_URL!");
+            log.warn("Environemnt variable QUOTAGUARDSTATIC_URL is not set, not configuring proxy!");
         }
 
     }
@@ -46,15 +58,13 @@ public class QuotaGuardProxyAuthenticator extends Authenticator{
         System.setProperty("http.proxyPort", String.valueOf(port));
         System.setProperty("https.proxyHost",host);
         System.setProperty("https.proxyPort", String.valueOf(port));
-        System.setProperty("http.nonProxyHosts","*.sk.ee|localhost");
-        System.setProperty("https.nonProxyHosts","*.sk.ee|localhost");
+
+        if (this.nonProxyHosts != null) {
+            System.setProperty("http.nonProxyHosts", this.nonProxyHosts);
+            System.setProperty("https.nonProxyHosts", this.nonProxyHosts);
+        }
 
         Authenticator.setDefault(this.auth);
-    }
-
-    public String getEncodedAuth(){
-        //If not using Java8 you will have to use another Base64 encoded, e.g. apache commons codec.
-        return java.util.Base64.getEncoder().encodeToString((user + ":" + password).getBytes());
     }
 
     public ProxyAuthenticator getAuth(){

@@ -49,8 +49,8 @@ mobile-id:
   service:
     name: "tuleva-onboarding"
 
-keystore:
-  path: "test_keys/keystore.jks"
+truststore:
+  path: "test_keys/truststore.jks"
 
 ---
 

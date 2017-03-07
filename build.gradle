@@ -60,8 +60,6 @@ dependencies {
 
 	compile('com.rollbar:rollbar:0.5.3')
 
-	compile('com.github.jkutner:hazelcast-heroku-discovery:3.7.0')
-
 	testCompile("com.h2database:h2")
 	testCompile("org.springframework.boot:spring-boot-starter-test") {
 		exclude module: "spock-core"

@@ -2,11 +2,6 @@ server:
   port: 9000
   error.whitelabel.enabled: false
 
-endpoints:
-  enabled: false
-  health:
-    enabled: true
-
 spring:
   datasource:
     platform: POSTGRESQL
@@ -78,3 +73,8 @@ proxy:
 digidoc:
   service:
     url: https://digidocservice.sk.ee/
+
+endpoints:
+  enabled: false
+  health:
+    enabled: true

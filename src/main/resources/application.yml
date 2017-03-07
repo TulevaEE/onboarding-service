@@ -24,6 +24,8 @@ spring:
     date-format: com.fasterxml.jackson.databind.util.ISO8601DateFormat
     serialization:
       write_dates_as_timestamps: false
+  hazelcast:
+    config: hazelcast-disabled.xml
 
 xroad:
   instance: ee-dev
@@ -48,6 +50,7 @@ mobile-id:
 truststore:
   path: "test_keys/truststore.jks"
 
+
 ---
 
 spring:
@@ -57,6 +60,8 @@ spring:
     username: ${JDBC_DATABASE_USERNAME}
     password: ${JDBC_DATABASE_PASSWORD}
     initialize: false
+  hazelcast:
+    config: hazelcast.xml
 
 xroad:
   instance: EE
@@ -79,6 +84,6 @@ digidoc:
     url: https://digidocservice.sk.ee/
 
 endpoints:
-  enabled: true
+  enabled: false
   health:
     enabled: true

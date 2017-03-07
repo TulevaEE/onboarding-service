@@ -56,3 +56,9 @@ Merge GitHub pull request to master -> build in CircleCI -> redeploy to Heroku (
 
 ###Comparison maintenance
 Comparison service in package ee.tuleva.onboarding.comparisons can be edited for keeping total fee calculations current with Estonian regulations.
+
+### References
+
+[DigiDocService Documentation](http://sk-eid.github.io/dds-documentation/)
+
+[MobileID library](https://github.com/ErkoRisthein/mobileid)

@@ -33,7 +33,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
             1 * xRoadClient.pensionAccountBalance(*_) >> resp
             1 * resp.getUnits() >> units
             1 * units.getBalance() >> twoFundBalanceFromKPR()
-            2 * fundRepository.findByName("LHV Fund") >> repoFund()
+            2 * fundRepository.findByNameIgnoreCase("LHV Fund") >> repoFund()
         expect:
             mockMvc.perform(get("/v1/pension-account-statement"))
                 .andExpect(status().isOk())

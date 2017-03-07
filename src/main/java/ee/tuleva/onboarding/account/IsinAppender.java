@@ -28,7 +28,7 @@ public class IsinAppender implements Converter<FundBalance, FundBalance> {
 
     @Override
     public FundBalance convert(FundBalance source) {
-        Fund f = fundRepository.findByName(source.getName());
+        Fund f = fundRepository.findByNameIgnoreCase(source.getName());
         if (f == null) {
             // todo not hiding but we haven't figured out good business actions here
             throw new RuntimeException("Unable to resolve fund by name! name=" + source.getName());
@@ -44,7 +44,7 @@ public class IsinAppender implements Converter<FundBalance, FundBalance> {
      */
     public List<FundBalance> convertList(List<FundBalance> in) {
         for (FundBalance fb : in) {
-            Fund f = fundRepository.findByName(fb.getName());
+            Fund f = fundRepository.findByNameIgnoreCase(fb.getName());
 
             if (f == null) {
                 throw new RuntimeException("Unable to resolve fund by name! name=" + fb.getName());

@@ -37,6 +37,18 @@ public class KPRClient {
         client.setSubsystemCode(conf.getSubsystemCode());
     }
 
+    private XRoadServiceIdentifierType getServiceIdentifier(String serviceName) {
+        XRoadServiceIdentifierType service = new XRoadServiceIdentifierType();
+        service.setObjectType(XRoadObjectType.SERVICE);
+        service.setXRoadInstance(this.xroadInstance);
+        service.setMemberClass("COM");
+        service.setMemberCode("10111982"); // EVK
+        service.setSubsystemCode("kpr");
+        service.setServiceCode(serviceName);
+        service.setServiceVersion("v1");
+        return service;
+    }
+
     private KprV6PortType getPort() {
         // copypaste from wsimport non-wrapped java code
         URL KPRV6SERVICE_WSDL_LOCATION = ee.eesti.xtee6.kpr.KprV6Service.class.getResource("kpr-v6.wsdl");
@@ -54,38 +66,28 @@ public class KPRClient {
     }
 
     public PensionAccountTransactionResponseType pensionAccountTransaction(PensionAccountTransactionType request, String idcode) {
-        XRoadServiceIdentifierType service = new XRoadServiceIdentifierType();
-        service.setObjectType(XRoadObjectType.SERVICE);
-        service.setXRoadInstance(this.xroadInstance);
-        service.setMemberClass("COM");
-        service.setMemberCode("10111982"); // EVK
-        service.setSubsystemCode("kpr");
-        service.setServiceCode("pensionAccountTransaction");
-        service.setServiceVersion("v1");
-
         return getPort().pensionAccountTransaction(
                 request,
                 new Holder<XRoadClientIdentifierType>(client),
-                new Holder<XRoadServiceIdentifierType>(service),
+                new Holder<XRoadServiceIdentifierType>(getServiceIdentifier("pensionAccountTransaction")),
                 new Holder<String>("EE" + idcode),
                 new Holder<String>(UUID.randomUUID().toString()),
                 new Holder<String>("4.0"));
     }
 
-
     public PensionAccountBalanceResponseType pensionAccountBalance(PensionAccountBalanceType request, String idcode) {
-        XRoadServiceIdentifierType service = new XRoadServiceIdentifierType();
-        service.setObjectType(XRoadObjectType.SERVICE);
-        service.setXRoadInstance(this.xroadInstance);
-        service.setMemberClass("COM");
-        service.setMemberCode("10111982"); // EVK
-        service.setSubsystemCode("kpr");
-        service.setServiceCode("pensionAccountBalance");
-        service.setServiceVersion("v1");
-
         return getPort().pensionAccountBalance(request,
                 new Holder<XRoadClientIdentifierType>(client),
-                new Holder<XRoadServiceIdentifierType>(service),
+                new Holder<XRoadServiceIdentifierType>(getServiceIdentifier("pensionAccountBalance")),
+                new Holder<String>("EE" + idcode),
+                new Holder<String>(UUID.randomUUID().toString()),
+                new Holder<String>("4.0"));
+    }
+
+    public PersonDataResponseType personData(PensionAccountBalanceType request, String idcode) {
+        return getPort().personData(new VoidType(),
+                new Holder<XRoadClientIdentifierType>(client),
+                new Holder<XRoadServiceIdentifierType>(getServiceIdentifier("personData")),
                 new Holder<String>("EE" + idcode),
                 new Holder<String>(UUID.randomUUID().toString()),
                 new Holder<String>("4.0"));

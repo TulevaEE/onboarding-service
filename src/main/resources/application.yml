@@ -2,6 +2,11 @@ server:
   port: 9000
   error.whitelabel.enabled: false
 
+endpoints:
+  enabled: false
+  health:
+    enabled: true
+
 spring:
   datasource:
     platform: POSTGRESQL

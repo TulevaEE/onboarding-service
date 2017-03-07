@@ -43,7 +43,7 @@ digidoc:
 
 mobile-id:
   service:
-    name: "tuleva-onboarding"
+    name: "Testimine"
 
 truststore:
   path: "test_keys/truststore.jks"
@@ -70,11 +70,15 @@ proxy:
   url: ${QUOTAGUARDSTATIC_URL}
   nonProxyHosts: "localhost"
 
+mobile-id:
+  service:
+    name: "tuleva-onboarding"
+
 digidoc:
   service:
     url: https://digidocservice.sk.ee/
 
 endpoints:
-  enabled: false
+  enabled: true
   health:
     enabled: true

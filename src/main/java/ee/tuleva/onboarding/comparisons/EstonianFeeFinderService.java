@@ -17,7 +17,6 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -38,9 +37,7 @@ public class EstonianFeeFinderService {
     @Autowired
     private FundRepository fundRepository;
 
-    //TODO: schedule after every 3 months
-    //@Scheduled(cron = "0 0 0 1 */3 ?")
-    @Scheduled(fixedDelay =  2147483647)
+
     public void fetchFeesFromPensionSystem(){
         updateFeesFromPensionSystem();
     }

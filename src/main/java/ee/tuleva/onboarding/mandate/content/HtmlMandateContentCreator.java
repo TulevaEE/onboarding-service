@@ -4,24 +4,26 @@ import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
+import org.springframework.stereotype.Component;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
+import javax.annotation.PostConstruct;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class HtmlMandateContentCreator extends MandateContentCreator {
+@Component
+public class HtmlMandateContentCreator implements MandateContentCreator {
 
     TemplateEngine templateEngine;
+    User user;
+    Mandate mandate;
+    List<Fund> funds;
 
-    HtmlMandateContentCreator(User user, Mandate mandate, List<Fund> funds) {
-        super(user, mandate, funds);
-        initialize();
-    }
-
+    @PostConstruct
     private void initialize() {
         ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
         templateResolver.setPrefix("templates/mandate/");
@@ -33,7 +35,12 @@ public class HtmlMandateContentCreator extends MandateContentCreator {
         templateEngine.setTemplateResolver(templateResolver);
     }
 
-    public List<MandateContentFile> getContentFiles() {
+    @Override
+    public List<MandateContentFile> getContentFiles(User user, Mandate mandate, List<Fund> funds) {
+        this.user = user;
+        this.mandate = mandate;
+        this.funds = funds;
+
         List<MandateContentFile> files = new ArrayList<MandateContentFile>(Arrays.asList(getFutureContributionsFundMandateContentFile(mandate)));
         files.addAll(getFundTransferMandateContentFiles(mandate));
 

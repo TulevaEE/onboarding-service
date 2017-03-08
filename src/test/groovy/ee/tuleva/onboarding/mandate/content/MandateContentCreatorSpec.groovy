@@ -7,16 +7,15 @@ import spock.lang.Specification
 
 class MandateContentCreatorSpec extends Specification {
 
-    MandateContentCreator mandateContentCreator = new HtmlMandateContentCreator(
-            UserFixture.sampleUser(), MandateFixture.sampleMandate(), sampleFunds()
-    )
+    MandateContentCreator mandateContentCreator = new HtmlMandateContentCreator()
 
     def setup() {
+        mandateContentCreator.initialize()
     }
 
     def "Generate mandate content"() {
         when:
-        List<MandateContentFile> mandateContentFiles = mandateContentCreator.getContentFiles()
+        List<MandateContentFile> mandateContentFiles = mandateContentCreator.getContentFiles(UserFixture.sampleUser(), MandateFixture.sampleMandate(), sampleFunds())
         then:
         mandateContentFiles.size() == 3
 //        writeFileOut(mandateContentFiles[0])

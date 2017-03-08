@@ -1,14 +1,12 @@
 package ee.tuleva.onboarding.auth.mobileid
 
 import ee.tuleva.onboarding.auth.AuthUserService
-import ee.tuleva.onboarding.user.User
+import ee.tuleva.onboarding.auth.UserFixture
 import org.springframework.security.oauth2.common.OAuth2AccessToken
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
 import org.springframework.security.oauth2.provider.*
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices
 import spock.lang.Specification
-
-import java.time.Instant
 
 class MobileIdTokenGranterSpec extends Specification {
 

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
@@ -13,6 +14,7 @@ import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 @Data
+@Getter
 @Entity
 @Table(name = "fund_transfer_exchange")
 @Builder

@@ -5,15 +5,14 @@
         <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns="http://epis.x-road.ee/producer/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:x="http://x-road.ee/xsd/x-road.xsd">
             <soapenv:Header>
                 <x:consumer xmlns="http://epis.x-road.ee/producer/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://x-road.ee/xsd/x-road.xsd">EVKTULEVA</x:consumer>
-                <x:id xmlns="http://epis.x-road.ee/producer/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://x-road.ee/xsd/x-road.xsd">${transactionId}</x:id>
+                <x:id xmlns="http://epis.x-road.ee/producer/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://x-road.ee/xsd/x-road.xsd" th:text="${transactionId}"></x:id>
             </soapenv:Header>
             <soapenv:Body>
                 <OSAKUTE_VAHETAMISE_AVALDUS>
-                    <Sender CODE="XMLHP"/>
                     <Request th:attr="DocumentDate=${documentDate}, DocumentNumber=${documentNumber}" >
                         <PersonalData ContactPreference="E" th:attr="E_MAIL=${email}, FirstName=${firstName}, Name=${lastName}, PersonId=${idCode}, Phone=${phoneNumber}" ExtractFlag="N" LanguagePreference="EST"/>
-                        <Address th:attr="AddressRow1=${addressRow1}, AddressRow2=${addressRow2}, Country=${countryCode}, PostalIndex=${postCode}, Territory=${districtCode}"/>
-                        <ApplicationData Pillar="2" th:attr="SourceISIN=${sourceIsin}"/>
+                        <Address th:attr="AddressRow1=${addressLine1}, AddressRow2=${addressLine2}, Country=${countryCode}, PostalIndex=${postCode}, Territory=${districtCode}"/>
+                        <ApplicationData th:each="fundTransferExchange : ${fundTransferExchanges}" Pillar="2" th:attr="SourceISIN=${fundTransferExchange.sourceFundIsin}, DestinationISIN=${fundTransferExchange.targetFundIsin}, Percentage=${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}"/>
                     </Request>
                 </OSAKUTE_VAHETAMISE_AVALDUS>
             </soapenv:Body>
@@ -42,8 +41,9 @@
 <p class="c12 c28"><span class="c5"></span></p>
 <p class="c18"><span class="c5"></span></p>
 <p class="c18"><span class="c5"></span></p>
-<p class="c31"><span class="c6">KOHUSTUSLIKU PENSIONIFONDI OSAKUTE VAHETAMISE AVALDUS nr ...</span></p>
+<p class="c31"><span class="c6">KOHUSTUSLIKU PENSIONIFONDI OSAKUTE VAHETAMISE AVALDUS nr <span th:text="${documentNumber}"></span></span></p>
 <p class="c0"><span class="c5"></span></p>
+
 <p class="c4"><span class="c39">1. Avalduse esitaja</span></p>
 <p class="c18"><span class="c5"></span></p>
 <a id="t.712981a4452879ce0099246241239d458bf94b79"></a><a id="t.0"></a>
@@ -51,13 +51,13 @@
     <tbody>
     <tr class="c40">
         <td class="c2" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0"><span class="c5" th:text="${idCode}"></span></p>
         </td>
         <td class="c2" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0"><span class="c5" th:text="${firstName}"></span></p>
         </td>
         <td class="c2" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0"><span class="c5" th:text="${lastName}"></span></p>
         </td>
     </tr>
     <tr class="c1">
@@ -73,10 +73,10 @@
     </tr>
     <tr class="c7">
         <td class="c2" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0"><span class="c5" th:text="${phoneNumber}"></span></p>
         </td>
         <td class="c10" colspan="2" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0"><span class="c5" th:text="${email}"></span></p>
         </td>
     </tr>
     <tr class="c7">
@@ -90,6 +90,7 @@
     </tbody>
 </table>
 <p class="c18"><span class="c5"></span></p>
+
 <p class="c14"><span class="c3">2. Aadress</span></p>
 <p class="c0"><span class="c3"></span></p>
 <a id="t.e0927e35cdcaed5d1bfd3eb4cb10714eb91b9c37"></a><a id="t.1"></a>
@@ -97,10 +98,10 @@
     <tbody>
     <tr class="c34">
         <td class="c27" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
+            <p class="c0"><span class="c3" th:text="${addressLine1}"></span></p>
         </td>
         <td class="c35" colspan="2" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
+            <p class="c0"><span class="c3" th:text="${settlement}"></span></p>
         </td>
     </tr>
     <tr class="c34">
@@ -113,13 +114,13 @@
     </tr>
     <tr class="c7">
         <td class="c27" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0"><span class="c5" th:text="${addressLine2}"></span></p>
         </td>
         <td class="c23" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0"><span class="c5" th:text="${postCode}"></span></p>
         </td>
         <td class="c2" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0"><span class="c5" th:text="${countryCode}"></span></p>
         </td>
     </tr>
     <tr class="c7">
@@ -210,17 +211,41 @@
             <p class="c14"><span class="c5">Osakute vahetamisel tagasiv&otilde;tmisele kuuluvate osakute osakaal, mille eest soovin omandada valitud pensionifondi osakuid (%)</span></p>
         </td>
     </tr>
+
+<!--
+    <tr class="c7" th:each="fundTransferExchange : ${fundTransferExchanges}">
+        <td class="c8" colspan="1" rowspan="5">
+            <p class="c0"><span class="c3" th:text="${fundTransferExchange.sourceFundIsin}"></span></p>
+        </td>
+        <td class="c25" colspan="1" rowspan="1">
+            <p class="c0"><span class="c3" th:text="${fundTransferExchange.targetFundIsin}"></span></p>
+        </td>
+        <td class="c9" colspan="1" rowspan="1">
+            <p class="c0"><span class="c3" th:text="${fundTransferExchange.amount}"></span></p>
+        </td>
+    </tr>
+-->
     <tr class="c7">
         <td class="c8" colspan="1" rowspan="5">
-            <p class="c0"><span class="c3"></span></p>
+            <p class="c0"><span class="c3" th:text="${fundTransferExchanges.get(0).sourceFundIsin}"></span></p>
         </td>
         <td class="c25" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
+            <p class="c0"><span class="c3" ></span></p>
         </td>
         <td class="c9" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
         </td>
     </tr>
+
+    <tr class="c7" th:each="fundTransferExchange : ${fundTransferExchanges}">
+        <td class="c25" colspan="1" rowspan="1">
+            <p class="c0"><span class="c3" th:text="${fundTransferExchange.targetFundIsin}"></span></p>
+        </td>
+        <td class="c9" colspan="1" rowspan="1">
+            <p class="c0"><span class="c3" th:text="${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}"></span></p>
+        </td>
+    </tr>
+    <!--
     <tr class="c7">
         <td class="c25" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
@@ -253,6 +278,8 @@
             <p class="c0"><span class="c3"></span></p>
         </td>
     </tr>
+    -->
+
     </tbody>
 </table>
 <!--MARK2-->
@@ -272,7 +299,7 @@
     <tbody>
     <tr class="c1">
         <td class="c19" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
+            <p class="c0"><span class="c3" th:text="${documentDatePPKKAAAA}"></span></p>
             <p class="c0"><span class="c3"></span></p>
         </td>
         <td class="c19" colspan="1" rowspan="1">

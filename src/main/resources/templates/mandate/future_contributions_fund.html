@@ -5,14 +5,13 @@
         <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns="http://epis.x-road.ee/producer/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:x="http://x-road.ee/xsd/x-road.xsd">
             <soapenv:Header>
                 <x:consumer xmlns="http://epis.x-road.ee/producer/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://x-road.ee/xsd/x-road.xsd"> EVKTULEVA </x:consumer>
-                <x:id xmlns="http://epis.x-road.ee/producer/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://x-road.ee/xsd/x-road.xsd">${transactionId}</x:id>
+                <x:id xmlns="http://epis.x-road.ee/producer/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://x-road.ee/xsd/x-road.xsd" th:text="${transactionId}"></x:id>
             </soapenv:Header>
             <soapenv:Body>
                 <VALIKUAVALDUS>
-                    <Sender CODE="XMLHP"/>
                     <Request th:attr="DocumentDate=${documentDate}, DocumentNumber=${documentNumber}" >
                         <PersonalData ContactPreference="E" th:attr="E_MAIL=${email}, FirstName=${firstName}, Name=${lastName}, PersonId=${idCode}, Phone=${phoneNumber}" ExtractFlag="N" LanguagePreference="EST"/>
-                        <Address th:attr="AddressRow1=${addressRow1}, AddressRow2=${addressRow2}, Country=${countryCode}, PostalIndex=${postCode}, Territory=${districtCode}"/>
+                        <Address th:attr="AddressRow1=${addressLine1}, AddressRow2=${addressLine2}, Country=${countryCode}, PostalIndex=${postCode}, Territory=${districtCode}"/>
                         <ApplicationData th:attr="ISIN=${selectedFundIsin}" Pillar="2"/>
                     </Request>
                 </VALIKUAVALDUS>
@@ -30,7 +29,7 @@
 <p class="c30"><a id="kix.g9q1qkk2mnqa"></a><span class="c1">&bdquo;Rahandusministri 26. aprilli 2011. a m&auml;&auml;ruse nr 25<br></br>&bdquo;Kohustusliku kogumispensioni avalduste vormide <br></br>kehtestamine&ldquo; lisa 1 <br></br>(muudetud s&otilde;nastuses)</span></p>
 <p class="c17 c8"><span class="c1"></span></p>
 <p class="c17 c8"><span class="c1"></span></p>
-<p class="c6"><span class="c1">VALIKUAVALDUS nr <span id="futureContributionsFundsMandateNumber"></span></span></p>
+<p class="c6"><span class="c1">VALIKUAVALDUS nr <span th:text="${documentNumber}"></span></span></p>
 <p class="c5 c8"><span class="c1"></span></p>
 <p class="c28"><span class="c11">1. Avalduse esitaja</span></p>
 <p class="c17 c8"><span class="c1"></span></p>
@@ -61,10 +60,10 @@
     </tr>
     <tr class="c23">
         <td class="c7" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5 c8"><span class="c1" th:text="${phoneNumber}"></span></p>
         </td>
         <td class="c24" colspan="2" rowspan="1">
-            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5 c8"><span class="c1" th:text="${email}"></span></p>
         </td>
     </tr>
     <tr class="c23">
@@ -85,10 +84,10 @@
     <tbody>
     <tr class="c13">
         <td class="c26" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
+            <p class="c5 c8"><span class="c0" th:text="${addressLine1}"></span></p>
         </td>
         <td class="c34" colspan="2" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
+            <p class="c5 c8"><span class="c0" th:text="${settlement}"></span></p>
         </td>
     </tr>
     <tr class="c13">
@@ -101,13 +100,13 @@
     </tr>
     <tr class="c23">
         <td class="c26" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5 c8"><span class="c1" th:text="${addressLine2}"></span></p>
         </td>
         <td class="c16" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5 c8"><span class="c1" th:text="${postCode}"></span></p>
         </td>
         <td class="c7" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5 c8"><span class="c1" th:text="${countryCode}"></span></p>
         </td>
     </tr>
     <tr class="c23">
@@ -193,166 +192,18 @@
             <p class="c5 c8"><span class="c0"></span></p>
         </td>
     </tr>
-    <tr class="c12">
+
+    <tr class="c12" th:each="fund : ${funds}">
         <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
+            <p class="c5 c8"><span class="c0" th:text="${fund.name}"></span></p>
         </td>
         <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
+            <p class="c5 c8"><span class="c0"
+                                   th:if="${fund.isin == selectedFundIsin}" th:text="X">
+            </span></p>
         </td>
     </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
-    <tr class="c12">
-        <td class="c10" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-        </td>
-    </tr>
+
     </tbody>
 </table>
 <p class="c5 c8"><span class="c0"></span></p>
@@ -366,7 +217,7 @@
     <tbody>
     <tr class="c12">
         <td class="c3" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
+            <p class="c5 c8"><span class="c0" th:text="${documentDatePPKKAAAA}"></span></p>
             <p class="c5 c8"><span class="c0"></span></p>
         </td>
         <td class="c3" colspan="1" rowspan="1">

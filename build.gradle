@@ -55,7 +55,6 @@ dependencies {
 	
 	compile('org.hibernate:hibernate-java8')
 	compile('com.fasterxml.jackson.datatype:jackson-datatype-jsr310')
-
 	compile('com.rollbar:rollbar:0.5.3')
 
 	testCompile("com.h2database:h2")

@@ -80,7 +80,7 @@ class MobileIdTokenGranterSpec extends Specification {
         given:
         1 * mobileIdSessionStore.get() >> MobileIdFixture.sampleMobileIdSession
         1 * mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession) >> true
-        1 * userRepository.findByPersonalCode(MobileIdFixture.sampleMobileIdSession.personalCode) >> sampleUser()
+        1 * userRepository.findByPersonalCode(MobileIdFixture.sampleMobileIdSession.personalCode) >> UserFixture.sampleUser()
         ClientDetails sampleClientDetails = sampleClientDetails()
         TokenRequest tokenRequest = Mock(TokenRequest) {
             1 * createOAuth2Request(sampleClientDetails) >> Mock(OAuth2Request)
@@ -99,7 +99,7 @@ class MobileIdTokenGranterSpec extends Specification {
         given:
         1 * mobileIdSessionStore.get() >> MobileIdFixture.sampleMobileIdSession
         1 * mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession) >> true
-        User inActiveUser = sampleUser()
+        User inActiveUser = UserFixture.sampleUser()
         inActiveUser.setActive(false)
         1 * userRepository.findByPersonalCode(MobileIdFixture.sampleMobileIdSession.personalCode) >> inActiveUser
 
@@ -113,20 +113,6 @@ class MobileIdTokenGranterSpec extends Specification {
         return Mock(ClientDetails) {
             1 * getClientId() >> "test"
         }
-    }
-
-    User sampleUser() {
-        return User.builder()
-                .firstName("Jordan")
-                .lastName("Valdma")
-                .personalCode("38812121212")
-                .email("jordan.valdma@gmail.com")
-                .phoneNumber("5555555")
-                .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
-                .updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
-                .memberNumber(0)
-                .active(true)
-                .build()
     }
 
 }

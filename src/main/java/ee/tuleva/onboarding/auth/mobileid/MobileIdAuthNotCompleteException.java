@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth;
+package ee.tuleva.onboarding.auth.mobileid;
 
 import org.springframework.security.oauth2.common.exceptions.ClientAuthenticationException;
 

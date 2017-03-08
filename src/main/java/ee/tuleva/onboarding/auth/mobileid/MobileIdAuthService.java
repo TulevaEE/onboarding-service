@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth;
+package ee.tuleva.onboarding.auth.mobileid;
 
 import com.codeborne.security.mobileid.MobileIDAuthenticator;
 import com.codeborne.security.mobileid.MobileIDSession;

@@ -1,8 +1,9 @@
-package ee.tuleva.onboarding.auth;
+package ee.tuleva.onboarding.auth.mobileid;
 
 import com.codeborne.security.mobileid.MobileIDSession;
+import ee.tuleva.onboarding.auth.AuthUserService;
+import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
@@ -11,29 +12,31 @@ import org.springframework.security.oauth2.provider.*;
 import org.springframework.security.oauth2.provider.token.AbstractTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
 
+import java.util.Optional;
+
 @Slf4j
 public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenGranter {
     public static final String GRANT_TYPE = "mobile_id";
 
     private final MobileIdAuthService mobileIdAuthService;
-    private final UserRepository userRepository;
+    private final AuthUserService userService;
     private final MobileIdSessionStore mobileIdSessionStore;
 
     public MobileIdTokenGranter(AuthorizationServerTokenServices tokenServices,
                                 ClientDetailsService clientDetailsService,
                                 OAuth2RequestFactory requestFactory,
                                 MobileIdAuthService mobileIdAuthService,
-                                UserRepository userRepository,
+                                AuthUserService userService,
                                 MobileIdSessionStore mobileIdSessionStore) {
 
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
 
         assert mobileIdAuthService != null;
-        assert userRepository != null;
+        assert userService != null;
         assert mobileIdSessionStore != null;
 
         this.mobileIdAuthService = mobileIdAuthService;
-        this.userRepository = userRepository;
+        this.userService = userService;
         this.mobileIdSessionStore = mobileIdSessionStore;
     }
 
@@ -46,24 +49,18 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
             throw new InvalidRequestException("Unknown Client ID.");
         }
 
-        MobileIDSession mobileIDSession = mobileIdSessionStore.get();
-        boolean isComplete = mobileIdAuthService.isLoginComplete(mobileIDSession);
+        Optional<MobileIDSession> session = mobileIdSessionStore.get();
+        if (!session.isPresent()) {
+            return null;
+        }
+        MobileIDSession mobileIDSession = session.get();
 
-        if(!isComplete) {
+        boolean isComplete = mobileIdAuthService.isLoginComplete(mobileIDSession);
+        if (!isComplete) {
             throw new MobileIdAuthNotCompleteException();
         }
 
-        User user = userRepository.findByPersonalCode(mobileIDSession.personalCode);
-
-        if (user == null) {
-            log.error("Failed to authenticate user: couldn't find user with personal code {}", mobileIDSession.personalCode);
-            throw new InvalidRequestException("INVALID_USER_CREDENTIALS");
-        }
-
-        if (user.getActive() ==  false) {
-            log.info("Failed to login inactive user with personal code {}", mobileIDSession.personalCode);
-            throw new InvalidRequestException("INACTIVE_USER");
-        }
+        User user = userService.getByPersonalCode(mobileIDSession.personalCode);
 
         Authentication userAuthentication = new PersonalCodeAuthentication(user, mobileIDSession, null);
         userAuthentication.setAuthenticated(true);
@@ -75,4 +72,6 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
 
         return getTokenServices().createAccessToken(oAuth2Authentication);
     }
+
+
 }

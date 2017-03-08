@@ -1,17 +1,17 @@
 package ee.tuleva.onboarding.auth;
 
-import com.codeborne.security.mobileid.MobileIDSession;
+import ee.tuleva.onboarding.user.User;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
-import ee.tuleva.onboarding.user.User;
+
 import java.util.Collection;
 
 public class PersonalCodeAuthentication extends AbstractAuthenticationToken {
 
     private final Object principal;
-    private final MobileIDSession credentials;
+    private final Object credentials;
 
-    public PersonalCodeAuthentication(User user, MobileIDSession credentials, Collection<? extends GrantedAuthority> authorities) {
+    public PersonalCodeAuthentication(User user, Object credentials, Collection<? extends GrantedAuthority> authorities) {
         super(authorities);
         this.principal = user;
         this.credentials = credentials;
@@ -19,7 +19,7 @@ public class PersonalCodeAuthentication extends AbstractAuthenticationToken {
     }
 
     @Override
-    public MobileIDSession getCredentials() {
+    public Object getCredentials() {
         return this.credentials;
     }
 

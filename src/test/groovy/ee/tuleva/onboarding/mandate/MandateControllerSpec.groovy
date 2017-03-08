@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate
 
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.BaseControllerSpec
-import ee.tuleva.onboarding.auth.MobileIdSignatureSessionStore
+import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -13,9 +13,7 @@ import org.springframework.test.web.servlet.MockMvc
 import spock.mock.DetachedMockFactory
 
 import static org.hamcrest.Matchers.is
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
 @WebMvcTest(MandateController)

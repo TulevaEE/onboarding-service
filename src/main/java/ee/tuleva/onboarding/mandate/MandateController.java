@@ -2,15 +2,16 @@ package ee.tuleva.onboarding.mandate;
 
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.fasterxml.jackson.annotation.JsonView;
-import ee.tuleva.onboarding.auth.MobileIdSessionStore;
-import ee.tuleva.onboarding.auth.MobileIdSignatureSessionStore;
+import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore;
 import ee.tuleva.onboarding.user.User;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.ui.Model;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.annotations.ApiIgnore;
 
 import javax.validation.Valid;

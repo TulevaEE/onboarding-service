@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.config;
 
-import ee.tuleva.onboarding.auth.MobileIdAuthService;
-import ee.tuleva.onboarding.auth.MobileIdSessionStore;
-import ee.tuleva.onboarding.auth.MobileIdTokenGranter;
-import ee.tuleva.onboarding.user.UserRepository;
+import ee.tuleva.onboarding.auth.AuthUserService;
+import ee.tuleva.onboarding.auth.idcard.IdCardSessionStore;
+import ee.tuleva.onboarding.auth.idcard.IdCardTokenGranter;
+import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
+import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore;
+import ee.tuleva.onboarding.auth.mobileid.MobileIdTokenGranter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,11 +18,14 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.R
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
+import org.springframework.security.oauth2.provider.CompositeTokenGranter;
 import org.springframework.security.oauth2.provider.client.JdbcClientDetailsService;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
 
 import javax.sql.DataSource;
+
+import static java.util.Arrays.asList;
 
 @Configuration
 public class OAuthConfiguration {
@@ -58,10 +63,13 @@ public class OAuthConfiguration {
         private MobileIdAuthService mobileIdAuthService;
 
         @Autowired
-        private UserRepository userRepository;
+        private AuthUserService authUserService;
 
         @Autowired
         private MobileIdSessionStore mobileIdSessionStore;
+
+        @Autowired
+        private IdCardSessionStore idCardSessionStore;
 
         @Bean
         public JdbcClientDetailsService clientDetailsService() {
@@ -85,19 +93,31 @@ public class OAuthConfiguration {
 
         @Override
         public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-            MobileIdTokenGranter mobileIdTokenGranter = new MobileIdTokenGranter(
-                    endpoints.getTokenServices(),
-                    clientDetailsService(),
-                    endpoints.getOAuth2RequestFactory(),
-                    mobileIdAuthService,
-                    userRepository,
-                    mobileIdSessionStore
-            );
+            MobileIdTokenGranter mobileIdTokenGranter = mobileIdTokenGranter(endpoints);
+            IdCardTokenGranter idCardTokenGranter = idCardTokenGranter(endpoints);
 
             endpoints
                     .tokenStore(tokenStore())
-                    .tokenGranter(mobileIdTokenGranter)
-            ;
+                    .tokenGranter(new CompositeTokenGranter(asList(mobileIdTokenGranter, idCardTokenGranter)));
+        }
+
+        private MobileIdTokenGranter mobileIdTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {
+            return new MobileIdTokenGranter(
+                            endpoints.getTokenServices(),
+                            clientDetailsService(),
+                            endpoints.getOAuth2RequestFactory(),
+                            mobileIdAuthService,
+                            authUserService,
+                            mobileIdSessionStore);
+        }
+
+        private IdCardTokenGranter idCardTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {
+            return new IdCardTokenGranter(
+                    endpoints.getTokenServices(),
+                    clientDetailsService(),
+                    endpoints.getOAuth2RequestFactory(),
+                    idCardSessionStore,
+                    authUserService);
         }
 
     }

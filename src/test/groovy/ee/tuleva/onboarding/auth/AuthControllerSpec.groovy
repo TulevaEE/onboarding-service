@@ -2,6 +2,10 @@ package ee.tuleva.onboarding.auth
 
 import com.codeborne.security.mobileid.MobileIDSession
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.auth.idcard.IdCardAuthService
+import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService
+import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
+import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletResponse
@@ -13,11 +17,12 @@ class AuthControllerSpec extends BaseControllerSpec {
 
     MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
     MobileIdSessionStore mobileIdSessionStore = Mock(MobileIdSessionStore)
-    AuthController controller = new AuthController(mobileIdAuthService, mobileIdSessionStore)
+    IdCardAuthService idCardAuthService = Mock(IdCardAuthService)
+    AuthController controller = new AuthController(mobileIdAuthService, mobileIdSessionStore, idCardAuthService)
     private MockMvc mockMvc
 
     def setup() {
-        mockMvc = getMockMvc(controller);
+        mockMvc = getMockMvc(controller)
     }
 
     def "Authenticate: Initiate mobile id authentication"() {

@@ -212,19 +212,6 @@
         </td>
     </tr>
 
-<!--
-    <tr class="c7" th:each="fundTransferExchange : ${fundTransferExchanges}">
-        <td class="c8" colspan="1" rowspan="5">
-            <p class="c0"><span class="c3" th:text="${fundTransferExchange.sourceFundIsin}"></span></p>
-        </td>
-        <td class="c25" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3" th:text="${fundTransferExchange.targetFundIsin}"></span></p>
-        </td>
-        <td class="c9" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3" th:text="${fundTransferExchange.amount}"></span></p>
-        </td>
-    </tr>
--->
     <tr class="c7">
         <td class="c8" colspan="1" rowspan="5">
             <p class="c0"><span class="c3" th:text="${fundTransferExchanges.get(0).sourceFundIsin}"></span></p>
@@ -245,40 +232,6 @@
             <p class="c0"><span class="c3" th:text="${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}"></span></p>
         </td>
     </tr>
-    <!--
-    <tr class="c7">
-        <td class="c25" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
-        </td>
-        <td class="c9" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
-        </td>
-    </tr>
-    <tr class="c7">
-        <td class="c25" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
-        </td>
-        <td class="c9" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
-        </td>
-    </tr>
-    <tr class="c7">
-        <td class="c25" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
-        </td>
-        <td class="c9" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
-        </td>
-    </tr>
-    <tr class="c7">
-        <td class="c25" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
-        </td>
-        <td class="c9" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
-        </td>
-    </tr>
-    -->
 
     </tbody>
 </table>

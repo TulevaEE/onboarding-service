@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.mandate
 
 import com.codeborne.security.mobileid.MobileIdSignatureSession
-import ee.tuleva.onboarding.mandate.pdf.PdfService
 import ee.tuleva.onboarding.sign.MobileIdSignService
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
@@ -10,8 +9,7 @@ class MandateServiceSpec extends Specification {
 
     def mandateRepository = Mock(MandateRepository)
     def signService = Mock(MobileIdSignService)
-    def pdfService = Mock(PdfService)
-    def service = new MandateService(mandateRepository, signService, pdfService)
+    def service = new MandateService(mandateRepository, signService)
 
     Long sampleMandateId = 1L
 
@@ -43,7 +41,6 @@ class MandateServiceSpec extends Specification {
         given:
         def mandate = Mandate.builder().build()
         1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser()) >> mandate
-        1 * pdfService.toPdf(mandate) >> ([0] as byte[])
         1 * signService.startSign(_, "38501010002", "5555555") >> new MobileIdSignatureSession(1, null, "1234")
 
         when:

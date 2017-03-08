@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.mandate;
 
 import com.codeborne.security.mobileid.MobileIdSignatureFile;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.mandate.pdf.PdfService;
 import ee.tuleva.onboarding.sign.MobileIdSignService;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +15,6 @@ public class MandateService {
 
     private final MandateRepository mandateRepository;
 	private final MobileIdSignService signService;
-	private final PdfService pdfService;
 
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter();
 
@@ -30,7 +28,7 @@ public class MandateService {
 
 	public MobileIdSignatureSession sign(Long mandateId, User user) {
 		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
-		byte[] pdfContent = pdfService.toPdf(mandate);
+		byte[] pdfContent = "todo".getBytes();
 		MobileIdSignatureFile file = new MobileIdSignatureFile("mandate.pdf", "application/pdf", pdfContent);
 		return signService.startSign(file, user.getPersonalCode(), user.getPhoneNumber());
 	}

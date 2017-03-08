@@ -19,7 +19,7 @@ public class ApplicationStartupListener implements ApplicationListener<Applicati
 		try {
 			touch(new File("/tmp/app-initialized"));
 		} catch (IOException e) {
-			log.error("Could not indicate NGIX that it can start accepting traffic", e);
+			log.error("Could not indicate NGINX that it can start accepting traffic", e);
 		}
 	}
 

@@ -54,7 +54,7 @@ public class AuthController {
 
     @Data
     @Builder
-    private class IdLoginResponse {
+    private static class IdLoginResponse {
         private String clientCertificateVerification;
         private String clientCertificate;
     }

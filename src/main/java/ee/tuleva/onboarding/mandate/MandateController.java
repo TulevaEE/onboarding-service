@@ -3,9 +3,11 @@ package ee.tuleva.onboarding.mandate;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore;
+import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
 import ee.tuleva.onboarding.user.User;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
+import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,7 +16,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.annotations.ApiIgnore;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 
 import static org.springframework.web.bind.annotation.RequestMethod.*;
 
@@ -23,6 +29,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.*;
 @RequiredArgsConstructor
 public class MandateController {
 
+    private final MandateRepository mandateRepository;
     private final MandateService mandateService;
     private final MobileIdSignatureSessionStore mobileIdSessionStore;
 
@@ -66,5 +73,23 @@ public class MandateController {
                 .build();
     }
 
+    @ApiOperation(value = "Get mandate file")
+    @RequestMapping(method = GET, value = "/mandate/{id}/file")
+    public void getSignatureStatus(@PathVariable("id") Long mandateId,
+                                   @ApiIgnore @AuthenticationPrincipal User user,
+                                   HttpServletResponse response) throws IOException {
+
+        Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+
+        if(mandate == null) {
+            throw new MandateNotFoundException();
+        } else {
+            response.addHeader("Content-Disposition", "attachment; filename=avaldus.bdoc");
+
+            IOUtils.copy(new ByteArrayInputStream(mandate.getMandate()), response.getOutputStream());
+            response.flushBuffer();
+        }
+
+    }
 
 }

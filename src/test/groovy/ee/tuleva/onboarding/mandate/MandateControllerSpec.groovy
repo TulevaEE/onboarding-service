@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate
 
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -22,6 +23,9 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     @Autowired
     MandateService mandateService
+
+    @Autowired
+    MandateRepository mandateRepository
 
     @Autowired
     MockMvc mvc
@@ -70,6 +74,30 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
     }
 
+    def "getMandateFile returns mandate file"() {
+        when:
+        1 * mandateRepository
+                .findByIdAndUser(MandateFixture.sampleMandate().id, _) >> MandateFixture.sampleMandate()
+
+        then:
+        mvc
+                .perform(get("/v1/mandate/" + MandateFixture.sampleMandate().id + "/file")
+        )
+                .andExpect(status().isOk())
+    }
+
+    def "getMandateFile returns not found on non existing mandate file"() {
+        when:
+        1 * mandateRepository
+                .findByIdAndUser(MandateFixture.sampleMandate().id, _) >> null
+
+        then:
+        mvc
+                .perform(get("/v1/mandate/" + MandateFixture.sampleMandate().id + "/file")
+        )
+                .andExpect(status().isNotFound())
+    }
+
     @TestConfiguration
     static class MockConfig {
         def mockFactory = new DetachedMockFactory()
@@ -81,6 +109,11 @@ class MandateControllerSpec extends BaseControllerSpec {
             return mandateService
         }
 
+        @Bean
+        MandateRepository mandateRepository() {
+            MandateRepository mandateRepository = mockFactory.Mock(MandateRepository)
+            return mandateRepository
+        }
         @Bean
         MobileIdSignatureSessionStore mobileIdSignatureSessionStore() {
             return mockFactory.Mock(MobileIdSignatureSessionStore)

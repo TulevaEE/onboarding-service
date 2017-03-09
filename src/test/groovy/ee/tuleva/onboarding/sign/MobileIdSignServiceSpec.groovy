@@ -12,11 +12,15 @@ class MobileIdSignServiceSpec extends Specification {
 
     def "startSign() works"() {
         given:
-        def file = new MobileIdSignatureFile("test.txt", "text/plain", "Test".bytes)
-        signer.startSign(file, "38501010002", "55555555") >> new MobileIdSignatureSession(1, null, "1234", null)
+        List<MobileIdSignatureFile> files = Arrays.asList(
+                new MobileIdSignatureFile("test1.txt", "text/plain", "Test".bytes),
+                new MobileIdSignatureFile("test2.txt", "text/plain", "Test".bytes)
+        )
+
+        signer.startSignFiles(files, "38501010002", "55555555") >> new MobileIdSignatureSession(1, null, "1234", null)
 
         when:
-        def session = service.startSign(file, "38501010002", "55555555")
+        MobileIdSignatureSession session = service.startSignFiles(files as List<MobileIdSignatureFile>, "38501010002", "55555555")
 
         then:
         session.challenge == "1234"

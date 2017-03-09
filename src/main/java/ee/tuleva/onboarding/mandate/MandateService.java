@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
@@ -43,11 +44,12 @@ public class MandateService {
 		List<Fund> funds = new ArrayList<>();
 		fundRepository.findAll().forEach(funds::add);
 
-		List<MandateContentFile> files = mandateContentCreator.getContentFiles(user, mandate, funds);
+		List<MobileIdSignatureFile> files = mandateContentCreator.getContentFiles(user, mandate, funds)
+				.stream()
+				.map(contentFile -> new MobileIdSignatureFile(contentFile.getName(), contentFile.getMimeType(), contentFile.getContent()))
+				.collect(Collectors.toList());
 
-		byte[] pdfContent = files.get(0).getContent();//TODO
-		MobileIdSignatureFile file = new MobileIdSignatureFile("mandate.pdf", "application/pdf", pdfContent);
-		return signService.startSign(file, user.getPersonalCode(), user.getPhoneNumber());
+		return signService.startSignFiles(files, user.getPersonalCode(), user.getPhoneNumber());
 	}
 
 	public String getSignatureStatus(MandateSignatureSession session) {

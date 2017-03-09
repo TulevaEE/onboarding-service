@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate
 
+import com.codeborne.security.mobileid.MobileIdSignatureFile
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import ee.tuleva.domain.fund.Fund
 import ee.tuleva.domain.fund.FundRepository
@@ -47,7 +48,7 @@ class MandateServiceSpec extends Specification {
         given:
         def mandate = Mandate.builder().build()
         1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser()) >> mandate
-        1 * signService.startSign(_, "38501010002", "5555555") >> new MobileIdSignatureSession(1, null, "1234")
+        1 * signService.startSignFiles(_ as List<MobileIdSignatureFile>, "38501010002", "5555555") >> new MobileIdSignatureSession(1, null, "1234")
         1 * fundRepository.findAll() >> [new Fund(), new Fund()]
         1 * mandateContentCreator.getContentFiles(_ as User, _ as Mandate, _ as List) >> [new MandateContentFile("file", "html/text", "file".getBytes())]
 

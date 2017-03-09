@@ -6,14 +6,16 @@ import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @AllArgsConstructor
 public class MobileIdSignService {
 
 	private final MobileIDAuthenticator signer;
 
-	public MobileIdSignatureSession startSign(MobileIdSignatureFile file, String personalCode, String phone) {
-		MobileIdSignatureSession session = signer.startSign(file, personalCode, phone);
+	public MobileIdSignatureSession startSignFiles(List<MobileIdSignatureFile> files, String personalCode, String phone) {
+		MobileIdSignatureSession session = signer.startSignFiles(files, personalCode, phone);
 		return session;
 	}
 

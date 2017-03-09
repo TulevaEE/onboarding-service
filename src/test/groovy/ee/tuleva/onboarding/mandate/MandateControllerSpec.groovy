@@ -33,7 +33,7 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "save a mandate"() {
         expect:
         mvc
-                .perform(post("/v1/mandate/").content(
+                .perform(post("/v1/mandates/").content(
                 mapper.writeValueAsString(
                         MandateFixture.sampleCreateMandateCommand()
                 ))
@@ -50,7 +50,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         then:
         mvc
-                .perform(put("/v1/mandate/1/signature")
+                .perform(put("/v1/mandates/1/signature")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
@@ -66,7 +66,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         then:
         mvc
-                .perform(get("/v1/mandate/" + MandateFixture.sampleMandate().id + "/signature")
+                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/signature")
 //                .sessionAttrs(sessionAttributes)
                 )
                 .andExpect(status().isOk())
@@ -81,7 +81,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         then:
         mvc
-                .perform(get("/v1/mandate/" + MandateFixture.sampleMandate().id + "/file")
+                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file")
         )
                 .andExpect(status().isOk())
     }
@@ -93,7 +93,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         then:
         mvc
-                .perform(get("/v1/mandate/" + MandateFixture.sampleMandate().id + "/file")
+                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file")
         )
                 .andExpect(status().isNotFound())
     }

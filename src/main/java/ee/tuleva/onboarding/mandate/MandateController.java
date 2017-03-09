@@ -34,7 +34,7 @@ public class MandateController {
     private final MobileIdSignatureSessionStore mobileIdSessionStore;
 
     @ApiOperation(value = "Create a mandate")
-    @RequestMapping(method = POST, value = "/mandate")
+    @RequestMapping(method = POST, value = "/mandates")
     @JsonView(MandateView.Default.class)
     public Mandate create(@ApiIgnore @AuthenticationPrincipal User user,
                           @Valid @RequestBody CreateMandateCommand createMandateCommand,
@@ -48,7 +48,7 @@ public class MandateController {
     }
 
     @ApiOperation(value = "Sign mandate")
-    @RequestMapping(method = PUT, value = "/mandate/{id}/signature")
+    @RequestMapping(method = PUT, value = "/mandates/{id}/signature")
     public MandateSignatureResponse startSign(@PathVariable("id") Long mandateId,
                                               @ApiIgnore @AuthenticationPrincipal User user) {
         MobileIdSignatureSession session = mandateService.sign(mandateId, user);
@@ -61,7 +61,7 @@ public class MandateController {
     }
 
     @ApiOperation(value = "Is mandate successfully signed")
-    @RequestMapping(method = GET, value = "/mandate/{id}/signature")
+    @RequestMapping(method = GET, value = "/mandates/{id}/signature")
     public MandateSignatureStatusResponse getSignatureStatus(@PathVariable("id") Long mandateId,
                                                              @ApiIgnore @AuthenticationPrincipal User user) {
 
@@ -74,7 +74,7 @@ public class MandateController {
     }
 
     @ApiOperation(value = "Get mandate file")
-    @RequestMapping(method = GET, value = "/mandate/{id}/file")
+    @RequestMapping(method = GET, value = "/mandates/{id}/file")
     public void getSignatureStatus(@PathVariable("id") Long mandateId,
                                    @ApiIgnore @AuthenticationPrincipal User user,
                                    HttpServletResponse response) throws IOException {

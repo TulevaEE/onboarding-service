@@ -35,7 +35,7 @@ public class MandateService {
         return mandateRepository.save(mandate);
     }
 
-	public MobileIdSignatureSession sign(Long mandateId, User user) {
+	public MobileIdSignatureSession sign(Long mandateId, User user, String phoneNumber) {
 		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
 
 		List<Fund> funds = new ArrayList<>();
@@ -46,7 +46,7 @@ public class MandateService {
 				.map(contentFile -> new MobileIdSignatureFile(contentFile.getName(), contentFile.getMimeType(), contentFile.getContent()))
 				.collect(Collectors.toList());
 
-		return signService.startSignFiles(files, user.getPersonalCode(), user.getPhoneNumber());
+		return signService.startSignFiles(files, user.getPersonalCode(), phoneNumber);
 	}
 
 	public String getSignatureStatus(Long mandateId, MandateSignatureSession session) {

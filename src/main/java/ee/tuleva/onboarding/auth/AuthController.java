@@ -36,9 +36,9 @@ public class AuthController {
             value = "/authenticate",
             consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
     public ResponseEntity<AuthenticateResponse> authenticate(@Valid @RequestBody AuthenticateCommand authenticateCommand) {
-        MobileIDSession mobileIDSession = mobileIdAuthService.startLogin(authenticateCommand.getPhoneNumber());
-        mobileIdSessionStore.save(mobileIDSession);
-        return new ResponseEntity<>(AuthenticateResponse.fromMobileIDSession(mobileIDSession), HttpStatus.OK);
+        MobileIDSession loginSession = mobileIdAuthService.startLogin(authenticateCommand.getPhoneNumber());
+        mobileIdSessionStore.save(loginSession);
+        return new ResponseEntity<>(AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);
     }
 
     @ApiOperation(value = "ID card login")

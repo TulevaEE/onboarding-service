@@ -46,7 +46,7 @@ dependencies {
 	compile("org.jsoup:jsoup:1.8.1")
 	compile('org.apache.commons:commons-lang3:3.5')
 
-	compile('com.github.ErkoRisthein:mobileid:1.4')
+	compile('com.github.ErkoRisthein:mobileid:1.5')
     compile('ee.eesti.xtee6.kpr:xtee-kpr:1.2.1')
 
 	compile('io.springfox:springfox-swagger2:2.6.1')

@@ -11,10 +11,9 @@ import lombok.Setter;
 public class AuthenticateResponse {
     String mobileIdChallengeCode;
 
-    public static AuthenticateResponse fromMobileIDSession(MobileIDSession mobileIDSession) {
-        AuthenticateResponseBuilder responseBuilder = AuthenticateResponse.builder()
-                .mobileIdChallengeCode(mobileIDSession.challenge);
-
-        return responseBuilder.build();
+    public static AuthenticateResponse fromMobileIdSession(MobileIDSession mobileIDSession) {
+        return builder()
+                .mobileIdChallengeCode(mobileIDSession.challenge)
+                .build();
     }
 }

@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.mandate
 
+import com.codeborne.security.mobileid.MobileIDSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.BaseControllerSpec
-import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -28,6 +29,9 @@ class MandateControllerSpec extends BaseControllerSpec {
     MandateRepository mandateRepository
 
     @Autowired
+    MobileIdSessionStore mobileIdSessionStore
+
+    @Autowired
     MockMvc mvc
 
     def "save a mandate"() {
@@ -46,7 +50,8 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "startSign returns the mobile id challenge code"() {
         when:
-        mandateService.sign(1L, _) >> new MobileIdSignatureSession(1, null, "1234")
+        mobileIdSessionStore.get() >> dummyMobileIdSessionWithPhone("555")
+        mandateService.sign(1L, _, "555") >> new MobileIdSignatureSession(1, null, "1234")
 
         then:
         mvc
@@ -55,6 +60,19 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath('$.mobileIdChallengeCode', is("1234")))
+    }
+
+    def "startSign fails when there's no mobile id session"() {
+        given:
+        mobileIdSessionStore.get() >> Optional.empty()
+
+        when:
+        mvc
+                .perform(put("/v1/mandates/1/signature"))
+                .andReturn()
+
+        then:
+        thrown Exception
     }
 
     def "getSignatureStatus returns the mobile id challenge code"() {
@@ -98,6 +116,10 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .andExpect(status().isNotFound())
     }
 
+    private Optional<MobileIDSession> dummyMobileIdSessionWithPhone(String phone) {
+        Optional.of(new MobileIDSession(0, "", "", "", "", phone))
+    }
+
     @TestConfiguration
     static class MockConfig {
         def mockFactory = new DetachedMockFactory()
@@ -114,9 +136,15 @@ class MandateControllerSpec extends BaseControllerSpec {
             MandateRepository mandateRepository = mockFactory.Mock(MandateRepository)
             return mandateRepository
         }
+
         @Bean
         MobileIdSignatureSessionStore mobileIdSignatureSessionStore() {
             return mockFactory.Mock(MobileIdSignatureSessionStore)
+        }
+
+        @Bean
+        MobileIdSessionStore mobileIdSessionStore() {
+            return mockFactory.Mock(MobileIdSessionStore)
         }
     }
 }

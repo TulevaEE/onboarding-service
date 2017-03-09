@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.mandate;
 
+import com.codeborne.security.mobileid.MobileIDSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.fasterxml.jackson.annotation.JsonView;
+import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore;
 import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
 import ee.tuleva.onboarding.user.User;
@@ -18,9 +20,9 @@ import springfox.documentation.annotations.ApiIgnore;
 
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.springframework.web.bind.annotation.RequestMethod.*;
 
@@ -31,7 +33,8 @@ public class MandateController {
 
     private final MandateRepository mandateRepository;
     private final MandateService mandateService;
-    private final MobileIdSignatureSessionStore mobileIdSessionStore;
+    private final MobileIdSignatureSessionStore mobileIdSignatureSessionStore;
+    private final MobileIdSessionStore mobileIdSessionStore;
 
     @ApiOperation(value = "Create a mandate")
     @RequestMapping(method = POST, value = "/mandates")
@@ -51,12 +54,19 @@ public class MandateController {
     @RequestMapping(method = PUT, value = "/mandates/{id}/signature")
     public MandateSignatureResponse startSign(@PathVariable("id") Long mandateId,
                                               @ApiIgnore @AuthenticationPrincipal User user) {
-        MobileIdSignatureSession session = mandateService.sign(mandateId, user);
 
-        mobileIdSessionStore.save(new MandateSignatureSession(session.sessCode, session.challenge));
+        Optional<MobileIDSession> loginSession = mobileIdSessionStore.get();
+
+        if(!loginSession.isPresent()) {
+            throw new IllegalStateException("No mobile id session found");
+        }
+
+        MobileIdSignatureSession signatureSession = mandateService.sign(mandateId, user, loginSession.get().phoneNumber);
+
+        mobileIdSignatureSessionStore.save(new MandateSignatureSession(signatureSession.sessCode, signatureSession.challenge));
 
         return MandateSignatureResponse.builder()
-                .mobileIdChallengeCode(session.challenge)
+                .mobileIdChallengeCode(signatureSession.challenge)
                 .build();
     }
 
@@ -65,7 +75,7 @@ public class MandateController {
     public MandateSignatureStatusResponse getSignatureStatus(@PathVariable("id") Long mandateId,
                                                              @ApiIgnore @AuthenticationPrincipal User user) {
 
-        MandateSignatureSession session = mobileIdSessionStore.get();
+        MandateSignatureSession session = mobileIdSignatureSessionStore.get();
         String status = mandateService.getSignatureStatus(mandateId, session);
 
         return MandateSignatureStatusResponse.builder()

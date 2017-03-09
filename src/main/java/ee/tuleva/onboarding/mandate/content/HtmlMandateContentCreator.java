@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.content;
 import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextGenerator;
 import ee.tuleva.onboarding.user.User;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.TemplateEngine;
@@ -10,8 +11,6 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
 import javax.annotation.PostConstruct;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -48,13 +47,15 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
     }
 
     private MandateContentFile getFutureContributionsFundMandateContentFile(Mandate mandate) {
-        Context ctx = getUseContext();
+        Context ctx = new Context();
+        ctx = ContextGenerator.addUserDate(ctx, user);
+
         String transactionId = UUID.randomUUID().toString();
         ctx.setVariable("transactionId", transactionId);
         ctx.setVariable("selectedFundIsin", mandate.getFutureContributionFundIsin());
         ctx.setVariable("documentNumber", mandate.getId());
 
-        ctx = addDatesToContext(ctx);
+        ctx = ContextGenerator.addDatesToContext(ctx, mandate);
 
         funds.sort((Fund fund1, Fund fund2) -> fund1.getName().compareToIgnoreCase(fund2.getName()));
 
@@ -63,7 +64,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
         String htmlContent = templateEngine.process("future_contributions_fund", ctx);
 
         return MandateContentFile.builder()
-                .name("valikuavaldus_" + transactionId + ".html")
+                .name("valikuavaldus.html")
                 .mimeType("text/html")
                 .content(htmlContent.getBytes())
                 .build();
@@ -92,52 +93,25 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
     }
 
     private MandateContentFile getFundTransferMandateContentFile(List<FundTransferExchange> fundTransferExchanges) {
-        Context ctx = getUseContext();
+        Context ctx = new Context();
+        ctx = ContextGenerator.addUserDate(ctx, user);
+
+        Long documentNumber = fundTransferExchanges.get(0).getId();
+
         String transactionId = UUID.randomUUID().toString();
         ctx.setVariable("transactionId", transactionId);
         ctx.setVariable("fundTransferExchanges", fundTransferExchanges);
-        ctx.setVariable("documentNumber", fundTransferExchanges.get(0).getId());
-        ctx = addDatesToContext(ctx);
+        ctx.setVariable("documentNumber", documentNumber);
+        ctx = ContextGenerator.addDatesToContext(ctx, mandate);
 
         String htmlContent = templateEngine.process("fund_transfer", ctx);
 
         return MandateContentFile.builder()
-                .name("vahetuseavaldus_" + transactionId + ".html")
+                .name("vahetuseavaldus_" + documentNumber + ".html")
                 .mimeType("text/html")
                 .content(htmlContent.getBytes())
                 .build();
     }
 
-    private Context addDatesToContext(Context ctx){
-
-        DateTimeFormatter formatterEst = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.systemDefault());
-        String documentDate = formatterEst.format(mandate.getCreatedDate());
-
-        DateTimeFormatter formatterEst2 = DateTimeFormatter.ofPattern("MM.dd.yyyy").withZone(ZoneId.systemDefault());
-        String documentDatePPKKAAAA = formatterEst2.format(mandate.getCreatedDate());
-
-        ctx.setVariable("documentDate", documentDate);
-        ctx.setVariable("documentDatePPKKAAAA", documentDatePPKKAAAA);
-
-        return ctx;
-    }
-
-    private Context getUseContext() {
-        Context ctx = new Context();
-
-        ctx.setVariable("email", user.getEmail());
-        ctx.setVariable("firstName", user.getFirstName());
-        ctx.setVariable("lastName", user.getLastName());
-        ctx.setVariable("idCode", user.getPersonalCode());
-        ctx.setVariable("phoneNumber", user.getPhoneNumber());
-        ctx.setVariable("addressLine1", "Tatari 19-17");
-        ctx.setVariable("addressLine2", "TALLINN");
-        ctx.setVariable("settlement", "TALLINN");
-        ctx.setVariable("countryCode", "EE");
-        ctx.setVariable("postCode", "10131");
-        ctx.setVariable("districtCode", "123");
-
-        return ctx;
-    }
 
 }

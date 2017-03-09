@@ -56,6 +56,8 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
 
         ctx = addDatesToContext(ctx);
 
+        funds.sort((Fund fund1, Fund fund2) -> fund1.getName().compareToIgnoreCase(fund2.getName()));
+
         ctx.setVariable("funds", funds);
 
         String htmlContent = templateEngine.process("future_contributions_fund", ctx);

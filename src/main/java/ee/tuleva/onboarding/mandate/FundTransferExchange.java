@@ -2,9 +2,7 @@ package ee.tuleva.onboarding.mandate;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
-import lombok.Builder;
-import lombok.Data;
-import lombok.Getter;
+import lombok.*;
 import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
@@ -18,6 +16,8 @@ import java.math.BigDecimal;
 @Entity
 @Table(name = "fund_transfer_exchange")
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class FundTransferExchange {
 
     @Id

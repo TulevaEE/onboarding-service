@@ -1,7 +1,6 @@
 server:
   port: 9000
   error.whitelabel.enabled: false
-  session.cookie.domain: .tuleva.ee # for session sharing across sub-domains
 
 spring:
   datasource:
@@ -58,6 +57,9 @@ spring:
     username: ${JDBC_DATABASE_USERNAME}
     password: ${JDBC_DATABASE_PASSWORD}
     initialize: false
+
+server:
+  session.cookie.domain: tuleva.ee # for session sharing across sub-domains
 
 xroad:
   instance: EE

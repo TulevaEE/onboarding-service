@@ -27,8 +27,10 @@ class UserControllerSpec extends Specification {
 	@Autowired
 	MappingJackson2HttpMessageConverter jacksonMessageConverter
 
+	PreferencesService preferencesService = Mock(PreferencesService)
+
 	MockMvc mvc;
-	UserController userController = new UserController(Mock(KPRClient))
+
 
 
 	def "/me endpoint works"() {
@@ -58,7 +60,7 @@ class UserControllerSpec extends Specification {
 	}
 
 	private MockMvc mockMvcWithAuthenticationPrincipal(User user) {
-		standaloneSetup(new UserController(Mock(KPRClient)))
+		standaloneSetup(new UserController(preferencesService))
 				.setMessageConverters(jacksonMessageConverter)
 				.setCustomArgumentResolvers(authenticationPrincipalResolver(user))
 				.build()
@@ -77,5 +79,26 @@ class UserControllerSpec extends Specification {
 			}
 		}
 	}
+
+
+	def "/prefereces endpoint works"() {
+		given:
+		1 * preferencesService.getPreferences(*_) >> UserPreferences.builder().activeFundISIN("LV123123123123").build()
+		User user = User.builder()
+				.id(1L)
+				.firstName("Erko")
+				.memberNumber(3000)
+				.build()
+
+		mvc = mockMvcWithAuthenticationPrincipal(user)
+
+		expect:
+		mvc.perform(get("/v1/preferences"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+				.andExpect(jsonPath('$.activeFundISIN', is("LV123123123123")))
+
+	}
+
 
 }

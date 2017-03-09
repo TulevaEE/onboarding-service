@@ -17,9 +17,9 @@ class MandateContentCreatorSpec extends Specification {
         List<MandateContentFile> mandateContentFiles = mandateContentCreator.getContentFiles(UserFixture.sampleUser(), MandateFixture.sampleMandate(), MandateFixture.sampleFunds())
         then:
         mandateContentFiles.size() == 3
-        writeFileOut(mandateContentFiles[0])
-        writeFileOut(mandateContentFiles[1])
-        writeFileOut(mandateContentFiles[2])
+//        writeFileOut(mandateContentFiles[0])
+//        writeFileOut(mandateContentFiles[1])
+//        writeFileOut(mandateContentFiles[2])
     }
 
     private void writeFileOut(MandateContentFile file) {

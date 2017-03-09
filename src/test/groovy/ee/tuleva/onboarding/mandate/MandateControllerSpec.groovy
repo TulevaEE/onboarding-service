@@ -58,11 +58,11 @@ class MandateControllerSpec extends BaseControllerSpec {
         def session = MandateSignatureSession.builder().sessCode(1).challenge("1234").build()
 //        Map<String, Object> sessionAttributes = new HashMap<>()
 //        sessionAttributes.put("session", session)
-        mandateService.getSignatureStatus(_) >> "SIGNATURE"
+        mandateService.getSignatureStatus(MandateFixture.sampleMandate().id, _) >> "SIGNATURE"
 
         then:
         mvc
-                .perform(get("/v1/mandate/1/signature")
+                .perform(get("/v1/mandate/" + MandateFixture.sampleMandate().id + "/signature")
 //                .sessionAttrs(sessionAttributes)
                 )
                 .andExpect(status().isOk())

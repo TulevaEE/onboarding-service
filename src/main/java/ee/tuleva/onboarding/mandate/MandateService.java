@@ -49,9 +49,18 @@ public class MandateService {
 		return signService.startSignFiles(files, user.getPersonalCode(), user.getPhoneNumber());
 	}
 
-	public String getSignatureStatus(MandateSignatureSession session) {
+	public String getSignatureStatus(Long mandateId, MandateSignatureSession session) {
 		MobileIdSignatureSession mobileIdSignatureSession = new MobileIdSignatureSession(session.getSessCode());
 		byte[] signedFile = signService.getSignedFile(mobileIdSignatureSession);
-		return signedFile == null ? "OUTSTANDING_TRANSACTION" : "SIGNATURE";
+
+		if (signedFile != null) {
+			Mandate mandate = mandateRepository.findOne(mandateId);
+			mandate.setMandate(signedFile);
+			mandateRepository.save(mandate);
+
+			return "SIGNATURE";
+		} else {
+			return "OUTSTANDING_TRANSACTION";
+		}
 	}
 }

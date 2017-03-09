@@ -55,11 +55,11 @@ public class MandateController {
 
     @ApiOperation(value = "Is mandate successfully signed")
     @RequestMapping(method = GET, value = "/mandate/{id}/signature")
-    public MandateSignatureStatusResponse getSignatureStatus(@PathVariable("id") String mandateId,
+    public MandateSignatureStatusResponse getSignatureStatus(@PathVariable("id") Long mandateId,
                                                              @ApiIgnore @AuthenticationPrincipal User user) {
 
         MandateSignatureSession session = mobileIdSessionStore.get();
-        String status = mandateService.getSignatureStatus(session);
+        String status = mandateService.getSignatureStatus(mandateId, session);
 
         return MandateSignatureStatusResponse.builder()
                 .statusCode(status)

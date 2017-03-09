@@ -63,9 +63,11 @@ class MandateServiceSpec extends Specification {
     def "signature status works"() {
         given:
         1 * signService.getSignedFile(_) >> file
+        mandateRepository.findOne(sampleMandateId) >> MandateFixture.sampleMandate()
+        mandateRepository.save({ Mandate it -> it.mandate == "file".getBytes() }) >> MandateFixture.sampleMandate()
 
         when:
-        def status = service.getSignatureStatus(new MandateSignatureSession())
+        def status = service.getSignatureStatus(sampleMandateId, new MandateSignatureSession())
 
         then:
         status == expectedStatus
@@ -74,6 +76,21 @@ class MandateServiceSpec extends Specification {
         file          | expectedStatus
         null          | "OUTSTANDING_TRANSACTION"
         [0] as byte[] | "SIGNATURE"
+    }
+
+    def "signed mandate is saved"() {
+        given:
+        byte[] file = "file".getBytes()
+        1 * signService.getSignedFile(_) >> file
+        1 * mandateRepository.findOne(sampleMandateId) >> MandateFixture.sampleMandate()
+        1 * mandateRepository.save({ Mandate it -> it.mandate == file }) >> MandateFixture.sampleMandate()
+
+        when:
+        def status = service.getSignatureStatus(sampleMandateId, new MandateSignatureSession())
+
+        then:
+        true
+
     }
 
     User sampleUser() {

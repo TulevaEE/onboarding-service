@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate
 
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -24,12 +25,15 @@ class MandateControllerSpec extends BaseControllerSpec {
     MandateService mandateService
 
     @Autowired
+    MandateRepository mandateRepository
+
+    @Autowired
     MockMvc mvc
 
     def "save a mandate"() {
         expect:
         mvc
-                .perform(post("/v1/mandate/").content(
+                .perform(post("/v1/mandates/").content(
                 mapper.writeValueAsString(
                         MandateFixture.sampleCreateMandateCommand()
                 ))
@@ -46,7 +50,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         then:
         mvc
-                .perform(put("/v1/mandate/1/signature")
+                .perform(put("/v1/mandates/1/signature")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
@@ -62,12 +66,36 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         then:
         mvc
-                .perform(get("/v1/mandate/" + MandateFixture.sampleMandate().id + "/signature")
+                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/signature")
 //                .sessionAttrs(sessionAttributes)
                 )
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
+    }
+
+    def "getMandateFile returns mandate file"() {
+        when:
+        1 * mandateRepository
+                .findByIdAndUser(MandateFixture.sampleMandate().id, _) >> MandateFixture.sampleMandate()
+
+        then:
+        mvc
+                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file")
+        )
+                .andExpect(status().isOk())
+    }
+
+    def "getMandateFile returns not found on non existing mandate file"() {
+        when:
+        1 * mandateRepository
+                .findByIdAndUser(MandateFixture.sampleMandate().id, _) >> null
+
+        then:
+        mvc
+                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file")
+        )
+                .andExpect(status().isNotFound())
     }
 
     @TestConfiguration
@@ -81,6 +109,11 @@ class MandateControllerSpec extends BaseControllerSpec {
             return mandateService
         }
 
+        @Bean
+        MandateRepository mandateRepository() {
+            MandateRepository mandateRepository = mockFactory.Mock(MandateRepository)
+            return mandateRepository
+        }
         @Bean
         MobileIdSignatureSessionStore mobileIdSignatureSessionStore() {
             return mockFactory.Mock(MobileIdSignatureSessionStore)

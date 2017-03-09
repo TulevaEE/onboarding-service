@@ -36,7 +36,27 @@ class AuthControllerSpec extends BaseControllerSpec {
                 .content(mapper.writeValueAsString(sampleAuthenticateCommand()))).andReturn().response
         then:
         response.status == HttpStatus.OK.value()
+    }
 
+    def "Authenticate: check successfully verified id card certificate"() {
+        when:
+        MockHttpServletResponse response = mockMvc
+                .perform(post("/idLogin")
+                .header("ssl_client_verify", "SUCCESS")
+                .header("ssl_client_cert", "test_cert")).andReturn().response
+        then:
+        response.status == HttpStatus.OK.value()
+        1 * idCardAuthService.checkCertificate("test_cert")
+    }
+
+    def "Authenticate: throw exception when no cert sent"() {
+        when:
+        MockHttpServletResponse response = mockMvc
+                .perform(post("/idLogin")
+                .header("ssl_client_verify", "NONE")).andReturn().response
+        then:
+        response.status == HttpStatus.BAD_REQUEST.value()
+        0 * idCardAuthService.checkCertificate(_)
     }
 
     private sampleAuthenticateCommand() {

@@ -44,6 +44,7 @@ public class MandateFixture {
 
         mandate.setId(123)
         mandate.setCreatedDate(Instant.now())
+        mandate.setMandate("file".getBytes())
         return mandate
     }
 

@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.auth;
 import com.codeborne.security.mobileid.MobileIDSession;
 import ee.tuleva.onboarding.auth.command.AuthenticateCommand;
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService;
-import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore;
 import ee.tuleva.onboarding.auth.response.AuthenticateResponse;
@@ -15,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.oauth2.common.exceptions.UnauthorizedClientException;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
@@ -47,21 +47,19 @@ public class AuthController {
     public IdLoginResponse idLogin(@RequestHeader(value="ssl_client_verify") String clientCertificateVerification,
                           @RequestHeader(value="ssl_client_cert") String clientCertificate) {
         if(!"SUCCESS".equals(clientCertificateVerification)) {
-            // do nothing
+            throw new UnauthorizedClientException("Client certificate not verified");
         }
-        IdCardSession session = idCardAuthService.checkCertificate(clientCertificate);
+        idCardAuthService.checkCertificate(clientCertificate);
 
         return IdLoginResponse.builder()
-                .clientCertificateVerification(clientCertificateVerification)
-                .clientCertificate(clientCertificate)
+                .success(true)
                 .build();
     }
 
     @Data
     @Builder
     private static class IdLoginResponse {
-        private String clientCertificateVerification;
-        private String clientCertificate;
+        private boolean success;
     }
 
 }

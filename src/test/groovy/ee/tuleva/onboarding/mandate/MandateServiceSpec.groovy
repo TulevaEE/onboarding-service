@@ -90,7 +90,6 @@ class MandateServiceSpec extends Specification {
 
         then:
         true
-
     }
 
     User sampleUser() {

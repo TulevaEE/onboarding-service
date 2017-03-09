@@ -3,7 +3,7 @@ INSERT INTO oauth_client_details(
             web_server_redirect_uri, authorities, access_token_validity,
             refresh_token_validity, additional_information, autoapprove)
 
-    SELECT 'onboarding-client', 'onboarding-service', 'onboarding-client', 'onboarding', 'mobile_id',
+    SELECT 'onboarding-client', 'onboarding-service', 'onboarding-client', 'onboarding', 'mobile_id, id_card',
             null, null, 1800,
             null, null, null
     WHERE

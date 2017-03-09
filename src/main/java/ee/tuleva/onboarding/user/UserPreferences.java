@@ -12,10 +12,6 @@ import lombok.Setter;
 @Builder
 public class UserPreferences {
 
-    private String activeFundName;
-
-    private String activeFundISIN;
-
     enum ContactPreferenceType {
         E, P
     }

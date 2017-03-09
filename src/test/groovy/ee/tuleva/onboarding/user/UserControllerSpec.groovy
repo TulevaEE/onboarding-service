@@ -83,7 +83,7 @@ class UserControllerSpec extends Specification {
 
 	def "/prefereces endpoint works"() {
 		given:
-		1 * preferencesService.getPreferences(*_) >> UserPreferences.builder().activeFundISIN("LV123123123123").build()
+		1 * preferencesService.getPreferences(*_) >> UserPreferences.builder().addressRow1("Telliskivi").build()
 		User user = User.builder()
 				.id(1L)
 				.firstName("Erko")
@@ -96,7 +96,7 @@ class UserControllerSpec extends Specification {
 		mvc.perform(get("/v1/preferences"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-				.andExpect(jsonPath('$.activeFundISIN', is("LV123123123123")))
+				.andExpect(jsonPath('$.addressRow1', is("Telliskivi")))
 
 	}
 

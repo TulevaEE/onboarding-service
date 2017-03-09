@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.account
 
 import ee.eesti.xtee6.kpr.PensionAccountBalanceResponseType
+import ee.eesti.xtee6.kpr.PersonalSelectionResponseType
 import ee.tuleva.domain.fund.Fund
 import ee.tuleva.domain.fund.FundRepository
 import ee.tuleva.onboarding.BaseControllerSpec
@@ -18,22 +19,28 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
 
     def setup() {
         mockMvc = getMockMvc(controller)
+
+        personalSelection = new PersonalSelectionResponseType()
+        personalSelection.setPensionAccount(new PersonalSelectionResponseType.PensionAccount())
+        personalSelection.getPensionAccount().setSecurityName("Very active fund")
     }
 
     KPRClient xRoadClient = Mock(KPRClient)
     FundRepository fundRepository = Mock(FundRepository)
-    AccountStatementController controller = new AccountStatementController(xRoadClient, new IsinAppender(fundRepository))
+    AccountStatementController controller = new AccountStatementController(xRoadClient, new IsinAppender(fundRepository), fundRepository)
 
     PensionAccountBalanceResponseType resp = Mock(PensionAccountBalanceResponseType)
     PensionAccountBalanceResponseType.Units units = Mock(PensionAccountBalanceResponseType.Units)
-
+    PersonalSelectionResponseType personalSelection
 
     def "/pension-account-statement endpoint works"() {
         given:
             1 * xRoadClient.pensionAccountBalance(*_) >> resp
             1 * resp.getUnits() >> units
             1 * units.getBalance() >> twoFundBalanceFromKPR()
-            2 * fundRepository.findByNameIgnoreCase("LHV Fund") >> repoFund()
+            2 * fundRepository.findByNameIgnoreCase("LHV Fund") >> Fund.builder().name("LHV Fund").isin("LV0987654321").build()
+            1 * xRoadClient.personalSelection(*_) >> personalSelection
+            1 * fundRepository.findByNameIgnoreCase(*_) >> Fund.builder().name("Very active fund").isin("LV123123123123").build()
         expect:
             mockMvc.perform(get("/v1/pension-account-statement"))
                 .andExpect(status().isOk())
@@ -50,13 +57,5 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
 
         [balance, balance]
     }
-
-    Fund repoFund() {
-        Fund.builder()
-            .name("LHV Fund")
-            .isin("LV0987654321")
-            .build()
-    }
-
 
 }

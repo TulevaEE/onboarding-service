@@ -1,44 +1,48 @@
 package ee.tuleva.onboarding.comparisons;
 
-import lombok.*;
-import org.hibernate.validator.constraints.NotBlank;
+import lombok.Getter;
+import lombok.Setter;
 
-import javax.persistence.Entity;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
 public class ComparisonCommand {
 
     @Min(0)
-    Float totalCapital;
-
-    @Min(0)
     @Max(65)
     Integer age;
 
     @Min(0)
-    Float monthlyWage;
+    BigDecimal monthlyWage;
 
     @Size(min = 12, max = 12)
-    String isin;
+    List<String> isinsFrom;
 
-    public Float getTotalCapital() {
-        return totalCapital;
-    }
+    Map<String, BigDecimal> currentCapitals;
 
-    public Integer getAge() {
-        return age;
-    }
+    // must also exist in isinsFrom
+    @Size(min = 12, max = 12)
+    String activeIsin;
 
-    public Float getMonthlyWage() {
-        return monthlyWage;
-    }
+    Map<String, BigDecimal> managementFeeRates;
 
-    public String getIsin() {
-        return isin;
-    }
+    // defaults that can be overwritten in API
+    @Size(min = 12, max = 12)
+    String isinTo = "AE123232334";
+
+    Integer ageOfRetirement = 65;
+
+    BigDecimal returnRate = new BigDecimal("0.05");
+
+    BigDecimal annualSalaryGainRate = new BigDecimal("0.03");
+
+    //percent from monthly wage
+    BigDecimal secondPillarContributionRate = new BigDecimal("0.06");
+
 }

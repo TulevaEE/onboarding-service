@@ -51,6 +51,7 @@ public class IsinAppender implements Converter<FundBalance, FundBalance> {
             }
 
             fb.setIsin(f.getIsin());
+            fb.setManagementFeeRate(f.getManagementFeeRate());
         }
 
         return in;

@@ -17,4 +17,6 @@ public class FundBalance {
     private BigDecimal price;
     private String currency;
     private int pillar = 2;
+    private boolean activeFund = false;
+    private BigDecimal managementFeeRate;
 }

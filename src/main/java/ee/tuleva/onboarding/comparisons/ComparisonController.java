@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons;
 
 
 import ee.tuleva.onboarding.comparisons.exceptions.ErrorsValidationException;
+import ee.tuleva.onboarding.income.Money;
 import io.swagger.annotations.ApiParam;
 import lombok.AllArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,26 +12,29 @@ import org.springframework.web.bind.annotation.*;
 import springfox.documentation.annotations.ApiIgnore;
 
 import javax.validation.Valid;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 @RestController
+@RequestMapping("/v1")
 @AllArgsConstructor
 public class ComparisonController {
 
     private final ComparisonService comparisonService;
 
     @ResponseBody
-    @RequestMapping(path = "/v1/comparisons", method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_UTF8_VALUE})
-    public ArrayList<Comparison> comparison(@Valid @ModelAttribute @ApiParam ComparisonCommand comparisonCommand,
-                                            @ApiIgnore Errors errors) throws Exception {
+    @RequestMapping(path = "comparisons", method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_UTF8_VALUE})
+    public Money comparison(@Valid @ModelAttribute @ApiParam ComparisonCommand comparisonCommand,
+                            @ApiIgnore Errors errors) throws Exception {
 
         if (errors != null && errors.hasErrors()) {
             throw new ErrorsValidationException(errors);
         }
-        return new ArrayList<>(Collections.singletonList(comparisonService.comparedResults(comparisonCommand)));
 
+        return comparisonService.compare(comparisonCommand);
     }
 
 }

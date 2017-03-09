@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons
 
+import ee.tuleva.onboarding.income.Money
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
@@ -17,22 +18,19 @@ class ComparisonControllerSpec extends Specification {
 
     MockMvc mvc = MockMvcBuilders.standaloneSetup(controller).build()
 
-    String LHVinterestIsin = "EE3600019816";
-
-    def "comparison endpoint works" (){
+    def "comparison endpoint works" () {
         when:
-        comparisonService.comparedResults(_) >> new Comparison(LHVinterestIsin, 123.0f)
+        comparisonService.compare(_) >> Money.builder().amount(new BigDecimal("123.0")).currency("EUR").build()
         then:
-        mvc.perform(get("/v1/comparisons/?totalCapital=1000&age=30&monthlyWage=2000&isin="+LHVinterestIsin))
+        mvc.perform(get("/v1/comparisons/?totalCapital=1000&age=30&monthlyWage=2000&isinTo=EE3600019816"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-                .andExpect(jsonPath('$.[0].currency',is("EUR"))).andExpect(jsonPath('$.[0].isin', is(LHVinterestIsin)))
-
+                .andExpect(jsonPath('$.amount', is(123.0d)))
     }
 
-    def "invalid parameter bad request sending"(){
+    def "invalid parameter bad request sending"() {
         expect:
-        mvc.perform(get("/v1/comparisons/?totalCapital=1000&age=70&monthlyWage=2000&isin="+LHVinterestIsin))
+        mvc.perform(get("/v1/comparisons/?totalCapital=1000&age=70&monthlyWage=2000&isin=EE3600019816"))
                 .andExpect(status().is4xxClientError())
     }
 

@@ -25,7 +25,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 @RequiredArgsConstructor
 public class IncomeController {
 
-    private final KPRClient xRoadClient;
+    private final KPRClient kprClient;
 
     @ApiOperation(value = "Returns user last year average salary reverse calculated from 2nd pillar transactions")
     @RequestMapping(method = GET, value = "/average-salary")
@@ -35,7 +35,7 @@ public class IncomeController {
         request.setDateFrom(toXMLGregorianCalendar(LocalDate.now().minusYears(1)));
         request.setDateTo(toXMLGregorianCalendar(LocalDate.now()));
 
-        PensionAccountTransactionResponseType response = xRoadClient.pensionAccountTransaction(request, user.getPersonalCode());
+        PensionAccountTransactionResponseType response = kprClient.pensionAccountTransaction(request, user.getPersonalCode());
 
         return AverageIncomeCalculator.calculate(response.getMoney().getTransaction());
     }

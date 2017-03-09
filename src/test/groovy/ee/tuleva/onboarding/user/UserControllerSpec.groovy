@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.user
 
+import ee.tuleva.onboarding.kpr.KPRClient
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.core.MethodParameter
 import org.springframework.http.MediaType
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
@@ -20,13 +21,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup
 
-@WebMvcTest(UserController)
+@SpringBootTest
 class UserControllerSpec extends Specification {
 
 	@Autowired
 	MappingJackson2HttpMessageConverter jacksonMessageConverter
 
-	MockMvc mvc
+	MockMvc mvc;
+	UserController userController = new UserController(Mock(KPRClient))
+
 
 	def "/me endpoint works"() {
 		given:
@@ -55,7 +58,7 @@ class UserControllerSpec extends Specification {
 	}
 
 	private MockMvc mockMvcWithAuthenticationPrincipal(User user) {
-		standaloneSetup(new UserController())
+		standaloneSetup(new UserController(Mock(KPRClient)))
 				.setMessageConverters(jacksonMessageConverter)
 				.setCustomArgumentResolvers(authenticationPrincipalResolver(user))
 				.build()

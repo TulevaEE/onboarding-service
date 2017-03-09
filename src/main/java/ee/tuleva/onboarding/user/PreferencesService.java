@@ -20,6 +20,7 @@ public class PreferencesService {
                 .addressRow3(csdPersonData.getContactData().getAddressRow3())
                 .country(csdPersonData.getContactData().getCountry().value())
                 .postalIndex(csdPersonData.getContactData().getPostalIndex())
+                .districtCode(csdPersonData.getContactData().getDistrictCode())
                 .contactPreference(UserPreferences.ContactPreferenceType.valueOf(csdPersonData.getContactData().getContactPreference().value()))
                 .build();
 

@@ -4,16 +4,13 @@ import com.codeborne.security.mobileid.MobileIdSignatureFile;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.domain.fund.FundRepository;
-import ee.tuleva.onboarding.mandate.content.HtmlMandateContentCreator;
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
-import ee.tuleva.onboarding.mandate.content.MandateContentFile;
 import ee.tuleva.onboarding.sign.MobileIdSignService;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;

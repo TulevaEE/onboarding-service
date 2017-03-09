@@ -44,7 +44,7 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
 
         User user = authUserService.getByPersonalCode(idCardSession.personalCode);
 
-        Authentication userAuthentication = new PersonalCodeAuthentication(user, idCardSession, null);
+        Authentication userAuthentication = new PersonalCodeAuthentication<>(user, idCardSession, null);
         userAuthentication.setAuthenticated(true);
 
         OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);

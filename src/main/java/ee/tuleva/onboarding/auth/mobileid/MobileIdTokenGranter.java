@@ -62,7 +62,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
 
         User user = userService.getByPersonalCode(mobileIDSession.personalCode);
 
-        Authentication userAuthentication = new PersonalCodeAuthentication(user, mobileIDSession, null);
+        Authentication userAuthentication = new PersonalCodeAuthentication<>(user, mobileIDSession, null);
         userAuthentication.setAuthenticated(true);
 
         final OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);

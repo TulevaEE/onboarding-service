@@ -8,16 +8,12 @@ import org.thymeleaf.context.Context;
 
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 public class ContextBuilder {
 
     private Context ctx = new Context();
-    private User user;
-    private Mandate mandate;
 
     public Context build(){
         return this.ctx;
@@ -28,8 +24,6 @@ public class ContextBuilder {
     }
 
     public ContextBuilder user(User user) {
-        this.user = user;
-
         this.ctx.setVariable("email", user.getEmail());
         this.ctx.setVariable("firstName", user.getFirstName());
         this.ctx.setVariable("lastName", user.getLastName());
@@ -46,7 +40,6 @@ public class ContextBuilder {
     }
 
     public ContextBuilder mandate(Mandate mandate){
-        this.mandate = mandate;
         DateTimeFormatter formatterEst = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.systemDefault());
         String documentDate = formatterEst.format(mandate.getCreatedDate());
 

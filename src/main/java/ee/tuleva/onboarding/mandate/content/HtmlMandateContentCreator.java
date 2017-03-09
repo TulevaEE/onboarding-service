@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.mandate.content;
 import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextGenerator;
+import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextBuilder;
 import ee.tuleva.onboarding.user.User;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.TemplateEngine;
@@ -47,15 +47,18 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
     }
 
     private MandateContentFile getFutureContributionsFundMandateContentFile(Mandate mandate) {
-        Context ctx = new Context();
-        ctx = ContextGenerator.addUserDate(ctx, user);
-
         String transactionId = UUID.randomUUID().toString();
-        ctx.setVariable("transactionId", transactionId);
-        ctx.setVariable("selectedFundIsin", mandate.getFutureContributionFundIsin());
-        ctx.setVariable("documentNumber", mandate.getId());
 
-        ctx = ContextGenerator.addDatesToContext(ctx, mandate);
+        Context ctx = ContextBuilder.builder()
+                .mandate(mandate)
+                .user(user)
+                .transactionId(transactionId)
+                .futureContributionFundIsin(mandate.getFutureContributionFundIsin())
+                .documentNumber(mandate.getId().toString())
+                .build();
+
+
+        ctx.setVariable("documentNumber", mandate.getId());
 
         funds.sort((Fund fund1, Fund fund2) -> fund1.getName().compareToIgnoreCase(fund2.getName()));
 
@@ -93,16 +96,17 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
     }
 
     private MandateContentFile getFundTransferMandateContentFile(List<FundTransferExchange> fundTransferExchanges) {
-        Context ctx = new Context();
-        ctx = ContextGenerator.addUserDate(ctx, user);
-
-        Long documentNumber = fundTransferExchanges.get(0).getId();
-
         String transactionId = UUID.randomUUID().toString();
-        ctx.setVariable("transactionId", transactionId);
-        ctx.setVariable("fundTransferExchanges", fundTransferExchanges);
-        ctx.setVariable("documentNumber", documentNumber);
-        ctx = ContextGenerator.addDatesToContext(ctx, mandate);
+        String documentNumber = fundTransferExchanges.get(0).getId().toString();
+
+        Context ctx = ContextBuilder.builder()
+                .mandate(mandate)
+                .user(user)
+                .transactionId(transactionId)
+                .documentNumber(documentNumber)
+                .fundTransferExchanges(fundTransferExchanges)
+                .funds(funds)
+                .build();
 
         String htmlContent = templateEngine.process("fund_transfer", ctx);
 

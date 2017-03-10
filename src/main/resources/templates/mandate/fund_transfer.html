@@ -248,7 +248,7 @@
 
     <tr class="c7">
         <td class="c8" colspan="1" rowspan="5">
-            <p class="c0"><span class="c3" th:text="${fundIsinNames.get(fundTransferExchanges.get(0).sourceFundIsin)}"></span></p>
+            <p class="c0" th:text="${fundIsinNames.get(fundTransferExchanges.get(0).sourceFundIsin)}"></p>
         </td>
         <td class="c25" colspan="1" rowspan="1">
             <p class="c0"><span class="c3" ></span></p>
@@ -260,7 +260,7 @@
 
     <tr class="c7" th:each="fundTransferExchange : ${fundTransferExchanges}">
         <td class="c25" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3" th:text="${fundIsinNames.get(fundTransferExchange.targetFundIsin)}"></span></p>
+            <p class="c0" th:text="${fundIsinNames.get(fundTransferExchange.targetFundIsin)}"></p>
         </td>
         <td class="c9" colspan="1" rowspan="1">
             <p class="c0"><span class="c3" th:text="${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}"></span></p>

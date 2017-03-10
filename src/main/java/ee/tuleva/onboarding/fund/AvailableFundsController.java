@@ -26,7 +26,6 @@ public class AvailableFundsController {
     @RequestMapping(method = GET, value = "/available-funds")
     @JsonView(FundView.SkipFundManager.class)
     public List<Fund> initialCapital() {
-        //FIXME: extract into a service
         FundManager tulevaFundManager = fundManagerRepository.findByName("Tuleva");
         return fundRepository.findByFundManager(tulevaFundManager);
     }

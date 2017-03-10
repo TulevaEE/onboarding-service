@@ -15,6 +15,8 @@ public interface FundRepository extends CrudRepository<Fund, Long> {
 
     List<Fund> findByFundManager(FundManager fundManager);
 
+    Iterable<Fund> findByFundManagerName(String fundManagerName);
+
     Fund findByIsin(String isin);
 
 }

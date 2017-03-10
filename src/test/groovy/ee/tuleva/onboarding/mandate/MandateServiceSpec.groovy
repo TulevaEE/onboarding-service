@@ -4,10 +4,13 @@ import com.codeborne.security.mobileid.MobileIdSignatureFile
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import ee.tuleva.domain.fund.Fund
 import ee.tuleva.domain.fund.FundRepository
+import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.sign.MobileIdSignService
+import ee.tuleva.onboarding.user.CsdUserPreferencesService
 import ee.tuleva.onboarding.user.User
+import ee.tuleva.onboarding.user.UserPreferences
 import spock.lang.Specification
 
 class MandateServiceSpec extends Specification {
@@ -16,7 +19,9 @@ class MandateServiceSpec extends Specification {
     MobileIdSignService signService = Mock(MobileIdSignService)
     MandateContentCreator mandateContentCreator = Mock(MandateContentCreator)
     FundRepository fundRepository = Mock(FundRepository)
-    MandateService service = new MandateService(mandateRepository, signService, fundRepository, mandateContentCreator)
+    CsdUserPreferencesService csdUserPreferencesService = Mock(CsdUserPreferencesService)
+    MandateService service =
+            new MandateService(mandateRepository, signService, fundRepository, mandateContentCreator, csdUserPreferencesService)
 
     Long sampleMandateId = 1L
 
@@ -48,12 +53,18 @@ class MandateServiceSpec extends Specification {
         given:
         def mandate = Mandate.builder().build()
         1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser()) >> mandate
-        1 * signService.startSignFiles(_ as List<MobileIdSignatureFile>, "38501010002", "777") >> new MobileIdSignatureSession(1, null, "1234")
+        1 * signService.startSignFiles(_ as List<MobileIdSignatureFile>, sampleUser().getPersonalCode(), sampleUser().getPhoneNumber()) >> new MobileIdSignatureSession(1, null, "1234")
         1 * fundRepository.findAll() >> [new Fund(), new Fund()]
-        1 * mandateContentCreator.getContentFiles(_ as User, _ as Mandate, _ as List) >> [new MandateContentFile("file", "html/text", "file".getBytes())]
+        1 * csdUserPreferencesService.getPreferences(sampleUser().getPersonalCode()) >> UserFixture.sampleUserPreferences()
+
+        1 * mandateContentCreator.
+                getContentFiles(_ as User,
+                        _ as Mandate,
+                        _ as List,
+                        _ as UserPreferences) >> [new MandateContentFile("file", "html/text", "file".getBytes())]
 
         when:
-        def session = service.sign(sampleMandateId, sampleUser(), "777")
+        def session = service.sign(sampleMandateId, sampleUser(), sampleUser().getPhoneNumber())
 
         then:
         session.sessCode == 1

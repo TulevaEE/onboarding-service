@@ -4,6 +4,7 @@ import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserPreferences;
 import org.thymeleaf.context.Context;
 
 import java.time.ZoneId;
@@ -55,6 +56,9 @@ public class ContextBuilder {
     }
 
     public ContextBuilder funds(List<Fund> funds) {
+        //sort because by law, funds need to be in alphabetical order
+        funds.sort((Fund fund1, Fund fund2) -> fund1.getName().compareToIgnoreCase(fund2.getName()));
+        this.ctx.setVariable("funds", funds);
         this.ctx.setVariable(
                 "fundIsinNames",
                 funds.stream().collect(Collectors.toMap(Fund::getIsin, Fund::getName))
@@ -82,6 +86,10 @@ public class ContextBuilder {
         return this;
     }
 
+    public ContextBuilder userPreferences(UserPreferences userPreferences) {
+        this.ctx.setVariable("userPreferences", userPreferences);
+        return this;
+    }
 
 
 }

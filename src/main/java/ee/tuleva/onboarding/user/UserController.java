@@ -14,7 +14,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 @AllArgsConstructor
 public class UserController {
 
-	private final PreferencesService preferecesService;
+	private final CsdUserPreferencesService preferecesService;
 
 	@ApiOperation(value = "Get info about the current user")
 	@RequestMapping(method = GET, value = "/me")

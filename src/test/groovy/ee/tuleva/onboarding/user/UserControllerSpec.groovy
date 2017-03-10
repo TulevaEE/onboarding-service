@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.user
 
-import ee.tuleva.onboarding.kpr.KPRClient
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.core.MethodParameter
@@ -27,7 +26,7 @@ class UserControllerSpec extends Specification {
 	@Autowired
 	MappingJackson2HttpMessageConverter jacksonMessageConverter
 
-	PreferencesService preferencesService = Mock(PreferencesService)
+	CsdUserPreferencesService preferencesService = Mock(CsdUserPreferencesService)
 
 	MockMvc mvc;
 

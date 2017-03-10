@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextBuilder;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserPreferences;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
@@ -21,24 +22,15 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
     User user;
     Mandate mandate;
     List<Fund> funds;
-
-    @PostConstruct
-    private void initialize() {
-        ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
-        templateResolver.setPrefix("templates/mandate/");
-        templateResolver.setSuffix(".html");
-        templateResolver.setTemplateMode("XHTML");
-        templateResolver.setCharacterEncoding("UTF-8");
-
-        templateEngine = new TemplateEngine();
-        templateEngine.setTemplateResolver(templateResolver);
-    }
+    UserPreferences userPreferences;
 
     @Override
-    public List<MandateContentFile> getContentFiles(User user, Mandate mandate, List<Fund> funds) {
+    public List<MandateContentFile> getContentFiles(User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
         this.user = user;
         this.mandate = mandate;
+        this.userPreferences = userPreferences;
         this.funds = funds;
+
 
         List<MandateContentFile> files = new ArrayList<MandateContentFile>(Arrays.asList(getFutureContributionsFundMandateContentFile(mandate)));
         files.addAll(getFundTransferMandateContentFiles(mandate));
@@ -52,17 +44,12 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
         Context ctx = ContextBuilder.builder()
                 .mandate(mandate)
                 .user(user)
+                .userPreferences(userPreferences)
                 .transactionId(transactionId)
-                .futureContributionFundIsin(mandate.getFutureContributionFundIsin())
                 .documentNumber(mandate.getId().toString())
+                .futureContributionFundIsin(mandate.getFutureContributionFundIsin())
+                .funds(funds)
                 .build();
-
-
-        ctx.setVariable("documentNumber", mandate.getId());
-
-        funds.sort((Fund fund1, Fund fund2) -> fund1.getName().compareToIgnoreCase(fund2.getName()));
-
-        ctx.setVariable("funds", funds);
 
         String htmlContent = templateEngine.process("future_contributions_fund", ctx);
 
@@ -74,25 +61,29 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
     }
 
     private List<MandateContentFile> getFundTransferMandateContentFiles(Mandate mandate) {
+        return allocateAndGetFundTransferFiles(
+                getPrintableFundExchangeStructure(mandate)
+        );
+    }
 
+    private List<MandateContentFile> allocateAndGetFundTransferFiles(Map<String, List<FundTransferExchange>> exchangeMap) {
+        return exchangeMap.keySet().stream().map(
+                sourceIsin -> getFundTransferMandateContentFile(new ArrayList<>(
+                        exchangeMap.get(sourceIsin)
+                ))).collect(Collectors.toList());
+    }
+
+    private Map<String, List<FundTransferExchange>> getPrintableFundExchangeStructure(Mandate mandate) {
         Map<String, List<FundTransferExchange>> exchangeMap = new HashMap<>();
 
         mandate.getFundTransferExchanges().stream().forEach(exchange -> {
             if (!exchangeMap.containsKey(exchange.getSourceFundIsin())) {
-               exchangeMap.put(exchange.getSourceFundIsin(), new ArrayList<>());
+                exchangeMap.put(exchange.getSourceFundIsin(), new ArrayList<>());
             }
-
             exchangeMap.get(exchange.getSourceFundIsin()).add(exchange);
-
         });
 
-        List<MandateContentFile> fundTransferFiles =
-            exchangeMap.keySet().stream().map(
-                    sourceIsin -> getFundTransferMandateContentFile(new ArrayList<>(
-                            exchangeMap.get(sourceIsin)
-                    ))).collect(Collectors.toList());
-
-        return fundTransferFiles;
+        return exchangeMap;
     }
 
     private MandateContentFile getFundTransferMandateContentFile(List<FundTransferExchange> fundTransferExchanges) {
@@ -102,6 +93,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
         Context ctx = ContextBuilder.builder()
                 .mandate(mandate)
                 .user(user)
+                .userPreferences(userPreferences)
                 .transactionId(transactionId)
                 .documentNumber(documentNumber)
                 .fundTransferExchanges(fundTransferExchanges)
@@ -115,6 +107,18 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
                 .mimeType("text/html")
                 .content(htmlContent.getBytes())
                 .build();
+    }
+
+    @PostConstruct
+    private void initialize() {
+        ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
+        templateResolver.setPrefix("templates/mandate/");
+        templateResolver.setSuffix(".html");
+        templateResolver.setTemplateMode("XHTML");
+        templateResolver.setCharacterEncoding("UTF-8");
+
+        templateEngine = new TemplateEngine();
+        templateEngine.setTemplateResolver(templateResolver);
     }
 
 

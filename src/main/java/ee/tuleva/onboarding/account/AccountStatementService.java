@@ -28,7 +28,6 @@ public class AccountStatementService {
         request.setBalanceDate(null);
         PensionAccountBalanceResponseType response = kprClient.pensionAccountBalance(request, user.getPersonalCode());
 
-
         List<FundBalance> fbs =
                 response.getUnits().getBalance().stream()
                         .map(b->kprUnitsOsakudToFundBalanceConverter.convert(b))
@@ -49,13 +48,13 @@ public class AccountStatementService {
         }
 
         if (!containsActiveFund) {
-
             FundBalance activeFundBalance = FundBalance.builder()
                     .fund(
                             Fund.builder().name(activeFundName).build()
                     )
                     .value(BigDecimal.ZERO)
                     .currency("EUR")
+                    .activeFund(true)
                     .build();
 
             Fund activeFund = fundRepository.findByNameIgnoreCase(activeFundName);

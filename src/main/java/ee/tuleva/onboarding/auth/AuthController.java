@@ -54,8 +54,7 @@ public class AuthController {
     @ResponseBody
     public IdLoginResponse idLogin(@RequestHeader(value="ssl_client_verify") String clientCertificateVerification,
                                    @RequestHeader(value="ssl_client_cert") String clientCertificate,
-                                   @RequestHeader(value="x-authorization") String crossAuthorizationToken,
-                                   @RequestHeader HttpHeaders headers) {
+                                   @RequestHeader(value="x-authorization") String crossAuthorizationToken) {
         if(!Objects.equals(crossAuthorizationToken, idCardSecretToken)) {
             throw new UnauthorizedClientException("Invalid X-Authorization");
         }

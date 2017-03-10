@@ -147,7 +147,7 @@
             <p class="c5"><span class="c1">Soovin Eesti v&auml;&auml;rtpaberite keskregistri teatist pensionikonto j&auml;&auml;gi kohta</span></p>
         </td>
         <td class="c20" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
+            <p class="c5 c8"><span class="c0" th:text="${userPreferences.noticeNeeded == 1 ? 'X' : '' }"></span></p>
         </td>
     </tr>
     <tr class="c23">
@@ -163,31 +163,36 @@
             <p class="c5"><span class="c1">Elektrooniliselt</span></p>
         </td>
         <td class="c21" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5 c8"><span class="c1"
+                                   th:text="${userPreferences.contactPreference.toString().equalsIgnoreCase('E') ? 'X' : ''}"></span></p>
         </td>
         <td class="c29" colspan="1" rowspan="1">
             <p class="c5"><span class="c1">Postiga</span></p>
         </td>
         <td class="c4" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5 c8"><span class="c1"
+                                   th:text="${userPreferences.contactPreference.toString().equalsIgnoreCase('P') ? 'X' : ''}"></span></p>
         </td>
         <td class="c9" colspan="1" rowspan="1">
             <p class="c5"><span class="c1">Eesti keel</span></p>
         </td>
         <td class="c14" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5 c8"><span class="c1"
+                                   th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('EST') ? 'X' : ''}"></span></p>
         </td>
         <td class="c2" colspan="1" rowspan="1">
             <p class="c5"><span class="c1">Vene keel</span></p>
         </td>
         <td class="c21" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5 c8"><span class="c1"
+                                   th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('RUS') ? 'X' : ''}"></span></p>
         </td>
         <td class="c22" colspan="1" rowspan="1">
             <p class="c5"><span class="c1">Inglise keel</span></p>
         </td>
         <td class="c20" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5 c8"><span class="c1"
+                                   th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('ENG') ? 'X' : ''}"></span></p>
         </td>
     </tr>
     </tbody>

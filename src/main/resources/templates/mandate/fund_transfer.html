@@ -30,9 +30,14 @@
                                 th:each="fundTransferExchange : ${fundTransferExchanges}"
                                 Pillar="2"
                                 th:attr="
-                                SourceISIN=${fundTransferExchange.sourceFundIsin},
-                                DestinationISIN=${fundTransferExchange.targetFundIsin},
-                                Percentage=${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}"/>
+                                SourceISIN=${fundTransferExchange.sourceFundIsin}
+                                ">
+                            <ApplicationRow
+                                    th:attr="
+                                        DestinationISIN=${fundTransferExchange.targetFundIsin},
+                                        Percentage=${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}
+                                    "/>
+                        </ApplicationData>
                     </Request>
                 </OSAKUTE_VAHETAMISE_AVALDUS>
             </soapenv:Body>
@@ -167,7 +172,7 @@
             <p class="c14"><span class="c5">Soovin Eesti v&auml;&auml;rtpaberite keskregistri teatist pensionikonto j&auml;&auml;gi kohta</span></p>
         </td>
         <td class="c30" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
+            <p class="c0"><span class="c3" th:text="${userPreferences.noticeNeeded == 1 ? 'X' : '' }"></span></p>
         </td>
     </tr>
     <tr class="c7">
@@ -183,31 +188,40 @@
             <p class="c14"><span class="c5">Elektrooniliselt</span></p>
         </td>
         <td class="c26" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0">
+                <span class="c5"
+                      th:text="${userPreferences.contactPreference.toString().equalsIgnoreCase('E') ? 'X' : ''}">
+
+                </span></p>
         </td>
         <td class="c21" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Postiga</span></p>
         </td>
         <td class="c13" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0">
+                <span class="c5"
+                      th:text="${userPreferences.contactPreference.toString().equalsIgnoreCase('P') ? 'X' : ''}"></span></p>
         </td>
         <td class="c38" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Eesti keel</span></p>
         </td>
         <td class="c17" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0"><span class="c5"
+                                th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('EST') ? 'X' : ''}"></span></p>
         </td>
         <td class="c24" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Vene keel</span></p>
         </td>
         <td class="c26" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0"><span class="c5"
+                                th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('RUS') ? 'X' : ''}"></span></p>
         </td>
         <td class="c20" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Inglise keel</span></p>
         </td>
         <td class="c30" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"></span></p>
+            <p class="c0"><span class="c5"
+                                th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('ENG') ? 'X' : ''}"></span></p>
         </td>
     </tr>
     </tbody>

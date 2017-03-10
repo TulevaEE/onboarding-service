@@ -25,7 +25,7 @@ public class FundController {
             @RequestParam("fundManager.name") Optional<String> fundManagerName
     ) {
         return fundManagerName
-                .map(name -> fundRepository.findByFundManagerName(name))
+                .map(name -> fundRepository.findByFundManagerNameIgnoreCase(name))
                 .orElse(fundRepository.findAll());
     }
 

@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.fund
 
 import ee.tuleva.domain.fund.Fund
-import ee.tuleva.domain.fund.FundManager
-import ee.tuleva.domain.fund.FundManagerRepository
 import ee.tuleva.domain.fund.FundRepository
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.mandate.MandateFixture
@@ -41,7 +39,7 @@ class FundControllerSpec extends BaseControllerSpec {
         given:
         String fundManagerName = "Tuleva"
         Iterable<Fund> funds = MandateFixture.sampleFunds().stream().filter( { f -> f.fundManager.name == fundManagerName}).collect(Collectors.toList())
-        1 * fundRepository.findByFundManagerName(fundManagerName) >> funds
+        1 * fundRepository.findByFundManagerNameIgnoreCase(fundManagerName) >> funds
         expect:
         mockMvc
                 .perform(get("/v1/funds?fundManager.name=" + fundManagerName))

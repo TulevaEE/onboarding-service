@@ -14,7 +14,7 @@ public class FundBalance {
     private String isin;
     private String name;
     private String manager;
-    private BigDecimal price;
+    private BigDecimal price; // need to be changes to 'value'
     private String currency;
     private int pillar = 2;
     private boolean activeFund = false;

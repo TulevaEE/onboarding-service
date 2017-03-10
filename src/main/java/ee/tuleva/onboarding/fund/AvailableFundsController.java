@@ -17,6 +17,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 @RestController
 @RequestMapping("/v1")
 @RequiredArgsConstructor
+@Deprecated
 public class AvailableFundsController {
 
     private final FundRepository fundRepository;

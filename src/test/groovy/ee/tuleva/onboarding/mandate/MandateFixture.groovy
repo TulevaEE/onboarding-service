@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.domain.fund.Fund
+import ee.tuleva.domain.fund.FundManager
 
 import java.time.Instant;
 
@@ -54,12 +55,57 @@ public class MandateFixture {
 
     public static List<Fund> sampleFunds() {
         return Arrays.asList(
-                Fund.builder().isin(futureContibutionFundIsin).name("Tuleva fond").build(),
-                Fund.builder().isin("EE3600019775").name("SEB fond").build(),
-                Fund.builder().isin("EE3600019776").name("LHV XL").build(),
-                Fund.builder().isin("EE3600019777").name("Swedbänk fond").build(),
-                Fund.builder().isin("AE123232331").name("Nordea fond").build(),
-                Fund.builder().isin("AE123232337").name("Hanzafond fond").build()
+                Fund.builder().
+                        isin(futureContibutionFundIsin).
+                        name("Tuleva fond")
+                        .id(123)
+                        .fundManager(
+                            FundManager.builder()
+                            .id(123)
+                            .name("Tuleva")
+                            .build()
+                        )
+                        .build(),
+                Fund.builder().isin("EE3600019775").name("SEB fond")
+                        .fundManager(
+                        FundManager.builder()
+                                .id(124)
+                                .name("SEB")
+                                .build()
+                )
+                        .build(),
+                Fund.builder().isin("EE3600019776").name("LHV XL")
+                        .fundManager(
+                        FundManager.builder()
+                                .id(125)
+                                .name("LHV")
+                                .build()
+                )
+                        .build(),
+                Fund.builder().isin("EE3600019777").name("Swedbänk fond")
+                        .fundManager(
+                        FundManager.builder()
+                                .id(126)
+                                .name("Swedbank")
+                                .build()
+                )
+                        .build(),
+                Fund.builder().isin("AE123232331").name("Nordea fond")
+                        .fundManager(
+                        FundManager.builder()
+                                .id(127)
+                                .name("Nordea")
+                                .build()
+                )
+                        .build(),
+                Fund.builder().isin("AE123232337").name("LHV S")
+                        .fundManager(
+                        FundManager.builder()
+                                .id(125)
+                                .name("LHV")
+                                .build()
+                )
+                        .build()
         );
     }
 

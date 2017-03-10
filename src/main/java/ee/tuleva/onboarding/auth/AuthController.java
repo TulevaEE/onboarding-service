@@ -11,6 +11,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,9 @@ import org.springframework.security.oauth2.common.exceptions.UnauthorizedClientE
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+
+import java.util.Objects;
+import java.util.UUID;
 
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
@@ -29,6 +34,9 @@ public class AuthController {
     private final MobileIdAuthService mobileIdAuthService;
     private final MobileIdSessionStore mobileIdSessionStore;
     private final IdCardAuthService idCardAuthService;
+
+    @Value("${id-card.secret.token:Bearer ${random.uuid}}")
+    private String idCardSecretToken;
 
     @ApiOperation(value = "Initiate authentication")
     @RequestMapping(
@@ -45,7 +53,12 @@ public class AuthController {
     @RequestMapping(method = POST, value = "/idLogin")
     @ResponseBody
     public IdLoginResponse idLogin(@RequestHeader(value="ssl_client_verify") String clientCertificateVerification,
-                          @RequestHeader(value="ssl_client_cert") String clientCertificate) {
+                                   @RequestHeader(value="ssl_client_cert") String clientCertificate,
+                                   @RequestHeader(value="x-authorization") String crossAuthorizationToken,
+                                   @RequestHeader HttpHeaders headers) {
+        if(!Objects.equals(crossAuthorizationToken, idCardSecretToken)) {
+            throw new UnauthorizedClientException("Invalid X-Authorization");
+        }
         if(!"SUCCESS".equals(clientCertificateVerification)) {
             throw new UnauthorizedClientException("Client certificate not verified");
         }

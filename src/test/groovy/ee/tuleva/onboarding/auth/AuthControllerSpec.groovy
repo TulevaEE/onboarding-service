@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletResponse
+import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.servlet.MockMvc
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -23,6 +24,7 @@ class AuthControllerSpec extends BaseControllerSpec {
 
     def setup() {
         mockMvc = getMockMvc(controller)
+        controller.idCardSecretToken = "Bearer secretz"
     }
 
     def "Authenticate: Initiate mobile id authentication"() {
@@ -38,25 +40,46 @@ class AuthControllerSpec extends BaseControllerSpec {
         response.status == HttpStatus.OK.value()
     }
 
-    def "Authenticate: check successfully verified id card certificate"() {
+    def "Authenticate: throw exception when X-Authorization header missing"() {
+        when:
+        MockHttpServletResponse response = mockMvc
+                .perform(post("/idLogin")).andReturn().response
+        then:
+        response.status == HttpStatus.BAD_REQUEST.value()
+        0 * idCardAuthService.checkCertificate(_)
+    }
+
+    def "Authenticate: throw exception when invalid X-Authorization header"() {
         when:
         MockHttpServletResponse response = mockMvc
                 .perform(post("/idLogin")
-                .header("ssl_client_verify", "SUCCESS")
-                .header("ssl_client_cert", "test_cert")).andReturn().response
+                .header("X-Authorization", "Bearer noob")).andReturn().response
         then:
-        response.status == HttpStatus.OK.value()
-        1 * idCardAuthService.checkCertificate("test_cert")
+        response.status == HttpStatus.BAD_REQUEST.value()
+        0 * idCardAuthService.checkCertificate(_)
     }
 
     def "Authenticate: throw exception when no cert sent"() {
         when:
         MockHttpServletResponse response = mockMvc
                 .perform(post("/idLogin")
+                .header("X-Authorization", "Bearer secretz")
                 .header("ssl_client_verify", "NONE")).andReturn().response
         then:
         response.status == HttpStatus.BAD_REQUEST.value()
         0 * idCardAuthService.checkCertificate(_)
+    }
+
+    def "Authenticate: check successfully verified id card certificate"() {
+        when:
+        MockHttpServletResponse response = mockMvc
+                .perform(post("/idLogin")
+                .header("X-Authorization", "Bearer secretz")
+                .header("ssl_client_verify", "SUCCESS")
+                .header("ssl_client_cert", "test_cert")).andReturn().response
+        then:
+        response.status == HttpStatus.OK.value()
+        1 * idCardAuthService.checkCertificate("test_cert")
     }
 
     private sampleAuthenticateCommand() {

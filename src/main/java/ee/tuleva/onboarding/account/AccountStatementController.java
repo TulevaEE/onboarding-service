@@ -1,11 +1,5 @@
 package ee.tuleva.onboarding.account;
 
-import ee.eesti.xtee6.kpr.PensionAccountBalanceResponseType;
-import ee.eesti.xtee6.kpr.PensionAccountBalanceType;
-import ee.eesti.xtee6.kpr.PersonalSelectionResponseType;
-import ee.tuleva.domain.fund.Fund;
-import ee.tuleva.domain.fund.FundRepository;
-import ee.tuleva.onboarding.kpr.KPRClient;
 import ee.tuleva.onboarding.user.User;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -14,7 +8,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.annotations.ApiIgnore;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 import static org.springframework.web.bind.annotation.RequestMethod.GET;

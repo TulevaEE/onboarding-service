@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class KPRUnitsOsakudToFundBalanceConverter implements Converter<PensionAccountBalanceResponseType.Units.Balance, FundBalance> {
 
-    FundRepository fundRepository;
+    private final FundRepository fundRepository;
 
     @Override
     public FundBalance convert(PensionAccountBalanceResponseType.Units.Balance source) {

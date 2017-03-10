@@ -2,13 +2,18 @@ package ee.tuleva.onboarding.comparisons;
 
 import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.domain.fund.FundRepository;
+import ee.tuleva.onboarding.account.AccountStatementService;
+import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.comparisons.exceptions.IsinNotFoundException;
 import ee.tuleva.onboarding.income.Money;
+import ee.tuleva.onboarding.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -17,27 +22,50 @@ public class ComparisonService {
     @Autowired
     private FundRepository fundRepository;
 
+    @Autowired
+    private AccountStatementService accountStatementService;
+
+    /**
+     * Merging actual user data to calculator input.
+     * @param in
+     * @param user
+     * @return
+     */
+    public Money compare(ComparisonCommand in, User user) throws IsinNotFoundException {
+        in.setAge(user.getAge());
+
+        List<FundBalance> balances = accountStatementService.getAccountStatement(user.getPersonalCode());
+        in.setCurrentCapitals(new HashMap<String, BigDecimal>());
+        balances.forEach( balance -> { in.getCurrentCapitals().put(balance.getIsin(), balance.getPrice()); });
+
+        // todo still getting fee rates from same report although we agreed to refactor away that from accountStatement
+
+        in.setManagementFeeRates(new HashMap<String, BigDecimal>());
+        balances.forEach( balance -> {
+            in.getManagementFeeRates().put(balance.getIsin(), balance.getManagementFeeRate());
+            if (balance.isActiveFund()) {
+                in.setActiveFundIsin(balance.getIsin());
+            }
+        });
+
+        // todo as long as Tuleva funds have same managementfeerate then just taking one.
+        Fund tulevaFundToCompareTo = fundRepository.findByIsin(in.getIsinTo());
+        in.getManagementFeeRates().put(tulevaFundToCompareTo.getIsin(), tulevaFundToCompareTo.getManagementFeeRate());
+
+
+        System.out.println(in);
+
+        return this.compare(in);
+    }
+
     /**
      * Calculator that takes into account potential Tuleva fund holder current personal, fund and legal data
      * (Most in {@link ComparisonCommand}) and calculates potential gain in money for the age of retirement.
      * Comparison is done between current plan and switch to Tuleva fund.
      *
-     * todo Do we calculate all current funds converting to Tuleva?
      * todo does it has effect to take into account leaving fee from some funds?
-     * todo find current capitals
      */
     public Money compare(ComparisonCommand in) throws IsinNotFoundException {
-        // todo should we personalize it and grab current funds balances from EVK
-        // todo means to fill in in.isinsFrom and in.activeIsin
-
-        // finding management fees if not already filled into managementFeeRates
-        if (in.getManagementFeeRates() == null || in.getManagementFeeRates().size() == 0) {
-            for (String isin : in.getIsinsFrom()) {
-                BigDecimal managementFeeRate = findManagementFeeRate(isin);
-                in.getManagementFeeRates().put(isin, managementFeeRate);
-            }
-        }
-
         BigDecimal fvTakenFeesDifference = calculateTotalFeeSaved(in);
 
         return Money.builder()
@@ -45,20 +73,6 @@ public class ComparisonService {
                 .currency("EUR")
                 .build();
     }
-
-    /**
-     * Management fee is stored into db.
-     */
-    private BigDecimal findManagementFeeRate(String isin) throws IsinNotFoundException {
-        Fund fund = fundRepository.findByIsin(isin);
-
-        if (fund == null) {
-            throw new IsinNotFoundException("Unrecognized ISIN " + isin);
-        }
-
-        return fund.getManagementFeeRate();
-    }
-
 
     public BigDecimal calculateTotalFeeSaved(ComparisonCommand in) {
         BigDecimal theDifference = calculateFVForSwitchPlan(in).subtract(calculateFVForCurrentPlan(in));
@@ -125,7 +139,7 @@ public class ComparisonService {
 
         // contribution part, applies to active fund only, means in.activeisin
         BigDecimal yearlyContribution = in.monthlyWage.multiply(new BigDecimal(12)).multiply(in.secondPillarContributionRate);
-        BigDecimal contributionMgmntFee = in.getReturnRate().subtract(in.getManagementFeeRates().get(in.activeIsin));
+        BigDecimal contributionMgmntFee = in.getReturnRate().subtract(in.getManagementFeeRates().get(in.activeFundIsin));
         BigDecimal contribution = fvGrowingAnnuity(yearlyContribution, contributionMgmntFee, in.annualSalaryGainRate, yearsToWork);
         fv = fv.add(contribution);
         return fv;

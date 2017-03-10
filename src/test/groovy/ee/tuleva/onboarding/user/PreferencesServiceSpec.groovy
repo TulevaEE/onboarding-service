@@ -19,9 +19,11 @@ class PreferencesServiceSpec extends Specification {
         personDataResponseType.getContactData().setDistrictCode("007")
         personDataResponseType.getContactData().setCountry(CountryType.LV)
         personDataResponseType.getContactData().setContactPreference(ContactPreferenceType.E)
+
+        when:
         1 * kprClient.personData("123") >> personDataResponseType
 
-        expect:
+        then:
         preferencesService.getPreferences("123").districtCode == "007"
     }
 

@@ -12,6 +12,8 @@ public class ErrorsValidationException extends Exception{
 
     public ErrorsValidationException(Errors errors) {
         this.errors = errors;
+
+
     }
 
 }

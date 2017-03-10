@@ -52,7 +52,7 @@ INSERT INTO fund_manager(
 
 INSERT INTO fund(
             isin, name, management_fee_rate, fund_manager_id)
-    SELECT 'AE123232334', 'Aktsia', 0.0035, 1
+    SELECT 'AE0000000001', 'Aktsia', 0.0035, 1
     WHERE
       NOT EXISTS (
         SELECT * FROM fund WHERE id = 1
@@ -60,7 +60,7 @@ INSERT INTO fund(
 
 INSERT INTO fund(
             isin, name, management_fee_rate, fund_manager_id)
-    SELECT 'AE123232335', 'Võlakirjad', 0.0035, 1
+    SELECT 'AE0000000002', 'Võlakirjad', 0.0035, 1
     WHERE
       NOT EXISTS (
         SELECT * FROM fund WHERE id = 2
@@ -81,6 +81,15 @@ INSERT INTO fund(
       NOT EXISTS (
         SELECT * FROM fund WHERE id = 4
       );
+
+INSERT INTO fund(
+            isin, name, management_fee_rate, fund_manager_id)
+    SELECT 'EE3600019774', 'LHV Pensionifond M', 1.06400, 2
+    WHERE
+      NOT EXISTS (
+        SELECT * FROM fund WHERE id = 5
+      );
+
 
 
 INSERT INTO users(

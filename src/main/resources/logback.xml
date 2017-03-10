@@ -17,6 +17,6 @@
 		 of a non-Raven logger that is set to a different logging threshold -->
 	<root level="INFO">
 		<appender-ref ref="Console" />
-		<appender-ref ref="Sentry" />
+		<!--<appender-ref ref="Sentry" />-->
 	</root>
 </configuration>

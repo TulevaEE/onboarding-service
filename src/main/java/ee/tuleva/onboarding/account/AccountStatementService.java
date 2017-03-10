@@ -42,7 +42,7 @@ public class AccountStatementService {
 
         for (FundBalance balance : fbs) {
             if (balance.getFund().getName().equals(activeFundName)) {
-                balance.setActiveFund(true);
+                balance.setActiveContributions(true);
                 containsActiveFund = true;
             }
         }
@@ -54,7 +54,7 @@ public class AccountStatementService {
                     )
                     .value(BigDecimal.ZERO)
                     .currency("EUR")
-                    .activeFund(true)
+                    .activeContributions(true)
                     .build();
 
             Fund activeFund = fundRepository.findByNameIgnoreCase(activeFundName);

@@ -16,17 +16,5 @@ public class FundBalance {
     private BigDecimal value;
     private String currency;
     private int pillar = 2;
-    private boolean activeFund = false;
-    /*
-    @Deprecated
-    private BigDecimal price; // need to be changes to 'value'
-    @Deprecated
-    private BigDecimal managementFeeRate;
-    @Deprecated
-    private String isin;
-    @Deprecated
-    private String name;
-    @Deprecated
-    private String manager;
-    */
+    private boolean activeContributions = false;
 }

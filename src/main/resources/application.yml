@@ -77,7 +77,7 @@ proxy:
 
 mobile-id:
   service:
-    name: "tuleva-onboarding"
+    name: "Tuleva"
 
 digidoc:
   service:

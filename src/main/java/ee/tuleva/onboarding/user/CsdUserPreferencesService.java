@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @AllArgsConstructor
-public class PreferencesService {
+public class CsdUserPreferencesService {
 
     private final KPRClient kprClient;
 
@@ -22,7 +22,11 @@ public class PreferencesService {
                 .postalIndex(csdPersonData.getContactData().getPostalIndex())
                 .districtCode(csdPersonData.getContactData().getDistrictCode())
                 .contactPreference(UserPreferences.ContactPreferenceType.valueOf(csdPersonData.getContactData().getContactPreference().value()))
+                .languagePreference(
+                        (UserPreferences.LanguagePreferenceType.valueOf(
+                                csdPersonData.getIndividual().getLanguagePreference().value())
+                        ))
+                .noticeNeeded(Integer.valueOf(csdPersonData.getIndividual().getExtractFlag()))
                 .build();
-
     }
 }

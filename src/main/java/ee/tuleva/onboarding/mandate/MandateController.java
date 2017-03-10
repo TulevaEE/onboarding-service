@@ -22,7 +22,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.Optional;
 
 import static org.springframework.web.bind.annotation.RequestMethod.*;
 
@@ -55,13 +54,10 @@ public class MandateController {
     public MandateSignatureResponse startSign(@PathVariable("id") Long mandateId,
                                               @ApiIgnore @AuthenticationPrincipal User user) {
 
-        Optional<MobileIDSession> loginSession = mobileIdSessionStore.get();
+        MobileIDSession loginSession = mobileIdSessionStore.get()
+                .orElseThrow(() -> new IllegalStateException("No mobile id session found"));
 
-        if(!loginSession.isPresent()) {
-            throw new IllegalStateException("No mobile id session found");
-        }
-
-        MobileIdSignatureSession signatureSession = mandateService.sign(mandateId, user, loginSession.get().phoneNumber);
+        MobileIdSignatureSession signatureSession = mandateService.sign(mandateId, user, loginSession.phoneNumber);
 
         mobileIdSignatureSessionStore.save(new MandateSignatureSession(signatureSession.sessCode, signatureSession.challenge));
 

@@ -1,6 +1,8 @@
 server:
   port: 9000
   error.whitelabel.enabled: false
+  session:
+    timeout: 1800
 
 spring:
   datasource:
@@ -75,11 +77,15 @@ proxy:
 
 mobile-id:
   service:
-    name: "tuleva-onboarding"
+    name: "Tuleva"
 
 digidoc:
   service:
     url: https://digidocservice.sk.ee/
+
+id-card:
+  secret:
+    token: ${ID_CARD_SECRET_HEADER_TOKEN}
 
 endpoints:
   enabled: false

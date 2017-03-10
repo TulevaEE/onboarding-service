@@ -44,7 +44,6 @@ public class OAuthConfiguration {
         @Override
         public void configure(HttpSecurity http) throws Exception {
             http
-                    .anonymous().and()
                     .authorizeRequests()
                     .regexMatchers("/v1/comparisons.*").permitAll()
                     .regexMatchers("/v1/.*").authenticated()

@@ -12,8 +12,12 @@ import lombok.Setter;
 @Builder
 public class UserPreferences {
 
-    enum ContactPreferenceType {
+    enum ContactPreferenceType { //E - email, P - postal
         E, P
+    }
+
+    enum LanguagePreferenceType {
+        EST, RUS, ENG
     }
 
     private ContactPreferenceType contactPreference;
@@ -29,4 +33,9 @@ public class UserPreferences {
     private String postalIndex;
 
     private String country;
+
+    private LanguagePreferenceType languagePreference;
+
+    private int noticeNeeded; //enum { '0', '1' }
+
 }

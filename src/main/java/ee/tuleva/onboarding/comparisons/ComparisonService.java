@@ -34,17 +34,17 @@ public class ComparisonService {
     public Money compare(ComparisonCommand in, User user) throws IsinNotFoundException {
         in.setAge(user.getAge());
 
-        List<FundBalance> balances = accountStatementService.getAccountStatement(user.getPersonalCode());
+        List<FundBalance> balances = accountStatementService.getMyPensionAccountStatement(user);
         in.setCurrentCapitals(new HashMap<String, BigDecimal>());
-        balances.forEach( balance -> { in.getCurrentCapitals().put(balance.getIsin(), balance.getPrice()); });
+        balances.forEach( balance -> { in.getCurrentCapitals().put(balance.getFund().getIsin(), balance.getValue()); });
 
         // todo still getting fee rates from same report although we agreed to refactor away that from accountStatement
 
         in.setManagementFeeRates(new HashMap<String, BigDecimal>());
         balances.forEach( balance -> {
-            in.getManagementFeeRates().put(balance.getIsin(), balance.getManagementFeeRate());
-            if (balance.isActiveFund()) {
-                in.setActiveFundIsin(balance.getIsin());
+            in.getManagementFeeRates().put(balance.getFund().getIsin(), balance.getFund().getManagementFeeRate());
+            if (balance.isActiveContributions()) {
+                in.setActiveFundIsin(balance.getFund().getIsin());
             }
         });
 

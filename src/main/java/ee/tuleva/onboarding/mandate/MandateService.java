@@ -6,7 +6,9 @@ import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.domain.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
 import ee.tuleva.onboarding.sign.MobileIdSignService;
+import ee.tuleva.onboarding.user.CsdUserPreferencesService;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserPreferences;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,7 @@ public class MandateService {
 	private final MobileIdSignService signService;
 	private final FundRepository fundRepository;
 	private final MandateContentCreator mandateContentCreator;
+	private final CsdUserPreferencesService csdUserPreferencesService;
 
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter();
 
@@ -41,7 +44,9 @@ public class MandateService {
 		List<Fund> funds = new ArrayList<>();
 		fundRepository.findAll().forEach(funds::add);
 
-		List<MobileIdSignatureFile> files = mandateContentCreator.getContentFiles(user, mandate, funds)
+		UserPreferences userPreferences = csdUserPreferencesService.getPreferences(user.getPersonalCode());
+
+		List<MobileIdSignatureFile> files = mandateContentCreator.getContentFiles(user, mandate, funds, userPreferences)
 				.stream()
 				.map(contentFile -> new MobileIdSignatureFile(contentFile.getName(), contentFile.getMimeType(), contentFile.getContent()))
 				.collect(Collectors.toList());

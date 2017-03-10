@@ -4,6 +4,7 @@ import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserPreferences;
 import org.thymeleaf.context.Context;
 
 import java.time.ZoneId;
@@ -29,13 +30,6 @@ public class ContextBuilder {
         this.ctx.setVariable("lastName", user.getLastName());
         this.ctx.setVariable("idCode", user.getPersonalCode());
         this.ctx.setVariable("phoneNumber", user.getPhoneNumber());
-        this.ctx.setVariable("addressLine1", "Tatari 19-17");
-        this.ctx.setVariable("addressLine2", "TALLINN");
-        this.ctx.setVariable("settlement", "TALLINN");
-        this.ctx.setVariable("countryCode", "EE");
-        this.ctx.setVariable("postCode", "10131");
-        this.ctx.setVariable("districtCode", "123");
-
         return this;
     }
 
@@ -55,6 +49,9 @@ public class ContextBuilder {
     }
 
     public ContextBuilder funds(List<Fund> funds) {
+        //sort because by law, funds need to be in alphabetical order
+        funds.sort((Fund fund1, Fund fund2) -> fund1.getName().compareToIgnoreCase(fund2.getName()));
+        this.ctx.setVariable("funds", funds);
         this.ctx.setVariable(
                 "fundIsinNames",
                 funds.stream().collect(Collectors.toMap(Fund::getIsin, Fund::getName))
@@ -82,6 +79,18 @@ public class ContextBuilder {
         return this;
     }
 
+    public ContextBuilder userPreferences(UserPreferences userPreferences) {
+        this.ctx.setVariable("userPreferences", userPreferences);
+
+        this.ctx.setVariable("addressLine1", userPreferences.getAddressRow1());
+        this.ctx.setVariable("addressLine2", userPreferences.getAddressRow2());
+        this.ctx.setVariable("settlement", userPreferences.getAddressRow2());
+        this.ctx.setVariable("countryCode", userPreferences.getCountry());
+        this.ctx.setVariable("postCode", userPreferences.getPostalIndex());
+        this.ctx.setVariable("districtCode", userPreferences.getDistrictCode());
+
+        return this;
+    }
 
 
 }

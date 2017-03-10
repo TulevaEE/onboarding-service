@@ -22,6 +22,6 @@ public class AccountStatementController {
     @ApiOperation(value = "Get pension register account statement")
     @RequestMapping(method = GET, value = "/pension-account-statement")
     public List<FundBalance> getMyPensionAccountStatement(@ApiIgnore @AuthenticationPrincipal User user) {
-        return accountStatementService.getAccountStatement(user.getPersonalCode());
+        return accountStatementService.getMyPensionAccountStatement(user);
     }
 }

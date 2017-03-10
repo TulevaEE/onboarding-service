@@ -30,6 +30,7 @@ public class CORSFilter extends GenericFilterBean {
         response.setHeader("Access-Control-Max-Age", "3600");
         response.setHeader("Access-Control-Allow-Headers", "Authorization");
         response.setHeader("Access-Control-Allow-Credentials", "true");
+        response.setHeader("P3P", "CP=\"ALL IND DSP COR ADM CONo CUR CUSo IVAo IVDo PSA PSD TAI TELo OUR SAMo CNT COM INT NAV ONL PHY PRE PUR UNI\"");
 
         List<String> allowedHeaders = Arrays.asList(
                 "x-requested-with",

@@ -30,6 +30,7 @@ public class UserFixture {
                 .postalIndex("12345")
                 .districtCode("0784")
                 .contactPreference(UserPreferences.ContactPreferenceType.E)
+                .languagePreference(UserPreferences.LanguagePreferenceType.EST)
                 .noticeNeeded(1)
                 .build();
     }

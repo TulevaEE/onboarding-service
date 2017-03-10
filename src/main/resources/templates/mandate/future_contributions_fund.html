@@ -10,7 +10,16 @@
             <soapenv:Body>
                 <VALIKUAVALDUS>
                     <Request th:attr="DocumentDate=${documentDate}, DocumentNumber=${documentNumber}" >
-                        <PersonalData ContactPreference="E" th:attr="E_MAIL=${email}, FirstName=${firstName}, Name=${lastName}, PersonId=${idCode}, Phone=${phoneNumber}" ExtractFlag="N" LanguagePreference="EST"/>
+                        <PersonalData
+                                      th:attr="E_MAIL=${email},
+                                      ContactPreference=${userPreferences.contactPreference},
+                                      FirstName=${firstName},
+                                      Name=${lastName},
+                                      PersonId=${idCode},
+                                      Phone=${phoneNumber},
+                                      ExtractFlag=${userPreferences.noticeNeeded == 1 ? 'Y' : 'N' },
+                                      LanguagePreference=${userPreferences.languagePreference}
+                                      "/>
                         <Address th:attr="AddressRow1=${addressLine1}, AddressRow2=${addressLine2}, Country=${countryCode}, PostalIndex=${postCode}, Territory=${districtCode}"/>
                         <ApplicationData th:attr="ISIN=${selectedFundIsin}" Pillar="2"/>
                     </Request>

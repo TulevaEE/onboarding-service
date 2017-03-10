@@ -30,13 +30,6 @@ public class ContextBuilder {
         this.ctx.setVariable("lastName", user.getLastName());
         this.ctx.setVariable("idCode", user.getPersonalCode());
         this.ctx.setVariable("phoneNumber", user.getPhoneNumber());
-        this.ctx.setVariable("addressLine1", "Tatari 19-17");
-        this.ctx.setVariable("addressLine2", "TALLINN");
-        this.ctx.setVariable("settlement", "TALLINN");
-        this.ctx.setVariable("countryCode", "EE");
-        this.ctx.setVariable("postCode", "10131");
-        this.ctx.setVariable("districtCode", "123");
-
         return this;
     }
 
@@ -88,6 +81,14 @@ public class ContextBuilder {
 
     public ContextBuilder userPreferences(UserPreferences userPreferences) {
         this.ctx.setVariable("userPreferences", userPreferences);
+
+        this.ctx.setVariable("addressLine1", userPreferences.getAddressRow1());
+        this.ctx.setVariable("addressLine2", userPreferences.getAddressRow2());
+        this.ctx.setVariable("settlement", userPreferences.getAddressRow2());
+        this.ctx.setVariable("countryCode", userPreferences.getCountry());
+        this.ctx.setVariable("postCode", userPreferences.getPostalIndex());
+        this.ctx.setVariable("districtCode", userPreferences.getDistrictCode());
+
         return this;
     }
 

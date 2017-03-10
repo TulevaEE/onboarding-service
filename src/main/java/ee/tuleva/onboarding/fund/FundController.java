@@ -1,16 +1,13 @@
 package ee.tuleva.onboarding.fund;
 
-import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.domain.fund.FundRepository;
-import ee.tuleva.domain.fund.FundView;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.Optional;
 
 import static org.springframework.web.bind.annotation.RequestMethod.GET;

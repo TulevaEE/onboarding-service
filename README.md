@@ -61,4 +61,6 @@ Comparison service in package ee.tuleva.onboarding.comparisons can be edited for
 
 [DigiDocService Documentation](http://sk-eid.github.io/dds-documentation/)
 
+[DigiDocService Sequence Diagrams](https://eid.eesti.ee/index.php/Sample_applications#Web_form)
+
 [MobileID library](https://github.com/ErkoRisthein/mobileid)

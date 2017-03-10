@@ -20,8 +20,19 @@
                                       ExtractFlag=${userPreferences.noticeNeeded == 1 ? 'Y' : 'N' },
                                       LanguagePreference=${userPreferences.languagePreference}
                                       "/>
-                        <Address th:attr="AddressRow1=${addressLine1}, AddressRow2=${addressLine2}, Country=${countryCode}, PostalIndex=${postCode}, Territory=${districtCode}"/>
-                        <ApplicationData th:each="fundTransferExchange : ${fundTransferExchanges}" Pillar="2" th:attr="SourceISIN=${fundTransferExchange.sourceFundIsin}, DestinationISIN=${fundTransferExchange.targetFundIsin}, Percentage=${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}"/>
+                        <Address th:attr="
+                        AddressRow1=${addressLine1},
+                        AddressRow2=${addressLine2},
+                        Country=${countryCode},
+                        PostalIndex=${postCode},
+                        Territory=${districtCode}"/>
+                        <ApplicationData
+                                th:each="fundTransferExchange : ${fundTransferExchanges}"
+                                Pillar="2"
+                                th:attr="
+                                SourceISIN=${fundTransferExchange.sourceFundIsin},
+                                DestinationISIN=${fundTransferExchange.targetFundIsin},
+                                Percentage=${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}"/>
                     </Request>
                 </OSAKUTE_VAHETAMISE_AVALDUS>
             </soapenv:Body>

@@ -20,8 +20,7 @@ public class AccountStatementService {
 
     private final KPRClient kprClient;
     private final FundRepository fundRepository;
-
-    KPRUnitsOsakudToFundBalanceConverter kprUnitsOsakudToFundBalanceConverter;
+    private final KPRUnitsOsakudToFundBalanceConverter kprUnitsOsakudToFundBalanceConverter;
 
     public List<FundBalance> getMyPensionAccountStatement(User user) {
         PensionAccountBalanceType request = new PensionAccountBalanceType();

@@ -25,32 +25,12 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 @RequiredArgsConstructor
 public class IncomeController {
 
-    private final KPRClient kprClient;
+    private final AverageSalaryService averageSalaryService;
 
     @ApiOperation(value = "Returns user last year average salary reverse calculated from 2nd pillar transactions")
     @RequestMapping(method = GET, value = "/average-salary")
     public Money getMyAverageSalay(@ApiIgnore @AuthenticationPrincipal User user) {
-        PensionAccountTransactionType request = new PensionAccountTransactionType();
-
-        request.setDateFrom(toXMLGregorianCalendar(LocalDate.now().minusYears(1)));
-        request.setDateTo(toXMLGregorianCalendar(LocalDate.now()));
-
-        PensionAccountTransactionResponseType response = kprClient.pensionAccountTransaction(request, user.getPersonalCode());
-
-        return AverageIncomeCalculator.calculate(response.getMoney().getTransaction());
-    }
-
-
-    XMLGregorianCalendar toXMLGregorianCalendar(LocalDate localDate) {
-        try {
-            return DatatypeFactory.newInstance().newXMLGregorianCalendarDate(
-                    localDate.getYear(),
-                    localDate.getMonthValue(),
-                    localDate.getDayOfMonth(),
-                    DatatypeConstants.FIELD_UNDEFINED);
-        } catch (DatatypeConfigurationException e) {
-            throw new RuntimeException(e);
-        }
+        return averageSalaryService.getMyAverageSalary(user.getPersonalCode());
     }
 
 }

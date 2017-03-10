@@ -40,7 +40,7 @@ public class AverageIncomeCalculator {
 
 
     /**
-     * Pension payment is 2 + 4 = 6% of bruto salay.
+     * Pension payment is 2 + 4 = 6% of bruto salary.
      */
     static BigDecimal calculateSalaryFromPensionPayment(BigDecimal pensionPaymentAmount) {
         return pensionPaymentAmount.divide(new BigDecimal("0.06"));

@@ -12,8 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class IncomeControllerSpec extends BaseControllerSpec {
 
-    KPRClient xRoadClient = Mock(KPRClient)
-    IncomeController controller = new IncomeController(xRoadClient);
+    KPRClient kprClient = Mock(KPRClient)
+    IncomeController controller = new IncomeController(new AverageSalaryService(kprClient));
 
     MockMvc mockMvc
 
@@ -23,7 +23,7 @@ class IncomeControllerSpec extends BaseControllerSpec {
 
     def "/average-salary endpoint works"() {
         given:
-            1 * xRoadClient.pensionAccountTransaction(_, _) >> getKPRTransactions()
+            1 * kprClient.pensionAccountTransaction(_, _) >> getKPRTransactions()
         expect:
         mockMvc.perform(get("/v1/average-salary"))
                 .andExpect(status().isOk())

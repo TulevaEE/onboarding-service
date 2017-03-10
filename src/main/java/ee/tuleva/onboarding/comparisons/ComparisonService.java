@@ -5,6 +5,7 @@ import ee.tuleva.domain.fund.FundRepository;
 import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.comparisons.exceptions.IsinNotFoundException;
+import ee.tuleva.onboarding.income.AverageSalaryService;
 import ee.tuleva.onboarding.income.Money;
 import ee.tuleva.onboarding.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,9 @@ public class ComparisonService {
 
     @Autowired
     private AccountStatementService accountStatementService;
+
+    @Autowired
+    private AverageSalaryService averageSalaryService;
 
     /**
      * Merging actual user data to calculator input.
@@ -52,6 +56,8 @@ public class ComparisonService {
         Fund tulevaFundToCompareTo = fundRepository.findByIsin(in.getIsinTo());
         in.getManagementFeeRates().put(tulevaFundToCompareTo.getIsin(), tulevaFundToCompareTo.getManagementFeeRate());
 
+        Money averageSalary = averageSalaryService.getMyAverageSalary(user.getPersonalCode());
+        in.setMonthlyWage(averageSalary.getAmount());
 
         System.out.println(in);
 

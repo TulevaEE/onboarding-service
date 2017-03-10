@@ -1,6 +1,8 @@
 server:
   port: 9000
   error.whitelabel.enabled: false
+  session:
+    timeout: 1800
 
 spring:
   datasource:

@@ -57,7 +57,7 @@ public class MandateFixture {
         return Arrays.asList(
                 Fund.builder().
                         isin(futureContibutionFundIsin).
-                        name("Tuleva fond")
+                        name("Tuleva maailma aktsiate pensionifond")
                         .id(123)
                         .fundManager(
                             FundManager.builder()

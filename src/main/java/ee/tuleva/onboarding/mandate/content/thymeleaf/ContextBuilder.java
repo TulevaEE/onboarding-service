@@ -43,8 +43,6 @@ public class ContextBuilder {
         this.ctx.setVariable("documentDate", documentDate);
         this.ctx.setVariable("documentDatePPKKAAAA", documentDatePPKKAAAA);
 
-        //add isin name map
-
         return this;
     }
 

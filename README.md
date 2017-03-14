@@ -1,5 +1,7 @@
 # Onboarding-service
 
+[![CircleCI](https://circleci.com/gh/TulevaEE/onboarding-service/tree/master.svg?style=shield)](https://circleci.com/gh/TulevaEE/onboarding-service/tree/master)
+
 ## Design
 
 ![N|Solid](reference/design.png)

@@ -11,7 +11,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
     MockMvc mockMvc
 
     def setup() {
-        mockMvc = getMockMvc(controller)
+        mockMvc = mockMvc(controller)
     }
 
     AccountStatementService accountStatementService = Mock(AccountStatementService)

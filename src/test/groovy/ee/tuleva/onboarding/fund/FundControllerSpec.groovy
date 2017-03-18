@@ -21,7 +21,7 @@ class FundControllerSpec extends BaseControllerSpec {
     private MockMvc mockMvc
 
     def setup() {
-        mockMvc = getMockMvc(controller)
+        mockMvc = mockMvc(controller)
     }
 
     def "get: Get all funds"() {

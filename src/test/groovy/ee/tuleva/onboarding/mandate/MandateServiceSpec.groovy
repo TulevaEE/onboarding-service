@@ -20,8 +20,10 @@ class MandateServiceSpec extends Specification {
     MandateContentCreator mandateContentCreator = Mock(MandateContentCreator)
     FundRepository fundRepository = Mock(FundRepository)
     CsdUserPreferencesService csdUserPreferencesService = Mock(CsdUserPreferencesService)
-    MandateService service =
-            new MandateService(mandateRepository, signService, fundRepository, mandateContentCreator, csdUserPreferencesService)
+    CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter()
+
+    MandateService service = new MandateService(mandateRepository, signService, fundRepository,
+            mandateContentCreator, csdUserPreferencesService, converter)
 
     Long sampleMandateId = 1L
 

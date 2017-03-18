@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletResponse
-import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.servlet.MockMvc
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -23,7 +22,7 @@ class AuthControllerSpec extends BaseControllerSpec {
     private MockMvc mockMvc
 
     def setup() {
-        mockMvc = getMockMvc(controller)
+        mockMvc = mockMvc(controller)
         controller.idCardSecretToken = "Bearer secretz"
     }
 

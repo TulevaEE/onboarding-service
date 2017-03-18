@@ -18,7 +18,7 @@ class IncomeControllerSpec extends BaseControllerSpec {
     MockMvc mockMvc
 
     def setup() {
-        mockMvc = getMockMvc(controller)
+        mockMvc = mockMvc(controller)
     }
 
     def "/average-salary endpoint works"() {

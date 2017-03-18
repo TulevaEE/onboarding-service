@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.capital
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.user.User
 import org.springframework.http.HttpStatus
-import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.test.web.servlet.MockMvc
 
@@ -20,7 +19,7 @@ class InitialCapitalControllerSpec extends BaseControllerSpec {
     InitialCapital sampleInitialCapital = new InitialCapital()
 
     def setup() {
-        mockMvc = getMockMvc(controller)
+        mockMvc = mockMvc(controller)
     }
 
     def "InitialCapital: Get information about current user initial capital"() {

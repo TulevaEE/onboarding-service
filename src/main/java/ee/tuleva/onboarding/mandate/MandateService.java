@@ -15,7 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 @Component
 @RequiredArgsConstructor
@@ -27,8 +28,7 @@ public class MandateService {
 	private final FundRepository fundRepository;
 	private final MandateContentCreator mandateContentCreator;
 	private final CsdUserPreferencesService csdUserPreferencesService;
-
-    CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter();
+    private final CreateMandateCommandToMandateConverter converter;
 
     public Mandate save(User user, CreateMandateCommand createMandateCommand) {
 
@@ -48,8 +48,8 @@ public class MandateService {
 
 		List<MobileIdSignatureFile> files = mandateContentCreator.getContentFiles(user, mandate, funds, userPreferences)
 				.stream()
-				.map(contentFile -> new MobileIdSignatureFile(contentFile.getName(), contentFile.getMimeType(), contentFile.getContent()))
-				.collect(Collectors.toList());
+				.map(file -> new MobileIdSignatureFile(file.getName(), file.getMimeType(), file.getContent()))
+				.collect(toList());
 
 		return signService.startSignFiles(files, user.getPersonalCode(), phoneNumber);
 	}

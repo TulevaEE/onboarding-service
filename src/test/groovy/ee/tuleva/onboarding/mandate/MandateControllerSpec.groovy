@@ -3,36 +3,28 @@ package ee.tuleva.onboarding.mandate
 import com.codeborne.security.mobileid.MobileIDSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.auth.idcard.IdCardSessionStore
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.boot.test.context.TestConfiguration
-import org.springframework.context.annotation.Bean
 import org.springframework.http.MediaType
-import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
-import spock.mock.DetachedMockFactory
 
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
-@WebMvcTest(MandateController)
-@WithMockUser
 class MandateControllerSpec extends BaseControllerSpec {
 
-    @Autowired
-    MandateService mandateService
+    MandateRepository mandateRepository = Mock(MandateRepository)
+    MandateService mandateService = Mock(MandateService)
+    MobileIdSessionStore mobileIdSessionStore = Mock(MobileIdSessionStore)
+    MobileIdSignatureSessionStore mobileIdSignatureSessionStore = Mock(MobileIdSignatureSessionStore)
+    IdCardSessionStore idCardSessionStore = Mock(IdCardSessionStore)
 
-    @Autowired
-    MandateRepository mandateRepository
+    MandateController controller = new MandateController(mandateRepository, mandateService,
+            mobileIdSignatureSessionStore, mobileIdSessionStore, idCardSessionStore)
 
-    @Autowired
-    MobileIdSessionStore mobileIdSessionStore
-
-    @Autowired
-    MockMvc mvc
+    MockMvc mvc = mockMvc(controller)
 
     def "save a mandate"() {
         expect:
@@ -120,31 +112,4 @@ class MandateControllerSpec extends BaseControllerSpec {
         Optional.of(new MobileIDSession(0, "", "", "", "", phone))
     }
 
-    @TestConfiguration
-    static class MockConfig {
-        def mockFactory = new DetachedMockFactory()
-
-        @Bean
-        MandateService mandateService() {
-            MandateService mandateService = mockFactory.Mock(MandateService)
-//TODO            mandateService.save(_ as User, _ as CreateMandateCommand) >> MandateFixture.sampleMandate()
-            return mandateService
-        }
-
-        @Bean
-        MandateRepository mandateRepository() {
-            MandateRepository mandateRepository = mockFactory.Mock(MandateRepository)
-            return mandateRepository
-        }
-
-        @Bean
-        MobileIdSignatureSessionStore mobileIdSignatureSessionStore() {
-            return mockFactory.Mock(MobileIdSignatureSessionStore)
-        }
-
-        @Bean
-        MobileIdSessionStore mobileIdSessionStore() {
-            return mockFactory.Mock(MobileIdSessionStore)
-        }
-    }
 }

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate;
 import com.codeborne.security.mobileid.MobileIDSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.fasterxml.jackson.annotation.JsonView;
+import ee.tuleva.onboarding.auth.idcard.IdCardSessionStore;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore;
 import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
@@ -34,6 +35,7 @@ public class MandateController {
     private final MandateService mandateService;
     private final MobileIdSignatureSessionStore mobileIdSignatureSessionStore;
     private final MobileIdSessionStore mobileIdSessionStore;
+    private final IdCardSessionStore idCardSessionStore;
 
     @ApiOperation(value = "Create a mandate")
     @RequestMapping(method = POST, value = "/mandates")
@@ -72,18 +74,16 @@ public class MandateController {
                                                              @ApiIgnore @AuthenticationPrincipal User user) {
 
         MandateSignatureSession session = mobileIdSignatureSessionStore.get();
-        String status = mandateService.getSignatureStatus(mandateId, session);
+        String statusCode = mandateService.getSignatureStatus(mandateId, session);
 
-        return MandateSignatureStatusResponse.builder()
-                .statusCode(status)
-                .build();
+        return new MandateSignatureStatusResponse(statusCode);
     }
 
     @ApiOperation(value = "Get mandate file")
     @RequestMapping(method = GET, value = "/mandates/{id}/file")
-    public void getSignatureStatus(@PathVariable("id") Long mandateId,
-                                   @ApiIgnore @AuthenticationPrincipal User user,
-                                   HttpServletResponse response) throws IOException {
+    public void getMandateFile(@PathVariable("id") Long mandateId,
+                               @ApiIgnore @AuthenticationPrincipal User user,
+                               HttpServletResponse response) throws IOException {
 
         Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
 

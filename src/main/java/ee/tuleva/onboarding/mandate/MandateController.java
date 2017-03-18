@@ -53,27 +53,24 @@ public class MandateController {
 
     @ApiOperation(value = "Sign mandate")
     @RequestMapping(method = PUT, value = "/mandates/{id}/signature")
-    public MandateSignatureResponse startSign(@PathVariable("id") Long mandateId,
-                                              @ApiIgnore @AuthenticationPrincipal User user) {
+    public MobileIdSignatureResponse startSign(@PathVariable("id") Long mandateId,
+                                               @ApiIgnore @AuthenticationPrincipal User user) {
 
         MobileIDSession loginSession = mobileIdSessionStore.get()
                 .orElseThrow(() -> new IllegalStateException("No mobile id session found"));
 
-        MobileIdSignatureSession signatureSession = mandateService.sign(mandateId, user, loginSession.phoneNumber);
+        MobileIdSignatureSession signatureSession = mandateService.mobileIdSign(mandateId, user, loginSession.phoneNumber);
 
-        mobileIdSignatureSessionStore.save(new MandateSignatureSession(signatureSession.sessCode, signatureSession.challenge));
+        mobileIdSignatureSessionStore.save(signatureSession);
 
-        return MandateSignatureResponse.builder()
-                .mobileIdChallengeCode(signatureSession.challenge)
-                .build();
+        return new MobileIdSignatureResponse(signatureSession.challenge);
     }
 
     @ApiOperation(value = "Is mandate successfully signed")
     @RequestMapping(method = GET, value = "/mandates/{id}/signature")
-    public MandateSignatureStatusResponse getSignatureStatus(@PathVariable("id") Long mandateId,
-                                                             @ApiIgnore @AuthenticationPrincipal User user) {
+    public MandateSignatureStatusResponse getSignatureStatus(@PathVariable("id") Long mandateId) {
 
-        MandateSignatureSession session = mobileIdSignatureSessionStore.get();
+        MobileIdSignatureSession session = mobileIdSignatureSessionStore.get();
         String statusCode = mandateService.getSignatureStatus(mandateId, session);
 
         return new MandateSignatureStatusResponse(statusCode);

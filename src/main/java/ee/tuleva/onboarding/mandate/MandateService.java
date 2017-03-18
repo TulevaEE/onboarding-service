@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate;
 
-import com.codeborne.security.mobileid.MobileIdSignatureFile;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
+import com.codeborne.security.mobileid.SignatureFile;
 import ee.tuleva.domain.fund.Fund;
 import ee.tuleva.domain.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
@@ -38,25 +38,27 @@ public class MandateService {
         return mandateRepository.save(mandate);
     }
 
-	public MobileIdSignatureSession sign(Long mandateId, User user, String phoneNumber) {
-		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
-
-		List<Fund> funds = new ArrayList<>();
-		fundRepository.findAll().forEach(funds::add);
-
-		UserPreferences userPreferences = csdUserPreferencesService.getPreferences(user.getPersonalCode());
-
-		List<MobileIdSignatureFile> files = mandateContentCreator.getContentFiles(user, mandate, funds, userPreferences)
-				.stream()
-				.map(file -> new MobileIdSignatureFile(file.getName(), file.getMimeType(), file.getContent()))
-				.collect(toList());
-
-		return signService.startSignFiles(files, user.getPersonalCode(), phoneNumber);
+	public MobileIdSignatureSession mobileIdSign(Long mandateId, User user, String phoneNumber) {
+        List<SignatureFile> files = getMandateFiles(mandateId, user);
+		return signService.startSign(files, user.getPersonalCode(), phoneNumber);
 	}
 
-	public String getSignatureStatus(Long mandateId, MandateSignatureSession session) {
-		MobileIdSignatureSession mobileIdSignatureSession = new MobileIdSignatureSession(session.getSessCode());
-		byte[] signedFile = signService.getSignedFile(mobileIdSignatureSession);
+    private List<SignatureFile> getMandateFiles(Long mandateId, User user) {
+        Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+
+        List<Fund> funds = new ArrayList<>();
+        fundRepository.findAll().forEach(funds::add);
+
+        UserPreferences userPreferences = csdUserPreferencesService.getPreferences(user.getPersonalCode());
+
+        return mandateContentCreator.getContentFiles(user, mandate, funds, userPreferences)
+                .stream()
+                .map(file -> new SignatureFile(file.getName(), file.getMimeType(), file.getContent()))
+                .collect(toList());
+    }
+
+    public String getSignatureStatus(Long mandateId, MobileIdSignatureSession session) {
+		byte[] signedFile = signService.getSignedFile(session);
 
 		if (signedFile != null) {
 			Mandate mandate = mandateRepository.findOne(mandateId);

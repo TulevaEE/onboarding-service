@@ -43,7 +43,7 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "startSign returns the mobile id challenge code"() {
         when:
         mobileIdSessionStore.get() >> dummyMobileIdSessionWithPhone("555")
-        mandateService.sign(1L, _, "555") >> new MobileIdSignatureSession(1, null, "1234")
+        mandateService.mobileIdSign(1L, _, "555") >> new MobileIdSignatureSession(1, "1234")
 
         then:
         mvc
@@ -69,7 +69,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "getSignatureStatus returns the mobile id challenge code"() {
         when:
-        def session = MandateSignatureSession.builder().sessCode(1).challenge("1234").build()
+        def session = new MobileIdSignatureSession(1, "1234")
 //        Map<String, Object> sessionAttributes = new HashMap<>()
 //        sessionAttributes.put("session", session)
         mandateService.getSignatureStatus(MandateFixture.sampleMandate().id, _) >> "SIGNATURE"
@@ -91,8 +91,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         then:
         mvc
-                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file")
-        )
+                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file"))
                 .andExpect(status().isOk())
     }
 
@@ -103,8 +102,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         then:
         mvc
-                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file")
-        )
+                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file"))
                 .andExpect(status().isNotFound())
     }
 

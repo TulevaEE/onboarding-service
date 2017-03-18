@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.sign;
 
 import com.codeborne.security.mobileid.MobileIDAuthenticator;
-import com.codeborne.security.mobileid.MobileIdSignatureFile;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
+import com.codeborne.security.mobileid.SignatureFile;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,9 +14,8 @@ public class MobileIdSignService {
 
 	private final MobileIDAuthenticator signer;
 
-	public MobileIdSignatureSession startSignFiles(List<MobileIdSignatureFile> files, String personalCode, String phone) {
-		MobileIdSignatureSession session = signer.startSignFiles(files, personalCode, phone);
-		return session;
+	public MobileIdSignatureSession startSign(List<SignatureFile> files, String personalCode, String phone) {
+		return signer.startSign(files, personalCode, phone);
 	}
 
 	public byte[] getSignedFile(MobileIdSignatureSession session) {

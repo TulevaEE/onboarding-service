@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.sign
 
 import com.codeborne.security.mobileid.MobileIDAuthenticator
-import com.codeborne.security.mobileid.MobileIdSignatureFile
 import com.codeborne.security.mobileid.MobileIdSignatureSession
+import com.codeborne.security.mobileid.SignatureFile
 import spock.lang.Specification
 
 class MobileIdSignServiceSpec extends Specification {
@@ -12,15 +12,15 @@ class MobileIdSignServiceSpec extends Specification {
 
     def "startSign() works"() {
         given:
-        List<MobileIdSignatureFile> files = Arrays.asList(
-                new MobileIdSignatureFile("test1.txt", "text/plain", "Test".bytes),
-                new MobileIdSignatureFile("test2.txt", "text/plain", "Test".bytes)
+        List<SignatureFile> files = Arrays.asList(
+                new SignatureFile("test1.txt", "text/plain", "Test1".bytes),
+                new SignatureFile("test2.txt", "text/plain", "Test2".bytes)
         )
 
-        signer.startSignFiles(files, "38501010002", "55555555") >> new MobileIdSignatureSession(1, null, "1234", null)
+        signer.startSign(files, "38501010002", "55555555") >> new MobileIdSignatureSession(1, "1234")
 
         when:
-        MobileIdSignatureSession session = service.startSignFiles(files as List<MobileIdSignatureFile>, "38501010002", "55555555")
+        MobileIdSignatureSession session = service.startSign(files as List<SignatureFile>, "38501010002", "55555555")
 
         then:
         session.challenge == "1234"
@@ -29,7 +29,7 @@ class MobileIdSignServiceSpec extends Specification {
 
     def "getSignedFile() works"() {
         given:
-        def session = new MobileIdSignatureSession(1, null, null, null)
+        def session = new MobileIdSignatureSession(1, null)
         signer.getSignedFile(session) >> ([0] as byte[])
 
         when:

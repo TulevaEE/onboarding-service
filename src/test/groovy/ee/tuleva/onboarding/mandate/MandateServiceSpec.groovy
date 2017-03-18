@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate
 
-import com.codeborne.security.mobileid.MobileIdSignatureFile
 import com.codeborne.security.mobileid.MobileIdSignatureSession
+import com.codeborne.security.mobileid.SignatureFile
 import ee.tuleva.domain.fund.Fund
 import ee.tuleva.domain.fund.FundRepository
 import ee.tuleva.onboarding.auth.UserFixture
@@ -55,7 +55,8 @@ class MandateServiceSpec extends Specification {
         given:
         def mandate = Mandate.builder().build()
         1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser()) >> mandate
-        1 * signService.startSignFiles(_ as List<MobileIdSignatureFile>, sampleUser().getPersonalCode(), sampleUser().getPhoneNumber()) >> new MobileIdSignatureSession(1, null, "1234")
+        1 * signService.startSign(_ as List<SignatureFile>, sampleUser().getPersonalCode(), sampleUser().getPhoneNumber()) >>
+                new MobileIdSignatureSession(1, "1234")
         1 * fundRepository.findAll() >> [new Fund(), new Fund()]
         1 * csdUserPreferencesService.getPreferences(sampleUser().getPersonalCode()) >> UserFixture.sampleUserPreferences()
 
@@ -66,7 +67,7 @@ class MandateServiceSpec extends Specification {
                         _ as UserPreferences) >> [new MandateContentFile("file", "html/text", "file".getBytes())]
 
         when:
-        def session = service.sign(sampleMandateId, sampleUser(), sampleUser().getPhoneNumber())
+        def session = service.mobileIdSign(sampleMandateId, sampleUser(), sampleUser().getPhoneNumber())
 
         then:
         session.sessCode == 1
@@ -80,7 +81,7 @@ class MandateServiceSpec extends Specification {
         mandateRepository.save({ Mandate it -> it.mandate == "file".getBytes() }) >> MandateFixture.sampleMandate()
 
         when:
-        def status = service.getSignatureStatus(sampleMandateId, new MandateSignatureSession())
+        def status = service.getSignatureStatus(sampleMandateId, new MobileIdSignatureSession(0, null))
 
         then:
         status == expectedStatus
@@ -99,7 +100,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.save({ Mandate it -> it.mandate == file }) >> MandateFixture.sampleMandate()
 
         when:
-        def status = service.getSignatureStatus(sampleMandateId, new MandateSignatureSession())
+        service.getSignatureStatus(sampleMandateId, new MobileIdSignatureSession(0, null))
 
         then:
         true

@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class MandateSignatureResponse {
+public class MobileIdSignatureResponse {
 
 	private final String mobileIdChallengeCode;
 

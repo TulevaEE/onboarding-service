@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate;
+package ee.tuleva.onboarding.mandate.exception;
 
 import lombok.Getter;
 import org.springframework.validation.Errors;

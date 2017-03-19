@@ -3,10 +3,12 @@ package ee.tuleva.onboarding.mandate;
 import com.codeborne.security.mobileid.MobileIDSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.fasterxml.jackson.annotation.JsonView;
-import ee.tuleva.onboarding.auth.idcard.IdCardSessionStore;
-import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore;
-import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore;
+import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
+import ee.tuleva.onboarding.mandate.exception.ErrorsValidationException;
 import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
+import ee.tuleva.onboarding.mandate.response.MandateSignatureStatusResponse;
+import ee.tuleva.onboarding.mandate.response.MobileIdSignatureResponse;
 import ee.tuleva.onboarding.user.User;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.Optional;
 
 import static org.springframework.web.bind.annotation.RequestMethod.*;
 
@@ -33,9 +36,7 @@ public class MandateController {
 
     private final MandateRepository mandateRepository;
     private final MandateService mandateService;
-    private final MobileIdSignatureSessionStore mobileIdSignatureSessionStore;
-    private final MobileIdSessionStore mobileIdSessionStore;
-    private final IdCardSessionStore idCardSessionStore;
+    private final GenericSessionStore genericSessionStore;
 
     @ApiOperation(value = "Create a mandate")
     @RequestMapping(method = POST, value = "/mandates")
@@ -56,12 +57,13 @@ public class MandateController {
     public MobileIdSignatureResponse startSign(@PathVariable("id") Long mandateId,
                                                @ApiIgnore @AuthenticationPrincipal User user) {
 
-        MobileIDSession loginSession = mobileIdSessionStore.get()
+        Optional<MobileIDSession> session = genericSessionStore.get(MobileIDSession.class);
+        MobileIDSession loginSession = session
                 .orElseThrow(() -> new IllegalStateException("No mobile id session found"));
 
         MobileIdSignatureSession signatureSession = mandateService.mobileIdSign(mandateId, user, loginSession.phoneNumber);
 
-        mobileIdSignatureSessionStore.save(signatureSession);
+        genericSessionStore.save(signatureSession);
 
         return new MobileIdSignatureResponse(signatureSession.challenge);
     }
@@ -70,8 +72,11 @@ public class MandateController {
     @RequestMapping(method = GET, value = "/mandates/{id}/signature")
     public MandateSignatureStatusResponse getSignatureStatus(@PathVariable("id") Long mandateId) {
 
-        MobileIdSignatureSession session = mobileIdSignatureSessionStore.get();
-        String statusCode = mandateService.getSignatureStatus(mandateId, session);
+        Optional<MobileIdSignatureSession> signatureSession = genericSessionStore.get(MobileIdSignatureSession.class);
+        MobileIdSignatureSession session = signatureSession
+                .orElseThrow(() -> new IllegalStateException("No mobile ID signature session found"));
+
+        String statusCode = mandateService.finalizeMobileIdSignature(mandateId, session);
 
         return new MandateSignatureStatusResponse(statusCode);
     }

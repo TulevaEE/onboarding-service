@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.auth.mobileid;
 import com.codeborne.security.mobileid.MobileIDSession;
 import ee.tuleva.onboarding.auth.AuthUserService;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
+import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.user.User;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -20,24 +21,24 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
 
     private final MobileIdAuthService mobileIdAuthService;
     private final AuthUserService userService;
-    private final MobileIdSessionStore mobileIdSessionStore;
+    private final GenericSessionStore genericSessionStore;
 
     public MobileIdTokenGranter(AuthorizationServerTokenServices tokenServices,
                                 ClientDetailsService clientDetailsService,
                                 OAuth2RequestFactory requestFactory,
                                 MobileIdAuthService mobileIdAuthService,
                                 AuthUserService userService,
-                                MobileIdSessionStore mobileIdSessionStore) {
+                                GenericSessionStore genericSessionStore) {
 
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
 
         assert mobileIdAuthService != null;
         assert userService != null;
-        assert mobileIdSessionStore != null;
+        assert genericSessionStore != null;
 
         this.mobileIdAuthService = mobileIdAuthService;
         this.userService = userService;
-        this.mobileIdSessionStore = mobileIdSessionStore;
+        this.genericSessionStore = genericSessionStore;
     }
 
     @Override
@@ -49,20 +50,20 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
             throw new InvalidRequestException("Unknown Client ID.");
         }
 
-        Optional<MobileIDSession> session = mobileIdSessionStore.get();
+        Optional<MobileIDSession> session = genericSessionStore.get(MobileIDSession.class);
         if (!session.isPresent()) {
             return null;
         }
-        MobileIDSession mobileIDSession = session.get();
+        MobileIDSession mobileIdSession = session.get();
 
-        boolean isComplete = mobileIdAuthService.isLoginComplete(mobileIDSession);
+        boolean isComplete = mobileIdAuthService.isLoginComplete(mobileIdSession);
         if (!isComplete) {
             throw new MobileIdAuthNotCompleteException();
         }
 
-        User user = userService.getByPersonalCode(mobileIDSession.personalCode);
+        User user = userService.getByPersonalCode(mobileIdSession.personalCode);
 
-        Authentication userAuthentication = new PersonalCodeAuthentication<>(user, mobileIDSession, null);
+        Authentication userAuthentication = new PersonalCodeAuthentication<>(user, mobileIdSession, null);
         userAuthentication.setAuthenticated(true);
 
         final OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);

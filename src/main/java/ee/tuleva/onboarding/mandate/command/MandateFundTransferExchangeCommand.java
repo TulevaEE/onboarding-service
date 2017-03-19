@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate;
+package ee.tuleva.onboarding.mandate.command;
 
 import lombok.Getter;
 import lombok.Setter;

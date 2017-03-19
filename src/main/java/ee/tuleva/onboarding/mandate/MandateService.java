@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.mandate;
 
+import com.codeborne.security.mobileid.IdCardSignatureSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.codeborne.security.mobileid.SignatureFile;
-import ee.tuleva.domain.fund.Fund;
-import ee.tuleva.domain.fund.FundRepository;
+import ee.tuleva.onboarding.fund.Fund;
+import ee.tuleva.onboarding.fund.FundRepository;
+import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
+import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
-import ee.tuleva.onboarding.sign.MobileIdSignService;
+import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.user.CsdUserPreferencesService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserPreferences;
@@ -24,14 +27,13 @@ import static java.util.stream.Collectors.toList;
 public class MandateService {
 
     private final MandateRepository mandateRepository;
-	private final MobileIdSignService signService;
+	private final SignatureService signService;
 	private final FundRepository fundRepository;
 	private final MandateContentCreator mandateContentCreator;
 	private final CsdUserPreferencesService csdUserPreferencesService;
     private final CreateMandateCommandToMandateConverter converter;
 
     public Mandate save(User user, CreateMandateCommand createMandateCommand) {
-
         Mandate mandate = converter.convert(createMandateCommand);
         mandate.setUser(user);
 
@@ -41,6 +43,11 @@ public class MandateService {
 	public MobileIdSignatureSession mobileIdSign(Long mandateId, User user, String phoneNumber) {
         List<SignatureFile> files = getMandateFiles(mandateId, user);
 		return signService.startSign(files, user.getPersonalCode(), phoneNumber);
+	}
+
+	public IdCardSignatureSession idCardSign(Long mandateId, User user, String signingCertificate) {
+		List<SignatureFile> files = getMandateFiles(mandateId, user);
+		return signService.startSign(files, signingCertificate);
 	}
 
     private List<SignatureFile> getMandateFiles(Long mandateId, User user) {
@@ -57,17 +64,30 @@ public class MandateService {
                 .collect(toList());
     }
 
-    public String getSignatureStatus(Long mandateId, MobileIdSignatureSession session) {
+    public String finalizeMobileIdSignature(Long mandateId, MobileIdSignatureSession session) {
 		byte[] signedFile = signService.getSignedFile(session);
 
 		if (signedFile != null) {
-			Mandate mandate = mandateRepository.findOne(mandateId);
-			mandate.setMandate(signedFile);
-			mandateRepository.save(mandate);
-
+			persistSignedFile(mandateId, signedFile);
 			return "SIGNATURE";
 		} else {
 			return "OUTSTANDING_TRANSACTION";
 		}
 	}
+
+	public void finalizeIdCardSignature(Long mandateId, IdCardSignatureSession session, String signedHash) {
+		byte[] signedFile = signService.getSignedFile(session, signedHash);
+		if (signedFile != null) {
+			persistSignedFile(mandateId, signedFile);
+		} else {
+			throw new IllegalStateException("There is no signed file to persist");
+		}
+	}
+
+	private void persistSignedFile(Long mandateId, byte[] signedFile) {
+		Mandate mandate = mandateRepository.findOne(mandateId);
+		mandate.setMandate(signedFile);
+		mandateRepository.save(mandate);
+	}
+
 }

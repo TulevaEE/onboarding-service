@@ -1,4 +1,4 @@
-package ee.tuleva.domain.fund;
+package ee.tuleva.onboarding.fund;
 
 public class FundView {
     public interface SkipFundManager {}

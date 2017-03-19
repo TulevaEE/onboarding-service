@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.account;
 
 import ee.eesti.xtee6.kpr.PensionAccountBalanceResponseType;
-import ee.tuleva.domain.fund.Fund;
-import ee.tuleva.domain.fund.FundRepository;
+import ee.tuleva.onboarding.fund.Fund;
+import ee.tuleva.onboarding.fund.FundRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.stereotype.Component;

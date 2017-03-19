@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.comparisons;
 
-import ee.tuleva.domain.fund.Fund;
-import ee.tuleva.domain.fund.FundRepository;
 import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.comparisons.exceptions.IsinNotFoundException;
+import ee.tuleva.onboarding.fund.Fund;
+import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.income.AverageSalaryService;
 import ee.tuleva.onboarding.income.Money;
 import ee.tuleva.onboarding.user.User;

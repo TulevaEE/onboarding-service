@@ -1,4 +1,4 @@
-package ee.tuleva.domain.fund;
+package ee.tuleva.onboarding.fund;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

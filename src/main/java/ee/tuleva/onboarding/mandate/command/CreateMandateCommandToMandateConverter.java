@@ -1,5 +1,7 @@
-package ee.tuleva.onboarding.mandate;
+package ee.tuleva.onboarding.mandate.command;
 
+import ee.tuleva.onboarding.mandate.FundTransferExchange;
+import ee.tuleva.onboarding.mandate.Mandate;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.stereotype.Component;
 

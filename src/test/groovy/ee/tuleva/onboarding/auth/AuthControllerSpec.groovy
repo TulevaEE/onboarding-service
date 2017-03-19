@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService
 import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService
 import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
-import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore
+import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletResponse
@@ -16,9 +16,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 class AuthControllerSpec extends BaseControllerSpec {
 
     MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
-    MobileIdSessionStore mobileIdSessionStore = Mock(MobileIdSessionStore)
+    GenericSessionStore sessionStore = Mock(GenericSessionStore)
     IdCardAuthService idCardAuthService = Mock(IdCardAuthService)
-    AuthController controller = new AuthController(mobileIdAuthService, mobileIdSessionStore, idCardAuthService)
+    AuthController controller = new AuthController(mobileIdAuthService, sessionStore, idCardAuthService)
     private MockMvc mockMvc
 
     def setup() {
@@ -29,7 +29,7 @@ class AuthControllerSpec extends BaseControllerSpec {
     def "Authenticate: Initiate mobile id authentication"() {
         given:
         1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber) >> MobileIdFixture.sampleMobileIdSession
-        1 * mobileIdSessionStore.save(_ as MobileIDSession)
+        1 * sessionStore.save(_ as MobileIDSession)
         when:
         MockHttpServletResponse response = mockMvc
                 .perform(post("/authenticate")

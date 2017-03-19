@@ -1,28 +1,29 @@
-package ee.tuleva.onboarding.auth.idcard;
+package ee.tuleva.onboarding.auth.session;
 
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import javax.servlet.http.HttpSession;
+import java.io.Serializable;
 import java.util.Optional;
 
 @Component
-public class IdCardSessionStore {
+public class GenericSessionStore {
 
-    private static String ID_CARD_SESSION = "idCardSession";
-
-    public  void save(IdCardSession idCardSession) {
-        session().setAttribute(ID_CARD_SESSION, idCardSession.toString());
+    public <T extends Serializable> void save(T sessionAttribute) {
+        session().setAttribute(sessionAttribute.getClass().getName(), sessionAttribute);
     }
 
-    public Optional<IdCardSession> get() {
-        String serializedSession = (String) session().getAttribute(ID_CARD_SESSION);
-        if(serializedSession == null) {
+    public <T extends Serializable> Optional<T> get(Class clazz) {
+        @SuppressWarnings("unchecked")
+        T sessionAttribute = (T) session().getAttribute(clazz.getName());
+
+        if(sessionAttribute == null) {
             return Optional.empty();
         }
 
-        return Optional.of(IdCardSession.fromString(serializedSession));
+        return Optional.of(sessionAttribute);
     }
 
     private static HttpSession session() {

@@ -3,12 +3,11 @@ package ee.tuleva.onboarding.account
 import ee.eesti.xtee6.kpr.PensionAccountBalanceResponseType
 import ee.eesti.xtee6.kpr.PensionAccountBalanceType
 import ee.eesti.xtee6.kpr.PersonalSelectionResponseType
-import ee.tuleva.domain.fund.Fund
-import ee.tuleva.domain.fund.FundRepository
 import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.fund.Fund
+import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.kpr.KPRClient
 import ee.tuleva.onboarding.mandate.MandateFixture
-import spock.lang.Ignore
 import spock.lang.Specification
 
 class AccountStatementServiceSpec extends Specification {

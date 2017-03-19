@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.content.thymeleaf
 
-import ee.tuleva.domain.fund.Fund
 import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.user.UserPreferences

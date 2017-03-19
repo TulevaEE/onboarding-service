@@ -1,4 +1,4 @@
-package ee.tuleva.domain.fund;
+package ee.tuleva.onboarding.fund;
 
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;

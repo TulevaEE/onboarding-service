@@ -1,22 +1,27 @@
 package ee.tuleva.onboarding.mandate
 
+import com.codeborne.security.mobileid.IdCardSignatureSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
-import ee.tuleva.domain.fund.Fund
-import ee.tuleva.domain.fund.FundRepository
-import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.fund.Fund
+import ee.tuleva.onboarding.fund.FundRepository
+import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
+import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
-import ee.tuleva.onboarding.sign.MobileIdSignService
+import ee.tuleva.onboarding.mandate.signature.SignatureService
 import ee.tuleva.onboarding.user.CsdUserPreferencesService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserPreferences
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUserPreferences
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleCreateMandateCommand
+
 class MandateServiceSpec extends Specification {
 
     MandateRepository mandateRepository = Mock(MandateRepository)
-    MobileIdSignService signService = Mock(MobileIdSignService)
+    SignatureService signService = Mock(SignatureService)
     MandateContentCreator mandateContentCreator = Mock(MandateContentCreator)
     FundRepository fundRepository = Mock(FundRepository)
     CsdUserPreferencesService csdUserPreferencesService = Mock(CsdUserPreferencesService)
@@ -32,56 +37,46 @@ class MandateServiceSpec extends Specification {
             1 * mandateRepository.save(_ as Mandate) >> { Mandate mandate ->
                 return mandate
             }
+            CreateMandateCommand createMandateCmd = sampleCreateMandateCommand()
         when:
-            Mandate mandate = service.save(sampleUser(), MandateFixture.sampleCreateMandateCommand())
+            Mandate mandate = service.save(sampleUser(), createMandateCmd)
         then:
-            mandate.futureContributionFundIsin == MandateFixture.sampleCreateMandateCommand().futureContributionFundIsin
-            mandate.fundTransferExchanges.size() == MandateFixture.sampleCreateMandateCommand().fundTransferExchanges.size()
-            mandate.fundTransferExchanges
-                    .first().sourceFundIsin == MandateFixture.sampleCreateMandateCommand()
-                    .fundTransferExchanges.first().sourceFundIsin
+            mandate.futureContributionFundIsin == createMandateCmd.futureContributionFundIsin
+            mandate.fundTransferExchanges.size() == createMandateCmd.fundTransferExchanges.size()
+            mandate.fundTransferExchanges.first().sourceFundIsin ==
+                    createMandateCmd.fundTransferExchanges.first().sourceFundIsin
 
-            mandate.fundTransferExchanges
-                    .first().targetFundIsin == MandateFixture.sampleCreateMandateCommand()
-                    .fundTransferExchanges.first().targetFundIsin
+            mandate.fundTransferExchanges.first().targetFundIsin ==
+                    createMandateCmd.fundTransferExchanges.first().targetFundIsin
 
-            mandate.fundTransferExchanges
-                    .first().amount == MandateFixture.sampleCreateMandateCommand()
-                    .fundTransferExchanges.first().amount
+            mandate.fundTransferExchanges.first().amount ==
+                    createMandateCmd.fundTransferExchanges.first().amount
 
     }
 
-    def "signing works"() {
+    def "mobile id signing works"() {
         given:
-        def mandate = Mandate.builder().build()
-        1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser()) >> mandate
-        1 * signService.startSign(_ as List<SignatureFile>, sampleUser().getPersonalCode(), sampleUser().getPhoneNumber()) >>
+        def user = sampleUser()
+        mockMandateFiles(user, sampleMandateId)
+        1 * signService.startSign(_ as List<SignatureFile>, user.getPersonalCode(), user.getPhoneNumber()) >>
                 new MobileIdSignatureSession(1, "1234")
-        1 * fundRepository.findAll() >> [new Fund(), new Fund()]
-        1 * csdUserPreferencesService.getPreferences(sampleUser().getPersonalCode()) >> UserFixture.sampleUserPreferences()
-
-        1 * mandateContentCreator.
-                getContentFiles(_ as User,
-                        _ as Mandate,
-                        _ as List,
-                        _ as UserPreferences) >> [new MandateContentFile("file", "html/text", "file".getBytes())]
 
         when:
-        def session = service.mobileIdSign(sampleMandateId, sampleUser(), sampleUser().getPhoneNumber())
+        def session = service.mobileIdSign(sampleMandateId, user, user.getPhoneNumber())
 
         then:
         session.sessCode == 1
         session.challenge == "1234"
     }
 
-    def "signature status works"() {
+    def "mobile id signature status works"() {
         given:
         1 * signService.getSignedFile(_) >> file
-        mandateRepository.findOne(sampleMandateId) >> MandateFixture.sampleMandate()
-        mandateRepository.save({ Mandate it -> it.mandate == "file".getBytes() }) >> MandateFixture.sampleMandate()
+        mandateRepository.findOne(sampleMandateId) >> sampleMandate()
+        mandateRepository.save({ Mandate it -> it.mandate == "file".getBytes() }) >> sampleMandate()
 
         when:
-        def status = service.getSignatureStatus(sampleMandateId, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleMandateId, new MobileIdSignatureSession(0, null))
 
         then:
         status == expectedStatus
@@ -92,18 +87,73 @@ class MandateServiceSpec extends Specification {
         [0] as byte[] | "SIGNATURE"
     }
 
-    def "signed mandate is saved"() {
+    def "mobile id signed mandate is saved"() {
         given:
         byte[] file = "file".getBytes()
         1 * signService.getSignedFile(_) >> file
-        1 * mandateRepository.findOne(sampleMandateId) >> MandateFixture.sampleMandate()
-        1 * mandateRepository.save({ Mandate it -> it.mandate == file }) >> MandateFixture.sampleMandate()
+        1 * mandateRepository.findOne(sampleMandateId) >> sampleMandate()
+        1 * mandateRepository.save({ Mandate it -> it.mandate == file }) >> sampleMandate()
 
         when:
-        service.getSignatureStatus(sampleMandateId, new MobileIdSignatureSession(0, null))
+        service.finalizeMobileIdSignature(sampleMandateId, new MobileIdSignatureSession(0, null))
 
         then:
         true
+    }
+
+    def "id card signing works"() {
+        given:
+        def user = sampleUser()
+        mockMandateFiles(user, sampleMandateId)
+
+        signService.startSign(_ as List<SignatureFile>, "signingCertificate") >>
+                new IdCardSignatureSession(1, "sigId", "hash")
+
+        when:
+        def session = service.idCardSign(sampleMandateId, user, "signingCertificate")
+
+        then:
+        session.sessCode == 1
+        session.signatureId == "sigId"
+        session.hash == "hash"
+    }
+
+    def "id card signed mandate is saved"() {
+        given:
+        def file = "file".getBytes()
+        def session = new IdCardSignatureSession(1, "sigId", "hash")
+        1 * signService.getSignedFile(session, "signedHash") >> file
+        1 * mandateRepository.findOne(sampleMandateId) >> sampleMandate()
+
+        when:
+        service.finalizeIdCardSignature(sampleMandateId, session, "signedHash")
+
+        then:
+        1 * mandateRepository.save({ Mandate it -> it.mandate == file })
+    }
+
+    def "id card signature finalization throws exception when no signed file exist"() {
+        given:
+        def session = new IdCardSignatureSession(1, "sigId", "hash")
+        1 * signService.getSignedFile(session, "signedHash") >> null
+
+        when:
+        service.finalizeIdCardSignature(sampleMandateId, session, "signedHash")
+
+        then:
+        thrown(IllegalStateException)
+    }
+
+    def mockMandateFiles(User user, Long mandateId) {
+        1 * mandateRepository.findByIdAndUser(mandateId, user) >> sampleMandate()
+        1 * fundRepository.findAll() >> [new Fund(), new Fund()]
+        1 * csdUserPreferencesService.getPreferences(user.getPersonalCode()) >> sampleUserPreferences()
+
+        1 * mandateContentCreator.
+                getContentFiles(_ as User,
+                        _ as Mandate,
+                        _ as List,
+                        _ as UserPreferences) >> [new MandateContentFile("file", "html/text", "file".getBytes())]
     }
 
     User sampleUser() {
@@ -111,6 +161,10 @@ class MandateServiceSpec extends Specification {
                 .personalCode("38501010002")
                 .phoneNumber("5555555")
                 .build()
+    }
+
+    Mandate sampleMandate() {
+        Mandate.builder().build()
     }
 
 }

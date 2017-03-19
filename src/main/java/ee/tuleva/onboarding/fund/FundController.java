@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.fund;
 
-import ee.tuleva.domain.fund.Fund;
-import ee.tuleva.domain.fund.FundRepository;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.RequestMapping;

@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.domain.fund.Fund
-import ee.tuleva.domain.fund.FundManager
+import ee.tuleva.onboarding.fund.Fund
+import ee.tuleva.onboarding.fund.FundManager
+import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
+import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
 
 import java.time.Instant;
 

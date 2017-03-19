@@ -1,4 +1,4 @@
-package ee.tuleva.domain.fund;
+package ee.tuleva.onboarding.fund;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import lombok.*;

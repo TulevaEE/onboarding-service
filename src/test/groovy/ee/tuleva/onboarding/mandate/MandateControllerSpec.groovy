@@ -3,12 +3,11 @@ package ee.tuleva.onboarding.mandate
 import com.codeborne.security.mobileid.MobileIDSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.BaseControllerSpec
-import ee.tuleva.onboarding.auth.idcard.IdCardSessionStore
-import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore
-import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore
+import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
@@ -17,12 +16,9 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     MandateRepository mandateRepository = Mock(MandateRepository)
     MandateService mandateService = Mock(MandateService)
-    MobileIdSessionStore mobileIdSessionStore = Mock(MobileIdSessionStore)
-    MobileIdSignatureSessionStore mobileIdSignatureSessionStore = Mock(MobileIdSignatureSessionStore)
-    IdCardSessionStore idCardSessionStore = Mock(IdCardSessionStore)
+    GenericSessionStore sessionStore = Mock(GenericSessionStore)
 
-    MandateController controller = new MandateController(mandateRepository, mandateService,
-            mobileIdSignatureSessionStore, mobileIdSessionStore, idCardSessionStore)
+    MandateController controller = new MandateController(mandateRepository, mandateService, sessionStore)
 
     MockMvc mvc = mockMvc(controller)
 
@@ -42,7 +38,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "startSign returns the mobile id challenge code"() {
         when:
-        mobileIdSessionStore.get() >> dummyMobileIdSessionWithPhone("555")
+        sessionStore.get(MobileIDSession) >> dummyMobileIdSessionWithPhone("555")
         mandateService.mobileIdSign(1L, _, "555") >> new MobileIdSignatureSession(1, "1234")
 
         then:
@@ -56,7 +52,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "startSign fails when there's no mobile id session"() {
         given:
-        mobileIdSessionStore.get() >> Optional.empty()
+        sessionStore.get(MobileIDSession) >> Optional.empty()
 
         when:
         mvc
@@ -69,16 +65,12 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "getSignatureStatus returns the mobile id challenge code"() {
         when:
-        def session = new MobileIdSignatureSession(1, "1234")
-//        Map<String, Object> sessionAttributes = new HashMap<>()
-//        sessionAttributes.put("session", session)
-        mandateService.getSignatureStatus(MandateFixture.sampleMandate().id, _) >> "SIGNATURE"
+        sessionStore.get(MobileIdSignatureSession) >> Optional.of(new MobileIdSignatureSession(1, "1234"))
+        mandateService.finalizeMobileIdSignature(sampleMandate().id, _ as MobileIdSignatureSession) >> "SIGNATURE"
 
         then:
         mvc
-                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/signature")
-//                .sessionAttrs(sessionAttributes)
-                )
+                .perform(get("/v1/mandates/" + sampleMandate().id + "/signature"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
@@ -87,22 +79,22 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "getMandateFile returns mandate file"() {
         when:
         1 * mandateRepository
-                .findByIdAndUser(MandateFixture.sampleMandate().id, _) >> MandateFixture.sampleMandate()
+                .findByIdAndUser(sampleMandate().id, _) >> sampleMandate()
 
         then:
         mvc
-                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file"))
+                .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
                 .andExpect(status().isOk())
     }
 
     def "getMandateFile returns not found on non existing mandate file"() {
         when:
         1 * mandateRepository
-                .findByIdAndUser(MandateFixture.sampleMandate().id, _) >> null
+                .findByIdAndUser(sampleMandate().id, _) >> null
 
         then:
         mvc
-                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file"))
+                .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
                 .andExpect(status().isNotFound())
     }
 

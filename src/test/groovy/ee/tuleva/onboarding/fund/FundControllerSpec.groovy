@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.fund
 
-import ee.tuleva.domain.fund.Fund
-import ee.tuleva.domain.fund.FundRepository
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.mandate.MandateFixture
 import org.springframework.test.web.servlet.MockMvc

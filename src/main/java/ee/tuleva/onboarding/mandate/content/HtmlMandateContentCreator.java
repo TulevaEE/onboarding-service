@@ -41,12 +41,14 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
     private MandateContentFile getFutureContributionsFundMandateContentFile(Mandate mandate) {
         String transactionId = UUID.randomUUID().toString();
 
+        String documentNumber = mandate.getId().toString();
+
         Context ctx = ContextBuilder.builder()
                 .mandate(mandate)
                 .user(user)
                 .userPreferences(userPreferences)
                 .transactionId(transactionId)
-                .documentNumber(mandate.getId().toString())
+                .documentNumber(documentNumber)
                 .futureContributionFundIsin(mandate.getFutureContributionFundIsin())
                 .funds(funds)
                 .build();
@@ -54,7 +56,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
         String htmlContent = templateEngine.process("future_contributions_fund", ctx);
 
         return MandateContentFile.builder()
-                .name("valikuavaldus.html")
+                .name("valikuavaldus_" + documentNumber + ".html")
                 .mimeType("text/html")
                 .content(htmlContent.getBytes())
                 .build();

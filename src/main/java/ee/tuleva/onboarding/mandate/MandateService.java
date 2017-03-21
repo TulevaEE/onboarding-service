@@ -101,16 +101,17 @@ public class MandateService {
 
 		if (signedFile != null) {
 			persistSignedFile(mandateId, signedFile);
-			return "SIGNATURE";
+			return "SIGNATURE"; // TODO: use enum
 		} else {
-			return "OUTSTANDING_TRANSACTION";
+			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
 		}
 	}
 
-	public void finalizeIdCardSignature(Long mandateId, IdCardSignatureSession session, String signedHash) {
+	public String finalizeIdCardSignature(Long mandateId, IdCardSignatureSession session, String signedHash) {
 		byte[] signedFile = signService.getSignedFile(session, signedHash);
 		if (signedFile != null) {
 			persistSignedFile(mandateId, signedFile);
+			return "SIGNATURE"; // TODO: use enum
 		} else {
 			throw new IllegalStateException("There is no signed file to persist");
 		}

@@ -1,12 +1,16 @@
 package ee.tuleva.onboarding.mandate;
 
+import com.codeborne.security.mobileid.IdCardSignatureSession;
 import com.codeborne.security.mobileid.MobileIDSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
+import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
+import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.ErrorsValidationException;
 import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
+import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.MandateSignatureStatusResponse;
 import ee.tuleva.onboarding.mandate.response.MobileIdSignatureResponse;
 import ee.tuleva.onboarding.user.User;
@@ -52,31 +56,57 @@ public class MandateController {
         return mandateService.save(user, createMandateCommand);
     }
 
-    @ApiOperation(value = "Sign mandate")
-    @RequestMapping(method = PUT, value = "/mandates/{id}/signature")
-    public MobileIdSignatureResponse startSign(@PathVariable("id") Long mandateId,
-                                               @ApiIgnore @AuthenticationPrincipal User user) {
+    @ApiOperation(value = "Start signing mandate with mobile ID")
+    @RequestMapping(method = PUT, value = "/mandates/{id}/signature/mobileId")
+    public MobileIdSignatureResponse startMobileIdSignature(@PathVariable("id") Long mandateId,
+                                                            @ApiIgnore @AuthenticationPrincipal User user) {
 
         Optional<MobileIDSession> session = genericSessionStore.get(MobileIDSession.class);
         MobileIDSession loginSession = session
                 .orElseThrow(() -> new IllegalStateException("No mobile id session found"));
 
         MobileIdSignatureSession signatureSession = mandateService.mobileIdSign(mandateId, user, loginSession.phoneNumber);
-
         genericSessionStore.save(signatureSession);
 
         return new MobileIdSignatureResponse(signatureSession.challenge);
     }
 
-    @ApiOperation(value = "Is mandate successfully signed")
-    @RequestMapping(method = GET, value = "/mandates/{id}/signature")
-    public MandateSignatureStatusResponse getSignatureStatus(@PathVariable("id") Long mandateId) {
+    @ApiOperation(value = "Is mandate successfully signed with mobile ID")
+    @RequestMapping(method = GET, value = "/mandates/{id}/signature/mobileId/status")
+    public MandateSignatureStatusResponse getMobileIdSignatureStatus(@PathVariable("id") Long mandateId) {
 
         Optional<MobileIdSignatureSession> signatureSession = genericSessionStore.get(MobileIdSignatureSession.class);
         MobileIdSignatureSession session = signatureSession
                 .orElseThrow(() -> new IllegalStateException("No mobile ID signature session found"));
 
         String statusCode = mandateService.finalizeMobileIdSignature(mandateId, session);
+
+        return new MandateSignatureStatusResponse(statusCode);
+    }
+
+    @ApiOperation(value = "Start signing mandate with ID card")
+    @RequestMapping(method = PUT, value = "/mandates/{id}/signature/idCard")
+    public IdCardSignatureResponse startIdCardSign(@PathVariable("id") Long mandateId,
+                                                   @ApiIgnore @AuthenticationPrincipal User user,
+                                                   @Valid @RequestBody StartIdCardSignCommand signCommand) {
+
+        IdCardSignatureSession signatureSession = mandateService.idCardSign(mandateId, user, signCommand.getClientCertificate());
+
+        genericSessionStore.save(signatureSession);
+
+        return new IdCardSignatureResponse(signatureSession.hash);
+    }
+
+    @ApiOperation(value = "Is mandate successfully signed with ID card")
+    @RequestMapping(method = PUT, value = "/mandates/{id}/signature/idCard/status")
+    public MandateSignatureStatusResponse getIdCardSignatureStatus(@PathVariable("id") Long mandateId,
+                                                                   @Valid @RequestBody FinishIdCardSignCommand signCommand) {
+
+        Optional<IdCardSignatureSession> signatureSession = genericSessionStore.get(IdCardSignatureSession.class);
+        IdCardSignatureSession session = signatureSession
+                .orElseThrow(() -> new IllegalStateException("No ID card signature session found"));
+
+        String statusCode = mandateService.finalizeIdCardSignature(mandateId, session, signCommand.getSignedHash());
 
         return new MandateSignatureStatusResponse(statusCode);
     }
@@ -92,6 +122,7 @@ public class MandateController {
         if(mandate == null) {
             throw new MandateNotFoundException();
         } else {
+            // TODO: a more personalized filename
             response.addHeader("Content-Disposition", "attachment; filename=avaldus.bdoc");
 
             IOUtils.copy(new ByteArrayInputStream(mandate.getMandate()), response.getOutputStream());

@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
+import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.user.CsdUserPreferencesService;
 import ee.tuleva.onboarding.user.User;
@@ -16,8 +17,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static java.util.stream.Collectors.toList;
 
@@ -34,11 +38,39 @@ public class MandateService {
     private final CreateMandateCommandToMandateConverter converter;
 
     public Mandate save(User user, CreateMandateCommand createMandateCommand) {
+		validateCreateMandateCommand(createMandateCommand);
         Mandate mandate = converter.convert(createMandateCommand);
         mandate.setUser(user);
 
         return mandateRepository.save(mandate);
     }
+
+	private void validateCreateMandateCommand(CreateMandateCommand createMandateCommand) {
+		if(countValuesBiggerThanOne(summariseSourceFundTransferAmounts(createMandateCommand)) > 0) {
+			throw new InvalidMandateException();
+		};
+	}
+
+	private Map<String, BigDecimal> summariseSourceFundTransferAmounts(CreateMandateCommand createMandateCommand) {
+		Map<String, BigDecimal> summaryMap = new HashMap<>();
+
+		createMandateCommand.getFundTransferExchanges().forEach( fte -> {
+			if (!summaryMap.containsKey(fte.getSourceFundIsin())) {
+				summaryMap.put(fte.getSourceFundIsin(), new BigDecimal(0));
+			}
+
+			summaryMap.put(
+					fte.getSourceFundIsin(),
+					summaryMap.get(fte.getSourceFundIsin()).add(fte.getAmount())
+			);
+		});
+
+		return summaryMap;
+	}
+
+	private long countValuesBiggerThanOne(Map<String, BigDecimal> summaryMap) {
+		return summaryMap.values().stream().filter( value -> value.compareTo(BigDecimal.ONE) > 0).count();
+	}
 
 	public MobileIdSignatureSession mobileIdSign(Long mandateId, User user, String phoneNumber) {
         List<SignatureFile> files = getMandateFiles(mandateId, user);

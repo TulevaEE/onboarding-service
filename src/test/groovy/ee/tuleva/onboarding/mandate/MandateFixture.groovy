@@ -24,6 +24,24 @@ public class MandateFixture {
         ]
     }
 
+    public static CreateMandateCommand invalidCreateMandateCommand() {
+        return [
+                "fundTransferExchanges": [
+                        new MandateFundTransferExchangeCommand(
+                                "amount": 0.88,
+                                "sourceFundIsin": "SOMEISIN",
+                                "targetFundIsin": futureContibutionFundIsin
+                        ),
+                        new MandateFundTransferExchangeCommand(
+                                "amount": 0.90,
+                                "sourceFundIsin": "SOMEISIN",
+                                "targetFundIsin": futureContibutionFundIsin
+                        )
+                ],
+                "futureContributionFundIsin": futureContibutionFundIsin
+        ]
+    }
+
     public static Mandate sampleMandate() {
         Mandate mandate = Mandate.builder()
                 .fundTransferExchanges([

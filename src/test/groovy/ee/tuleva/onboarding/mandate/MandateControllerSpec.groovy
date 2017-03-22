@@ -3,10 +3,12 @@ package ee.tuleva.onboarding.mandate
 import com.codeborne.security.mobileid.IdCardSignatureSession
 import com.codeborne.security.mobileid.MobileIDSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
+import com.codeborne.security.mobileid.SignatureFile
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.MvcResult
 
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static org.hamcrest.Matchers.is
@@ -18,8 +20,10 @@ class MandateControllerSpec extends BaseControllerSpec {
     MandateRepository mandateRepository = Mock(MandateRepository)
     MandateService mandateService = Mock(MandateService)
     GenericSessionStore sessionStore = Mock(GenericSessionStore)
+    SignatureFileArchiver signatureFileArchiver = Mock(SignatureFileArchiver)
 
-    MandateController controller = new MandateController(mandateRepository, mandateService, sessionStore)
+    MandateController controller =
+            new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver)
 
     MockMvc mvc = mockMvc(controller)
 
@@ -114,9 +118,30 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .findByIdAndUser(sampleMandate().id, _) >> sampleMandate()
 
         then:
-        mvc
+        MvcResult result = mvc
                 .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
                 .andExpect(status().isOk())
+                .andReturn()
+
+        result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.bdoc"
+    }
+
+    def "getMandateFilePreview: returns mandate preview file"() {
+        when:
+
+        List<SignatureFile> files = [new SignatureFile("filename", "text/html", "content".getBytes())]
+
+        1 * mandateService.getMandateFiles(sampleMandate().id, _) >> files
+        1 * signatureFileArchiver.writeSignatureFilesToZipOutputStream(files, _ as OutputStream)
+
+        then:
+        MvcResult result = mvc
+                .perform(get("/v1/mandates/" + sampleMandate().id + "/file/preview"))
+                .andExpect(status().isOk())
+                .andReturn()
+
+        result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.zip"
+
     }
 
     def "getMandateFile returns not found on non existing mandate file"() {

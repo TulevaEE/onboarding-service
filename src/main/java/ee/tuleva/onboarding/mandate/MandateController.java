@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate;
 import com.codeborne.security.mobileid.IdCardSignatureSession;
 import com.codeborne.security.mobileid.MobileIDSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
+import com.codeborne.security.mobileid.SignatureFile;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
@@ -29,6 +30,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 
 import static org.springframework.web.bind.annotation.RequestMethod.*;
@@ -41,6 +43,7 @@ public class MandateController {
     private final MandateRepository mandateRepository;
     private final MandateService mandateService;
     private final GenericSessionStore genericSessionStore;
+    private final SignatureFileArchiver signatureFileArchiver;
 
     @ApiOperation(value = "Create a mandate")
     @RequestMapping(method = POST, value = "/mandates")
@@ -117,18 +120,36 @@ public class MandateController {
                                @ApiIgnore @AuthenticationPrincipal User user,
                                HttpServletResponse response) throws IOException {
 
+        Mandate mandate = getMandateOrThrow(mandateId, user);
+        response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.bdoc");
+
+        IOUtils.copy(new ByteArrayInputStream(mandate.getMandate()), response.getOutputStream());
+        response.flushBuffer();
+
+    }
+
+    @ApiOperation(value = "Get mandate file")
+    @RequestMapping(method = GET, value = "/mandates/{id}/file/preview", produces="application/zip")
+    public void getMandateFilePreview(@PathVariable("id") Long mandateId,
+                               @ApiIgnore @AuthenticationPrincipal User user,
+                               HttpServletResponse response) throws IOException {
+
+        List<SignatureFile> files = mandateService.getMandateFiles(mandateId, user);
+        response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.zip");
+
+        signatureFileArchiver.writeSignatureFilesToZipOutputStream(files, response.getOutputStream());
+        response.flushBuffer();
+
+    }
+
+    private Mandate getMandateOrThrow(Long mandateId, User user) {
         Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
 
         if(mandate == null) {
             throw new MandateNotFoundException();
-        } else {
-            // TODO: a more personalized filename
-            response.addHeader("Content-Disposition", "attachment; filename=avaldus.bdoc");
-
-            IOUtils.copy(new ByteArrayInputStream(mandate.getMandate()), response.getOutputStream());
-            response.flushBuffer();
         }
 
+        return mandate;
     }
 
 }

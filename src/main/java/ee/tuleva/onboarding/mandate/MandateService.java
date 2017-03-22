@@ -82,7 +82,7 @@ public class MandateService {
 		return signService.startSign(files, signingCertificate);
 	}
 
-    private List<SignatureFile> getMandateFiles(Long mandateId, User user) {
+    public List<SignatureFile> getMandateFiles(Long mandateId, User user) {
         Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
 
         List<Fund> funds = new ArrayList<>();

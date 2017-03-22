@@ -65,6 +65,20 @@ class MandateServiceSpec extends Specification {
         thrown InvalidMandateException
     }
 
+    def "getMandateFiles: generates mandate content files"() {
+        given:
+        User user = sampleUser()
+        mockMandateFiles(user, sampleMandateId)
+
+        when:
+        List<SignatureFile> files = service.getMandateFiles(sampleMandateId, user)
+
+        then:
+        files.size() == 1
+        files.get(0).mimeType == "html/text"
+        files.get(0).content != null
+    }
+
     def "mobile id signing works"() {
         given:
         def user = sampleUser()

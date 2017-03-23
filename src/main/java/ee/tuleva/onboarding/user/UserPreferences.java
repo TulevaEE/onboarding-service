@@ -36,7 +36,7 @@ public class UserPreferences {
 
     private LanguagePreferenceType languagePreference;
 
-    private int noticeNeeded; //enum { '0', '1' }
+    private Integer noticeNeeded; //enum { '0', '1' }
 
     public static UserPreferences defaultUserPreferences() {
         return UserPreferences.builder()

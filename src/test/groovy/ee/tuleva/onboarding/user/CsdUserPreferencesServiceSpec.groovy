@@ -10,7 +10,7 @@ import spock.lang.Specification
 class CsdUserPreferencesServiceSpec extends Specification {
 
 
-    def "preferences service works"() {
+    def "getPreferences: get preferences for id code"() {
         given:
         KPRClient kprClient = Mock(KPRClient)
         CsdUserPreferencesService preferencesService = new CsdUserPreferencesService(kprClient)

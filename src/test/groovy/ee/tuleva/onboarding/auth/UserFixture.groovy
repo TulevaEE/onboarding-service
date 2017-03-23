@@ -34,4 +34,114 @@ public class UserFixture {
                 .noticeNeeded(1)
                 .build();
     }
+
+
+    public static List<UserPreferences> userPreferencesWithContactPreferencesPartiallyEmpty() {
+        return [
+                UserPreferences.builder()
+                        .addressRow1("Tatari 19-17")
+                        .addressRow2("TALLINN")
+                        .addressRow3("TALLINN")
+                        .country("EE")
+                        .postalIndex("12345")
+                        .districtCode("0784")
+                        .contactPreference(null)
+                        .languagePreference(UserPreferences.LanguagePreferenceType.EST)
+                        .noticeNeeded(1)
+                        .build(),
+                UserPreferences.builder()
+                        .addressRow1("Tatari 19-17")
+                        .addressRow2("TALLINN")
+                        .addressRow3("TALLINN")
+                        .country("EE")
+                        .postalIndex("12345")
+                        .districtCode("0784")
+                        .contactPreference(UserPreferences.ContactPreferenceType.E)
+                        .languagePreference(null)
+                        .noticeNeeded(1)
+                        .build(),
+                UserPreferences.builder()
+                        .addressRow1("Tatari 19-17")
+                        .addressRow2("TALLINN")
+                        .addressRow3("TALLINN")
+                        .country("EE")
+                        .postalIndex("12345")
+                        .districtCode("0784")
+                        .contactPreference(UserPreferences.ContactPreferenceType.E)
+                        .languagePreference(UserPreferences.LanguagePreferenceType.EST)
+                        .noticeNeeded(null)
+                        .build()
+        ]
+    }
+    public static List<UserPreferences> userPreferencesWithAddresPartiallyEmpty() {
+        return [
+            UserPreferences.builder()
+                .addressRow1("")
+                .addressRow2("TALLINN")
+                .addressRow3("TALLINN")
+                .country("EE")
+                .postalIndex("12345")
+                .districtCode("0784")
+                .contactPreference(UserPreferences.ContactPreferenceType.E)
+                .languagePreference(UserPreferences.LanguagePreferenceType.EST)
+                .noticeNeeded(1)
+                .build(),
+            UserPreferences.builder()
+                    .addressRow1("Tatari 19-17")
+                    .addressRow2("")
+                    .addressRow3("TALLINN")
+                    .country("EE")
+                    .postalIndex("12345")
+                    .districtCode("0784")
+                    .contactPreference(UserPreferences.ContactPreferenceType.E)
+                    .languagePreference(UserPreferences.LanguagePreferenceType.EST)
+                    .noticeNeeded(1)
+                    .build(),
+            UserPreferences.builder()
+                    .addressRow1("Tatari 19-17")
+                    .addressRow2("TALLINN")
+                    .addressRow3("")
+                    .country("EE")
+                    .postalIndex("12345")
+                    .districtCode("0784")
+                    .contactPreference(UserPreferences.ContactPreferenceType.E)
+                    .languagePreference(UserPreferences.LanguagePreferenceType.EST)
+                    .noticeNeeded(1)
+                    .build(),
+            UserPreferences.builder()
+                    .addressRow1("Tatari 19-17")
+                    .addressRow2("TALLINN")
+                    .addressRow3("TALLINN")
+                    .country("")
+                    .postalIndex("12345")
+                    .districtCode("0784")
+                    .contactPreference(UserPreferences.ContactPreferenceType.E)
+                    .languagePreference(UserPreferences.LanguagePreferenceType.EST)
+                    .noticeNeeded(1)
+                    .build(),
+            UserPreferences.builder()
+                    .addressRow1("Tatari 19-17")
+                    .addressRow2("TALLINN")
+                    .addressRow3("TALLINN")
+                    .country("EE")
+                    .postalIndex("")
+                    .districtCode("0784")
+                    .contactPreference(UserPreferences.ContactPreferenceType.E)
+                    .languagePreference(UserPreferences.LanguagePreferenceType.EST)
+                    .noticeNeeded(1)
+                    .build(),
+            UserPreferences.builder()
+                    .addressRow1("Tatari 19-17")
+                    .addressRow2("TALLINN")
+                    .addressRow3("TALLINN")
+                    .country("EE")
+                    .postalIndex("12345")
+                    .districtCode("")
+                    .contactPreference(UserPreferences.ContactPreferenceType.E)
+                    .languagePreference(UserPreferences.LanguagePreferenceType.EST)
+                    .noticeNeeded(1)
+                    .build(),
+                ]
+    }
+
 }

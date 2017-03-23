@@ -17,6 +17,8 @@ import ee.tuleva.onboarding.user.UserPreferences
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserPreferences
+import static ee.tuleva.onboarding.auth.UserFixture.userPreferencesWithAddresPartiallyEmpty
+import static ee.tuleva.onboarding.auth.UserFixture.userPreferencesWithContactPreferencesPartiallyEmpty
 import static ee.tuleva.onboarding.mandate.MandateFixture.invalidCreateMandateCommand
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleCreateMandateCommand
 
@@ -68,7 +70,14 @@ class MandateServiceSpec extends Specification {
     def "getMandateFiles: generates mandate content files"() {
         given:
         User user = sampleUser()
-        mockMandateFiles(user, sampleMandateId)
+        UserPreferences sampleUserPreferences = sampleUserPreferences()
+        mockMandateFiles(user, sampleMandateId, sampleUserPreferences)
+
+        1 * mandateContentCreator.
+                getContentFiles(_ as User,
+                        _ as Mandate,
+                        _ as List,
+                        sampleUserPreferences) >> sampleFiles()
 
         when:
         List<SignatureFile> files = service.getMandateFiles(sampleMandateId, user)
@@ -76,13 +85,68 @@ class MandateServiceSpec extends Specification {
         then:
         files.size() == 1
         files.get(0).mimeType == "html/text"
-        files.get(0).content != null
+        files.get(0).content.length == 4
+    }
+
+    def "getMandateFiles: on empty user address preferences generates mandate content files with defaults"() {
+        given:
+        User user = sampleUser()
+        UserPreferences sampleUserPreferences = userPreferencesWithAddresPartiallyEmpty()[0]
+        mockMandateFiles(user, sampleMandateId, sampleUserPreferences)
+
+        1 * mandateContentCreator.
+                getContentFiles(_ as User,
+                        _ as Mandate,
+                        _ as List,
+                        { UserPreferences it ->
+                            it.addressRow1 == UserPreferences.defaultUserPreferences().addressRow1
+                            it.addressRow2 == UserPreferences.defaultUserPreferences().addressRow2
+                            it.addressRow3 == UserPreferences.defaultUserPreferences().addressRow3
+                            it.getCountry() == UserPreferences.defaultUserPreferences().getCountry()
+                            it.getDistrictCode() == UserPreferences.defaultUserPreferences().getDistrictCode()
+                            it.getPostalIndex() == UserPreferences.defaultUserPreferences().getPostalIndex()
+                        }) >> sampleFiles()
+
+        when:
+        List<SignatureFile> files = service.getMandateFiles(sampleMandateId, user)
+
+        then:
+        files.size() == 1
+        files.get(0).mimeType == "html/text"
+        files.get(0).content.length == 4
+    }
+
+    def "getMandateFiles: on empty user contact preferences generates mandate content files with defaults"() {
+        given:
+        User user = sampleUser()
+        UserPreferences sampleUserPreferences = userPreferencesWithContactPreferencesPartiallyEmpty()[0]
+
+        mockMandateFiles(user, sampleMandateId, sampleUserPreferences)
+
+        1 * mandateContentCreator.
+                getContentFiles(_ as User,
+                        _ as Mandate,
+                        _ as List,
+                        { UserPreferences it ->
+                            it.languagePreference == UserPreferences.defaultUserPreferences().languagePreference
+                            it.contactPreference == UserPreferences.defaultUserPreferences().contactPreference
+                            it.noticeNeeded == UserPreferences.defaultUserPreferences().noticeNeeded
+                        }) >> sampleFiles()
+
+        when:
+        List<SignatureFile> files = service.getMandateFiles(sampleMandateId, user)
+
+        then:
+        files.size() == 1
+        files.get(0).mimeType == "html/text"
+        files.get(0).content.length == 4
     }
 
     def "mobile id signing works"() {
         given:
         def user = sampleUser()
-        mockMandateFiles(user, sampleMandateId)
+        mockMandateFiles(user, sampleMandateId, sampleUserPreferences())
+        mockMandateFilesResponse()
         1 * signService.startSign(_ as List<SignatureFile>, user.getPersonalCode(), user.getPhoneNumber()) >>
                 new MobileIdSignatureSession(1, "1234")
 
@@ -129,7 +193,8 @@ class MandateServiceSpec extends Specification {
     def "id card signing works"() {
         given:
         def user = sampleUser()
-        mockMandateFiles(user, sampleMandateId)
+        mockMandateFiles(user, sampleMandateId, sampleUserPreferences())
+        mockMandateFilesResponse()
 
         signService.startSign(_ as List<SignatureFile>, "signingCertificate") >>
                 new IdCardSignatureSession(1, "sigId", "hash")
@@ -169,16 +234,22 @@ class MandateServiceSpec extends Specification {
         thrown(IllegalStateException)
     }
 
-    def mockMandateFiles(User user, Long mandateId) {
+    def mockMandateFiles(User user, Long mandateId, UserPreferences userPreferences) {
         1 * mandateRepository.findByIdAndUser(mandateId, user) >> sampleMandate()
         1 * fundRepository.findAll() >> [new Fund(), new Fund()]
-        1 * csdUserPreferencesService.getPreferences(user.getPersonalCode()) >> sampleUserPreferences()
+        1 * csdUserPreferencesService.getPreferences(user.getPersonalCode()) >> userPreferences
+    }
 
+    def mockMandateFilesResponse() {
         1 * mandateContentCreator.
                 getContentFiles(_ as User,
                         _ as Mandate,
                         _ as List,
-                        _ as UserPreferences) >> [new MandateContentFile("file", "html/text", "file".getBytes())]
+                        _ as UserPreferences) >> sampleFiles()
+    }
+
+    List<MandateContentFile> sampleFiles() {
+        return [new MandateContentFile("file", "html/text", "file".getBytes())]
     }
 
     User sampleUser() {

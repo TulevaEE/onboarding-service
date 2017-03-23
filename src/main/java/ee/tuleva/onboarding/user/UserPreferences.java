@@ -38,4 +38,21 @@ public class UserPreferences {
 
     private int noticeNeeded; //enum { '0', '1' }
 
+    public static UserPreferences defaultUserPreferences() {
+        return UserPreferences.builder()
+                .addressRow1("Tuleva, Telliskivi 60")
+                .addressRow2("TALLINN")
+                .addressRow3("TALLINN")
+                .country("EE")
+                .postalIndex("10412")
+                .districtCode("0784")
+                .contactPreference(UserPreferences.ContactPreferenceType.valueOf("E"))
+                .languagePreference(
+                        (UserPreferences.LanguagePreferenceType.valueOf(
+                                "EST")
+                        ))
+                .noticeNeeded(1)
+                .build();
+    }
+
 }

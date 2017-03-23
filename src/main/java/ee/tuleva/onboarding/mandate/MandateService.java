@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
-import ee.tuleva.onboarding.mandate.exception.InvalidMandateAddressException;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.user.CsdUserPreferencesService;

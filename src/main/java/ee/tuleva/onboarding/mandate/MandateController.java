@@ -6,10 +6,12 @@ import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.codeborne.security.mobileid.SignatureFile;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import ee.tuleva.onboarding.comparisons.exceptions.ErrorsValidationException;
+import ee.tuleva.onboarding.error.ValidationErrorsException;
+import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.exception.ErrorsValidationException;
 import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.MandateSignatureStatusResponse;
@@ -17,7 +19,9 @@ import ee.tuleva.onboarding.mandate.response.MobileIdSignatureResponse;
 import ee.tuleva.onboarding.user.User;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,6 +39,7 @@ import java.util.Optional;
 
 import static org.springframework.web.bind.annotation.RequestMethod.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/v1")
 @RequiredArgsConstructor
@@ -49,11 +54,11 @@ public class MandateController {
     @RequestMapping(method = POST, value = "/mandates")
     @JsonView(MandateView.Default.class)
     public Mandate create(@ApiIgnore @AuthenticationPrincipal User user,
-                          @Valid @RequestBody CreateMandateCommand createMandateCommand,
-                          @ApiIgnore @Valid Errors errors) {
-
+                                 @Valid @RequestBody CreateMandateCommand createMandateCommand,
+                                 @ApiIgnore @Valid Errors errors) throws ValidationErrorsException {
         if (errors.hasErrors()) {
-            throw new ErrorsValidationException(errors);
+            log.info("Create mandate command is not valid: {}", errors);
+            throw new ValidationErrorsException(errors);
         }
 
         return mandateService.save(user, createMandateCommand);

@@ -6,6 +6,7 @@ import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
@@ -36,9 +37,23 @@ class MandateControllerSpec extends BaseControllerSpec {
                 ))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-//TODO                .andExpect(jsonPath('$.futureContributionFundIsin', is(MandateFixture.sampleMandate().futureContributionFundIsin)))
+// FIXME               .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+// TODO                .andExpect(jsonPath('$.futureContributionFundIsin', is(MandateFixture.sampleMandate().futureContributionFundIsin)))
 
+    }
+
+    def "save a invalid mandate body will fail"() {
+        given:
+        CreateMandateCommand invalidCreateMandateCommand = [:]
+
+        expect:
+        mvc
+                .perform(post("/v1/mandates/").content(
+                mapper.writeValueAsString(
+                        invalidCreateMandateCommand
+                ))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
     }
 
     def "mobile id signature start returns the mobile id challenge code"() {

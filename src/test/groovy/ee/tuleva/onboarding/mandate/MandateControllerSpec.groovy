@@ -6,7 +6,7 @@ import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
-import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
+import ee.tuleva.onboarding.user.User
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
@@ -37,23 +37,9 @@ class MandateControllerSpec extends BaseControllerSpec {
                 ))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-// FIXME               .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-// TODO                .andExpect(jsonPath('$.futureContributionFundIsin', is(MandateFixture.sampleMandate().futureContributionFundIsin)))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+//TODO                .andExpect(jsonPath('$.futureContributionFundIsin', is(MandateFixture.sampleMandate().futureContributionFundIsin)))
 
-    }
-
-    def "save a invalid mandate body will fail"() {
-        given:
-        CreateMandateCommand invalidCreateMandateCommand = [:]
-
-        expect:
-        mvc
-                .perform(post("/v1/mandates/").content(
-                mapper.writeValueAsString(
-                        invalidCreateMandateCommand
-                ))
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
     }
 
     def "mobile id signature start returns the mobile id challenge code"() {
@@ -87,7 +73,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         when:
         def session = new MobileIdSignatureSession(1, "1234")
         sessionStore.get(MobileIdSignatureSession) >> Optional.of(session)
-        mandateService.finalizeMobileIdSignature(1L, session) >> "SIGNATURE"
+        mandateService.finalizeMobileIdSignature(_ as User, 1L, session) >> "SIGNATURE"
 
         then:
         mvc
@@ -115,7 +101,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         when:
         def session = new IdCardSignatureSession(1, "sigId", "hash")
         sessionStore.get(IdCardSignatureSession) >> Optional.of(session)
-        mandateService.finalizeIdCardSignature(1L, session, "signedHash") >> "SIGNATURE"
+        mandateService.finalizeIdCardSignature(_ as User, 1L, session, "signedHash") >> "SIGNATURE"
 
         then:
         mvc

@@ -55,6 +55,15 @@ mobile-id:
 truststore:
   path: "test_keys/truststore.jks"
 
+mandate:
+  email:
+    from: "avaldused@tuleva.ee"
+    to: "jordan.valdma@gmail.com"
+    bcc: "avaldused@tuleva.ee"
+
+mandrill:
+  key: ${MANDRILL_KEY}
+
 ---
 
 spring:

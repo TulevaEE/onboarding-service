@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
+import ee.tuleva.onboarding.mandate.email.EmailService
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.signature.SignatureService
 import ee.tuleva.onboarding.user.CsdUserPreferencesService
@@ -30,9 +31,10 @@ class MandateServiceSpec extends Specification {
     FundRepository fundRepository = Mock(FundRepository)
     CsdUserPreferencesService csdUserPreferencesService = Mock(CsdUserPreferencesService)
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter()
+    EmailService emailService = Mock(EmailService)
 
     MandateService service = new MandateService(mandateRepository, signService, fundRepository,
-            mandateContentCreator, csdUserPreferencesService, converter)
+            mandateContentCreator, csdUserPreferencesService, converter, emailService)
 
     Long sampleMandateId = 1L
 
@@ -165,7 +167,7 @@ class MandateServiceSpec extends Specification {
         mandateRepository.save({ Mandate it -> it.mandate == "file".getBytes() }) >> sampleMandate()
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleMandateId, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser(), sampleMandateId, new MobileIdSignatureSession(0, null))
 
         then:
         status == expectedStatus
@@ -179,12 +181,14 @@ class MandateServiceSpec extends Specification {
     def "mobile id signed mandate is saved"() {
         given:
         byte[] file = "file".getBytes()
+        User sampleUser = sampleUser()
         1 * signService.getSignedFile(_) >> file
         1 * mandateRepository.findOne(sampleMandateId) >> sampleMandate()
         1 * mandateRepository.save({ Mandate it -> it.mandate == file }) >> sampleMandate()
+        1 * emailService.send(sampleUser, sampleMandateId, file)
 
         when:
-        service.finalizeMobileIdSignature(sampleMandateId, new MobileIdSignatureSession(0, null))
+        service.finalizeMobileIdSignature(sampleUser, sampleMandateId, new MobileIdSignatureSession(0, null))
 
         then:
         true
@@ -210,13 +214,15 @@ class MandateServiceSpec extends Specification {
 
     def "id card signed mandate is saved"() {
         given:
-        def file = "file".getBytes()
-        def session = new IdCardSignatureSession(1, "sigId", "hash")
+        byte[] file = "file".getBytes()
+        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
+        User sampleUser = sampleUser()
         1 * signService.getSignedFile(session, "signedHash") >> file
         1 * mandateRepository.findOne(sampleMandateId) >> sampleMandate()
+        1 * emailService.send(sampleUser, sampleMandateId, file)
 
         when:
-        service.finalizeIdCardSignature(sampleMandateId, session, "signedHash")
+        service.finalizeIdCardSignature(sampleUser, sampleMandateId, session, "signedHash")
 
         then:
         1 * mandateRepository.save({ Mandate it -> it.mandate == file })
@@ -224,11 +230,11 @@ class MandateServiceSpec extends Specification {
 
     def "id card signature finalization throws exception when no signed file exist"() {
         given:
-        def session = new IdCardSignatureSession(1, "sigId", "hash")
+        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
         1 * signService.getSignedFile(session, "signedHash") >> null
 
         when:
-        service.finalizeIdCardSignature(sampleMandateId, session, "signedHash")
+        service.finalizeIdCardSignature(sampleUser(), sampleMandateId, session, "signedHash")
 
         then:
         thrown(IllegalStateException)

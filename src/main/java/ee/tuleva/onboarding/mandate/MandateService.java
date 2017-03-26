@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
+import ee.tuleva.onboarding.mandate.email.EmailService;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.user.CsdUserPreferencesService;
@@ -35,6 +36,7 @@ public class MandateService {
 	private final MandateContentCreator mandateContentCreator;
 	private final CsdUserPreferencesService csdUserPreferencesService;
     private final CreateMandateCommandToMandateConverter converter;
+	private final EmailService emailService;
 
     public Mandate save(User user, CreateMandateCommand createMandateCommand) {
 		validateCreateMandateCommand(createMandateCommand);
@@ -132,25 +134,31 @@ public class MandateService {
 		return userPreferences;
 	}
 
-    public String finalizeMobileIdSignature(Long mandateId, MobileIdSignatureSession session) {
+    public String finalizeMobileIdSignature(User user, Long mandateId, MobileIdSignatureSession session) {
 		byte[] signedFile = signService.getSignedFile(session);
 
 		if (signedFile != null) {
 			persistSignedFile(mandateId, signedFile);
+			notifyMandateProcessor(user, mandateId, signedFile);
 			return "SIGNATURE"; // TODO: use enum
 		} else {
 			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
 		}
 	}
 
-	public String finalizeIdCardSignature(Long mandateId, IdCardSignatureSession session, String signedHash) {
+	public String finalizeIdCardSignature(User user, Long mandateId, IdCardSignatureSession session, String signedHash) {
 		byte[] signedFile = signService.getSignedFile(session, signedHash);
 		if (signedFile != null) {
 			persistSignedFile(mandateId, signedFile);
+			notifyMandateProcessor(user, mandateId, signedFile);
 			return "SIGNATURE"; // TODO: use enum
 		} else {
 			throw new IllegalStateException("There is no signed file to persist");
 		}
+	}
+
+	private void notifyMandateProcessor(User user, Long mandateId, byte[] signedFile) {
+		emailService.send(user, mandateId, signedFile);
 	}
 
 	private void persistSignedFile(Long mandateId, byte[] signedFile) {

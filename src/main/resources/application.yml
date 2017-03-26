@@ -61,9 +61,6 @@ mandate:
     to: "jordan.valdma@gmail.com"
     bcc: "avaldused@tuleva.ee"
 
-mandrill:
-  key: ${MANDRILL_KEY}
-
 ---
 
 spring:
@@ -105,3 +102,6 @@ endpoints:
   enabled: false
   health:
     enabled: true
+
+mandrill:
+  key: ${MANDRILL_KEY}

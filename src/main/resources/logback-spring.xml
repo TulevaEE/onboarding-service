@@ -7,16 +7,16 @@
 	</appender>
 
 	<!-- Configure the Sentry appender, overriding the logging threshold to the WARN level -->
-	<appender name="Sentry" class="com.getsentry.raven.logback.SentryAppender">
-		<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-			<level>WARN</level>
-		</filter>
-	</appender>
+	<!--<appender name="Sentry" class="com.getsentry.raven.logback.SentryAppender">-->
+		<!--<filter class="ch.qos.logback.classic.filter.ThresholdFilter">-->
+			<!--<level>WARN</level>-->
+		<!--</filter>-->
+	<!--</appender>-->
 
 	<springProfile name="production">
 		<springProperty name="rollbarAccessToken" source="logging.rollbar.accessToken"/>
 		<appender name="ROLLBAR" class="com.tapstream.rollbar.RollbarAppender">
-			<apiKey>${rollbarAccessToken}</apiKey>p
+			<apiKey>${rollbarAccessToken}</apiKey>
 			<environment>production</environment>
 			<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
 				<level>ERROR</level>

@@ -31,10 +31,8 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "save a mandate"() {
         expect:
         mvc
-                .perform(post("/v1/mandates/").content(
-                mapper.writeValueAsString(
-                        MandateFixture.sampleCreateMandateCommand()
-                ))
+                .perform(post("/v1/mandates/")
+                .content(mapper.writeValueAsString(sampleCreateMandateCommand()))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))

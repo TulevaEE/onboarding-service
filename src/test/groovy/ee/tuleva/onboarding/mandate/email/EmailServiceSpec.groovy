@@ -14,7 +14,7 @@ class EmailServiceSpec extends Specification {
         mandateEmailConfiguration.to >> "jordanvaldma@gmail.com"
         mandateEmailConfiguration.from >> "avaldused@tuleva.ee"
         mandateEmailConfiguration.bcc >> "avaldused@tuleva.ee"
-        mandateEmailConfiguration.mandrillKey >> "ffuAx8sTNIXaMP2YRN-F-w"
+        mandateEmailConfiguration.mandrillKey >> ""
 
         service.initialize()
 

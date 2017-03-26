@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate.email;
 
-import com.codeborne.security.mobileid.SignatureFile;
 import com.microtripit.mandrillapp.lutung.MandrillApi;
 import com.microtripit.mandrillapp.lutung.model.MandrillApiError;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;

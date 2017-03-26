@@ -84,7 +84,7 @@ ssl:
 
 proxy:
   url: ${QUOTAGUARDSTATIC_URL}
-  nonProxyHosts: "localhost"
+  nonProxyHosts: "mandrillapp.com|localhost"
 
 mobile-id:
   service:

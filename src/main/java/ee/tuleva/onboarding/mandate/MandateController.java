@@ -78,13 +78,14 @@ public class MandateController {
 
     @ApiOperation(value = "Is mandate successfully signed with mobile ID")
     @RequestMapping(method = GET, value = "/mandates/{id}/signature/mobileId/status")
-    public MandateSignatureStatusResponse getMobileIdSignatureStatus(@PathVariable("id") Long mandateId) {
+    public MandateSignatureStatusResponse getMobileIdSignatureStatus(@PathVariable("id") Long mandateId,
+                                                                     @ApiIgnore @AuthenticationPrincipal User user) {
 
         Optional<MobileIdSignatureSession> signatureSession = genericSessionStore.get(MobileIdSignatureSession.class);
         MobileIdSignatureSession session = signatureSession
                 .orElseThrow(() -> new IllegalStateException("No mobile ID signature session found"));
 
-        String statusCode = mandateService.finalizeMobileIdSignature(mandateId, session);
+        String statusCode = mandateService.finalizeMobileIdSignature(user, mandateId, session);
 
         return new MandateSignatureStatusResponse(statusCode);
     }
@@ -105,13 +106,14 @@ public class MandateController {
     @ApiOperation(value = "Is mandate successfully signed with ID card")
     @RequestMapping(method = PUT, value = "/mandates/{id}/signature/idCard/status")
     public MandateSignatureStatusResponse getIdCardSignatureStatus(@PathVariable("id") Long mandateId,
-                                                                   @Valid @RequestBody FinishIdCardSignCommand signCommand) {
+                                                                   @Valid @RequestBody FinishIdCardSignCommand signCommand,
+                                                                   @ApiIgnore @AuthenticationPrincipal User user) {
 
         Optional<IdCardSignatureSession> signatureSession = genericSessionStore.get(IdCardSignatureSession.class);
         IdCardSignatureSession session = signatureSession
                 .orElseThrow(() -> new IllegalStateException("No ID card signature session found"));
 
-        String statusCode = mandateService.finalizeIdCardSignature(mandateId, session, signCommand.getSignedHash());
+        String statusCode = mandateService.finalizeIdCardSignature(user, mandateId, session, signCommand.getSignedHash());
 
         return new MandateSignatureStatusResponse(statusCode);
     }

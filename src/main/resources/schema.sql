@@ -82,3 +82,10 @@ CREATE TABLE IF NOT EXISTS fund_transfer_exchange (
   target_fund_isin VARCHAR NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS fund_transfer_exchange_statistics (
+  id SERIAL PRIMARY KEY,
+  value DECIMAL(12,2) NOT NULL,
+  amount DECIMAL(4,2) NOT NULL,
+  source_fund_isin VARCHAR NOT NULL,
+  target_fund_isin VARCHAR NOT NULL
+);

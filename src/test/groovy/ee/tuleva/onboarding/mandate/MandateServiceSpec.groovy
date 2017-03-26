@@ -12,6 +12,8 @@ import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.email.EmailService
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.signature.SignatureService
+import ee.tuleva.onboarding.mandate.statistics.FundTransferExchangeStatistics
+import ee.tuleva.onboarding.mandate.statistics.FundTransferExchangeStatisticsRepository
 import ee.tuleva.onboarding.user.CsdUserPreferencesService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserPreferences
@@ -32,9 +34,10 @@ class MandateServiceSpec extends Specification {
     CsdUserPreferencesService csdUserPreferencesService = Mock(CsdUserPreferencesService)
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter()
     EmailService emailService = Mock(EmailService)
+    FundTransferExchangeStatisticsRepository fundTransferExchangeStatisticsRepository = Mock(FundTransferExchangeStatisticsRepository)
 
     MandateService service = new MandateService(mandateRepository, signService, fundRepository,
-            mandateContentCreator, csdUserPreferencesService, converter, emailService)
+            mandateContentCreator, csdUserPreferencesService, converter, emailService, fundTransferExchangeStatisticsRepository)
 
     Long sampleMandateId = 1L
 
@@ -191,6 +194,8 @@ class MandateServiceSpec extends Specification {
         service.finalizeMobileIdSignature(sampleUser, sampleMandateId, new MobileIdSignatureSession(0, null))
 
         then:
+        1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser)
+        1 * fundTransferExchangeStatisticsRepository.save(_ as FundTransferExchangeStatistics)
         true
     }
 
@@ -226,6 +231,9 @@ class MandateServiceSpec extends Specification {
 
         then:
         1 * mandateRepository.save({ Mandate it -> it.mandate == file })
+        1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser)
+        1 * fundTransferExchangeStatisticsRepository.save(_ as FundTransferExchangeStatistics)
+
     }
 
     def "id card signature finalization throws exception when no signed file exist"() {

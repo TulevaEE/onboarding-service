@@ -13,6 +13,21 @@
 		</filter>
 	</appender>
 
+	<springProfile name="production">
+		<springProperty name="rollbarAccessToken" source="logging.rollbar.accessToken"/>
+		<appender name="ROLLBAR" class="com.tapstream.rollbar.RollbarAppender">
+			<apiKey>${rollbarAccessToken}</apiKey>p
+			<environment>production</environment>
+			<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+				<level>ERROR</level>
+			</filter>
+		</appender>
+
+		<root level="INFO">
+			<appender-ref ref="ROLLBAR"/>
+		</root>
+	</springProfile>
+
 	<!-- Enable the Console and Sentry appenders, Console is provided as an example
 		 of a non-Raven logger that is set to a different logging threshold -->
 	<root level="INFO">

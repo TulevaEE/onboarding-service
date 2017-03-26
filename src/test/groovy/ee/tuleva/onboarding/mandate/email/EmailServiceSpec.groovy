@@ -20,7 +20,7 @@ class EmailServiceSpec extends Specification {
 
     }
 
-//    @Ignore
+    @Ignore
     def "Send"() {
         given:
         String senderSignatureName = "Jordan Valdma";

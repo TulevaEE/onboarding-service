@@ -17,7 +17,7 @@ public class MandateEmailConfiguration {
     @Value("${mandate.email.bcc}")
     private String bcc;
 
-    @Value("${mandrill.key}")
+    @Value("${mandrill.key:}")
     private String mandrillKey;
 
 }

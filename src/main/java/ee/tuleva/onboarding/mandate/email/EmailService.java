@@ -66,8 +66,12 @@ public class EmailService {
     }
 
     private String getHtml(User user) {
-        return "<h1>Tere!</h1><br />Manuses on avaldus Eesti Väärtpaberikeskusele. <br/><br/> " +
-                user.getFirstName() + " " + user.getLastName();
+        return (new StringBuilder())
+                .append("Tere. <br/>")
+                .append("Lisatud on minu pensionifondi valiku- ja vahetusavaldused. <br/><br/>")
+                .append("Lugupidamisega </br>")
+                .append(user.getFirstName()).append(" ").append(user.getLastName())
+                .toString();
     }
 
     private List<MandrillMessage.Recipient> getRecipients(User user) {

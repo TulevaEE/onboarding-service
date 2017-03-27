@@ -58,7 +58,7 @@ truststore:
 mandate:
   email:
     from: "avaldused@tuleva.ee"
-    to: "jordan.valdma@gmail.com"
+    to: "avaldused.test@tuleva.ee"
     bcc: "avaldused@tuleva.ee"
 
 ---

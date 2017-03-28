@@ -11,7 +11,7 @@ import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
 import ee.tuleva.onboarding.mandate.email.EmailService;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
-import ee.tuleva.onboarding.mandate.statistics.FundTransferExchangeStatisticsRepository;
+import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsRepository;
 import ee.tuleva.onboarding.user.CsdUserPreferencesService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserPreferences;
@@ -38,7 +38,7 @@ public class MandateService {
 	private final CsdUserPreferencesService csdUserPreferencesService;
     private final CreateMandateCommandToMandateConverter converter;
 	private final EmailService emailService;
-	private final FundTransferExchangeStatisticsRepository fundTransferExchangeStatisticsRepository;
+	private final FundTransferStatisticsRepository fundTransferStatisticsRepository;
 
     public Mandate save(User user, CreateMandateCommand createMandateCommand) {
 		validateCreateMandateCommand(createMandateCommand);
@@ -173,7 +173,7 @@ public class MandateService {
 		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
 
 
-		fundTransferExchangeStatisticsRepository
+		fundTransferStatisticsRepository
 
 	}
 

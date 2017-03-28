@@ -12,8 +12,8 @@ import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.email.EmailService
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.signature.SignatureService
-import ee.tuleva.onboarding.mandate.statistics.FundTransferExchangeStatistics
-import ee.tuleva.onboarding.mandate.statistics.FundTransferExchangeStatisticsRepository
+import ee.tuleva.onboarding.mandate.statistics.FundTransferStatistics
+import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsRepository
 import ee.tuleva.onboarding.user.CsdUserPreferencesService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserPreferences
@@ -34,7 +34,7 @@ class MandateServiceSpec extends Specification {
     CsdUserPreferencesService csdUserPreferencesService = Mock(CsdUserPreferencesService)
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter()
     EmailService emailService = Mock(EmailService)
-    FundTransferExchangeStatisticsRepository fundTransferExchangeStatisticsRepository = Mock(FundTransferExchangeStatisticsRepository)
+    FundTransferStatisticsRepository fundTransferExchangeStatisticsRepository = Mock(FundTransferStatisticsRepository)
 
     MandateService service = new MandateService(mandateRepository, signService, fundRepository,
             mandateContentCreator, csdUserPreferencesService, converter, emailService, fundTransferExchangeStatisticsRepository)
@@ -195,7 +195,7 @@ class MandateServiceSpec extends Specification {
 
         then:
         1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser)
-        1 * fundTransferExchangeStatisticsRepository.save(_ as FundTransferExchangeStatistics)
+        1 * fundTransferExchangeStatisticsRepository.save(_ as FundTransferStatistics)
         true
     }
 
@@ -232,7 +232,7 @@ class MandateServiceSpec extends Specification {
         then:
         1 * mandateRepository.save({ Mandate it -> it.mandate == file })
         1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser)
-        1 * fundTransferExchangeStatisticsRepository.save(_ as FundTransferExchangeStatistics)
+        1 * fundTransferExchangeStatisticsRepository.save(_ as FundTransferStatistics)
 
     }
 

@@ -61,6 +61,9 @@ mandate:
     to: "avaldused.test@tuleva.ee"
     bcc: "avaldused@tuleva.ee"
 
+loader:
+  path: lib/
+
 ---
 
 spring:

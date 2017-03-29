@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.mandate.statistics;
 
-import com.fasterxml.jackson.annotation.JsonView;
-import ee.tuleva.onboarding.mandate.MandateView;
 import lombok.Builder;
 import lombok.Data;
 import org.hibernate.validator.constraints.NotBlank;
@@ -11,6 +9,7 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Entity
@@ -30,7 +29,6 @@ public class FundValueStatistics {
     @NotNull
     private BigDecimal value;
 
-    @NotBlank
     @NotNull
     private UUID identifier;
 
@@ -39,7 +37,7 @@ public class FundValueStatistics {
 
     @PrePersist
     protected void onCreate() {
-        createdDate = Instant.now();
+        createdDate = Instant.now().truncatedTo(ChronoUnit.DAYS);
     }
 
 }

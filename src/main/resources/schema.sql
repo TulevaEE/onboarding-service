@@ -92,9 +92,8 @@ CREATE TABLE IF NOT EXISTS fund_transfer_statistics (
 
 CREATE TABLE IF NOT EXISTS fund_value_statistics (
   id SERIAL PRIMARY KEY,
-  isin VARCHAR NOT NULL,
+  isin UNIQUE VARCHAR NOT NULL,
   value DECIMAL(12,2) NOT NULL,
-  amount DECIMAL(4,2) NOT NULL,
   identifier UUID NOT NULL,
   created_date TIMESTAMP NOT NULL
 );

@@ -40,6 +40,7 @@ class MandateServiceSpec extends Specification {
             mandateContentCreator, csdUserPreferencesService, converter, emailService, fundTransferExchangeStatisticsRepository)
 
     Long sampleMandateId = 1L
+    UUID sampleStatisticsIdentifier = UUID.randomUUID()
 
     def "save: Converting create mandate command and persisting a mandate"() {
         given:
@@ -170,7 +171,7 @@ class MandateServiceSpec extends Specification {
         mandateRepository.save({ Mandate it -> it.mandate == "file".getBytes() }) >> sampleMandate()
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser(), sampleMandateId, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser(), sampleStatisticsIdentifier, sampleMandateId, new MobileIdSignatureSession(0, null))
 
         then:
         status == expectedStatus
@@ -191,7 +192,7 @@ class MandateServiceSpec extends Specification {
         1 * emailService.send(sampleUser, sampleMandateId, file)
 
         when:
-        service.finalizeMobileIdSignature(sampleUser, sampleMandateId, new MobileIdSignatureSession(0, null))
+        service.finalizeMobileIdSignature(sampleUser, sampleMandateId, sampleStatisticsIdentifier, new MobileIdSignatureSession(0, null))
 
         then:
         1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser)
@@ -227,7 +228,7 @@ class MandateServiceSpec extends Specification {
         1 * emailService.send(sampleUser, sampleMandateId, file)
 
         when:
-        service.finalizeIdCardSignature(sampleUser, sampleMandateId, session, "signedHash")
+        service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandateId, session, "signedHash")
 
         then:
         1 * mandateRepository.save({ Mandate it -> it.mandate == file })

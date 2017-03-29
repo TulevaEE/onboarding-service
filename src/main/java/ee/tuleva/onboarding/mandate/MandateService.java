@@ -11,7 +11,7 @@ import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
 import ee.tuleva.onboarding.mandate.email.EmailService;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
-import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsRepository;
+import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository;
 import ee.tuleva.onboarding.user.CsdUserPreferencesService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserPreferences;
@@ -38,7 +38,7 @@ public class MandateService {
 	private final CsdUserPreferencesService csdUserPreferencesService;
     private final CreateMandateCommandToMandateConverter converter;
 	private final EmailService emailService;
-	private final FundTransferStatisticsRepository fundTransferStatisticsRepository;
+	private final FundValueStatisticsRepository fundValueStatisticsRepository;
 
     public Mandate save(User user, CreateMandateCommand createMandateCommand) {
 		validateCreateMandateCommand(createMandateCommand);
@@ -136,7 +136,7 @@ public class MandateService {
 		return userPreferences;
 	}
 
-    public String finalizeMobileIdSignature(User user, Long mandateId, MobileIdSignatureSession session) {
+    public String finalizeMobileIdSignature(User user, UUID statisticsIdentifier, Long mandateId, MobileIdSignatureSession session) {
 		byte[] signedFile = signService.getSignedFile(session);
 
 		if (signedFile != null) {
@@ -148,7 +148,7 @@ public class MandateService {
 		}
 	}
 
-	public String finalizeIdCardSignature(User user, Long mandateId, IdCardSignatureSession session, String signedHash) {
+	public String finalizeIdCardSignature(User user, UUID statisticsIdentifier, Long mandateId, IdCardSignatureSession session, String signedHash) {
 		byte[] signedFile = signService.getSignedFile(session, signedHash);
 		if (signedFile != null) {
 			persistSignedFile(mandateId, signedFile);
@@ -169,11 +169,11 @@ public class MandateService {
 		mandateRepository.save(mandate);
 	}
 
-	private void persistFundTransferExchangeStatistics(User user, Long mandateId) {
+	private void persistFundTransferExchangeStatistics(User user, UUID sampleStatisticsIdentifier, Long mandateId) {
 		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
 
+//		fundValueStatisticsRepository.findOneByIdentifier(sampleStatisticsIdentifier);
 
-		fundTransferStatisticsRepository
 
 	}
 

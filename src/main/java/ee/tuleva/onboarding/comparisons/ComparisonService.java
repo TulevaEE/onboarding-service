@@ -38,7 +38,7 @@ public class ComparisonService {
     public Money compare(ComparisonCommand in, User user) throws IsinNotFoundException {
         in.setAge(user.getAge());
 
-        List<FundBalance> balances = accountStatementService.getMyPensionAccountStatement(user);
+        List<FundBalance> balances = accountStatementService.getMyPensionAccountStatement(user, null);
         in.setCurrentCapitals(new HashMap<String, BigDecimal>());
         balances.forEach( balance -> { in.getCurrentCapitals().put(balance.getFund().getIsin(), balance.getValue()); });
 

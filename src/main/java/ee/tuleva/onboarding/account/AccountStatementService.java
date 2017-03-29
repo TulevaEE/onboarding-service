@@ -4,10 +4,8 @@ import ee.eesti.xtee6.kpr.PensionAccountBalanceResponseType;
 import ee.eesti.xtee6.kpr.PensionAccountBalanceType;
 import ee.eesti.xtee6.kpr.PersonalSelectionResponseType;
 import ee.tuleva.onboarding.fund.Fund;
-import ee.tuleva.onboarding.fund.FundManager;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.kpr.KPRClient;
-import ee.tuleva.onboarding.mandate.statistics.FundTransferStatistics;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository;
 import ee.tuleva.onboarding.user.User;
@@ -15,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,56 +27,14 @@ public class AccountStatementService {
     private final KPRUnitsOsakudToFundBalanceConverter kprUnitsOsakudToFundBalanceConverter;
     private final FundValueStatisticsRepository fundValueStatisticsRepository;
 
-    public List<FundBalance> getMyPensionAccountStatement(User user) {
-        return Arrays.asList(
-                FundBalance.builder()
-                        .activeContributions(false)
-                        .currency("EUR")
-                        .pillar(0)
-                        .value(new BigDecimal(1234))
-                        .fund(
-                                Fund.builder().isin("EE3600019776")
-                                        .name("LHV XL")
-                                        .id(new Long(123))
-                                        .managementFeeRate(new BigDecimal(0.015))
-                                        .fundManager(
-                                                FundManager.builder()
-                                                        .id(new Long(125))
-                                                        .name("LHV")
-                                                        .build()
-                                        ).build()
-                        )
-                        .build()
-                ,
-                FundBalance.builder()
-                        .activeContributions(true)
-                        .currency("EUR")
-                        .pillar(0)
-                        .value(new BigDecimal(1234))
-                        .fund(
-                                Fund.builder().isin("EE3600019777").name("SEB Energiline").id(new Long(124))
-                                        .managementFeeRate(new BigDecimal(0.015))
-                                        .fundManager(
-                                                FundManager.builder()
-                                                        .id(new Long(127))
-                                                        .name("SEB")
-                                                        .build()
-                                        ).build()
-                        )
-                        .build()
-
-        );
-
-
-
+    public List<FundBalance> getMyPensionAccountStatement(User user, UUID statisticsIdentifier) {
         List<FundBalance> fundBalances = convertXRoadResponse(getPensionAccountBalance(user));
-//        return handleActiveFundBalance(fundBalances, getActiveFundName(user));
+        saveFundValueStatistics(fundBalances, statisticsIdentifier);
 
-        UUID fundValueStatisticsIdentifier = UUID.randomUUID();
-
+        return handleActiveFundBalance(fundBalances, getActiveFundName(user));
     }
 
-    private void saveFundValueStatistics(List<FundBalance> fundBalances, UUID fundValueStatisticsIdentifier`A) {
+    private void saveFundValueStatistics(List<FundBalance> fundBalances, UUID fundValueStatisticsIdentifier) {
         fundBalances.stream().map( fundBalance -> FundValueStatistics.builder()
                 .isin(fundBalance.getFund().getIsin())
                 .value(fundBalance.getValue())

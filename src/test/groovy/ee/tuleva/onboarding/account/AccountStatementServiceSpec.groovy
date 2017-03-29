@@ -8,6 +8,8 @@ import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.kpr.KPRClient
 import ee.tuleva.onboarding.mandate.MandateFixture
+import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics
+import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository
 import spock.lang.Specification
 
 class AccountStatementServiceSpec extends Specification {
@@ -26,8 +28,11 @@ class AccountStatementServiceSpec extends Specification {
         1 * getUnits()  >> units
     }
 
+    FundValueStatisticsRepository fundValueStatisticsRepository = Mock(FundValueStatisticsRepository)
+
     def setup() {
-        service = new AccountStatementService(kprClient, fundRepository, kprUnitsOsakudToFundBalanceConverter)
+        service = new AccountStatementService(kprClient, fundRepository,
+                kprUnitsOsakudToFundBalanceConverter, fundValueStatisticsRepository)
 
         personalSelection = new PersonalSelectionResponseType()
         personalSelection.setPensionAccount(new PersonalSelectionResponseType.PensionAccount())
@@ -36,16 +41,20 @@ class AccountStatementServiceSpec extends Specification {
     def "GetMyPensionAccountStatement: Flag active fund balance"() {
         given:
 
+
         Fund activeFund = MandateFixture.sampleFunds().get(0)
         personalSelection.getPensionAccount().setSecurityName(activeFund.name)
         BigDecimal activeFundBalanceValue = new BigDecimal(100000)
+        FundBalance sampleFundBalance = sampleFundBalance(activeFund, activeFundBalanceValue)
 
         1 * kprClient.pensionAccountBalance(_ as PensionAccountBalanceType, UserFixture.sampleUser().getPersonalCode()) >> resp
-        2 * kprUnitsOsakudToFundBalanceConverter.convert(_ as PensionAccountBalanceResponseType.Units.Balance) >> sampleFundBalance(activeFund, activeFundBalanceValue)
+        2 * kprUnitsOsakudToFundBalanceConverter.convert(_ as PensionAccountBalanceResponseType.Units.Balance) >> sampleFundBalance
         1 * kprClient.personalSelection(UserFixture.sampleUser().getPersonalCode()) >> personalSelection
+        UUID sampleStatisticsIdentifier = UUID.randomUUID()
+        checkForFundValueStatisticsSave(sampleFundBalance, sampleStatisticsIdentifier)
 
         when:
-        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(UserFixture.sampleUser())
+        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(UserFixture.sampleUser(), sampleStatisticsIdentifier)
         then:
         fundBalances.size() == 2
 
@@ -61,7 +70,9 @@ class AccountStatementServiceSpec extends Specification {
         personalSelection.getPensionAccount().setSecurityName(activeFundName)
 
         1 * kprClient.pensionAccountBalance(_ as PensionAccountBalanceType, UserFixture.sampleUser().getPersonalCode()) >> resp
-        2 * kprUnitsOsakudToFundBalanceConverter.convert(_ as PensionAccountBalanceResponseType.Units.Balance) >> sampleFundBalance(MandateFixture.sampleFunds().get(0), BigDecimal.ONE)
+        FundBalance sampleFundBalance = sampleFundBalance(MandateFixture.sampleFunds().get(0), BigDecimal.ONE)
+
+        2 * kprUnitsOsakudToFundBalanceConverter.convert(_ as PensionAccountBalanceResponseType.Units.Balance) >> sampleFundBalance
         1 * kprClient.personalSelection(UserFixture.sampleUser().getPersonalCode()) >> personalSelection
 
         String activeFundIsin = "LV0987654321"
@@ -70,9 +81,12 @@ class AccountStatementServiceSpec extends Specification {
                 .name(activeFundName)
                 .isin(activeFundIsin)
                 .build()
+        UUID sampleStatisticsIdentifier = UUID.randomUUID()
+
+        checkForFundValueStatisticsSave(sampleFundBalance, sampleStatisticsIdentifier)
 
         when:
-        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(UserFixture.sampleUser())
+        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(UserFixture.sampleUser(), sampleStatisticsIdentifier)
         then:
         fundBalances.size() == 3
 
@@ -96,5 +110,14 @@ class AccountStatementServiceSpec extends Specification {
         balance.setNav(new BigDecimal("1.58812"))
 
         [balance, balance]
+    }
+
+    private checkForFundValueStatisticsSave(FundBalance sampleFundBalance, UUID sampleStatisticsIdentifier) {
+        2 * fundValueStatisticsRepository.save({ FundValueStatistics fundValueStatistics ->
+            fundValueStatistics.isin == sampleFundBalance.fund.isin &&
+                    fundValueStatistics.value == sampleFundBalance.value &&
+                    fundValueStatistics.identifier == sampleStatisticsIdentifier
+        })
+
     }
 }

@@ -17,16 +17,16 @@ class FundTransferStatisticsServiceSpec extends Specification {
         callCount * fundTransferStatisticsRepository
                 .findOneByIsin(_ as String) >> sampleFundTransferStatistics()
 
-        int firstValue = sampleFundTransferStatistics().value + sampleFundValueStatisticsList().get(0).value
-        int secondValue = firstValue + sampleFundValueStatisticsList().get(1).value
-        int thirdValue = secondValue + sampleFundValueStatisticsList().get(2).value
+        BigDecimal firstValue = sampleFundTransferStatistics().value + FundValueStatisticsFixture.sampleFundValueStatisticsList().get(0).value
+        BigDecimal secondValue = firstValue + FundValueStatisticsFixture.sampleFundValueStatisticsList().get(1).value
+        BigDecimal thirdValue = secondValue + FundValueStatisticsFixture.sampleFundValueStatisticsList().get(2).value
 
         BigDecimal firstAmount = sampleFundTransferStatistics().amount + MandateFixture.sampleMandate().fundTransferExchanges.get(0).getAmount()
         BigDecimal secondAmount = firstAmount + MandateFixture.sampleMandate().fundTransferExchanges.get(1).getAmount()
         BigDecimal thirdAmount = secondAmount + MandateFixture.sampleMandate().fundTransferExchanges.get(2).getAmount()
 
         when:
-        service.addFrom(MandateFixture.sampleMandate(), sampleFundValueStatisticsList())
+        service.addFrom(MandateFixture.sampleMandate(), FundValueStatisticsFixture.sampleFundValueStatisticsList())
 
         then:
 
@@ -43,21 +43,26 @@ class FundTransferStatisticsServiceSpec extends Specification {
         })
     }
 
-    List<FundValueStatistics> sampleFundValueStatisticsList() {
-        return Arrays.asList(
-                FundValueStatistics.builder()
-                    .value(40000)
-                    .isin(MandateFixture.sampleMandate().fundTransferExchanges.get(0).sourceFundIsin)
-                    .build(),
-                FundValueStatistics.builder()
-                        .value(40000)
-                        .isin(MandateFixture.sampleMandate().fundTransferExchanges.get(1).sourceFundIsin)
-                        .build(),
-                FundValueStatistics.builder()
-                        .value(40000)
-                        .isin(MandateFixture.sampleMandate().fundTransferExchanges.get(2).sourceFundIsin)
-                        .build()
-        )
+    def "AddFrom: Create new fund transfer stats for isin if none existing"() {
+        given:
+
+        int callCount = MandateFixture.sampleMandate().fundTransferExchanges.size()
+
+        callCount * fundTransferStatisticsRepository
+                .findOneByIsin(_ as String) >> null
+
+        BigDecimal firstValue = BigDecimal.ZERO + FundValueStatisticsFixture.sampleFundValueStatisticsList().get(0).value
+        BigDecimal firstAmount = BigDecimal.ZERO + MandateFixture.sampleMandate().fundTransferExchanges.get(0).getAmount()
+
+        when:
+        service.addFrom(MandateFixture.sampleMandate(), FundValueStatisticsFixture.sampleFundValueStatisticsList())
+
+        then:
+
+        1 * fundTransferStatisticsRepository.save({FundTransferStatistics fundTransferStatistics ->
+            fundTransferStatistics.value == firstValue && fundTransferStatistics.amount == firstAmount
+        })
+
     }
 
     FundTransferStatistics sampleFundTransferStatistics() {

@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.mandate.statistics;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
-import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -14,6 +15,8 @@ import java.math.BigDecimal;
 @Table(name = "fund_transfer_statistics")
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class FundTransferStatistics {
 
     @Id
@@ -26,7 +29,6 @@ public class FundTransferStatistics {
     private BigDecimal value;
     @NotNull
     @Min(0)
-    @Max(1)
     private BigDecimal amount;
 
 }

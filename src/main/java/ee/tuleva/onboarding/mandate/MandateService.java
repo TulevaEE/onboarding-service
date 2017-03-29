@@ -11,6 +11,8 @@ import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
 import ee.tuleva.onboarding.mandate.email.EmailService;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
+import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService;
+import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository;
 import ee.tuleva.onboarding.user.CsdUserPreferencesService;
 import ee.tuleva.onboarding.user.User;
@@ -39,6 +41,7 @@ public class MandateService {
     private final CreateMandateCommandToMandateConverter converter;
 	private final EmailService emailService;
 	private final FundValueStatisticsRepository fundValueStatisticsRepository;
+	private final FundTransferStatisticsService fundTransferStatisticsService;
 
     public Mandate save(User user, CreateMandateCommand createMandateCommand) {
 		validateCreateMandateCommand(createMandateCommand);
@@ -141,6 +144,7 @@ public class MandateService {
 
 		if (signedFile != null) {
 			persistSignedFile(mandateId, signedFile);
+			persistFundTransferExchangeStatistics(user, statisticsIdentifier, mandateId);
 			notifyMandateProcessor(user, mandateId, signedFile);
 			return "SIGNATURE"; // TODO: use enum
 		} else {
@@ -152,6 +156,7 @@ public class MandateService {
 		byte[] signedFile = signService.getSignedFile(session, signedHash);
 		if (signedFile != null) {
 			persistSignedFile(mandateId, signedFile);
+			persistFundTransferExchangeStatistics(user, statisticsIdentifier, mandateId);
 			notifyMandateProcessor(user, mandateId, signedFile);
 			return "SIGNATURE"; // TODO: use enum
 		} else {
@@ -169,12 +174,13 @@ public class MandateService {
 		mandateRepository.save(mandate);
 	}
 
-	private void persistFundTransferExchangeStatistics(User user, UUID sampleStatisticsIdentifier, Long mandateId) {
+	private void persistFundTransferExchangeStatistics(User user, UUID statisticsIdentifier, Long mandateId) {
 		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
-
-//		fundValueStatisticsRepository.findOneByIdentifier(sampleStatisticsIdentifier);
-
-
+		List<FundValueStatistics> fundValueStatisticsList = fundValueStatisticsRepository.findByIdentifier(statisticsIdentifier);
+		fundTransferStatisticsService.addFrom(mandate, fundValueStatisticsList);
+		fundValueStatisticsList.forEach( fundValueStatistics -> {
+			fundValueStatisticsRepository.delete(fundValueStatistics);
+		});
 	}
 
 }

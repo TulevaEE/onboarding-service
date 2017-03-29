@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Slf4j
@@ -20,8 +21,7 @@ public class FundTransferStatisticsService {
             FundValueStatistics valueStatForCurrentIsin =
                     getFundValueStatisticsByIsin(fundValueStatisticsList, fundTransferExchange.getSourceFundIsin());
 
-            FundTransferStatistics transferStat = fundTransferStatisticsRepository
-                    .findOneByIsin(fundTransferExchange.getSourceFundIsin());
+            FundTransferStatistics transferStat = getFundTransferStatistics(fundTransferExchange.getSourceFundIsin());
 
             transferStat.setAmount(
                     transferStat.getAmount().add(fundTransferExchange.getAmount())
@@ -39,6 +39,21 @@ public class FundTransferStatisticsService {
         return fundValueStatisticsList.stream()
                 .filter( valueStat -> valueStat.getIsin().equals(isin))
                 .findFirst().orElseThrow(() -> new RuntimeException("FundValueStatistics not in sync with Mandate"));
+    }
+
+    private FundTransferStatistics getFundTransferStatistics(String isin) {
+        FundTransferStatistics transferStat = fundTransferStatisticsRepository
+                .findOneByIsin(isin);
+
+        if(transferStat == null) {
+            transferStat = FundTransferStatistics.builder()
+                    .amount(BigDecimal.ZERO)
+                    .value(BigDecimal.ZERO)
+                    .isin(isin)
+                    .build();
+        }
+
+        return transferStat;
     }
 
 }

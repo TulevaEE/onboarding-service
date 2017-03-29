@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.mandate.statistics;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
@@ -16,6 +18,8 @@ import java.util.UUID;
 @Table(name = "fund_value_statistics")
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class FundValueStatistics {
 
     @Id

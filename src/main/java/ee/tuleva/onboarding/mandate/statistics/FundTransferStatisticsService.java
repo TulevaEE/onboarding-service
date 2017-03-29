@@ -23,8 +23,10 @@ public class FundTransferStatisticsService {
 
             FundTransferStatistics transferStat = getFundTransferStatistics(fundTransferExchange.getSourceFundIsin());
 
-            transferStat.setAmount(
-                    transferStat.getAmount().add(fundTransferExchange.getAmount())
+            transferStat.setTransferred(
+                    transferStat.getTransferred().add(
+                            fundTransferExchange.getAmount().multiply(valueStatForCurrentIsin.getValue())
+                    )
             );
 
             transferStat.setValue(
@@ -47,7 +49,7 @@ public class FundTransferStatisticsService {
 
         if(transferStat == null) {
             transferStat = FundTransferStatistics.builder()
-                    .amount(BigDecimal.ZERO)
+                    .transferred(BigDecimal.ZERO)
                     .value(BigDecimal.ZERO)
                     .isin(isin)
                     .build();

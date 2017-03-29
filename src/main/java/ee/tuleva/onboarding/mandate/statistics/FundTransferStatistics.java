@@ -29,6 +29,6 @@ public class FundTransferStatistics {
     private BigDecimal value;
     @NotNull
     @Min(0)
-    private BigDecimal amount;
+    private BigDecimal transferred;
 
 }

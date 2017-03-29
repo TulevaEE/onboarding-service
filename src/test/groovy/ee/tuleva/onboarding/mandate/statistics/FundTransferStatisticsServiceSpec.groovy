@@ -21,9 +21,18 @@ class FundTransferStatisticsServiceSpec extends Specification {
         BigDecimal secondValue = firstValue + FundValueStatisticsFixture.sampleFundValueStatisticsList().get(1).value
         BigDecimal thirdValue = secondValue + FundValueStatisticsFixture.sampleFundValueStatisticsList().get(2).value
 
-        BigDecimal firstAmount = sampleFundTransferStatistics().amount + MandateFixture.sampleMandate().fundTransferExchanges.get(0).getAmount()
-        BigDecimal secondAmount = firstAmount + MandateFixture.sampleMandate().fundTransferExchanges.get(1).getAmount()
-        BigDecimal thirdAmount = secondAmount + MandateFixture.sampleMandate().fundTransferExchanges.get(2).getAmount()
+        BigDecimal firstAmount = sampleFundTransferStatistics().transferred +
+                MandateFixture.sampleMandate().fundTransferExchanges.get(0).getAmount() *
+                FundValueStatisticsFixture.sampleFundValueStatisticsList().get(0).value
+
+        BigDecimal secondAmount = firstAmount +
+                MandateFixture.sampleMandate().fundTransferExchanges.get(1).getAmount() *
+                FundValueStatisticsFixture.sampleFundValueStatisticsList().get(1).value
+
+        BigDecimal thirdAmount = secondAmount +
+                MandateFixture.sampleMandate().fundTransferExchanges.get(2).getAmount() *
+                FundValueStatisticsFixture.sampleFundValueStatisticsList().get(2).value
+
 
         when:
         service.addFrom(MandateFixture.sampleMandate(), FundValueStatisticsFixture.sampleFundValueStatisticsList())
@@ -31,15 +40,15 @@ class FundTransferStatisticsServiceSpec extends Specification {
         then:
 
         1 * fundTransferStatisticsRepository.save({FundTransferStatistics fundTransferStatistics ->
-            fundTransferStatistics.value == firstValue && fundTransferStatistics.amount == firstAmount
+            fundTransferStatistics.value == firstValue && fundTransferStatistics.transferred == firstAmount
         })
 
         1 * fundTransferStatisticsRepository.save({FundTransferStatistics fundTransferStatistics ->
-            fundTransferStatistics.value == secondValue && fundTransferStatistics.amount == secondAmount
+            fundTransferStatistics.value == secondValue && fundTransferStatistics.transferred == secondAmount
         })
 
         1 * fundTransferStatisticsRepository.save({FundTransferStatistics fundTransferStatistics ->
-            fundTransferStatistics.value == thirdValue && fundTransferStatistics.amount == thirdAmount
+            fundTransferStatistics.value == thirdValue && fundTransferStatistics.transferred == thirdAmount
         })
     }
 
@@ -52,7 +61,9 @@ class FundTransferStatisticsServiceSpec extends Specification {
                 .findOneByIsin(_ as String) >> null
 
         BigDecimal firstValue = BigDecimal.ZERO + FundValueStatisticsFixture.sampleFundValueStatisticsList().get(0).value
-        BigDecimal firstAmount = BigDecimal.ZERO + MandateFixture.sampleMandate().fundTransferExchanges.get(0).getAmount()
+        BigDecimal firstAmount = BigDecimal.ZERO +
+                MandateFixture.sampleMandate().fundTransferExchanges.get(0).getAmount() *
+                FundValueStatisticsFixture.sampleFundValueStatisticsList().get(0).value
 
         when:
         service.addFrom(MandateFixture.sampleMandate(), FundValueStatisticsFixture.sampleFundValueStatisticsList())
@@ -60,7 +71,7 @@ class FundTransferStatisticsServiceSpec extends Specification {
         then:
 
         1 * fundTransferStatisticsRepository.save({FundTransferStatistics fundTransferStatistics ->
-            fundTransferStatistics.value == firstValue && fundTransferStatistics.amount == firstAmount
+            fundTransferStatistics.value == firstValue && fundTransferStatistics.transferred == firstAmount
         })
 
     }
@@ -69,7 +80,7 @@ class FundTransferStatisticsServiceSpec extends Specification {
         return FundTransferStatistics.builder()
                 .isin(MandateFixture.sampleMandate().fundTransferExchanges.get(0).sourceFundIsin)
                 .value(20000)
-                .amount(2)
+                .transferred(10000)
                 .build()
     }
 }

@@ -21,9 +21,9 @@ class FundTransferStatisticsServiceSpec extends Specification {
         int secondValue = firstValue + sampleFundValueStatisticsList().get(1).value
         int thirdValue = secondValue + sampleFundValueStatisticsList().get(2).value
 
-        int firstAmount = sampleFundTransferStatistics().amount + MandateFixture.sampleMandate().fundTransferExchanges.get(0).getAmount()
-        int secondAmount = firstAmount + MandateFixture.sampleMandate().fundTransferExchanges.get(1).getAmount()
-        int thirdAmount = secondAmount + MandateFixture.sampleMandate().fundTransferExchanges.get(2).getAmount()
+        BigDecimal firstAmount = sampleFundTransferStatistics().amount + MandateFixture.sampleMandate().fundTransferExchanges.get(0).getAmount()
+        BigDecimal secondAmount = firstAmount + MandateFixture.sampleMandate().fundTransferExchanges.get(1).getAmount()
+        BigDecimal thirdAmount = secondAmount + MandateFixture.sampleMandate().fundTransferExchanges.get(2).getAmount()
 
         when:
         service.addFrom(MandateFixture.sampleMandate(), sampleFundValueStatisticsList())
@@ -35,15 +35,12 @@ class FundTransferStatisticsServiceSpec extends Specification {
         })
 
         1 * fundTransferStatisticsRepository.save({FundTransferStatistics fundTransferStatistics ->
-            fundTransferStatistics.value == secondValue// && fundTransferStatistics.amount == secondAmount
+            fundTransferStatistics.value == secondValue && fundTransferStatistics.amount == secondAmount
         })
 
         1 * fundTransferStatisticsRepository.save({FundTransferStatistics fundTransferStatistics ->
-            fundTransferStatistics.value == thirdValue// && fundTransferStatistics.amount == thirdAmount
+            fundTransferStatistics.value == thirdValue && fundTransferStatistics.amount == thirdAmount
         })
-
-
-//        callCount * fundTransferStatisticsRepository.save(_ as FundTransferStatistics)
     }
 
     List<FundValueStatistics> sampleFundValueStatisticsList() {

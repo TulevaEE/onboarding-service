@@ -39,7 +39,6 @@ public class FundTransferStatisticsService {
         return fundValueStatisticsList.stream()
                 .filter( valueStat -> valueStat.getIsin().equals(isin))
                 .findFirst().orElseThrow(() -> new RuntimeException("FundValueStatistics not in sync with Mandate"));
-
     }
 
 }

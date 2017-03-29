@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS initial_capital (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users,
-  transferred DECIMAL(12,2) NOT NULL,
+  amount DECIMAL(12,2) NOT NULL,
   currency VARCHAR(3) NOT NULL,
   CONSTRAINT user_id UNIQUE (user_id)
 );
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS mandate (
 CREATE TABLE IF NOT EXISTS fund_transfer_exchange (
   id SERIAL PRIMARY KEY,
   mandate_id INTEGER NOT NULL REFERENCES mandate,
-  transferred DECIMAL(4,2) NOT NULL,
+  amount DECIMAL(4,2) NOT NULL,
   source_fund_isin VARCHAR NOT NULL,
   target_fund_isin VARCHAR NOT NULL
 );

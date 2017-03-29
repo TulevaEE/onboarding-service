@@ -21,10 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import springfox.documentation.annotations.ApiIgnore;
 
 import javax.servlet.http.HttpServletResponse;
@@ -33,6 +30,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.springframework.web.bind.annotation.RequestMethod.*;
 
@@ -79,13 +77,14 @@ public class MandateController {
     @ApiOperation(value = "Is mandate successfully signed with mobile ID")
     @RequestMapping(method = GET, value = "/mandates/{id}/signature/mobileId/status")
     public MandateSignatureStatusResponse getMobileIdSignatureStatus(@PathVariable("id") Long mandateId,
-                                                                     @ApiIgnore @AuthenticationPrincipal User user) {
+                                                                     @ApiIgnore @AuthenticationPrincipal User user,
+                                                                     @RequestHeader(value = "x-statistics-identifier", required = false) UUID statisticsIdentifier) {
 
         Optional<MobileIdSignatureSession> signatureSession = genericSessionStore.get(MobileIdSignatureSession.class);
         MobileIdSignatureSession session = signatureSession
                 .orElseThrow(() -> new IllegalStateException("No mobile ID signature session found"));
 
-        String statusCode = mandateService.finalizeMobileIdSignature(user, mandateId, session);
+        String statusCode = mandateService.finalizeMobileIdSignature(user, statisticsIdentifier, mandateId, session);
 
         return new MandateSignatureStatusResponse(statusCode);
     }
@@ -107,13 +106,14 @@ public class MandateController {
     @RequestMapping(method = PUT, value = "/mandates/{id}/signature/idCard/status")
     public MandateSignatureStatusResponse getIdCardSignatureStatus(@PathVariable("id") Long mandateId,
                                                                    @Valid @RequestBody FinishIdCardSignCommand signCommand,
-                                                                   @ApiIgnore @AuthenticationPrincipal User user) {
+                                                                   @ApiIgnore @AuthenticationPrincipal User user,
+                                                                   @RequestHeader(value = "x-statistics-identifier", required = false) UUID statisticsIdentifier) {
 
         Optional<IdCardSignatureSession> signatureSession = genericSessionStore.get(IdCardSignatureSession.class);
         IdCardSignatureSession session = signatureSession
                 .orElseThrow(() -> new IllegalStateException("No ID card signature session found"));
 
-        String statusCode = mandateService.finalizeIdCardSignature(user, mandateId, session, signCommand.getSignedHash());
+        String statusCode = mandateService.finalizeIdCardSignature(user, statisticsIdentifier, mandateId, session, signCommand.getSignedHash());
 
         return new MandateSignatureStatusResponse(statusCode);
     }

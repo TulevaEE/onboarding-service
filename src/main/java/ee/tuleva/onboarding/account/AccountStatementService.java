@@ -6,6 +6,8 @@ import ee.eesti.xtee6.kpr.PersonalSelectionResponseType;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.kpr.KPRClient;
+import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
+import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,10 +25,24 @@ public class AccountStatementService {
     private final KPRClient kprClient;
     private final FundRepository fundRepository;
     private final KPRUnitsOsakudToFundBalanceConverter kprUnitsOsakudToFundBalanceConverter;
+    private final FundValueStatisticsRepository fundValueStatisticsRepository;
 
-    public List<FundBalance> getMyPensionAccountStatement(User user) {
+    public List<FundBalance> getMyPensionAccountStatement(User user, UUID statisticsIdentifier) {
         List<FundBalance> fundBalances = convertXRoadResponse(getPensionAccountBalance(user));
+        saveFundValueStatistics(fundBalances, statisticsIdentifier);
+
         return handleActiveFundBalance(fundBalances, getActiveFundName(user));
+    }
+
+    private void saveFundValueStatistics(List<FundBalance> fundBalances, UUID fundValueStatisticsIdentifier) {
+        fundBalances.stream().map( fundBalance -> FundValueStatistics.builder()
+                .isin(fundBalance.getFund().getIsin())
+                .value(fundBalance.getValue())
+                .identifier(fundValueStatisticsIdentifier)
+                .build())
+                .forEach(fundValueStatistics -> {
+                    fundValueStatisticsRepository.save(fundValueStatistics);
+                });
     }
 
     private PensionAccountBalanceResponseType getPensionAccountBalance(User user) {

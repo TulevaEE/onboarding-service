@@ -12,14 +12,16 @@ import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.email.EmailService
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.signature.SignatureService
+import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService
+import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics
+import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsFixture
+import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository
 import ee.tuleva.onboarding.user.CsdUserPreferencesService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserPreferences
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUserPreferences
-import static ee.tuleva.onboarding.auth.UserFixture.userPreferencesWithAddresPartiallyEmpty
-import static ee.tuleva.onboarding.auth.UserFixture.userPreferencesWithContactPreferencesPartiallyEmpty
+import static ee.tuleva.onboarding.auth.UserFixture.*
 import static ee.tuleva.onboarding.mandate.MandateFixture.invalidCreateMandateCommand
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleCreateMandateCommand
 
@@ -32,11 +34,16 @@ class MandateServiceSpec extends Specification {
     CsdUserPreferencesService csdUserPreferencesService = Mock(CsdUserPreferencesService)
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter()
     EmailService emailService = Mock(EmailService)
+    FundValueStatisticsRepository fundValueStatisticsRepository = Mock(FundValueStatisticsRepository);
+    FundTransferStatisticsService fundTransferStatisticsService = Mock(FundTransferStatisticsService);
 
     MandateService service = new MandateService(mandateRepository, signService, fundRepository,
-            mandateContentCreator, csdUserPreferencesService, converter, emailService)
+            mandateContentCreator, csdUserPreferencesService, converter, emailService,
+            fundValueStatisticsRepository, fundTransferStatisticsService)
 
     Long sampleMandateId = 1L
+    UUID sampleStatisticsIdentifier = UUID.randomUUID()
+    List<FundValueStatistics> sampleFundValueStatisticsList = FundValueStatisticsFixture.sampleFundValueStatisticsList()
 
     def "save: Converting create mandate command and persisting a mandate"() {
         given:
@@ -165,9 +172,10 @@ class MandateServiceSpec extends Specification {
         1 * signService.getSignedFile(_) >> file
         mandateRepository.findOne(sampleMandateId) >> sampleMandate()
         mandateRepository.save({ Mandate it -> it.mandate == "file".getBytes() }) >> sampleMandate()
+        fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser(), sampleMandateId, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser(), sampleStatisticsIdentifier, sampleMandateId, new MobileIdSignatureSession(0, null))
 
         then:
         status == expectedStatus
@@ -178,19 +186,26 @@ class MandateServiceSpec extends Specification {
         [0] as byte[] | "SIGNATURE"
     }
 
-    def "mobile id signed mandate is saved"() {
+    def "mobile id signed mandate and statistics is saved"() {
         given:
         byte[] file = "file".getBytes()
         User sampleUser = sampleUser()
+        Mandate sampleMandate = sampleMandate()
+
         1 * signService.getSignedFile(_) >> file
-        1 * mandateRepository.findOne(sampleMandateId) >> sampleMandate()
-        1 * mandateRepository.save({ Mandate it -> it.mandate == file }) >> sampleMandate()
+        1 * mandateRepository.findOne(sampleMandateId) >> sampleMandate
+        1 * mandateRepository.save({ Mandate it -> it.mandate == file }) >> sampleMandate
         1 * emailService.send(sampleUser, sampleMandateId, file)
+//        1 * mandateRepository.findByIdAndUser(_, _) >> sampleMandate
+        1 * fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
 
         when:
-        service.finalizeMobileIdSignature(sampleUser, sampleMandateId, new MobileIdSignatureSession(0, null))
+        service.finalizeMobileIdSignature(sampleUser, sampleStatisticsIdentifier, sampleMandateId, new MobileIdSignatureSession(0, null))
 
         then:
+        1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser)
+        1 * fundTransferStatisticsService.addFrom(_, sampleFundValueStatisticsList)
+        sampleFundValueStatisticsList.size() * fundValueStatisticsRepository.delete(_ as FundValueStatistics)
         true
     }
 
@@ -212,7 +227,7 @@ class MandateServiceSpec extends Specification {
         session.hash == "hash"
     }
 
-    def "id card signed mandate is saved"() {
+    def "id card signed mandate and stats are saved"() {
         given:
         byte[] file = "file".getBytes()
         IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
@@ -220,12 +235,17 @@ class MandateServiceSpec extends Specification {
         1 * signService.getSignedFile(session, "signedHash") >> file
         1 * mandateRepository.findOne(sampleMandateId) >> sampleMandate()
         1 * emailService.send(sampleUser, sampleMandateId, file)
+        1 * fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
 
         when:
-        service.finalizeIdCardSignature(sampleUser, sampleMandateId, session, "signedHash")
+        service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandateId, session, "signedHash")
 
         then:
         1 * mandateRepository.save({ Mandate it -> it.mandate == file })
+        1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser)
+        1 * fundTransferStatisticsService.addFrom(_, sampleFundValueStatisticsList)
+        sampleFundValueStatisticsList.size() * fundValueStatisticsRepository.delete(_ as FundValueStatistics)
+
     }
 
     def "id card signature finalization throws exception when no signed file exist"() {
@@ -234,7 +254,7 @@ class MandateServiceSpec extends Specification {
         1 * signService.getSignedFile(session, "signedHash") >> null
 
         when:
-        service.finalizeIdCardSignature(sampleUser(), sampleMandateId, session, "signedHash")
+        service.finalizeIdCardSignature(sampleUser(), sampleStatisticsIdentifier, sampleMandateId, session, "signedHash")
 
         then:
         thrown(IllegalStateException)

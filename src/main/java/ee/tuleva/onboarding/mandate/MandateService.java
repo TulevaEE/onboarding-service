@@ -11,6 +11,9 @@ import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
 import ee.tuleva.onboarding.mandate.email.EmailService;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
+import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService;
+import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
+import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository;
 import ee.tuleva.onboarding.user.CsdUserPreferencesService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserPreferences;
@@ -37,6 +40,8 @@ public class MandateService {
 	private final CsdUserPreferencesService csdUserPreferencesService;
     private final CreateMandateCommandToMandateConverter converter;
 	private final EmailService emailService;
+	private final FundValueStatisticsRepository fundValueStatisticsRepository;
+	private final FundTransferStatisticsService fundTransferStatisticsService;
 
     public Mandate save(User user, CreateMandateCommand createMandateCommand) {
 		validateCreateMandateCommand(createMandateCommand);
@@ -134,11 +139,12 @@ public class MandateService {
 		return userPreferences;
 	}
 
-    public String finalizeMobileIdSignature(User user, Long mandateId, MobileIdSignatureSession session) {
+    public String finalizeMobileIdSignature(User user, UUID statisticsIdentifier, Long mandateId, MobileIdSignatureSession session) {
 		byte[] signedFile = signService.getSignedFile(session);
 
 		if (signedFile != null) {
 			persistSignedFile(mandateId, signedFile);
+			persistFundTransferExchangeStatistics(user, statisticsIdentifier, mandateId);
 			notifyMandateProcessor(user, mandateId, signedFile);
 			return "SIGNATURE"; // TODO: use enum
 		} else {
@@ -146,10 +152,11 @@ public class MandateService {
 		}
 	}
 
-	public String finalizeIdCardSignature(User user, Long mandateId, IdCardSignatureSession session, String signedHash) {
+	public String finalizeIdCardSignature(User user, UUID statisticsIdentifier, Long mandateId, IdCardSignatureSession session, String signedHash) {
 		byte[] signedFile = signService.getSignedFile(session, signedHash);
 		if (signedFile != null) {
 			persistSignedFile(mandateId, signedFile);
+			persistFundTransferExchangeStatistics(user, statisticsIdentifier, mandateId);
 			notifyMandateProcessor(user, mandateId, signedFile);
 			return "SIGNATURE"; // TODO: use enum
 		} else {
@@ -165,6 +172,15 @@ public class MandateService {
 		Mandate mandate = mandateRepository.findOne(mandateId);
 		mandate.setMandate(signedFile);
 		mandateRepository.save(mandate);
+	}
+
+	private void persistFundTransferExchangeStatistics(User user, UUID statisticsIdentifier, Long mandateId) {
+		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+		List<FundValueStatistics> fundValueStatisticsList = fundValueStatisticsRepository.findByIdentifier(statisticsIdentifier);
+		fundTransferStatisticsService.addFrom(mandate, fundValueStatisticsList);
+		fundValueStatisticsList.forEach( fundValueStatistics -> {
+			fundValueStatisticsRepository.delete(fundValueStatistics);
+		});
 	}
 
 }

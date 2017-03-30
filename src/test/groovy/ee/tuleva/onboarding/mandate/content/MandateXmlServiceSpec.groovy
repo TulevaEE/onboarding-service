@@ -23,7 +23,7 @@ class MandateXmlServiceSpec extends Specification {
         List<String> contents = mandateXmlService.getRequestContents(sampleUser, sampleMandateId)
 
         then:
-        contents.get(0) == sampleXmlContent
+        contents.get(0) == mandateXmlService.episEnvelopePrefix + sampleXmlContent + mandateXmlService.episEnvelopeSuffix
 
     }
 

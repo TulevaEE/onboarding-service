@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.mandate.processor
 
 import ee.tuleva.onboarding.auth.UserFixture
-import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
@@ -14,13 +13,13 @@ class MandateProcessorServiceSpec extends Specification {
 
     private MandateXmlService mandateXmlService = Mock(MandateXmlService)
     private JmsTemplate jmsTemplate = Mock(JmsTemplate)
-    private GenericSessionStore genericSessionStore = Mock(GenericSessionStore);
-    private MandateProcessorService service = new MandateProcessorService(mandateXmlService, jmsTemplate, genericSessionStore)
+    private final MandateProcessRepository mandateProcessRepository = Mock(MandateProcessRepository);
+    private MandateProcessorService service = new MandateProcessorService(mandateXmlService, jmsTemplate, mandateProcessRepository)
 
     User sampleUser = UserFixture.sampleUser()
     Mandate sampleMandate = MandateFixture.sampleMandate()
 
-    def "Start"() {
+    def "Start: starts processing mandate and saves mandate processes for every mandate message"() {
         given:
         1 * mandateXmlService.getRequestContents(sampleUser, sampleMandate.id) >> sampleMessages
         2 * jmsTemplate.send("MHUB.PRIVATE.IN", _)
@@ -28,7 +27,9 @@ class MandateProcessorServiceSpec extends Specification {
         when:
         List<MandateXmlMessage> messages = service.start(sampleUser, sampleMandate)
         then:
-        true
+        sampleMessages.size() * mandateProcessRepository.save({ MandateProcess mandateProcess ->
+            mandateProcess.mandate == sampleMandate && mandateProcess.processId != null
+        })
     }
 
     def "IsFinished"() {

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.idcard
 
 import ee.tuleva.onboarding.auth.AuthUserService
+import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
 import org.springframework.security.oauth2.provider.ClientDetails
 import org.springframework.security.oauth2.provider.ClientDetailsService
@@ -15,7 +16,7 @@ class IdCardTokenGranterSpec extends Specification {
     AuthorizationServerTokenServices authorizationServerTokenServices = Mock(AuthorizationServerTokenServices)
     ClientDetailsService clientDetailsService = Mock(ClientDetailsService)
     OAuth2RequestFactory oAuth2RequestFactory = Mock(OAuth2RequestFactory)
-    IdCardSessionStore idCardSessionStore = Mock(IdCardSessionStore)
+    GenericSessionStore genericSessionStore = Mock(GenericSessionStore)
     AuthUserService authUserService = Mock(AuthUserService)
 
     def setup() {
@@ -23,7 +24,7 @@ class IdCardTokenGranterSpec extends Specification {
                 authorizationServerTokenServices,
                 clientDetailsService,
                 oAuth2RequestFactory,
-                idCardSessionStore,
+                genericSessionStore,
                 authUserService)
     }
 
@@ -36,7 +37,7 @@ class IdCardTokenGranterSpec extends Specification {
 
     def "GetAccessToken: Logging in with no id card session returns null"() {
         given:
-        idCardSessionStore.get() >> Optional.empty()
+        genericSessionStore.get(IdCardSession) >> Optional.empty()
 
         when:
         def token = tokenGranter.getAccessToken(clientDetails(), tokenRequest())

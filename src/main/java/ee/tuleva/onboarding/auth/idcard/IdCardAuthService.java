@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.idcard;
 
 import com.codeborne.security.mobileid.CheckCertificateResponse;
 import com.codeborne.security.mobileid.MobileIDAuthenticator;
+import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -12,7 +13,7 @@ import org.springframework.stereotype.Service;
 public class IdCardAuthService {
 
 	private final MobileIDAuthenticator authenticator;
-	private final IdCardSessionStore idCardSessionStore;
+	private final GenericSessionStore sessionStore;
 
 	public IdCardSession checkCertificate(String certificate) {
 		log.info("Checking ID card certificate");
@@ -22,7 +23,7 @@ public class IdCardAuthService {
 				.lastName(response.lastName)
 				.personalCode(response.personalCode)
 				.build();
-		idCardSessionStore.save(session);
+		sessionStore.save(session);
 		return session;
 	}
 

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.content.thymeleaf;
 
-import ee.tuleva.domain.fund.Fund;
+import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
@@ -37,7 +37,7 @@ public class ContextBuilder {
         DateTimeFormatter formatterEst = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.systemDefault());
         String documentDate = formatterEst.format(mandate.getCreatedDate());
 
-        DateTimeFormatter formatterEst2 = DateTimeFormatter.ofPattern("MM.dd.yyyy").withZone(ZoneId.systemDefault());
+        DateTimeFormatter formatterEst2 = DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.systemDefault());
         String documentDatePPKKAAAA = formatterEst2.format(mandate.getCreatedDate());
 
         this.ctx.setVariable("documentDate", documentDate);

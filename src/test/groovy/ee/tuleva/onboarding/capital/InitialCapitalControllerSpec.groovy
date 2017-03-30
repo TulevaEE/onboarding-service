@@ -19,7 +19,7 @@ class InitialCapitalControllerSpec extends BaseControllerSpec {
     InitialCapital sampleInitialCapital = new InitialCapital()
 
     def setup() {
-        mockMvc = getMockMvc(controller)
+        mockMvc = mockMvc(controller)
     }
 
     def "InitialCapital: Get information about current user initial capital"() {

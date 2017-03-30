@@ -1,15 +1,19 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.domain.fund.Fund
-import ee.tuleva.domain.fund.FundManager
+import ee.tuleva.onboarding.fund.Fund
+import ee.tuleva.onboarding.fund.FundManager
+import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
+import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand
+import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
+import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand
 
 import java.time.Instant;
 
-public class MandateFixture {
+class MandateFixture {
 
     public static futureContibutionFundIsin = "AE123232334"
 
-    public static CreateMandateCommand sampleCreateMandateCommand() {
+    static CreateMandateCommand sampleCreateMandateCommand() {
         return [
                 "fundTransferExchanges": [
                         new MandateFundTransferExchangeCommand(
@@ -22,7 +26,33 @@ public class MandateFixture {
         ]
     }
 
-    public static Mandate sampleMandate() {
+    static sampleStartIdCardSignCommand(String clientCertificate) {
+        return new StartIdCardSignCommand(clientCertificate: clientCertificate)
+    }
+
+    static sampleFinishIdCardSignCommand(String signedHash) {
+        return new FinishIdCardSignCommand(signedHash: signedHash)
+    }
+
+    static CreateMandateCommand invalidCreateMandateCommand() {
+        return [
+                "fundTransferExchanges": [
+                        new MandateFundTransferExchangeCommand(
+                                "amount": 0.88,
+                                "sourceFundIsin": "SOMEISIN",
+                                "targetFundIsin": futureContibutionFundIsin
+                        ),
+                        new MandateFundTransferExchangeCommand(
+                                "amount": 0.90,
+                                "sourceFundIsin": "SOMEISIN",
+                                "targetFundIsin": futureContibutionFundIsin
+                        )
+                ],
+                "futureContributionFundIsin": futureContibutionFundIsin
+        ]
+    }
+
+    static Mandate sampleMandate() {
         Mandate mandate = Mandate.builder()
                 .fundTransferExchanges([
                 FundTransferExchange.builder()
@@ -53,7 +83,7 @@ public class MandateFixture {
         return mandate
     }
 
-    public static List<Fund> sampleFunds() {
+    static List<Fund> sampleFunds() {
         return Arrays.asList(
                 Fund.builder().
                         isin(futureContibutionFundIsin).
@@ -106,7 +136,7 @@ public class MandateFixture {
                                 .build()
                 )
                         .build()
-        );
+        )
     }
 
 }

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.idcard;
 
 import ee.tuleva.onboarding.auth.AuthUserService;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
+import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.user.User;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
@@ -14,7 +15,7 @@ import java.util.Optional;
 
 public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGranter {
 
-    private final IdCardSessionStore idCardSessionStore;
+    private final GenericSessionStore sessionStore;
     private final AuthUserService authUserService;
 
     private static final String GRANT_TYPE = "id_card";
@@ -22,10 +23,10 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
     public IdCardTokenGranter(AuthorizationServerTokenServices tokenServices,
                                  ClientDetailsService clientDetailsService,
                                  OAuth2RequestFactory requestFactory,
-                                 IdCardSessionStore idCardSessionStore,
+                                 GenericSessionStore genericSessionStore,
                                  AuthUserService authUserService) {
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
-        this.idCardSessionStore = idCardSessionStore;
+        this.sessionStore = genericSessionStore;
         this.authUserService = authUserService;
     }
 
@@ -36,7 +37,7 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
             throw new InvalidRequestException("Unknown Client ID.");
         }
 
-        Optional<IdCardSession> session = idCardSessionStore.get();
+        Optional<IdCardSession> session = sessionStore.get(IdCardSession.class);
         if (!session.isPresent()) {
             return null;
         }

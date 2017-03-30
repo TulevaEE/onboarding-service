@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.content;
 
-import ee.tuleva.domain.fund.Fund;
+import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserPreferences;

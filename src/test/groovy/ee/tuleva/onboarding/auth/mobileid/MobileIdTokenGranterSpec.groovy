@@ -1,12 +1,16 @@
 package ee.tuleva.onboarding.auth.mobileid
 
+import com.codeborne.security.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.AuthUserService
 import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import org.springframework.security.oauth2.common.OAuth2AccessToken
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
 import org.springframework.security.oauth2.provider.*
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices
 import spock.lang.Specification
+
+import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.sampleMobileIdSession
 
 class MobileIdTokenGranterSpec extends Specification {
 
@@ -16,7 +20,7 @@ class MobileIdTokenGranterSpec extends Specification {
     OAuth2RequestFactory oAuth2RequestFactory = Mock(OAuth2RequestFactory)
     MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
     AuthUserService authUserService = Mock(AuthUserService)
-    MobileIdSessionStore mobileIdSessionStore = Mock(MobileIdSessionStore)
+    GenericSessionStore sessionStore = Mock(GenericSessionStore)
 
 
     def setup() {
@@ -26,7 +30,7 @@ class MobileIdTokenGranterSpec extends Specification {
                 oAuth2RequestFactory,
                 mobileIdAuthService,
                 authUserService,
-                mobileIdSessionStore
+                sessionStore
         )
     }
 
@@ -44,8 +48,8 @@ class MobileIdTokenGranterSpec extends Specification {
 
     def "GetAccessToken: Logging in without a mobile id session is not allowed"() {
         given:
-        1 * mobileIdSessionStore.get() >> Optional.of(MobileIdFixture.sampleMobileIdSession)
-        1 * mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession) >> false
+        1 * sessionStore.get(MobileIDSession) >> Optional.of(sampleMobileIdSession)
+        1 * mobileIdAuthService.isLoginComplete(sampleMobileIdSession) >> false
 
         when:
         mobileIdTokenGranter.getAccessToken(sampleClientDetails(), Mock(TokenRequest))
@@ -55,7 +59,7 @@ class MobileIdTokenGranterSpec extends Specification {
 
     def "GetAccessToken: Logging in with no mobile id session returns null"() {
         given:
-        1 * mobileIdSessionStore.get() >> Optional.empty()
+        1 * sessionStore.get(MobileIDSession) >> Optional.empty()
 
         when:
         OAuth2AccessToken token = mobileIdTokenGranter.getAccessToken(sampleClientDetails(), Mock(TokenRequest))
@@ -65,9 +69,9 @@ class MobileIdTokenGranterSpec extends Specification {
 
     def "GetAccessToken: Logging in with users who doesn't exists fails"() {
         given:
-        1 * mobileIdSessionStore.get() >> Optional.of(MobileIdFixture.sampleMobileIdSession)
-        1 * mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession) >> true
-        1 * authUserService.getByPersonalCode(MobileIdFixture.sampleMobileIdSession.personalCode) >>
+        1 * sessionStore.get(MobileIDSession) >> Optional.of(sampleMobileIdSession)
+        1 * mobileIdAuthService.isLoginComplete(sampleMobileIdSession) >> true
+        1 * authUserService.getByPersonalCode(sampleMobileIdSession.personalCode) >>
                 { throw new InvalidRequestException("INVALID_USER_CREDENTIALS") }
 
         when:
@@ -78,9 +82,9 @@ class MobileIdTokenGranterSpec extends Specification {
 
     def "GetAccessToken: Logging in with user and grant access token"() {
         given:
-        1 * mobileIdSessionStore.get() >> Optional.of(MobileIdFixture.sampleMobileIdSession)
-        1 * mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession) >> true
-        1 * authUserService.getByPersonalCode(MobileIdFixture.sampleMobileIdSession.personalCode) >> UserFixture.sampleUser()
+        1 * sessionStore.get(MobileIDSession) >> Optional.of(sampleMobileIdSession)
+        1 * mobileIdAuthService.isLoginComplete(sampleMobileIdSession) >> true
+        1 * authUserService.getByPersonalCode(sampleMobileIdSession.personalCode) >> UserFixture.sampleUser()
         ClientDetails sampleClientDetails = sampleClientDetails()
         TokenRequest tokenRequest = Mock(TokenRequest) {
             1 * createOAuth2Request(sampleClientDetails) >> Mock(OAuth2Request)
@@ -97,9 +101,9 @@ class MobileIdTokenGranterSpec extends Specification {
 
     def "GetAccessToken: Logging in with inactive user fails"() {
         given:
-        1 * mobileIdSessionStore.get() >> Optional.of(MobileIdFixture.sampleMobileIdSession)
-        1 * mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession) >> true
-        1 * authUserService.getByPersonalCode(MobileIdFixture.sampleMobileIdSession.personalCode) >>
+        1 * sessionStore.get(MobileIDSession) >> Optional.of(sampleMobileIdSession)
+        1 * mobileIdAuthService.isLoginComplete(sampleMobileIdSession) >> true
+        1 * authUserService.getByPersonalCode(sampleMobileIdSession.personalCode) >>
                 { throw new InvalidRequestException("INVALID_USER_CREDENTIALS") }
 
         when:

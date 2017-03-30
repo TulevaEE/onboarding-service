@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.comparisons;
 
 
-import ee.tuleva.domain.fund.Fund;
-import ee.tuleva.domain.fund.FundManager;
-import ee.tuleva.domain.fund.FundManagerRepository;
-import ee.tuleva.domain.fund.FundRepository;
 import ee.tuleva.onboarding.comparisons.exceptions.ComparisonException;
 import ee.tuleva.onboarding.comparisons.exceptions.FeeSizeException;
 import ee.tuleva.onboarding.comparisons.exceptions.FundManagerNotFoundException;
 import ee.tuleva.onboarding.comparisons.exceptions.SourceHTMLChangedException;
+import ee.tuleva.onboarding.fund.Fund;
+import ee.tuleva.onboarding.fund.FundManager;
+import ee.tuleva.onboarding.fund.FundManagerRepository;
+import ee.tuleva.onboarding.fund.FundRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Attribute;

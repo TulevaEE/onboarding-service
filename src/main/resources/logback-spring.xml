@@ -1,0 +1,37 @@
+<configuration>
+	<!-- Configure the Console appender -->
+	<appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<!-- Configure the Sentry appender, overriding the logging threshold to the WARN level -->
+	<!--<appender name="Sentry" class="com.getsentry.raven.logback.SentryAppender">-->
+		<!--<filter class="ch.qos.logback.classic.filter.ThresholdFilter">-->
+			<!--<level>WARN</level>-->
+		<!--</filter>-->
+	<!--</appender>-->
+
+	<springProfile name="production">
+		<springProperty name="rollbarAccessToken" source="logging.rollbar.accessToken"/>
+		<appender name="ROLLBAR" class="com.tapstream.rollbar.RollbarAppender">
+			<apiKey>${rollbarAccessToken}</apiKey>
+			<environment>production</environment>
+			<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+				<level>ERROR</level>
+			</filter>
+		</appender>
+
+		<root level="INFO">
+			<appender-ref ref="ROLLBAR"/>
+		</root>
+	</springProfile>
+
+	<!-- Enable the Console and Sentry appenders, Console is provided as an example
+		 of a non-Raven logger that is set to a different logging threshold -->
+	<root level="INFO">
+		<appender-ref ref="Console" />
+		<!--<appender-ref ref="Sentry" />-->
+	</root>
+</configuration>

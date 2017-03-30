@@ -24,7 +24,7 @@ class MandateContentCreatorSpec extends Specification {
         then:
         mandateContentFiles.size() == 3
 
-        mandateContentFiles[0].name == "valikuavaldus.html"
+        mandateContentFiles[0].name == "valikuavaldus_123.html"
         mandateContentFiles[0].mimeType == "text/html"
 
         mandateContentFiles[1].name == "vahetuseavaldus_1236.html"

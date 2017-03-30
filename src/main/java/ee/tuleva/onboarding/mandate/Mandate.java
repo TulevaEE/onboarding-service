@@ -1,9 +1,6 @@
 package ee.tuleva.onboarding.mandate;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
-import ee.tuleva.domain.fund.Fund;
-import ee.tuleva.onboarding.capital.InitialCapitalView;
 import ee.tuleva.onboarding.user.User;
 import lombok.Builder;
 import lombok.Data;
@@ -11,7 +8,6 @@ import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Past;
 import java.time.Instant;
 import java.util.List;
 

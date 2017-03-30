@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.error
 
+import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
+import ee.tuleva.onboarding.error.response.InputErrorsConverter
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.web.DefaultErrorAttributes
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -18,7 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ErrorHandlingController)
 @WithMockUser
-@Import(DefaultErrorAttributes)
+@Import([DefaultErrorAttributes, ErrorResponseEntityFactory, InputErrorsConverter])
 class ErrorHandlingControllerSpec extends Specification {
 
 	@Autowired

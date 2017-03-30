@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.account
 
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.user.User
 import org.springframework.test.web.servlet.MockMvc
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -11,7 +12,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
     MockMvc mockMvc
 
     def setup() {
-        mockMvc = getMockMvc(controller)
+        mockMvc = mockMvc(controller)
     }
 
     AccountStatementService accountStatementService = Mock(AccountStatementService)
@@ -19,10 +20,11 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
 
     def "/pension-account-statement endpoint works"() {
         given:
-        1 * accountStatementService.getMyPensionAccountStatement(_) >> []
+        UUID statisticsIdentifier = UUID.randomUUID()
+        1 * accountStatementService.getMyPensionAccountStatement(_ as User, statisticsIdentifier) >> []
 
         expect:
-            mockMvc.perform(get("/v1/pension-account-statement"))
+            mockMvc.perform(get("/v1/pension-account-statement").header("x-statistics-identifier", statisticsIdentifier))
                 .andExpect(status().isOk())
     }
 

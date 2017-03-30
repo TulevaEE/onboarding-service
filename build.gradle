@@ -1,6 +1,6 @@
 buildscript {
 	ext {
-		springBootVersion = '1.4.4.RELEASE'
+		springBootVersion = '1.5.2.RELEASE'
 	}
 	repositories {
 		mavenCentral()
@@ -45,8 +45,9 @@ dependencies {
 	compile("org.projectlombok:lombok:1.16.12")
 	compile("org.jsoup:jsoup:1.8.1")
 	compile('org.apache.commons:commons-lang3:3.5')
+	compile('com.tapstream:rollbar-logback:0.1.4')
 
-	compile('com.github.ErkoRisthein:mobileid:1.6')
+	compile('com.github.ErkoRisthein:mobileid:1.7')
     compile('ee.eesti.xtee6.kpr:xtee-kpr:1.2.1')
 
 	compile('com.getsentry.raven:raven-logback:7.8.3')
@@ -56,6 +57,7 @@ dependencies {
 	compile('org.hibernate:hibernate-java8')
 	compile('com.fasterxml.jackson.datatype:jackson-datatype-jsr310')
 	compile('com.rollbar:rollbar:0.5.3')
+	compile('com.mandrillapp.wrapper.lutung:lutung:0.0.7')
 
 	testCompile("com.h2database:h2")
 	testCompile("org.springframework.boot:spring-boot-starter-test") {

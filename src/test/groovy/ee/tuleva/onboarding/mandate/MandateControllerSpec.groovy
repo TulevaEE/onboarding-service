@@ -1,46 +1,38 @@
 package ee.tuleva.onboarding.mandate
 
+import com.codeborne.security.mobileid.IdCardSignatureSession
 import com.codeborne.security.mobileid.MobileIDSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
+import com.codeborne.security.mobileid.SignatureFile
 import ee.tuleva.onboarding.BaseControllerSpec
-import ee.tuleva.onboarding.auth.mobileid.MobileIdSessionStore
-import ee.tuleva.onboarding.auth.mobileid.MobileIdSignatureSessionStore
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.boot.test.context.TestConfiguration
-import org.springframework.context.annotation.Bean
+import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import ee.tuleva.onboarding.user.User
 import org.springframework.http.MediaType
-import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
-import spock.mock.DetachedMockFactory
+import org.springframework.test.web.servlet.MvcResult
 
+import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
-@WebMvcTest(MandateController)
-@WithMockUser
 class MandateControllerSpec extends BaseControllerSpec {
 
-    @Autowired
-    MandateService mandateService
+    MandateRepository mandateRepository = Mock(MandateRepository)
+    MandateService mandateService = Mock(MandateService)
+    GenericSessionStore sessionStore = Mock(GenericSessionStore)
+    SignatureFileArchiver signatureFileArchiver = Mock(SignatureFileArchiver)
 
-    @Autowired
-    MandateRepository mandateRepository
+    MandateController controller =
+            new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver)
 
-    @Autowired
-    MobileIdSessionStore mobileIdSessionStore
-
-    @Autowired
-    MockMvc mvc
+    MockMvc mvc = mockMvc(controller)
 
     def "save a mandate"() {
         expect:
         mvc
-                .perform(post("/v1/mandates/").content(
-                mapper.writeValueAsString(
-                        MandateFixture.sampleCreateMandateCommand()
-                ))
+                .perform(post("/v1/mandates/")
+                .content(mapper.writeValueAsString(sampleCreateMandateCommand()))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
@@ -48,45 +40,74 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     }
 
-    def "startSign returns the mobile id challenge code"() {
+    def "mobile id signature start returns the mobile id challenge code"() {
         when:
-        mobileIdSessionStore.get() >> dummyMobileIdSessionWithPhone("555")
-        mandateService.sign(1L, _, "555") >> new MobileIdSignatureSession(1, null, "1234")
+        sessionStore.get(MobileIDSession) >> dummyMobileIdSessionWithPhone("555")
+        mandateService.mobileIdSign(1L, _, "555") >> new MobileIdSignatureSession(1, "1234")
 
         then:
         mvc
-                .perform(put("/v1/mandates/1/signature")
+                .perform(put("/v1/mandates/1/signature/mobileId")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath('$.mobileIdChallengeCode', is("1234")))
     }
 
-    def "startSign fails when there's no mobile id session"() {
+    def "mobile id signature start fails when there's no mobile id session"() {
         given:
-        mobileIdSessionStore.get() >> Optional.empty()
+        sessionStore.get(MobileIDSession) >> Optional.empty()
 
         when:
         mvc
-                .perform(put("/v1/mandates/1/signature"))
+                .perform(put("/v1/mandates/1/signature/mobileId"))
                 .andReturn()
 
         then:
         thrown Exception
     }
 
-    def "getSignatureStatus returns the mobile id challenge code"() {
+    def "get mobile ID signature status returns the status code"() {
         when:
-        def session = MandateSignatureSession.builder().sessCode(1).challenge("1234").build()
-//        Map<String, Object> sessionAttributes = new HashMap<>()
-//        sessionAttributes.put("session", session)
-        mandateService.getSignatureStatus(MandateFixture.sampleMandate().id, _) >> "SIGNATURE"
+        UUID statisticsIdentifier = UUID.randomUUID()
+        def session = new MobileIdSignatureSession(1, "1234")
+        sessionStore.get(MobileIdSignatureSession) >> Optional.of(session)
+        mandateService.finalizeMobileIdSignature(_ as User, statisticsIdentifier, 1L, session) >> "SIGNATURE"
 
         then:
         mvc
-                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/signature")
-//                .sessionAttrs(sessionAttributes)
-                )
+                .perform(get("/v1/mandates/1/signature/mobileId/status").header("x-statistics-identifier", statisticsIdentifier))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
+    }
+
+    def "id card signature start returns the hash to be signed by the client"() {
+        when:
+        mandateService.idCardSign(1L, _, "clientCertificate") >> new IdCardSignatureSession(1, "sigId", "asdfg")
+
+        then:
+        mvc
+                .perform(put("/v1/mandates/1/signature/idCard")
+                .content(mapper.writeValueAsString(sampleStartIdCardSignCommand("clientCertificate")))
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(jsonPath('$.hash', is("asdfg")))
+    }
+
+    def "put ID card signature status returns the status code"() {
+        when:
+        UUID statisticsIdentifier = UUID.randomUUID()
+        def session = new IdCardSignatureSession(1, "sigId", "hash")
+        sessionStore.get(IdCardSignatureSession) >> Optional.of(session)
+        mandateService.finalizeIdCardSignature(_ as User, statisticsIdentifier, 1L, session, "signedHash") >> "SIGNATURE"
+
+        then:
+        mvc
+                .perform(put("/v1/mandates/1/signature/idCard/status").header("x-statistics-identifier", statisticsIdentifier)
+                .content(mapper.writeValueAsString(sampleFinishIdCardSignCommand("signedHash")))
+                .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
@@ -95,24 +116,43 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "getMandateFile returns mandate file"() {
         when:
         1 * mandateRepository
-                .findByIdAndUser(MandateFixture.sampleMandate().id, _) >> MandateFixture.sampleMandate()
+                .findByIdAndUser(sampleMandate().id, _) >> sampleMandate()
 
         then:
-        mvc
-                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file")
-        )
+        MvcResult result = mvc
+                .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
                 .andExpect(status().isOk())
+                .andReturn()
+
+        result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.bdoc"
+    }
+
+    def "getMandateFilePreview: returns mandate preview file"() {
+        when:
+
+        List<SignatureFile> files = [new SignatureFile("filename", "text/html", "content".getBytes())]
+
+        1 * mandateService.getMandateFiles(sampleMandate().id, _) >> files
+        1 * signatureFileArchiver.writeSignatureFilesToZipOutputStream(files, _ as OutputStream)
+
+        then:
+        MvcResult result = mvc
+                .perform(get("/v1/mandates/" + sampleMandate().id + "/file/preview"))
+                .andExpect(status().isOk())
+                .andReturn()
+
+        result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.zip"
+
     }
 
     def "getMandateFile returns not found on non existing mandate file"() {
         when:
         1 * mandateRepository
-                .findByIdAndUser(MandateFixture.sampleMandate().id, _) >> null
+                .findByIdAndUser(sampleMandate().id, _) >> null
 
         then:
         mvc
-                .perform(get("/v1/mandates/" + MandateFixture.sampleMandate().id + "/file")
-        )
+                .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
                 .andExpect(status().isNotFound())
     }
 
@@ -120,31 +160,4 @@ class MandateControllerSpec extends BaseControllerSpec {
         Optional.of(new MobileIDSession(0, "", "", "", "", phone))
     }
 
-    @TestConfiguration
-    static class MockConfig {
-        def mockFactory = new DetachedMockFactory()
-
-        @Bean
-        MandateService mandateService() {
-            MandateService mandateService = mockFactory.Mock(MandateService)
-//TODO            mandateService.save(_ as User, _ as CreateMandateCommand) >> MandateFixture.sampleMandate()
-            return mandateService
-        }
-
-        @Bean
-        MandateRepository mandateRepository() {
-            MandateRepository mandateRepository = mockFactory.Mock(MandateRepository)
-            return mandateRepository
-        }
-
-        @Bean
-        MobileIdSignatureSessionStore mobileIdSignatureSessionStore() {
-            return mockFactory.Mock(MobileIdSignatureSessionStore)
-        }
-
-        @Bean
-        MobileIdSessionStore mobileIdSessionStore() {
-            return mockFactory.Mock(MobileIdSessionStore)
-        }
-    }
 }

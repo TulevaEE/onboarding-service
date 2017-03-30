@@ -12,11 +12,11 @@ import lombok.Setter;
 @Builder
 public class UserPreferences {
 
-    enum ContactPreferenceType { //E - email, P - postal
+    public enum ContactPreferenceType { //E - email, P - postal
         E, P
     }
 
-    enum LanguagePreferenceType {
+    public enum LanguagePreferenceType {
         EST, RUS, ENG
     }
 
@@ -36,6 +36,23 @@ public class UserPreferences {
 
     private LanguagePreferenceType languagePreference;
 
-    private int noticeNeeded; //enum { '0', '1' }
+    private Integer noticeNeeded; //enum { '0', '1' }
+
+    public static UserPreferences defaultUserPreferences() {
+        return UserPreferences.builder()
+                .addressRow1("Tuleva, Telliskivi 60")
+                .addressRow2("TALLINN")
+                .addressRow3("TALLINN")
+                .country("EE")
+                .postalIndex("10412")
+                .districtCode("0784")
+                .contactPreference(UserPreferences.ContactPreferenceType.valueOf("E"))
+                .languagePreference(
+                        (UserPreferences.LanguagePreferenceType.valueOf(
+                                "EST")
+                        ))
+                .noticeNeeded(1)
+                .build();
+    }
 
 }

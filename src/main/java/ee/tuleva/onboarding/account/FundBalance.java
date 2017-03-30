@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.account;
 
 
-import ee.tuleva.domain.fund.Fund;
+import ee.tuleva.onboarding.fund.Fund;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;

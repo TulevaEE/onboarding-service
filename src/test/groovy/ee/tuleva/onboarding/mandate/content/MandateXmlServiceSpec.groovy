@@ -20,18 +20,16 @@ class MandateXmlServiceSpec extends Specification {
         1 * mandateService.getMandateFiles(sampleMandateId, sampleUser) >> sampleFiles()
 
         when:
-        List<String> contents = mandateXmlService.getRequestContents(sampleUser, sampleMandateId)
+        List<MandateXmlMessage> contents = mandateXmlService.getRequestContents(sampleUser, sampleMandateId)
 
         then:
-        contents.get(0) == mandateXmlService.episEnvelopePrefix + sampleXmlContent + mandateXmlService.episEnvelopeSuffix
-
+        contents.get(0).message == mandateXmlService.episEnvelopePrefix(contents.get(0).id) + sampleXmlContent + mandateXmlService.episEnvelopeSuffix
     }
 
 
     List<SignatureFile> sampleFiles() {
         return [new SignatureFile("file", "html/text", sampleHtmlContent.getBytes())]
     }
-
 
     String sampleXmlContent = """<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns="http://epis.x-road.ee/producer/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:x="http://x-road.ee/xsd/x-road.xsd">
             <soapenv:Header>

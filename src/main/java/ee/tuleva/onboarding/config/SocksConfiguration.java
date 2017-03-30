@@ -16,7 +16,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 @Slf4j
 public class SocksConfiguration {
 
-    @Value("${socksProxyUrl}")
+    @Value("${socksProxyUrl:#{null}}")
     private String socksProxyUrl;
 
     @PostConstruct

@@ -1,6 +1,9 @@
-package ee.tuleva.onboarding.mandate
+package ee.tuleva.onboarding.mandate.processor
 
 import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import ee.tuleva.onboarding.mandate.Mandate
+import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
 import ee.tuleva.onboarding.mandate.content.MandateXmlService
 import ee.tuleva.onboarding.user.User
@@ -11,7 +14,8 @@ class MandateProcessorServiceSpec extends Specification {
 
     private MandateXmlService mandateXmlService = Mock(MandateXmlService)
     private JmsTemplate jmsTemplate = Mock(JmsTemplate)
-    MandateProcessorService service = new MandateProcessorService(mandateXmlService, jmsTemplate)
+    private GenericSessionStore genericSessionStore = Mock(GenericSessionStore);
+    private MandateProcessorService service = new MandateProcessorService(mandateXmlService, jmsTemplate, genericSessionStore)
 
     User sampleUser = UserFixture.sampleUser()
     Mandate sampleMandate = MandateFixture.sampleMandate()

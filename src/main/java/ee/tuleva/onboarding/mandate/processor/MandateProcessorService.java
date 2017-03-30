@@ -1,5 +1,7 @@
-package ee.tuleva.onboarding.mandate;
+package ee.tuleva.onboarding.mandate.processor;
 
+import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
 import ee.tuleva.onboarding.mandate.content.MandateXmlService;
 import ee.tuleva.onboarding.user.User;
@@ -20,6 +22,7 @@ public class MandateProcessorService {
 
     private final MandateXmlService mandateXmlService;
     private final JmsTemplate jmsTemplate;
+    private final GenericSessionStore genericSessionStore;
 
     public void start(User user, Mandate mandate) {
         log.info("Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());

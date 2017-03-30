@@ -23,6 +23,7 @@ public class MandateProcess {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne
     @JoinColumn(name = "mandate_id", nullable = false)
     private Mandate mandate;
 

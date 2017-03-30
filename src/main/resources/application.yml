@@ -61,6 +61,16 @@ mandate:
     to: "avaldused.test@tuleva.ee"
     bcc: "avaldused@tuleva.ee"
 
+mhub:
+  host: mhub.e-register.ee
+  port: 2414
+  queueManager: MHUB_QMGR
+  channel: TULEVA
+  inboundQueue: MHUB.PRIVATE.TULEVA.OUT
+  outboundQueue: MHUB.PRIVATE.IN
+
+socksProxyUrl: ${SOCKS_PROXY_URL}
+
 ---
 
 spring:

@@ -51,8 +51,14 @@ public class MhubConfiguration {
     @Value("${mhub.trustStore}")
     private String trustStore;
 
+    @Value("${mhub.trustStorePassword}")
+    private String trustStorePassword;
+
     @Value("${mhub.keyStore}")
     private String keyStore;
+
+    @Value("${mhub.keyStorePassword}")
+    private String keyStorePassword;
 
     @Bean
     @Scope("singleton")
@@ -60,9 +66,15 @@ public class MhubConfiguration {
         // it requires SSLv3 to be enabled
         Security.setProperty("jdk.tls.disabledAlgorithms", "");
 
+        SSLContext sslContext = KeyUtils.createSSLContext(
+                keyStore,
+                keyStorePassword,
+                trustStore,
+                trustStorePassword);
+
         try {
             MQQueueConnectionFactory factory = new MQQueueConnectionFactory();
-            factory.setSSLSocketFactory(createSSLContext().getSocketFactory());
+            factory.setSSLSocketFactory(sslContext.getSocketFactory());
             factory.setTransportType(WMQConstants.WMQ_CM_CLIENT);
             //factory.setSSLSocketFactory(sslContext.getSocketFactory());
             factory.setHostName(this.host);
@@ -78,30 +90,6 @@ public class MhubConfiguration {
             throw new RuntimeException(e);
         }
     }
-
-    private SSLContext createSSLContext() {
-        try {
-            KeyStore ks = KeyStore.getInstance("PKCS12");
-            ks.load(new FileInputStream("TULEVA-client/tuleva_keystore.jks"), "password".toCharArray());
-            KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
-            kmf.init(ks, "password".toCharArray());
-
-            TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
-
-            KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-            trustStore.load(new FileInputStream("TULEVA-client/tuleva_truststore.jks"), "password".toCharArray());
-
-            trustManagerFactory.init(trustStore);
-
-            SSLContext sslContext = SSLContext.getDefault();
-            sslContext.init(kmf.getKeyManagers(), trustManagerFactory.getTrustManagers(), null);
-
-            return sslContext;
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
 
 
     @Bean

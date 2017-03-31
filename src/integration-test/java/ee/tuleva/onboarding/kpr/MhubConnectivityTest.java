@@ -12,10 +12,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import javax.jms.*;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLSocketFactory;
-import java.security.Security;
 
 /**
  * Disable java assertions on this test (remove "-ea" from idea run conf), MQ Factory fails with assertions.

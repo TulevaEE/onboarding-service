@@ -68,6 +68,10 @@ mhub:
   channel: TULEVA
   inboundQueue: MHUB.PRIVATE.TULEVA.OUT
   outboundQueue: MHUB.PRIVATE.IN
+  keyStore: ${MHUB_KEYSTORE:#{null}}
+  keyStorePassword: ${MHUB_KEYSTORE_PASSWORD:#{null}}
+  trustStore: ${MHUB_KEYSTORE:#{null}}
+  trustStorePassword: ${MHUB_KEYSTORE_PASSWORD:#{null}}
 
 socksProxyUrl: ${SOCKS_PROXY_URL:#{null}}
 

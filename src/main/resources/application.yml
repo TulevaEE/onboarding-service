@@ -69,6 +69,8 @@ mhub:
   inboundQueue: MHUB.PRIVATE.TULEVA.OUT
   outboundQueue: MHUB.PRIVATE.IN
 
+socksProxyUrl: ${SOCKS_PROXY_URL:#{null}}
+
 ---
 
 spring:

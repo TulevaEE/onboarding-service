@@ -62,16 +62,16 @@ dependencies {
 	compile('com.rollbar:rollbar:0.5.3')
 	compile('com.mandrillapp.wrapper.lutung:lutung:0.0.7')
 
-    compile 'org.springframework:spring-jms'
-    compile 'org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1'
-    compile 'com.ibm:disthub2:7.1.0.0'
-    compile 'com.ibm:mq:7.1.0.0'
-    compile 'com.ibm:mq-commonservices:7.1.0.0'
-    compile 'com.ibm:mq-headers:7.1.0.0'
-    compile 'com.ibm:mq-jmqi:7.1.0.0'
-    compile 'com.ibm:mq-jms:7.1.0.0'
-    compile 'com.ibm:mq-jms-nojndi:7.1.0.0'
-    compile 'com.ibm:mq-pcf:7.1.0.0'
+    compile('org.springframework:spring-jms')
+    compile('org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1')
+    compile('com.ibm:disthub2:7.1.0.0')
+    compile('com.ibm:mq:7.1.0.0')
+    compile('com.ibm:mq-commonservices:7.1.0.0')
+    compile('com.ibm:mq-headers:7.1.0.0')
+    compile('com.ibm:mq-jmqi:7.1.0.0')
+    compile('com.ibm:mq-jms:7.1.0.0')
+    compile('com.ibm:mq-jms-nojndi:7.1.0.0')
+    compile('com.ibm:mq-pcf:7.1.0.0')
 
 	testCompile("com.h2database:h2")
 	testCompile("org.springframework.boot:spring-boot-starter-test") {
@@ -81,7 +81,9 @@ dependencies {
 	testCompile("org.spockframework:spock-spring:1.1-groovy-2.4-rc-3")
 	testCompile("com.github.tomakehurst:wiremock:2.4.1")
 	testCompile("org.springframework.security:spring-security-test")
+    testCompile("org.springframework:spring-test:4.3.7.RELEASE")
 	testCompile('cglib:cglib-nodep:3.2.4') // for stubbing of classes
+    testCompile('junit:junit:4.12')
 }
 
 test {
@@ -92,4 +94,34 @@ test {
 		showStackTraces true
 		exceptionFormat = 'full'
 	}
+}
+
+configurations {
+    integrationTestCompile.extendsFrom testCompile
+    integrationTestRuntime.extendsFrom testRuntime
+}
+
+sourceSets {
+    integrationTest {
+        java {
+            compileClasspath += main.output + test.output
+            runtimeClasspath += main.output + test.output
+            srcDir file('src/integration-test/java')
+        }
+
+        compileClasspath += main.output + test.output
+        runtimeClasspath += main.output + test.output
+
+        groovy {
+            compileClasspath += main.output + test.output
+            runtimeClasspath += main.output + test.output
+            srcDir file('src/integration-test/groovy')
+        }
+        resources.srcDir file('src/integration-test/resources')
+    }
+}
+
+task integrationTest(type: Test, description: 'Runs the integration tests.', group: 'Verification') {
+    testClassesDir = sourceSets.integrationTest.output.classesDir
+    classpath = sourceSets.integrationTest.runtimeClasspath
 }

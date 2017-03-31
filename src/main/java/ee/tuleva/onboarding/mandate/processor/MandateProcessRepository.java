@@ -5,9 +5,9 @@ import org.springframework.data.repository.CrudRepository;
 
 import java.util.List;
 
-public interface MandateProcessRepository extends CrudRepository<MandateProcess, Long> {
+public interface MandateProcessRepository extends CrudRepository<MeandateMessageProcess, Long> {
 
-    public MandateProcess findOneByProcessId(String processId);
+    public MeandateMessageProcess findOneByProcessId(String processId);
 
-    public List<MandateProcess> findAllByMandate(Mandate mandate);
+    public List<MeandateMessageProcess> findAllByMandate(Mandate mandate);
 }

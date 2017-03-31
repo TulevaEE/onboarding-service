@@ -35,14 +35,16 @@ public class MandateProcessorService {
 
     private void saveInitialMandateProcess(Mandate mandate, String processId) {
         mandateProcessRepository.save(
-                MandateProcess.builder()
+                MeandateMessageProcess.builder()
                         .mandate(mandate)
                         .processId(processId)
                         .build()
         );
     }
 
-    public boolean isFinished() {
+    public boolean isFinished(Mandate mandate) {
+        List<MeandateMessageProcess> MessageProcess = mandateProcessRepository.findAllByMandate(mandate);
+
 
         return false;
     }

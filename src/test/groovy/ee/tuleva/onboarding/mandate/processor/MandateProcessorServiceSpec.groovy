@@ -27,7 +27,7 @@ class MandateProcessorServiceSpec extends Specification {
         when:
         List<MandateXmlMessage> messages = service.start(sampleUser, sampleMandate)
         then:
-        sampleMessages.size() * mandateProcessRepository.save({ MandateProcess mandateProcess ->
+        sampleMessages.size() * mandateProcessRepository.save({ MeandateMessageProcess mandateProcess ->
             mandateProcess.mandate == sampleMandate && mandateProcess.processId != null
         })
     }

@@ -11,13 +11,13 @@ import javax.validation.constraints.NotNull;
 import java.time.Instant;
 
 @Entity
-@Table(name = "mandate_process")
+@Table(name = "mandate_message_process")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 
-public class MandateProcess {
+public class MeandateMessageProcess {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -5,7 +5,7 @@ import spock.lang.Specification
 class MandateProcessSpec extends Specification {
     def "OnCreate: On creation set date"() {
         when:
-        MandateProcess mandateProcess = MandateProcess.builder().build()
+        MeandateMessageProcess mandateProcess = MeandateMessageProcess.builder().build()
         mandateProcess.onCreate()
         then:
         mandateProcess.createdDate != null

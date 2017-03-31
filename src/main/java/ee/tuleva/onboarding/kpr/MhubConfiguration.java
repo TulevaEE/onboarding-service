@@ -42,6 +42,9 @@ public class MhubConfiguration {
     @Value("${mhub.channel}")
     private String channel;
 
+    @Value("${mhub.peerName}")
+    private String peerName;
+
     @Value("${mhub.inboundQueue}")
     private String inboundQueue;
 
@@ -84,6 +87,7 @@ public class MhubConfiguration {
             factory.setCCSID(WMQConstants.CCSID_UTF8);
             // only cipher that works
             factory.setSSLCipherSuite("SSL_RSA_WITH_3DES_EDE_CBC_SHA");
+            factory.setSSLPeerName(this.peerName);
             factory.setSSLFipsRequired(false);
             return factory;
         } catch (JMSException e) {

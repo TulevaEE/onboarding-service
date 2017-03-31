@@ -16,7 +16,7 @@ import java.time.Instant
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup
 
 class UserProvidedControllerSpec extends BaseControllerSpec {
-    
+
     MappingJackson2HttpMessageConverter jacksonMessageConverter = new MappingJackson2HttpMessageConverter();
 
     User user = User.builder()

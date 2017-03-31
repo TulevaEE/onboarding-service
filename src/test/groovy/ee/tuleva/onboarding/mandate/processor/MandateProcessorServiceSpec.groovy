@@ -58,7 +58,6 @@ class MandateProcessorServiceSpec extends Specification {
             MandateMessageProcess.builder().build()
     ]
 
-
     List<String> sampleMessages = [
             MandateXmlMessage.builder().id("123").message("message").build(),
             MandateXmlMessage.builder().id("124").message("message").build()

@@ -44,10 +44,9 @@ public class MandateProcessorService {
 
     public boolean isFinished(Mandate mandate) {
         List<MandateMessageProcess> processes = mandateProcessRepository.findAllByMandate(mandate);
+        Long finishedProcessCount = processes.stream().filter(process -> process.getResult().isPresent()).count();
 
-        processes.stream().filter(process -> process.getResult().isPresent());
-
-        return false;
+        return processes.size() == finishedProcessCount;
     }
 
     class MandateProcessorMessageCreator implements MessageCreator {

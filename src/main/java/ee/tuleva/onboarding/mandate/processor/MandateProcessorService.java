@@ -35,7 +35,7 @@ public class MandateProcessorService {
 
     private void saveInitialMandateProcess(Mandate mandate, String processId) {
         mandateProcessRepository.save(
-                MeandateMessageProcess.builder()
+                MandateMessageProcess.builder()
                         .mandate(mandate)
                         .processId(processId)
                         .build()
@@ -43,8 +43,9 @@ public class MandateProcessorService {
     }
 
     public boolean isFinished(Mandate mandate) {
-        List<MeandateMessageProcess> MessageProcess = mandateProcessRepository.findAllByMandate(mandate);
+        List<MandateMessageProcess> processes = mandateProcessRepository.findAllByMandate(mandate);
 
+        processes.stream().filter(process -> process.getResult().isPresent());
 
         return false;
     }

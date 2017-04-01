@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.content;
 
-import ee.tuleva.onboarding.mandate.MandateService;
+import ee.tuleva.onboarding.mandate.MandateFileService;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,13 +22,13 @@ Temporary class to get Mandate XML message
 @Service
 public class MandateXmlService {
 
-    private final MandateService mandateService;
+    private final MandateFileService mandateFileService;
 
     public List<MandateXmlMessage> getRequestContents(User user, Long mandateId) {
 
         log.info("Generating XML for user id {} and mandate id {}", user.getId(), mandateId);
 
-        return mandateService.getMandateFiles(mandateId, user).stream().map( signatureFile -> {
+        return mandateFileService.getMandateFiles(mandateId, user).stream().map( signatureFile -> {
 
             String id = "TULEVA_" + UUID.randomUUID();
 

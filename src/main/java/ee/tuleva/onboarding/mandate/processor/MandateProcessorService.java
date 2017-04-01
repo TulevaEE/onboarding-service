@@ -35,16 +35,20 @@ public class MandateProcessorService {
 
     private void saveInitialMandateProcess(Mandate mandate, String processId) {
         mandateProcessRepository.save(
-                MandateProcess.builder()
+                MandateMessageProcess.builder()
                         .mandate(mandate)
                         .processId(processId)
                         .build()
         );
     }
 
-    public boolean isFinished() {
+    public boolean isFinished(Mandate mandate) {
+        List<MandateMessageProcess> processes = mandateProcessRepository.findAllByMandate(mandate);
+        Long finishedProcessCount = processes.stream().filter(process -> process.getResult().isPresent()).count();
 
-        return false;
+        // TODO: check if messages are not errors
+
+        return processes.size() == finishedProcessCount;
     }
 
     class MandateProcessorMessageCreator implements MessageCreator {

@@ -9,15 +9,16 @@ import lombok.NoArgsConstructor;
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.Optional;
 
 @Entity
-@Table(name = "mandate_process")
+@Table(name = "mandate_message_process")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 
-public class MandateProcess {
+public class MandateMessageProcess {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,7 +30,7 @@ public class MandateProcess {
 
     private String processId;
 
-    private String response;
+    private String result;
 
     @NotNull
     private Instant createdDate;
@@ -39,5 +40,9 @@ public class MandateProcess {
         createdDate = Instant.now();
     }
 
+
+    public Optional<String> getResult() {
+        return Optional.ofNullable(this.result);
+    }
 
 }

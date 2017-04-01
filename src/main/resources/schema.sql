@@ -101,6 +101,6 @@ CREATE TABLE IF NOT EXISTS mandate_message_process (
   id SERIAL PRIMARY KEY,
   mandate_id INTEGER NOT NULL REFERENCES mandate,
   process_id VARCHAR NOT NULL,
-  response VARCHAR NOT NULL,
+  result VARCHAR,
   created_date TIMESTAMP NOT NULL
 );

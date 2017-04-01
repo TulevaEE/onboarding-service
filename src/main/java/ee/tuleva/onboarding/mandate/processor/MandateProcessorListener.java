@@ -19,6 +19,7 @@ public class MandateProcessorListener {
     private final MandateProcessRepository mandateProcessRepository;
 
     //TODO: test
+    //TODO: identify message by ID and write into MandateMessageProcess entity
     @Bean
     public MessageListener processorListener() {
         return new MessageListener() {

@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.kpr;
 
 import com.ibm.jms.JMSBytesMessage;
+import ee.tuleva.epis.gen.MHubEnvelope;
 import ee.tuleva.onboarding.config.SocksConfiguration;
+import ee.tuleva.onboarding.mandate.processor.MandateProcessorListener;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,10 +15,12 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import javax.jms.*;
+import java.util.UUID;
 
 /**
  * Disable java assertions on this test (remove "-ea" from idea run conf), MQ Factory fails with assertions.
  */
+@Slf4j
 @ContextConfiguration(classes = {SocksConfiguration.class, MhubConnectivityTest.class, MhubConfiguration.class}, initializers = YamlFileApplicationContextInitializer.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 public class MhubConnectivityTest {
@@ -25,9 +30,9 @@ public class MhubConnectivityTest {
 
     @Test
     public void sendAndReceiveMessageToMhub() throws Exception {
-        jmsTemplate.send(new MyMessageCreator("Testikas"));
+        jmsTemplate.send(new MyMessageCreator("Message!"));
         // sleeping for some return messages
-        Thread.sleep(5000);
+        Thread.sleep(10000);
     }
 
     @Bean
@@ -39,7 +44,11 @@ public class MhubConnectivityTest {
                 if (message instanceof TextMessage) {
                     TextMessage textMessage = (TextMessage) message;
                     try {
-                        System.out.println(textMessage.getText());
+                        System.out.println("TEXT:" + textMessage.getText());
+                        MHubEnvelope envelope = MandateProcessorListener.unmarshallMessage(textMessage.getText(), MHubEnvelope.class);
+                        if (envelope != null) {
+                            System.out.println("OK envelope");
+                        }
                     } catch (JMSException e) {
                         throw new RuntimeException();
                     }
@@ -49,7 +58,7 @@ public class MhubConnectivityTest {
                         int length = (int)bytesMessage.getBodyLength();
                         byte[] msg = new byte[length];
                         bytesMessage.readBytes(msg, length);
-                        System.out.println(new String(msg));
+                        System.out.println("BYTES:" + new String(msg));
                     } catch (JMSException e) {
                         throw new RuntimeException(e);
                     }

@@ -72,6 +72,7 @@ dependencies {
     compile('com.ibm:mq-jms:7.1.0.0')
     compile('com.ibm:mq-jms-nojndi:7.1.0.0')
     compile('com.ibm:mq-pcf:7.1.0.0')
+	compile('ee.tuleva:epis-api:1.0')
 
 	testCompile("com.h2database:h2")
 	testCompile("org.springframework.boot:spring-boot-starter-test") {

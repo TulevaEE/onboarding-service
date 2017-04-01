@@ -1,0 +1,14 @@
+mhub:
+  host: mhub.e-register.ee
+  port: 2414
+  queueManager: MHUB_QMGR
+  channel: TULEVA
+  peerName: "CN=mhub.e-register.ee, OU=IT, O=Eesti Vaartpaberikeskus AS, C=EE, L=Tallinn, ST=Harjumaa"
+  inboundQueue: MHUB.PRIVATE.TULEVA.OUT
+  outboundQueue: MHUB.PRIVATE.IN
+  keyStore: ${MHUB_KEYSTORE}
+  keyStorePassword: ${MHUB_KEYSTORE_PASSWORD}
+  trustStore: ${MHUB_KEYSTORE}
+  trustStorePassword: ${MHUB_KEYSTORE_PASSWORD}
+
+socksProxyUrl: ${SOCKS_PROXY_URL:#{null}}

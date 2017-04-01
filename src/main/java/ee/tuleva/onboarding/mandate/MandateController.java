@@ -44,6 +44,7 @@ public class MandateController {
     private final MandateService mandateService;
     private final GenericSessionStore genericSessionStore;
     private final SignatureFileArchiver signatureFileArchiver;
+    private final MandateFileService mandateFileService;
 
     @ApiOperation(value = "Create a mandate")
     @RequestMapping(method = POST, value = "/mandates")
@@ -140,7 +141,7 @@ public class MandateController {
                                @ApiIgnore @AuthenticationPrincipal User user,
                                HttpServletResponse response) throws IOException {
 
-        List<SignatureFile> files = mandateService.getMandateFiles(mandateId, user);
+        List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, user);
         response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.zip");
 
         signatureFileArchiver.writeSignatureFilesToZipOutputStream(files, response.getOutputStream());

@@ -22,9 +22,11 @@ class MandateControllerSpec extends BaseControllerSpec {
     MandateService mandateService = Mock(MandateService)
     GenericSessionStore sessionStore = Mock(GenericSessionStore)
     SignatureFileArchiver signatureFileArchiver = Mock(SignatureFileArchiver)
+    MandateFileService mandateFileService = Mock(MandateFileService)
 
     MandateController controller =
-            new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver)
+            new MandateController(mandateRepository, mandateService, sessionStore,
+                    signatureFileArchiver, mandateFileService)
 
     MockMvc mvc = mockMvc(controller)
 
@@ -145,7 +147,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         List<SignatureFile> files = [new SignatureFile("filename", "text/html", "content".getBytes())]
 
-        1 * mandateService.getMandateFiles(sampleMandate().id, _) >> files
+        1 * mandateFileService.getMandateFiles(sampleMandate().id, _) >> files
         1 * signatureFileArchiver.writeSignatureFilesToZipOutputStream(files, _ as OutputStream)
 
         then:

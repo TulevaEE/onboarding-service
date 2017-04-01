@@ -3,11 +3,8 @@ package ee.tuleva.onboarding.mandate
 import com.codeborne.security.mobileid.IdCardSignatureSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
-import ee.tuleva.onboarding.fund.Fund
-import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter
-import ee.tuleva.onboarding.mandate.content.MandateContentCreator
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.email.EmailService
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
@@ -17,12 +14,10 @@ import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsFixture
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository
-import ee.tuleva.onboarding.user.CsdUserPreferencesService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserPreferences
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.auth.UserFixture.*
 import static ee.tuleva.onboarding.mandate.MandateFixture.invalidCreateMandateCommand
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleCreateMandateCommand
 
@@ -30,18 +25,16 @@ class MandateServiceSpec extends Specification {
 
     MandateRepository mandateRepository = Mock(MandateRepository)
     SignatureService signService = Mock(SignatureService)
-    MandateContentCreator mandateContentCreator = Mock(MandateContentCreator)
-    FundRepository fundRepository = Mock(FundRepository)
-    CsdUserPreferencesService csdUserPreferencesService = Mock(CsdUserPreferencesService)
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter()
     EmailService emailService = Mock(EmailService)
     FundValueStatisticsRepository fundValueStatisticsRepository = Mock(FundValueStatisticsRepository);
     FundTransferStatisticsService fundTransferStatisticsService = Mock(FundTransferStatisticsService);
-    private final MandateProcessorService mandateProcessor = Mock(MandateProcessorService);
+    MandateProcessorService mandateProcessor = Mock(MandateProcessorService);
+    MandateFileService mandateFileService = Mock(MandateFileService)
 
-    MandateService service = new MandateService(mandateRepository, signService, fundRepository,
-            mandateContentCreator, csdUserPreferencesService, converter, emailService,
-            fundValueStatisticsRepository, fundTransferStatisticsService, mandateProcessor)
+    MandateService service = new MandateService(mandateRepository, signService,
+            converter, emailService, fundValueStatisticsRepository, fundTransferStatisticsService,
+            mandateProcessor, mandateFileService)
 
     Long sampleMandateId = 1L
     UUID sampleStatisticsIdentifier = UUID.randomUUID()
@@ -80,86 +73,10 @@ class MandateServiceSpec extends Specification {
         thrown InvalidMandateException
     }
 
-    def "getMandateFiles: generates mandate content files"() {
-        given:
-        User user = sampleUser()
-        UserPreferences sampleUserPreferences = sampleUserPreferences()
-        mockMandateFiles(user, sampleMandateId, sampleUserPreferences)
-
-        1 * mandateContentCreator.
-                getContentFiles(_ as User,
-                        _ as Mandate,
-                        _ as List,
-                        sampleUserPreferences) >> sampleFiles()
-
-        when:
-        List<SignatureFile> files = service.getMandateFiles(sampleMandateId, user)
-
-        then:
-        files.size() == 1
-        files.get(0).mimeType == "html/text"
-        files.get(0).content.length == 4
-    }
-
-    def "getMandateFiles: on empty user address preferences generates mandate content files with defaults"() {
-        given:
-        User user = sampleUser()
-        UserPreferences sampleUserPreferences = userPreferencesWithAddresPartiallyEmpty()[0]
-        mockMandateFiles(user, sampleMandateId, sampleUserPreferences)
-
-        1 * mandateContentCreator.
-                getContentFiles(_ as User,
-                        _ as Mandate,
-                        _ as List,
-                        { UserPreferences it ->
-                            it.addressRow1 == UserPreferences.defaultUserPreferences().addressRow1
-                            it.addressRow2 == UserPreferences.defaultUserPreferences().addressRow2
-                            it.addressRow3 == UserPreferences.defaultUserPreferences().addressRow3
-                            it.getCountry() == UserPreferences.defaultUserPreferences().getCountry()
-                            it.getDistrictCode() == UserPreferences.defaultUserPreferences().getDistrictCode()
-                            it.getPostalIndex() == UserPreferences.defaultUserPreferences().getPostalIndex()
-                        }) >> sampleFiles()
-
-        when:
-        List<SignatureFile> files = service.getMandateFiles(sampleMandateId, user)
-
-        then:
-        files.size() == 1
-        files.get(0).mimeType == "html/text"
-        files.get(0).content.length == 4
-    }
-
-    def "getMandateFiles: on empty user contact preferences generates mandate content files with defaults"() {
-        given:
-        User user = sampleUser()
-        UserPreferences sampleUserPreferences = userPreferencesWithContactPreferencesPartiallyEmpty()[0]
-
-        mockMandateFiles(user, sampleMandateId, sampleUserPreferences)
-
-        1 * mandateContentCreator.
-                getContentFiles(_ as User,
-                        _ as Mandate,
-                        _ as List,
-                        { UserPreferences it ->
-                            it.languagePreference == UserPreferences.defaultUserPreferences().languagePreference
-                            it.contactPreference == UserPreferences.defaultUserPreferences().contactPreference
-                            it.noticeNeeded == UserPreferences.defaultUserPreferences().noticeNeeded
-                        }) >> sampleFiles()
-
-        when:
-        List<SignatureFile> files = service.getMandateFiles(sampleMandateId, user)
-
-        then:
-        files.size() == 1
-        files.get(0).mimeType == "html/text"
-        files.get(0).content.length == 4
-    }
-
     def "mobile id signing works"() {
         given:
         def user = sampleUser()
-        mockMandateFiles(user, sampleMandateId, sampleUserPreferences())
-        mockMandateFilesResponse()
+        1 * mandateFileService.getMandateFiles(sampleMandateId, user) >> sampleFiles()
         1 * signService.startSign(_ as List<SignatureFile>, user.getPersonalCode(), user.getPhoneNumber()) >>
                 new MobileIdSignatureSession(1, "1234")
 
@@ -236,10 +153,8 @@ class MandateServiceSpec extends Specification {
     def "id card signing works"() {
         given:
         def user = sampleUser()
-        mockMandateFiles(user, sampleMandateId, sampleUserPreferences())
-        mockMandateFilesResponse()
-
-        signService.startSign(_ as List<SignatureFile>, "signingCertificate") >>
+        1 * mandateFileService.getMandateFiles(sampleMandateId, user) >> sampleFiles()
+        1 * signService.startSign(_ as List<SignatureFile>, "signingCertificate") >>
                 new IdCardSignatureSession(1, "sigId", "hash")
 
         when:
@@ -315,22 +230,12 @@ class MandateServiceSpec extends Specification {
 
     }
 
-    def mockMandateFiles(User user, Long mandateId, UserPreferences userPreferences) {
-        1 * mandateRepository.findByIdAndUser(mandateId, user) >> sampleMandate()
-        1 * fundRepository.findAll() >> [new Fund(), new Fund()]
-        1 * csdUserPreferencesService.getPreferences(user.getPersonalCode()) >> userPreferences
-    }
-
     def mockMandateFilesResponse() {
         1 * mandateContentCreator.
                 getContentFiles(_ as User,
                         _ as Mandate,
                         _ as List,
                         _ as UserPreferences) >> sampleFiles()
-    }
-
-    List<MandateContentFile> sampleFiles() {
-        return [new MandateContentFile("file", "html/text", "file".getBytes())]
     }
 
     User sampleUser() {
@@ -340,8 +245,8 @@ class MandateServiceSpec extends Specification {
                 .build()
     }
 
-    Mandate sampleMandate() {
-        Mandate.builder().build()
+    private List<MandateContentFile> sampleFiles() {
+        return [new MandateContentFile("file", "html/text", "file".getBytes())]
     }
 
 }

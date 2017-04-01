@@ -2,14 +2,14 @@ package ee.tuleva.onboarding.mandate.content
 
 import com.codeborne.security.mobileid.SignatureFile
 import ee.tuleva.onboarding.auth.UserFixture
-import ee.tuleva.onboarding.mandate.MandateService
+import ee.tuleva.onboarding.mandate.MandateFileService
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
 class MandateXmlServiceSpec extends Specification {
 
-    MandateService mandateService = Mock(MandateService)
-    MandateXmlService mandateXmlService = new MandateXmlService(mandateService)
+    MandateFileService mandateFileService = Mock(MandateFileService)
+    MandateXmlService mandateXmlService = new MandateXmlService(mandateFileService)
 
     def "getRequestContents: Get Mandate XMLs"() {
 
@@ -17,7 +17,7 @@ class MandateXmlServiceSpec extends Specification {
         User sampleUser = UserFixture.sampleUser()
         Long sampleMandateId = 123L
 
-        1 * mandateService.getMandateFiles(sampleMandateId, sampleUser) >> sampleFiles()
+        1 * mandateFileService.getMandateFiles(sampleMandateId, sampleUser) >> sampleFiles()
 
         when:
         List<MandateXmlMessage> contents = mandateXmlService.getRequestContents(sampleUser, sampleMandateId)

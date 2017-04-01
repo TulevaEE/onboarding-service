@@ -127,7 +127,9 @@ public class MandateController {
         Mandate mandate = getMandateOrThrow(mandateId, user);
         response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.bdoc");
 
-        IOUtils.copy(new ByteArrayInputStream(mandate.getMandate()), response.getOutputStream());
+        byte[] content = mandate.getMandate().orElseThrow(() -> new RuntimeException("Mandate is not signed"));
+
+        IOUtils.copy(new ByteArrayInputStream(content), response.getOutputStream());
         response.flushBuffer();
 
     }

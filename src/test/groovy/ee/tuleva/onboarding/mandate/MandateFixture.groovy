@@ -83,6 +83,36 @@ class MandateFixture {
         return mandate
     }
 
+    static Mandate sampleUnsignedMandate() {
+        Mandate mandate = Mandate.builder()
+                .fundTransferExchanges([
+                FundTransferExchange.builder()
+                        .id(1234)
+                        .sourceFundIsin("AE123232331")
+                        .targetFundIsin(futureContibutionFundIsin)
+                        .amount(new BigDecimal(0.2))
+                        .build(),
+                FundTransferExchange.builder()
+                        .id(1235)
+                        .sourceFundIsin("AE123232331")
+                        .targetFundIsin(futureContibutionFundIsin)
+                        .amount(new BigDecimal(0.8))
+                        .build(),
+                FundTransferExchange.builder()
+                        .id(1236)
+                        .sourceFundIsin("AE123232337")
+                        .targetFundIsin(futureContibutionFundIsin)
+                        .amount(new BigDecimal(1))
+                        .build()
+        ])
+                .futureContributionFundIsin(futureContibutionFundIsin)
+                .build()
+
+        mandate.setId(123)
+        mandate.setCreatedDate(Instant.now())
+        return mandate
+    }
+
     static List<Fund> sampleFunds() {
         return Arrays.asList(
                 Fund.builder().

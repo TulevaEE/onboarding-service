@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConvert
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
 import ee.tuleva.onboarding.mandate.email.EmailService;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
+import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
@@ -42,6 +43,7 @@ public class MandateService {
 	private final EmailService emailService;
 	private final FundValueStatisticsRepository fundValueStatisticsRepository;
 	private final FundTransferStatisticsService fundTransferStatisticsService;
+	private final MandateProcessorService mandateProcessor;
 
     public Mandate save(User user, CreateMandateCommand createMandateCommand) {
 		validateCreateMandateCommand(createMandateCommand);
@@ -140,42 +142,75 @@ public class MandateService {
 	}
 
     public String finalizeMobileIdSignature(User user, UUID statisticsIdentifier, Long mandateId, MobileIdSignatureSession session) {
+
+		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+
+		if(isMandateSigned(mandate)) {
+			return handleSignedMandate(user, mandate, statisticsIdentifier);
+		} else {
+			return handleUnsignedMandateMobileId(user, mandate, session);
+		}
+	}
+
+	private String handleUnsignedMandateMobileId(User user, Mandate mandate, MobileIdSignatureSession session) {
 		byte[] signedFile = signService.getSignedFile(session);
 
 		if (signedFile != null) {
-			persistSignedFile(mandateId, signedFile);
-			persistFundTransferExchangeStatistics(user, statisticsIdentifier, mandateId);
-			notifyMandateProcessor(user, mandateId, signedFile);
-			return "SIGNATURE"; // TODO: use enum
+			persistSignedFile(mandate, signedFile);
+			mandateProcessor.start(user, mandate);
+			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
 		} else {
 			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
 		}
 	}
 
 	public String finalizeIdCardSignature(User user, UUID statisticsIdentifier, Long mandateId, IdCardSignatureSession session, String signedHash) {
+
+		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+
+		if(isMandateSigned(mandate)) {
+			return handleSignedMandate(user, mandate, statisticsIdentifier);
+		} else {
+			return handleUnsignedMandateIdCard(user, mandate, session, signedHash);
+		}
+	}
+
+	private String handleSignedMandate(User user, Mandate mandate, UUID statisticsIdentifier) {
+		if(mandateProcessor.isFinished(mandate)) { // TODO: on mandate processing error, remove mandate.mandate from database
+			persistFundTransferExchangeStatistics(user, statisticsIdentifier, mandate);
+//				notifyMandateProcessor(user, mandateId, signedFile);
+			return "SIGNATURE"; // TODO: use enum
+		} else {
+			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
+		}
+	}
+
+	private String handleUnsignedMandateIdCard(User user, Mandate mandate, IdCardSignatureSession session, String signedHash) {
 		byte[] signedFile = signService.getSignedFile(session, signedHash);
 		if (signedFile != null) {
-			persistSignedFile(mandateId, signedFile);
-			persistFundTransferExchangeStatistics(user, statisticsIdentifier, mandateId);
-			notifyMandateProcessor(user, mandateId, signedFile);
-			return "SIGNATURE"; // TODO: use enum
+			persistSignedFile(mandate, signedFile);
+			mandateProcessor.start(user, mandate);
+			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
 		} else {
 			throw new IllegalStateException("There is no signed file to persist");
 		}
 	}
 
+	private boolean isMandateSigned(Mandate mandate) {
+		return mandate.getMandate().isPresent();
+	}
+
+
 	private void notifyMandateProcessor(User user, Long mandateId, byte[] signedFile) {
 		emailService.send(user, mandateId, signedFile);
 	}
 
-	private void persistSignedFile(Long mandateId, byte[] signedFile) {
-		Mandate mandate = mandateRepository.findOne(mandateId);
+	private void persistSignedFile(Mandate mandate, byte[] signedFile) {
 		mandate.setMandate(signedFile);
 		mandateRepository.save(mandate);
 	}
 
-	private void persistFundTransferExchangeStatistics(User user, UUID statisticsIdentifier, Long mandateId) {
-		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+	private void persistFundTransferExchangeStatistics(User user, UUID statisticsIdentifier, Mandate mandate) {
 		List<FundValueStatistics> fundValueStatisticsList = fundValueStatisticsRepository.findByIdentifier(statisticsIdentifier);
 		fundTransferStatisticsService.addFrom(mandate, fundValueStatisticsList);
 		fundValueStatisticsList.forEach( fundValueStatistics -> {

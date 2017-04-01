@@ -127,6 +127,19 @@ class MandateControllerSpec extends BaseControllerSpec {
         result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.bdoc"
     }
 
+    def "getMandateFile throws exception if mandate is not signed"() {
+        given:
+        1 * mandateRepository
+                .findByIdAndUser(sampleMandate().id, _) >> sampleUnsignedMandate()
+
+        when:
+        mvc
+                .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
+
+        then:
+        thrown Exception
+    }
+
     def "getMandateFilePreview: returns mandate preview file"() {
         when:
 

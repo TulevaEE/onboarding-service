@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.mandate.content.MandateContentCreator
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.email.EmailService
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
+import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
 import ee.tuleva.onboarding.mandate.signature.SignatureService
 import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics
@@ -36,14 +37,17 @@ class MandateServiceSpec extends Specification {
     EmailService emailService = Mock(EmailService)
     FundValueStatisticsRepository fundValueStatisticsRepository = Mock(FundValueStatisticsRepository);
     FundTransferStatisticsService fundTransferStatisticsService = Mock(FundTransferStatisticsService);
+    private final MandateProcessorService mandateProcessor = Mock(MandateProcessorService);
 
     MandateService service = new MandateService(mandateRepository, signService, fundRepository,
             mandateContentCreator, csdUserPreferencesService, converter, emailService,
-            fundValueStatisticsRepository, fundTransferStatisticsService)
+            fundValueStatisticsRepository, fundTransferStatisticsService, mandateProcessor)
 
     Long sampleMandateId = 1L
     UUID sampleStatisticsIdentifier = UUID.randomUUID()
     List<FundValueStatistics> sampleFundValueStatisticsList = FundValueStatisticsFixture.sampleFundValueStatisticsList()
+    User sampleUser = sampleUser()
+
 
     def "save: Converting create mandate command and persisting a mandate"() {
         given:
@@ -167,46 +171,66 @@ class MandateServiceSpec extends Specification {
         session.challenge == "1234"
     }
 
-    def "mobile id signature status works"() {
+    def "finalizeMobileIdSignature: get correct status if currently signing mandate"() {
         given:
-        1 * signService.getSignedFile(_) >> file
-        mandateRepository.findOne(sampleMandateId) >> sampleMandate()
-        mandateRepository.save({ Mandate it -> it.mandate == "file".getBytes() }) >> sampleMandate()
-        fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
+        Mandate sampleMandate = MandateFixture.sampleUnsignedMandate()
+
+        1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
+        1 * signService.getSignedFile(_) >> null
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser(), sampleStatisticsIdentifier, sampleMandateId, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
 
         then:
-        status == expectedStatus
-
-        where:
-        file          | expectedStatus
-        null          | "OUTSTANDING_TRANSACTION"
-        [0] as byte[] | "SIGNATURE"
+        status == "OUTSTANDING_TRANSACTION"
     }
 
-    def "mobile id signed mandate and statistics is saved"() {
+    def "finalizeMobileIdSignature: get correct status if currently signed a mandate and start processing"() {
         given:
-        byte[] file = "file".getBytes()
-        User sampleUser = sampleUser()
-        Mandate sampleMandate = sampleMandate()
+        Mandate sampleMandate = MandateFixture.sampleUnsignedMandate()
+        byte[] sampleFile = "file".getBytes()
 
-        1 * signService.getSignedFile(_) >> file
-        1 * mandateRepository.findOne(sampleMandateId) >> sampleMandate
-        1 * mandateRepository.save({ Mandate it -> it.mandate == file }) >> sampleMandate
-        1 * emailService.send(sampleUser, sampleMandateId, file)
-//        1 * mandateRepository.findByIdAndUser(_, _) >> sampleMandate
-        1 * fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
+        1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
+
+        1 * signService.getSignedFile(_) >> sampleFile
+        1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
 
         when:
-        service.finalizeMobileIdSignature(sampleUser, sampleStatisticsIdentifier, sampleMandateId, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
 
         then:
-        1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser)
-        1 * fundTransferStatisticsService.addFrom(_, sampleFundValueStatisticsList)
-        sampleFundValueStatisticsList.size() * fundValueStatisticsRepository.delete(_ as FundValueStatistics)
-        true
+        1 * mandateProcessor.start(sampleUser, sampleMandate)
+        status == "OUTSTANDING_TRANSACTION"
+    }
+
+    def "finalizeMobileIdSignature: get correct status if mandate is signed and being processed"() {
+        given:
+        Mandate sampleMandate = MandateFixture.sampleMandate()
+
+        1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
+        1 * mandateProcessor.isFinished(sampleMandate) >> false
+
+        when:
+        def status = service.finalizeMobileIdSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
+
+        then:
+        status == "OUTSTANDING_TRANSACTION"
+    }
+
+    def "finalizeMobileIdSignature: get correct status and save statistics if mandate is signed and processed"() {
+        given:
+        Mandate sampleMandate = MandateFixture.sampleMandate()
+
+        1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
+        1 * mandateProcessor.isFinished(sampleMandate) >> true
+
+        when:
+        def status = service.finalizeMobileIdSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
+
+        then:
+        status == "SIGNATURE"
+        1 * fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
+
     }
 
     def "id card signing works"() {
@@ -227,37 +251,68 @@ class MandateServiceSpec extends Specification {
         session.hash == "hash"
     }
 
-    def "id card signed mandate and stats are saved"() {
+    def "finalizeIdCardSignature: throws exception when no signed file exist"() {
         given:
-        byte[] file = "file".getBytes()
+        Mandate sampleMandate = MandateFixture.sampleUnsignedMandate()
         IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
-        User sampleUser = sampleUser()
-        1 * signService.getSignedFile(session, "signedHash") >> file
-        1 * mandateRepository.findOne(sampleMandateId) >> sampleMandate()
-        1 * emailService.send(sampleUser, sampleMandateId, file)
-        1 * fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
 
-        when:
-        service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandateId, session, "signedHash")
-
-        then:
-        1 * mandateRepository.save({ Mandate it -> it.mandate == file })
-        1 * mandateRepository.findByIdAndUser(sampleMandateId, sampleUser)
-        1 * fundTransferStatisticsService.addFrom(_, sampleFundValueStatisticsList)
-        sampleFundValueStatisticsList.size() * fundValueStatisticsRepository.delete(_ as FundValueStatistics)
-
-    }
-
-    def "id card signature finalization throws exception when no signed file exist"() {
-        given:
-        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
+        1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
         1 * signService.getSignedFile(session, "signedHash") >> null
 
         when:
-        service.finalizeIdCardSignature(sampleUser(), sampleStatisticsIdentifier, sampleMandateId, session, "signedHash")
+        def status = service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
 
         then:
         thrown(IllegalStateException)
+    }
+
+    def "finalizeIdCardSignature: get correct status if currently signed a mandate and start processing"() {
+        given:
+        Mandate sampleMandate = MandateFixture.sampleUnsignedMandate()
+        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
+        byte[] sampleFile = "file".getBytes()
+        1 * signService.getSignedFile(session, "signedHash") >> sampleFile
+        1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
+        1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
+
+        when:
+        def status = service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
+
+        then:
+        1 * mandateProcessor.start(sampleUser, sampleMandate)
+        status == "OUTSTANDING_TRANSACTION"
+    }
+
+    def "finalizeIdCardSignature: get correct status if mandate is signed and being processed"() {
+        given:
+        Mandate sampleMandate = MandateFixture.sampleMandate()
+        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
+
+        1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
+        1 * mandateProcessor.isFinished(sampleMandate) >> false
+
+        when:
+        def status = service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
+
+        then:
+        status == "OUTSTANDING_TRANSACTION"
+    }
+
+    def "finalizeIdCardSignature: get correct status and save statistics if mandate is signed and processed"() {
+        given:
+        Mandate sampleMandate = MandateFixture.sampleMandate()
+        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
+
+        1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
+        1 * mandateProcessor.isFinished(sampleMandate) >> true
+
+        when:
+        def status = service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
+
+        then:
+        status == "SIGNATURE"
+        1 * fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
+
     }
 
     def mockMandateFiles(User user, Long mandateId, UserPreferences userPreferences) {

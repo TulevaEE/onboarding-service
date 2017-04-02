@@ -30,7 +30,7 @@ public class MandateXmlService {
 
         return mandateFileService.getMandateFiles(mandateId, user).stream().map( signatureFile -> {
 
-            String id = "TULEVA_" + UUID.randomUUID();
+            String id = UUID.randomUUID().toString().replace("-", "");
 
             return MandateXmlMessage.builder().
                     message(

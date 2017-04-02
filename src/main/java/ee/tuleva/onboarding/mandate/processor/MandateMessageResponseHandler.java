@@ -27,7 +27,7 @@ public class MandateMessageResponseHandler {
     //TODO: test
     //TODO: identify message by ID and write into MandateMessageProcess entity
     public MandateProcessResponse getMandateProcessResponse(Message message) {
-        log.info("Message received:");
+        log.info("Message received");
         String msg = null;
 
         try {
@@ -54,7 +54,7 @@ public class MandateMessageResponseHandler {
         if (envelope != null) {
             String id = envelope.getBizMsg().getAppHdr().getBizMsgIdr();
             boolean ok = isResponseOK(envelope.getBizMsg().getAny());
-
+            log.info("Message id {} returned response {}", id, ok);
             return MandateProcessResponse.builder()
                     .processId(id)
                     .response(

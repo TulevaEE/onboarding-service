@@ -27,8 +27,10 @@ public class MandateProcessorService {
         log.info("Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
         List<MandateXmlMessage> messages = mandateXmlService.getRequestContents(user, mandate.getId());
 
+        log.info("Processing mandate {}", mandate.getId());
         messages.forEach( message -> {
             saveInitialMandateProcess(mandate, message.getId());
+            log.info("Sending message with id {}", message.getId());
             jmsTemplate.send("MHUB.PRIVATE.IN", new MandateProcessorMessageCreator(message.getMessage()));
         });
     }

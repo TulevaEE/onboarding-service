@@ -76,6 +76,10 @@ mhub:
 
 socksProxyUrl: ${SOCKS_PROXY_URL:#{null}}
 
+proxy:
+  url: ${QUOTAGUARDSTATIC_URL}
+  nonProxyHosts: "mandrillapp.com|sk.ee|localhost"
+
 ---
 
 spring:

@@ -1,13 +1,11 @@
 package ee.tuleva.onboarding.kpr;
 
-import com.ibm.jms.JMSBytesMessage;
 import com.ibm.mq.jms.MQQueueConnectionFactory;
 import com.ibm.msg.client.wmq.WMQConstants;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Scope;
 import org.springframework.jms.connection.SingleConnectionFactory;
@@ -15,19 +13,13 @@ import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.listener.DefaultMessageListenerContainer;
 
 import javax.jms.JMSException;
-import javax.jms.Message;
 import javax.jms.MessageListener;
-import javax.jms.TextMessage;
-import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManagerFactory;
-import java.io.FileInputStream;
-import java.security.KeyStore;
-import java.security.NoSuchAlgorithmException;
 import java.security.Security;
 
 
 @Configuration
+@Slf4j
 public class MhubConfiguration {
 
     @Value("${mhub.host}")
@@ -66,7 +58,8 @@ public class MhubConfiguration {
     @Bean
     @Scope("singleton")
     public MQQueueConnectionFactory createMQConnectionFactory() {
-        // it requires SSLv3 to be enabled
+        // it requires SSLv3 to be enabled but integrated with some app that has already brought up the JCA provider
+        // it may be too late for that here - do it earlier
         Security.setProperty("jdk.tls.disabledAlgorithms", "");
 
         SSLContext sslContext = KeyUtils.createSSLContext(
@@ -79,7 +72,6 @@ public class MhubConfiguration {
             MQQueueConnectionFactory factory = new MQQueueConnectionFactory();
             factory.setSSLSocketFactory(sslContext.getSocketFactory());
             factory.setTransportType(WMQConstants.WMQ_CM_CLIENT);
-            //factory.setSSLSocketFactory(sslContext.getSocketFactory());
             factory.setHostName(this.host);
             factory.setPort(this.port);
             factory.setQueueManager(this.queueManager);
@@ -106,14 +98,14 @@ public class MhubConfiguration {
         return jmsTemplate;
     }
 
-    @Autowired(required = false)
+    @Autowired
     private MessageListener messageListener;
 
     @Bean
     @Scope("singleton")
-    @ConditionalOnBean(MessageListener.class)
     public DefaultMessageListenerContainer createMessageListenerContainer(
             MQQueueConnectionFactory factory) {
+        log.info("MessageListener found in Spring context, creating DefaultMessageListenerContainer too.");
         DefaultMessageListenerContainer defaultMessageListenerContainer = new DefaultMessageListenerContainer();
         defaultMessageListenerContainer.setConnectionFactory(factory);
         defaultMessageListenerContainer.setDestinationName(this.inboundQueue);

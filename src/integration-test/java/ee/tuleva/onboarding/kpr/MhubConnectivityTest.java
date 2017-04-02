@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.kpr;
 import com.ibm.jms.JMSBytesMessage;
 import ee.tuleva.epis.gen.MHubEnvelope;
 import ee.tuleva.onboarding.config.SocksConfiguration;
-import ee.tuleva.onboarding.mandate.processor.MandateProcessorListener;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -15,6 +14,11 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import javax.jms.*;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Unmarshaller;
+import java.io.StringReader;
 
 /**
  * Disable java assertions on this test (remove "-ea" from idea run conf), MQ Factory fails with assertions.
@@ -44,7 +48,7 @@ public class MhubConnectivityTest {
                     TextMessage textMessage = (TextMessage) message;
                     try {
                         System.out.println("TEXT:" + textMessage.getText());
-                        MHubEnvelope envelope = MandateProcessorListener.unmarshallMessage(textMessage.getText(), MHubEnvelope.class);
+                        MHubEnvelope envelope = unmarshallMessage(textMessage.getText(), MHubEnvelope.class);
                         if (envelope != null) {
                             System.out.println("OK envelope");
                         }
@@ -80,6 +84,30 @@ public class MhubConnectivityTest {
         public Message createMessage(Session session) throws JMSException {
             return session.createTextMessage(message);
         }
+    }
+
+
+    private static <T> T unmarshallMessage(String msg, Class<T> expectedType) {
+        try {
+            JAXBContext jaxbContext = JAXBContext.newInstance("ee.tuleva.epis.gen");
+            Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
+            Object ret = jaxbUnmarshaller.unmarshal(new StringReader(msg));
+
+            if (ret instanceof JAXBElement) {
+                JAXBElement jaxbElement = (JAXBElement) ret;
+                Object valueObj = jaxbElement.getValue();
+
+                if (expectedType.isInstance(valueObj)) {
+                    return (T) valueObj;
+                }
+            }
+
+            log.warn("Unable to parse Mhub message, unexpected return type!");
+        } catch (JAXBException e) {
+            log.warn("Unable to parse MHub message!" , e);
+        }
+
+        return null;
     }
 
 }

@@ -110,6 +110,12 @@ sourceSets {
             srcDirs file('src/integration-test/java')
         }
 
+		groovy {
+			compileClasspath += main.output + test.output
+			runtimeClasspath += main.output + test.output
+			srcDirs file('src/integration-test/groovy')
+		}
+
         resources.srcDirs file('src/integration-test/resources')
     }
 }
@@ -117,5 +123,5 @@ sourceSets {
 task integrationTest(type: Test, description: 'Runs the integration tests.', group: 'Verification') {
     testClassesDir = sourceSets.integrationTest.output.classesDir
     classpath = sourceSets.integrationTest.runtimeClasspath
-    enableAssertions = false
+	enableAssertions = false
 }

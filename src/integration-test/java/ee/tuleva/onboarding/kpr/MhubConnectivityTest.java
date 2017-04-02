@@ -15,7 +15,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import javax.jms.*;
-import java.util.UUID;
 
 /**
  * Disable java assertions on this test (remove "-ea" from idea run conf), MQ Factory fails with assertions.

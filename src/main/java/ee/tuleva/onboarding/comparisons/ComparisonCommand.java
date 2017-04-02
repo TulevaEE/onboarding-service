@@ -35,7 +35,7 @@ public class ComparisonCommand implements Serializable {
     // defaults that can be overwritten in API
     // todo change when known
     @Size(min = 12, max = 12)
-    String isinTo = "AE0000000001";
+    String isinTo = "EE3600109435";
 
     Integer ageOfRetirement = 65;
 

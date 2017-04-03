@@ -84,6 +84,13 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
     }
 
+    def "get mobile ID signature without statistics identifier fails"() {
+        expect:
+        mvc
+                .perform(get("/v1/mandates/1/signature/mobileId/status"))
+                .andExpect(status().isBadRequest())
+    }
+
     def "id card signature start returns the hash to be signed by the client"() {
         when:
         mandateService.idCardSign(1L, _, "clientCertificate") >> new IdCardSignatureSession(1, "sigId", "asdfg")
@@ -113,6 +120,14 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
+    }
+
+    def "put ID card signature status without statistics identifier fails"() {
+        expect:
+        mvc
+                .perform(put("/v1/mandates/1/signature/idCard/status")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
     }
 
     def "getMandateFile returns mandate file"() {

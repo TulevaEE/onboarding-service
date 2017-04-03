@@ -79,7 +79,7 @@ public class MandateController {
     @RequestMapping(method = GET, value = "/mandates/{id}/signature/mobileId/status")
     public MandateSignatureStatusResponse getMobileIdSignatureStatus(@PathVariable("id") Long mandateId,
                                                                      @ApiIgnore @AuthenticationPrincipal User user,
-                                                                     @RequestHeader(value = "x-statistics-identifier", required = false) UUID statisticsIdentifier) {
+                                                                     @RequestHeader("x-statistics-identifier") UUID statisticsIdentifier) {
 
         Optional<MobileIdSignatureSession> signatureSession = genericSessionStore.get(MobileIdSignatureSession.class);
         MobileIdSignatureSession session = signatureSession

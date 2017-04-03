@@ -156,9 +156,12 @@ public class MandateService {
 	private void persistFundTransferExchangeStatistics(User user, UUID statisticsIdentifier, Mandate mandate) {
 		List<FundValueStatistics> fundValueStatisticsList = fundValueStatisticsRepository.findByIdentifier(statisticsIdentifier);
 		fundTransferStatisticsService.addFrom(mandate, fundValueStatisticsList);
-		fundValueStatisticsList.forEach( fundValueStatistics -> {
-			fundValueStatisticsRepository.delete(fundValueStatistics);
-		});
+
+		// TODO: decide if we need to delete fund value statistics after adding or it might be needed in the same session
+		// to generate an other mandate and then be ereased by a chron job
+//		fundValueStatisticsList.forEach( fundValueStatistics -> {
+//			fundValueStatisticsRepository.delete(fundValueStatistics);
+//		});
 	}
 
 }

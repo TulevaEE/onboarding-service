@@ -13,14 +13,26 @@ class MandateProcessorListenerSpec extends Specification {
 
     def "ProcessorListener: On message, persist it"() {
         given:
-        mandateMessageResponseHandler.getMandateProcessResponse(sampleMessage) >>
-                new MandateProcessResponse("123", MandateProcessResponse.ProcessResponse.SUCCESS)
+        MandateProcessResult.ProcessResult sampleProcessResult = MandateProcessResult.ProcessResult.SUCCESS
+        String sampleProcessId = "123"
+
+        1 * mandateMessageResponseHandler.getMandateProcessResponse(sampleMessage) >>
+                MandateProcessResult.builder()
+                        .processId(sampleProcessId)
+                        .result(sampleProcessResult)
+                        .build()
+
+        1 * mandateProcessRepository.findOneByProcessId(sampleProcessId) >>
+                MandateMessageProcess.builder()
+                        .processId(sampleProcessId)
+                        .build()
 
         when:
         service.processorListener().onMessage(sampleMessage)
         then:
-
-        true
+        1 * mandateProcessRepository.save({MandateMessageProcess process ->
+            process.processId == sampleProcessId && process.result.get() == sampleProcessResult.toString()
+        })
 
     }
 

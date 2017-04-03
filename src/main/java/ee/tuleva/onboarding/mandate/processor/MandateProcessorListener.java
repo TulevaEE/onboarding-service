@@ -22,10 +22,12 @@ public class MandateProcessorListener {
 
             @Override
             public void onMessage(Message message) {
-                MandateProcessResponse mandateProcessResponse =
+                MandateProcessResult mandateProcessResult =
                         mandateMessageResponseHandler.getMandateProcessResponse(message);
 
-                // TODO: save message
+                MandateMessageProcess process = mandateProcessRepository.findOneByProcessId(mandateProcessResult.getProcessId());
+                process.setResult(mandateProcessResult.getResult().toString());
+                mandateProcessRepository.save(process);
             }
         };
     }

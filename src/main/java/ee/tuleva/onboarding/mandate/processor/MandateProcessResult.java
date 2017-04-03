@@ -7,12 +7,12 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
-public class MandateProcessResponse {
+public class MandateProcessResult {
 
-    public enum ProcessResponse {
+    public enum ProcessResult {
         SUCCESS, FAIL
     }
 
     private String processId;
-    private ProcessResponse response;
+    private ProcessResult result;
 }

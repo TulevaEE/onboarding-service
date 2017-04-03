@@ -20,6 +20,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 public class AccountStatementController {
 
     private final AccountStatementService accountStatementService;
+    private final ContributionsFundService contributionsFundService;
 
     @ApiOperation(value = "Get pension register account statement")
     @RequestMapping(method = GET, value = "/pension-account-statement")
@@ -27,4 +28,12 @@ public class AccountStatementController {
                                                           @RequestHeader(value = "x-statistics-identifier", required = false) UUID statisticsIdentifier) {
         return accountStatementService.getMyPensionAccountStatement(user, statisticsIdentifier);
     }
+
+    @ApiOperation(value = "Get current contributions fund name")
+    @RequestMapping(method = GET, value = "/contributions-fund-name")
+    public ContributionsFundName getContributionsFundName(@ApiIgnore @AuthenticationPrincipal User user,
+                                                          @RequestHeader(value = "x-statistics-identifier", required = false) UUID statisticsIdentifier) {
+        return contributionsFundService.getActiveFundName(user);
+    }
 }
+

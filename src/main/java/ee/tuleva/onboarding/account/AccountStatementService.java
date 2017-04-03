@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.account;
 
 import ee.eesti.xtee6.kpr.PensionAccountBalanceResponseType;
 import ee.eesti.xtee6.kpr.PensionAccountBalanceType;
-import ee.eesti.xtee6.kpr.PersonalSelectionResponseType;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.kpr.KPRClient;
@@ -30,7 +29,6 @@ public class AccountStatementService {
     public List<FundBalance> getMyPensionAccountStatement(User user, UUID statisticsIdentifier) {
         List<FundBalance> fundBalances = convertXRoadResponse(getPensionAccountBalance(user));
 
-        fundBalances = handleActiveFundBalance(fundBalances, getActiveFundName(user));
         saveFundValueStatistics(fundBalances, statisticsIdentifier);
 
         return fundBalances;
@@ -58,11 +56,6 @@ public class AccountStatementService {
                 response.getUnits().getBalance().stream()
                         .map(b->kprUnitsOsakudToFundBalanceConverter.convert(b))
                         .collect(Collectors.toList());
-    }
-
-    private String getActiveFundName(User user) {
-        PersonalSelectionResponseType csdPersonalSelection = kprClient.personalSelection(user.getPersonalCode());
-        return csdPersonalSelection.getPensionAccount().getSecurityName();
     }
 
     private List<FundBalance> handleActiveFundBalance(List<FundBalance> fundBalances, String activeFundName) {

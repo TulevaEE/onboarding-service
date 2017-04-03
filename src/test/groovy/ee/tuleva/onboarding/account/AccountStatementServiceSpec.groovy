@@ -77,13 +77,16 @@ class AccountStatementServiceSpec extends Specification {
 
         String activeFundIsin = "LV0987654321"
 
-        1 * fundRepository.findByNameIgnoreCase(activeFundName) >> Fund.builder()
+        Fund activeFund = Fund.builder()
                 .name(activeFundName)
                 .isin(activeFundIsin)
                 .build()
+
+        1 * fundRepository.findByNameIgnoreCase(activeFundName) >> activeFund
         UUID sampleStatisticsIdentifier = UUID.randomUUID()
 
         checkForFundValueStatisticsSave(sampleFundBalance, sampleStatisticsIdentifier)
+        checkForZeroBalanceActiveFundValueStatisticsSave(activeFund, sampleStatisticsIdentifier)
 
         when:
         List<FundBalance> fundBalances = service.getMyPensionAccountStatement(UserFixture.sampleUser(), sampleStatisticsIdentifier)
@@ -118,6 +121,13 @@ class AccountStatementServiceSpec extends Specification {
                     fundValueStatistics.value == sampleFundBalance.value &&
                     fundValueStatistics.identifier == sampleStatisticsIdentifier
         })
+    }
 
+    private checkForZeroBalanceActiveFundValueStatisticsSave(Fund activeFund, UUID sampleStatisticsIdentifier) {
+        1 * fundValueStatisticsRepository.save({ FundValueStatistics fundValueStatistics ->
+            fundValueStatistics.isin == activeFund.isin &&
+                    fundValueStatistics.value == BigDecimal.ZERO &&
+                    fundValueStatistics.identifier == sampleStatisticsIdentifier
+        })
     }
 }

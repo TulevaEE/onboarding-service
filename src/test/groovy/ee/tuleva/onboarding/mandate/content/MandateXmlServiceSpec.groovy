@@ -24,6 +24,7 @@ class MandateXmlServiceSpec extends Specification {
 
         then:
         contents.get(0).message == mandateXmlService.episEnvelopePrefix(contents.get(0).id) + sampleXmlContent + mandateXmlService.episEnvelopeSuffix
+        contents.get(0).type == MandateXmlMessage.MandateXmlMessageType.TRANSFER
     }
 
 

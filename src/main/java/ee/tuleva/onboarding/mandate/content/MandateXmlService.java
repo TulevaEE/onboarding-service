@@ -32,20 +32,34 @@ public class MandateXmlService {
 
             String id = UUID.randomUUID().toString().replace("-", "");
 
+            String xmlContent = Jsoup.parse(
+                    new String(signatureFile.content, StandardCharsets.UTF_8)
+            ).head().getElementById("avaldus").html();
+
             return MandateXmlMessage.builder().
                     message(
                             episEnvelopePrefix(id) +
-                                    Jsoup.parse(
-                                            new String(signatureFile.content, StandardCharsets.UTF_8)
-                                    ).head().getElementById("avaldus").html() +
+                                    xmlContent +
                                     episEnvelopeSuffix
                     )
                     .id(id)
+                    .type(getType(xmlContent))
                     .build();
 
         }).collect(Collectors.toList());
     }
 
+    private MandateXmlMessage.MandateXmlMessageType getType(String xmlContent) {
+        MandateXmlMessage.MandateXmlMessageType type = null;
+
+        if(xmlContent.contains("<OSAKUTE_VAHETAMISE_AVALDUS>")) {
+            type = MandateXmlMessage.MandateXmlMessageType.TRANSFER;
+        } else if(xmlContent.contains("VALIKUAVALDUS")) {
+            type = MandateXmlMessage.MandateXmlMessageType.SELECTION;
+        }
+
+        return type;
+    }
 
     private String senderBic = "TULEVA20";
     private String recipientBic = "ECSDEE20";

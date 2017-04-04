@@ -9,7 +9,12 @@ import lombok.Setter;
 @Builder
 public class MandateXmlMessage {
 
+    public enum MandateXmlMessageType {
+        TRANSFER, SELECTION
+    }
+
     private String id;
     private String message;
+    private MandateXmlMessageType type;
 
 }

@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.mandate
 import com.codeborne.security.mobileid.IdCardSignatureSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException
+import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
@@ -140,6 +142,7 @@ class MandateServiceSpec extends Specification {
 
         1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
+        1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
 
         when:
         def status = service.finalizeMobileIdSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
@@ -147,6 +150,22 @@ class MandateServiceSpec extends Specification {
         then:
         status == "SIGNATURE"
         1 * fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
+
+    }
+
+    def "finalizeMobileIdSignature: throw exception if mandate is signed and processed and has errors"() {
+        given:
+        Mandate sampleMandate = MandateFixture.sampleMandate()
+
+        1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
+        1 * mandateProcessor.isFinished(sampleMandate) >> true
+        1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
+
+        when:
+        def status = service.finalizeMobileIdSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
+
+        then:
+        thrown ErrorsResponseException
 
     }
 
@@ -220,6 +239,7 @@ class MandateServiceSpec extends Specification {
 
         1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
+        1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
 
         when:
         def status = service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
@@ -227,6 +247,22 @@ class MandateServiceSpec extends Specification {
         then:
         status == "SIGNATURE"
         1 * fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
+    }
+
+    def "finalizeIdCardSignature: throw exception if mandate is signed and processed and has errors"() {
+        given:
+        Mandate sampleMandate = MandateFixture.sampleMandate()
+        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
+
+        1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
+        1 * mandateProcessor.isFinished(sampleMandate) >> true
+        1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
+
+        when:
+        def status = service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
+
+        then:
+        thrown ErrorsResponseException
 
     }
 
@@ -244,6 +280,9 @@ class MandateServiceSpec extends Specification {
                 .phoneNumber("5555555")
                 .build()
     }
+
+    ErrorsResponse sampleErrorsResponse = new ErrorsResponse([[:]])
+    ErrorsResponse sampleEmptyErrorsResponse = new ErrorsResponse([])
 
     private List<MandateContentFile> sampleFiles() {
         return [new MandateContentFile("file", "html/text", "file".getBytes())]

@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.mandate;
 import com.codeborne.security.mobileid.IdCardSignatureSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.codeborne.security.mobileid.SignatureFile;
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.email.EmailService;
@@ -118,13 +120,26 @@ public class MandateService {
 		}
 	}
 
+	private boolean isMandateSigned(Mandate mandate) {
+		return mandate.getMandate().isPresent();
+	}
+
 	private String handleSignedMandate(User user, Mandate mandate, UUID statisticsIdentifier) {
-		if(mandateProcessor.isFinished(mandate)) { // TODO: on mandate processing error, remove mandate.mandate from database
+		if(mandateProcessor.isFinished(mandate)) {
+			handleMandateProcessingErrors(mandate);
 			persistFundTransferExchangeStatistics(user, statisticsIdentifier, mandate);
 //				notifyMandateProcessor(user, mandateId, signedFile);
 			return "SIGNATURE"; // TODO: use enum
 		} else {
 			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
+		}
+	}
+
+	private void handleMandateProcessingErrors(Mandate mandate) {
+		ErrorsResponse errorsResponse = mandateProcessor.getErrors(mandate);
+
+		if(errorsResponse.hasErrors()) {
+			throw new ErrorsResponseException(errorsResponse);
 		}
 	}
 
@@ -138,11 +153,6 @@ public class MandateService {
 			throw new IllegalStateException("There is no signed file to persist");
 		}
 	}
-
-	private boolean isMandateSigned(Mandate mandate) {
-		return mandate.getMandate().isPresent();
-	}
-
 
 	private void notifyMandateProcessor(User user, Long mandateId, byte[] signedFile) {
 		emailService.send(user, mandateId, signedFile);

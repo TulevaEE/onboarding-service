@@ -35,13 +35,14 @@ public class MandateProcessorListener {
                 if(process.getErrorCode().isPresent()) {
                     log.info("Process with id {} is {} with error code {}",
                             process.getId(),
-                            process.isSuccessful(),
-                            process.getErrorCode());
+                            process.isSuccessful().toString(),
+                            process.getErrorCode().toString()
+                    );
 
                 } else {
                     log.info("Process with id {} is {}",
                             process.getId(),
-                            process.isSuccessful());
+                            process.isSuccessful().toString());
                 }
 
                 mandateProcessRepository.save(process);

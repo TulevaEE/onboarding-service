@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.processor;
 
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
 import ee.tuleva.onboarding.mandate.content.MandateXmlService;
@@ -22,6 +23,7 @@ public class MandateProcessorService {
     private final MandateXmlService mandateXmlService;
     private final JmsTemplate jmsTemplate;
     private final MandateProcessRepository mandateProcessRepository;
+    private final MandateProcessErrorResolver mandateProcessErrorResolver;
 
     public void start(User user, Mandate mandate) {
         log.info("Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
@@ -49,9 +51,12 @@ public class MandateProcessorService {
         List<MandateProcess> processes = mandateProcessRepository.findAllByMandate(mandate);
         Long finishedProcessCount = processes.stream().filter(process -> process.isSuccessful().isPresent()).count();
 
-        // TODO: check if messages are not errors
-
         return processes.size() == finishedProcessCount;
+    }
+
+    public ErrorsResponse getErrors(Mandate mandate) {
+        List<MandateProcess> processes = mandateProcessRepository.findAllByMandate(mandate);
+        return mandateProcessErrorResolver.getErrors(processes);
     }
 
     class MandateProcessorMessageCreator implements MessageCreator {

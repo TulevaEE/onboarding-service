@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.content
 
 import com.codeborne.security.mobileid.SignatureFile
 import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.mandate.MandateApplicationType
 import ee.tuleva.onboarding.mandate.MandateFileService
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
@@ -24,7 +25,7 @@ class MandateXmlServiceSpec extends Specification {
 
         then:
         contents.get(0).message == mandateXmlService.episEnvelopePrefix(contents.get(0).id) + sampleXmlContent + mandateXmlService.episEnvelopeSuffix
-        contents.get(0).type == MandateXmlMessage.MandateApplicationType.TRANSFER
+        contents.get(0).type == MandateApplicationType.TRANSFER
     }
 
 

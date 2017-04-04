@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.content;
 
+import ee.tuleva.onboarding.mandate.MandateApplicationType;
 import ee.tuleva.onboarding.mandate.MandateFileService;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
@@ -49,13 +50,15 @@ public class MandateXmlService {
         }).collect(Collectors.toList());
     }
 
-    private MandateXmlMessage.MandateXmlMessageType getType(String xmlContent) {
-        MandateXmlMessage.MandateXmlMessageType type = null;
+    private MandateApplicationType getType(String xmlContent) {
+        MandateApplicationType type = null;
 
         if(xmlContent.contains("<OSAKUTE_VAHETAMISE_AVALDUS>")) {
-            type = MandateXmlMessage.MandateXmlMessageType.TRANSFER;
+            type = MandateApplicationType.TRANSFER;
         } else if(xmlContent.contains("VALIKUAVALDUS")) {
-            type = MandateXmlMessage.MandateXmlMessageType.SELECTION;
+            type = MandateApplicationType.SELECTION;
+        } else {
+            throw new RuntimeException("Unknown mandate xml message type");
         }
 
         return type;

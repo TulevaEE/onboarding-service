@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.processor
 
 import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.mandate.Mandate
+import ee.tuleva.onboarding.mandate.MandateApplicationType
 import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
 import ee.tuleva.onboarding.mandate.content.MandateXmlService
@@ -28,7 +29,8 @@ class MandateProcessorServiceSpec extends Specification {
         List<MandateXmlMessage> messages = service.start(sampleUser, sampleMandate)
         then:
         sampleMessages.size() * mandateProcessRepository.save({ MandateProcess mandateProcess ->
-            mandateProcess.mandate == sampleMandate && mandateProcess.processId != null
+            mandateProcess.mandate == sampleMandate && mandateProcess.processId != null &&
+                    mandateProcess.type == sampleMessages.get(0).type
         })
     }
 
@@ -59,7 +61,7 @@ class MandateProcessorServiceSpec extends Specification {
     ]
 
     List<String> sampleMessages = [
-            MandateXmlMessage.builder().id("123").message("message").build(),
-            MandateXmlMessage.builder().id("124").message("message").build()
+            MandateXmlMessage.builder().id("123").message("message").type(MandateApplicationType.TRANSFER).build(),
+            MandateXmlMessage.builder().id("124").message("message").type(MandateApplicationType.TRANSFER).build()
     ]
 }

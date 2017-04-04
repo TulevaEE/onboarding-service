@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.content;
 
+import ee.tuleva.onboarding.mandate.MandateApplicationType;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -8,13 +9,8 @@ import lombok.Setter;
 @Setter
 @Builder
 public class MandateXmlMessage {
-
-    public enum MandateXmlMessageType {
-        TRANSFER, SELECTION
-    }
-
     private String id;
     private String message;
-    private MandateXmlMessageType type;
+    private MandateApplicationType type;
 
 }

@@ -29,17 +29,18 @@ public class MandateProcessorService {
 
         log.info("Processing mandate {}", mandate.getId());
         messages.forEach( message -> {
-            saveInitialMandateProcess(mandate, message.getId());
-            log.info("Sending message with id {}", message.getId());
+            saveInitialMandateProcess(mandate, message);
+            log.info("Sending message with id {} and type {}", message.getId(), message.getType().toString());
             jmsTemplate.send("MHUB.PRIVATE.IN", new MandateProcessorMessageCreator(message.getMessage()));
         });
     }
 
-    private void saveInitialMandateProcess(Mandate mandate, String processId) {
+    private void saveInitialMandateProcess(Mandate mandate, MandateXmlMessage message) {
         mandateProcessRepository.save(
                 MandateProcess.builder()
                         .mandate(mandate)
-                        .processId(processId)
+                        .processId(message.getId())
+                        .type(message.getType())
                         .build()
         );
     }

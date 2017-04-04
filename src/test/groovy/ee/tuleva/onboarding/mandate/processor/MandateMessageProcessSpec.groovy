@@ -6,17 +6,17 @@ class MandateMessageProcessSpec extends Specification {
 
     def "OnCreate: On creation set date"() {
         when:
-        MandateMessageProcess mandateProcess = MandateMessageProcess.builder().build()
+        MandateProcess mandateProcess = MandateProcess.builder().build()
         mandateProcess.onCreate()
         then:
         mandateProcess.createdDate != null
     }
 
-    def "getResult: test optional"() {
+    def "isSuccessful: test optional"() {
         when:
-        MandateMessageProcess mandateProcess = MandateMessageProcess.builder().build()
+        MandateProcess mandateProcess = MandateProcess.builder().build()
         then:
-        mandateProcess.getResult() == Optional.empty()
+        mandateProcess.isSuccessful() == Optional.empty()
     }
 
 }

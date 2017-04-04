@@ -5,7 +5,7 @@ import ee.tuleva.epis.gen.AnswerType;
 import ee.tuleva.epis.gen.EpisX5Type;
 import ee.tuleva.epis.gen.EpisX6Type;
 import ee.tuleva.epis.gen.MHubEnvelope;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.w3c.dom.Element;
@@ -25,7 +25,6 @@ import java.io.StringReader;
 public class MandateMessageResponseHandler {
 
     //TODO: test
-    //TODO: identify message by ID and write into MandateMessageProcess entity
     public MandateProcessResult getMandateProcessResponse(Message message) {
         log.info("Message received");
         String msg = null;
@@ -53,14 +52,19 @@ public class MandateMessageResponseHandler {
 
         if (envelope != null) {
             String id = envelope.getBizMsg().getAppHdr().getBizMsgIdr();
-            boolean ok = isResponseOK(envelope.getBizMsg().getAny());
-            log.info("Message id {} returned result {}", id, ok);
+            log.info("Getting response for message id {}", id);
+            MHubResponse response = getResponse(envelope.getBizMsg().getAny());
+
+            if(response.isSuccess()) {
+                log.info("Message id {} returned successful response", id);
+            } else {
+                log.info("Message id {} returned error response with code {}", response.getErrorCode());
+            }
+
             return MandateProcessResult.builder()
                     .processId(id)
-                    .result(
-                            ok ?
-                                    MandateProcessResult.ProcessResult.SUCCESS :
-                                    MandateProcessResult.ProcessResult.FAIL)
+                    .successful(response.isSuccess())
+                    .errorCode(response.getErrorCode())
                     .build();
 
         } else {
@@ -69,7 +73,8 @@ public class MandateMessageResponseHandler {
         }
     }
 
-    private boolean isResponseOK(Element element) {
+    private MHubResponse getResponse(Element element) {
+        MHubResponse response = new MHubResponse();
         try {
             JAXBContext jaxbContext = JAXBContext.newInstance("ee.tuleva.epis.gen");
             Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
@@ -77,15 +82,22 @@ public class MandateMessageResponseHandler {
             Object jaxbObject = jaxbElement.getValue();
 
             if (jaxbObject instanceof EpisX5Type) {
-                return ((EpisX5Type) jaxbObject).getResponse().getResults().getResult().equals(AnswerType.OK);
+                response.setSuccess(((EpisX5Type) jaxbObject).getResponse().getResults().getResult().equals(AnswerType.OK));
+                response.setErrorCode(((EpisX5Type) jaxbObject).getResponse().getResults().getResultCode());
+                return response;
             } else if (jaxbObject instanceof EpisX6Type) {
-                return ((EpisX6Type) jaxbObject).getResponse().getResults().getResult().equals(AnswerType.OK);
+                response.setSuccess((((EpisX6Type) jaxbObject).getResponse().getResults().getResult().equals(AnswerType.OK)));
+                response.setErrorCode(((EpisX6Type) jaxbObject).getResponse().getResults().getResultCode());
+                return response;
             }
 
-            return false;
+            log.warn("Couldn't find message instance type");
+            response.setSuccess(false);
+            return response;
         } catch (JAXBException e) {
             log.warn("Exception on return message parsing", e);
-            return false;
+            response.setSuccess(false);
+            return response;
         }
     }
 
@@ -110,5 +122,12 @@ public class MandateMessageResponseHandler {
         }
 
         return null;
+    }
+
+    @Getter
+    @Setter
+    private class MHubResponse {
+        private boolean success;
+        private Integer errorCode;
     }
 }

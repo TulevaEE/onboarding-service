@@ -37,7 +37,7 @@ public class MandateProcessorService {
 
     private void saveInitialMandateProcess(Mandate mandate, String processId) {
         mandateProcessRepository.save(
-                MandateMessageProcess.builder()
+                MandateProcess.builder()
                         .mandate(mandate)
                         .processId(processId)
                         .build()
@@ -45,8 +45,8 @@ public class MandateProcessorService {
     }
 
     public boolean isFinished(Mandate mandate) {
-        List<MandateMessageProcess> processes = mandateProcessRepository.findAllByMandate(mandate);
-        Long finishedProcessCount = processes.stream().filter(process -> process.getResult().isPresent()).count();
+        List<MandateProcess> processes = mandateProcessRepository.findAllByMandate(mandate);
+        Long finishedProcessCount = processes.stream().filter(process -> process.isSuccessful().isPresent()).count();
 
         // TODO: check if messages are not errors
 

@@ -22,11 +22,28 @@ public class MandateProcessorListener {
 
             @Override
             public void onMessage(Message message) {
+                log.info("Process result received");
                 MandateProcessResult mandateProcessResult =
                         mandateMessageResponseHandler.getMandateProcessResponse(message);
 
-                MandateMessageProcess process = mandateProcessRepository.findOneByProcessId(mandateProcessResult.getProcessId());
-                process.setResult(mandateProcessResult.getResult().toString());
+                log.info("with id {}", mandateProcessResult.getProcessId());
+                MandateProcess process = mandateProcessRepository.findOneByProcessId(mandateProcessResult.getProcessId());
+
+                process.setSuccessful(mandateProcessResult.isSuccessful());
+                process.setErrorCode(mandateProcessResult.getErrorCode().orElse(null));
+
+                if(process.getErrorCode().isPresent()) {
+                    log.info("Process with id {} is {} with error code {}",
+                            process.getId(),
+                            process.isSuccessful(),
+                            process.getErrorCode());
+
+                } else {
+                    log.info("Process with id {} is {}",
+                            process.getId(),
+                            process.isSuccessful());
+                }
+
                 mandateProcessRepository.save(process);
             }
         };

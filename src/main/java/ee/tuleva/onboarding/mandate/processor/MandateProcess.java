@@ -12,13 +12,13 @@ import java.time.Instant;
 import java.util.Optional;
 
 @Entity
-@Table(name = "mandate_message_process")
+@Table(name = "mandate_process")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 
-public class MandateMessageProcess {
+public class MandateProcess {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -30,7 +30,9 @@ public class MandateMessageProcess {
 
     private String processId;
 
-    private String result;
+    private Boolean successful;
+
+    private Integer errorCode;
 
     @NotNull
     private Instant createdDate;
@@ -40,9 +42,16 @@ public class MandateMessageProcess {
         createdDate = Instant.now();
     }
 
+    public Optional<Boolean> isSuccessful() {
+        return Optional.ofNullable(successful);
+    }
 
-    public Optional<String> getResult() {
-        return Optional.ofNullable(this.result);
+    public Optional<Boolean> getSuccessful() {
+        return Optional.ofNullable(successful);
+    }
+
+    public Optional<Integer> getErrorCode() {
+        return Optional.ofNullable(errorCode);
     }
 
 }

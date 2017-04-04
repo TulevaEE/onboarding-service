@@ -27,7 +27,7 @@ class MandateProcessorServiceSpec extends Specification {
         when:
         List<MandateXmlMessage> messages = service.start(sampleUser, sampleMandate)
         then:
-        sampleMessages.size() * mandateProcessRepository.save({ MandateMessageProcess mandateProcess ->
+        sampleMessages.size() * mandateProcessRepository.save({ MandateProcess mandateProcess ->
             mandateProcess.mandate == sampleMandate && mandateProcess.processId != null
         })
     }
@@ -50,12 +50,12 @@ class MandateProcessorServiceSpec extends Specification {
         isFinished == false
     }
 
-    List<MandateMessageProcess> sampleCompleteProcesses = [
-            MandateMessageProcess.builder().result("result").build()
+    List<MandateProcess> sampleCompleteProcesses = [
+            MandateProcess.builder().successful(true).build()
     ]
 
-    List<MandateMessageProcess> sampleIncompleteProcesses = [
-            MandateMessageProcess.builder().build()
+    List<MandateProcess> sampleIncompleteProcesses = [
+            MandateProcess.builder().build()
     ]
 
     List<String> sampleMessages = [

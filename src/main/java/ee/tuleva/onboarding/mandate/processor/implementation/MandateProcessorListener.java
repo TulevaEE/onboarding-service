@@ -29,7 +29,7 @@ public class MandateProcessorListener {
                 MandateProcessResult mandateProcessResult =
                         mandateMessageResponseHandler.getMandateProcessResponse(message);
 
-                log.info("with id {}", mandateProcessResult.getProcessId());
+                log.info("Process result with id {} received", mandateProcessResult.getProcessId());
                 MandateProcess process = mandateProcessRepository.findOneByProcessId(mandateProcessResult.getProcessId());
 
                 process.setSuccessful(mandateProcessResult.isSuccessful());

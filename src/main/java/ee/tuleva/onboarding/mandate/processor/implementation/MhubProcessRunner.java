@@ -27,9 +27,9 @@ public class MhubProcessRunner {
         messages.forEach( message -> {
             MandateProcess process = mandateProcessRepository.findOneByProcessId(message.getId());
 
-            log.info("Sending message with id {} and type {}", message.getId(), message.getType().toString());
+            log.info("Starting process with id {} and type {}", message.getId(), message.getType().toString());
             jmsTemplate.send("MHUB.PRIVATE.IN", new MandateProcessorMessageCreator(message.getMessage()));
-            log.info("Sent message with id {}", message.getId());
+            log.info("Sent message for process {}", message.getId());
             waitForProcessToFinish(process);
         });
     }
@@ -39,6 +39,7 @@ public class MhubProcessRunner {
     // otherwise it responds with a technical error
     private void waitForProcessToFinish(MandateProcess process) {
         while(isProcessFinished(process) != true) {
+            log.info("Waiting for process id {} to finish", process.getId());
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {

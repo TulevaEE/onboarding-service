@@ -23,12 +23,15 @@ public class SocksConfiguration {
     private void initialize() {
         if (!isBlank(socksProxyUrl)) {
             try {
+                log.info("Socks proxy url {}", socksProxyUrl);
                 URL url = new URL(socksProxyUrl);
                 String authString = url.getUserInfo();
                 String username = authString.split(":")[0];
                 String password = authString.split(":")[1];
                 String host = url.getHost();
                 int port = url.getPort();
+
+                log.info("Socks proxy username {} password {} host {} port {}", username, password, host, port);
 
                 System.setProperty("socksProxyHost", host);
                 System.setProperty("socksProxyPort", Integer.toString(port));

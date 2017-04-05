@@ -110,10 +110,11 @@ mobile-id:
     name: "Tuleva"
 
 mhub:
-  keyStore: ${SSL_KEYSTORE}
-  keyStorePassword: ${SSL_KEYSTORE_PASS}
-  trustStore: ${SSL_KEYSTORE}
-  trustStorePassword: ${SSL_KEYSTORE_PASS}
+  keyStore: ${MHUB_KEYSTORE}
+  keyStorePassword: ${MHUB_KEYSTORE_PASSWORD}
+  trustStore: ${MHUB_KEYSTORE}
+  trustStorePassword: ${MHUB_KEYSTORE_PASSWORD}
+
 
 digidoc:
   service:

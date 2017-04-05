@@ -31,6 +31,7 @@ public class MandateProcess {
 
     private String processId;
 
+    @Enumerated(EnumType.STRING)
     private MandateApplicationType type;
 
     private Boolean successful;

@@ -1,9 +1,10 @@
-package ee.tuleva.onboarding.mandate.processor;
+package ee.tuleva.onboarding.mandate.processor.implementation;
 
 import ee.tuleva.epis.gen.AnswerType;
 import ee.tuleva.epis.gen.EpisX5Type;
 import ee.tuleva.epis.gen.EpisX6Type;
 import ee.tuleva.epis.gen.MHubEnvelope;
+import ee.tuleva.onboarding.mandate.processor.MandateProcessResult;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;

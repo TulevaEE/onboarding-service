@@ -3,33 +3,34 @@ package ee.tuleva.onboarding.mandate.processor
 import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.Mandate
-import ee.tuleva.onboarding.mandate.MandateApplicationType
 import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
 import ee.tuleva.onboarding.mandate.content.MandateXmlService
+import ee.tuleva.onboarding.mandate.processor.implementation.MhubProcessRunner
 import ee.tuleva.onboarding.user.User
-import org.springframework.jms.core.JmsTemplate
 import spock.lang.Specification
 
 class MandateProcessorServiceSpec extends Specification {
 
     MandateXmlService mandateXmlService = Mock(MandateXmlService)
-    JmsTemplate jmsTemplate = Mock(JmsTemplate)
     MandateProcessRepository mandateProcessRepository = Mock(MandateProcessRepository)
     MandateProcessErrorResolver mandateProcessErrorResolver = Mock(MandateProcessErrorResolver)
+    MhubProcessRunner mhubProcessRunner = Mock(MhubProcessRunner);
+
     MandateProcessorService service = new MandateProcessorService(mandateXmlService,
-            jmsTemplate, mandateProcessRepository, mandateProcessErrorResolver)
+            mandateProcessRepository, mandateProcessErrorResolver, mhubProcessRunner)
+
 
     User sampleUser = UserFixture.sampleUser()
     Mandate sampleMandate = MandateFixture.sampleMandate()
+    List<MandateXmlMessage> sampleMessages = [];
 
     def "Start: starts processing mandate and saves mandate processes for every mandate message"() {
         given:
         1 * mandateXmlService.getRequestContents(sampleUser, sampleMandate.id) >> sampleMessages
-        2 * jmsTemplate.send("MHUB.PRIVATE.IN", _)
-
+        1 * mhubProcessRunner.process(sampleMessages);
         when:
-        List<MandateXmlMessage> messages = service.start(sampleUser, sampleMandate)
+        service.start(sampleUser, sampleMandate)
         then:
         sampleMessages.size() * mandateProcessRepository.save({ MandateProcess mandateProcess ->
             mandateProcess.mandate == sampleMandate && mandateProcess.processId != null &&
@@ -76,8 +77,4 @@ class MandateProcessorServiceSpec extends Specification {
             MandateProcess.builder().build()
     ]
 
-    List<String> sampleMessages = [
-            MandateXmlMessage.builder().id("123").message("message").type(MandateApplicationType.TRANSFER).build(),
-            MandateXmlMessage.builder().id("124").message("message").type(MandateApplicationType.TRANSFER).build()
-    ]
 }

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.processor;
+package ee.tuleva.onboarding.mandate.processor.implementation;
 
 import com.ibm.jms.JMSBytesMessage;
 import lombok.extern.slf4j.Slf4j;

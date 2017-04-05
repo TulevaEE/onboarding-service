@@ -1,5 +1,8 @@
-package ee.tuleva.onboarding.mandate.processor;
+package ee.tuleva.onboarding.mandate.processor.implementation;
 
+import ee.tuleva.onboarding.mandate.processor.MandateProcess;
+import ee.tuleva.onboarding.mandate.processor.MandateProcessRepository;
+import ee.tuleva.onboarding.mandate.processor.MandateProcessResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;

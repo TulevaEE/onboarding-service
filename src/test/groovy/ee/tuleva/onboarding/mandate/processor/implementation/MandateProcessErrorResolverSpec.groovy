@@ -1,7 +1,9 @@
-package ee.tuleva.onboarding.mandate.processor
+package ee.tuleva.onboarding.mandate.processor.implementation
 
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.MandateApplicationType
+import ee.tuleva.onboarding.mandate.processor.MandateProcess
+import ee.tuleva.onboarding.mandate.processor.MandateProcessErrorResolver
 import spock.lang.Specification
 
 class MandateProcessErrorResolverSpec extends Specification {

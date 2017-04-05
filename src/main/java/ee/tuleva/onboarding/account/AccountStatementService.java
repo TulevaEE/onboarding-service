@@ -29,9 +29,11 @@ public class AccountStatementService {
 
     public List<FundBalance> getMyPensionAccountStatement(User user, UUID statisticsIdentifier) {
         List<FundBalance> fundBalances = convertXRoadResponse(getPensionAccountBalance(user));
+
+        fundBalances = handleActiveFundBalance(fundBalances, getActiveFundName(user));
         saveFundValueStatistics(fundBalances, statisticsIdentifier);
 
-        return handleActiveFundBalance(fundBalances, getActiveFundName(user));
+        return fundBalances;
     }
 
     private void saveFundValueStatistics(List<FundBalance> fundBalances, UUID fundValueStatisticsIdentifier) {

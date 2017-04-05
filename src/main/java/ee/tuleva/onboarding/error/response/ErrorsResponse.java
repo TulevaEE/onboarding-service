@@ -20,4 +20,8 @@ public class ErrorsResponse {
 	public ErrorsResponse(List<ErrorResponse> errors) {
 		this.errors = errors;
 	}
+
+	public boolean hasErrors() {
+		return errors.size() > 0;
+	}
 }

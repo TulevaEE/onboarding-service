@@ -45,6 +45,7 @@ public class QuotaGuardProxyConfiguration extends Authenticator {
                 port = proxyUrl.getPort();
                 auth = new ProxyAuthenticator(user, password);
                 setProxy();
+                log.info("Set up global HTTP/HTTPS proxy to host:port {}:{} ", this.host, this.port);
             } catch (MalformedURLException e) {
                 throw new RuntimeException(e);
             }

@@ -10,6 +10,7 @@ import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Data
 @Entity
@@ -48,6 +49,10 @@ public class Mandate {
         this.user = user;
         this.futureContributionFundIsin = futureContributionFundIsin;
         this.fundTransferExchanges = fundTransferExchanges;
+    }
+
+    public Optional<byte[]> getMandate() {
+        return Optional.ofNullable(mandate);
     }
 
 }

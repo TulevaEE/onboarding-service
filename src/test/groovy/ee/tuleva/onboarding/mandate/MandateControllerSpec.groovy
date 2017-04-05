@@ -22,9 +22,11 @@ class MandateControllerSpec extends BaseControllerSpec {
     MandateService mandateService = Mock(MandateService)
     GenericSessionStore sessionStore = Mock(GenericSessionStore)
     SignatureFileArchiver signatureFileArchiver = Mock(SignatureFileArchiver)
+    MandateFileService mandateFileService = Mock(MandateFileService)
 
     MandateController controller =
-            new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver)
+            new MandateController(mandateRepository, mandateService, sessionStore,
+                    signatureFileArchiver, mandateFileService)
 
     MockMvc mvc = mockMvc(controller)
 
@@ -82,6 +84,13 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
     }
 
+    def "get mobile ID signature without statistics identifier fails"() {
+        expect:
+        mvc
+                .perform(get("/v1/mandates/1/signature/mobileId/status"))
+                .andExpect(status().isBadRequest())
+    }
+
     def "id card signature start returns the hash to be signed by the client"() {
         when:
         mandateService.idCardSign(1L, _, "clientCertificate") >> new IdCardSignatureSession(1, "sigId", "asdfg")
@@ -113,6 +122,14 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
     }
 
+    def "put ID card signature status without statistics identifier fails"() {
+        expect:
+        mvc
+                .perform(put("/v1/mandates/1/signature/idCard/status")
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+    }
+
     def "getMandateFile returns mandate file"() {
         when:
         1 * mandateRepository
@@ -127,12 +144,25 @@ class MandateControllerSpec extends BaseControllerSpec {
         result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.bdoc"
     }
 
+    def "getMandateFile throws exception if mandate is not signed"() {
+        given:
+        1 * mandateRepository
+                .findByIdAndUser(sampleMandate().id, _) >> sampleUnsignedMandate()
+
+        when:
+        mvc
+                .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
+
+        then:
+        thrown Exception
+    }
+
     def "getMandateFilePreview: returns mandate preview file"() {
         when:
 
         List<SignatureFile> files = [new SignatureFile("filename", "text/html", "content".getBytes())]
 
-        1 * mandateService.getMandateFiles(sampleMandate().id, _) >> files
+        1 * mandateFileService.getMandateFiles(sampleMandate().id, _) >> files
         1 * signatureFileArchiver.writeSignatureFilesToZipOutputStream(files, _ as OutputStream)
 
         then:

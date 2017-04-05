@@ -44,6 +44,7 @@ public class MandateController {
     private final MandateService mandateService;
     private final GenericSessionStore genericSessionStore;
     private final SignatureFileArchiver signatureFileArchiver;
+    private final MandateFileService mandateFileService;
 
     @ApiOperation(value = "Create a mandate")
     @RequestMapping(method = POST, value = "/mandates")
@@ -78,7 +79,7 @@ public class MandateController {
     @RequestMapping(method = GET, value = "/mandates/{id}/signature/mobileId/status")
     public MandateSignatureStatusResponse getMobileIdSignatureStatus(@PathVariable("id") Long mandateId,
                                                                      @ApiIgnore @AuthenticationPrincipal User user,
-                                                                     @RequestHeader(value = "x-statistics-identifier", required = false) UUID statisticsIdentifier) {
+                                                                     @RequestHeader("x-statistics-identifier") UUID statisticsIdentifier) {
 
         Optional<MobileIdSignatureSession> signatureSession = genericSessionStore.get(MobileIdSignatureSession.class);
         MobileIdSignatureSession session = signatureSession
@@ -127,7 +128,9 @@ public class MandateController {
         Mandate mandate = getMandateOrThrow(mandateId, user);
         response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.bdoc");
 
-        IOUtils.copy(new ByteArrayInputStream(mandate.getMandate()), response.getOutputStream());
+        byte[] content = mandate.getMandate().orElseThrow(() -> new RuntimeException("Mandate is not signed"));
+
+        IOUtils.copy(new ByteArrayInputStream(content), response.getOutputStream());
         response.flushBuffer();
 
     }
@@ -138,7 +141,7 @@ public class MandateController {
                                @ApiIgnore @AuthenticationPrincipal User user,
                                HttpServletResponse response) throws IOException {
 
-        List<SignatureFile> files = mandateService.getMandateFiles(mandateId, user);
+        List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, user);
         response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.zip");
 
         signatureFileArchiver.writeSignatureFilesToZipOutputStream(files, response.getOutputStream());

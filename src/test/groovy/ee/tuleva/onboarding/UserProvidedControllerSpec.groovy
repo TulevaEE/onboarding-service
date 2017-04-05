@@ -15,11 +15,9 @@ import java.time.Instant
 
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup
 
-@SpringBootTest
 class UserProvidedControllerSpec extends BaseControllerSpec {
 
-    @Autowired
-    MappingJackson2HttpMessageConverter jacksonMessageConverter
+    MappingJackson2HttpMessageConverter jacksonMessageConverter = new MappingJackson2HttpMessageConverter();
 
     User user = User.builder()
             .id(1L)

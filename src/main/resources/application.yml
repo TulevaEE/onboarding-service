@@ -100,13 +100,6 @@ mobile-id:
   service:
     name: "Tuleva"
 
-mhub:
-  keyStore: ${SSL_KEYSTORE}
-  keyStorePassword: ${SSL_KEYSTORE_PASS}
-  trustStore: ${SSL_KEYSTORE}
-  trustStorePassword: ${SSL_KEYSTORE_PASS}
-
-
 digidoc:
   service:
     url: https://digidocservice.sk.ee/
@@ -126,3 +119,7 @@ mandrill:
 logging:
   rollbar:
     accessToken: ${ROLLBAR_ACCESS_TOKEN}
+
+epis:
+  service:
+    url: https://epis-service.herokuapp.com/v1

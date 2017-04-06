@@ -43,7 +43,7 @@ public class MandateXmlService {
                                     xmlContent +
                                     episEnvelopeSuffix
                     )
-                    .id(id)
+                    .processId(id)
                     .type(getType(xmlContent))
                     .build();
 

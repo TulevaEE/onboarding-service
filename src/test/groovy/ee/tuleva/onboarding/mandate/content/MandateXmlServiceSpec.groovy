@@ -24,7 +24,7 @@ class MandateXmlServiceSpec extends Specification {
         List<MandateXmlMessage> contents = mandateXmlService.getRequestContents(sampleUser, sampleMandateId)
 
         then:
-        contents.get(0).message == mandateXmlService.episEnvelopePrefix(contents.get(0).id) + sampleXmlContent + mandateXmlService.episEnvelopeSuffix
+        contents.get(0).message == mandateXmlService.episEnvelopePrefix(contents.get(0).processId) + sampleXmlContent + mandateXmlService.episEnvelopeSuffix
         contents.get(0).type == MandateApplicationType.TRANSFER
     }
 

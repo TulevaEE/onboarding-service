@@ -80,6 +80,10 @@ proxy:
   url: ${QUOTAGUARDSTATIC_URL}
   nonProxyHosts: "mandrillapp.com|sk.ee|rollbar.com|localhost"
 
+epis:
+  service:
+    url: http://localhost:9001/v0
+
 ---
 
 spring:

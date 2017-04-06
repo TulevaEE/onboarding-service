@@ -70,6 +70,7 @@ proxy:
 epis:
   service:
     url: http://localhost:9001/v1
+    bic: "ECSDEE20"
 
 ---
 
@@ -123,3 +124,4 @@ logging:
 epis:
   service:
     url: https://epis-service.herokuapp.com/v1
+    bic: "ECSDEE2X"

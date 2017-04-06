@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -23,11 +24,15 @@ Temporary class to get Mandate XML message
 @Service
 public class MandateXmlService {
 
+    @Value("${epis.service.bic}")
+    String episServicebic;
+
     private final MandateFileService mandateFileService;
 
     public List<MandateXmlMessage> getRequestContents(User user, Long mandateId) {
 
         log.info("Generating XML for user id {} and mandate id {}", user.getId(), mandateId);
+        log.info("Using EVK bic {}", episServicebic);
 
         return mandateFileService.getMandateFiles(mandateId, user).stream().map( signatureFile -> {
 
@@ -65,7 +70,7 @@ public class MandateXmlService {
     }
 
     private String senderBic = "TULEVA20";
-    private String recipientBic = "ECSDEE20";
+    private String recipientBic = episServicebic;
 
     private String episEnvelopePrefix(String id)  {
         return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +

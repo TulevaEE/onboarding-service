@@ -93,10 +93,6 @@ spring:
 server:
   session.cookie.domain: tuleva.ee # for session sharing across sub-domains
 
-xroad:
-  instance: EE
-  kprEndpoint: https://karin.ml.ee/cgi-bin/TreasuryXrdWS/services/TreasuryXrdWS
-
 ssl:
   keystore: ${SSL_KEYSTORE}
   keystorePassword: ${SSL_KEYSTORE_PASS}

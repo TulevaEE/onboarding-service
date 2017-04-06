@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @Builder
 public class MandateXmlMessage {
-    private String id;
+    private String processId;
     private String message;
     private MandateApplicationType type;
 

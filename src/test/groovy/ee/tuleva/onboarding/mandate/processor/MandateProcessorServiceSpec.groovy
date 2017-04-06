@@ -6,7 +6,7 @@ import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
 import ee.tuleva.onboarding.mandate.content.MandateXmlService
-import ee.tuleva.onboarding.mandate.processor.implementation.MhubProcessRunner
+import ee.tuleva.onboarding.mandate.processor.implementation.EpisService
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
@@ -15,10 +15,10 @@ class MandateProcessorServiceSpec extends Specification {
     MandateXmlService mandateXmlService = Mock(MandateXmlService)
     MandateProcessRepository mandateProcessRepository = Mock(MandateProcessRepository)
     MandateProcessErrorResolver mandateProcessErrorResolver = Mock(MandateProcessErrorResolver)
-    MhubProcessRunner mhubProcessRunner = Mock(MhubProcessRunner);
+    EpisService episService = Mock(EpisService);
 
     MandateProcessorService service = new MandateProcessorService(mandateXmlService,
-            mandateProcessRepository, mandateProcessErrorResolver, mhubProcessRunner)
+            mandateProcessRepository, mandateProcessErrorResolver, episService)
 
 
     User sampleUser = UserFixture.sampleUser()
@@ -28,7 +28,7 @@ class MandateProcessorServiceSpec extends Specification {
     def "Start: starts processing mandate and saves mandate processes for every mandate message"() {
         given:
         1 * mandateXmlService.getRequestContents(sampleUser, sampleMandate.id) >> sampleMessages
-        1 * mhubProcessRunner.process(sampleMessages);
+        1 * episService.process(sampleMessages);
         when:
         service.start(sampleUser, sampleMandate)
         then:

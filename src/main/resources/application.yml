@@ -33,8 +33,8 @@ security:
       filter-order: 3
 
 xroad:
-  instance: ee-dev
-  kprEndpoint: https://zoot.ml.ee/cgi-bin/TreasuryXrdWS/services/TreasuryXrdWS
+  instance: EE
+  kprEndpoint: https://karin.ml.ee/cgi-bin/TreasuryXrdWS/services/TreasuryXrdWS
   memberClass: COM
   memberCode: 14041764
   subsystemCode: tuleva
@@ -43,6 +43,8 @@ xroad:
 
 ssl:
   trustAllHTTPSHosts: true
+  keystore: ${SSL_KEYSTORE}
+  keystorePassword: ${SSL_KEYSTORE_PASS}
 
 digidoc:
   service:
@@ -60,21 +62,6 @@ mandate:
     from: "avaldused@tuleva.ee"
     to: "avaldused.test@tuleva.ee"
     bcc: "avaldused@tuleva.ee"
-
-mhub:
-  host: mhub.e-register.ee
-  port: 2414
-  queueManager: MHUB_QMGR
-  channel: TULEVA
-  peerName: "CN=mhub.e-register.ee, OU=IT, O=Eesti Vaartpaberikeskus AS, C=EE, L=Tallinn, ST=Harjumaa"
-  inboundQueue: MHUB.PRIVATE.TULEVA.OUT
-  outboundQueue: MHUB.PRIVATE.IN
-  keyStore: ${MHUB_KEYSTORE}
-  keyStorePassword: ${MHUB_KEYSTORE_PASSWORD}
-  trustStore: ${MHUB_KEYSTORE}
-  trustStorePassword: ${MHUB_KEYSTORE_PASSWORD}
-
-socksProxyUrl: ${SOCKS_PROXY_URL:#{null}}
 
 proxy:
   url: ${QUOTAGUARDSTATIC_URL}

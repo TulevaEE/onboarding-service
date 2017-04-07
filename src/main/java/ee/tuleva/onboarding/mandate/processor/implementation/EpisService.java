@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate.processor.implementation;
 
-import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,7 +35,7 @@ public class EpisService {
       CreateProcessingCommand command = new CreateProcessingCommand(messages);
 
       try {
-         CreateMandateCommand response = restTemplate.postForObject(url, getRequest(command), CreateMandateCommand.class);
+         CreateProcessingCommand response = restTemplate.postForObject(url, getRequest(command), CreateProcessingCommand.class);
          log.info(response.toString());
       } catch (HttpClientErrorException e) {
          log.error(e.toString());

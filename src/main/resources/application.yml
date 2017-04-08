@@ -43,8 +43,6 @@ xroad:
 
 ssl:
   trustAllHTTPSHosts: true
-  keystore: ${SSL_KEYSTORE}
-  keystorePassword: ${SSL_KEYSTORE_PASS}
 
 digidoc:
   service:

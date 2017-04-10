@@ -70,7 +70,6 @@ public class MandateXmlService {
     }
 
     private String senderBic = "TULEVA20";
-    private String recipientBic = episServicebic;
 
     private String episEnvelopePrefix(String id)  {
         return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +
@@ -87,7 +86,7 @@ public class MandateXmlService {
                 "                                                <ns2:To>\n" +
                 "                                                                <ns2:FIId>\n" +
                 "                                                                                <ns2:FinInstnId>\n" +
-                "                                                                                                <ns2:BICFI>"+recipientBic+"</ns2:BICFI>\n" +
+                "                                                                                                <ns2:BICFI>" + episServicebic + "</ns2:BICFI>\n" +
                 "                                                                                </ns2:FinInstnId>\n" +
                 "                                                                </ns2:FIId>\n" +
                 "                                                </ns2:To>\n" +

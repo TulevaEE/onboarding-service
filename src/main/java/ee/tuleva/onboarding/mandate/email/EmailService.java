@@ -28,10 +28,22 @@ public class EmailService {
 
     @PostConstruct
     private void initialize() {
-        mandrillApi = new MandrillApi(mandateEmailConfiguration.getMandrillKey());
+
+        if(!mandateEmailConfiguration.getMandrillKey().isPresent()) {
+            log.warn("Mandrill key not present.");
+        }
+
+        mandrillApi = mandateEmailConfiguration.getMandrillKey()
+                .map(key -> new MandrillApi(key)).orElse(null);
     }
 
     public void send(User user, Long mandateId, byte[] file) {
+
+        if(mandrillApi == null) {
+            log.warn("Mandrill not initialised, not sending email for user {} and mandate {}.", user.getId(), mandateId);
+            return;
+        }
+
         MandrillMessage message = new MandrillMessage();
         message.setSubject("Pensionifondi avaldus");
         message.setFromEmail(mandateEmailConfiguration.getFrom());

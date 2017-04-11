@@ -36,7 +36,7 @@ public class EmailService {
         message.setSubject("Pensionifondi avaldus");
         message.setFromEmail(mandateEmailConfiguration.getFrom());
         message.setFromName("Tuleva");
-        message.setHtml(getHtml(user));
+        message.setHtml(getHtml());
         message.setAutoText(true);
 
         message.setAttachments(getAttachements(file, user, mandateId));
@@ -66,13 +66,12 @@ public class EmailService {
         }
     }
 
-    private String getHtml(User user) {
+    private String getHtml() {
         return (new StringBuilder())
                 .append("Tere. <br/>")
                 .append("Lisatud on pensionifondi valiku- ja/või vahetusavaldused, ")
                 .append("mis on saadetud Eesti Pensioni Infosüsteemi. <br/><br/>")
                 .append("Tuleva </br>")
-                .append(user.getFirstName()).append(" ").append(user.getLastName())
                 .toString();
     }
 

@@ -124,7 +124,6 @@ public class MandateService {
 
 	private String handleSignedMandate(User user, Mandate mandate, UUID statisticsIdentifier) {
 		if(mandateProcessor.isFinished(mandate)) {
-			handleMandateProcessingErrors(mandate);
 			persistFundTransferExchangeStatistics(user, statisticsIdentifier, mandate);
 
 			notifyAboutSignedMandate(user,
@@ -132,6 +131,8 @@ public class MandateService {
 					mandate.getMandate()
 							.orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file."))
 			);
+			handleMandateProcessingErrors(mandate);
+
 			return "SIGNATURE"; // TODO: use enum
 		} else {
 			return "OUTSTANDING_TRANSACTION"; // TODO: use enum

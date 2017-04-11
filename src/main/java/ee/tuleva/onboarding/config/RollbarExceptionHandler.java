@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.env.Environment;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -51,7 +52,7 @@ public class RollbarExceptionHandler {
         .userIp(InetAddress.getByName(request.getRemoteAddr())));
 
     if (user != null) {
-      rollbar.person(new Person(Objects.toString(user.getId()))
+      rollbar = rollbar.person(new Person(Objects.toString(user.getId()))
         .email(user.getEmail()));
     }
 

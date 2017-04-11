@@ -83,7 +83,7 @@ public class OAuthConfiguration {
 
         @Override
         public void configure(AuthorizationServerSecurityConfigurer oauthServer) throws Exception {
-
+            oauthServer.checkTokenAccess("hasAuthority('ROLE_TRUSTED_CLIENT')");
         }
 
         @Override

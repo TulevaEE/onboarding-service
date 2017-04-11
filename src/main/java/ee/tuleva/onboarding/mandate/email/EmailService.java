@@ -33,9 +33,9 @@ public class EmailService {
 
     public void send(User user, Long mandateId, byte[] file) {
         MandrillMessage message = new MandrillMessage();
-        message.setSubject("Tuleva Liikme Avaldus");
+        message.setSubject("Pensionifondi avaldus");
         message.setFromEmail(mandateEmailConfiguration.getFrom());
-        message.setFromName("Tuleva Liige");
+        message.setFromName("Tuleva");
         message.setHtml(getHtml(user));
         message.setAutoText(true);
 
@@ -48,9 +48,10 @@ public class EmailService {
         message.setTrackClicks(true);
 
         try {
-            log.info("Sending email from {} for member {} {}",
+            log.info("Sending email from {} to member {} {} at {}",
                     mandateEmailConfiguration.getFrom(),
-                    user.getFirstName(), user.getLastName()
+                    user.getFirstName(), user.getLastName(),
+                    user.getEmail()
             );
             MandrillMessageStatus[] messageStatusReports = mandrillApi
                     .messages().send(message, false);
@@ -68,8 +69,9 @@ public class EmailService {
     private String getHtml(User user) {
         return (new StringBuilder())
                 .append("Tere. <br/>")
-                .append("Lisatud on minu pensionifondi valiku- ja vahetusavaldused. <br/><br/>")
-                .append("Lugupidamisega </br>")
+                .append("Lisatud on pensionifondi valiku- ja/või vahetusavaldused, ")
+                .append("mis on saadetud Eesti Pensioni Infosüsteemi. <br/><br/>")
+                .append("Tuleva </br>")
                 .append(user.getFirstName()).append(" ").append(user.getLastName())
                 .toString();
     }
@@ -77,15 +79,11 @@ public class EmailService {
     private List<MandrillMessage.Recipient> getRecipients(User user) {
         ArrayList<MandrillMessage.Recipient> recipients = new ArrayList<MandrillMessage.Recipient>();
 
-        //EVK inbox
         MandrillMessage.Recipient recipient = new MandrillMessage.Recipient();
-        recipient.setEmail(mandateEmailConfiguration.getTo());
-        recipients.add(recipient);
 
         //Member inbox
         recipient = new MandrillMessage.Recipient();
         recipient.setEmail(user.getEmail());
-        recipient.setType(MandrillMessage.Recipient.Type.CC);
         recipients.add(recipient);
 
         //Collector inbox

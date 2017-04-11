@@ -11,9 +11,6 @@ public class MandateEmailConfiguration {
     @Value("${mandate.email.from}")
     private String from;
 
-    @Value("${mandate.email.to}")
-    private String to;
-
     @Value("${mandate.email.bcc}")
     private String bcc;
 

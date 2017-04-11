@@ -136,13 +136,14 @@ class MandateServiceSpec extends Specification {
         status == "OUTSTANDING_TRANSACTION"
     }
 
-    def "finalizeMobileIdSignature: get correct status and save statistics if mandate is signed and processed"() {
+    def "finalizeMobileIdSignature: get correct status and save statistics and notify if mandate is signed and processed"() {
         given:
         Mandate sampleMandate = MandateFixture.sampleMandate()
 
         1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
+        1 * emailService.send(sampleUser, sampleMandate.id, _ as byte[])
 
         when:
         def status = service.finalizeMobileIdSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
@@ -232,7 +233,7 @@ class MandateServiceSpec extends Specification {
         status == "OUTSTANDING_TRANSACTION"
     }
 
-    def "finalizeIdCardSignature: get correct status and save statistics if mandate is signed and processed"() {
+    def "finalizeIdCardSignature: get correct status and save statistics and notify if mandate is signed and processed"() {
         given:
         Mandate sampleMandate = MandateFixture.sampleMandate()
         IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
@@ -240,6 +241,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.findByIdAndUser(sampleMandate.id, sampleUser) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
+        1 * emailService.send(sampleUser, sampleMandate.id, _ as byte[])
 
         when:
         def status = service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")

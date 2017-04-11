@@ -13,6 +13,8 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Base64;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 @Slf4j
 @Configuration
 public class HttpsURLConnectionConfiguration {
@@ -20,46 +22,38 @@ public class HttpsURLConnectionConfiguration {
     @Value("${ssl.keystore:#{null}}")
     private String base64PKCSKeystore;
 
-    @Value("${ssl.keystorePassword:#{null}}")
+    @Value("${ssl.keystore.password:#{null}}")
     private String keystorePassword;
 
-    @Value("${ssl.trustAllHTTPSHosts}")
+    @Value("${ssl.trustAllHTTPSHosts:#{false}}")
     private Boolean trustAllHTTPSHosts;
 
     @PostConstruct
     public void initialize() {
 
-        KeyManager[] keyManagers = null;
+        KeyManager[] keyManagers = getKeyManagers();
+        TrustManager[] trustManagers = getTrustManagers();
+        initializeSslContext(keyManagers, trustManagers);
 
+        if (trustAllHTTPSHosts) {
+            HttpsURLConnection.setDefaultHostnameVerifier(new DummyHostVerifier());
+        }
+    }
+
+    private void initializeSslContext(KeyManager[] keyManagers, TrustManager[] trustManagers) {
         try {
-            if (this.base64PKCSKeystore != null && this.base64PKCSKeystore.trim().length() > 0) {
-                byte[] p12 = Base64.getDecoder().decode(this.base64PKCSKeystore);
-                ByteArrayInputStream bais = new ByteArrayInputStream(p12);
+            SSLContext sslContext = SSLContext.getInstance("SSL");
+            sslContext.init(keyManagers, trustManagers, new SecureRandom());
+            SSLSocketFactory socketFactory = sslContext.getSocketFactory();
+            HttpsURLConnection.setDefaultSSLSocketFactory(socketFactory);
 
-                KeyStore ks = KeyStore.getInstance("pkcs12");
-                ks.load(bais, this.keystorePassword.toCharArray());
-                bais.close();
-
-                String defaultAlgorithm = KeyManagerFactory.getDefaultAlgorithm();
-                KeyManagerFactory factory = KeyManagerFactory.getInstance(defaultAlgorithm);
-                factory.init(ks, this.keystorePassword.toCharArray());
-                keyManagers = factory.getKeyManagers();
-            }
-
-        } catch (KeyStoreException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (CertificateException e) {
-            throw new RuntimeException(e);
-        } catch (UnrecoverableKeyException e) {
-            throw new RuntimeException(e);
-        } catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException | KeyManagementException e) {
             throw new RuntimeException(e);
         }
+    }
 
-
-        TrustManager[] trustManagers = new TrustManager[] { new X509TrustManager() {
+    private TrustManager[] getTrustManagers() {
+        return new TrustManager[] { new X509TrustManager() {
             public X509Certificate[] getAcceptedIssuers() {
                 return null;
             }
@@ -70,22 +64,30 @@ public class HttpsURLConnectionConfiguration {
             public void checkServerTrusted(X509Certificate[] certs, String t) {
             }
         } };
+    }
+
+    private KeyManager[] getKeyManagers() {
+        KeyManager[] keyManagers = null;
 
         try {
-            SSLContext sslContext = SSLContext.getInstance("SSL");
-            sslContext.init(keyManagers, trustManagers, new SecureRandom());
-            SSLSocketFactory sf = sslContext.getSocketFactory();
-            HttpsURLConnection.setDefaultSSLSocketFactory(sf);
+            if (!isBlank(base64PKCSKeystore)) {
+                byte[] p12 = Base64.getDecoder().decode(this.base64PKCSKeystore);
+                ByteArrayInputStream stream = new ByteArrayInputStream(p12);
 
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        } catch (KeyManagementException e) {
+                KeyStore keyStore = KeyStore.getInstance("pkcs12");
+                keyStore.load(stream, this.keystorePassword.toCharArray());
+                stream.close();
+
+                String defaultAlgorithm = KeyManagerFactory.getDefaultAlgorithm();
+                KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(defaultAlgorithm);
+                keyManagerFactory.init(keyStore, this.keystorePassword.toCharArray());
+                keyManagers = keyManagerFactory.getKeyManagers();
+            }
+
+        } catch (KeyStoreException | IOException | CertificateException | UnrecoverableKeyException | NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-
-        if (this.trustAllHTTPSHosts != null && this.trustAllHTTPSHosts) {
-            HttpsURLConnection.setDefaultHostnameVerifier(new DummyHostVerifier());
-        }
+        return keyManagers;
     }
 
     static class DummyHostVerifier implements HostnameVerifier {

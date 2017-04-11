@@ -89,7 +89,7 @@ xroad:
 
 ssl:
   keystore: ${SSL_KEYSTORE}
-  keystorePassword: ${SSL_KEYSTORE_PASS}
+  keystore.password: ${SSL_KEYSTORE_PASSWORD}
 
 proxy:
   url: ${QUOTAGUARDSTATIC_URL}

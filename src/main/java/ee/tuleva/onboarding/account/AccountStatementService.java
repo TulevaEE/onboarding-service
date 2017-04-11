@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AccountStatementService {
 
     private final KPRClient kprClient;
@@ -42,9 +44,7 @@ public class AccountStatementService {
                 .value(fundBalance.getValue())
                 .identifier(fundValueStatisticsIdentifier)
                 .build())
-                .forEach(fundValueStatistics -> {
-                    fundValueStatisticsRepository.save(fundValueStatistics);
-                });
+                .forEach(fundValueStatisticsRepository::save);
     }
 
     private PensionAccountBalanceResponseType getPensionAccountBalance(User user) {
@@ -56,7 +56,7 @@ public class AccountStatementService {
     private List<FundBalance> convertXRoadResponse(PensionAccountBalanceResponseType response) {
         return
                 response.getUnits().getBalance().stream()
-                        .map(b->kprUnitsOsakudToFundBalanceConverter.convert(b))
+                        .map(kprUnitsOsakudToFundBalanceConverter::convert)
                         .collect(Collectors.toList());
     }
 
@@ -66,7 +66,9 @@ public class AccountStatementService {
     }
 
     private List<FundBalance> handleActiveFundBalance(List<FundBalance> fundBalances, String activeFundName) {
-        Optional<FundBalance> activeFundBalance = fundBalances.stream().filter(fb -> fb.getFund().getName().equals(activeFundName)).findFirst();
+        Optional<FundBalance> activeFundBalance = fundBalances.stream()
+          .filter(fb -> fb.getFund().getName().equals(activeFundName))
+          .findFirst();
         activeFundBalance.ifPresent( fb -> fb.setActiveContributions(true));
         if(!activeFundBalance.isPresent()) {
             fundBalances.add(constructActiveFundBalance(activeFundName));
@@ -76,18 +78,17 @@ public class AccountStatementService {
 
     private FundBalance constructActiveFundBalance(String activeFundName) {
         FundBalance activeFundBalance = FundBalance.builder()
-                .fund(
-                        Fund.builder().name(activeFundName).build()
-                )
-                .value(BigDecimal.ZERO)
-                .currency("EUR")
-                .activeContributions(true)
-                .build();
+          .value(BigDecimal.ZERO)
+          .currency("EUR")
+          .activeContributions(true)
+          .build();
 
         Fund activeFund = fundRepository.findByNameIgnoreCase(activeFundName);
         if (activeFund != null) {
-            activeFundBalance.getFund().setIsin(activeFund.getIsin());
-            activeFundBalance.getFund().setManagementFeeRate(activeFund.getManagementFeeRate());
+            activeFundBalance.setFund(activeFund);
+        } else {
+            log.error("Fund with name not found {}", activeFundName);
+            activeFundBalance.setFund(Fund.builder().name(activeFundName).build());
         }
 
         return activeFundBalance;

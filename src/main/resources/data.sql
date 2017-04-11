@@ -52,7 +52,7 @@ INSERT INTO fund_manager(
 
 INSERT INTO fund(
             isin, name, management_fee_rate, fund_manager_id)
-    SELECT 'EE3600109435', 'Aktsia', 0.0035, 1
+    SELECT 'EE3600109435', 'Tuleva Maailma Aktsiate Pensionifond', 0.0034, 1
     WHERE
       NOT EXISTS (
         SELECT * FROM fund WHERE id = 1
@@ -60,7 +60,7 @@ INSERT INTO fund(
 
 INSERT INTO fund(
             isin, name, management_fee_rate, fund_manager_id)
-    SELECT 'EE3600109443', 'Võlakirjad', 0.0035, 1
+    SELECT 'EE3600109443', 'Tuleva Maailma Võlakirjade Pensionifond', 0.0034, 1
     WHERE
       NOT EXISTS (
         SELECT * FROM fund WHERE id = 2
@@ -90,7 +90,13 @@ INSERT INTO fund(
         SELECT * FROM fund WHERE id = 5
       );
 
-
+INSERT INTO fund(
+  isin, name, management_fee_rate, fund_manager_id)
+  SELECT 'EE3600109401', 'LHV Pensionifond Indeks', 1.03900, 2
+  WHERE
+    NOT EXISTS (
+        SELECT * FROM fund WHERE id = 6
+    );
 
 INSERT INTO users(
             id, active, personal_code, first_name, last_name, created_date, updated_date, member_number, phone_number, email)

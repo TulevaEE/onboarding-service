@@ -35,8 +35,7 @@ public class EpisService {
       CreateProcessingCommand command = new CreateProcessingCommand(messages);
 
       try {
-         CreateProcessingCommand response = restTemplate.postForObject(url, getRequest(command), CreateProcessingCommand.class);
-         log.info(response.toString());
+         Object response = restTemplate.postForObject(url, getRequest(command), Object.class);
       } catch (HttpClientErrorException e) {
          log.error(e.toString());
       }

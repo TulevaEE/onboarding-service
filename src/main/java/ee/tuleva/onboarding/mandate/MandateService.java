@@ -124,9 +124,15 @@ public class MandateService {
 
 	private String handleSignedMandate(User user, Mandate mandate, UUID statisticsIdentifier) {
 		if(mandateProcessor.isFinished(mandate)) {
-			handleMandateProcessingErrors(mandate);
 			persistFundTransferExchangeStatistics(user, statisticsIdentifier, mandate);
-//				notifyMandateProcessor(user, mandateId, signedFile);
+
+			notifyAboutSignedMandate(user,
+					mandate.getId(),
+					mandate.getMandate()
+							.orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file."))
+			);
+			handleMandateProcessingErrors(mandate);
+
 			return "SIGNATURE"; // TODO: use enum
 		} else {
 			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
@@ -152,7 +158,7 @@ public class MandateService {
 		}
 	}
 
-	private void notifyMandateProcessor(User user, Long mandateId, byte[] signedFile) {
+	private void notifyAboutSignedMandate(User user, Long mandateId, byte[] signedFile) {
 		emailService.send(user, mandateId, signedFile);
 	}
 

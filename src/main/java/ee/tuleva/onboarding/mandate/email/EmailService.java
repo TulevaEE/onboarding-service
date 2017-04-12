@@ -28,15 +28,27 @@ public class EmailService {
 
     @PostConstruct
     private void initialize() {
-        mandrillApi = new MandrillApi(mandateEmailConfiguration.getMandrillKey());
+
+        if(!mandateEmailConfiguration.getMandrillKey().isPresent()) {
+            log.warn("Mandrill key not present.");
+        }
+
+        mandrillApi = mandateEmailConfiguration.getMandrillKey()
+                .map(key -> new MandrillApi(key)).orElse(null);
     }
 
     public void send(User user, Long mandateId, byte[] file) {
+
+        if(mandrillApi == null) {
+            log.warn("Mandrill not initialised, not sending email for user {} and mandate {}.", user.getId(), mandateId);
+            return;
+        }
+
         MandrillMessage message = new MandrillMessage();
-        message.setSubject("Tuleva Liikme Avaldus");
+        message.setSubject("Pensionifondi avaldus");
         message.setFromEmail(mandateEmailConfiguration.getFrom());
-        message.setFromName("Tuleva Liige");
-        message.setHtml(getHtml(user));
+        message.setFromName("Tuleva");
+        message.setHtml(getHtml());
         message.setAutoText(true);
 
         message.setAttachments(getAttachements(file, user, mandateId));
@@ -48,9 +60,10 @@ public class EmailService {
         message.setTrackClicks(true);
 
         try {
-            log.info("Sending email from {} for member {} {}",
+            log.info("Sending email from {} to member {} {} at {}",
                     mandateEmailConfiguration.getFrom(),
-                    user.getFirstName(), user.getLastName()
+                    user.getFirstName(), user.getLastName(),
+                    user.getEmail()
             );
             MandrillMessageStatus[] messageStatusReports = mandrillApi
                     .messages().send(message, false);
@@ -65,27 +78,23 @@ public class EmailService {
         }
     }
 
-    private String getHtml(User user) {
+    private String getHtml() {
         return (new StringBuilder())
                 .append("Tere. <br/>")
-                .append("Lisatud on minu pensionifondi valiku- ja vahetusavaldused. <br/><br/>")
-                .append("Lugupidamisega </br>")
-                .append(user.getFirstName()).append(" ").append(user.getLastName())
+                .append("Lisatud on pensionifondi valiku- ja/või vahetusavaldused, ")
+                .append("mis on saadetud Eesti Pensioni Infosüsteemi. <br/><br/>")
+                .append("Tuleva </br>")
                 .toString();
     }
 
     private List<MandrillMessage.Recipient> getRecipients(User user) {
         ArrayList<MandrillMessage.Recipient> recipients = new ArrayList<MandrillMessage.Recipient>();
 
-        //EVK inbox
         MandrillMessage.Recipient recipient = new MandrillMessage.Recipient();
-        recipient.setEmail(mandateEmailConfiguration.getTo());
-        recipients.add(recipient);
 
         //Member inbox
         recipient = new MandrillMessage.Recipient();
         recipient.setEmail(user.getEmail());
-        recipient.setType(MandrillMessage.Recipient.Type.CC);
         recipients.add(recipient);
 
         //Collector inbox

@@ -1,14 +1,14 @@
-package ee.tuleva.onboarding.auth
+package ee.tuleva.onboarding.auth.principal
 
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserRepository
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
 import spock.lang.Specification
 
-class AuthUserServiceTest extends Specification {
+class PrincipalServiceSpec extends Specification {
 
     UserRepository repository = Mock(UserRepository)
-    AuthUserService service = new AuthUserService(repository)
+    PrincipalService service = new PrincipalService(repository)
 
     def "GetByPersonalCode fails when no such user exists in the repository"() {
         given:

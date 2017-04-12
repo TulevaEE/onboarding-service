@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.idcard
 
-import ee.tuleva.onboarding.auth.AuthUserService
+import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
 import org.springframework.security.oauth2.provider.ClientDetails
@@ -17,7 +17,7 @@ class IdCardTokenGranterSpec extends Specification {
     ClientDetailsService clientDetailsService = Mock(ClientDetailsService)
     OAuth2RequestFactory oAuth2RequestFactory = Mock(OAuth2RequestFactory)
     GenericSessionStore genericSessionStore = Mock(GenericSessionStore)
-    AuthUserService authUserService = Mock(AuthUserService)
+    PrincipalService authUserService = Mock(PrincipalService)
 
     def setup() {
         tokenGranter = new IdCardTokenGranter(

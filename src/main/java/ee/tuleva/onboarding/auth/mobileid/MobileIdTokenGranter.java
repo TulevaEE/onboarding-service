@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
 import com.codeborne.security.mobileid.MobileIDSession;
-import ee.tuleva.onboarding.auth.AuthUserService;
+import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.user.User;
@@ -20,14 +20,14 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
     public static final String GRANT_TYPE = "mobile_id";
 
     private final MobileIdAuthService mobileIdAuthService;
-    private final AuthUserService userService;
+    private final PrincipalService userService;
     private final GenericSessionStore genericSessionStore;
 
     public MobileIdTokenGranter(AuthorizationServerTokenServices tokenServices,
                                 ClientDetailsService clientDetailsService,
                                 OAuth2RequestFactory requestFactory,
                                 MobileIdAuthService mobileIdAuthService,
-                                AuthUserService userService,
+                                PrincipalService userService,
                                 GenericSessionStore genericSessionStore) {
 
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);

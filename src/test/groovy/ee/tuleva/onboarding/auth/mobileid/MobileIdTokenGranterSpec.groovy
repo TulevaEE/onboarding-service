@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.auth.mobileid
 
 import com.codeborne.security.mobileid.MobileIDSession
-import ee.tuleva.onboarding.auth.AuthUserService
+import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import org.springframework.security.oauth2.common.OAuth2AccessToken
@@ -19,7 +19,7 @@ class MobileIdTokenGranterSpec extends Specification {
     ClientDetailsService clientDetailsService = Mock(ClientDetailsService)
     OAuth2RequestFactory oAuth2RequestFactory = Mock(OAuth2RequestFactory)
     MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
-    AuthUserService authUserService = Mock(AuthUserService)
+    PrincipalService authUserService = Mock(PrincipalService)
     GenericSessionStore sessionStore = Mock(GenericSessionStore)
 
 

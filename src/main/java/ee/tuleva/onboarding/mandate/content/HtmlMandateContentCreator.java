@@ -12,6 +12,7 @@ import org.thymeleaf.context.Context;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
 import javax.annotation.PostConstruct;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -78,7 +79,9 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
     private Map<String, List<FundTransferExchange>> getPrintableFundExchangeStructure(Mandate mandate) {
         Map<String, List<FundTransferExchange>> exchangeMap = new HashMap<>();
 
-        mandate.getFundTransferExchanges().stream().forEach(exchange -> {
+        mandate.getFundTransferExchanges().stream()
+                .filter(fte -> fte.getAmount().compareTo(BigDecimal.ZERO) == 1)
+                .forEach(exchange -> {
             if (!exchangeMap.containsKey(exchange.getSourceFundIsin())) {
                 exchangeMap.put(exchange.getSourceFundIsin(), new ArrayList<>());
             }

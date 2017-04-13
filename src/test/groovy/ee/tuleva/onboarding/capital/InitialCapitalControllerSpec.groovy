@@ -15,7 +15,6 @@ class InitialCapitalControllerSpec extends BaseControllerSpec {
     InitialCapitalRepository initialCapitalRepository = Mock(InitialCapitalRepository)
     InitialCapitalController controller = new InitialCapitalController(initialCapitalRepository)
 
-    User sampleUser = new User()
     InitialCapital sampleInitialCapital = new InitialCapital()
 
     def setup() {
@@ -24,7 +23,7 @@ class InitialCapitalControllerSpec extends BaseControllerSpec {
 
     def "InitialCapital: Get information about current user initial capital"() {
         given:
-        1 * initialCapitalRepository.findByUser(sampleUser) >> sampleInitialCapital
+        1 * initialCapitalRepository.findByUser(_ as User) >> sampleInitialCapital
         when:
         MockHttpServletResponse response = mockMvc
                 .perform(get("/v1/initial-capital")).andReturn().response

@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.auth.idcard;
 
-import ee.tuleva.onboarding.auth.AuthUserService;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
-import ee.tuleva.onboarding.user.User;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
@@ -16,18 +17,18 @@ import java.util.Optional;
 public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGranter {
 
     private final GenericSessionStore sessionStore;
-    private final AuthUserService authUserService;
+    private final PrincipalService principalService;
 
     private static final String GRANT_TYPE = "id_card";
 
     public IdCardTokenGranter(AuthorizationServerTokenServices tokenServices,
-                                 ClientDetailsService clientDetailsService,
-                                 OAuth2RequestFactory requestFactory,
-                                 GenericSessionStore genericSessionStore,
-                                 AuthUserService authUserService) {
+                              ClientDetailsService clientDetailsService,
+                              OAuth2RequestFactory requestFactory,
+                              GenericSessionStore genericSessionStore,
+                              PrincipalService principalService) {
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
         this.sessionStore = genericSessionStore;
-        this.authUserService = authUserService;
+        this.principalService = principalService;
     }
 
     @Override
@@ -43,9 +44,24 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
         }
         IdCardSession idCardSession = session.get();
 
-        User user = authUserService.getByPersonalCode(idCardSession.personalCode);
+        AuthenticatedPerson authenticatedPerson = principalService.getFrom(new Person() {
+            @Override
+            public String getPersonalCode() {
+                return idCardSession.getPersonalCode();
+            }
 
-        Authentication userAuthentication = new PersonalCodeAuthentication<>(user, idCardSession, null);
+            @Override
+            public String getFirstName() {
+                return idCardSession.getFirstName();
+            }
+
+            @Override
+            public String getLastName() {
+                return idCardSession.getLastName();
+            }
+        });
+
+        Authentication userAuthentication = new PersonalCodeAuthentication(authenticatedPerson, idCardSession, null);
         userAuthentication.setAuthenticated(true);
 
         OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);

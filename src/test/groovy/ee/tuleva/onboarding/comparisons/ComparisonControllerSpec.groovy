@@ -15,7 +15,7 @@ class ComparisonControllerSpec extends UserProvidedControllerSpec {
     MockMvc mvc
 
     def setup() {
-        mvc = mockMvcWithAuthenticationPrincipal(new ComparisonController(comparisonService))
+        mvc = mockMvc(new ComparisonController(comparisonService))
     }
 
     def "comparison endpoint works" () {

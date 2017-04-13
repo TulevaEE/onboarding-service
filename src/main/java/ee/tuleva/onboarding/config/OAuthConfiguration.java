@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.config;
 
-import ee.tuleva.onboarding.auth.AuthUserService;
+import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.idcard.IdCardTokenGranter;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdTokenGranter;
@@ -61,7 +61,7 @@ public class OAuthConfiguration {
         private MobileIdAuthService mobileIdAuthService;
 
         @Autowired
-        private AuthUserService authUserService;
+        private PrincipalService principalService;
 
         @Autowired
         private GenericSessionStore genericSessionStore;
@@ -102,7 +102,7 @@ public class OAuthConfiguration {
                             clientDetailsService(),
                             endpoints.getOAuth2RequestFactory(),
                             mobileIdAuthService,
-                            authUserService,
+                    principalService,
                             genericSessionStore);
         }
 
@@ -112,7 +112,7 @@ public class OAuthConfiguration {
                     clientDetailsService(),
                     endpoints.getOAuth2RequestFactory(),
                     genericSessionStore,
-                    authUserService);
+                    principalService);
         }
 
     }

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.user
 
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 
@@ -17,15 +18,20 @@ class UserControllerSpec extends BaseControllerSpec {
 
 	MockMvc mvc
 
-	def "/me endpoint works"() {
-		given:
-		User user = User.builder()
+	AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()
+			.firstName("Erko")
+			.lastName("Risthein")
+			.user(User.builder()
 				.firstName("Erko")
 				.lastName("Risthein")
 				.personalCode("38501010002")
-				.build()
+			.build()
+	).build()
 
-		mvc = mockMvcWithAuthenticationPrincipal(user, controller)
+	def "/me endpoint works"() {
+		given:
+
+		mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
 		expect:
 		mvc.perform(get("/v1/me"))
@@ -38,14 +44,9 @@ class UserControllerSpec extends BaseControllerSpec {
 
 	def "/prefereces endpoint works"() {
 		given:
-		1 * preferencesService.getPreferences(*_) >> UserPreferences.builder().addressRow1("Telliskivi").build()
-		User user = User.builder()
-				.id(1L)
-				.firstName("Erko")
-				.memberNumber(3000)
-				.build()
+		1 * preferencesService.getPreferences(sampleAuthenticatedPerson.user.get().personalCode) >> UserPreferences.builder().addressRow1("Telliskivi").build()
 
-		mvc = mockMvcWithAuthenticationPrincipal(user, controller)
+		mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
 		expect:
 		mvc.perform(get("/v1/preferences"))

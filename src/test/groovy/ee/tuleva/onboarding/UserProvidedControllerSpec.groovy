@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.user.User
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.core.MethodParameter
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
 import org.springframework.test.web.servlet.MockMvc
@@ -19,7 +18,11 @@ class UserProvidedControllerSpec extends BaseControllerSpec {
 
     MappingJackson2HttpMessageConverter jacksonMessageConverter = new MappingJackson2HttpMessageConverter();
 
-    User user = User.builder()
+    AuthenticatedPerson authenticatedPerson = AuthenticatedPerson.builder()
+        .firstName("Erko")
+        .lastName("Risthein")
+        .user(
+            User.builder()
             .id(1L)
             .firstName("Erko")
             .lastName("Risthein")
@@ -27,16 +30,16 @@ class UserProvidedControllerSpec extends BaseControllerSpec {
             .createdDate(Instant.parse("2017-01-31T14:06:01Z"))
             .memberNumber(3000)
             .build()
-
+        ).build()
 
     protected MockMvc mockMvcWithAuthenticationPrincipal(Object... controllers) {
         standaloneSetup(controllers)
                 .setMessageConverters(jacksonMessageConverter)
-                .setCustomArgumentResolvers(authenticationPrincipalResolver(user))
+                .setCustomArgumentResolvers(authenticationPrincipalResolver(authenticatedPerson))
                 .build()
     }
 
-    HandlerMethodArgumentResolver authenticationPrincipalResolver(User user) {
+    HandlerMethodArgumentResolver authenticationPrincipalResolver(AuthenticatedPerson authenticatedPerson) {
         return new HandlerMethodArgumentResolver() {
             @Override
             boolean supportsParameter(MethodParameter parameter) {

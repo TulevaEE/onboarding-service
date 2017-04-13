@@ -2,6 +2,7 @@ package ee.tuleva.onboarding
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.error.ErrorHandlingControllerAdvice
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
 import ee.tuleva.onboarding.error.response.InputErrorsConverter
@@ -23,13 +24,23 @@ class BaseControllerSpec extends Specification {
     protected final static ObjectMapper mapper = new ObjectMapper()
 
     protected MockMvc mockMvc(Object... controllers) {
-        return getMockMvcWithControllerAdvice(controllers)
+        getMockMvcWithControllerAdvice(controllers)
+                .setCustomArgumentResolvers(authenticationPrincipalResolver(getDefaultAuthenticationPrincipal()))
                 .build()
     }
 
-    protected MockMvc mockMvcWithAuthenticationPrincipal(User user, Object... controllers) {
+    private getDefaultAuthenticationPrincipal() {
+        AuthenticatedPerson authenticatedPerson = AuthenticatedPerson.builder()
+                .user(
+                    User.builder()
+                        .active(true)
+                        .build()
+                ).build()
+    }
+
+    protected MockMvc mockMvcWithAuthenticationPrincipal(AuthenticatedPerson authenticatedPerson, Object... controllers) {
         getMockMvcWithControllerAdvice(controllers)
-                .setCustomArgumentResolvers(authenticationPrincipalResolver(user))
+                .setCustomArgumentResolvers(authenticationPrincipalResolver(authenticatedPerson))
                 .build()
     }
 
@@ -54,16 +65,16 @@ class BaseControllerSpec extends Specification {
         return converter
     }
 
-    private HandlerMethodArgumentResolver authenticationPrincipalResolver(User user) {
+    private HandlerMethodArgumentResolver authenticationPrincipalResolver(AuthenticatedPerson authenticatedPerson) {
         return new HandlerMethodArgumentResolver() {
             @Override
             boolean supportsParameter(MethodParameter parameter) {
-                return parameter.parameterType == User
+                return parameter.parameterType == AuthenticatedPerson
             }
 
             @Override
             Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
-                return user
+                return authenticatedPerson
             }
         }
     }

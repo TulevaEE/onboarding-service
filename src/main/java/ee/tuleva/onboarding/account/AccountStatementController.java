@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.account;
 
-import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,8 +23,8 @@ public class AccountStatementController {
 
     @ApiOperation(value = "Get pension register account statement")
     @RequestMapping(method = GET, value = "/pension-account-statement")
-    public List<FundBalance> getMyPensionAccountStatement(@ApiIgnore @AuthenticationPrincipal User user,
+    public List<FundBalance> getMyPensionAccountStatement(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                                           @RequestHeader(value = "x-statistics-identifier", required = false) UUID statisticsIdentifier) {
-        return accountStatementService.getMyPensionAccountStatement(user, statisticsIdentifier);
+        return accountStatementService.getMyPensionAccountStatement(authenticatedPerson.getUser().orElseThrow(RuntimeException::new), statisticsIdentifier);
     }
 }

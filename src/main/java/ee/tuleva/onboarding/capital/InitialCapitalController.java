@@ -16,10 +16,11 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 @RequiredArgsConstructor
 public class InitialCapitalController {
 
+    public static final String INITIAL_CAPITAL_URI = "/initial-capital";
     private final InitialCapitalRepository initialCapitalRepository;
 
     @ApiOperation(value = "Get info about current user initial capital")
-    @RequestMapping(method = GET, value = "/initial-capital")
+    @RequestMapping(method = GET, value = INITIAL_CAPITAL_URI)
     @JsonView(InitialCapitalView.SkipUserField.class)
     public InitialCapital initialCapital(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
         return initialCapitalRepository.findByUser(authenticatedPerson.getUserOrThrow());

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.config;
 
+import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.idcard.IdCardTokenGranter;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
@@ -24,6 +25,8 @@ import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
 
 import javax.sql.DataSource;
 
+import static ee.tuleva.onboarding.capital.InitialCapitalController.INITIAL_CAPITAL_URI;
+import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
 import static java.util.Arrays.asList;
 
 @Configuration
@@ -46,6 +49,10 @@ public class OAuthConfiguration {
                     .authorizeRequests()
                     .regexMatchers("/v1/comparisons.*").permitAll()
                     .regexMatchers("/v1/.*").authenticated()
+                    .regexMatchers(
+                            "/v1/" + INITIAL_CAPITAL_URI,
+                            "/v1/" + MANDATES_URI + ".*"
+                            ).hasRole(Authority.MEMBER)
                     ;
         }
     }

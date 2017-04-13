@@ -4,7 +4,6 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.MvcResult
 
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -34,20 +33,13 @@ class UserControllerSpec extends BaseControllerSpec {
 
 		mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
-		when:
-		MvcResult resp = mvc.perform(get("/v1/me")).andReturn()
-
-		then:
-		true
-
-
-/*
-				.andExpect(status().isOk())
+		expect:
+		mvc.perform(get("/v1/me"))
+ 				.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
 				.andExpect(jsonPath('$.firstName', is("Erko")))
 				.andExpect(jsonPath('$.lastName', is("Risthein")))
-				.andExpect(jsonPath('$.age', isA(Integer)))
-*/
+				.andExpect(jsonPath('$.age', is(32)))
 	}
 
 	def "/prefereces endpoint works"() {

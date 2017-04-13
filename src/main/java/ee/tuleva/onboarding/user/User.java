@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.user;
 
-import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.principal.Person;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -38,11 +37,9 @@ public class User implements Person, Serializable {
 
 	private String phoneNumber;
 
-	@JsonView(UserView.Public.class)
 	@NotBlank
 	private String firstName;
 
-	@JsonView(UserView.Public.class)
 	@NotBlank
 	private String lastName;
 
@@ -59,7 +56,6 @@ public class User implements Person, Serializable {
 	@NotNull
 	private Boolean active;
 
-	@JsonView(UserView.Public.class)
 	public int getAge() {
 		return PersonalCode.getAge(personalCode);
 	}

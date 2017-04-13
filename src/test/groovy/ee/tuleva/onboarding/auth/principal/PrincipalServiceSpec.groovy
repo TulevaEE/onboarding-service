@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.principal
 
+import ee.tuleva.onboarding.auth.PersonFixture
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserRepository
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
@@ -10,41 +11,47 @@ class PrincipalServiceSpec extends Specification {
     UserRepository repository = Mock(UserRepository)
     PrincipalService service = new PrincipalService(repository)
 
-    def "GetByPersonalCode fails when no such user exists in the repository"() {
+    User sampleUser = User.builder()
+            .active(true)
+            .build()
+
+    def "getFromPerson: initialising from person works" () {
         given:
-        repository.findByPersonalCode("123") >> null
+        Person person = PersonFixture.samplePerson()
+
+        1 * repository.findByPersonalCode(person.personalCode) >> sampleUser
 
         when:
-        service.getByPersonalCode("123")
+        AuthenticatedPerson authenticatedPerson = service.getFrom(person)
+
+        then:
+        authenticatedPerson.user.get() == sampleUser
+    }
+
+    def "getFromPerson: initialising non user works" () {
+        given:
+        Person person = PersonFixture.samplePerson()
+
+        1 * repository.findByPersonalCode(person.personalCode) >> null
+
+        when:
+        AuthenticatedPerson authenticatedPerson = service.getFrom(person)
+
+        then:
+        authenticatedPerson.user == Optional.empty()
+    }
+
+    def "getFromPerson: initialising non active user exceptions" () {
+        given:
+        Person person = PersonFixture.samplePerson()
+
+        1 * repository.findByPersonalCode(person.personalCode) >> User.builder().active(false).build()
+
+        when:
+        AuthenticatedPerson authenticatedPerson = service.getFrom(person)
 
         then:
         thrown InvalidRequestException
     }
 
-    def "GetByPersonalCode fails when user is inactive"() {
-        given:
-        repository.findByPersonalCode("123") >> User.builder()
-                .active(false)
-                .build()
-
-        when:
-        service.getByPersonalCode("123")
-
-        then:
-        thrown InvalidRequestException
-    }
-
-    def "GetByPersonalCode works with an active user"() {
-        given:
-        def expectedUser = User.builder()
-                .active(true)
-                .build()
-        repository.findByPersonalCode("123") >> expectedUser
-
-        when:
-        def user = service.getByPersonalCode("123")
-
-        then:
-        user == expectedUser
-    }
 }

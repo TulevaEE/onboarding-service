@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
 import com.codeborne.security.mobileid.MobileIDSession;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
@@ -15,29 +17,31 @@ import org.springframework.security.oauth2.provider.token.AuthorizationServerTok
 
 import java.util.Optional;
 
+import static com.sun.xml.ws.policy.sourcemodel.wspolicy.XmlToken.Optional;
+
 @Slf4j
 public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenGranter {
     public static final String GRANT_TYPE = "mobile_id";
 
     private final MobileIdAuthService mobileIdAuthService;
-    private final PrincipalService userService;
+    private final PrincipalService principalService;
     private final GenericSessionStore genericSessionStore;
 
     public MobileIdTokenGranter(AuthorizationServerTokenServices tokenServices,
                                 ClientDetailsService clientDetailsService,
                                 OAuth2RequestFactory requestFactory,
                                 MobileIdAuthService mobileIdAuthService,
-                                PrincipalService userService,
+                                PrincipalService principalService,
                                 GenericSessionStore genericSessionStore) {
 
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
 
         assert mobileIdAuthService != null;
-        assert userService != null;
+        assert principalService != null;
         assert genericSessionStore != null;
 
         this.mobileIdAuthService = mobileIdAuthService;
-        this.userService = userService;
+        this.principalService = principalService;
         this.genericSessionStore = genericSessionStore;
     }
 
@@ -61,9 +65,24 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
             throw new MobileIdAuthNotCompleteException();
         }
 
-        User user = userService.getByPersonalCode(mobileIdSession.personalCode);
+        AuthenticatedPerson authenticatedPerson = principalService.getFrom(new Person() {
+            @Override
+            public String getPersonalCode() {
+                return mobileIdSession.personalCode;
+            }
 
-        Authentication userAuthentication = new PersonalCodeAuthentication<>(user, mobileIdSession, null);
+            @Override
+            public String getFirstName() {
+                return mobileIdSession.firstName;
+            }
+
+            @Override
+            public String getLastName() {
+                return mobileIdSession.lastName;
+            }
+        });
+
+        Authentication userAuthentication = new PersonalCodeAuthentication<>(authenticatedPerson, mobileIdSession, null);
         userAuthentication.setAuthenticated(true);
 
         final OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);

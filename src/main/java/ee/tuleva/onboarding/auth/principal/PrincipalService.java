@@ -14,19 +14,22 @@ public class PrincipalService {
 
     private final UserRepository userRepository;
 
-    public User getByPersonalCode(String personalCode) {
-        User user = userRepository.findByPersonalCode(personalCode);
+    public AuthenticatedPerson getFrom(Person person) {
 
-        if (user == null) {
-            log.error("Failed to authenticate user: couldn't find user with personal code {}", personalCode);
-            throw new InvalidRequestException("INVALID_USER_CREDENTIALS");
-        }
+        User user = userRepository.findByPersonalCode(person.getPersonalCode());
 
-        if (!user.getActive()) {
-            log.info("Failed to login inactive user with personal code {}", personalCode);
+        if (user != null && !user.getActive()) {
+            log.info("Failed to login inactive user with personal code {}", person.getPersonalCode());
             throw new InvalidRequestException("INACTIVE_USER");
         }
-        return user;
+
+        return AuthenticatedPerson.builder()
+                .firstName(person.getFirstName())
+                .lastName(person.getLastName())
+                .personalCode(person.getPersonalCode())
+                .user(user)
+                .build();
+
     }
 
 }

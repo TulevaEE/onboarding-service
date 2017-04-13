@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth;
 
-import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 
@@ -11,12 +11,12 @@ public class PersonalCodeAuthentication<C extends Serializable> extends Abstract
 
     private static final long serialVersionUID = -5988919052905713277L;
 
-    private final User principal;
+    private final AuthenticatedPerson principal;
     private final C credentials;
 
-    public PersonalCodeAuthentication(User user, C credentials, Collection<? extends GrantedAuthority> authorities) {
+    public PersonalCodeAuthentication(AuthenticatedPerson authenticatedPerson, C credentials, Collection<? extends GrantedAuthority> authorities) {
         super(authorities);
-        this.principal = user;
+        this.principal = authenticatedPerson;
         this.credentials = credentials;
         setAuthenticated(false);
     }
@@ -27,7 +27,7 @@ public class PersonalCodeAuthentication<C extends Serializable> extends Abstract
     }
 
     @Override
-    public User getPrincipal() {
+    public AuthenticatedPerson getPrincipal() {
         return this.principal;
     }
 }

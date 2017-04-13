@@ -6,9 +6,9 @@ public class PersonFixture {
 
     public static Person samplePerson() {
         return new PersonImp(
-                personalCode: "123",
-                firstName: "First",
-                lastName: "Last"
+                personalCode: "38812121212",
+                firstName: "Jordan",
+                lastName: "Valdma"
         )
     }
 

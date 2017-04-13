@@ -1,10 +1,11 @@
-package ee.tuleva.onboarding.user;
+package ee.tuleva.onboarding.user.personalcode;
 
 import java.time.LocalDate;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 
+import static java.time.format.ResolverStyle.STRICT;
 import static java.time.temporal.ChronoField.YEAR;
 
 public class PersonalCode {
@@ -17,7 +18,7 @@ public class PersonalCode {
 		return p.getYears();
 	}
 
-	private static LocalDate getBirthDate(String personalCode) {
+	static LocalDate getBirthDate(String personalCode) {
 		String century = personalCode.substring(0, 1);
 		String birthDate = personalCode.substring(1, 7);
 		return LocalDate.parse(birthDate, birthDateFormatter(century));
@@ -27,7 +28,9 @@ public class PersonalCode {
 		if (isBornInThe20thCentury(century)) {
 			return formatterWithBaseYear(1900);
 		}
-		return DateTimeFormatter.ofPattern("yyMMdd");
+		return DateTimeFormatter
+			.ofPattern("uuMMdd")
+			.withResolverStyle(STRICT);
 	}
 
 	private static boolean isBornInThe20thCentury(String centuryIndicator) {
@@ -38,6 +41,7 @@ public class PersonalCode {
 		return new DateTimeFormatterBuilder()
 				.appendValueReduced(YEAR, 2, 2, baseYear)
 				.appendPattern("MMdd")
-				.toFormatter();
+				.toFormatter()
+				.withResolverStyle(STRICT);
 	}
 }

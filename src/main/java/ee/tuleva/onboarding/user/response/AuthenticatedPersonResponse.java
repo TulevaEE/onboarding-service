@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.user.response;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.user.PersonalCode;
+import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;

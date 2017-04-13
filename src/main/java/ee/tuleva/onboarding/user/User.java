@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.user.personalcode.PersonalCode;
+import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,7 +13,6 @@ import org.hibernate.validator.constraints.NotBlank;
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Past;
-import javax.validation.constraints.Size;
 import java.io.Serializable;
 import java.time.Instant;
 
@@ -27,8 +28,7 @@ public class User implements Person, Serializable {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@NotBlank
-	@Size(min = 11, max = 11)
+	@ValidPersonalCode
 	private String personalCode;
 
 	@NotNull

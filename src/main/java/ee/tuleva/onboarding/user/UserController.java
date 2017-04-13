@@ -22,12 +22,12 @@ public class UserController {
 	@ApiOperation(value = "Get info about the current user")
 	@RequestMapping(method = GET, value = "/me")
 	public User user(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-		return authenticatedPerson.getUser().orElseThrow(RuntimeException::new);
+		return authenticatedPerson.getUserOrThrow();
 	}
 
 	@ApiOperation(value = "Get info about the current user preferences from CSD")
 	@RequestMapping(method = GET, value = "/preferences")
 	public UserPreferences getPreferences(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-		return preferencesService.getPreferences(authenticatedPerson.getUser().orElseThrow(RuntimeException::new).getPersonalCode());
+		return preferencesService.getPreferences(authenticatedPerson.getUserOrThrow().getPersonalCode());
 	}
 }

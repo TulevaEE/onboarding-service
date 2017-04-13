@@ -7,9 +7,9 @@ import java.time.format.DateTimeFormatterBuilder;
 
 import static java.time.temporal.ChronoField.YEAR;
 
-class PersonalCode {
+public class PersonalCode {
 
-	static int getAge(String personalCode) {
+	public static int getAge(String personalCode) {
 		LocalDate today = LocalDate.now();
 		LocalDate birthDate = getBirthDate(personalCode);
 		Period p = Period.between(birthDate, today);

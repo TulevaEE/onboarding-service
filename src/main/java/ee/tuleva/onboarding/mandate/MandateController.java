@@ -58,7 +58,7 @@ public class MandateController {
             throw new ValidationErrorsException(errors);
         }
 
-        return mandateService.save(authenticatedPerson.getUser().orElseThrow(RuntimeException::new), createMandateCommand);
+        return mandateService.save(authenticatedPerson.getUserOrThrow(), createMandateCommand);
     }
 
     @ApiOperation(value = "Start signing mandate with mobile ID")
@@ -70,7 +70,7 @@ public class MandateController {
         MobileIDSession loginSession = session
                 .orElseThrow(() -> new IllegalStateException("No mobile id session found"));
 
-        MobileIdSignatureSession signatureSession = mandateService.mobileIdSign(mandateId, authenticatedPerson.getUser().orElseThrow(RuntimeException::new), loginSession.phoneNumber);
+        MobileIdSignatureSession signatureSession = mandateService.mobileIdSign(mandateId, authenticatedPerson.getUserOrThrow(), loginSession.phoneNumber);
         genericSessionStore.save(signatureSession);
 
         return new MobileIdSignatureResponse(signatureSession.challenge);
@@ -86,7 +86,7 @@ public class MandateController {
         MobileIdSignatureSession session = signatureSession
                 .orElseThrow(() -> new IllegalStateException("No mobile ID signature session found"));
 
-        String statusCode = mandateService.finalizeMobileIdSignature(authenticatedPerson.getUser().orElseThrow(RuntimeException::new), statisticsIdentifier, mandateId, session);
+        String statusCode = mandateService.finalizeMobileIdSignature(authenticatedPerson.getUserOrThrow(), statisticsIdentifier, mandateId, session);
 
         return new MandateSignatureStatusResponse(statusCode);
     }
@@ -97,7 +97,7 @@ public class MandateController {
                                                    @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                                    @Valid @RequestBody StartIdCardSignCommand signCommand) {
 
-        IdCardSignatureSession signatureSession = mandateService.idCardSign(mandateId, authenticatedPerson.getUser().orElseThrow(RuntimeException::new), signCommand.getClientCertificate());
+        IdCardSignatureSession signatureSession = mandateService.idCardSign(mandateId, authenticatedPerson.getUserOrThrow(), signCommand.getClientCertificate());
 
         genericSessionStore.save(signatureSession);
 
@@ -115,7 +115,7 @@ public class MandateController {
         IdCardSignatureSession session = signatureSession
                 .orElseThrow(() -> new IllegalStateException("No ID card signature session found"));
 
-        String statusCode = mandateService.finalizeIdCardSignature(authenticatedPerson.getUser().orElseThrow(RuntimeException::new), statisticsIdentifier, mandateId, session, signCommand.getSignedHash());
+        String statusCode = mandateService.finalizeIdCardSignature(authenticatedPerson.getUserOrThrow(), statisticsIdentifier, mandateId, session, signCommand.getSignedHash());
 
         return new MandateSignatureStatusResponse(statusCode);
     }
@@ -126,7 +126,7 @@ public class MandateController {
                                @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                HttpServletResponse response) throws IOException {
 
-        Mandate mandate = getMandateOrThrow(mandateId, authenticatedPerson.getUser().orElseThrow(RuntimeException::new));
+        Mandate mandate = getMandateOrThrow(mandateId, authenticatedPerson.getUserOrThrow());
         response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.bdoc");
 
         byte[] content = mandate.getMandate().orElseThrow(() -> new RuntimeException("Mandate is not signed"));
@@ -142,7 +142,7 @@ public class MandateController {
                                @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                HttpServletResponse response) throws IOException {
 
-        List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, authenticatedPerson.getUser().orElseThrow(RuntimeException::new));
+        List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, authenticatedPerson.getUserOrThrow());
         response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.zip");
 
         signatureFileArchiver.writeSignatureFilesToZipOutputStream(files, response.getOutputStream());

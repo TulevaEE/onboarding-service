@@ -31,4 +31,16 @@ public class AuthenticatedPerson implements Person, Serializable {
         return Optional.ofNullable(user);
     }
 
+    public User getUserOrThrow() {
+        return getUser().orElseThrow(UserAuthenticationNotPresent::new);
+    }
+
+    class UserAuthenticationNotPresent extends RuntimeException {
+
+        UserAuthenticationNotPresent() {
+            super("Expecting user to be present");
+        }
+
+    }
+
 }

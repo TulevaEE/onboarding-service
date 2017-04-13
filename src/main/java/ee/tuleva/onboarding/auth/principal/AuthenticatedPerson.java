@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.validator.constraints.NotBlank;
 
 import javax.validation.constraints.Size;
+import java.io.Serializable;
 import java.util.Optional;
 
 @Builder
@@ -12,7 +13,7 @@ import java.util.Optional;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class AuthenticatedPerson implements Person {
+public class AuthenticatedPerson implements Person, Serializable {
 
     @NotBlank
     @Size(min = 11, max = 11)

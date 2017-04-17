@@ -25,6 +25,6 @@ public class AccountStatementController {
     @RequestMapping(method = GET, value = "/pension-account-statement")
     public List<FundBalance> getMyPensionAccountStatement(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                                           @RequestHeader(value = "x-statistics-identifier", required = false) UUID statisticsIdentifier) {
-        return accountStatementService.getMyPensionAccountStatement(authenticatedPerson.getUser().orElseThrow(RuntimeException::new), statisticsIdentifier);
+        return accountStatementService.getMyPensionAccountStatement(authenticatedPerson, statisticsIdentifier);
     }
 }

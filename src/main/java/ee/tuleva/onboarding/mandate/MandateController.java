@@ -33,13 +33,16 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
 import static org.springframework.web.bind.annotation.RequestMethod.*;
 
 @Slf4j
 @RestController
-@RequestMapping("/v1")
+@RequestMapping("/v1" + MANDATES_URI)
 @RequiredArgsConstructor
 public class MandateController {
+
+    public static final String MANDATES_URI = "/mandates";
 
     private final MandateRepository mandateRepository;
     private final MandateService mandateService;
@@ -48,7 +51,7 @@ public class MandateController {
     private final MandateFileService mandateFileService;
 
     @ApiOperation(value = "Create a mandate")
-    @RequestMapping(method = POST, value = "/mandates")
+    @RequestMapping(method = POST)
     @JsonView(MandateView.Default.class)
     public Mandate create(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                  @Valid @RequestBody CreateMandateCommand createMandateCommand,
@@ -62,7 +65,7 @@ public class MandateController {
     }
 
     @ApiOperation(value = "Start signing mandate with mobile ID")
-    @RequestMapping(method = PUT, value = "/mandates/{id}/signature/mobileId")
+    @RequestMapping(method = PUT, value = "/{id}/signature/mobileId")
     public MobileIdSignatureResponse startMobileIdSignature(@PathVariable("id") Long mandateId,
                                                             @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
@@ -77,7 +80,7 @@ public class MandateController {
     }
 
     @ApiOperation(value = "Is mandate successfully signed with mobile ID")
-    @RequestMapping(method = GET, value = "/mandates/{id}/signature/mobileId/status")
+    @RequestMapping(method = GET, value = "/{id}/signature/mobileId/status")
     public MandateSignatureStatusResponse getMobileIdSignatureStatus(@PathVariable("id") Long mandateId,
                                                                      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                                                      @RequestHeader("x-statistics-identifier") UUID statisticsIdentifier) {
@@ -92,7 +95,7 @@ public class MandateController {
     }
 
     @ApiOperation(value = "Start signing mandate with ID card")
-    @RequestMapping(method = PUT, value = "/mandates/{id}/signature/idCard")
+    @RequestMapping(method = PUT, value = "/{id}/signature/idCard")
     public IdCardSignatureResponse startIdCardSign(@PathVariable("id") Long mandateId,
                                                    @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                                    @Valid @RequestBody StartIdCardSignCommand signCommand) {
@@ -105,7 +108,7 @@ public class MandateController {
     }
 
     @ApiOperation(value = "Is mandate successfully signed with ID card")
-    @RequestMapping(method = PUT, value = "/mandates/{id}/signature/idCard/status")
+    @RequestMapping(method = PUT, value = "/{id}/signature/idCard/status")
     public MandateSignatureStatusResponse getIdCardSignatureStatus(@PathVariable("id") Long mandateId,
                                                                    @Valid @RequestBody FinishIdCardSignCommand signCommand,
                                                                    @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
@@ -121,7 +124,7 @@ public class MandateController {
     }
 
     @ApiOperation(value = "Get mandate file")
-    @RequestMapping(method = GET, value = "/mandates/{id}/file")
+    @RequestMapping(method = GET, value = "/{id}/file")
     public void getMandateFile(@PathVariable("id") Long mandateId,
                                @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                HttpServletResponse response) throws IOException {
@@ -137,7 +140,7 @@ public class MandateController {
     }
 
     @ApiOperation(value = "Get mandate file")
-    @RequestMapping(method = GET, value = "/mandates/{id}/file/preview", produces="application/zip")
+    @RequestMapping(method = GET, value = "/{id}/file/preview", produces="application/zip")
     public void getMandateFilePreview(@PathVariable("id") Long mandateId,
                                @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                HttpServletResponse response) throws IOException {

@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
 import com.codeborne.security.mobileid.MobileIDSession;
+import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
+import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
-import ee.tuleva.onboarding.user.User;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
@@ -16,8 +16,6 @@ import org.springframework.security.oauth2.provider.token.AbstractTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
 
 import java.util.Optional;
-
-import static com.sun.xml.ws.policy.sourcemodel.wspolicy.XmlToken.Optional;
 
 @Slf4j
 public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenGranter {
@@ -82,7 +80,13 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
             }
         });
 
-        Authentication userAuthentication = new PersonalCodeAuthentication<>(authenticatedPerson, mobileIdSession, null);
+        Authentication userAuthentication =
+                new PersonalCodeAuthentication<>(
+                        authenticatedPerson,
+                        mobileIdSession,
+                        GrantedAuthorityFactory.from(authenticatedPerson)
+                );
+
         userAuthentication.setAuthenticated(true);
 
         final OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);

@@ -30,7 +30,7 @@ class BaseControllerSpec extends Specification {
     }
 
     private getDefaultAuthenticationPrincipal() {
-        AuthenticatedPerson authenticatedPerson = AuthenticatedPerson.builder()
+        return AuthenticatedPerson.builder()
                 .user(
                     User.builder()
                         .active(true)

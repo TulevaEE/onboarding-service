@@ -1,9 +1,9 @@
-package ee.tuleva.onboarding.auth;
+package ee.tuleva.onboarding.auth
 
 import ee.tuleva.onboarding.user.User
-import ee.tuleva.onboarding.user.UserPreferences;
+import ee.tuleva.onboarding.user.UserPreferences
 
-import java.time.Instant;
+import java.time.Instant
 
 public class UserFixture {
 

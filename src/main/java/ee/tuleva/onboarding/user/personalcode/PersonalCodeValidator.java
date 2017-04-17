@@ -13,12 +13,15 @@ public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalC
 
   @Override
   public boolean isValid(String personalCode, ConstraintValidatorContext context) {
+
     if(isBlank(personalCode)) {
       return false;
     }
+
     if(personalCode.length() != 11) {
       return false;
     }
+
     try {
       int century = Integer.parseInt(personalCode.substring(0, 1));
       int order = Integer.parseInt(personalCode.substring(7, 10));

@@ -48,11 +48,11 @@ public class OAuthConfiguration {
             http
                     .authorizeRequests()
                     .regexMatchers("/v1/comparisons.*").permitAll()
-                    .regexMatchers("/v1/.*").authenticated()
                     .regexMatchers(
-                            "/v1/" + INITIAL_CAPITAL_URI,
-                            "/v1/" + MANDATES_URI + ".*"
-                            ).hasRole(Authority.MEMBER)
+                            "/v1" + INITIAL_CAPITAL_URI,
+                            "/v1" + MANDATES_URI + ".*"
+                            ).hasAuthority(Authority.MEMBER)
+                    .regexMatchers("/v1/.*").authenticated()
                     ;
         }
     }

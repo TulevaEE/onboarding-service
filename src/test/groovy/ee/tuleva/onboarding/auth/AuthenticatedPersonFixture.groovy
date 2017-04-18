@@ -17,7 +17,7 @@ public class AuthenticatedPersonFixture {
                     .firstName(UserFixture.sampleUser().getFirstName())
                     .lastName(UserFixture.sampleUser().getLastName())
                     .personalCode(UserFixture.sampleUser().getLastName())
-                    .user(null)
+                    .user(UserFixture.sampleUserNonMember())
                     .build()
 
 }

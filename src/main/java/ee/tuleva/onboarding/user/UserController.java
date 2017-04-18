@@ -27,6 +27,6 @@ public class UserController {
 	@ApiOperation(value = "Get info about the current user preferences from CSD")
 	@RequestMapping(method = GET, value = "/preferences")
 	public UserPreferences getPreferences(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-		return preferencesService.getPreferences(authenticatedPerson.getUserOrThrow().getPersonalCode());
+		return preferencesService.getPreferences(authenticatedPerson.getUser().getPersonalCode());
 	}
 }

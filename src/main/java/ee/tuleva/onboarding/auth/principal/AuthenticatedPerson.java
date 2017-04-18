@@ -6,7 +6,6 @@ import org.hibernate.validator.constraints.NotBlank;
 
 import javax.validation.constraints.Size;
 import java.io.Serializable;
-import java.util.Optional;
 
 @Builder
 @Getter
@@ -26,21 +25,5 @@ public class AuthenticatedPerson implements Person, Serializable {
     private String lastName;
 
     private User user;
-
-    public Optional<User> getUser() {
-        return Optional.ofNullable(user);
-    }
-
-    public User getUserOrThrow() {
-        return getUser().orElseThrow(UserAuthenticationNotPresent::new);
-    }
-
-    class UserAuthenticationNotPresent extends RuntimeException {
-
-        UserAuthenticationNotPresent() {
-            super("Expecting user to be present");
-        }
-
-    }
 
 }

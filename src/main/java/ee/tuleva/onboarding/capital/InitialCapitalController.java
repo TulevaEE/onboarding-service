@@ -23,7 +23,7 @@ public class InitialCapitalController {
     @RequestMapping(method = GET, value = INITIAL_CAPITAL_URI)
     @JsonView(InitialCapitalView.SkipUserField.class)
     public InitialCapital initialCapital(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-        return initialCapitalRepository.findByUser(authenticatedPerson.getUserOrThrow());
+        return initialCapitalRepository.findByUser(authenticatedPerson.getUser());
     }
 
 }

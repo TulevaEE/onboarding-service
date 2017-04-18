@@ -18,6 +18,11 @@ public class PrincipalService {
 
         User user = userRepository.findByPersonalCode(person.getPersonalCode());
 
+        if(user == null) {
+            log.info("Failed to login non existing user with personal code {}", person.getPersonalCode());
+            throw new InvalidRequestException("INVALID_USER");
+        }
+
         if (user != null && !user.getActive()) {
             log.info("Failed to login inactive user with personal code {}", person.getPersonalCode());
             throw new InvalidRequestException("INACTIVE_USER");

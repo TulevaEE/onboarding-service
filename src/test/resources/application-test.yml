@@ -15,3 +15,6 @@ spring:
 
 logging.level:
   org.hibernate.type: TRACE
+
+flyway:
+  enabled: false

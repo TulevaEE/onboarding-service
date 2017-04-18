@@ -12,7 +12,7 @@ public class GrantedAuthorityFactory {
 
     public static Collection<GrantedAuthority> from(AuthenticatedPerson authenticatedPerson) {
 
-        if(authenticatedPerson.getUser().isPresent()) {
+        if(authenticatedPerson.getUser().getMember().isPresent()) {
             return Arrays.asList(new SimpleGrantedAuthority(Authority.MEMBER));
         } else {
             return Collections.EMPTY_LIST;

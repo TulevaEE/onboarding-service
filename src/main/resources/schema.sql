@@ -36,11 +36,9 @@ CREATE TABLE IF NOT EXISTS users (
   last_name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,
   phone_number VARCHAR(255),
-  member_number INTEGER NOT NULL,
   created_date TIMESTAMP NOT NULL,
   updated_date TIMESTAMP NOT NULL,
-  CONSTRAINT personal_code UNIQUE (personal_code),
-  CONSTRAINT member_number UNIQUE (member_number)
+  CONSTRAINT personal_code UNIQUE (personal_code)
 );
 
 CREATE TABLE IF NOT EXISTS initial_capital (

@@ -16,7 +16,6 @@ public class UserFixture {
                 .phoneNumber("5555555")
                 .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
                 .updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
-                .memberNumber(0)
                 .active(true)
                 .build()
     }

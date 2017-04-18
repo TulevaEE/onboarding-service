@@ -44,9 +44,6 @@ public class User implements Person, Serializable {
 	private String lastName;
 
 	@NotNull
-	private Integer memberNumber;
-
-	@NotNull
 	@Past
 	private Instant createdDate;
 

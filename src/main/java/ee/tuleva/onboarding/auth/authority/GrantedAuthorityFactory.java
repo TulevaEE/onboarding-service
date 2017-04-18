@@ -11,13 +11,9 @@ import java.util.Collections;
 public class GrantedAuthorityFactory {
 
     public static Collection<GrantedAuthority> from(AuthenticatedPerson authenticatedPerson) {
-
-        if(authenticatedPerson.getUser().getMember().isPresent()) {
-            return Arrays.asList(new SimpleGrantedAuthority(Authority.MEMBER));
-        } else {
-            return Collections.EMPTY_LIST;
-        }
-
+        return authenticatedPerson.getUser().getMember()
+                .map( member -> Arrays.asList(new SimpleGrantedAuthority(Authority.MEMBER)))
+                .orElse(Collections.EMPTY_LIST);
     }
 
 }

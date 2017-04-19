@@ -1,10 +1,7 @@
 package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.validator.constraints.Email;
 import org.hibernate.validator.constraints.NotBlank;
 
@@ -22,6 +19,7 @@ import java.util.Optional;
 @Table(name = "users")
 @AllArgsConstructor
 @NoArgsConstructor
+@EqualsAndHashCode(exclude={"member"})
 public class User implements Person, Serializable {
 
 	@Id

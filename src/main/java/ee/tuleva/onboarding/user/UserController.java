@@ -28,7 +28,7 @@ public class UserController {
 	@ApiOperation(value = "Get info about the current user")
 	@GetMapping("/me")
 	public UserResponse me(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-		return UserResponse.fromPerson(authenticatedPerson);
+		return UserResponse.fromAuthenticatedPerson(authenticatedPerson);
 	}
 
 	@ApiOperation(value = "Get info about the current user preferences from CSD")

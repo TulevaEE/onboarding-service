@@ -6,9 +6,9 @@ import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
-import ee.tuleva.onboarding.user.CsdUserPreferencesService
+import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService
 import ee.tuleva.onboarding.user.User
-import ee.tuleva.onboarding.user.UserPreferences
+import ee.tuleva.onboarding.user.preferences.UserPreferences
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserPreferences

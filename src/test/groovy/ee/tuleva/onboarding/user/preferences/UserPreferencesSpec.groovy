@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.user
+package ee.tuleva.onboarding.user.preferences
 
 import spock.lang.Specification
 

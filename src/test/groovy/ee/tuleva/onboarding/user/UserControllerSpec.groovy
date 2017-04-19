@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.user
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.user.command.CreateUserCommand
+import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService
+import ee.tuleva.onboarding.user.preferences.UserPreferences
 import org.springframework.http.MediaType
 
 import static org.hamcrest.Matchers.hasSize

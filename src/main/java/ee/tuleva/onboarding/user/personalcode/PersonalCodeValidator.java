@@ -14,11 +14,11 @@ public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalC
   @Override
   public boolean isValid(String personalCode, ConstraintValidatorContext context) {
 
-    if(isBlank(personalCode)) {
+    if (isBlank(personalCode)) {
       return false;
     }
 
-    if(personalCode.length() != 11) {
+    if (personalCode.length() != 11) {
       return false;
     }
 
@@ -28,13 +28,13 @@ public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalC
       int checksum = Integer.parseInt(personalCode.substring(10, 11));
 
       // only allow 20th-21st century
-      if(!(century >= 3 && century <= 6)) {
+      if (!(century >= 3 && century <= 6)) {
         return false;
       }
 
       PersonalCode.getBirthDate(personalCode); // throws exception on invalid date
 
-      if(!(order >= 0 && order <= 999)) {
+      if (!(order >= 0 && order <= 999)) {
         return false;
       }
 
@@ -50,8 +50,8 @@ public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalC
   // https://et.wikipedia.org/wiki/Isikukood#Kontrollnumber
   private int calculateChecksum(String personalCode) {
     int[] c = personalCode.chars()
-      .map(Character::getNumericValue)
-      .toArray();
+        .map(Character::getNumericValue)
+        .toArray();
 
     int sum = 1 * c[0] + 2 * c[1] + 3 * c[2] + 4 * c[3] + 5 * c[4] + 6 * c[5] + 7 * c[6] + 8 * c[7] + 9 * c[8] + 1 * c[9];
     int mod = sum % 11;

@@ -17,7 +17,7 @@ import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsFixture
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository
 import ee.tuleva.onboarding.user.User
-import ee.tuleva.onboarding.user.UserPreferences
+import ee.tuleva.onboarding.user.preferences.UserPreferences
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.mandate.MandateFixture.invalidCreateMandateCommand

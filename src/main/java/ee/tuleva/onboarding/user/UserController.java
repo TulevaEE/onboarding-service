@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.user.command.CreateUserCommand;
+import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService;
+import ee.tuleva.onboarding.user.preferences.UserPreferences;
 import ee.tuleva.onboarding.user.response.AuthenticatedPersonResponse;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
@@ -25,7 +28,7 @@ public class UserController {
 	@ApiOperation(value = "Get info about the current user")
 	@GetMapping("/me")
 	public AuthenticatedPersonResponse me(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-		return AuthenticatedPersonResponse.fromAuthenticatedPerson(authenticatedPerson);
+		return AuthenticatedPersonResponse.fromPerson(authenticatedPerson);
 	}
 
 	@ApiOperation(value = "Get info about the current user preferences from CSD")
@@ -34,9 +37,10 @@ public class UserController {
 		return preferencesService.getPreferences(authenticatedPerson.getUserOrThrow().getPersonalCode());
 	}
 
+	@ApiOperation(value = "Create a new user")
 	@PostMapping("/users")
-	public User createUser(@Valid @RequestBody CreateUserCommand cmd,
-						   @ApiIgnore Errors errors) throws ValidationErrorsException {
+	public Person createUser(@Valid @RequestBody CreateUserCommand cmd,
+							 @ApiIgnore Errors errors) throws ValidationErrorsException {
 
 		if (errors != null && errors.hasErrors()) {
 			throw new ValidationErrorsException(errors);

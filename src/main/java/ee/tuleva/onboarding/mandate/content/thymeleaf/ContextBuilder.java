@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserPreferences;
+import ee.tuleva.onboarding.user.preferences.UserPreferences;
 import org.thymeleaf.context.Context;
 
 import java.time.ZoneId;

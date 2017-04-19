@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.account
 import ee.eesti.xtee6.kpr.PensionAccountBalanceResponseType
 import ee.eesti.xtee6.kpr.PensionAccountBalanceType
 import ee.eesti.xtee6.kpr.PersonalSelectionResponseType
-import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.auth.PersonFixture
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.kpr.KPRClient
@@ -47,14 +47,14 @@ class AccountStatementServiceSpec extends Specification {
         BigDecimal activeFundBalanceValue = new BigDecimal(100000)
         FundBalance sampleFundBalance = sampleFundBalance(activeFund, activeFundBalanceValue)
 
-        1 * kprClient.pensionAccountBalance(_ as PensionAccountBalanceType, UserFixture.sampleUser().getPersonalCode()) >> resp
+        1 * kprClient.pensionAccountBalance(_ as PensionAccountBalanceType, PersonFixture.samplePerson().getPersonalCode()) >> resp
         2 * kprUnitsOsakudToFundBalanceConverter.convert(_ as PensionAccountBalanceResponseType.Units.Balance) >> sampleFundBalance
-        1 * kprClient.personalSelection(UserFixture.sampleUser().getPersonalCode()) >> personalSelection
+        1 * kprClient.personalSelection(PersonFixture.samplePerson().getPersonalCode()) >> personalSelection
         UUID sampleStatisticsIdentifier = UUID.randomUUID()
         checkForFundValueStatisticsSave(sampleFundBalance, sampleStatisticsIdentifier)
 
         when:
-        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(UserFixture.sampleUser(), sampleStatisticsIdentifier)
+        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(PersonFixture.samplePerson(), sampleStatisticsIdentifier)
         then:
         fundBalances.size() == 2
 
@@ -69,11 +69,11 @@ class AccountStatementServiceSpec extends Specification {
         String activeFundName = "Active Fund"
         personalSelection.getPensionAccount().setSecurityName(activeFundName)
 
-        1 * kprClient.pensionAccountBalance(_ as PensionAccountBalanceType, UserFixture.sampleUser().getPersonalCode()) >> resp
+        1 * kprClient.pensionAccountBalance(_ as PensionAccountBalanceType, PersonFixture.samplePerson().getPersonalCode()) >> resp
         FundBalance sampleFundBalance = sampleFundBalance(MandateFixture.sampleFunds().get(0), BigDecimal.ONE)
 
         2 * kprUnitsOsakudToFundBalanceConverter.convert(_ as PensionAccountBalanceResponseType.Units.Balance) >> sampleFundBalance
-        1 * kprClient.personalSelection(UserFixture.sampleUser().getPersonalCode()) >> personalSelection
+        1 * kprClient.personalSelection(PersonFixture.samplePerson().getPersonalCode()) >> personalSelection
 
         String activeFundIsin = "LV0987654321"
 
@@ -89,7 +89,7 @@ class AccountStatementServiceSpec extends Specification {
         checkForZeroBalanceActiveFundValueStatisticsSave(activeFund, sampleStatisticsIdentifier)
 
         when:
-        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(UserFixture.sampleUser(), sampleStatisticsIdentifier)
+        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(PersonFixture.samplePerson(), sampleStatisticsIdentifier)
         then:
         fundBalances.size() == 3
 

@@ -25,10 +25,10 @@ class PrincipalServiceSpec extends Specification {
         AuthenticatedPerson authenticatedPerson = service.getFrom(person)
 
         then:
-        authenticatedPerson.user.get() == sampleUser
+        authenticatedPerson.user == sampleUser
     }
 
-    def "getFromPerson: initialising non user works" () {
+    def "getFromPerson: initialising non user works throws exception" () {
         given:
         Person person = PersonFixture.samplePerson()
 
@@ -38,7 +38,7 @@ class PrincipalServiceSpec extends Specification {
         AuthenticatedPerson authenticatedPerson = service.getFrom(person)
 
         then:
-        authenticatedPerson.user == Optional.empty()
+        thrown InvalidRequestException
     }
 
     def "getFromPerson: initialising non active user exceptions" () {

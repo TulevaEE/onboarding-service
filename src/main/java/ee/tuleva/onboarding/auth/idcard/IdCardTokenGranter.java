@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.idcard;
 
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
+import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
@@ -61,7 +62,10 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
             }
         });
 
-        Authentication userAuthentication = new PersonalCodeAuthentication(authenticatedPerson, idCardSession, null);
+        Authentication userAuthentication = new PersonalCodeAuthentication(
+                authenticatedPerson,
+                idCardSession,
+                GrantedAuthorityFactory.from(authenticatedPerson));
         userAuthentication.setAuthenticated(true);
 
         OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);

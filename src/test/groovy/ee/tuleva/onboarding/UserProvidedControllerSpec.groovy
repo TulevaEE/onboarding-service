@@ -28,7 +28,6 @@ class UserProvidedControllerSpec extends BaseControllerSpec {
             .lastName("Risthein")
             .personalCode("38501010002")
             .createdDate(Instant.parse("2017-01-31T14:06:01Z"))
-            .memberNumber(3000)
             .build()
         ).build()
 

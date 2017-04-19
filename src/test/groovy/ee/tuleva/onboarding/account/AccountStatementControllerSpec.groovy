@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.account
 
 import ee.tuleva.onboarding.BaseControllerSpec
-import ee.tuleva.onboarding.user.User
+import ee.tuleva.onboarding.auth.principal.Person
 import org.springframework.test.web.servlet.MockMvc
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -21,7 +21,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
     def "/pension-account-statement endpoint works"() {
         given:
         UUID statisticsIdentifier = UUID.randomUUID()
-        1 * accountStatementService.getMyPensionAccountStatement(_ as User, statisticsIdentifier) >> []
+        1 * accountStatementService.getMyPensionAccountStatement(_ as Person, statisticsIdentifier) >> []
 
         expect:
             mockMvc.perform(get("/v1/pension-account-statement").header("x-statistics-identifier", statisticsIdentifier))

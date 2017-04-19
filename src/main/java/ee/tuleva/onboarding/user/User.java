@@ -15,6 +15,7 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Past;
 import java.io.Serializable;
 import java.time.Instant;
+import java.util.Optional;
 
 @Data
 @Builder
@@ -27,6 +28,9 @@ public class User implements Person, Serializable {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
+
+	@OneToOne(cascade = {CascadeType.ALL}, mappedBy = "user")
+	Member member;
 
 	@ValidPersonalCode
 	private String personalCode;
@@ -44,9 +48,6 @@ public class User implements Person, Serializable {
 	private String lastName;
 
 	@NotNull
-	private Integer memberNumber;
-
-	@NotNull
 	@Past
 	private Instant createdDate;
 
@@ -58,6 +59,10 @@ public class User implements Person, Serializable {
 
 	public int getAge() {
 		return PersonalCode.getAge(personalCode);
+	}
+
+	public Optional<Member> getMember() {
+		return Optional.ofNullable(member);
 	}
 
 }

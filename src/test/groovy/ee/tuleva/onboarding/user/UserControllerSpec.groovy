@@ -36,7 +36,7 @@ class UserControllerSpec extends BaseControllerSpec {
 
 	def "/preferences endpoint works"() {
 		given:
-		1 * preferencesService.getPreferences(sampleAuthenticatedPerson.user.get().personalCode) >> UserPreferences.builder().addressRow1("Telliskivi").build()
+		1 * preferencesService.getPreferences(sampleAuthenticatedPerson.user.personalCode) >> UserPreferences.builder().addressRow1("Telliskivi").build()
 
 		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 

@@ -6,7 +6,7 @@ import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.user.command.CreateUserCommand;
 import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService;
 import ee.tuleva.onboarding.user.preferences.UserPreferences;
-import ee.tuleva.onboarding.user.response.AuthenticatedPersonResponse;
+import ee.tuleva.onboarding.user.response.UserResponse;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,14 +27,14 @@ public class UserController {
 
 	@ApiOperation(value = "Get info about the current user")
 	@GetMapping("/me")
-	public AuthenticatedPersonResponse me(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-		return AuthenticatedPersonResponse.fromPerson(authenticatedPerson);
+	public UserResponse me(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+		return UserResponse.fromPerson(authenticatedPerson);
 	}
 
 	@ApiOperation(value = "Get info about the current user preferences from CSD")
 	@GetMapping("/preferences")
 	public UserPreferences getPreferences(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-		return preferencesService.getPreferences(authenticatedPerson.getUserOrThrow().getPersonalCode());
+		return preferencesService.getPreferences(authenticatedPerson.getUser().getPersonalCode());
 	}
 
 	@ApiOperation(value = "Create a new user")

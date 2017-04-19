@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth
 
+import ee.tuleva.onboarding.user.Member;
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.preferences.UserPreferences
 
@@ -16,8 +17,27 @@ public class UserFixture {
                 .phoneNumber("5555555")
                 .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
                 .updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
-                .memberNumber(0)
                 .active(true)
+                .member(
+                    Member.builder()
+                        .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
+                        .memberNumber(1234567)
+                        .build()
+                )
+                .build()
+    }
+
+    public static User sampleUserNonMember() {
+        return User.builder()
+                .firstName("Jordan")
+                .lastName("Valdma")
+                .personalCode("38812121212")
+                .email("jordan.valdma@gmail.com")
+                .phoneNumber("5555555")
+                .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
+                .updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
+                .active(true)
+                .member(null)
                 .build()
     }
 

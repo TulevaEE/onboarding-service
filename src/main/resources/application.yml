@@ -70,6 +70,7 @@ epis:
     url: http://localhost:9001/v1
     bic: "ECSDEE20"
 
+# uncomment when starting with a clean DB
 #flyway:
 #  baseline-on-migrate: true
 

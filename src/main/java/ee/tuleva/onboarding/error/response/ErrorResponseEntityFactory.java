@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.error.response;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.Errors;
@@ -13,7 +14,7 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 @RequiredArgsConstructor
 public class ErrorResponseEntityFactory {
 
-    private final InputErrorsConverter inputErrorsConverter;
+    private final Converter<Errors, ErrorsResponse> inputErrorsConverter;
 
     public ResponseEntity<ErrorsResponse> fromErrors(Errors errors) {
         log.info("Create ErrorsResponse from Errors: {}", errors);

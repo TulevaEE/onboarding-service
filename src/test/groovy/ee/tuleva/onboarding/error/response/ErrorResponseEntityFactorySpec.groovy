@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.error.response
 
+import ee.tuleva.onboarding.error.converter.InputErrorsConverter
+import ee.tuleva.onboarding.error.converter.TestCommand
 import org.springframework.http.ResponseEntity
 import org.springframework.validation.Errors
 import spock.lang.Specification

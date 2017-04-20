@@ -49,7 +49,6 @@ dependencies {
 	compile("org.projectlombok:lombok:1.16.12")
 	compile("org.jsoup:jsoup:1.8.1")
 	compile('org.apache.commons:commons-lang3:3.5')
-	compile('com.tapstream:rollbar-logback:0.1.4')
 
 	compile('com.github.ErkoRisthein:mobileid:1.7')
     compile('ee.eesti.xtee6.kpr:xtee-kpr:1.2.1')

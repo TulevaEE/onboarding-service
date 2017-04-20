@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.user.personalcode.PersonalCode;
+import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import lombok.*;
 import org.hibernate.validator.constraints.Email;
 import org.hibernate.validator.constraints.NotBlank;
@@ -8,7 +10,6 @@ import org.hibernate.validator.constraints.NotBlank;
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Past;
-import javax.validation.constraints.Size;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Optional;
@@ -29,8 +30,7 @@ public class User implements Person, Serializable {
 	@OneToOne(cascade = {CascadeType.ALL}, mappedBy = "user")
 	Member member;
 
-	@NotBlank
-	@Size(min = 11, max = 11)
+	@ValidPersonalCode
 	private String personalCode;
 
 	@NotNull

@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateFixture
-import ee.tuleva.onboarding.user.UserPreferences
+import ee.tuleva.onboarding.user.preferences.UserPreferences
 import org.thymeleaf.context.Context
 import spock.lang.Specification
 

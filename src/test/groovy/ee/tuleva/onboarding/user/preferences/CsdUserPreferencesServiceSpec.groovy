@@ -1,10 +1,11 @@
-package ee.tuleva.onboarding.user
+package ee.tuleva.onboarding.user.preferences
 
 import ee.eesti.xtee6.kpr.ContactPreferenceType
 import ee.eesti.xtee6.kpr.CountryType
 import ee.eesti.xtee6.kpr.LangType
 import ee.eesti.xtee6.kpr.PersonDataResponseType
 import ee.tuleva.onboarding.kpr.KPRClient
+import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService
 import spock.lang.Specification
 
 class CsdUserPreferencesServiceSpec extends Specification {

@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.user.response;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.user.PersonalCode;
+import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.text.WordUtils;
 
 @Builder
 @Getter
@@ -23,10 +24,14 @@ public class UserResponse {
     public static UserResponse fromAuthenticatedPerson(AuthenticatedPerson authenticatedPerson) {
         return UserResponse.builder()
                 .id(authenticatedPerson.getUser().getId())
-                .firstName(authenticatedPerson.getFirstName())
-                .lastName(authenticatedPerson.getLastName())
+                .firstName(capitalize(authenticatedPerson.getFirstName()))
+                .lastName(capitalize(authenticatedPerson.getLastName()))
                 .personalCode(authenticatedPerson.getPersonalCode())
                 .build();
+    }
+
+    private static String capitalize(String string) {
+        return WordUtils.capitalizeFully(string, ' ', '-');
     }
 
 }

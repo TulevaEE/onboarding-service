@@ -5,8 +5,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
-import java.time.Instant
-
 @DataJpaTest
 class UserRepositorySpec extends Specification {
 
@@ -24,8 +22,6 @@ class UserRepositorySpec extends Specification {
 				.personalCode("38501010002")
 				.email("erko@risthein.ee")
 				.phoneNumber("5555555")
-				.createdDate(Instant.parse("2017-01-31T14:06:01Z"))
-				.updatedDate(Instant.parse("2017-01-31T14:06:01Z"))
 				.active(true)
 				.build())
 
@@ -41,8 +37,8 @@ class UserRepositorySpec extends Specification {
 		user.personalCode == "38501010002"
 		user.email == "erko@risthein.ee"
 		user.phoneNumber == "5555555"
-		user.createdDate == Instant.parse("2017-01-31T14:06:01Z")
-		user.updatedDate == Instant.parse("2017-01-31T14:06:01Z")
+		user.createdDate != null
+		user.updatedDate != null
 	}
 
 }

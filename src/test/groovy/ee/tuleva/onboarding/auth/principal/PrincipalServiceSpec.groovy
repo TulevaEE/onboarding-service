@@ -26,11 +26,21 @@ class PrincipalServiceSpec extends Specification {
 
         then:
         authenticatedPerson.user == sampleUser
+        authenticatedPerson.firstName == person.firstName
+        authenticatedPerson.lastName == person.lastName
+        authenticatedPerson.personalCode == person.personalCode
     }
 
-    def "getFromPerson: initialising non user works throws exception" () {
+    def "getFromPerson: create a new user when one is not present" () {
         given:
         Person person = PersonFixture.samplePerson()
+        String firstNameUncapitalized = "JORDAN"
+        String firstNameCorrectlyCapitalized = "Jordan"
+        person.firstName = firstNameUncapitalized
+        String lastNameUncapitalized = "VALDMA"
+        String lastNameCorrectlyCapitalized = "Valdma"
+        person.lastName = lastNameUncapitalized
+
 
         1 * repository.findByPersonalCode(person.personalCode) >> null
 
@@ -38,7 +48,24 @@ class PrincipalServiceSpec extends Specification {
         AuthenticatedPerson authenticatedPerson = service.getFrom(person)
 
         then:
-        thrown InvalidRequestException
+        1 * repository.save({User user ->
+            user.firstName == firstNameCorrectlyCapitalized &&
+                    user.lastName == lastNameCorrectlyCapitalized &&
+                    user.personalCode == person.personalCode &&
+                    user.active
+        }) >> User.builder()
+                .personalCode(person.personalCode)
+                .firstName(firstNameCorrectlyCapitalized)
+                .lastName(lastNameCorrectlyCapitalized)
+                .id(123)
+                .active(true)
+                .build()
+
+        authenticatedPerson.user.firstName == firstNameCorrectlyCapitalized
+        authenticatedPerson.user.lastName == lastNameCorrectlyCapitalized
+        authenticatedPerson.user.personalCode == person.personalCode
+        authenticatedPerson.user.active
+
     }
 
     def "getFromPerson: initialising non active user exceptions" () {

@@ -68,9 +68,15 @@ public class AccountStatementService {
     }
 
     private List<FundBalance> handleActiveFundBalance(List<FundBalance> fundBalances, String activeFundName) {
+        fundBalances.stream().forEach( fb-> {
+            log.info("Having fund {} with isin {}",
+                    fb.getFund().getName(), fb.getFund().getIsin());
+        });
+
         Optional<FundBalance> activeFundBalance = fundBalances.stream()
-          .filter(fb -> fb.getFund().getName().equals(activeFundName))
-          .findFirst();
+                .filter(fb -> fb.getFund().getName().equals(activeFundName))
+                .findFirst();
+
         activeFundBalance.ifPresent( fb -> {
             fb.setActiveContributions(true);
             log.info("Setting active fund {}", fb.getFund().getName());
@@ -84,10 +90,10 @@ public class AccountStatementService {
 
     private FundBalance constructActiveFundBalance(String activeFundName) {
         FundBalance activeFundBalance = FundBalance.builder()
-          .value(BigDecimal.ZERO)
-          .currency("EUR")
-          .activeContributions(true)
-          .build();
+                .value(BigDecimal.ZERO)
+                .currency("EUR")
+                .activeContributions(true)
+                .build();
 
         Fund activeFund = fundRepository.findByNameIgnoreCase(activeFundName);
         if (activeFund != null) {

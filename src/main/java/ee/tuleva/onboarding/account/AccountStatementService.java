@@ -74,7 +74,7 @@ public class AccountStatementService {
         });
 
         Optional<FundBalance> activeFundBalance = fundBalances.stream()
-                .filter(fb -> fb.getFund().getName().equals(activeFundName))
+                .filter(fb -> fb.getFund().getName().equalsIgnoreCase(activeFundName))
                 .findFirst();
 
         activeFundBalance.ifPresent( fb -> {

@@ -62,15 +62,21 @@ public class AccountStatementService {
 
     private String getActiveFundName(Person person) {
         PersonalSelectionResponseType csdPersonalSelection = kprClient.personalSelection(person.getPersonalCode());
-        return csdPersonalSelection.getPensionAccount().getSecurityName();
+        String activeFundName = csdPersonalSelection.getPensionAccount().getSecurityName();
+        log.info("Active fund name is {}", activeFundName);
+        return activeFundName;
     }
 
     private List<FundBalance> handleActiveFundBalance(List<FundBalance> fundBalances, String activeFundName) {
         Optional<FundBalance> activeFundBalance = fundBalances.stream()
           .filter(fb -> fb.getFund().getName().equals(activeFundName))
           .findFirst();
-        activeFundBalance.ifPresent( fb -> fb.setActiveContributions(true));
+        activeFundBalance.ifPresent( fb -> {
+            fb.setActiveContributions(true);
+            log.info("Setting active fund {}", fb.getFund().getName());
+        });
         if(!activeFundBalance.isPresent()) {
+            log.info("Didn't find active fund {} from the list, creating one.", activeFundName);
             fundBalances.add(constructActiveFundBalance(activeFundName));
         }
         return fundBalances;
@@ -90,6 +96,9 @@ public class AccountStatementService {
             log.error("Fund with name not found {}", activeFundName);
             activeFundBalance.setFund(Fund.builder().name(activeFundName).build());
         }
+
+        log.info("Constructed active fund for {} with isin {}",
+                activeFund.getName(), activeFund.getIsin());
 
         return activeFundBalance;
     }

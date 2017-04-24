@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.income.AverageSalaryService;
 import ee.tuleva.onboarding.income.Money;
 import ee.tuleva.onboarding.user.User;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -16,8 +17,10 @@ import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
+@Slf4j
 public class ComparisonService {
 
     @Autowired
@@ -38,7 +41,7 @@ public class ComparisonService {
     public Money compare(ComparisonCommand in, User user) throws IsinNotFoundException {
         in.setAge(user.getAge());
 
-        List<FundBalance> balances = accountStatementService.getMyPensionAccountStatement(user, null);
+        List<FundBalance> balances = accountStatementService.getMyPensionAccountStatement(user, UUID.randomUUID()); // FIXME
         in.setCurrentCapitals(new HashMap<String, BigDecimal>());
         balances.forEach( balance -> { in.getCurrentCapitals().put(balance.getFund().getIsin(), balance.getValue()); });
 
@@ -56,10 +59,12 @@ public class ComparisonService {
         Fund tulevaFundToCompareTo = fundRepository.findByIsin(in.getIsinTo());
         in.getManagementFeeRates().put(tulevaFundToCompareTo.getIsin(), tulevaFundToCompareTo.getManagementFeeRate());
 
-        Money averageSalary = averageSalaryService.getMyAverageSalary(user.getPersonalCode());
-        in.setMonthlyWage(averageSalary.getAmount());
+        if(in.monthlyWage == null) {
+            Money averageSalary = averageSalaryService.getMyAverageSalary(user.getPersonalCode());
+            in.setMonthlyWage(averageSalary.getAmount());
+        }
 
-        System.out.println(in);
+        log.info(in.toString());
 
         return this.compare(in);
     }

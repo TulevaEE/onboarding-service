@@ -47,7 +47,6 @@ public class OAuthConfiguration {
         public void configure(HttpSecurity http) throws Exception {
             http
                     .authorizeRequests()
-                    .regexMatchers("/v1/comparisons.*").permitAll()
                     .regexMatchers(
                             "/v1" + INITIAL_CAPITAL_URI,
                             "/v1" + MANDATES_URI + ".*"

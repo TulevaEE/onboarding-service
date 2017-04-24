@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.user.response;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,13 +17,15 @@ public class UserResponse {
     private String personalCode;
     private String firstName;
     private String lastName;
+    private String email;
+    private String phoneNumber;
 
     public int getAge() {
-        return PersonalCode.getAge(this.getPersonalCode());
+        return PersonalCode.getAge(personalCode);
     }
 
     public static UserResponse fromAuthenticatedPerson(AuthenticatedPerson authenticatedPerson) {
-        return UserResponse.builder()
+        return builder()
                 .id(authenticatedPerson.getUser().getId())
                 .firstName(capitalize(authenticatedPerson.getFirstName()))
                 .lastName(capitalize(authenticatedPerson.getLastName()))
@@ -30,8 +33,18 @@ public class UserResponse {
                 .build();
     }
 
+    public static UserResponse fromUser(User user) {
+        return builder()
+            .id(user.getId())
+            .firstName(capitalize(user.getFirstName()))
+            .lastName(capitalize(user.getLastName()))
+            .personalCode(user.getPersonalCode())
+            .email(user.getEmail())
+            .phoneNumber(user.getPhoneNumber())
+            .build();
+    }
+
     private static String capitalize(String string) {
         return WordUtils.capitalizeFully(string, ' ', '-');
     }
-
 }

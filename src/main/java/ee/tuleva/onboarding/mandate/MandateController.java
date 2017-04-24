@@ -55,7 +55,7 @@ public class MandateController {
     @JsonView(MandateView.Default.class)
     public Mandate create(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                  @Valid @RequestBody CreateMandateCommand createMandateCommand,
-                                 @ApiIgnore @Valid Errors errors) throws ValidationErrorsException {
+                                 @ApiIgnore Errors errors) throws ValidationErrorsException {
         if (errors.hasErrors()) {
             log.info("Create mandate command is not valid: {}", errors);
             throw new ValidationErrorsException(errors);

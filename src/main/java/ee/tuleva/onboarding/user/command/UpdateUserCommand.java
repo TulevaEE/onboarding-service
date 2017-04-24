@@ -8,7 +8,7 @@ import org.hibernate.validator.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 
 @Data
-public class CreateUserCommand {
+public class UpdateUserCommand {
 
   @NotBlank
   private String firstName;

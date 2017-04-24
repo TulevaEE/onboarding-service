@@ -1,10 +1,7 @@
 package ee.tuleva.onboarding.user;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
@@ -18,6 +15,7 @@ import java.time.Instant;
 @Table(name = "member")
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString(exclude = {"user"})
 public class Member implements Serializable {
 
     @Id

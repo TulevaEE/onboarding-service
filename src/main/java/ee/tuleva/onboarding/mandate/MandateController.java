@@ -61,6 +61,7 @@ public class MandateController {
             throw new ValidationErrorsException(errors);
         }
 
+        log.info("Creating mandate with {}", createMandateCommand);
         return mandateService.save(authenticatedPerson.getUser(), createMandateCommand);
     }
 

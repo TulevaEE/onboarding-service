@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"mandate"})
 public class FundTransferExchange {
 
     @Id

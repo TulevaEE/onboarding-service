@@ -41,8 +41,8 @@ public class UserController {
 	@ApiOperation(value = "Create a new user")
 	@PostMapping("/users")
 	public Person createUser(@Valid @RequestBody CreateUserCommand cmd,
-							 @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-							 @ApiIgnore Errors errors) throws ValidationErrorsException {
+							 @ApiIgnore Errors errors,
+							 @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) throws ValidationErrorsException {
 
 		if (errors != null && errors.hasErrors()) {
 			throw new ValidationErrorsException(errors);

@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.error.ErrorHandlingControllerAdvice
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
-import ee.tuleva.onboarding.error.response.InputErrorsConverter
+import ee.tuleva.onboarding.error.converter.InputErrorsConverter
 import ee.tuleva.onboarding.user.User
 import org.springframework.core.MethodParameter
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter

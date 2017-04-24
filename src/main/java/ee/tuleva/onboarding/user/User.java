@@ -9,7 +9,6 @@ import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Past;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.Optional;
@@ -45,7 +44,6 @@ public class User implements Person, Serializable {
 	private String lastName;
 
 	@NotNull
-	@Past
 	private Instant createdDate;
 
 	@NotNull

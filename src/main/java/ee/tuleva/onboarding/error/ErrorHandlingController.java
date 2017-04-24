@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.error;
 
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.web.ErrorAttributes;
 import org.springframework.boot.autoconfigure.web.ErrorController;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.request.RequestAttributes;
@@ -19,17 +21,13 @@ public class ErrorHandlingController implements ErrorController {
 
 	private final ErrorAttributes errorAttributes;
 
+	private final Converter<Map<String, Object>, ErrorsResponse> errorAttributesConverter;
+
 	@RequestMapping(value = PATH)
-	Map<String, Object> error(HttpServletRequest request) {
+	ErrorsResponse error(HttpServletRequest request) {
 		RequestAttributes requestAttributes = new ServletRequestAttributes(request);
 		Map<String, Object> errors = errorAttributes.getErrorAttributes(requestAttributes, false);
-		renameMessageToErrorDescription(errors);
-		return errors;
-	}
-
-	private void renameMessageToErrorDescription(Map<String, Object> errors) {
-		Object message = errors.remove("message");
-		errors.put("error_description", message);
+		return errorAttributesConverter.convert(errors);
 	}
 
 	@Override

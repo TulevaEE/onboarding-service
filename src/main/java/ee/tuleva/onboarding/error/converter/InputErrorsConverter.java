@@ -1,5 +1,8 @@
-package ee.tuleva.onboarding.error.response;
+package ee.tuleva.onboarding.error.converter;
 
+import ee.tuleva.onboarding.error.response.ErrorResponse;
+import ee.tuleva.onboarding.error.response.ErrorResponse.ErrorResponseBuilder;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import org.springframework.context.MessageSourceResolvable;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.stereotype.Component;
@@ -10,8 +13,8 @@ import org.springframework.validation.ObjectError;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
+import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 
 @Component
@@ -21,9 +24,8 @@ public class InputErrorsConverter implements Converter<Errors, ErrorsResponse> {
 	public ErrorsResponse convert(Errors source) {
 		List<ErrorResponse> globalErrors = source.getGlobalErrors().stream().map(this::convert).collect(toList());
 		List<ErrorResponse> fieldErrors = source.getFieldErrors().stream().map(this::convert).collect(toList());
+		List<ErrorResponse> allErrors = concat(globalErrors, fieldErrors);
 
-		List<ErrorResponse> allErrors = new ArrayList<>(globalErrors);
-		allErrors.addAll(fieldErrors);
 		return new ErrorsResponse(allErrors);
 	}
 
@@ -32,28 +34,35 @@ public class InputErrorsConverter implements Converter<Errors, ErrorsResponse> {
 	}
 
 	private ErrorResponse convert(FieldError error) {
-		ErrorResponse.ErrorResponseBuilder builder = genericConvert(error);
-		builder.path(error.getField());
-		return builder.build();
+		return genericConvert(error)
+				.path(error.getField())
+				.build();
 	}
 
-	private ErrorResponse.ErrorResponseBuilder genericConvert(ObjectError error) {
-		ErrorResponse.ErrorResponseBuilder builder = ErrorResponse.builder();
-
-		builder.arguments(Arrays.stream(getArguments(error)).map(Object::toString).collect(toList()));
-		builder.code(error.getCode());
-		builder.message(error.getDefaultMessage());
-		return builder;
+	private ErrorResponseBuilder genericConvert(ObjectError error) {
+		return ErrorResponse.builder()
+				.arguments(getArguments(error))
+				.code(error.getCode())
+				.message(error.getDefaultMessage());
 	}
 
 	/**
 	 * For some reason Spring puts MessageSourceResolvable as argument so need to remove it
 	 */
-	private Object[] getArguments(ObjectError error) {
+	private List<String> getArguments(ObjectError error) {
 		if (error.getArguments() == null) {
-			return new Object[0];
+			return emptyList();
 		}
-		return Arrays.stream(error.getArguments()).filter(arg -> !(arg instanceof MessageSourceResolvable)).collect(Collectors.toList()).toArray();
+		return Arrays.stream(error.getArguments())
+				.filter(arg -> !(arg instanceof MessageSourceResolvable))
+				.map(Object::toString)
+				.collect(toList());
+	}
+
+	private <E> List<E> concat(List<E> list1, List<E> list2) {
+		List<E> concat = new ArrayList<>(list1);
+		concat.addAll(list2);
+		return concat;
 	}
 
 }

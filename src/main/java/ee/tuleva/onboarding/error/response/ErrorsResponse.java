@@ -7,6 +7,7 @@ import java.util.List;
 
 @Getter
 public class ErrorsResponse {
+
 	private List<ErrorResponse> errors;
 
 	public static ErrorsResponse ofSingleError(String code, String message) {

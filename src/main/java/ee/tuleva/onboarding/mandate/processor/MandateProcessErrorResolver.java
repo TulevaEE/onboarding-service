@@ -22,7 +22,7 @@ public class MandateProcessErrorResolver {
         return new ErrorsResponse(
                 processes.stream()
                         .filter(process -> !process.isSuccessful().orElse(true))
-                        .map(process -> resolveErrorResponseFromProcess(process))
+                        .map(this::resolveErrorResponseFromProcess)
                         .collect(Collectors.toList())
         );
     }

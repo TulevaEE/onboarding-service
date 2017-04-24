@@ -56,6 +56,7 @@ class UserControllerSpec extends BaseControllerSpec {
 				email: "erko@risthein.ee",
 				phoneNumber: "5555555")
 		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+		userRepository.findByPersonalCode(command.personalCode) >> userFrom(command)
 
 		when:
 		def performCall = mvc

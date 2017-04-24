@@ -44,6 +44,7 @@ public class MandateService {
         Mandate mandate = converter.convert(createMandateCommand);
         mandate.setUser(user);
 
+		log.info("Saving mandate {}", mandate);
         return mandateRepository.save(mandate);
     }
 

@@ -64,6 +64,31 @@ class AccountStatementServiceSpec extends Specification {
         activeFundBalance.value == activeFundBalanceValue
     }
 
+    def "GetMyPensionAccountStatement: Flag active fund balance, even if names are in different case"() {
+        given:
+        Fund activeFund = MandateFixture.sampleFunds().get(0)
+        String activeFundNameDifferentCase = activeFund.name.toUpperCase()
+        personalSelection.getPensionAccount().setSecurityName(activeFundNameDifferentCase)
+        BigDecimal activeFundBalanceValue = new BigDecimal(100000)
+        FundBalance sampleFundBalance = sampleFundBalance(activeFund, activeFundBalanceValue)
+
+        1 * kprClient.pensionAccountBalance(_ as PensionAccountBalanceType, PersonFixture.samplePerson().getPersonalCode()) >> resp
+        2 * kprUnitsOsakudToFundBalanceConverter.convert(_ as PensionAccountBalanceResponseType.Units.Balance) >> sampleFundBalance
+        1 * kprClient.personalSelection(PersonFixture.samplePerson().getPersonalCode()) >> personalSelection
+        UUID sampleStatisticsIdentifier = UUID.randomUUID()
+        checkForFundValueStatisticsSave(sampleFundBalance, sampleStatisticsIdentifier)
+
+        when:
+        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(PersonFixture.samplePerson(), sampleStatisticsIdentifier)
+        then:
+        fundBalances.size() == 2
+
+        FundBalance activeFundBalance = fundBalances.stream().find({ fb -> fb.activeContributions })
+        activeFundBalance.fund.name == activeFund.name
+        activeFundBalance.fund.isin == activeFund.isin
+        activeFundBalance.value == activeFundBalanceValue
+    }
+
     def "GetMyPensionAccountStatement: When active fund doesn't have a balance, include a balance row with zero value"() {
         given:
         String activeFundName = "Active Fund"

@@ -32,7 +32,6 @@ public class User implements Person, Serializable {
 	@ValidPersonalCode
 	private String personalCode;
 
-	@NotNull
 	@Email
 	private String email;
 
@@ -61,4 +60,14 @@ public class User implements Person, Serializable {
 		return Optional.ofNullable(member);
 	}
 
+	@PrePersist
+	protected void onCreate() {
+		createdDate = Instant.now();
+		updatedDate = Instant.now();
+	}
+
+	@PreUpdate
+	protected void onUpdate() {
+		updatedDate = Instant.now();
+	}
 }

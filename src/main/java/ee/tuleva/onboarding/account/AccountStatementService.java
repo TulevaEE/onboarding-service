@@ -62,15 +62,27 @@ public class AccountStatementService {
 
     private String getActiveFundName(Person person) {
         PersonalSelectionResponseType csdPersonalSelection = kprClient.personalSelection(person.getPersonalCode());
-        return csdPersonalSelection.getPensionAccount().getSecurityName();
+        String activeFundName = csdPersonalSelection.getPensionAccount().getSecurityName();
+        log.info("Active fund name is {}", activeFundName);
+        return activeFundName;
     }
 
     private List<FundBalance> handleActiveFundBalance(List<FundBalance> fundBalances, String activeFundName) {
+        fundBalances.stream().forEach( fb-> {
+            log.info("Having fund {} with isin {}",
+                    fb.getFund().getName(), fb.getFund().getIsin());
+        });
+
         Optional<FundBalance> activeFundBalance = fundBalances.stream()
-          .filter(fb -> fb.getFund().getName().equals(activeFundName))
-          .findFirst();
-        activeFundBalance.ifPresent( fb -> fb.setActiveContributions(true));
+                .filter(fb -> fb.getFund().getName().equalsIgnoreCase(activeFundName))
+                .findFirst();
+
+        activeFundBalance.ifPresent( fb -> {
+            fb.setActiveContributions(true);
+            log.info("Setting active fund {}", fb.getFund().getName());
+        });
         if(!activeFundBalance.isPresent()) {
+            log.info("Didn't find active fund {} from the list, creating one.", activeFundName);
             fundBalances.add(constructActiveFundBalance(activeFundName));
         }
         return fundBalances;
@@ -78,10 +90,10 @@ public class AccountStatementService {
 
     private FundBalance constructActiveFundBalance(String activeFundName) {
         FundBalance activeFundBalance = FundBalance.builder()
-          .value(BigDecimal.ZERO)
-          .currency("EUR")
-          .activeContributions(true)
-          .build();
+                .value(BigDecimal.ZERO)
+                .currency("EUR")
+                .activeContributions(true)
+                .build();
 
         Fund activeFund = fundRepository.findByNameIgnoreCase(activeFundName);
         if (activeFund != null) {
@@ -90,6 +102,9 @@ public class AccountStatementService {
             log.error("Fund with name not found {}", activeFundName);
             activeFundBalance.setFund(Fund.builder().name(activeFundName).build());
         }
+
+        log.info("Constructed active fund for {} with isin {}",
+                activeFund.getName(), activeFund.getIsin());
 
         return activeFundBalance;
     }

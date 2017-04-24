@@ -20,6 +20,12 @@ docker run -d --name tuleva-onboarding-database \
                  postgres:9.6
 ```
 
+To run Flyway migrations for the first time, uncomment these lines in `application.yml`:
+```
+#flyway:
+#  baseline-on-migrate: true
+```
+
 **Backend:**
 Java 8, Spring Boot, Gradle, Spock for testing
 

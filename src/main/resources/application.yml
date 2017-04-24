@@ -10,7 +10,7 @@ spring:
     url: jdbc:postgresql://localhost:5432/tuleva-onboarding
     username: tuleva-onboarding
     password: tuleva-onboarding
-    initialize: true
+    initialize: false
     continue-on-error: false
     test-on-borrow: true
     test-while-idle: true
@@ -67,7 +67,7 @@ proxy:
 
 epis:
   service:
-    url: http://localhost:9001/v1
+    url: http://localhost:9005/v1
     bic: "ECSDEE20"
 
 # uncomment when starting with a clean DB

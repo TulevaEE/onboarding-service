@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.user.response;
 
-import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import lombok.Builder;
@@ -22,15 +21,6 @@ public class UserResponse {
 
     public int getAge() {
         return PersonalCode.getAge(personalCode);
-    }
-
-    public static UserResponse fromAuthenticatedPerson(AuthenticatedPerson authenticatedPerson) {
-        return builder()
-                .id(authenticatedPerson.getUser().getId())
-                .firstName(capitalize(authenticatedPerson.getFirstName()))
-                .lastName(capitalize(authenticatedPerson.getLastName()))
-                .personalCode(authenticatedPerson.getPersonalCode())
-                .build();
     }
 
     public static UserResponse fromUser(User user) {

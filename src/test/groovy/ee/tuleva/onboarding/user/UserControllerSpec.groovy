@@ -15,9 +15,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UserControllerSpec extends BaseControllerSpec {
 
 	CsdUserPreferencesService preferencesService = Mock(CsdUserPreferencesService)
-	UserRepository userRepository = Mock(UserRepository)
+	UserService userService = Mock(UserService)
 
-	UserController controller = new UserController(preferencesService, userRepository)
+	UserController controller = new UserController(preferencesService, userService)
 
 	def "/me endpoint works"() {
 		given:
@@ -58,7 +58,6 @@ class UserControllerSpec extends BaseControllerSpec {
 				email: "erko@risthein.ee",
 				phoneNumber: "5555555")
 		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
-		userRepository.findByPersonalCode(command.personalCode) >> userFrom(command)
 
 		when:
 		def performCall = mvc
@@ -67,7 +66,7 @@ class UserControllerSpec extends BaseControllerSpec {
 				.contentType(MediaType.APPLICATION_JSON))
 
 		then:
-		1 * userRepository.save(_ as User) >> userFrom(command)
+		1 * userService.updateUser(command.personalCode, command.email, command.phoneNumber) >> userFrom(command)
 		performCall.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
 				.andExpect(jsonPath('$.firstName', is("Erko")))
@@ -82,6 +81,7 @@ class UserControllerSpec extends BaseControllerSpec {
 		given:
 		def command = new UpdateUserCommand()
 		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+
 		when:
 		def performCall = mvc
 				.perform(patch("/v1/me")
@@ -89,7 +89,7 @@ class UserControllerSpec extends BaseControllerSpec {
 				.contentType(MediaType.APPLICATION_JSON))
 
 		then:
-		0 * userRepository.save(_ as User)
+		0 * userService.updateUser(*_)
 		performCall.andExpect(status().isBadRequest())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
 				.andExpect(jsonPath('$.errors', hasSize(4)))

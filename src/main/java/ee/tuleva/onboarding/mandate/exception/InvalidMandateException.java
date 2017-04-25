@@ -1,13 +1,32 @@
 package ee.tuleva.onboarding.mandate.exception;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
+import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import lombok.Getter;
 
-@ResponseStatus(value= HttpStatus.UNPROCESSABLE_ENTITY, reason="Invalid mandate. Can't transfer more than 100% from source fund.")
-public class InvalidMandateException extends RuntimeException {
+@Getter
+public class InvalidMandateException extends ErrorsResponseException {
 
-    public InvalidMandateException() {
-        super("Invalid mandate. Can't transfer more than 100% from source fund.");
+    public InvalidMandateException(ErrorsResponse errorsResponse) {
+        super(errorsResponse);
+    }
+
+    public static InvalidMandateException sourceAmountExceeded() {
+        return new InvalidMandateException(
+                ErrorsResponse
+                        .ofSingleError(
+                                "invalid.mandate.source.amount.exceeded",
+                                "Source amount exceeded.")
+        );
+    }
+
+    public static InvalidMandateException sameSourceAndTargetTransferPresent() {
+        return new InvalidMandateException(
+                ErrorsResponse
+                        .ofSingleError(
+                                "invalid.mandate.same.source.and.target.transfer.present",
+                                "Same source and target transfer present.")
+        );
     }
 
 }

@@ -20,8 +20,7 @@ import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.preferences.UserPreferences
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.mandate.MandateFixture.invalidCreateMandateCommand
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleCreateMandateCommand
+import static ee.tuleva.onboarding.mandate.MandateFixture.*
 
 class MandateServiceSpec extends Specification {
 
@@ -72,7 +71,18 @@ class MandateServiceSpec extends Specification {
         when:
         Mandate mandate = service.save(sampleUser(), createMandateCmd)
         then:
-        thrown InvalidMandateException
+        InvalidMandateException exception = thrown()
+        exception.errorsResponse.errors.first().code == "invalid.mandate.source.amount.exceeded"
+    }
+
+    def "save: Create mandate with same source and target fund fails"() {
+        given:
+        CreateMandateCommand createMandateCmd = invalidCreateMandateCommandWithSameSourceAndTargetFund
+        when:
+        Mandate mandate = service.save(sampleUser(), createMandateCmd)
+        then:
+        InvalidMandateException exception = thrown()
+        exception.errorsResponse.errors.first().code == "invalid.mandate.same.source.and.target.transfer.present"
     }
 
     def "mobile id signing works"() {

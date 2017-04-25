@@ -34,7 +34,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
 
         List<MandateContentFile> files = new ArrayList<>(getFundTransferMandateContentFiles(mandate));
 
-        if(mandate.getFutureContributionFundIsin() != null) {
+        if (mandate.getFutureContributionFundIsin().isPresent()) {
             files.add(getFutureContributionsFundMandateContentFile(mandate));
         }
 
@@ -52,7 +52,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
                 .userPreferences(userPreferences)
                 .transactionId(transactionId)
                 .documentNumber(documentNumber)
-                .futureContributionFundIsin(mandate.getFutureContributionFundIsin())
+                .futureContributionFundIsin(mandate.getFutureContributionFundIsin().orElse(null))
                 .funds(funds)
                 .build();
 

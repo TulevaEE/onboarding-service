@@ -52,6 +52,23 @@ class MandateFixture {
         ]
     }
 
+    static CreateMandateCommand invalidCreateMandateCommandWithSameSourceAndTargetFund =
+            [
+                    "fundTransferExchanges": [
+                            new MandateFundTransferExchangeCommand(
+                                    "amount": 0.88,
+                                    "sourceFundIsin": "SOMEISIN",
+                                    "targetFundIsin": futureContibutionFundIsin
+                            ),
+                            new MandateFundTransferExchangeCommand(
+                                    "amount": 0.90,
+                                    "sourceFundIsin": "SOMEISIN",
+                                    "targetFundIsin": "SOMEISIN"
+                            )
+                    ],
+                    "futureContributionFundIsin": futureContibutionFundIsin
+            ];
+
     static Mandate sampleMandate() {
         Mandate mandate = Mandate.builder()
                 .fundTransferExchanges([
@@ -158,11 +175,11 @@ class MandateFixture {
                         name("Tuleva maailma aktsiate pensionifond")
                         .id(123)
                         .fundManager(
-                            FundManager.builder()
-                            .id(123)
-                            .name("Tuleva")
-                            .build()
-                        )
+                        FundManager.builder()
+                                .id(123)
+                                .name("Tuleva")
+                                .build()
+                )
                         .build(),
                 Fund.builder().isin("EE3600019775").name("SEB fond")
                         .fundManager(

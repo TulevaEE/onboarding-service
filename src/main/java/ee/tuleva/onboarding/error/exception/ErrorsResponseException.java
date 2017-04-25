@@ -9,8 +9,8 @@ import lombok.Getter;
  */
 @Getter
 @AllArgsConstructor
-public class ErrorsResponseException extends RuntimeException {
+public abstract class ErrorsResponseException extends RuntimeException {
 
-    ErrorsResponse errorsResponse;
+    protected ErrorsResponse errorsResponse;
 
 }

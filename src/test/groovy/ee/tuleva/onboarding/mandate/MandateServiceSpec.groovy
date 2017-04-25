@@ -20,8 +20,7 @@ import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.preferences.UserPreferences
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.mandate.MandateFixture.invalidCreateMandateCommand
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleCreateMandateCommand
+import static ee.tuleva.onboarding.mandate.MandateFixture.*
 
 class MandateServiceSpec extends Specification {
 
@@ -69,6 +68,15 @@ class MandateServiceSpec extends Specification {
     def "save: Create mandate with invalid CreateMandateCommand fails"() {
         given:
         CreateMandateCommand createMandateCmd = invalidCreateMandateCommand()
+        when:
+        Mandate mandate = service.save(sampleUser(), createMandateCmd)
+        then:
+        thrown InvalidMandateException
+    }
+
+    def "save: Create mandate with same source and target fund fails"() {
+        given:
+        CreateMandateCommand createMandateCmd = invalidCreateMandateCommandWithSameSourceAndTargetFund
         when:
         Mandate mandate = service.save(sampleUser(), createMandateCmd)
         then:

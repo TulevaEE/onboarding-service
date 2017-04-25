@@ -1,0 +1,1 @@
+ALTER TABLE mandate ALTER COLUMN future_contribution_fund_isin DROP NOT NULL;

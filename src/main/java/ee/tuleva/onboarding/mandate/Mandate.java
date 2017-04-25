@@ -55,4 +55,8 @@ public class Mandate {
         return Optional.ofNullable(mandate);
     }
 
+    public Optional<String> getFutureContributionFundIsin() {
+        return Optional.ofNullable(futureContributionFundIsin);
+    }
+
 }

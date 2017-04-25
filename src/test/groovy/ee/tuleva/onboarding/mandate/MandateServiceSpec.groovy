@@ -53,7 +53,7 @@ class MandateServiceSpec extends Specification {
         when:
             Mandate mandate = service.save(sampleUser(), createMandateCmd)
         then:
-            mandate.futureContributionFundIsin == createMandateCmd.futureContributionFundIsin
+            mandate.futureContributionFundIsin == Optional.of(createMandateCmd.futureContributionFundIsin)
             mandate.fundTransferExchanges.size() == createMandateCmd.fundTransferExchanges.size()
             mandate.fundTransferExchanges.first().sourceFundIsin ==
                     createMandateCmd.fundTransferExchanges.first().sourceFundIsin

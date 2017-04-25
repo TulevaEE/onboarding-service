@@ -71,7 +71,8 @@ class MandateServiceSpec extends Specification {
         when:
         Mandate mandate = service.save(sampleUser(), createMandateCmd)
         then:
-        thrown InvalidMandateException
+        InvalidMandateException exception = thrown()
+        exception.errorsResponse.errors.first().code == "invalid.mandate.source.amount.exceeded"
     }
 
     def "save: Create mandate with same source and target fund fails"() {
@@ -80,7 +81,8 @@ class MandateServiceSpec extends Specification {
         when:
         Mandate mandate = service.save(sampleUser(), createMandateCmd)
         then:
-        thrown InvalidMandateException
+        InvalidMandateException exception = thrown()
+        exception.errorsResponse.errors.first().code == "invalid.mandate.same.source.and.target.transfer.present"
     }
 
     def "mobile id signing works"() {

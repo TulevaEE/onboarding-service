@@ -57,7 +57,7 @@ class MandateFixture {
                     "fundTransferExchanges": [
                             new MandateFundTransferExchangeCommand(
                                     "amount": 0.88,
-                                    "sourceFundIsin": "SOMEISIN",
+                                    "sourceFundIsin": "SOMEOTHER",
                                     "targetFundIsin": futureContibutionFundIsin
                             ),
                             new MandateFundTransferExchangeCommand(

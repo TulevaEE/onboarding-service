@@ -32,9 +32,11 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
         this.userPreferences = userPreferences;
         this.funds = funds;
 
+        List<MandateContentFile> files = new ArrayList<>(getFundTransferMandateContentFiles(mandate));
 
-        List<MandateContentFile> files = new ArrayList<MandateContentFile>(Arrays.asList(getFutureContributionsFundMandateContentFile(mandate)));
-        files.addAll(getFundTransferMandateContentFiles(mandate));
+        if(mandate.getFutureContributionFundIsin() != null) {
+            files.add(getFutureContributionsFundMandateContentFile(mandate));
+        }
 
         return files;
     }

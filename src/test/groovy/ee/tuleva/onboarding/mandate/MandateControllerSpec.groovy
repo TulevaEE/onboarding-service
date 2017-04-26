@@ -6,6 +6,7 @@ import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import ee.tuleva.onboarding.mandate.exception.IdSessionException
 import ee.tuleva.onboarding.user.User
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
@@ -61,12 +62,13 @@ class MandateControllerSpec extends BaseControllerSpec {
         sessionStore.get(MobileIDSession) >> Optional.empty()
 
         when:
-        mvc
-                .perform(put("/v1/mandates/1/signature/mobileId"))
-                .andReturn()
+        MvcResult result = mvc.perform(put("/v1/mandates/1/signature/mobileId"))
+        .andReturn()
 
         then:
-        thrown Exception
+        IdSessionException exception = result.resolvedException
+        exception.errorsResponse.errors.get(0).code == 'mobile.id.session.not.found'
+
     }
 
     def "get mobile ID signature status returns the status code"() {

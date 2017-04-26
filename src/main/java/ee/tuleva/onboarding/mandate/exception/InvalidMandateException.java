@@ -2,9 +2,7 @@ package ee.tuleva.onboarding.mandate.exception;
 
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
-import lombok.Getter;
 
-@Getter
 public class InvalidMandateException extends ErrorsResponseException {
 
     public InvalidMandateException(ErrorsResponse errorsResponse) {

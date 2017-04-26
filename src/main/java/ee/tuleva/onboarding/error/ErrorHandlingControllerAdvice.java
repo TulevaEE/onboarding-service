@@ -25,16 +25,19 @@ public class ErrorHandlingControllerAdvice {
 
     @ExceptionHandler(ValidationErrorsException.class)
     public ResponseEntity<ErrorsResponse> handleErrors(ValidationErrorsException exception) {
+        log.info("ValidationErrorsException {}", exception.toString());
         return errorResponseEntityFactory.fromErrors(exception.getErrors());
     }
 
     @ExceptionHandler(IdSessionException.class)
     public ResponseEntity<ErrorsResponse> handleErrors(IdSessionException exception) {
+        log.info("IdSessionException {}", exception.toString());
         return new ResponseEntity<>(exception.getErrorsResponse(), UNAUTHORIZED);
     }
 
     @ExceptionHandler(ErrorsResponseException.class)
     public ResponseEntity<ErrorsResponse> handleErrors(ErrorsResponseException exception) {
+        log.info("ErrorsResponseException {}", exception.toString());
         return new ResponseEntity<>(exception.getErrorsResponse(), BAD_REQUEST);
     }
 

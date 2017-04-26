@@ -25,4 +25,11 @@ public class ErrorsResponse {
 	public boolean hasErrors() {
 		return errors.size() > 0;
 	}
+
+	public String toString() {
+		return errors.stream()
+				.map(errorResponse -> errorResponse.getCode()
+						.concat(";")).reduce(String::concat)
+				.orElse("No errors present");
+	}
 }

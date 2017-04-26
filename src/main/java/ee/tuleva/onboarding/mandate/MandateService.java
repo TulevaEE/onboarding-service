@@ -153,6 +153,7 @@ public class MandateService {
 	private void handleMandateProcessingErrors(Mandate mandate) {
 		ErrorsResponse errorsResponse = mandateProcessor.getErrors(mandate);
 
+		log.info("Mandate processing errors {}", errorsResponse);
 		if(errorsResponse.hasErrors()) {
 			throw new InvalidMandateException(errorsResponse);
 		}

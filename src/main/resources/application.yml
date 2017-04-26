@@ -125,6 +125,9 @@ logging:
   rollbar:
     accessToken: ${ROLLBAR_ACCESS_TOKEN}
 
+maksekeskus:
+  secret: ${MAKSEKESKUS_SECRET}
+
 epis:
   service:
     url: https://epis-service.herokuapp.com/v1

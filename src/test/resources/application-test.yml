@@ -17,4 +17,4 @@ logging.level:
   org.hibernate.type: TRACE
 
 flyway:
-  enabled: false
+  baseline-on-migrate: true

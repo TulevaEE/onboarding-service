@@ -21,6 +21,5 @@ public class Payment {
   private String signature;
   private String status;
   private String transaction;
-  private String mac;
 
 }

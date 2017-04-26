@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
+import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -38,6 +39,12 @@ public class ErrorHandlingControllerAdvice {
     @ExceptionHandler(ErrorsResponseException.class)
     public ResponseEntity<ErrorsResponse> handleErrors(ErrorsResponseException exception) {
         log.info("ErrorsResponseException {}", exception.toString());
+        return new ResponseEntity<>(exception.getErrorsResponse(), BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InvalidMandateException.class)
+    public ResponseEntity<ErrorsResponse> handleErrors(InvalidMandateException exception) {
+        log.info("InvalidMandateException {}", exception.toString());
         return new ResponseEntity<>(exception.getErrorsResponse(), BAD_REQUEST);
     }
 

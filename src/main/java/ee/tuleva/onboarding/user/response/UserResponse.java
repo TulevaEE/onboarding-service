@@ -18,6 +18,7 @@ public class UserResponse {
     private String lastName;
     private String email;
     private String phoneNumber;
+    private Integer memberNumber;
 
     public int getAge() {
         return PersonalCode.getAge(personalCode);
@@ -31,6 +32,7 @@ public class UserResponse {
             .personalCode(user.getPersonalCode())
             .email(user.getEmail())
             .phoneNumber(user.getPhoneNumber())
+            .memberNumber(user.getMember().map(member -> member.getMemberNumber()).orElse(null))
             .build();
     }
 

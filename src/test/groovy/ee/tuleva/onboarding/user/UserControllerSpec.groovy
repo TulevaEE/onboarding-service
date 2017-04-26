@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+
 class UserControllerSpec extends BaseControllerSpec {
 
 	CsdUserPreferencesService preferencesService = Mock(CsdUserPreferencesService)
@@ -19,7 +21,7 @@ class UserControllerSpec extends BaseControllerSpec {
 
 	UserController controller = new UserController(preferencesService, userService)
 
-	def "/me endpoint works"() {
+	def "/me endpoint works with non member"() {
 		given:
 
 		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
@@ -34,6 +36,25 @@ class UserControllerSpec extends BaseControllerSpec {
 				.andExpect(jsonPath('$.age', isA(Integer)))
 				.andExpect(jsonPath('$.email', is(nullValue())))
 				.andExpect(jsonPath('$.phoneNumber',is(nullValue())))
+				.andExpect(jsonPath('$.memberNumber',is(nullValue())))
+	}
+
+	def "/me endpoint works with a member"() {
+		given:
+
+		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPersonAndMember, controller)
+
+		expect:
+		mvc.perform(get("/v1/me"))
+				.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+				.andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPersonAndMember.user.firstName)))
+				.andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPersonAndMember.user.lastName)))
+				.andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPersonAndMember.user.personalCode)))
+				.andExpect(jsonPath('$.age', is(sampleAuthenticatedPersonAndMember.user.age)))
+				.andExpect(jsonPath('$.email', is(sampleAuthenticatedPersonAndMember.user.email)))
+				.andExpect(jsonPath('$.phoneNumber',is(sampleAuthenticatedPersonAndMember.user.phoneNumber)))
+				.andExpect(jsonPath('$.memberNumber', is(sampleAuthenticatedPersonAndMember.user.member.get().memberNumber)))
 	}
 
 	def "/preferences endpoint works"() {
@@ -110,9 +131,9 @@ class UserControllerSpec extends BaseControllerSpec {
 			.lastName("Risthein")
 			.personalCode("38501010002")
 			.user(User.builder()
-			.firstName("Erko")
-			.lastName("Risthein")
-			.personalCode("38501010002")
+				.firstName("Erko")
+				.lastName("Risthein")
+				.personalCode("38501010002")
 			.build()
 	).build()
 }

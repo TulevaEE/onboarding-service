@@ -17,7 +17,7 @@ import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 @ControllerAdvice
 @RequiredArgsConstructor
 /*
-    Exception handlers order is important
+   Order of @ExceptionHandler methods in this class is important
  */
 public class ErrorHandlingControllerAdvice {
 

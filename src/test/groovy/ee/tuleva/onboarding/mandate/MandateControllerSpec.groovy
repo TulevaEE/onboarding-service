@@ -67,7 +67,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         then:
         IdSessionException exception = result.resolvedException
-        exception.errorsResponse.errors.get(0).code == 'mobile.id.session.not.found'
+        exception.errorsResponse.errors.first().code == 'mobile.id.session.not.found'
 
     }
 

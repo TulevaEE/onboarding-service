@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
+import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.MandateSignatureStatusResponse;
 import ee.tuleva.onboarding.mandate.response.MobileIdSignatureResponse;
@@ -72,7 +73,7 @@ public class MandateController {
 
         Optional<MobileIDSession> session = genericSessionStore.get(MobileIDSession.class);
         MobileIDSession loginSession = session
-                .orElseThrow(() -> new IllegalStateException("No mobile id session found"));
+                .orElseThrow(IdSessionException::mobileSessionNotFound);
 
         MobileIdSignatureSession signatureSession = mandateService.mobileIdSign(mandateId, authenticatedPerson.getUser(), loginSession.phoneNumber);
         genericSessionStore.save(signatureSession);
@@ -88,7 +89,7 @@ public class MandateController {
 
         Optional<MobileIdSignatureSession> signatureSession = genericSessionStore.get(MobileIdSignatureSession.class);
         MobileIdSignatureSession session = signatureSession
-                .orElseThrow(() -> new IllegalStateException("No mobile ID signature session found"));
+                .orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
 
         String statusCode = mandateService.finalizeMobileIdSignature(authenticatedPerson.getUser(), statisticsIdentifier, mandateId, session);
 
@@ -117,7 +118,7 @@ public class MandateController {
 
         Optional<IdCardSignatureSession> signatureSession = genericSessionStore.get(IdCardSignatureSession.class);
         IdCardSignatureSession session = signatureSession
-                .orElseThrow(() -> new IllegalStateException("No ID card signature session found"));
+                .orElseThrow(IdSessionException::cardSignatureSessionNotFound);
 
         String statusCode = mandateService.finalizeIdCardSignature(authenticatedPerson.getUser(), statisticsIdentifier, mandateId, session, signCommand.getSignedHash());
 

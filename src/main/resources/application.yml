@@ -65,6 +65,10 @@ proxy:
   url: ${QUOTAGUARDSTATIC_URL}
   nonProxyHosts: "mandrillapp.com|sk.ee|rollbar.com|localhost"
 
+maksekeskus:
+  #secret: IEmvmvjuuAc4XJWyD48LjdXnRej77JkSq72QAeDQYQgt2nY25tsjhdFg9ZA99lQf
+  secret: validSecret
+
 epis:
   service:
     url: http://localhost:9005/v1

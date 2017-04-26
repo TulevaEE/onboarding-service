@@ -9,7 +9,7 @@ class ValidMacCodeValidatorSpec extends Specification {
   def validator = new ValidMacCodeValidator()
 
 @Unroll
-  def "validates with secret: "() {
+  def "validates with secret: #secret"() {
     given:
     def incomingPayment = IncomingPayment.builder()
         .json('{"shop":"id","amount":"100"}')

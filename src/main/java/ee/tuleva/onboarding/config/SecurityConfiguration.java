@@ -15,9 +15,11 @@ public class SecurityConfiguration extends WebSecurityConfigurerAdapter {
     protected void configure(HttpSecurity http) throws Exception {
         http
                 .authorizeRequests()
-                .regexMatchers("/", "/swagger-ui.html", "/authenticate", "/idLogin", "/oauth/token").permitAll()
+                .regexMatchers("/", "/swagger-ui.html", "/authenticate", "/idLogin", "/oauth/token",
+                    "/notifications/payments").permitAll()
                 .anyRequest().authenticated()
                 .and()
-                .csrf().ignoringAntMatchers("/v1/**", "/authenticate", "/idLogin", "/oauth/token");
+                .csrf().ignoringAntMatchers("/v1/**", "/authenticate", "/idLogin", "/oauth/token",
+                    "/notifications/payments");
     }
 }

@@ -4,7 +4,6 @@ import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
-import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -14,12 +13,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
-@Slf4j
-@ControllerAdvice
-@RequiredArgsConstructor
 /*
    Order of @ExceptionHandler methods in this class is important
  */
+@Slf4j
+@ControllerAdvice
+@RequiredArgsConstructor
 public class ErrorHandlingControllerAdvice {
 
     private final ErrorResponseEntityFactory errorResponseEntityFactory;
@@ -39,12 +38,6 @@ public class ErrorHandlingControllerAdvice {
     @ExceptionHandler(ErrorsResponseException.class)
     public ResponseEntity<ErrorsResponse> handleErrors(ErrorsResponseException exception) {
         log.info("ErrorsResponseException {}", exception.toString());
-        return new ResponseEntity<>(exception.getErrorsResponse(), BAD_REQUEST);
-    }
-
-    @ExceptionHandler(InvalidMandateException.class)
-    public ResponseEntity<ErrorsResponse> handleErrors(InvalidMandateException exception) {
-        log.info("InvalidMandateException {}", exception.toString());
         return new ResponseEntity<>(exception.getErrorsResponse(), BAD_REQUEST);
     }
 

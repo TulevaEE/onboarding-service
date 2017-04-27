@@ -49,7 +49,7 @@ class UserControllerSpec extends BaseControllerSpec {
 		mvc.perform(get("/v1/me"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-				.andExpect(jsonPath('$.id', is(2)))
+				.andExpect(jsonPath('$.id', is(sampleAuthenticatedPersonAndMember.user.id)))
 				.andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPersonAndMember.user.firstName)))
 				.andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPersonAndMember.user.lastName)))
 				.andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPersonAndMember.user.personalCode)))

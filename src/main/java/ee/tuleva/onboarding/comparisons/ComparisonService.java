@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons;
 
+import com.rollbar.utilities.ArgumentNullException;
 import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.comparisons.exceptions.IsinNotFoundException;
@@ -41,7 +42,7 @@ public class ComparisonService {
     public Money compare(ComparisonCommand in, User user) throws IsinNotFoundException {
         in.setAge(user.getAge());
 
-        List<FundBalance> balances = accountStatementService.getMyPensionAccountStatement(user, UUID.randomUUID()); // FIXME
+        List<FundBalance> balances = accountStatementService.getMyPensionAccountStatement(user, UUID.randomUUID());
         in.setCurrentCapitals(new HashMap<String, BigDecimal>());
         balances.forEach( balance -> { in.getCurrentCapitals().put(balance.getFund().getIsin(), balance.getValue()); });
 
@@ -60,8 +61,7 @@ public class ComparisonService {
         in.getManagementFeeRates().put(tulevaFundToCompareTo.getIsin(), tulevaFundToCompareTo.getManagementFeeRate());
 
         if(in.monthlyWage == null) {
-            Money averageSalary = averageSalaryService.getMyAverageSalary(user.getPersonalCode());
-            in.setMonthlyWage(averageSalary.getAmount());
+            throw new ArgumentNullException("monthlyWage can not be null");
         }
 
         log.info(in.toString());

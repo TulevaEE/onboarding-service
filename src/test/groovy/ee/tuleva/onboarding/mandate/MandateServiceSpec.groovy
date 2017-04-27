@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.mandate
 import com.codeborne.security.mobileid.IdCardSignatureSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException
+import ee.tuleva.onboarding.error.response.ErrorResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter
@@ -20,8 +20,7 @@ import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.preferences.UserPreferences
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.mandate.MandateFixture.invalidCreateMandateCommand
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleCreateMandateCommand
+import static ee.tuleva.onboarding.mandate.MandateFixture.*
 
 class MandateServiceSpec extends Specification {
 
@@ -53,7 +52,7 @@ class MandateServiceSpec extends Specification {
         when:
             Mandate mandate = service.save(sampleUser(), createMandateCmd)
         then:
-            mandate.futureContributionFundIsin == createMandateCmd.futureContributionFundIsin
+            mandate.futureContributionFundIsin == Optional.of(createMandateCmd.futureContributionFundIsin)
             mandate.fundTransferExchanges.size() == createMandateCmd.fundTransferExchanges.size()
             mandate.fundTransferExchanges.first().sourceFundIsin ==
                     createMandateCmd.fundTransferExchanges.first().sourceFundIsin
@@ -72,7 +71,18 @@ class MandateServiceSpec extends Specification {
         when:
         Mandate mandate = service.save(sampleUser(), createMandateCmd)
         then:
-        thrown InvalidMandateException
+        InvalidMandateException exception = thrown()
+        exception.errorsResponse.errors.first().code == "invalid.mandate.source.amount.exceeded"
+    }
+
+    def "save: Create mandate with same source and target fund fails"() {
+        given:
+        CreateMandateCommand createMandateCmd = invalidCreateMandateCommandWithSameSourceAndTargetFund
+        when:
+        Mandate mandate = service.save(sampleUser(), createMandateCmd)
+        then:
+        InvalidMandateException exception = thrown()
+        exception.errorsResponse.errors.first().code == "invalid.mandate.same.source.and.target.transfer.present"
     }
 
     def "mobile id signing works"() {
@@ -166,7 +176,7 @@ class MandateServiceSpec extends Specification {
         def status = service.finalizeMobileIdSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
 
         then:
-        thrown ErrorsResponseException
+        thrown InvalidMandateException
 
     }
 
@@ -264,7 +274,7 @@ class MandateServiceSpec extends Specification {
         def status = service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
 
         then:
-        thrown ErrorsResponseException
+        thrown InvalidMandateException
 
     }
 
@@ -283,7 +293,7 @@ class MandateServiceSpec extends Specification {
                 .build()
     }
 
-    ErrorsResponse sampleErrorsResponse = new ErrorsResponse([[:]])
+    ErrorsResponse sampleErrorsResponse = new ErrorsResponse([ErrorResponse.builder().code('sampe.error').build()])
     ErrorsResponse sampleEmptyErrorsResponse = new ErrorsResponse([])
 
     private List<MandateContentFile> sampleFiles() {

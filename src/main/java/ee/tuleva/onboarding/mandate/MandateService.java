@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.mandate;
 import com.codeborne.security.mobileid.IdCardSignatureSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.codeborne.security.mobileid.SignatureFile;
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
@@ -44,13 +43,25 @@ public class MandateService {
         Mandate mandate = converter.convert(createMandateCommand);
         mandate.setUser(user);
 
+		log.info("Saving mandate {}", mandate);
         return mandateRepository.save(mandate);
     }
 
 	private void validateCreateMandateCommand(CreateMandateCommand createMandateCommand) {
 		if(countValuesBiggerThanOne(summariseSourceFundTransferAmounts(createMandateCommand)) > 0) {
-			throw new InvalidMandateException();
+			throw InvalidMandateException.sourceAmountExceeded();
 		};
+
+		if(isSameSourceToTargetTransferPresent(createMandateCommand)) {
+			throw InvalidMandateException.sameSourceAndTargetTransferPresent();
+		}
+
+	}
+
+	boolean isSameSourceToTargetTransferPresent(CreateMandateCommand createMandateCommand) {
+    	return createMandateCommand.getFundTransferExchanges().stream()
+				.filter(fte-> fte.getSourceFundIsin().equalsIgnoreCase(fte.getTargetFundIsin()))
+				.count() > 0;
 	}
 
 	private Map<String, BigDecimal> summariseSourceFundTransferAmounts(CreateMandateCommand createMandateCommand) {
@@ -142,8 +153,9 @@ public class MandateService {
 	private void handleMandateProcessingErrors(Mandate mandate) {
 		ErrorsResponse errorsResponse = mandateProcessor.getErrors(mandate);
 
+		log.info("Mandate processing errors {}", errorsResponse);
 		if(errorsResponse.hasErrors()) {
-			throw new ErrorsResponseException(errorsResponse);
+			throw new InvalidMandateException(errorsResponse);
 		}
 	}
 

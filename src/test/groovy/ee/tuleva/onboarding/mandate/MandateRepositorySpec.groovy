@@ -45,7 +45,7 @@ class MandateRepositorySpec extends Specification {
 
         then:
         mandate.user == user
-        mandate.futureContributionFundIsin == "isin"
+        mandate.futureContributionFundIsin == Optional.of("isin")
         mandate.fundTransferExchanges == []
     }
 

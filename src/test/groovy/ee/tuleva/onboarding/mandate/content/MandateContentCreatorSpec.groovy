@@ -1,8 +1,13 @@
 package ee.tuleva.onboarding.mandate.content
 
-import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateFixture
 import spock.lang.Specification
+
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUserPreferences
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
 class MandateContentCreatorSpec extends Specification {
 
@@ -16,29 +21,29 @@ class MandateContentCreatorSpec extends Specification {
         when:
         List<MandateContentFile> mandateContentFiles =
                 mandateContentCreator.getContentFiles(
-                        UserFixture.sampleUser(),
-                        MandateFixture.sampleMandate(),
-                        MandateFixture.sampleFunds(),
-                        UserFixture.sampleUserPreferences()
+                        sampleUser(),
+                        sampleMandate(),
+                        sampleFunds(),
+                        sampleUserPreferences()
                 )
         then:
         mandateContentFiles.size() == 3
 
-        mandateContentFiles[0].name == "valikuavaldus_123.html"
+        mandateContentFiles[0].name == "vahetuseavaldus_1236.html"
         mandateContentFiles[0].mimeType == "text/html"
 
-        mandateContentFiles[1].name == "vahetuseavaldus_1236.html"
+        mandateContentFiles[1].name == "vahetuseavaldus_1234.html"
         mandateContentFiles[1].mimeType == "text/html"
 
-        mandateContentFiles[2].name == "vahetuseavaldus_1234.html"
+        mandateContentFiles[2].name == "valikuavaldus_123.html"
         mandateContentFiles[2].mimeType == "text/html"
 
         //not very nice test, but will act as a primitive hash function,
         // breaking when template or data is changed.
         //if needed, copy data over to this test
-        mandateContentFiles[0].content.length == 25566
-        mandateContentFiles[1].content.length == 29574
-        mandateContentFiles[2].content.length == 30047
+        mandateContentFiles[0].content.length == 29574
+        mandateContentFiles[1].content.length == 30047
+        mandateContentFiles[2].content.length == 25566
 
 //        writeFilesOut(mandateContentFiles)
     }
@@ -47,29 +52,55 @@ class MandateContentCreatorSpec extends Specification {
         when:
         List<MandateContentFile> mandateContentFiles =
                 mandateContentCreator.getContentFiles(
-                        UserFixture.sampleUser(),
+                        sampleUser(),
                         MandateFixture.sampleMandateWithEmptyTransfer(),
-                        MandateFixture.sampleFunds(),
-                        UserFixture.sampleUserPreferences()
+                        sampleFunds(),
+                        sampleUserPreferences()
                 )
         then:
         mandateContentFiles.size() == 3
 
-        mandateContentFiles[0].name == "valikuavaldus_123.html"
+        mandateContentFiles[0].name == "vahetuseavaldus_1236.html"
         mandateContentFiles[0].mimeType == "text/html"
 
-        mandateContentFiles[1].name == "vahetuseavaldus_1236.html"
+        mandateContentFiles[1].name == "vahetuseavaldus_1234.html"
         mandateContentFiles[1].mimeType == "text/html"
 
-        mandateContentFiles[2].name == "vahetuseavaldus_1234.html"
+        mandateContentFiles[2].name == "valikuavaldus_123.html"
         mandateContentFiles[2].mimeType == "text/html"
-
         //not very nice test, but will act as a primitive hash function,
         // breaking when template or data is changed.
         //if needed, copy data over to this test
-        mandateContentFiles[0].content.length == 25566
-        mandateContentFiles[1].content.length == 29574
-        mandateContentFiles[2].content.length == 30047
+        mandateContentFiles[0].content.length == 29574
+        mandateContentFiles[1].content.length == 30047
+        mandateContentFiles[2].content.length == 25566
+    }
+
+    def "Generate mandate only for fund transfer when future contribution isin not set"() {
+        given:
+        Mandate mandate = sampleMandate()
+        mandate.setFutureContributionFundIsin(null)
+
+        when:
+        List<MandateContentFile> mandateContentFiles =
+            mandateContentCreator.getContentFiles(
+                sampleUser(),
+                mandate,
+                sampleFunds(),
+                sampleUserPreferences()
+            )
+
+        then:
+        mandateContentFiles.size() == 2
+
+        mandateContentFiles[0].name == "vahetuseavaldus_1236.html"
+        mandateContentFiles[0].mimeType == "text/html"
+
+        mandateContentFiles[1].name == "vahetuseavaldus_1234.html"
+        mandateContentFiles[1].mimeType == "text/html"
+
+        mandateContentFiles[0].content.length == 29574
+        mandateContentFiles[1].content.length == 30047
     }
 
     private void writeFilesOut(List<MandateContentFile> files) {

@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.error
 
+import ee.tuleva.onboarding.error.converter.ErrorAttributesConverter
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
-import ee.tuleva.onboarding.error.response.InputErrorsConverter
+import ee.tuleva.onboarding.error.converter.InputErrorsConverter
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.web.DefaultErrorAttributes
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -20,7 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ErrorHandlingController)
 @WithMockUser
-@Import([DefaultErrorAttributes, ErrorResponseEntityFactory, InputErrorsConverter])
+@Import([DefaultErrorAttributes, ErrorResponseEntityFactory, InputErrorsConverter, ErrorAttributesConverter])
 class ErrorHandlingControllerSpec extends Specification {
 
 	@Autowired
@@ -34,13 +35,10 @@ class ErrorHandlingControllerSpec extends Specification {
 				.requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/asdf")
 				.requestAttr(RequestDispatcher.ERROR_MESSAGE, "oops!"))
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-				.andExpect(jsonPath('$.error', is("Forbidden")))
-				.andExpect(jsonPath('$.error_description', is("oops!")))
-				.andExpect(jsonPath('$.exception', is("java.lang.RuntimeException")))
-				.andExpect(jsonPath('$.path', is("/asdf")))
-				.andExpect(jsonPath('$.timestamp', not(isEmptyOrNullString())))
-
-
+				.andExpect(jsonPath('$.errors[0].code', is("RuntimeException")))
+				.andExpect(jsonPath('$.errors[0].message', is("oops!")))
+				.andExpect(jsonPath('$.errors[0].path').doesNotExist())
+				.andExpect(jsonPath('$.errors[0].arguments').doesNotExist())
 	}
 
 }

@@ -32,9 +32,11 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
         this.userPreferences = userPreferences;
         this.funds = funds;
 
+        List<MandateContentFile> files = new ArrayList<>(getFundTransferMandateContentFiles(mandate));
 
-        List<MandateContentFile> files = new ArrayList<MandateContentFile>(Arrays.asList(getFutureContributionsFundMandateContentFile(mandate)));
-        files.addAll(getFundTransferMandateContentFiles(mandate));
+        if (mandate.getFutureContributionFundIsin().isPresent()) {
+            files.add(getFutureContributionsFundMandateContentFile(mandate));
+        }
 
         return files;
     }
@@ -50,7 +52,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
                 .userPreferences(userPreferences)
                 .transactionId(transactionId)
                 .documentNumber(documentNumber)
-                .futureContributionFundIsin(mandate.getFutureContributionFundIsin())
+                .futureContributionFundIsin(mandate.getFutureContributionFundIsin().orElse(null))
                 .funds(funds)
                 .build();
 

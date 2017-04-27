@@ -80,9 +80,11 @@ public class EmailService {
 
     private String getHtml() {
         return (new StringBuilder())
-                .append("Tere. <br/>")
-                .append("Lisatud on pensionifondi valiku- ja/või vahetusavaldused, ")
-                .append("mis on saadetud Eesti Pensioni Infosüsteemi. <br/><br/>")
+                .append("Tervist. <br/>")
+                .append("Olete teinud Tuleva veebirakenduse kaudu pensionifondi valiku- ja/või vahetusavalduse. " +
+                        "Käesolevale kirjale on lisatud koopia teie poolt esitatud avaldustest, " +
+                        "mis on saadetud Eesti Pensioni Infosüsteemi.<br/>")
+                .append("Küsimuste puhul kirjutage palun tuleva@tuleva.ee või helistage 644 5100. <br/><br/>")
                 .append("Tuleva </br>")
                 .toString();
     }

@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.mandate
 import com.codeborne.security.mobileid.IdCardSignatureSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
-import ee.tuleva.onboarding.error.exception.ErrorsResponseException
+import ee.tuleva.onboarding.error.response.ErrorResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter
@@ -176,7 +176,7 @@ class MandateServiceSpec extends Specification {
         def status = service.finalizeMobileIdSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
 
         then:
-        thrown ErrorsResponseException
+        thrown InvalidMandateException
 
     }
 
@@ -274,7 +274,7 @@ class MandateServiceSpec extends Specification {
         def status = service.finalizeIdCardSignature(sampleUser, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
 
         then:
-        thrown ErrorsResponseException
+        thrown InvalidMandateException
 
     }
 
@@ -293,7 +293,7 @@ class MandateServiceSpec extends Specification {
                 .build()
     }
 
-    ErrorsResponse sampleErrorsResponse = new ErrorsResponse([[:]])
+    ErrorsResponse sampleErrorsResponse = new ErrorsResponse([ErrorResponse.builder().code('sampe.error').build()])
     ErrorsResponse sampleEmptyErrorsResponse = new ErrorsResponse([])
 
     private List<MandateContentFile> sampleFiles() {

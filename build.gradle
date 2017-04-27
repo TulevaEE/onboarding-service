@@ -82,9 +82,7 @@ dependencies {
 	testCompile("org.spockframework:spock-spring:1.1-groovy-2.4-rc-3")
 	testCompile("com.github.tomakehurst:wiremock:2.4.1")
 	testCompile("org.springframework.security:spring-security-test")
-    testCompile("org.springframework:spring-test:4.3.7.RELEASE")
 	testCompile('cglib:cglib-nodep:3.2.4') // for stubbing of classes
-    testCompile('junit:junit:4.12')
 }
 
 test {

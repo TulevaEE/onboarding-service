@@ -8,7 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
-class PaymentControllerSpec extends  BaseControllerSpec {
+class PaymentControllerSpec extends BaseControllerSpec {
 
   def userService = Mock(UserService)
   def controller = new PaymentController(mapper, userService)
@@ -30,6 +30,7 @@ class PaymentControllerSpec extends  BaseControllerSpec {
       "status": "COMPLETED",
       "transaction": "235e8a24-c510-4c8d-9fa8-2a322ba80bb2"}"
     }""";
+    controller.frontendUrl = 'FRONTEND_URL'
 
     when:
     def perform = mvc.perform(post("/notifications/payments")
@@ -41,7 +42,7 @@ class PaymentControllerSpec extends  BaseControllerSpec {
     then:
     perform
         .andExpect(status().isFound())
-        .andExpect(redirectedUrl("http://localhost:3000/steps/select-sources?isNewMember=true"))
+        .andExpect(redirectedUrl("FRONTEND_URL/steps/select-sources?isNewMember=true"))
     1 * userService.registerAsMember(1L)
   }
 

@@ -2,7 +2,8 @@ package ee.tuleva.onboarding.notification.payment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.user.UserService;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,12 +14,15 @@ import javax.validation.Valid;
 import java.io.IOException;
 
 @RestController
-@AllArgsConstructor
+@RequiredArgsConstructor
 @RequestMapping("/notifications")
 public class PaymentController {
 
   private final ObjectMapper mapper;
   private final UserService userService;
+
+  @Value("${frontend.url}")
+  private String frontendUrl;
 
   @PostMapping("/payments")
   public void incomingPayment(@ModelAttribute @Valid IncomingPayment incomingPayment,
@@ -29,7 +33,7 @@ public class PaymentController {
     Long userId = payment.getReference();
     userService.registerAsMember(userId);
 
-    response.sendRedirect("http://localhost:3000/steps/select-sources?isNewMember=true");
+    response.sendRedirect(frontendUrl + "/steps/select-sources?isNewMember=true");
   }
 
 }

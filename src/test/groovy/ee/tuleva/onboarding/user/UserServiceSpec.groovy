@@ -55,4 +55,20 @@ class UserServiceSpec extends Specification {
     thrown(UserAlreadyAMemberException)
   }
 
+  def "isAMember() works"() {
+    given:
+    userRepository.findOne(user.id) >> user
+
+    when:
+    def result = service.isAMember(user.id)
+
+    then:
+    result == isAMember
+
+    where:
+    user                          | isAMember
+    sampleUser()                  | true
+    sampleUserNonMember().build() | false
+  }
+
 }

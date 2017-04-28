@@ -38,7 +38,6 @@ class PaymentControllerSpec extends BaseControllerSpec {
             .param("json", json)
             .param("mac", "68ea0115525b8baeb569676cd14f4386af3840e321185930a5aa0428845f26f9886cb4c45369b86140b29709b029728416eb369fac7a73fff3b6ab36798f4027"))
 
-
     then:
     perform
         .andExpect(status().isFound())
@@ -54,4 +53,40 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .param("mac", "invalid"))
         .andExpect(status().isBadRequest())
   }
+
+  def "member is not created when the payment status is not COMPLETED"() {
+    given:
+    def json = '{ "status": "PENDING" }';
+
+    when:
+    def perform = mvc.perform(post("/notifications/payments")
+            .contentType(MediaType.APPLICATION_JSON)
+            .param("json", json)
+            .param("mac", "53b1ace42be9af8667a4e2be5c82b28f9f7e217f2353888f01f9de6d7da0aea95d1913fb9345abcf03edc9c796a5178e2b2d772412280b951e7612834bcff232"))
+
+    then:
+    perform.andExpect(status().isOk())
+    0 * userService.registerAsMember(_)
+  }
+
+  def "doesn't try to create the member more than once"() {
+    given:
+    def json = """{
+      "reference": "1",
+      "status": "COMPLETED"
+    }""";
+    1 * userService.isAMember(1L) >> true
+
+    when:
+    def perform = mvc.perform(post("/notifications/payments")
+            .contentType(MediaType.APPLICATION_JSON)
+            .param("json", json)
+            .param("mac", "0051285e24b623273b60e16a5f1327c97139c91419dcb15ea5b0f8286031cdc22ffa4399556c1a5ce14d709fe0e4a1496f01b5d1950368de29b7ae322a908879"))
+
+    then:
+    perform.andExpect(status().isOk())
+    0 * userService.registerAsMember(_)
+  }
+
+
 }

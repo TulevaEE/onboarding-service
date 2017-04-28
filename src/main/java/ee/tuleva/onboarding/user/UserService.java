@@ -4,10 +4,12 @@ import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService {
 
   private final UserRepository userRepository;
@@ -33,7 +35,14 @@ public class UserService {
       .memberNumber(generateMemberNumber())
       .build();
 
+    log.info("Registering user as new member #{}: {}", newMember.getMemberNumber(), user);
+
     return memberRepository.save(newMember);
+  }
+
+  public boolean isAMember(Long userId) {
+    User user = userRepository.findOne(userId);
+    return user.getMember().isPresent();
   }
 
   private int generateMemberNumber() {

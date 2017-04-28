@@ -7,8 +7,6 @@ import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import lombok.*;
 import org.hibernate.validator.constraints.Email;
 import org.hibernate.validator.constraints.NotBlank;
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
@@ -47,11 +45,9 @@ public class User implements Person, Serializable {
 	private String lastName;
 
 	@NotNull
-	@CreatedDate
 	private Instant createdDate;
 
 	@NotNull
-	@LastModifiedDate
 	private Instant updatedDate;
 
 	@NotNull

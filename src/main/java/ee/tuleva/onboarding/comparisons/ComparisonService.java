@@ -1,12 +1,10 @@
 package ee.tuleva.onboarding.comparisons;
 
-import com.rollbar.utilities.ArgumentNullException;
 import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.comparisons.exceptions.IsinNotFoundException;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
-import ee.tuleva.onboarding.income.AverageSalaryService;
 import ee.tuleva.onboarding.income.Money;
 import ee.tuleva.onboarding.user.User;
 import lombok.extern.slf4j.Slf4j;
@@ -29,9 +27,6 @@ public class ComparisonService {
 
     @Autowired
     private AccountStatementService accountStatementService;
-
-    @Autowired
-    private AverageSalaryService averageSalaryService;
 
     /**
      * Merging actual user data to calculator input.
@@ -61,7 +56,7 @@ public class ComparisonService {
         in.getManagementFeeRates().put(tulevaFundToCompareTo.getIsin(), tulevaFundToCompareTo.getManagementFeeRate());
 
         if(in.monthlyWage == null) {
-            throw new ArgumentNullException("monthlyWage can not be null");
+            throw new IllegalArgumentException("monthlyWage can not be null");
         }
 
         log.info(in.toString());

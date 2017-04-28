@@ -66,8 +66,8 @@ proxy:
   nonProxyHosts: "mandrillapp.com|sk.ee|rollbar.com|localhost"
 
 maksekeskus:
-  #secret: IEmvmvjuuAc4XJWyD48LjdXnRej77JkSq72QAeDQYQgt2nY25tsjhdFg9ZA99lQf
-  secret: validSecret
+  secret: IEmvmvjuuAc4XJWyD48LjdXnRej77JkSq72QAeDQYQgt2nY25tsjhdFg9ZA99lQf
+  #secret: validSecret
 
 epis:
   service:
@@ -89,6 +89,9 @@ spring:
     initialize: false
     tomcat:
       max-active: 5
+
+flyway:
+  baseline-on-migrate: false
 
 server:
   session.cookie.domain: tuleva.ee # for session sharing across sub-domains

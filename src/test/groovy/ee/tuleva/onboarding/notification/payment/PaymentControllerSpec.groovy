@@ -1,22 +1,21 @@
 package ee.tuleva.onboarding.notification.payment
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.BaseControllerSpec
-import org.springframework.context.annotation.Import
+import ee.tuleva.onboarding.user.UserService
 import org.springframework.http.MediaType
 
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
-@Import([ObjectMapper])
 class PaymentControllerSpec extends  BaseControllerSpec {
 
-  def controller = new PaymentController(mapper)
+  def userService = Mock(UserService)
+  def controller = new PaymentController(mapper, userService)
 
   def mvc = mockMvc(controller)
 
-  def "incoming payment test"() {
+  def "incoming payment is correctly mapped to DTO, mac is validated and member is created in the database"() {
     given:
     def json = """{
       "amount": "100.0",
@@ -32,11 +31,15 @@ class PaymentControllerSpec extends  BaseControllerSpec {
       "transaction": "235e8a24-c510-4c8d-9fa8-2a322ba80bb2"}"
     }""";
 
-    expect:
-    mvc.perform(post("/notifications/payments")
-        .contentType(MediaType.APPLICATION_JSON)
-        .param("json", json)
-        .param("mac", "68ea0115525b8baeb569676cd14f4386af3840e321185930a5aa0428845f26f9886cb4c45369b86140b29709b029728416eb369fac7a73fff3b6ab36798f4027"))
+    when:
+    def perform = mvc.perform(post("/notifications/payments")
+            .contentType(MediaType.APPLICATION_JSON)
+            .param("json", json)
+            .param("mac", "68ea0115525b8baeb569676cd14f4386af3840e321185930a5aa0428845f26f9886cb4c45369b86140b29709b029728416eb369fac7a73fff3b6ab36798f4027"))
+
+
+    then:
+    perform
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
         .andExpect(jsonPath('$.amount', is(100.0d)))
@@ -44,6 +47,7 @@ class PaymentControllerSpec extends  BaseControllerSpec {
         .andExpect(jsonPath('$.customer_name', is("Tõõger Leõpäöld")))
         .andExpect(jsonPath('$.reference', is(1)))
         .andExpect(jsonPath('$.status', is("COMPLETED")))
+    1 * userService.registerAsMember(1L)
   }
 
   def "validates mac for incoming payment"() {

@@ -1,6 +1,7 @@
-package ee.tuleva.onboarding.user;
+package ee.tuleva.onboarding.user.member;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import ee.tuleva.onboarding.user.User;
 import lombok.*;
 
 import javax.persistence.*;
@@ -23,7 +24,7 @@ public class Member implements Serializable {
     private Long id;
 
     @JsonIgnore
-    @ManyToOne
+    @OneToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 

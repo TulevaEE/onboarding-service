@@ -6,7 +6,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
-import static java.time.Instant.now
 
 @DataJpaTest
 class MemberRepositorySpec extends Specification {
@@ -19,10 +18,10 @@ class MemberRepositorySpec extends Specification {
 
 	def "returns max member number"() {
 		given:
-		def persistedUser = entityManager.persist(sampleUserNonMember())
+		def nonPersistedUser = sampleUserNonMember().id(null).build()
+		def persistedUser = entityManager.persist(nonPersistedUser)
 		def member = Member.builder()
 				.user(persistedUser)
-				.createdDate(now())
 				.memberNumber(9999)
 				.build()
 		entityManager.persist(member)
@@ -36,4 +35,19 @@ class MemberRepositorySpec extends Specification {
 		maxMemberNumber == 9999
 	}
 
+	def "persisting a new member generates the created date field"() {
+		given:
+		def nonPersistedUser = sampleUserNonMember().id(null).build()
+		def persistedUser = entityManager.persist(nonPersistedUser)
+		def member = Member.builder()
+				.user(persistedUser)
+				.memberNumber(1234)
+				.build()
+
+		when:
+		def persistedMember = repository.save(member)
+
+		then:
+		persistedMember.createdDate != null
+	}
 }

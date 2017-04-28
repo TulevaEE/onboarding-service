@@ -26,7 +26,7 @@ public class UserFixture {
                 .build()
 
 
-    public static User sampleUserNonMember() {
+    public static User.UserBuilder sampleUserNonMember() {
         return User.builder()
                 .id(999)
                 .firstName("Jordan")
@@ -38,7 +38,6 @@ public class UserFixture {
                 .updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
                 .active(true)
                 .member(null)
-                .build()
     }
 
     public static UserPreferences sampleUserPreferences() {

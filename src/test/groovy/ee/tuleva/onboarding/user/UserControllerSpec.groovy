@@ -7,12 +7,11 @@ import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService
 import ee.tuleva.onboarding.user.preferences.UserPreferences
 import org.springframework.http.MediaType
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
-
-import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 
 class UserControllerSpec extends BaseControllerSpec {
 
@@ -42,14 +41,14 @@ class UserControllerSpec extends BaseControllerSpec {
 
 	def "/me endpoint works with a member"() {
 		given:
-
+		def sampleAuthenticatedPersonAndMember = sampleAuthenticatedPersonAndMember().build()
 		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPersonAndMember, controller)
 
 		expect:
 		mvc.perform(get("/v1/me"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-				.andExpect(jsonPath('$.id', is(sampleAuthenticatedPersonAndMember.user.id)))
+				.andExpect(jsonPath('$.id', is(sampleAuthenticatedPersonAndMember.user.id.intValue())))
 				.andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPersonAndMember.user.firstName)))
 				.andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPersonAndMember.user.lastName)))
 				.andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPersonAndMember.user.personalCode)))

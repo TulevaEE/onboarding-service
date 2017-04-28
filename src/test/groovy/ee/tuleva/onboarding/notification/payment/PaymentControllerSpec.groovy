@@ -4,9 +4,9 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.http.MediaType
 
-import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 class PaymentControllerSpec extends  BaseControllerSpec {
 
@@ -40,13 +40,8 @@ class PaymentControllerSpec extends  BaseControllerSpec {
 
     then:
     perform
-        .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-        .andExpect(jsonPath('$.amount', is(100.0d)))
-        .andExpect(jsonPath('$.currency', is("EUR")))
-        .andExpect(jsonPath('$.customer_name', is("Tõõger Leõpäöld")))
-        .andExpect(jsonPath('$.reference', is(1)))
-        .andExpect(jsonPath('$.status', is("COMPLETED")))
+        .andExpect(status().isFound())
+        .andExpect(redirectedUrl("http://localhost:3000/steps/select-sources?isNewMember=true"))
     1 * userService.registerAsMember(1L)
   }
 

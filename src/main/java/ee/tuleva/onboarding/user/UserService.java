@@ -6,8 +6,6 @@ import ee.tuleva.onboarding.user.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import static java.time.Instant.now;
-
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -30,15 +28,17 @@ public class UserService {
       throw new UserAlreadyAMemberException("User is already a member!");
     }
 
-    Integer maxMemberNumber = memberRepository.getMaxMemberNumber();
-
-    Member member = Member.builder()
-      .createdDate(now())
+    Member newMember = Member.builder()
       .user(user)
-      .memberNumber(maxMemberNumber + 1)
+      .memberNumber(generateMemberNumber())
       .build();
 
-    return memberRepository.save(member);
+    return memberRepository.save(newMember);
+  }
+
+  private int generateMemberNumber() {
+    Integer maxMemberNumber = memberRepository.getMaxMemberNumber();
+    return maxMemberNumber + 1;
   }
 
 }

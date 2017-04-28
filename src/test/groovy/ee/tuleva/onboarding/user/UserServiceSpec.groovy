@@ -30,7 +30,7 @@ class UserServiceSpec extends Specification {
 
   def "can register a non member user as a member"() {
     given:
-    def user = sampleUserNonMember()
+    def user = sampleUserNonMember().build()
     userRepository.findOne(user.id) >> user
     memberRepository.getMaxMemberNumber() >> 1000
     memberRepository.save(_ as Member) >> { Member member -> member }
@@ -41,7 +41,6 @@ class UserServiceSpec extends Specification {
     then:
     member.memberNumber == 1000 + 1
     member.user == user
-    member.createdDate != null
   }
 
   def "trying to register a user who is already a member as a new member throws exception"() {

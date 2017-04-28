@@ -10,7 +10,7 @@ spring:
     url: jdbc:postgresql://localhost:5432/tuleva-onboarding
     username: tuleva-onboarding
     password: tuleva-onboarding
-    initialize: false
+    initialize: false # set to true when starting with a clean DB
     continue-on-error: false
     test-on-borrow: true
     test-while-idle: true
@@ -64,6 +64,10 @@ mandate:
 proxy:
   url: ${QUOTAGUARDSTATIC_URL}
   nonProxyHosts: "mandrillapp.com|sk.ee|rollbar.com|localhost"
+
+maksekeskus:
+  #secret: IEmvmvjuuAc4XJWyD48LjdXnRej77JkSq72QAeDQYQgt2nY25tsjhdFg9ZA99lQf
+  secret: validSecret
 
 epis:
   service:
@@ -124,6 +128,9 @@ mandrill:
 logging:
   rollbar:
     accessToken: ${ROLLBAR_ACCESS_TOKEN}
+
+maksekeskus:
+  secret: ${MAKSEKESKUS_SECRET}
 
 epis:
   service:

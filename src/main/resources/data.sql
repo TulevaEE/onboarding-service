@@ -99,24 +99,24 @@ INSERT INTO fund(
     );
 
 INSERT INTO users(
-            active, personal_code, first_name, last_name, created_date, updated_date, phone_number, email)
-    SELECT true, '38812022762', 'Jordan', 'Valdma', '2015-01-31 14:06:01', '2017-01-31 14:06:01', '5523533', 'first.last@mail.ee'
+            active, personal_code, first_name, last_name, created_date, updated_date, member_number, phone_number, email)
+    SELECT true, '38812022762', 'Jordan', 'Valdma', '2015-01-31 14:06:01', '2017-01-31 14:06:01', 100, '5523533', 'first.last@mail.ee'
     WHERE
       NOT EXISTS (
         SELECT * FROM users WHERE id = 0
       );
 
 INSERT INTO users(
-            active, personal_code, first_name, last_name, created_date, updated_date, phone_number, email)
-    SELECT true, '39911223344', 'Firstname', 'Lastname', '2015-01-31 14:06:01', '2017-01-31 14:06:01', '1234567', 'first.last@mail.ee'
+            active, personal_code, first_name, last_name, created_date, updated_date, member_number, phone_number, email)
+    SELECT true, '39911223344', 'Firstname', 'Lastname', '2015-01-31 14:06:01', '2017-01-31 14:06:01', 1, '1234567', 'first.last@mail.ee'
     WHERE
       NOT EXISTS (
         SELECT * FROM users WHERE id = 1
       );
 
 INSERT INTO users(
-            active, personal_code, first_name, last_name, created_date, updated_date, phone_number, email)
-    SELECT true, '37807256017', 'Ziim', 'Kaba', '2015-01-31 14:06:01', '2017-01-31 14:06:01', '1234567', 'first.last@mail.ee'
+            active, personal_code, first_name, last_name, created_date, updated_date, member_number, phone_number, email)
+    SELECT true, '37807256017', 'Ziim', 'Kaba', '2015-01-31 14:06:01', '2017-01-31 14:06:01', 2419, '1234567', 'first.last@mail.ee'
     WHERE
       NOT EXISTS (
         SELECT * FROM users WHERE id = 2

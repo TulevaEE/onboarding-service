@@ -3,9 +3,8 @@ package ee.tuleva.onboarding.income;
 
 import ee.eesti.xtee6.kpr.PensionAccountTransactionResponseType.Money.Transaction;
 
-import org.springframework.stereotype.Service;
-
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 /**
@@ -29,7 +28,7 @@ public class AverageIncomeCalculator {
             }
         }
 
-        BigDecimal averagePayment = emtaPaymentsTotal.divide(new BigDecimal("12"));
+        BigDecimal averagePayment = emtaPaymentsTotal.divide(new BigDecimal("12"), 5, RoundingMode.HALF_DOWN);
         BigDecimal averageSalary = calculateSalaryFromPensionPayment(averagePayment);
 
         return Money.builder()
@@ -43,7 +42,7 @@ public class AverageIncomeCalculator {
      * Pension payment is 2 + 4 = 6% of bruto salary.
      */
     static BigDecimal calculateSalaryFromPensionPayment(BigDecimal pensionPaymentAmount) {
-        return pensionPaymentAmount.divide(new BigDecimal("0.06"));
+        return pensionPaymentAmount.divide(new BigDecimal("0.06"), 5, RoundingMode.HALF_DOWN);
     }
 
 }

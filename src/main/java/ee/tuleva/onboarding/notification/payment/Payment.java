@@ -3,11 +3,13 @@ package ee.tuleva.onboarding.notification.payment;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy.SnakeCaseStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Data;
+import lombok.ToString;
 
 import java.math.BigDecimal;
 
 @Data
 @JsonNaming(SnakeCaseStrategy.class)
+@ToString
 public class Payment {
 
   private BigDecimal amount;

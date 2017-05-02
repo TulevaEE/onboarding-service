@@ -1,11 +1,11 @@
-package ee.tuleva.onboarding.user;
+package ee.tuleva.onboarding.user.member;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import ee.tuleva.onboarding.user.User;
 import lombok.*;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Past;
 import java.io.Serializable;
 import java.time.Instant;
 
@@ -23,7 +23,7 @@ public class Member implements Serializable {
     private Long id;
 
     @JsonIgnore
-    @ManyToOne
+    @OneToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
@@ -31,7 +31,11 @@ public class Member implements Serializable {
     private Integer memberNumber;
 
     @NotNull
-    @Past
     private Instant createdDate;
+
+    @PrePersist
+    protected void onCreate() {
+        createdDate = Instant.now();
+    }
 
 }

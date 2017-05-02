@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.user
 
 import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.user.member.Member
 
 import java.time.Instant
 

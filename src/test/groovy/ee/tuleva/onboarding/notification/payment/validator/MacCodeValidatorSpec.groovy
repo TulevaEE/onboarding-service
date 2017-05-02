@@ -4,9 +4,9 @@ import ee.tuleva.onboarding.notification.payment.IncomingPayment
 import spock.lang.Specification
 import spock.lang.Unroll
 
-class ValidMacCodeValidatorSpec extends Specification {
+class MacCodeValidatorSpec extends Specification {
 
-  def validator = new ValidMacCodeValidator()
+  def validator = new MacCodeValidator()
 
 @Unroll
   def "validates with secret: #secret"() {

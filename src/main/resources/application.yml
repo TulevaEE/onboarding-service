@@ -66,13 +66,15 @@ proxy:
   nonProxyHosts: "mandrillapp.com|sk.ee|rollbar.com|localhost"
 
 maksekeskus:
-  #secret: IEmvmvjuuAc4XJWyD48LjdXnRej77JkSq72QAeDQYQgt2nY25tsjhdFg9ZA99lQf
-  secret: validSecret
+  secret: IEmvmvjuuAc4XJWyD48LjdXnRej77JkSq72QAeDQYQgt2nY25tsjhdFg9ZA99lQf
 
 epis:
   service:
     url: http://localhost:9005/v1
     bic: "ECSDEE20"
+
+frontend:
+  url: http://localhost:3000
 
 # uncomment when starting with a clean DB
 #flyway:
@@ -89,6 +91,9 @@ spring:
     initialize: false
     tomcat:
       max-active: 5
+
+flyway:
+  baseline-on-migrate: false
 
 server:
   session.cookie.domain: tuleva.ee # for session sharing across sub-domains
@@ -136,3 +141,6 @@ epis:
   service:
     url: https://epis-service.herokuapp.com/v1
     bic: "ECSDEE2X"
+
+frontend:
+  url: https://pension.tuleva.ee

@@ -13,31 +13,31 @@ public class UserFixture {
     }
 
     public static User sampleUser = User.builder()
+                .id(999)
                 .firstName("Jordan")
                 .lastName("Valdma")
-                .personalCode("38812121212")
+                .personalCode("38812121215")
                 .email("jordan.valdma@gmail.com")
                 .phoneNumber("5555555")
                 .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
                 .updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
                 .active(true)
-                .member(
-                    MemberFixture.sampleMember )
+                .member(MemberFixture.sampleMember)
                 .build()
 
 
-    public static User sampleUserNonMember() {
+    public static User.UserBuilder sampleUserNonMember() {
         return User.builder()
+                .id(999)
                 .firstName("Jordan")
                 .lastName("Valdma")
-                .personalCode("38812121212")
+                .personalCode("38812121215")
                 .email("jordan.valdma@gmail.com")
                 .phoneNumber("5555555")
                 .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
                 .updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
                 .active(true)
                 .member(null)
-                .build()
     }
 
     public static UserPreferences sampleUserPreferences() {

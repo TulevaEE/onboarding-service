@@ -12,7 +12,7 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 @Target({ TYPE, ANNOTATION_TYPE })
 @Retention(RUNTIME)
-@Constraint(validatedBy = { ValidMacCodeValidator.class })
+@Constraint(validatedBy = { MacCodeValidator.class })
 @Documented
 public @interface ValidMacCode {
 

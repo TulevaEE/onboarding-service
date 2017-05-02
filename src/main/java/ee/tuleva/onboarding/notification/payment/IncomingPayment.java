@@ -1,16 +1,14 @@
 package ee.tuleva.onboarding.notification.payment;
 
 import ee.tuleva.onboarding.notification.payment.validator.ValidMacCode;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Data
 @ValidMacCode
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString
 public class IncomingPayment {
 
   private String json;

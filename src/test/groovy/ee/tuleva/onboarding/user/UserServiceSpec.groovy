@@ -32,14 +32,14 @@ class UserServiceSpec extends Specification {
     given:
     def user = sampleUserNonMember().build()
     userRepository.findOne(user.id) >> user
-    memberRepository.getMaxMemberNumber() >> 1000
+    memberRepository.getNextMemberNumber() >> 1000
     memberRepository.save(_ as Member) >> { Member member -> member }
 
     when:
     def member = service.registerAsMember(user.id)
 
     then:
-    member.memberNumber == 1000 + 1
+    member.memberNumber == 1000
     member.user == user
   }
 

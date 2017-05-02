@@ -32,7 +32,7 @@ public class UserService {
 
     Member newMember = Member.builder()
       .user(user)
-      .memberNumber(generateMemberNumber())
+      .memberNumber(memberRepository.getNextMemberNumber())
       .build();
 
     log.info("Registering user as new member #{}: {}", newMember.getMemberNumber(), user);
@@ -43,11 +43,6 @@ public class UserService {
   public boolean isAMember(Long userId) {
     User user = userRepository.findOne(userId);
     return user.getMember().isPresent();
-  }
-
-  private int generateMemberNumber() {
-    Integer maxMemberNumber = memberRepository.getMaxMemberNumber();
-    return maxMemberNumber + 1;
   }
 
 }

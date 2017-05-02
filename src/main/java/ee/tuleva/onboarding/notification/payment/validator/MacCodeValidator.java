@@ -12,7 +12,7 @@ import java.security.NoSuchAlgorithmException;
 
 @Component
 @Slf4j
-public class ValidMacCodeValidator implements ConstraintValidator<ValidMacCode, IncomingPayment> {
+public class MacCodeValidator implements ConstraintValidator<ValidMacCode, IncomingPayment> {
 
   @Value("${maksekeskus.secret}")
   private String secret;

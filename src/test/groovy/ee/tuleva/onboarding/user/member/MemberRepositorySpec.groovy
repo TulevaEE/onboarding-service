@@ -16,7 +16,7 @@ class MemberRepositorySpec extends Specification {
 	@Autowired
 	private MemberRepository repository
 
-	def "returns max member number"() {
+	def "returns next member number"() {
 		given:
 		def nonPersistedUser = sampleUserNonMember().id(null).build()
 		def persistedUser = entityManager.persist(nonPersistedUser)
@@ -29,10 +29,10 @@ class MemberRepositorySpec extends Specification {
 		entityManager.flush()
 
 		when:
-		def maxMemberNumber = repository.getMaxMemberNumber()
+		def maxMemberNumber = repository.getNextMemberNumber()
 
 		then:
-		maxMemberNumber == 9999
+		maxMemberNumber == 10000
 	}
 
 	def "persisting a new member generates the created date field"() {

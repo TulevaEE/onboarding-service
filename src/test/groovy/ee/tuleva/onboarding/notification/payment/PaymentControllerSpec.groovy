@@ -17,7 +17,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
   def "incoming payment is correctly mapped to DTO, mac is validated and member is created in the database"() {
     given:
-    def json = """{
+    def json = [
       "amount": "100.0",
       "currency": "EUR",
       "customer_name": "T\u00f5\u00f5ger Le\u00f5p\u00e4\u00f6ld",
@@ -28,15 +28,15 @@ class PaymentControllerSpec extends BaseControllerSpec {
       "shop": "322a5e5e-37ee-45b1-8961-ebd00e84e209",
       "signature": "EDB6E91FD890EF86EBD6A820BBAE1E99068596776667E35F823C4CE57F79D948F68F76EAEA2E8417F0E4442BCD758EEB747102CCCE70122D3C05F50C7A596339",
       "status": "COMPLETED",
-      "transaction": "235e8a24-c510-4c8d-9fa8-2a322ba80bb2"}"
-    }""";
+      "transaction": "235e8a24-c510-4c8d-9fa8-2a322ba80bb2"
+    ]
     controller.frontendUrl = 'FRONTEND_URL'
 
     when:
     def perform = mvc.perform(post("/notifications/payments")
             .contentType(MediaType.APPLICATION_JSON)
-            .param("json", json)
-            .param("mac", "68ea0115525b8baeb569676cd14f4386af3840e321185930a5aa0428845f26f9886cb4c45369b86140b29709b029728416eb369fac7a73fff3b6ab36798f4027"))
+            .param("json", mapper.writeValueAsString(json))
+            .param("mac", "e9b1867c40e2a2ac3fd654ab4f26dedcbe320c48c0aec5058c8a442fc941429c8bcafa22c52240a1a645fb0abf6a05692f7b79b6cb83a41637aef0756cdb3dda"))
 
     then:
     perform
@@ -71,17 +71,17 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
   def "doesn't try to create the member more than once"() {
     given:
-    def json = """{
+    def json = [
       "reference": "1",
       "status": "COMPLETED"
-    }""";
+    ]
     1 * userService.isAMember(1L) >> true
 
     when:
     def perform = mvc.perform(post("/notifications/payments")
             .contentType(MediaType.APPLICATION_JSON)
-            .param("json", json)
-            .param("mac", "0051285e24b623273b60e16a5f1327c97139c91419dcb15ea5b0f8286031cdc22ffa4399556c1a5ce14d709fe0e4a1496f01b5d1950368de29b7ae322a908879"))
+            .param("json", mapper.writeValueAsString(json))
+            .param("mac", "72226bd686fd3288c53784f3297164933619877cb13be6c4da91a7201fd20f4a6378abbdeb6bdbc6601905f1f052c4227dd15b9a50f42a192cde2686d1f853af"))
 
     then:
     perform.andExpect(status().isOk())

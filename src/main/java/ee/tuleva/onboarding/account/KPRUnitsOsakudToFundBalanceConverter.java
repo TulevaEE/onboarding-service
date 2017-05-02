@@ -18,9 +18,11 @@ public class KPRUnitsOsakudToFundBalanceConverter implements Converter<PensionAc
     @Override
     public FundBalance convert(PensionAccountBalanceResponseType.Units.Balance source) {
 
-        Fund fund = fundRepository.findByNameIgnoreCase(source.getSecurityName());
+        String fundName = removeBookedFundSuffix(source.getSecurityName());
+
+        Fund fund = fundRepository.findByNameIgnoreCase(fundName);
         if (fund == null) {
-            throw new RuntimeException("Unable to find fund by name! " + source.getSecurityName());
+            throw new RuntimeException("Unable to find fund by name! " + fundName);
         }
 
         return FundBalance.builder()
@@ -28,5 +30,15 @@ public class KPRUnitsOsakudToFundBalanceConverter implements Converter<PensionAc
                 .value(source.getAmount().multiply(source.getNav()))
                 .currency(source.getCurrency())
                 .build();
+    }
+
+    private String removeBookedFundSuffix(String fundName) {
+        int suffixStart = fundName.indexOf(" - Broneeritud");
+
+        if(suffixStart != -1 ) {
+            return fundName.substring(0, suffixStart);
+        } else {
+            return fundName;
+        }
     }
 }

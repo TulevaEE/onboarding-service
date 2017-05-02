@@ -26,7 +26,7 @@ class EmailServiceSpec extends Specification {
         String senderSignatureName = "Jordan Valdma";
 
         when:
-        service.send(UserFixture.sampleUser(), 123, "file".bytes)
+        service.send(UserFixture.sampleUser().build(), 123, "file".bytes)
 
         then:
         true

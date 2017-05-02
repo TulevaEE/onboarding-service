@@ -4,6 +4,7 @@ import com.codeborne.security.mobileid.SignatureFile;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
+import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.preferences.UserPreferences;
@@ -26,9 +27,11 @@ public class MandateFileService {
     private final FundRepository fundRepository;
     private final CsdUserPreferencesService csdUserPreferencesService;
     private final MandateContentCreator mandateContentCreator;
+    private final UserService userService;
 
-    public List<SignatureFile> getMandateFiles(Long mandateId, User user) {
-        Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+    public List<SignatureFile> getMandateFiles(Long mandateId, Long userId) {
+        User user = userService.getById(userId);
+        Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
         List<Fund> funds = new ArrayList<>();
         fundRepository.findAll().forEach(funds::add);

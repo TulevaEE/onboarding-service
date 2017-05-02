@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -29,28 +30,29 @@ import java.util.UUID;
 @Slf4j
 public class MandateService {
 
-    private final MandateRepository mandateRepository;
+	private final MandateRepository mandateRepository;
 	private final SignatureService signService;
-    private final CreateMandateCommandToMandateConverter converter;
+	private final CreateMandateCommandToMandateConverter converter;
 	private final EmailService emailService;
 	private final FundValueStatisticsRepository fundValueStatisticsRepository;
 	private final FundTransferStatisticsService fundTransferStatisticsService;
 	private final MandateProcessorService mandateProcessor;
 	private final MandateFileService mandateFileService;
+	private final UserService userService;
 
-    public Mandate save(User user, CreateMandateCommand createMandateCommand) {
+	public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
 		validateCreateMandateCommand(createMandateCommand);
-        Mandate mandate = converter.convert(createMandateCommand);
-        mandate.setUser(user);
+		Mandate mandate = converter.convert(createMandateCommand);
+		mandate.setUser(userService.getById(userId));
 
 		log.info("Saving mandate {}", mandate);
-        return mandateRepository.save(mandate);
-    }
+		return mandateRepository.save(mandate);
+	}
 
 	private void validateCreateMandateCommand(CreateMandateCommand createMandateCommand) {
 		if(countValuesBiggerThanOne(summariseSourceFundTransferAmounts(createMandateCommand)) > 0) {
 			throw InvalidMandateException.sourceAmountExceeded();
-		};
+		}
 
 		if(isSameSourceToTargetTransferPresent(createMandateCommand)) {
 			throw InvalidMandateException.sameSourceAndTargetTransferPresent();
@@ -58,7 +60,7 @@ public class MandateService {
 
 	}
 
-	boolean isSameSourceToTargetTransferPresent(CreateMandateCommand createMandateCommand) {
+	private boolean isSameSourceToTargetTransferPresent(CreateMandateCommand createMandateCommand) {
     	return createMandateCommand.getFundTransferExchanges().stream()
 				.filter(fte-> fte.getSourceFundIsin().equalsIgnoreCase(fte.getTargetFundIsin()))
 				.count() > 0;
@@ -85,19 +87,20 @@ public class MandateService {
 		return summaryMap.values().stream().filter( value -> value.compareTo(BigDecimal.ONE) > 0).count();
 	}
 
-	public MobileIdSignatureSession mobileIdSign(Long mandateId, User user, String phoneNumber) {
-        List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, user);
+	public MobileIdSignatureSession mobileIdSign(Long mandateId, Long userId, String phoneNumber) {
+		User user = userService.getById(userId);
+		List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
 		return signService.startSign(files, user.getPersonalCode(), phoneNumber);
 	}
 
-	public IdCardSignatureSession idCardSign(Long mandateId, User user, String signingCertificate) {
-		List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, user);
+	public IdCardSignatureSession idCardSign(Long mandateId, Long userId, String signingCertificate) {
+		List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
 		return signService.startSign(files, signingCertificate);
 	}
 
-    public String finalizeMobileIdSignature(User user, UUID statisticsIdentifier, Long mandateId, MobileIdSignatureSession session) {
-
-		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+	public String finalizeMobileIdSignature(Long userId, UUID statisticsIdentifier, Long mandateId, MobileIdSignatureSession session) {
+		User user = userService.getById(userId);
+		Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
 		if(isMandateSigned(mandate)) {
 			return handleSignedMandate(user, mandate, statisticsIdentifier);
@@ -109,7 +112,7 @@ public class MandateService {
 	private String handleUnsignedMandateMobileId(User user, Mandate mandate, MobileIdSignatureSession session) {
 		byte[] signedFile = signService.getSignedFile(session);
 
-		if (signedFile != null) {
+		if (signedFile != null) { // TODO: use Optional
 			persistSignedFile(mandate, signedFile);
 			mandateProcessor.start(user, mandate);
 			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
@@ -118,9 +121,9 @@ public class MandateService {
 		}
 	}
 
-	public String finalizeIdCardSignature(User user, UUID statisticsIdentifier, Long mandateId, IdCardSignatureSession session, String signedHash) {
-
-		Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+	public String finalizeIdCardSignature(Long userId, UUID statisticsIdentifier, Long mandateId, IdCardSignatureSession session, String signedHash) {
+		User user = userService.getById(userId);
+		Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
 		if(isMandateSigned(mandate)) {
 			return handleSignedMandate(user, mandate, statisticsIdentifier);
@@ -135,7 +138,7 @@ public class MandateService {
 
 	private String handleSignedMandate(User user, Mandate mandate, UUID statisticsIdentifier) {
 		if(mandateProcessor.isFinished(mandate)) {
-			persistFundTransferExchangeStatistics(user, statisticsIdentifier, mandate);
+			persistFundTransferExchangeStatistics(statisticsIdentifier, mandate);
 
 			notifyAboutSignedMandate(user,
 					mandate.getId(),
@@ -161,7 +164,7 @@ public class MandateService {
 
 	private String handleUnsignedMandateIdCard(User user, Mandate mandate, IdCardSignatureSession session, String signedHash) {
 		byte[] signedFile = signService.getSignedFile(session, signedHash);
-		if (signedFile != null) {
+		if (signedFile != null) { // TODO: use Optional
 			persistSignedFile(mandate, signedFile);
 			mandateProcessor.start(user, mandate);
 			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
@@ -179,7 +182,7 @@ public class MandateService {
 		mandateRepository.save(mandate);
 	}
 
-	private void persistFundTransferExchangeStatistics(User user, UUID statisticsIdentifier, Mandate mandate) {
+	private void persistFundTransferExchangeStatistics(UUID statisticsIdentifier, Mandate mandate) {
 		List<FundValueStatistics> fundValueStatisticsList = fundValueStatisticsRepository.findByIdentifier(statisticsIdentifier);
 		fundTransferStatisticsService.addFrom(mandate, fundValueStatisticsList);
 

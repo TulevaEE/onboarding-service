@@ -7,8 +7,9 @@ import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.income.Money;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -20,21 +21,23 @@ import java.util.UUID;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class ComparisonService {
 
-    @Autowired
-    private FundRepository fundRepository;
+    private final FundRepository fundRepository;
 
-    @Autowired
-    private AccountStatementService accountStatementService;
+    private final AccountStatementService accountStatementService;
+
+    private final UserService userService;
 
     /**
      * Merging actual user data to calculator input.
      * @param in
-     * @param user
+     * @param userId
      * @return
      */
-    public Money compare(ComparisonCommand in, User user) throws IsinNotFoundException {
+    public Money compare(ComparisonCommand in, Long userId) throws IsinNotFoundException {
+        User user = userService.getById(userId);
         in.setAge(user.getAge());
 
         List<FundBalance> balances = accountStatementService.getMyPensionAccountStatement(user, UUID.randomUUID());

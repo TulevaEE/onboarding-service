@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.auth.principal;
 
-import ee.tuleva.onboarding.user.User;
 import lombok.*;
 import org.hibernate.validator.constraints.NotBlank;
 
@@ -24,6 +23,6 @@ public class AuthenticatedPerson implements Person, Serializable {
     @NotBlank
     private String lastName;
 
-    private User user;
+    private Long userId;
 
 }

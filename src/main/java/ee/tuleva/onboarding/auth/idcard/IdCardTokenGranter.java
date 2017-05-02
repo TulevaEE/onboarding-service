@@ -19,6 +19,7 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
 
     private final GenericSessionStore sessionStore;
     private final PrincipalService principalService;
+    private final GrantedAuthorityFactory grantedAuthorityFactory;
 
     private static final String GRANT_TYPE = "id_card";
 
@@ -26,10 +27,12 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
                               ClientDetailsService clientDetailsService,
                               OAuth2RequestFactory requestFactory,
                               GenericSessionStore genericSessionStore,
-                              PrincipalService principalService) {
+                              PrincipalService principalService,
+                              GrantedAuthorityFactory grantedAuthorityFactory) {
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
         this.sessionStore = genericSessionStore;
         this.principalService = principalService;
+        this.grantedAuthorityFactory = grantedAuthorityFactory;
     }
 
     @Override
@@ -62,10 +65,10 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
             }
         });
 
-        Authentication userAuthentication = new PersonalCodeAuthentication(
+        Authentication userAuthentication = new PersonalCodeAuthentication<>(
                 authenticatedPerson,
                 idCardSession,
-                GrantedAuthorityFactory.from(authenticatedPerson));
+                grantedAuthorityFactory.from(authenticatedPerson));
         userAuthentication.setAuthenticated(true);
 
         OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);

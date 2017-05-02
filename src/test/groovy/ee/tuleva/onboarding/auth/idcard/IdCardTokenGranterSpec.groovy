@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.auth.idcard
 
-import com.codeborne.security.mobileid.IdCardSignatureSession
-import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
-import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
-import org.springframework.security.oauth2.common.OAuth2AccessToken
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
-import org.springframework.security.oauth2.provider.*
+import org.springframework.security.oauth2.provider.ClientDetails
+import org.springframework.security.oauth2.provider.ClientDetailsService
+import org.springframework.security.oauth2.provider.OAuth2RequestFactory
+import org.springframework.security.oauth2.provider.TokenRequest
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices
 import spock.lang.Specification
 
@@ -19,6 +19,7 @@ class IdCardTokenGranterSpec extends Specification {
     OAuth2RequestFactory oAuth2RequestFactory = Mock(OAuth2RequestFactory)
     GenericSessionStore genericSessionStore = Mock(GenericSessionStore)
     PrincipalService principalService = Mock(PrincipalService)
+    GrantedAuthorityFactory grantedAuthorityFactory = Mock(GrantedAuthorityFactory)
 
     def setup() {
         tokenGranter = new IdCardTokenGranter(
@@ -26,7 +27,8 @@ class IdCardTokenGranterSpec extends Specification {
                 clientDetailsService,
                 oAuth2RequestFactory,
                 genericSessionStore,
-                principalService)
+                principalService,
+                grantedAuthorityFactory)
     }
 
     def "GetAccessToken: Logging in with no client id fails"() {

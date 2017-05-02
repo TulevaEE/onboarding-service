@@ -8,11 +8,8 @@ import java.time.Instant
 
 public class UserFixture {
 
-    public static User sampleUser() {
-        return sampleUser;
-    }
-
-    public static User sampleUser = User.builder()
+    public static User.UserBuilder sampleUser() {
+        return User.builder()
                 .id(999)
                 .firstName("Jordan")
                 .lastName("Valdma")
@@ -23,8 +20,7 @@ public class UserFixture {
                 .updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
                 .active(true)
                 .member(MemberFixture.sampleMember)
-                .build()
-
+    }
 
     public static User.UserBuilder sampleUserNonMember() {
         return User.builder()

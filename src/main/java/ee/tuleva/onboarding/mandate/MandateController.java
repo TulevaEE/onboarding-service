@@ -63,7 +63,7 @@ public class MandateController {
         }
 
         log.info("Creating mandate with {}", createMandateCommand);
-        return mandateService.save(authenticatedPerson.getUser(), createMandateCommand);
+        return mandateService.save(authenticatedPerson.getUserId(), createMandateCommand);
     }
 
     @ApiOperation(value = "Start signing mandate with mobile ID")
@@ -75,7 +75,7 @@ public class MandateController {
         MobileIDSession loginSession = session
                 .orElseThrow(IdSessionException::mobileSessionNotFound);
 
-        MobileIdSignatureSession signatureSession = mandateService.mobileIdSign(mandateId, authenticatedPerson.getUser(), loginSession.phoneNumber);
+        MobileIdSignatureSession signatureSession = mandateService.mobileIdSign(mandateId, authenticatedPerson.getUserId(), loginSession.phoneNumber);
         genericSessionStore.save(signatureSession);
 
         return new MobileIdSignatureResponse(signatureSession.challenge);
@@ -91,7 +91,7 @@ public class MandateController {
         MobileIdSignatureSession session = signatureSession
                 .orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
 
-        String statusCode = mandateService.finalizeMobileIdSignature(authenticatedPerson.getUser(), statisticsIdentifier, mandateId, session);
+        String statusCode = mandateService.finalizeMobileIdSignature(authenticatedPerson.getUserId(), statisticsIdentifier, mandateId, session);
 
         return new MandateSignatureStatusResponse(statusCode);
     }
@@ -102,7 +102,7 @@ public class MandateController {
                                                    @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                                    @Valid @RequestBody StartIdCardSignCommand signCommand) {
 
-        IdCardSignatureSession signatureSession = mandateService.idCardSign(mandateId, authenticatedPerson.getUser(), signCommand.getClientCertificate());
+        IdCardSignatureSession signatureSession = mandateService.idCardSign(mandateId, authenticatedPerson.getUserId(), signCommand.getClientCertificate());
 
         genericSessionStore.save(signatureSession);
 
@@ -120,7 +120,7 @@ public class MandateController {
         IdCardSignatureSession session = signatureSession
                 .orElseThrow(IdSessionException::cardSignatureSessionNotFound);
 
-        String statusCode = mandateService.finalizeIdCardSignature(authenticatedPerson.getUser(), statisticsIdentifier, mandateId, session, signCommand.getSignedHash());
+        String statusCode = mandateService.finalizeIdCardSignature(authenticatedPerson.getUserId(), statisticsIdentifier, mandateId, session, signCommand.getSignedHash());
 
         return new MandateSignatureStatusResponse(statusCode);
     }
@@ -131,7 +131,7 @@ public class MandateController {
                                @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                HttpServletResponse response) throws IOException {
 
-        Mandate mandate = getMandateOrThrow(mandateId, authenticatedPerson.getUser());
+        Mandate mandate = getMandateOrThrow(mandateId, authenticatedPerson.getUserId());
         response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.bdoc");
 
         byte[] content = mandate.getMandate().orElseThrow(() -> new RuntimeException("Mandate is not signed"));
@@ -147,7 +147,7 @@ public class MandateController {
                                @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                HttpServletResponse response) throws IOException {
 
-        List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, authenticatedPerson.getUser());
+        List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, authenticatedPerson.getUserId());
         response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.zip");
 
         signatureFileArchiver.writeSignatureFilesToZipOutputStream(files, response.getOutputStream());
@@ -155,8 +155,8 @@ public class MandateController {
 
     }
 
-    private Mandate getMandateOrThrow(Long mandateId, User user) {
-        Mandate mandate = mandateRepository.findByIdAndUser(mandateId, user);
+    private Mandate getMandateOrThrow(Long mandateId, Long userId) {
+        Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
         if(mandate == null) {
             throw new MandateNotFoundException();

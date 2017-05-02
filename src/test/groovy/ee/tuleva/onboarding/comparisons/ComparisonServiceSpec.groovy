@@ -1,11 +1,18 @@
 package ee.tuleva.onboarding.comparisons
 
-
+import ee.tuleva.onboarding.account.AccountStatementService
+import ee.tuleva.onboarding.fund.FundRepository
+import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
 class ComparisonServiceSpec extends Specification {
 
-    def service = new ComparisonService()
+    def fundRepository = Mock(FundRepository)
+    def accountStatementService = Mock(AccountStatementService)
+
+    def userService = Mock(UserService)
+
+    def service = new ComparisonService(fundRepository, accountStatementService, userService)
 
     def "feeSaved calculations work" (Map currentCapitals, Map managementFeeRates, String activeIsin, int age, BigDecimal monthlyWage, BigDecimal feeSaved) {
         expect:

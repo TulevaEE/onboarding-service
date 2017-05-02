@@ -4,11 +4,14 @@ import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateFixture
+import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.preferences.UserPreferences
 import org.thymeleaf.context.Context
 import spock.lang.Specification
 
 import java.time.Instant
+
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
 class ContextBuilderSpec extends Specification {
 
@@ -27,16 +30,18 @@ class ContextBuilderSpec extends Specification {
     }
 
     def "User"() {
-        when:
+		given:
+		User user = sampleUser().build()
+		when:
         Context context = ContextBuilder.builder()
-                .user(UserFixture.sampleUser())
+                .user(user)
                 .build()
         then:
-        context.getVariables().get("email") == UserFixture.sampleUser().email
-        context.getVariables().get("firstName") == UserFixture.sampleUser().firstName
-        context.getVariables().get("lastName") == UserFixture.sampleUser().lastName
-        context.getVariables().get("idCode") == UserFixture.sampleUser().personalCode
-        context.getVariables().get("phoneNumber") == UserFixture.sampleUser().phoneNumber
+        context.getVariables().get("email") == user.email
+        context.getVariables().get("firstName") == user.firstName
+        context.getVariables().get("lastName") == user.lastName
+        context.getVariables().get("idCode") == user.personalCode
+        context.getVariables().get("phoneNumber") == user.phoneNumber
     }
 
     def "Mandate"() {

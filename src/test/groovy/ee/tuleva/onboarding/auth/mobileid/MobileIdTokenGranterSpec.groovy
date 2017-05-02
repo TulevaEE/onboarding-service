@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.mobileid
 
 import com.codeborne.security.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
+import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
@@ -22,6 +23,7 @@ class MobileIdTokenGranterSpec extends Specification {
     MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
     PrincipalService principalService = Mock(PrincipalService)
     GenericSessionStore sessionStore = Mock(GenericSessionStore)
+    GrantedAuthorityFactory grantedAuthorityFactory = Mock(GrantedAuthorityFactory)
 
     def setup() {
         mobileIdTokenGranter = new MobileIdTokenGranter(
@@ -30,7 +32,8 @@ class MobileIdTokenGranterSpec extends Specification {
                 oAuth2RequestFactory,
                 mobileIdAuthService,
                 principalService,
-                sessionStore
+                sessionStore,
+                grantedAuthorityFactory
         )
     }
 

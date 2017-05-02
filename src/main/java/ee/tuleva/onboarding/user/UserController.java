@@ -26,7 +26,9 @@ public class UserController {
 	@ApiOperation(value = "Get info about the current user")
 	@GetMapping("/me")
 	public UserResponse me(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-		return UserResponse.fromUser(authenticatedPerson.getUser());
+		Long userId = authenticatedPerson.getUserId();
+		User user = userService.getById(userId);
+		return UserResponse.fromUser(user);
 	}
 
 	@ApiOperation(value = "Update the current user")

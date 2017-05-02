@@ -7,7 +7,6 @@ import com.codeborne.security.mobileid.SignatureFile
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.exception.IdSessionException
-import ee.tuleva.onboarding.user.User
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
@@ -76,7 +75,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         UUID statisticsIdentifier = UUID.randomUUID()
         def session = new MobileIdSignatureSession(1, "1234")
         sessionStore.get(MobileIdSignatureSession) >> Optional.of(session)
-        mandateService.finalizeMobileIdSignature(_ as User, statisticsIdentifier, 1L, session) >> "SIGNATURE"
+        mandateService.finalizeMobileIdSignature(_ as Long, statisticsIdentifier, 1L, session) >> "SIGNATURE"
 
         then:
         mvc
@@ -112,7 +111,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         UUID statisticsIdentifier = UUID.randomUUID()
         def session = new IdCardSignatureSession(1, "sigId", "hash")
         sessionStore.get(IdCardSignatureSession) >> Optional.of(session)
-        mandateService.finalizeIdCardSignature(_ as User, statisticsIdentifier, 1L, session, "signedHash") >> "SIGNATURE"
+        mandateService.finalizeIdCardSignature(_ as Long, statisticsIdentifier, 1L, session, "signedHash") >> "SIGNATURE"
 
         then:
         mvc
@@ -135,7 +134,7 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "getMandateFile returns mandate file"() {
         when:
         1 * mandateRepository
-                .findByIdAndUser(sampleMandate().id, _) >> sampleMandate()
+                .findByIdAndUserId(sampleMandate().id, _ as Long) >> sampleMandate()
 
         then:
         MvcResult result = mvc
@@ -149,7 +148,7 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "getMandateFile throws exception if mandate is not signed"() {
         given:
         1 * mandateRepository
-                .findByIdAndUser(sampleMandate().id, _) >> sampleUnsignedMandate()
+                .findByIdAndUserId(sampleMandate().id, _ as Long) >> sampleUnsignedMandate()
 
         when:
         mvc
@@ -164,7 +163,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         List<SignatureFile> files = [new SignatureFile("filename", "text/html", "content".getBytes())]
 
-        1 * mandateFileService.getMandateFiles(sampleMandate().id, _) >> files
+        1 * mandateFileService.getMandateFiles(sampleMandate().id, _ as Long) >> files
         1 * signatureFileArchiver.writeSignatureFilesToZipOutputStream(files, _ as OutputStream)
 
         then:
@@ -180,7 +179,7 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "getMandateFile returns not found on non existing mandate file"() {
         when:
         1 * mandateRepository
-                .findByIdAndUser(sampleMandate().id, _) >> null
+                .findByIdAndUserId(sampleMandate().id, _ as Long) >> null
 
         then:
         mvc

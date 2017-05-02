@@ -10,8 +10,6 @@ import org.springframework.web.context.request.NativeWebRequest
 import org.springframework.web.method.support.HandlerMethodArgumentResolver
 import org.springframework.web.method.support.ModelAndViewContainer
 
-import java.time.Instant
-
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup
 
 class UserProvidedControllerSpec extends BaseControllerSpec {
@@ -21,15 +19,8 @@ class UserProvidedControllerSpec extends BaseControllerSpec {
     AuthenticatedPerson authenticatedPerson = AuthenticatedPerson.builder()
         .firstName("Erko")
         .lastName("Risthein")
-        .user(
-            User.builder()
-            .id(1L)
-            .firstName("Erko")
-            .lastName("Risthein")
-            .personalCode("38501010002")
-            .createdDate(Instant.parse("2017-01-31T14:06:01Z"))
-            .build()
-        ).build()
+        .userId(1L)
+        .build()
 
     protected MockMvc mockMvcWithAuthenticationPrincipal(Object... controllers) {
         standaloneSetup(controllers)
@@ -47,7 +38,7 @@ class UserProvidedControllerSpec extends BaseControllerSpec {
 
             @Override
             Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer, NativeWebRequest webRequest, WebDataBinderFactory binderFactory) throws Exception {
-                return user
+                return authenticatedPerson
             }
         }
     }

@@ -9,7 +9,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 class AuthenticatedPersonFixture {
 
     static AuthenticatedPerson.AuthenticatedPersonBuilder sampleAuthenticatedPersonAndMember() {
-        return authenticatedPersonFromUser(sampleUser())
+        return authenticatedPersonFromUser(sampleUser().build())
     }
 
     static AuthenticatedPerson.AuthenticatedPersonBuilder sampleAuthenticatedPersonNonMember() {
@@ -18,10 +18,10 @@ class AuthenticatedPersonFixture {
 
     private static AuthenticatedPerson.AuthenticatedPersonBuilder authenticatedPersonFromUser(User user) {
         return AuthenticatedPerson.builder()
-                .firstName(user.getFirstName())
-                .lastName(user.getLastName())
-                .personalCode(user.getLastName())
-                .user(user)
+                .firstName(user.firstName)
+                .lastName(user.lastName)
+                .personalCode(user.personalCode)
+                .userId(user.id)
     }
 
 }

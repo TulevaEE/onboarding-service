@@ -37,7 +37,7 @@ public class PrincipalService {
                 .firstName(person.getFirstName())
                 .lastName(person.getLastName())
                 .personalCode(person.getPersonalCode())
-                .user(user)
+                .userId(user.getId())
                 .build();
 
     }

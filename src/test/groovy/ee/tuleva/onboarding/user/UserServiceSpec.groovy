@@ -14,9 +14,21 @@ class UserServiceSpec extends Specification {
   def memberRepository = Mock(MemberRepository)
   def service = new UserService(userRepository, memberRepository)
 
+  def "get user by id"() {
+    given:
+    def user = sampleUser().build()
+    userRepository.findOne(1L) >> user
+
+    when:
+    def returnedUser = service.getById(1L)
+
+    then:
+    returnedUser == user
+  }
+
   def "can update user email and phone number based on personal code"() {
     given:
-    def user = sampleUser()
+    def user = sampleUser().build()
     userRepository.findByPersonalCode(user.personalCode) >> user
     userRepository.save(user) >> user
 
@@ -45,7 +57,7 @@ class UserServiceSpec extends Specification {
 
   def "trying to register a user who is already a member as a new member throws exception"() {
     given:
-    def user = sampleUser()
+    def user = sampleUser().build()
     userRepository.findOne(user.id) >> user
 
     when:
@@ -67,7 +79,7 @@ class UserServiceSpec extends Specification {
 
     where:
     user                          | isAMember
-    sampleUser()                  | true
+    sampleUser().build()          | true
     sampleUserNonMember().build() | false
   }
 

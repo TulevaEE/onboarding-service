@@ -5,7 +5,6 @@ import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.comparisons.exceptions.IsinNotFoundException;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
-import ee.tuleva.onboarding.income.Money;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.Builder;
@@ -67,36 +66,12 @@ public class ComparisonService {
 
         log.info(in.toString());
 
-        Money c = this.compare(in);
-
         return getComparisonResponse(in);
     }
 
     @Cacheable
     private List<FundBalance> getBalances(User user) {
         return accountStatementService.getMyPensionAccountStatement(user, UUID.randomUUID());
-    }
-
-    /**
-     * Calculator that takes into account potential Tuleva fund holder current personal, fund and legal data
-     * (Most in {@link ComparisonCommand}) and calculates potential gain in money for the age of retirement.
-     * Comparison is done between current plan and switch to Tuleva fund.
-     *
-     * todo does it has effect to take into account leaving fee from some funds?
-     */
-    public Money compare(ComparisonCommand in) throws IsinNotFoundException {
-        BigDecimal fvTakenFeesDifference = calculateTotalFeeSaved(in);
-
-        return Money.builder()
-                .amount(fvTakenFeesDifference)
-                .currency("EUR")
-                .build();
-    }
-
-    public BigDecimal calculateTotalFeeSaved(ComparisonCommand in) {
-        BigDecimal theDifference = calculateFVForSwitchPlan(in).getWithFee().subtract(calculateFVForCurrentPlan(in).getWithFee());
-        BigDecimal totalFee = theDifference.setScale(2, RoundingMode.HALF_UP);
-        return totalFee;
     }
 
     public ComparisonResponse getComparisonResponse(ComparisonCommand in) {

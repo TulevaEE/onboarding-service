@@ -165,7 +165,6 @@ public class ComparisonService {
         BigDecimal contributionMgmntFee = in.getReturnRate().subtract(in.getManagementFeeRates().get(in.activeFundIsin));
         BigDecimal contributionWithFees = fvGrowingAnnuity(yearlyContribution, contributionMgmntFee, in.annualSalaryGainRate, yearsToWork);
         BigDecimal contributionWithoutFees = fvGrowingAnnuity(yearlyContribution, in.getReturnRate(), in.annualSalaryGainRate, yearsToWork);
-        fv = fv.add(contributionWithFees);
 
         return FutureValue.builder()
                 .withFee(fv.add(contributionWithFees))

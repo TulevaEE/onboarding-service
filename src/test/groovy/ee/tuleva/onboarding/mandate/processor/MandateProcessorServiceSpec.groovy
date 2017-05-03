@@ -21,7 +21,7 @@ class MandateProcessorServiceSpec extends Specification {
             mandateProcessRepository, mandateProcessErrorResolver, episService)
 
 
-    User sampleUser = UserFixture.sampleUser()
+    User sampleUser = UserFixture.sampleUser().build()
     Mandate sampleMandate = MandateFixture.sampleMandate()
     List<MandateXmlMessage> sampleMessages = [];
 

@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.user.preferences.UserPreferences
 import org.springframework.http.MediaType
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
@@ -22,8 +23,8 @@ class UserControllerSpec extends BaseControllerSpec {
 
 	def "/me endpoint works with non member"() {
 		given:
-
 		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+		1 * userService.getById(sampleAuthenticatedPerson.userId) >> userFrom(sampleAuthenticatedPerson)
 
 		expect:
 		mvc.perform(get("/v1/me"))
@@ -41,21 +42,23 @@ class UserControllerSpec extends BaseControllerSpec {
 
 	def "/me endpoint works with a member"() {
 		given:
-		def sampleAuthenticatedPersonAndMember = sampleAuthenticatedPersonAndMember().build()
-		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPersonAndMember, controller)
+		def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+		def mvc = mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
+		def user = sampleUser().build()
+		1 * userService.getById(user.id) >> user
 
 		expect:
 		mvc.perform(get("/v1/me"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-				.andExpect(jsonPath('$.id', is(sampleAuthenticatedPersonAndMember.user.id.intValue())))
-				.andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPersonAndMember.user.firstName)))
-				.andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPersonAndMember.user.lastName)))
-				.andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPersonAndMember.user.personalCode)))
-				.andExpect(jsonPath('$.age', is(sampleAuthenticatedPersonAndMember.user.age)))
-				.andExpect(jsonPath('$.email', is(sampleAuthenticatedPersonAndMember.user.email)))
-				.andExpect(jsonPath('$.phoneNumber',is(sampleAuthenticatedPersonAndMember.user.phoneNumber)))
-				.andExpect(jsonPath('$.memberNumber', is(sampleAuthenticatedPersonAndMember.user.member.get().memberNumber)))
+				.andExpect(jsonPath('$.id', is(authenticatedPerson.userId.intValue())))
+				.andExpect(jsonPath('$.firstName', is(authenticatedPerson.firstName)))
+				.andExpect(jsonPath('$.lastName', is(authenticatedPerson.lastName)))
+				.andExpect(jsonPath('$.personalCode', is(authenticatedPerson.personalCode)))
+				.andExpect(jsonPath('$.age', is(user.age)))
+				.andExpect(jsonPath('$.email', is(user.email)))
+				.andExpect(jsonPath('$.phoneNumber',is(user.phoneNumber)))
+				.andExpect(jsonPath('$.memberNumber', is(user.member.get().memberNumber)))
 	}
 
 	def "/preferences endpoint works"() {
@@ -127,15 +130,19 @@ class UserControllerSpec extends BaseControllerSpec {
 				.build()
 	}
 
+	private User userFrom(AuthenticatedPerson authenticatedPerson) {
+		User.builder()
+				.id(authenticatedPerson.userId)
+				.firstName(authenticatedPerson.firstName)
+				.lastName(authenticatedPerson.lastName)
+				.personalCode(authenticatedPerson.personalCode)
+				.build()
+	}
+
 	AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()
 			.firstName("Erko")
 			.lastName("Risthein")
 			.personalCode("38501010002")
-			.user(User.builder()
-			    .id(2L)
-			    .firstName("Erko")
-				.lastName("Risthein")
-				.personalCode("38501010002")
+			.userId(2L)
 			.build()
-	).build()
 }

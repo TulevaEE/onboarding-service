@@ -21,7 +21,7 @@ class MandateContentCreatorSpec extends Specification {
         when:
         List<MandateContentFile> mandateContentFiles =
                 mandateContentCreator.getContentFiles(
-                        sampleUser(),
+                        sampleUser().build(),
                         sampleMandate(),
                         sampleFunds(),
                         sampleUserPreferences()
@@ -52,7 +52,7 @@ class MandateContentCreatorSpec extends Specification {
         when:
         List<MandateContentFile> mandateContentFiles =
                 mandateContentCreator.getContentFiles(
-                        sampleUser(),
+                        sampleUser().build(),
                         MandateFixture.sampleMandateWithEmptyTransfer(),
                         sampleFunds(),
                         sampleUserPreferences()
@@ -84,7 +84,7 @@ class MandateContentCreatorSpec extends Specification {
         when:
         List<MandateContentFile> mandateContentFiles =
             mandateContentCreator.getContentFiles(
-                sampleUser(),
+                sampleUser().build(),
                 mandate,
                 sampleFunds(),
                 sampleUserPreferences()

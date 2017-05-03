@@ -17,7 +17,7 @@ class MandateRepositorySpec extends Specification {
     @Autowired
     private MandateRepository repository
 
-    def "persisting and findByIdAndUser() works"() {
+    def "persisting and findByIdAndUserId() works"() {
         given:
         def user = User.builder()
                 .firstName("Erko")
@@ -41,7 +41,7 @@ class MandateRepositorySpec extends Specification {
         entityManager.flush()
 
         when:
-        mandate = repository.findByIdAndUser(mandate.id, user)
+        mandate = repository.findByIdAndUserId(mandate.id, user.id)
 
         then:
         mandate.user == user

@@ -25,7 +25,7 @@ class PrincipalServiceSpec extends Specification {
         AuthenticatedPerson authenticatedPerson = service.getFrom(person)
 
         then:
-        authenticatedPerson.user == sampleUser
+        authenticatedPerson.userId == sampleUser.id
         authenticatedPerson.firstName == person.firstName
         authenticatedPerson.lastName == person.lastName
         authenticatedPerson.personalCode == person.personalCode
@@ -54,17 +54,10 @@ class PrincipalServiceSpec extends Specification {
                     user.personalCode == person.personalCode &&
                     user.active
         }) >> User.builder()
-                .personalCode(person.personalCode)
-                .firstName(firstNameCorrectlyCapitalized)
-                .lastName(lastNameCorrectlyCapitalized)
                 .id(123)
-                .active(true)
                 .build()
 
-        authenticatedPerson.user.firstName == firstNameCorrectlyCapitalized
-        authenticatedPerson.user.lastName == lastNameCorrectlyCapitalized
-        authenticatedPerson.user.personalCode == person.personalCode
-        authenticatedPerson.user.active
+        authenticatedPerson.userId == 123
 
     }
 

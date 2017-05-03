@@ -15,13 +15,16 @@ public class UserService {
   private final UserRepository userRepository;
   private final MemberRepository memberRepository;
 
-  User updateUser(String personalCode, String email, String phoneNumber) {
+  public User getById(Long userId) {
+    return userRepository.findOne(userId);
+  }
+
+  public User updateUser(String personalCode, String email, String phoneNumber) {
     User user = userRepository.findByPersonalCode(personalCode);
     user.setEmail(email);
     user.setPhoneNumber(phoneNumber);
     return userRepository.save(user);
   }
-
 
   public Member registerAsMember(Long userId) {
     User user = userRepository.findOne(userId);

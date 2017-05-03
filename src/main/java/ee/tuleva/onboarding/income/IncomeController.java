@@ -20,7 +20,7 @@ public class IncomeController {
     @ApiOperation(value = "Returns user last year average salary reverse calculated from 2nd pillar transactions")
     @RequestMapping(method = GET, value = "/average-salary")
     public Money getMyAverageSalay(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-        return averageSalaryService.getMyAverageSalary(authenticatedPerson.getUser().getPersonalCode());
+        return averageSalaryService.getMyAverageSalary(authenticatedPerson.getPersonalCode());
     }
 
 }

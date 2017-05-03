@@ -30,7 +30,7 @@ public class ComparisonController {
             throw new ValidationErrorsException(errors);
         }
 
-        return comparisonService.compare(comparisonCommand, authenticatedPerson.getUser());
+        return comparisonService.compare(comparisonCommand, authenticatedPerson.getUserId());
     }
 
 }

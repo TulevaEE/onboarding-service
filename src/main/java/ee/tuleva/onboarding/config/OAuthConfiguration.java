@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.config;
 
 import ee.tuleva.onboarding.auth.authority.Authority;
+import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.idcard.IdCardTokenGranter;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
@@ -72,6 +73,9 @@ public class OAuthConfiguration {
         @Autowired
         private GenericSessionStore genericSessionStore;
 
+        @Autowired
+        private GrantedAuthorityFactory grantedAuthorityFactory;
+
         @Bean
         public JdbcClientDetailsService clientDetailsService() {
             return new JdbcClientDetailsService(dataSource);
@@ -108,8 +112,9 @@ public class OAuthConfiguration {
                             clientDetailsService(),
                             endpoints.getOAuth2RequestFactory(),
                             mobileIdAuthService,
-                    principalService,
-                            genericSessionStore);
+                            principalService,
+                            genericSessionStore,
+                            grantedAuthorityFactory);
         }
 
         private IdCardTokenGranter idCardTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {
@@ -118,7 +123,8 @@ public class OAuthConfiguration {
                     clientDetailsService(),
                     endpoints.getOAuth2RequestFactory(),
                     genericSessionStore,
-                    principalService);
+                    principalService,
+                    grantedAuthorityFactory);
         }
 
     }

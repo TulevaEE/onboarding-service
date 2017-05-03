@@ -34,7 +34,7 @@ public class MandateXmlService {
         log.info("Generating XML for user id {} and mandate id {}", user.getId(), mandateId);
         log.info("Using EVK bic {}", episServicebic);
 
-        return mandateFileService.getMandateFiles(mandateId, user).stream().map( signatureFile -> {
+        return mandateFileService.getMandateFiles(mandateId, user.getId()).stream().map( signatureFile -> {
 
             String id = UUID.randomUUID().toString().replace("-", "");
 

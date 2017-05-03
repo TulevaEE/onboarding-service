@@ -24,23 +24,27 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
     private final MobileIdAuthService mobileIdAuthService;
     private final PrincipalService principalService;
     private final GenericSessionStore genericSessionStore;
+    private final GrantedAuthorityFactory grantedAuthorityFactory;
 
     public MobileIdTokenGranter(AuthorizationServerTokenServices tokenServices,
                                 ClientDetailsService clientDetailsService,
                                 OAuth2RequestFactory requestFactory,
                                 MobileIdAuthService mobileIdAuthService,
                                 PrincipalService principalService,
-                                GenericSessionStore genericSessionStore) {
+                                GenericSessionStore genericSessionStore,
+                                GrantedAuthorityFactory grantedAuthorityFactory) {
 
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
 
         assert mobileIdAuthService != null;
         assert principalService != null;
         assert genericSessionStore != null;
+        assert grantedAuthorityFactory != null;
 
         this.mobileIdAuthService = mobileIdAuthService;
         this.principalService = principalService;
         this.genericSessionStore = genericSessionStore;
+        this.grantedAuthorityFactory = grantedAuthorityFactory;
     }
 
     @Override
@@ -84,7 +88,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
                 new PersonalCodeAuthentication<>(
                         authenticatedPerson,
                         mobileIdSession,
-                        GrantedAuthorityFactory.from(authenticatedPerson)
+                        grantedAuthorityFactory.from(authenticatedPerson)
                 );
 
         userAuthentication.setAuthenticated(true);

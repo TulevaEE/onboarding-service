@@ -4,9 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.error.ErrorHandlingControllerAdvice
-import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
 import ee.tuleva.onboarding.error.converter.InputErrorsConverter
-import ee.tuleva.onboarding.user.User
+import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
 import org.springframework.core.MethodParameter
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
 import org.springframework.test.web.servlet.MockMvc
@@ -31,11 +30,8 @@ class BaseControllerSpec extends Specification {
 
     private getDefaultAuthenticationPrincipal() {
         return AuthenticatedPerson.builder()
-                .user(
-                    User.builder()
-                        .active(true)
-                        .build()
-                ).build()
+                .userId(1L)
+                .build()
     }
 
     protected MockMvc mockMvcWithAuthenticationPrincipal(AuthenticatedPerson authenticatedPerson, Object... controllers) {

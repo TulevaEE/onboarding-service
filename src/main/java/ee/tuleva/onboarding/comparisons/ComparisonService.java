@@ -8,8 +8,11 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.income.Money;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import lombok.Builder;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -36,11 +39,11 @@ public class ComparisonService {
      * @param userId
      * @return
      */
-    public Money compare(ComparisonCommand in, Long userId) throws IsinNotFoundException {
+    public ComparisonResponse compare(ComparisonCommand in, Long userId) throws IsinNotFoundException {
         User user = userService.getById(userId);
         in.setAge(user.getAge());
 
-        List<FundBalance> balances = accountStatementService.getMyPensionAccountStatement(user, UUID.randomUUID());
+        List<FundBalance> balances = getBalances(user);
         in.setCurrentCapitals(new HashMap<String, BigDecimal>());
         balances.forEach( balance -> { in.getCurrentCapitals().put(balance.getFund().getIsin(), balance.getValue()); });
 
@@ -64,7 +67,14 @@ public class ComparisonService {
 
         log.info(in.toString());
 
-        return this.compare(in);
+        Money c = this.compare(in);
+
+        return getComparisonResponse(in);
+    }
+
+    @Cacheable
+    private List<FundBalance> getBalances(User user) {
+        return accountStatementService.getMyPensionAccountStatement(user, UUID.randomUUID());
     }
 
     /**
@@ -84,32 +94,36 @@ public class ComparisonService {
     }
 
     public BigDecimal calculateTotalFeeSaved(ComparisonCommand in) {
-        BigDecimal theDifference = calculateFVForSwitchPlan(in).subtract(calculateFVForCurrentPlan(in));
+        BigDecimal theDifference = calculateFVForSwitchPlan(in).getWithFee().subtract(calculateFVForCurrentPlan(in).getWithFee());
         BigDecimal totalFee = theDifference.setScale(2, RoundingMode.HALF_UP);
         return totalFee;
     }
 
-    private static BigDecimal fv(BigDecimal yearlyContribution,
-                                 int yearsToWork,
-                                 BigDecimal totalCapital,
-                                 BigDecimal annualSalaryGainRate,
-                                 BigDecimal rate) {
-        BigDecimal rateOnePlus = rate.add(BigDecimal.ONE);
-        BigDecimal overOneAnnualSalaryGainRate = annualSalaryGainRate.add(BigDecimal.ONE);
+    public ComparisonResponse getComparisonResponse(ComparisonCommand in) {
 
-        return yearlyContribution
-                .multiply( rateOnePlus.pow(yearsToWork)
-                        .subtract(overOneAnnualSalaryGainRate.pow(yearsToWork))
+        FutureValue currentFundValues = calculateFVForCurrentPlan(in);
+        FutureValue newFundValues = calculateFVForSwitchPlan(in);
+
+        return ComparisonResponse.builder()
+                .newFundFutureValue(round(newFundValues.getWithFee()))
+                .currentFundFutureValue(round(currentFundValues.getWithFee()))
+                .newFundFee(
+                        round(newFundValues.withoutFee.subtract(newFundValues.withFee))
                 )
-                .divide( rate.subtract(annualSalaryGainRate) )
-                .add( totalCapital.multiply( rateOnePlus.pow(yearsToWork)) );
+                .currentFundFee(
+                        round(currentFundValues.withoutFee.subtract(currentFundValues.withFee))
+                )
+                .build();
     }
 
+    private BigDecimal round(BigDecimal value) {
+        return value.setScale(2, RoundingMode.HALF_UP);
+    }
 
     /**
      * Means all current fund capitals are converted to Tuleva.
      */
-    protected BigDecimal calculateFVForSwitchPlan(ComparisonCommand in) {
+    protected FutureValue calculateFVForSwitchPlan(ComparisonCommand in) {
         int yearsToWork = in.ageOfRetirement - in.age;
 
         BigDecimal currentCapitals = BigDecimal.ZERO;
@@ -125,19 +139,42 @@ public class ComparisonService {
 
         BigDecimal annualInterestRate = in.getReturnRate().subtract(in.getManagementFeeRates().get(in.isinTo));
         BigDecimal capitalFv = fvCompoundInterest(currentCapitals, annualInterestRate, yearsToWork);
+        BigDecimal capitalFvWithoutFee = fvCompoundInterest(currentCapitals, in.getReturnRate(), yearsToWork);
         BigDecimal yearlyContribution = in.monthlyWage.multiply(new BigDecimal(12)).multiply(in.secondPillarContributionRate);
         BigDecimal annuityFv = fvGrowingAnnuity(yearlyContribution, annualInterestRate, in.annualSalaryGainRate, yearsToWork);
+        BigDecimal annuityFvWithoutFee = fvGrowingAnnuity(yearlyContribution, in.getReturnRate(), in.annualSalaryGainRate, yearsToWork);
 
-        return capitalFv.add(annuityFv);
+        return FutureValue.builder()
+                .withFee(capitalFv.add(annuityFv))
+                .withoutFee(capitalFvWithoutFee.add(annuityFvWithoutFee))
+                .build();
     }
 
 // todo kas switch plan on fondide ületoomisega või mitte? tehtud praegu ületoomisega.
 
 // todo activeisini != et on capitali rida, värskelt fondi vahetanud tuleb panna comparisoni eraldi
-    public BigDecimal calculateFVForCurrentPlan(ComparisonCommand in) {
+    public FutureValue calculateFVForCurrentPlan(ComparisonCommand in) {
         int yearsToWork = in.ageOfRetirement - in.age;
-        BigDecimal fv = BigDecimal.ZERO;
+
         // calculating static FutureValue for everything in balance except active and isinTo ones.
+        BigDecimal fv = getFutureValueWithFees(in, yearsToWork);
+        BigDecimal fvWithoutFees = getFutureValueWithoutFees(in, yearsToWork);
+
+        // contribution part, applies to active fund only, means in.activeisin
+        BigDecimal yearlyContribution = in.monthlyWage.multiply(new BigDecimal(12)).multiply(in.secondPillarContributionRate);
+        BigDecimal contributionMgmntFee = in.getReturnRate().subtract(in.getManagementFeeRates().get(in.activeFundIsin));
+        BigDecimal contributionWithFees = fvGrowingAnnuity(yearlyContribution, contributionMgmntFee, in.annualSalaryGainRate, yearsToWork);
+        BigDecimal contributionWithoutFees = fvGrowingAnnuity(yearlyContribution, in.getReturnRate(), in.annualSalaryGainRate, yearsToWork);
+        fv = fv.add(contributionWithFees);
+
+        return FutureValue.builder()
+                .withFee(fv.add(contributionWithFees))
+                .withoutFee(fvWithoutFees.add(contributionWithoutFees))
+                .build();
+    }
+
+    private BigDecimal getFutureValueWithFees(ComparisonCommand in, int yearsToWork) {
+        BigDecimal fv = BigDecimal.ZERO;
         for (Map.Entry<String, BigDecimal> entry : in.getCurrentCapitals().entrySet()) {
             String isin = entry.getKey();
             BigDecimal currentCapital = in.getCurrentCapitals().get(isin); // aka tc
@@ -145,15 +182,19 @@ public class ComparisonService {
             BigDecimal entryFV = fvCompoundInterest(currentCapital, annualInterestRate, yearsToWork);
             fv = fv.add(entryFV);
         }
-
-        // contribution part, applies to active fund only, means in.activeisin
-        BigDecimal yearlyContribution = in.monthlyWage.multiply(new BigDecimal(12)).multiply(in.secondPillarContributionRate);
-        BigDecimal contributionMgmntFee = in.getReturnRate().subtract(in.getManagementFeeRates().get(in.activeFundIsin));
-        BigDecimal contribution = fvGrowingAnnuity(yearlyContribution, contributionMgmntFee, in.annualSalaryGainRate, yearsToWork);
-        fv = fv.add(contribution);
         return fv;
     }
 
+    private BigDecimal getFutureValueWithoutFees(ComparisonCommand in, int yearsToWork) {
+        BigDecimal fv = BigDecimal.ZERO;
+        for (Map.Entry<String, BigDecimal> entry : in.getCurrentCapitals().entrySet()) {
+            String isin = entry.getKey();
+            BigDecimal currentCapital = in.getCurrentCapitals().get(isin); // aka tc
+            BigDecimal entryFV = fvCompoundInterest(currentCapital, in.getReturnRate(), yearsToWork);
+            fv = fv.add(entryFV);
+        }
+        return fv;
+    }
 
     /**
      * Growning annuity calculator
@@ -181,5 +222,12 @@ public class ComparisonService {
      */
     public static BigDecimal fvCompoundInterest(BigDecimal principal, BigDecimal annualInterestRate, int yearsToInvest) {
         return principal.multiply(annualInterestRate.add(BigDecimal.ONE).pow(yearsToInvest));
+    }
+
+    @Builder
+    @Getter
+    static class FutureValue {
+        private BigDecimal withFee;
+        private BigDecimal withoutFee;
     }
 }

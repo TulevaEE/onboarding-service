@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.comparisons;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
-import ee.tuleva.onboarding.income.Money;
 import io.swagger.annotations.ApiParam;
 import lombok.AllArgsConstructor;
 import org.springframework.http.MediaType;
@@ -23,7 +22,7 @@ public class ComparisonController {
 
     @ResponseBody
     @RequestMapping(path = "comparisons", method = RequestMethod.GET, produces = {MediaType.APPLICATION_JSON_UTF8_VALUE})
-    public Money comparison(@Valid @ModelAttribute @ApiParam ComparisonCommand comparisonCommand,
+    public ComparisonResponse comparison(@Valid @ModelAttribute @ApiParam ComparisonCommand comparisonCommand,
                             @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                             @ApiIgnore Errors errors) throws Exception {
         if (errors != null && errors.hasErrors()) {

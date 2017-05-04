@@ -13,4 +13,12 @@ import java.math.BigDecimal;
 public class Money {
     private BigDecimal amount;
     private String currency;
+
+    public static Money fromEurAmount(BigDecimal amount) {
+        return Money.builder()
+                .currency("EUR")
+                .amount(amount)
+                .build();
+    }
+
 }

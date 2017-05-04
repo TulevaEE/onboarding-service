@@ -26,9 +26,6 @@ class PersonalCodeValidatorSpec extends Specification {
     "27810010007" | false // invalid century
     "37802310009" | false // invalid date
     "37605030299" | true
-
-
-
   }
 
   @Unroll

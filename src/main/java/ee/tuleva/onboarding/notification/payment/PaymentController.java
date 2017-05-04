@@ -38,9 +38,14 @@ public class PaymentController {
 
     Long userId = payment.getReference();
 
-    if (COMPLETED.equalsIgnoreCase(payment.getStatus()) && !userService.isAMember(userId)) {
+    boolean isAMember = userService.isAMember(userId);
+    boolean statusCompleted = COMPLETED.equalsIgnoreCase(payment.getStatus());
+
+    if (statusCompleted && !isAMember) {
       userService.registerAsMember(userId);
       response.sendRedirect(frontendUrl + "/steps/select-sources?isNewMember=true");
+    } else {
+      log.info("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
     }
 
   }

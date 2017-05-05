@@ -1,12 +1,14 @@
 package ee.tuleva.onboarding.user.personalcode
 
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import java.time.LocalDate
 
 class PersonalCodeSpec extends Specification {
 
-    def "getBirthDate works with different centuries"() {
+    @Unroll
+    def "getBirthDate works with different centuries: #personalCode"() {
         expect:
         PersonalCode.getBirthDate(personalCode) == birthDate
 

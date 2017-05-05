@@ -11,7 +11,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -69,7 +68,6 @@ public class ComparisonService {
         return getComparisonResponse(in);
     }
 
-    @Cacheable
     private List<FundBalance> getBalances(User user) {
         return accountStatementService.getMyPensionAccountStatement(user, UUID.randomUUID());
     }
@@ -126,7 +124,6 @@ public class ComparisonService {
     }
 
 // todo kas switch plan on fondide ületoomisega või mitte? tehtud praegu ületoomisega.
-
 // todo activeisini != et on capitali rida, värskelt fondi vahetanud tuleb panna comparisoni eraldi
     public FutureValue calculateFVForCurrentPlan(ComparisonCommand in) {
         int yearsToWork = in.ageOfRetirement - in.age;

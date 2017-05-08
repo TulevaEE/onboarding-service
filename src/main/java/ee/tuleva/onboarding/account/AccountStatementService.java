@@ -30,7 +30,7 @@ public class AccountStatementService {
     private final KPRUnitsOsakudToFundBalanceConverter kprUnitsOsakudToFundBalanceConverter;
     private final FundValueStatisticsRepository fundValueStatisticsRepository;
 
-    @Cacheable(value="balances", key="#person.personalCode.CASE_INSENSITIVE_ORDER")
+    @Cacheable(value="balances", key="#person.personalCode")
     public List<FundBalance> getMyPensionAccountStatement(Person person, UUID statisticsIdentifier) {
         log.info("Getting pension account statement for {} {}", person.getFirstName(), person.getLastName());
         List<FundBalance> fundBalances = convertXRoadResponse(getPensionAccountBalance(person));

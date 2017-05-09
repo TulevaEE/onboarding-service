@@ -23,9 +23,10 @@ CREATE TABLE IF NOT EXISTS oauth_access_token (
 );
 
 CREATE TABLE IF NOT EXISTS oauth_refresh_token (
-  token_id VARCHAR(256) REFERENCES oauth_access_token,
+  token_id VARCHAR(256),
   token bytea,
-  authentication bytea
+  authentication bytea,
+  CONSTRAINT oauth_refresh_token_token_id_fkey FOREIGN KEY(token_id) REFERENCES oauth_access_token
 );
 
 CREATE TABLE IF NOT EXISTS users (

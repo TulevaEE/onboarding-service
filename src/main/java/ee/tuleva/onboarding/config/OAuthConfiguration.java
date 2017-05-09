@@ -2,14 +2,17 @@ package ee.tuleva.onboarding.config;
 
 import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
-import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.idcard.IdCardTokenGranter;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdTokenGranter;
+import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
@@ -20,7 +23,11 @@ import org.springframework.security.oauth2.config.annotation.web.configurers.Aut
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
 import org.springframework.security.oauth2.provider.CompositeTokenGranter;
+import org.springframework.security.oauth2.provider.TokenGranter;
 import org.springframework.security.oauth2.provider.client.JdbcClientDetailsService;
+import org.springframework.security.oauth2.provider.refresh.RefreshTokenGranter;
+import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
+import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
 
@@ -76,6 +83,12 @@ public class OAuthConfiguration {
         @Autowired
         private GrantedAuthorityFactory grantedAuthorityFactory;
 
+        @Autowired
+        private AuthenticationManager authManager;
+
+        @Value("${server.session.timeout}")
+        private String sessionTimeout;
+
         @Bean
         public JdbcClientDetailsService clientDetailsService() {
             return new JdbcClientDetailsService(dataSource);
@@ -84,6 +97,19 @@ public class OAuthConfiguration {
         @Bean
         public TokenStore tokenStore() {
             return new JdbcTokenStore(dataSource);
+        }
+
+        @Bean
+        @Primary
+        public AuthorizationServerTokenServices tokenServices() {
+            DefaultTokenServices tokenServices = new DefaultTokenServices();
+            tokenServices.setTokenStore(tokenStore());
+            tokenServices.setSupportRefreshToken(true);
+            tokenServices.setRefreshTokenValiditySeconds(Integer.valueOf(sessionTimeout));
+            tokenServices.setAccessTokenValiditySeconds(Integer.valueOf(sessionTimeout));
+            tokenServices.setReuseRefreshToken(false);
+            tokenServices.setAuthenticationManager(authManager);
+            return tokenServices;
         }
 
         @Override
@@ -98,12 +124,19 @@ public class OAuthConfiguration {
 
         @Override
         public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-            MobileIdTokenGranter mobileIdTokenGranter = mobileIdTokenGranter(endpoints);
-            IdCardTokenGranter idCardTokenGranter = idCardTokenGranter(endpoints);
-
             endpoints
-                    .tokenStore(tokenStore())
-                    .tokenGranter(new CompositeTokenGranter(asList(mobileIdTokenGranter, idCardTokenGranter)));
+                    .tokenServices(tokenServices())
+                    .tokenGranter(compositeTokenGranter(endpoints));
+
+        }
+
+        private TokenGranter compositeTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {
+            TokenGranter mobileIdTokenGranter = mobileIdTokenGranter(endpoints);
+            TokenGranter idCardTokenGranter = idCardTokenGranter(endpoints);
+            TokenGranter refreshTokenGranter = new RefreshTokenGranter(
+              endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
+
+            return new CompositeTokenGranter(asList(mobileIdTokenGranter, idCardTokenGranter, refreshTokenGranter));
         }
 
         private MobileIdTokenGranter mobileIdTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {

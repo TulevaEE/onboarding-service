@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.auth.principal;
 
+import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import lombok.*;
 import org.hibernate.validator.constraints.NotBlank;
 
-import javax.validation.constraints.Size;
 import java.io.Serializable;
 
 @Builder
@@ -13,8 +13,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 public class AuthenticatedPerson implements Person, Serializable {
 
-    @NotBlank
-    @Size(min = 11, max = 11)
+    @ValidPersonalCode
     private String personalCode;
 
     @NotBlank

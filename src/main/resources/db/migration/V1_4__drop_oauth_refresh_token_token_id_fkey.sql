@@ -1,0 +1,1 @@
+ALTER TABLE oauth_refresh_token DROP CONSTRAINT oauth_refresh_token_token_id_fkey;

@@ -25,7 +25,7 @@ class InitialCapitalControllerSpec extends BaseControllerSpec {
         1 * initialCapitalRepository.findByUserId(_ as Long) >> sampleInitialCapital
         when:
         MockHttpServletResponse response = mockMvc
-                .perform(get("/v1/initial-capital")).andReturn().response
+                .perform(get("/v1/me/initial-capital")).andReturn().response
         then:
         response.status == HttpStatus.OK.value()
 

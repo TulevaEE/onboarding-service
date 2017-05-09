@@ -23,7 +23,6 @@ public class InitialCapital {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @JsonView(InitialCapitalView.SkipUserField.class)
     private Long id;
 
     @NotNull

@@ -16,7 +16,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 @RequiredArgsConstructor
 public class InitialCapitalController {
 
-    public static final String INITIAL_CAPITAL_URI = "/initial-capital";
+    public static final String INITIAL_CAPITAL_URI = "/me/initial-capital";
     private final InitialCapitalRepository initialCapitalRepository;
 
     @ApiOperation(value = "Get info about current user initial capital")

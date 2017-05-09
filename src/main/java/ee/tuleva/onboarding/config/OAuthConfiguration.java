@@ -86,9 +86,6 @@ public class OAuthConfiguration {
         @Autowired
         private AuthenticationManager authManager;
 
-        @Value("${server.session.timeout}")
-        private String sessionTimeout;
-
         @Bean
         public JdbcClientDetailsService clientDetailsService() {
             return new JdbcClientDetailsService(dataSource);
@@ -105,8 +102,6 @@ public class OAuthConfiguration {
             DefaultTokenServices tokenServices = new DefaultTokenServices();
             tokenServices.setTokenStore(tokenStore());
             tokenServices.setSupportRefreshToken(true);
-            tokenServices.setRefreshTokenValiditySeconds(Integer.valueOf(sessionTimeout));
-            tokenServices.setAccessTokenValiditySeconds(Integer.valueOf(sessionTimeout));
             tokenServices.setReuseRefreshToken(false);
             tokenServices.setAuthenticationManager(authManager);
             return tokenServices;

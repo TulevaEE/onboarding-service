@@ -11,10 +11,10 @@ import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.sampleMobileIdS
 import static java.util.Collections.emptyList
 import static java.util.Collections.singletonList
 
-class AuthManagerSpec extends Specification {
+class RefreshingAuthenticationManagerSpec extends Specification {
 
 	def grantedAuthorityFactory = Mock(GrantedAuthorityFactory)
-	def authManager = new AuthManager(grantedAuthorityFactory)
+	def authManager = new RefreshingAuthenticationManager(grantedAuthorityFactory)
 
 	def "authentication manager refreshes user authorities"() {
 		given:

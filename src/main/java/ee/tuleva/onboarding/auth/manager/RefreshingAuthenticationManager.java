@@ -14,7 +14,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class AuthManager implements AuthenticationManager {
+public class RefreshingAuthenticationManager implements AuthenticationManager {
 
   private final GrantedAuthorityFactory grantedAuthorityFactory;
 

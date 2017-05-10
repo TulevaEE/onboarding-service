@@ -84,7 +84,7 @@ public class OAuthConfiguration {
         private GrantedAuthorityFactory grantedAuthorityFactory;
 
         @Autowired
-        private AuthenticationManager authManager;
+        private AuthenticationManager refreshingAuthenticationManager;
 
         @Bean
         public JdbcClientDetailsService clientDetailsService() {
@@ -103,7 +103,7 @@ public class OAuthConfiguration {
             tokenServices.setTokenStore(tokenStore());
             tokenServices.setSupportRefreshToken(true);
             tokenServices.setReuseRefreshToken(false);
-            tokenServices.setAuthenticationManager(authManager);
+            tokenServices.setAuthenticationManager(refreshingAuthenticationManager);
             return tokenServices;
         }
 

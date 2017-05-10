@@ -1,0 +1,1 @@
+ALTER TABLE member ADD CONSTRAINT member_user_id_key UNIQUE (user_id);

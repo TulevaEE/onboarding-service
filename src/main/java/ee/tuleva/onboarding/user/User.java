@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.user.exception.NotAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
@@ -61,6 +62,10 @@ public class User implements Person, Serializable {
 
 	public Optional<Member> getMember() {
 		return Optional.ofNullable(member);
+	}
+
+	public Member getMemberOrThrow() {
+		return getMember().orElseThrow(NotAMemberException::new);
 	}
 
 	@PrePersist

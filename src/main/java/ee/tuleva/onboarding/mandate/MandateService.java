@@ -6,13 +6,13 @@ import com.codeborne.security.mobileid.SignatureFile;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
-import ee.tuleva.onboarding.mandate.email.EmailService;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository;
+import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -174,7 +174,7 @@ public class MandateService {
 	}
 
 	private void notifyAboutSignedMandate(User user, Long mandateId, byte[] signedFile) {
-		emailService.send(user, mandateId, signedFile);
+		emailService.sendMandate(user, mandateId, signedFile);
 	}
 
 	private void persistSignedFile(Mandate mandate, byte[] signedFile) {

@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
-import ee.tuleva.onboarding.mandate.email.EmailService
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
 import ee.tuleva.onboarding.mandate.signature.SignatureService
@@ -16,6 +15,7 @@ import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsFixture
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository
+import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
@@ -156,7 +156,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
-        1 * emailService.send(sampleUser, sampleMandate.id, _ as byte[])
+        1 * emailService.sendMandate(sampleUser, sampleMandate.id, _ as byte[])
 
         when:
         def status = service.finalizeMobileIdSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
@@ -254,7 +254,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
-        1 * emailService.send(sampleUser, sampleMandate.id, _ as byte[])
+        1 * emailService.sendMandate(sampleUser, sampleMandate.id, _ as byte[])
 
         when:
         def status = service.finalizeIdCardSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")

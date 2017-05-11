@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import lombok.Data;
 import lombok.ToString;
 
+import javax.validation.constraints.Min;
 import java.math.BigDecimal;
 
 @Data
@@ -12,6 +13,9 @@ import java.math.BigDecimal;
 @ToString
 public class Payment {
 
+  private static final int MIN_AMOUNT = 100;
+
+  @Min(MIN_AMOUNT)
   private BigDecimal amount;
   private String currency;
   private String customerName;

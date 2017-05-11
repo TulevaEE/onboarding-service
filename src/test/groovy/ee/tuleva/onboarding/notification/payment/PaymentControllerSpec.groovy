@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.notification.payment
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.http.MediaType
+import org.springframework.validation.SmartValidator
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
@@ -11,7 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PaymentControllerSpec extends BaseControllerSpec {
 
   def userService = Mock(UserService)
-  def controller = new PaymentController(mapper, userService)
+  def validator = Mock(SmartValidator)
+  def controller = new PaymentController(mapper, userService, validator)
 
   def mvc = mockMvc(controller)
 
@@ -42,6 +44,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     perform
         .andExpect(status().isFound())
         .andExpect(redirectedUrl("FRONTEND_URL/steps/select-sources?isNewMember=true"))
+    1 * validator.validate(*_)
     1 * userService.registerAsMember(1L)
   }
 
@@ -66,6 +69,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
     then:
     perform.andExpect(status().isOk())
+    1 * validator.validate(*_)
     0 * userService.registerAsMember(_)
   }
 
@@ -85,8 +89,8 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
     then:
     perform.andExpect(status().isOk())
+    1 * validator.validate(*_)
     0 * userService.registerAsMember(_)
   }
-
 
 }

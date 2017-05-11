@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.mandate.statistics
 
 import ee.tuleva.onboarding.mandate.MandateFixture
+import spock.lang.Ignore
 import spock.lang.Specification
-
+@Ignore
 class FundTransferStatisticsServiceSpec extends Specification {
 
     FundTransferStatisticsRepository fundTransferStatisticsRepository = Mock(FundTransferStatisticsRepository)

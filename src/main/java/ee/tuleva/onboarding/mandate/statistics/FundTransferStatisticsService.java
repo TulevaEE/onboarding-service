@@ -16,6 +16,7 @@ public class FundTransferStatisticsService {
     private final FundTransferStatisticsRepository fundTransferStatisticsRepository;
 
     public void addFrom(Mandate mandate, List<FundValueStatistics> fundValueStatisticsList) {
+        /*
         mandate.getFundTransferExchanges().forEach(fundTransferExchange -> {
 
             FundValueStatistics valueStatForCurrentIsin =
@@ -35,6 +36,7 @@ public class FundTransferStatisticsService {
 
             fundTransferStatisticsRepository.save(transferStat);
         });
+        */
     }
 
     private FundValueStatistics getFundValueStatisticsByIsin(List<FundValueStatistics> fundValueStatisticsList, String isin) {

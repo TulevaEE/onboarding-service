@@ -58,7 +58,6 @@ truststore:
 mandate:
   email:
     from: "avaldused@tuleva.ee"
-    to: "avaldused.test@tuleva.ee"
     bcc: "avaldused@tuleva.ee"
 
 proxy:

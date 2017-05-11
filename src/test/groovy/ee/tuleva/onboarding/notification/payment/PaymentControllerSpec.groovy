@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.notification.payment
 
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.http.MediaType
 import org.springframework.validation.SmartValidator
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
@@ -13,7 +15,8 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
   def userService = Mock(UserService)
   def validator = Mock(SmartValidator)
-  def controller = new PaymentController(mapper, userService, validator)
+  def emailService = Mock(EmailService)
+  def controller = new PaymentController(mapper, userService, validator, emailService)
 
   def mvc = mockMvc(controller)
 
@@ -33,6 +36,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
       "transaction": "235e8a24-c510-4c8d-9fa8-2a322ba80bb2"
     ]
     controller.frontendUrl = 'FRONTEND_URL'
+    def sampleMember = sampleUser().build().getMemberOrThrow()
 
     when:
     def perform = mvc.perform(post("/notifications/payments")
@@ -45,7 +49,8 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .andExpect(status().isFound())
         .andExpect(redirectedUrl("FRONTEND_URL/steps/select-sources?isNewMember=true"))
     1 * validator.validate(*_)
-    1 * userService.registerAsMember(1L)
+    1 * userService.registerAsMember(1L) >> sampleMember
+    1 * emailService.sendMemberNumber(sampleMember.getUser())
   }
 
   def "validates mac for incoming payment"() {
@@ -71,6 +76,8 @@ class PaymentControllerSpec extends BaseControllerSpec {
     perform.andExpect(status().isOk())
     1 * validator.validate(*_)
     0 * userService.registerAsMember(_)
+    0 * emailService.sendMemberNumber(_)
+
   }
 
   def "doesn't try to create the member more than once"() {
@@ -91,6 +98,8 @@ class PaymentControllerSpec extends BaseControllerSpec {
     perform.andExpect(status().isOk())
     1 * validator.validate(*_)
     0 * userService.registerAsMember(_)
+    0 * emailService.sendMemberNumber(_)
+
   }
 
 }

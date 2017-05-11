@@ -18,7 +18,6 @@ import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 @Slf4j
@@ -69,7 +68,7 @@ public class ComparisonService {
     }
 
     private List<FundBalance> getBalances(User user) {
-        return accountStatementService.getMyPensionAccountStatement(user, UUID.randomUUID());
+        return accountStatementService.getMyPensionAccountStatement(user);
     }
 
     public ComparisonResponse getComparisonResponse(ComparisonCommand in) {

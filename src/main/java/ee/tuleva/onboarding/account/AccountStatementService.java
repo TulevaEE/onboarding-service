@@ -7,8 +7,6 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.kpr.KPRClient;
-import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
-import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -17,7 +15,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,26 +25,14 @@ public class AccountStatementService {
     private final KPRClient kprClient;
     private final FundRepository fundRepository;
     private final KPRUnitsOsakudToFundBalanceConverter kprUnitsOsakudToFundBalanceConverter;
-    private final FundValueStatisticsRepository fundValueStatisticsRepository;
 
     @Cacheable(value="balances", key="#person.personalCode")
-    public List<FundBalance> getMyPensionAccountStatement(Person person, UUID statisticsIdentifier) {
+    public List<FundBalance> getMyPensionAccountStatement(Person person) {
         log.info("Getting pension account statement for {} {}", person.getFirstName(), person.getLastName());
         List<FundBalance> fundBalances = convertXRoadResponse(getPensionAccountBalance(person));
 
         fundBalances = handleActiveFundBalance(fundBalances, getActiveFundName(person));
-        saveFundValueStatistics(fundBalances, statisticsIdentifier);
-
         return fundBalances;
-    }
-
-    private void saveFundValueStatistics(List<FundBalance> fundBalances, UUID fundValueStatisticsIdentifier) {
-        fundBalances.stream().map( fundBalance -> FundValueStatistics.builder()
-                .isin(fundBalance.getFund().getIsin())
-                .value(fundBalance.getValue())
-                .identifier(fundValueStatisticsIdentifier)
-                .build())
-                .forEach(fundValueStatisticsRepository::save);
     }
 
     private PensionAccountBalanceResponseType getPensionAccountBalance(Person person) {

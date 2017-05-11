@@ -1,14 +1,17 @@
 package ee.tuleva.onboarding.mandate.statistics
 
+import ee.tuleva.onboarding.account.FundBalance
+import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.mandate.MandateFixture
-import spock.lang.Ignore
 import spock.lang.Specification
-@Ignore
+
 class FundTransferStatisticsServiceSpec extends Specification {
 
     FundTransferStatisticsRepository fundTransferStatisticsRepository = Mock(FundTransferStatisticsRepository)
+    FundValueStatisticsRepository fundValueStatisticsRepository = Mock(FundValueStatisticsRepository)
 
-    FundTransferStatisticsService service = new FundTransferStatisticsService(fundTransferStatisticsRepository)
+    FundTransferStatisticsService service =
+            new FundTransferStatisticsService(fundTransferStatisticsRepository, fundValueStatisticsRepository)
 
     def "AddFrom: Add value from Mandate and FundValueStatistics"() {
         given:
@@ -75,6 +78,47 @@ class FundTransferStatisticsServiceSpec extends Specification {
             fundTransferStatistics.value == firstValue && fundTransferStatistics.transferred == firstAmount
         })
 
+    }
+
+    def "saveFundValueStatistics: Saves fund value statistics"() {
+        given:
+        Fund activeFund = MandateFixture.sampleFunds().get(0)
+        BigDecimal activeFundBalanceValue = new BigDecimal(100000)
+        FundBalance sampleFundBalance = FundBalance.builder()
+                .value(activeFundBalanceValue)
+                .fund(activeFund)
+                .build()
+        FundBalance sampleZeroFundBalance = FundBalance.builder()
+                .value(BigDecimal.ZERO)
+                .fund(activeFund)
+                .build()
+
+        UUID sampleStatisticsIdentifier = UUID.randomUUID()
+
+        checkForFundValueStatisticsSave(sampleFundBalance, sampleStatisticsIdentifier)
+        checkForZeroBalanceActiveFundValueStatisticsSave(activeFund, sampleStatisticsIdentifier)
+
+        when:
+        service.saveFundValueStatistics([sampleFundBalance, sampleZeroFundBalance], sampleStatisticsIdentifier)
+
+        then:
+        true
+    }
+
+    private checkForFundValueStatisticsSave(FundBalance sampleFundBalance, UUID sampleStatisticsIdentifier) {
+        1 * fundValueStatisticsRepository.save({ FundValueStatistics fundValueStatistics ->
+            fundValueStatistics.isin == sampleFundBalance.fund.isin &&
+                    fundValueStatistics.value == sampleFundBalance.value &&
+                    fundValueStatistics.identifier == sampleStatisticsIdentifier
+        })
+    }
+
+    private checkForZeroBalanceActiveFundValueStatisticsSave(Fund activeFund, UUID sampleStatisticsIdentifier) {
+        1 * fundValueStatisticsRepository.save({ FundValueStatistics fundValueStatistics ->
+            fundValueStatistics.isin == activeFund.isin &&
+                    fundValueStatistics.value == BigDecimal.ZERO &&
+                    fundValueStatistics.identifier == sampleStatisticsIdentifier
+        })
     }
 
     FundTransferStatistics sampleFundTransferStatistics() {

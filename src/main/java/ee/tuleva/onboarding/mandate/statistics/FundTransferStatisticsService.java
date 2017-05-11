@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.statistics;
 
+import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.mandate.Mandate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -14,9 +16,9 @@ import java.util.List;
 public class FundTransferStatisticsService {
 
     private final FundTransferStatisticsRepository fundTransferStatisticsRepository;
+    private final FundValueStatisticsRepository fundValueStatisticsRepository;
 
     public void addFrom(Mandate mandate, List<FundValueStatistics> fundValueStatisticsList) {
-        /*
         mandate.getFundTransferExchanges().forEach(fundTransferExchange -> {
 
             FundValueStatistics valueStatForCurrentIsin =
@@ -36,7 +38,15 @@ public class FundTransferStatisticsService {
 
             fundTransferStatisticsRepository.save(transferStat);
         });
-        */
+    }
+
+    public void saveFundValueStatistics(List<FundBalance> fundBalances, UUID fundValueStatisticsIdentifier) {
+        fundBalances.stream().map( fundBalance -> FundValueStatistics.builder()
+                .isin(fundBalance.getFund().getIsin())
+                .value(fundBalance.getValue())
+                .identifier(fundValueStatisticsIdentifier)
+                .build())
+                .forEach(fundValueStatisticsRepository::save);
     }
 
     private FundValueStatistics getFundValueStatisticsByIsin(List<FundValueStatistics> fundValueStatisticsList, String isin) {

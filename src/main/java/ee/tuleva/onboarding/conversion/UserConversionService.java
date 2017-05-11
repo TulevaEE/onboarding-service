@@ -8,7 +8,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @Slf4j
@@ -22,7 +21,7 @@ public class UserConversionService {
     public ConversionResponse getConversion(Person person) {
 
         List<FundBalance> fundBalances =
-                accountStatementService.getMyPensionAccountStatement(person, UUID.randomUUID());
+                accountStatementService.getMyPensionAccountStatement(person);
 
         return ConversionResponse.builder()
                 .selectionComplete(isSelectionComplete(fundBalances))

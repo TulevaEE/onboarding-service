@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.notification.email
 
+import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.config.MandateEmailConfiguration
 import org.junit.Ignore
 import spock.lang.Specification
@@ -20,7 +21,7 @@ class EmailServiceSpec extends Specification {
     @Ignore
     def "Send mandate email"() {
         when:
-        service.sendMandate(ee.tuleva.onboarding.auth.UserFixture.sampleUser().build(), 123, "file".bytes)
+        service.sendMandate(UserFixture.sampleUser().build(), 123, "file".bytes)
 
         then:
         true
@@ -29,7 +30,7 @@ class EmailServiceSpec extends Specification {
     @Ignore
     def "send member number email"() {
         when:
-        service.sendMemberNumber(ee.tuleva.onboarding.auth.UserFixture.sampleUser().email("erko@risthein.ee").build())
+        service.sendMemberNumber(UserFixture.sampleUser().email("erko@risthein.ee").build())
 
         then:
         true

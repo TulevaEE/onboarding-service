@@ -77,9 +77,6 @@ class UserControllerSpec extends BaseControllerSpec {
 	def "saves a new user"() {
 		given:
 		def command = new UpdateUserCommand(
-				firstName: "Erko",
-				lastName: "Risthein",
-				personalCode: "38501010002",
 				email: "erko@risthein.ee",
 				phoneNumber: "5555555")
 		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
@@ -91,7 +88,8 @@ class UserControllerSpec extends BaseControllerSpec {
 				.contentType(MediaType.APPLICATION_JSON))
 
 		then:
-		1 * userService.updateUser(command.personalCode, command.email, command.phoneNumber) >> userFrom(command)
+		1 * userService.updateUser(sampleAuthenticatedPerson.personalCode, command.email, command.phoneNumber) >>
+				userFrom(sampleAuthenticatedPerson, command)
 		performCall.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
 				.andExpect(jsonPath('$.firstName', is("Erko")))
@@ -117,25 +115,17 @@ class UserControllerSpec extends BaseControllerSpec {
 		0 * userService.updateUser(*_)
 		performCall.andExpect(status().isBadRequest())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-				.andExpect(jsonPath('$.errors', hasSize(4)))
+				.andExpect(jsonPath('$.errors', hasSize(1)))
 	}
 
-	private User userFrom(UpdateUserCommand command) {
-		User.builder()
-				.firstName(command.firstName)
-				.lastName(command.lastName)
-				.personalCode(command.personalCode)
-				.email(command.email)
-				.phoneNumber(command.phoneNumber)
-				.build()
-	}
-
-	private User userFrom(AuthenticatedPerson authenticatedPerson) {
+	private User userFrom(AuthenticatedPerson authenticatedPerson, UpdateUserCommand command = null) {
 		User.builder()
 				.id(authenticatedPerson.userId)
 				.firstName(authenticatedPerson.firstName)
 				.lastName(authenticatedPerson.lastName)
 				.personalCode(authenticatedPerson.personalCode)
+				.email(command?.email)
+				.phoneNumber(command?.phoneNumber)
 				.build()
 	}
 

@@ -36,7 +36,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
       "transaction": "235e8a24-c510-4c8d-9fa8-2a322ba80bb2"
     ]
     controller.frontendUrl = 'FRONTEND_URL'
-    def sampleMember = sampleUser().build().getMemberOrThrow()
+    def sampleUser = sampleUser().build()
 
     when:
     def perform = mvc.perform(post("/notifications/payments")
@@ -49,8 +49,9 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .andExpect(status().isFound())
         .andExpect(redirectedUrl("FRONTEND_URL/steps/select-sources?isNewMember=true"))
     1 * validator.validate(*_)
-    1 * userService.registerAsMember(1L) >> sampleMember
-    1 * emailService.sendMemberNumber(sampleMember.getUser())
+    1 * userService.registerAsMember(1L)
+    1 * userService.getById(1L) >> sampleUser
+    1 * emailService.sendMemberNumber(sampleUser)
   }
 
   def "validates mac for incoming payment"() {

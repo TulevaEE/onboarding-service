@@ -29,7 +29,7 @@ public class User implements Person, Serializable {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@OneToOne(cascade = {CascadeType.ALL}, mappedBy = "user")
+	@OneToOne(cascade = CascadeType.ALL, mappedBy = "user")
 	Member member;
 
 	@ValidPersonalCode

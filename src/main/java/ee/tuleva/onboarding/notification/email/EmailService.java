@@ -62,6 +62,8 @@ public class EmailService {
             return;
         }
 
+        log.info("Sending member number email to user: {}", user);
+
         MandrillMessage message = newMandrillMessage(getRecipients(user), getMemberNumberEmailSubject(),
           getMemberNumberHtml(user), getMemberNumberTags(), null);
 

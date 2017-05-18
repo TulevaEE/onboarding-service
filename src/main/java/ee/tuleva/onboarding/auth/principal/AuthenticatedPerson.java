@@ -24,4 +24,9 @@ public class AuthenticatedPerson implements Person, Serializable {
 
     private Long userId;
 
+    @Override
+    public String toString() {
+        return personalCode;
+    }
+
 }

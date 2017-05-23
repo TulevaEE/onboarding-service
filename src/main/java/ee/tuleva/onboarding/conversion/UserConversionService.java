@@ -34,7 +34,7 @@ public class UserConversionService {
 
         return ConversionResponse.builder()
                 .selectionComplete(isSelectionComplete(fundBalances))
-                .transfersComplete(isTransfersComplete(fundBalances))
+                .transfersComplete(isTransfersComplete(person, fundBalances))
                 .build();
     }
 
@@ -50,13 +50,13 @@ public class UserConversionService {
                 );
     }
 
-    boolean isTransfersComplete(List<FundBalance> fundBalances) {
-        return getIsinsOfPendingTransfersToConvertedFundManager()
+    boolean isTransfersComplete(Person person, List<FundBalance> fundBalances) {
+        return getIsinsOfPendingTransfersToConvertedFundManager(person)
                 .containsAll(unConvertedIsins(fundBalances));
   }
 
-    List<String> getIsinsOfPendingTransfersToConvertedFundManager() {
-        return getPendingTransfers().stream().filter(transferApplicationDTO ->
+    List<String> getIsinsOfPendingTransfersToConvertedFundManager(Person person) {
+        return getPendingTransfers(person).stream().filter(transferApplicationDTO ->
                 fundRepository
                         .findByIsin(transferApplicationDTO.getTargetFundIsin())
                         .getFundManager()
@@ -67,8 +67,8 @@ public class UserConversionService {
                 .collect(Collectors.toList());
     }
 
-    List<TransferApplicationDTO> getPendingTransfers() {
-        List<TransferApplicationDTO> transferApplications = episService.getFundTransferExchanges();
+    List<TransferApplicationDTO> getPendingTransfers(Person person) {
+        List<TransferApplicationDTO> transferApplications = episService.getTransferApplications(person);
 
         return transferApplications.stream().filter(transferApplicationDTO ->
                 transferApplicationDTO.getStatus().equals(PENDING)

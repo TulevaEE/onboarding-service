@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.processor.implementation
 
+import ee.tuleva.onboarding.auth.PersonFixture
 import ee.tuleva.onboarding.mandate.MandateApplicationType
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
 import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferApplicationDTO
@@ -64,7 +65,7 @@ class EpisServiceSpec extends Specification {
 
         when:
         List<TransferApplicationDTO> transferApplicationDTOList =
-                service.getFundTransferExchanges()
+                service.getTransferApplications(PersonFixture.samplePerson())
 
         then:
         transferApplicationDTOList.size() == 1

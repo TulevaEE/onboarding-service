@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.conversion
 import ee.tuleva.onboarding.account.AccountStatementFixture
 import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.auth.PersonFixture
+import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundManager
 import ee.tuleva.onboarding.fund.FundRepository
@@ -29,7 +30,7 @@ class UserConversionServiceSpec extends Specification {
                 _ as UUID
         ) >> accountBalanceResponse
 
-        1 * episService.getFundTransferExchanges() >> []
+        1 * episService.getTransferApplications(_ as Person) >> []
 
         when:
         ConversionResponse conversionResponse = service.getConversion(
@@ -53,7 +54,7 @@ class UserConversionServiceSpec extends Specification {
                 _ as UUID
         ) >> accountBalanceResponse
 
-        1 * episService.getFundTransferExchanges() >> sampleTransfersApplicationList
+        1 * episService.getTransferApplications(_ as Person) >> sampleTransfersApplicationList
 
         1 * fundRepository.findByIsin(_ as String) >>
                 Fund.builder().

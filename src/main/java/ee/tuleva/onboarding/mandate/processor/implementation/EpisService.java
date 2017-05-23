@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.mandate.processor.implementation;
 
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
 import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferApplicationDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails;
@@ -15,7 +17,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.Arrays;
 import java.util.List;
 
-// TODO: butt ugly proof of concept
+// FIXME: butt ugly proof of concept
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -42,12 +44,12 @@ public class EpisService {
 
    }
 
-   public List<TransferApplicationDTO> getFundTransferExchanges() {
-
-
+   @Cacheable(value="transferApplications", key="#person.personalCode")
+   public List<TransferApplicationDTO> getTransferApplications(Person person) {
       String url = episServiceUrl + "/exchanges";
 
-      log.info("Getting exchanges from {} " + url);
+      log.info("Getting exchanges from {} for {} {}",
+              url, person.getFirstName(), person.getLastName());
 
       ResponseEntity<TransferApplicationDTO[]> response = restTemplate.exchange(
               url, HttpMethod.GET, new HttpEntity(getHeaders()), TransferApplicationDTO[].class);

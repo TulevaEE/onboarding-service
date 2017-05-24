@@ -17,7 +17,7 @@ public class FundTransferStatisticsService {
 
     public void addFrom(Mandate mandate, List<FundValueStatistics> fundValueStatisticsList) {
         /*
-        mandate.getFundTransferExchanges().forEach(fundTransferExchange -> {
+        mandate.getTransferApplications().forEach(fundTransferExchange -> {
 
             FundValueStatistics valueStatForCurrentIsin =
                     getFundValueStatisticsByIsin(fundValueStatisticsList, fundTransferExchange.getSourceFundIsin());

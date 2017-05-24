@@ -45,7 +45,7 @@ public class ComparisonCommand implements Serializable {
     //percent from monthly wage
     BigDecimal secondPillarContributionRate = new BigDecimal("0.06");
 
-    boolean isTulevaMember = false;
+    Boolean isTulevaMember = false;
 
     BigDecimal tulevaMemberBonus = new BigDecimal("0.0005");
 

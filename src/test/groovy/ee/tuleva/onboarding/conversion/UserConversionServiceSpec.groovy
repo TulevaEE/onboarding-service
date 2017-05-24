@@ -9,7 +9,7 @@ import ee.tuleva.onboarding.fund.FundManager
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.processor.implementation.EpisService
 import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.MandateApplicationStatus
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferApplicationDTO
+import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO
 import spock.lang.Specification
 
 class UserConversionServiceSpec extends Specification {
@@ -83,14 +83,14 @@ class UserConversionServiceSpec extends Specification {
 
     }
 
-    List<TransferApplicationDTO> sampleTransfersApplicationList = [
-            TransferApplicationDTO.builder()
+    List<TransferExchangeDTO> sampleTransfersApplicationList = [
+            TransferExchangeDTO.builder()
                     .status(MandateApplicationStatus.FAILED)
                     .build(),
-            TransferApplicationDTO.builder()
+            TransferExchangeDTO.builder()
                     .status(MandateApplicationStatus.COMPLETE)
                     .build(),
-            TransferApplicationDTO.builder()
+            TransferExchangeDTO.builder()
                     .status(MandateApplicationStatus.PENDING)
                     .targetFundIsin(COVERING_ISN)
                     .sourceFundIsin(

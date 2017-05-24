@@ -9,7 +9,7 @@ import java.time.Instant;
 
 @Getter
 @Builder
-public class TransferApplicationDTO implements Serializable {
+public class TransferExchangeDTO implements Serializable {
 
     private String currency;
     private Instant date;

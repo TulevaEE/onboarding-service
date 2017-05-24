@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.processor.implementation.EpisService;
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferApplicationDTO;
+import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -56,22 +56,22 @@ public class UserConversionService {
   }
 
     List<String> getIsinsOfPendingTransfersToConvertedFundManager(Person person) {
-        return getPendingTransfers(person).stream().filter(transferApplicationDTO ->
+        return getPendingTransfers(person).stream().filter(transferExchangeDTO ->
                 fundRepository
-                        .findByIsin(transferApplicationDTO.getTargetFundIsin())
+                        .findByIsin(transferExchangeDTO.getTargetFundIsin())
                         .getFundManager()
                         .getName()
                         .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME)
 
-        ).map(transferApplicationDTO -> transferApplicationDTO.getSourceFundIsin())
+        ).map(transferExchangeDTO -> transferExchangeDTO.getSourceFundIsin())
                 .collect(Collectors.toList());
     }
 
-    List<TransferApplicationDTO> getPendingTransfers(Person person) {
-        List<TransferApplicationDTO> transferApplications = episService.getTransferApplications(person);
+    List<TransferExchangeDTO> getPendingTransfers(Person person) {
+        List<TransferExchangeDTO> transferApplications = episService.getTransferApplications(person);
 
-        return transferApplications.stream().filter(transferApplicationDTO ->
-                transferApplicationDTO.getStatus().equals(PENDING)
+        return transferApplications.stream().filter(transferExchangeDTO ->
+                transferExchangeDTO.getStatus().equals(PENDING)
         ).collect(Collectors.toList());
     }
 

@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.mandate.processor.implementation
 import ee.tuleva.onboarding.auth.PersonFixture
 import ee.tuleva.onboarding.mandate.MandateApplicationType
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferApplicationDTO
+import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -54,17 +54,17 @@ class EpisServiceSpec extends Specification {
     def "getFundTransferExchanges: "() {
         given:
 
-        TransferApplicationDTO[] responseBody = [TransferApplicationDTO.builder().build()]
-        ResponseEntity<TransferApplicationDTO[]> result =
+        TransferExchangeDTO[] responseBody = [TransferExchangeDTO.builder().build()]
+        ResponseEntity<TransferExchangeDTO[]> result =
                 new ResponseEntity(responseBody, HttpStatus.OK)
 
         1 * restTemplate.exchange(
                 _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
             doesHttpEntityContainToken(httpEntity, sampleToken)
-        }, TransferApplicationDTO[].class) >> result
+        }, TransferExchangeDTO[].class) >> result
 
         when:
-        List<TransferApplicationDTO> transferApplicationDTOList =
+        List<TransferExchangeDTO> transferApplicationDTOList =
                 service.getTransferApplications(PersonFixture.samplePerson())
 
         then:

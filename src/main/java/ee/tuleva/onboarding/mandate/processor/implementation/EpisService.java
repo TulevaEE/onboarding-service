@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.processor.implementation;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferApplicationDTO;
+import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,14 +45,14 @@ public class EpisService {
    }
 
    @Cacheable(value="transferApplications", key="#person.personalCode")
-   public List<TransferApplicationDTO> getTransferApplications(Person person) {
+   public List<TransferExchangeDTO> getTransferApplications(Person person) {
       String url = episServiceUrl + "/exchanges";
 
       log.info("Getting exchanges from {} for {} {}",
               url, person.getFirstName(), person.getLastName());
 
-      ResponseEntity<TransferApplicationDTO[]> response = restTemplate.exchange(
-              url, HttpMethod.GET, new HttpEntity(getHeaders()), TransferApplicationDTO[].class);
+      ResponseEntity<TransferExchangeDTO[]> response = restTemplate.exchange(
+              url, HttpMethod.GET, new HttpEntity(getHeaders()), TransferExchangeDTO[].class);
 
       return Arrays.asList(response.getBody());
    }

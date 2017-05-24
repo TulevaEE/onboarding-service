@@ -9,7 +9,6 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.Size;
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -46,7 +45,7 @@ public class ComparisonCommand implements Serializable {
     //percent from monthly wage
     BigDecimal secondPillarContributionRate = new BigDecimal("0.06");
 
-    boolean isTulevaMember = true;
+    boolean isTulevaMember = false;
 
     BigDecimal tulevaMemberBonus = new BigDecimal("0.0005");
 

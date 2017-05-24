@@ -111,7 +111,7 @@ public class ComparisonService {
         }
 
         BigDecimal fundManagementFee = in.getManagementFeeRates().get(in.isinTo);
-        BigDecimal effectiveManagementFee = in.isTulevaMember() ? fundManagementFee.subtract(in.getTulevaMemberBonus()) : fundManagementFee;
+        BigDecimal effectiveManagementFee = in.isTulevaMember ? fundManagementFee.subtract(in.getTulevaMemberBonus()) : fundManagementFee;
         BigDecimal annualInterestRate = in.getReturnRate().subtract(effectiveManagementFee);
         BigDecimal capitalFv = fvCompoundInterest(currentCapitals, annualInterestRate, yearsToWork);
         BigDecimal capitalFvWithoutFee = fvCompoundInterest(currentCapitals, in.getReturnRate(), yearsToWork);

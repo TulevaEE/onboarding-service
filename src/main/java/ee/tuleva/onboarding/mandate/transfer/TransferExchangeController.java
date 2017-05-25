@@ -1,9 +1,7 @@
-package ee.tuleva.onboarding.mandate.command.application.transfer;
+package ee.tuleva.onboarding.mandate.transfer;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.mandate.processor.implementation.EpisService;
 import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.MandateApplicationStatus;
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,13 +20,13 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 @RequiredArgsConstructor
 public class TransferExchangeController {
 
-    private final EpisService episService;
+    private final TransferExchangeService transferExchangeService;
 
     @ApiOperation(value = "Get transfer exchanges")
     @RequestMapping(method = GET, value = "/transfer-exchanges")
-    public List<TransferExchangeDTO> get(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+    public List<TransferExchange> get(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                          @RequestParam("status") MandateApplicationStatus status) {
-        return episService.getTransferApplications(authenticatedPerson).stream()
+        return transferExchangeService.get(authenticatedPerson).stream()
                 .filter(transferExchange -> transferExchange.getStatus().equals(status))
                 .collect(Collectors.toList());
     }

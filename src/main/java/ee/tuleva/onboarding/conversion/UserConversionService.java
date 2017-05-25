@@ -3,9 +3,8 @@ package ee.tuleva.onboarding.conversion;
 import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.fund.FundRepository;
-import ee.tuleva.onboarding.mandate.processor.implementation.EpisService;
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO;
+import ee.tuleva.onboarding.mandate.transfer.TransferExchange;
+import ee.tuleva.onboarding.mandate.transfer.TransferExchangeService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,8 +21,7 @@ import static ee.tuleva.onboarding.mandate.processor.implementation.MandateAppli
 public class UserConversionService {
 
     private final AccountStatementService accountStatementService;
-    private final EpisService episService;
-    private final FundRepository fundRepository;
+    private final TransferExchangeService transferExchangeService;
 
     private static final String CONVERTED_FUND_MANAGER_NAME = "Tuleva";
 
@@ -53,26 +51,25 @@ public class UserConversionService {
     boolean isTransfersComplete(Person person, List<FundBalance> fundBalances) {
         return getIsinsOfPendingTransfersToConvertedFundManager(person)
                 .containsAll(unConvertedIsins(fundBalances));
-  }
+    }
 
     List<String> getIsinsOfPendingTransfersToConvertedFundManager(Person person) {
-        return getPendingTransfers(person).stream().filter(transferExchangeDTO ->
-                fundRepository
-                        .findByIsin(transferExchangeDTO.getTargetFundIsin())
+        return getPendingTransfers(person).stream().filter(transferExchange ->
+                transferExchange
+                        .getTargetFund()
                         .getFundManager()
                         .getName()
                         .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME)
-
-        ).map(transferExchangeDTO -> transferExchangeDTO.getSourceFundIsin())
+        ).map(transferExchange -> transferExchange.getSourceFund().getIsin())
                 .collect(Collectors.toList());
     }
 
-    List<TransferExchangeDTO> getPendingTransfers(Person person) {
-        List<TransferExchangeDTO> transferApplications = episService.getTransferApplications(person);
+    List<TransferExchange> getPendingTransfers(Person person) {
 
-        return transferApplications.stream().filter(transferExchangeDTO ->
-                transferExchangeDTO.getStatus().equals(PENDING)
-        ).collect(Collectors.toList());
+        return transferExchangeService.get(person).stream()
+                .filter(transferExchange ->
+                        transferExchange.getStatus().equals(PENDING)
+                ).collect(Collectors.toList());
     }
 
     List<String> unConvertedIsins(List<FundBalance> fundBalances) {

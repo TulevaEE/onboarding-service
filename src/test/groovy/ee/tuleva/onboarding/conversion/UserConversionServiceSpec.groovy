@@ -3,23 +3,19 @@ package ee.tuleva.onboarding.conversion
 import ee.tuleva.onboarding.account.AccountStatementFixture
 import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.auth.PersonFixture
-import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundManager
-import ee.tuleva.onboarding.fund.FundRepository
-import ee.tuleva.onboarding.mandate.processor.implementation.EpisService
 import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.MandateApplicationStatus
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO
+import ee.tuleva.onboarding.mandate.transfer.TransferExchange
+import ee.tuleva.onboarding.mandate.transfer.TransferExchangeService
 import spock.lang.Specification
 
 class UserConversionServiceSpec extends Specification {
 
     AccountStatementService accountStatementService = Mock(AccountStatementService)
-    EpisService episService = Mock(EpisService)
-    FundRepository fundRepository = Mock(FundRepository)
-
+    TransferExchangeService transferExchangeService = Mock(TransferExchangeService)
     UserConversionService service =
-            new UserConversionService(accountStatementService, episService, fundRepository)
+            new UserConversionService(accountStatementService, transferExchangeService)
 
     final String COVERING_ISN = "SOME ISIN"
 
@@ -30,7 +26,7 @@ class UserConversionServiceSpec extends Specification {
                 _ as UUID
         ) >> accountBalanceResponse
 
-        1 * episService.getTransferApplications(_ as Person) >> []
+        1 * transferExchangeService.get(PersonFixture.samplePerson) >> []
 
         when:
         ConversionResponse conversionResponse = service.getConversion(
@@ -54,19 +50,19 @@ class UserConversionServiceSpec extends Specification {
                 _ as UUID
         ) >> accountBalanceResponse
 
-        1 * episService.getTransferApplications(_ as Person) >> sampleTransfersApplicationList
+        1 * transferExchangeService.get(PersonFixture.samplePerson) >> sampleTransfersApplicationList
 
-        1 * fundRepository.findByIsin(_ as String) >>
-                Fund.builder().
-                        isin(COVERING_ISN).
-                        name("Aktsiafond")
-                        .id(123)
-                        .fundManager(
-                        FundManager.builder()
-                                .id(123)
-                                .name(UserConversionService.CONVERTED_FUND_MANAGER_NAME)
-                                .build()
-                ).build()
+//        1 * fundRepository.findByIsin(_ as String) >>
+//                Fund.builder().
+//                        isin(COVERING_ISN).
+//                        name("Aktsiafond")
+//                        .id(123)
+//                        .fundManager(
+//                        FundManager.builder()
+//                                .id(123)
+//                                .name(UserConversionService.CONVERTED_FUND_MANAGER_NAME)
+//                                .build()
+//                ).build()
 
         when:
         ConversionResponse conversionResponse = service.getConversion(
@@ -83,19 +79,34 @@ class UserConversionServiceSpec extends Specification {
 
     }
 
-    List<TransferExchangeDTO> sampleTransfersApplicationList = [
-            TransferExchangeDTO.builder()
+    List<TransferExchange> sampleTransfersApplicationList = [
+            TransferExchange.builder()
                     .status(MandateApplicationStatus.FAILED)
                     .build(),
-            TransferExchangeDTO.builder()
+            TransferExchange.builder()
                     .status(MandateApplicationStatus.COMPLETE)
                     .build(),
-            TransferExchangeDTO.builder()
+            TransferExchange.builder()
                     .status(MandateApplicationStatus.PENDING)
-                    .targetFundIsin(COVERING_ISN)
-                    .sourceFundIsin(
-                    AccountStatementFixture.sampleNonConvertedFundBalanceWithActiveNonTulevaFund
-                            .first().getFund().getIsin()
+                    .targetFund(
+                    Fund.builder()
+                            .isin(COVERING_ISN)
+                            .fundManager(
+                            FundManager.builder()
+                                    .name(
+                                    UserConversionService.CONVERTED_FUND_MANAGER_NAME
+                            ).build()
+
+                    )
+                            .build()
+
+            )
+                    .sourceFund(
+                    Fund.builder().isin(
+                            AccountStatementFixture.sampleNonConvertedFundBalanceWithActiveNonTulevaFund
+                                    .first().getFund().getIsin()
+
+                    ).build()
             )
                     .build()
     ]

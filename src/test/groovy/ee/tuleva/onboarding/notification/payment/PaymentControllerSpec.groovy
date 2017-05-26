@@ -49,8 +49,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .andExpect(status().isFound())
         .andExpect(redirectedUrl("FRONTEND_URL/steps/select-sources?isNewMember=true"))
     1 * validator.validate(*_)
-    1 * userService.registerAsMember(1L)
-    1 * userService.getById(1L) >> sampleUser
+    1 * userService.registerAsMember(1L) >> sampleUser
     1 * emailService.sendMemberNumber(sampleUser)
   }
 

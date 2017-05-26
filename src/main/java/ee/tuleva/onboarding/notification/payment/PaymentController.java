@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.notification.payment;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,8 +56,8 @@ public class PaymentController {
     boolean statusCompleted = COMPLETED.equalsIgnoreCase(payment.getStatus());
 
     if (statusCompleted && !isAMember) {
-      userService.registerAsMember(userId);
-      emailService.sendMemberNumber(userService.getById(userId));
+      User user = userService.registerAsMember(userId);
+      emailService.sendMemberNumber(user);
       response.sendRedirect(frontendUrl + "/steps/select-sources?isNewMember=true");
     } else {
       log.info("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);

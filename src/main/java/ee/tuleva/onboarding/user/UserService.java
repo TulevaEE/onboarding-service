@@ -7,9 +7,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import javax.transaction.Transactional;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class UserService {
 
   private final UserRepository userRepository;
@@ -26,7 +29,7 @@ public class UserService {
     return userRepository.save(user);
   }
 
-  public Member registerAsMember(Long userId) {
+  public User registerAsMember(Long userId) {
     User user = userRepository.findOne(userId);
 
     if(user.getMember().isPresent()) {
@@ -40,7 +43,8 @@ public class UserService {
 
     log.info("Registering user as new member #{}: {}", newMember.getMemberNumber(), user);
 
-    return memberRepository.save(newMember);
+    user.setMember(newMember);
+    return userRepository.save(user);
   }
 
   public boolean isAMember(Long userId) {

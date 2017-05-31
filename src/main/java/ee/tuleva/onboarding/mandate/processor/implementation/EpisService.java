@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.*;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,6 +24,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EpisService {
 
+   private final String TRANSFER_APPLICATIONS_CACHE_NAME = "transferApplications";
    private final RestTemplate restTemplate;
 
    @Value("${epis.service.url}")
@@ -44,7 +46,7 @@ public class EpisService {
 
    }
 
-   @Cacheable(value="transferApplications", key="#person.personalCode")
+   @Cacheable(value=TRANSFER_APPLICATIONS_CACHE_NAME, key="#person.personalCode")
    public List<TransferExchangeDTO> getTransferApplications(Person person) {
       String url = episServiceUrl + "/exchanges";
 
@@ -55,6 +57,12 @@ public class EpisService {
               url, HttpMethod.GET, new HttpEntity(getHeaders()), TransferExchangeDTO[].class);
 
       return Arrays.asList(response.getBody());
+   }
+
+   @CacheEvict(value=TRANSFER_APPLICATIONS_CACHE_NAME, key="#person.personalCode")
+   public void clearCache(Person person) {
+      log.info("Clearning exchanges cache for {} {}",
+              person.getFirstName(), person.getLastName());
    }
 
    private HttpEntity getProcessingRequest(CreateProcessingCommand command) {

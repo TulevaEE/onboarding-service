@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
+import ee.tuleva.onboarding.mandate.processor.implementation.EpisService;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
@@ -39,6 +40,7 @@ public class MandateService {
 	private final MandateProcessorService mandateProcessor;
 	private final MandateFileService mandateFileService;
 	private final UserService userService;
+	private final EpisService episService;
 
 	public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
 		validateCreateMandateCommand(createMandateCommand);
@@ -145,12 +147,17 @@ public class MandateService {
 					mandate.getMandate()
 							.orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file."))
 			);
+			clearMandateRelatedCache(user);
 			handleMandateProcessingErrors(mandate);
 
 			return "SIGNATURE"; // TODO: use enum
 		} else {
 			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
 		}
+	}
+
+	private void clearMandateRelatedCache(User user) {
+		episService.clearCache(user);
 	}
 
 	private void handleMandateProcessingErrors(Mandate mandate) {

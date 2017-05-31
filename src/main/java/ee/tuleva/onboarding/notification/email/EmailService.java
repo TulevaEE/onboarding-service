@@ -58,7 +58,7 @@ public class EmailService {
     public void sendMemberNumber(User user) {
 
         if(mandrillApi == null) {
-            log.warn("Mandrill not initialised, not sending member number email for user {}", user.getId());
+            log.warn("Mandrill not initialised, not sending member number email for userId {}, member #", user.getId(), user.getMemberOrThrow().getMemberNumber());
             return;
         }
 

@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -30,7 +31,9 @@ public class AccountStatementService {
     private final KPRUnitsOsakudToFundBalanceConverter kprUnitsOsakudToFundBalanceConverter;
     private final FundValueStatisticsRepository fundValueStatisticsRepository;
 
-    @Cacheable(value="balances", key="#person.personalCode")
+    private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
+
+    @Cacheable(value=ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
     public List<FundBalance> getMyPensionAccountStatement(Person person, UUID statisticsIdentifier) {
         log.info("Getting pension account statement for {} {}", person.getFirstName(), person.getLastName());
         List<FundBalance> fundBalances = convertXRoadResponse(getPensionAccountBalance(person));
@@ -39,6 +42,12 @@ public class AccountStatementService {
         saveFundValueStatistics(fundBalances, statisticsIdentifier);
 
         return fundBalances;
+    }
+
+    @CacheEvict(value=ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
+    public void clearCache(Person person) {
+        log.info("Clearning exchanges cache for {} {}",
+                person.getFirstName(), person.getLastName());
     }
 
     private void saveFundValueStatistics(List<FundBalance> fundBalances, UUID fundValueStatisticsIdentifier) {

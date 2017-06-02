@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate;
 import com.codeborne.security.mobileid.IdCardSignatureSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.codeborne.security.mobileid.SignatureFile;
+import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
@@ -41,6 +42,7 @@ public class MandateService {
 	private final MandateFileService mandateFileService;
 	private final UserService userService;
 	private final EpisService episService;
+	private final AccountStatementService accountStatementService;
 
 	public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
 		validateCreateMandateCommand(createMandateCommand);
@@ -157,6 +159,7 @@ public class MandateService {
 	}
 
 	private void clearMandateRelatedCache(User user) {
+		accountStatementService.clearCache(user);
 		episService.clearCache(user);
 	}
 

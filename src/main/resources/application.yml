@@ -138,7 +138,7 @@ maksekeskus:
 
 epis:
   service:
-    url: https://epis-service.herokuapp.com/v1
+    url: https://epis-service.tuleva.ee/v1
     bic: "ECSDEE2X"
 
 frontend:

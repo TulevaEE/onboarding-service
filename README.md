@@ -62,8 +62,18 @@ oAuth with mobile-ID and ID-card sign-in
 **Production:**
 Merge GitHub pull request to master -> build in CircleCI -> redeploy to Heroku (if build is green)
 
-###Comparison maintenance
-Comparison service in package ee.tuleva.onboarding.comparisons can be edited for keeping total fee calculations current with Estonian regulations.
+###SSL
+Using https://letsencrypt.org/
+
+`./certbot-auto certonly --manual`
+
+To generate certs for
+
+`id.tuleva.ee,onboarding-service.tuleva.ee,epis-service.tuleva.ee,pension.tuleva.ee`
+
+ACME challenge controller in the applications and `id.tuleva.ee` is in `nginx.conf`
+
+Cert hosting is correspondingly in Heroku and `nginx.conf`
 
 ### References
 

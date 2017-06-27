@@ -1,5 +1,6 @@
 package ee.tuleva
 
+import ee.tuleva.onboarding.IndexController
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
 import spock.lang.Specification

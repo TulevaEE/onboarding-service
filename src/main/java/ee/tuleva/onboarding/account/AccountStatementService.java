@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.kpr.KPRClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -26,13 +27,21 @@ public class AccountStatementService {
     private final FundRepository fundRepository;
     private final KPRUnitsOsakudToFundBalanceConverter kprUnitsOsakudToFundBalanceConverter;
 
-    @Cacheable(value="balances", key="#person.personalCode")
+    private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
+
+    @Cacheable(value=ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
     public List<FundBalance> getMyPensionAccountStatement(Person person) {
         log.info("Getting pension account statement for {} {}", person.getFirstName(), person.getLastName());
         List<FundBalance> fundBalances = convertXRoadResponse(getPensionAccountBalance(person));
 
         fundBalances = handleActiveFundBalance(fundBalances, getActiveFundName(person));
         return fundBalances;
+    }
+
+    @CacheEvict(value=ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
+    public void clearCache(Person person) {
+        log.info("Clearning exchanges cache for {} {}",
+                person.getFirstName(), person.getLastName());
     }
 
     private PensionAccountBalanceResponseType getPensionAccountBalance(Person person) {

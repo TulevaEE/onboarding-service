@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.user
 
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
-import ee.tuleva.onboarding.user.member.Member
 import ee.tuleva.onboarding.user.member.MemberRepository
 import spock.lang.Specification
 
@@ -45,10 +44,11 @@ class UserServiceSpec extends Specification {
     def user = sampleUserNonMember().build()
     userRepository.findOne(user.id) >> user
     memberRepository.getNextMemberNumber() >> 1000
-    memberRepository.save(_ as Member) >> { Member member -> member }
+    userRepository.save(_ as User) >> { User u -> u }
 
     when:
-    def member = service.registerAsMember(user.id)
+    def returnedUser = service.registerAsMember(user.id)
+    def member = returnedUser.member.get()
 
     then:
     member.memberNumber == 1000

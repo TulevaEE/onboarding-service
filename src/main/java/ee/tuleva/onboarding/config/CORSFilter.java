@@ -22,10 +22,16 @@ import java.util.List;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CORSFilter extends GenericFilterBean {
 
+    String DEFAULT_ALLOWED_ORIGIN = "https://pension.tuleva.ee";
+    private List<String> allowedOrigins = Arrays.asList(DEFAULT_ALLOWED_ORIGIN, "https://tuleva.ee");
+
     @Override
     public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
         HttpServletResponse response = (HttpServletResponse) res;
-        response.setHeader("Access-Control-Allow-Origin", "https://pension.tuleva.ee");
+        HttpServletRequest request = (HttpServletRequest) req;
+        String origin = request.getHeader("Origin");
+        String allowedOriginResponse = allowedOrigins.contains(origin) ? origin : DEFAULT_ALLOWED_ORIGIN;
+        response.setHeader("Access-Control-Allow-Origin", allowedOriginResponse);
         response.setHeader("Access-Control-Allow-Methods", "POST, PUT, GET, OPTIONS, DELETE");
         response.setHeader("Access-Control-Max-Age", "3600");
         response.setHeader("Access-Control-Allow-Headers", "Authorization");
@@ -42,8 +48,6 @@ public class CORSFilter extends GenericFilterBean {
                 HttpHeaders.ACCEPT
                 );
         response.setHeader("Access-Control-Allow-Headers",  String.join(", ", allowedHeaders));
-
-        HttpServletRequest request = ((HttpServletRequest) req);
 
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             response.setStatus(HttpServletResponse.SC_OK);

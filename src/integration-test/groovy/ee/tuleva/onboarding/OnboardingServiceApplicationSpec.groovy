@@ -1,4 +1,4 @@
-package ee.tuleva
+package ee.tuleva.onboarding
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest

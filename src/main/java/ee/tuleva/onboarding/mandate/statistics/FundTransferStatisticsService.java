@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -19,6 +18,7 @@ public class FundTransferStatisticsService {
     private final FundValueStatisticsRepository fundValueStatisticsRepository;
 
     public void addFrom(Mandate mandate, List<FundValueStatistics> fundValueStatisticsList) {
+        /*
         mandate.getFundTransferExchanges().forEach(fundTransferExchange -> {
 
             FundValueStatistics valueStatForCurrentIsin =
@@ -38,6 +38,7 @@ public class FundTransferStatisticsService {
 
             fundTransferStatisticsRepository.save(transferStat);
         });
+        */
     }
 
     public void saveFundValueStatistics(List<FundBalance> fundBalances, UUID fundValueStatisticsIdentifier) {

@@ -1,4 +1,4 @@
-package ee.tuleva;
+package ee.tuleva.onboarding;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -7,10 +7,10 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @Controller
 public class AcmeChallengeController {
 
-	@RequestMapping(value = "/.well-known/acme-challenge/aGEoUIi2k8n8wRaFf3-7d9ZyVmGxY9m6W_2I25G6g4M")
+	@RequestMapping(value = "/.well-known/acme-challenge/aMBCK-fCYjDSDVrughzDsemdZaAZLNsQ1LhATtLExa8")
 	@ResponseBody
 	public String challenge() {
-		return "aGEoUIi2k8n8wRaFf3-7d9ZyVmGxY9m6W_2I25G6g4M.EMEBBxvSam3n_ien1J0z4dXeTuc2JuR3HqfAP6teLjE";
+		return "aMBCK-fCYjDSDVrughzDsemdZaAZLNsQ1LhATtLExa8.EMEBBxvSam3n_ien1J0z4dXeTuc2JuR3HqfAP6teLjE";
 	}
 
 }

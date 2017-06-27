@@ -20,6 +20,10 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
   def mvc = mockMvc(controller)
 
+  def setup() {
+    controller.frontendUrl = 'FRONTEND_URL'
+  }
+
   def "incoming payment is correctly mapped to DTO, mac is validated and member is created in the database"() {
     given:
     def json = [
@@ -35,7 +39,6 @@ class PaymentControllerSpec extends BaseControllerSpec {
       "status": "COMPLETED",
       "transaction": "235e8a24-c510-4c8d-9fa8-2a322ba80bb2"
     ]
-    controller.frontendUrl = 'FRONTEND_URL'
     def sampleUser = sampleUser().build()
 
     when:
@@ -73,7 +76,8 @@ class PaymentControllerSpec extends BaseControllerSpec {
             .param("mac", "53b1ace42be9af8667a4e2be5c82b28f9f7e217f2353888f01f9de6d7da0aea95d1913fb9345abcf03edc9c796a5178e2b2d772412280b951e7612834bcff232"))
 
     then:
-    perform.andExpect(status().isOk())
+    perform.andExpect(status().isFound())
+            .andExpect(redirectedUrl("FRONTEND_URL"))
     1 * validator.validate(*_)
     0 * userService.registerAsMember(_)
     0 * emailService.sendMemberNumber(_)
@@ -95,7 +99,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
             .param("mac", "72226bd686fd3288c53784f3297164933619877cb13be6c4da91a7201fd20f4a6378abbdeb6bdbc6601905f1f052c4227dd15b9a50f42a192cde2686d1f853af"))
 
     then:
-    perform.andExpect(status().isOk())
+    perform.andExpect(status().isFound())
     1 * validator.validate(*_)
     0 * userService.registerAsMember(_)
     0 * emailService.sendMemberNumber(_)

@@ -60,7 +60,8 @@ public class PaymentController {
       emailService.sendMemberNumber(user);
       response.sendRedirect(frontendUrl + "/steps/select-sources?isNewMember=true");
     } else {
-      log.info("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
+      log.error("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
+      response.sendRedirect(frontendUrl);
     }
 
   }

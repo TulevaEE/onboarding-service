@@ -22,8 +22,7 @@ class UserConversionServiceSpec extends Specification {
     def "GetConversion: Get conversion response for fund selection and transfer"() {
         given:
         1 * accountStatementService.getMyPensionAccountStatement(
-                PersonFixture.samplePerson,
-                _ as UUID
+                PersonFixture.samplePerson
         ) >> accountBalanceResponse
 
         1 * transferExchangeService.get(PersonFixture.samplePerson) >> []
@@ -46,8 +45,7 @@ class UserConversionServiceSpec extends Specification {
     def "GetConversion: Get conversion response for fund transfer given pending mandates cover the lack"() {
         given:
         1 * accountStatementService.getMyPensionAccountStatement(
-                PersonFixture.samplePerson,
-                _ as UUID
+                PersonFixture.samplePerson
         ) >> accountBalanceResponse
 
         1 * transferExchangeService.get(PersonFixture.samplePerson) >> sampleTransfersApplicationList

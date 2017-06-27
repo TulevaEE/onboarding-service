@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.MandateApplicationStatus.PENDING;
@@ -28,7 +27,7 @@ public class UserConversionService {
     public ConversionResponse getConversion(Person person) {
 
         List<FundBalance> fundBalances =
-                accountStatementService.getMyPensionAccountStatement(person, UUID.randomUUID());
+                accountStatementService.getMyPensionAccountStatement(person);
 
         return ConversionResponse.builder()
                 .selectionComplete(isSelectionComplete(fundBalances))

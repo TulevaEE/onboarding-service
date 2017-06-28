@@ -18,3 +18,9 @@ logging.level:
 
 flyway:
   baseline-on-migrate: true
+
+mailchimp:
+  api:
+    key: someKey
+  list:
+    id: someId

@@ -30,12 +30,12 @@ public class MailChimpClientWrapper {
   }
 
   @Service
-  @Profile("dev")
+  @Profile({ "dev", "test" })
   @Slf4j
   public static class DevMailChimpClientWrapper extends MailChimpClientWrapper {
 
     public <R extends MailchimpObject> R execute(MailchimpMethod<R> method) {
-      log.info("Not sending anything to Mailchimp in the dev environment");
+      log.info("Not sending anything to Mailchimp in a non-production environment");
       return null; // do nothing
     }
 

@@ -2,14 +2,14 @@ package ee.tuleva.onboarding.auth.principal
 
 import ee.tuleva.onboarding.auth.PersonFixture
 import ee.tuleva.onboarding.user.User
-import ee.tuleva.onboarding.user.UserRepository
+import ee.tuleva.onboarding.user.UserService
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
 import spock.lang.Specification
 
 class PrincipalServiceSpec extends Specification {
 
-    UserRepository repository = Mock(UserRepository)
-    PrincipalService service = new PrincipalService(repository)
+    UserService userService = Mock(UserService)
+    PrincipalService service = new PrincipalService(userService)
 
     User sampleUser = User.builder()
             .active(true)
@@ -19,7 +19,7 @@ class PrincipalServiceSpec extends Specification {
         given:
         Person person = PersonFixture.samplePerson()
 
-        1 * repository.findByPersonalCode(person.personalCode) >> sampleUser
+        1 * userService.findByPersonalCode(person.personalCode) >> sampleUser
 
         when:
         AuthenticatedPerson authenticatedPerson = service.getFrom(person)
@@ -42,13 +42,13 @@ class PrincipalServiceSpec extends Specification {
         person.lastName = lastNameUncapitalized
 
 
-        1 * repository.findByPersonalCode(person.personalCode) >> null
+        1 * userService.findByPersonalCode(person.personalCode) >> null
 
         when:
         AuthenticatedPerson authenticatedPerson = service.getFrom(person)
 
         then:
-        1 * repository.save({User user ->
+        1 * userService.createNewUser({User user ->
             user.firstName == firstNameCorrectlyCapitalized &&
                     user.lastName == lastNameCorrectlyCapitalized &&
                     user.personalCode == person.personalCode &&
@@ -65,10 +65,10 @@ class PrincipalServiceSpec extends Specification {
         given:
         Person person = PersonFixture.samplePerson()
 
-        1 * repository.findByPersonalCode(person.personalCode) >> User.builder().active(false).build()
+        1 * userService.findByPersonalCode(person.personalCode) >> User.builder().active(false).build()
 
         when:
-        AuthenticatedPerson authenticatedPerson = service.getFrom(person)
+        service.getFrom(person)
 
         then:
         thrown InvalidRequestException

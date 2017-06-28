@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user
 
+import ee.tuleva.onboarding.notification.mailchimp.MailChimpService
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
 import spock.lang.Specification
@@ -11,7 +12,8 @@ class UserServiceSpec extends Specification {
 
   def userRepository = Mock(UserRepository)
   def memberRepository = Mock(MemberRepository)
-  def service = new UserService(userRepository, memberRepository)
+  def mailChimpService = Mock(MailChimpService)
+  def service = new UserService(userRepository, memberRepository, mailChimpService)
 
   def "get user by id"() {
     given:
@@ -81,6 +83,32 @@ class UserServiceSpec extends Specification {
     user                          | isAMember
     sampleUser().build()          | true
     sampleUserNonMember().build() | false
+  }
+
+  def "updating a user also updates it in Mailchimp"() {
+    given:
+    def user = sampleUser().build()
+    userRepository.findByPersonalCode(user.personalCode) >> user
+    userRepository.save(user) >> user
+
+    when:
+    service.updateUser(user.personalCode, "erko@risthein.ee", "555555")
+
+    then:
+    1 * mailChimpService.createOrUpdateMember(user)
+  }
+
+  def "registering a user as a member also updates Mailchimp"() {
+    given:
+    def user = sampleUserNonMember().build()
+    userRepository.findOne(user.id) >> user
+    userRepository.save(_ as User) >> { User u -> u }
+
+    when:
+    service.registerAsMember(user.id)
+
+    then:
+    1 * mailChimpService.createOrUpdateMember(user)
   }
 
 }

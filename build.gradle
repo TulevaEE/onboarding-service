@@ -84,7 +84,7 @@ dependencies {
 	testCompile("com.github.tomakehurst:wiremock:2.4.1")
 	testCompile("org.springframework.security:spring-security-test")
 	testCompile('cglib:cglib-nodep:3.2.5') // for stubbing of classes
-	tesstCompile('org.objenesis:objenesis:2.6')
+	testCompile('org.objenesis:objenesis:2.6')
 }
 
 test {

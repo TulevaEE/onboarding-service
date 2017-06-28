@@ -2,17 +2,14 @@ package ee.tuleva.onboarding.notification.mailchimp;
 
 import com.ecwid.maleorang.MailchimpObject;
 import com.ecwid.maleorang.method.v3_0.lists.members.EditMemberMethod;
-import com.ecwid.maleorang.method.v3_0.lists.members.MemberInfo;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.AsyncResult;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
-import java.util.concurrent.Future;
 
 @Service
 @Slf4j
@@ -25,7 +22,7 @@ public class MailChimpService {
   private String listId;
 
   @Async
-  public Future<MemberInfo> createOrUpdateMember(User user) {
+  public void createOrUpdateMember(User user) {
     log.info("Creating or updating Mailchimp member in a separate thread");
 
     EditMemberMethod.CreateOrUpdate method = new EditMemberMethod.CreateOrUpdate(listId, user.getEmail());
@@ -42,8 +39,7 @@ public class MailChimpService {
       mergeFields.put("LIIKME_NR", user.getMemberOrThrow().getMemberNumber());
     }
 
-    MemberInfo memberInfo = mailChimpClient.execute(method);
-    return new AsyncResult<>(memberInfo);
+    mailChimpClient.execute(method);
   }
 
 }

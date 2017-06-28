@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.notification.mailchimp
 
 import com.ecwid.maleorang.method.v3_0.lists.members.EditMemberMethod
-import com.ecwid.maleorang.method.v3_0.lists.members.MemberInfo
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -15,13 +14,12 @@ class MailChimpServiceSpec extends Specification {
 		service.listId = "someId"
 	}
 
-	def "creating or updating a mailchimp member works"() {
+	def "creating or updating a Mailchimp member works"() {
 		given:
 		def user = sampleUser().build()
-		def expectedMemberInfo = new MemberInfo()
 
 		when:
-		def memberInfo = service.createOrUpdateMember(user)
+		service.createOrUpdateMember(user)
 
 		then:
 		mailChimpClient.execute(_) >> { EditMemberMethod.CreateOrUpdate method ->
@@ -32,8 +30,6 @@ class MailChimpServiceSpec extends Specification {
 			assert mergeFields.ISIKUKOOD == user.personalCode
 			assert mergeFields.TELEFON == user.phoneNumber
 			assert mergeFields.LIIKME_NR == user.memberOrThrow.memberNumber
-			return expectedMemberInfo
 		}
-		memberInfo.get() == expectedMemberInfo
 	}
 }

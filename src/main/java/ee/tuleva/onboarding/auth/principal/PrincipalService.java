@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.auth.principal;
 
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserRepository;
+import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.text.WordUtils;
@@ -13,14 +13,14 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class PrincipalService {
 
-    private final UserRepository userRepository;
+    private final UserService userService;
 
     public AuthenticatedPerson getFrom(Person person) {
 
-        User user = userRepository.findByPersonalCode(person.getPersonalCode());
+        User user = userService.findByPersonalCode(person.getPersonalCode());
 
         if(user == null) {
-            user = userRepository.save(
+            user = userService.createNewUser(
                     User.builder()
                             .firstName(WordUtils.capitalizeFully(person.getFirstName()))
                             .lastName(WordUtils.capitalizeFully(person.getLastName()))

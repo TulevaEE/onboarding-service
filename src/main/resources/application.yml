@@ -75,6 +75,12 @@ epis:
 frontend:
   url: http://localhost:3000
 
+mailchimp:
+  api:
+    key: someKey
+  list:
+    id: someId
+
 # uncomment when starting with a clean DB
 #flyway:
 #  baseline-on-migrate: true
@@ -143,3 +149,9 @@ epis:
 
 frontend:
   url: https://pension.tuleva.ee
+
+mailchimp:
+  api:
+    key: ${MAILCHIMP_API_KEY}
+  list:
+    id: ${MAILCHIMP_LIST_ID}

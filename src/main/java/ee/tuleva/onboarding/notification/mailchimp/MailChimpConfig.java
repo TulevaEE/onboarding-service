@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.config;
+package ee.tuleva.onboarding.notification.mailchimp;
 
 import com.ecwid.maleorang.MailchimpClient;
 import org.springframework.beans.factory.annotation.Value;

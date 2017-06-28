@@ -23,16 +23,21 @@ public class MailChimpService {
 
   public MemberInfo createOrUpdateMember(User user) {
     EditMemberMethod.CreateOrUpdate method = new EditMemberMethod.CreateOrUpdate(listId, user.getEmail());
+
     method.status = "subscribed";
     method.merge_fields = new MailchimpObject();
-    Map<String, Object> mergeFields = method.merge_fields.mapping;
 
+    Map<String, Object> mergeFields = method.merge_fields.mapping;
     mergeFields.put("FNAME", user.getFirstName());
     mergeFields.put("LNAME", user.getLastName());
     mergeFields.put("ISIKUKOOD", user.getPersonalCode());
     mergeFields.put("TELEFON", user.getPhoneNumber());
+    if(user.getMember().isPresent()) {
+      mergeFields.put("LIIKME_NR", user.getMemberOrThrow().getMemberNumber());
+    }
 
-    return mailChimpClient.execute(method);
+    MemberInfo execute = mailChimpClient.execute(method);
+    return execute;
   }
 
 }

@@ -34,6 +34,6 @@ class MailChimpServiceSpec extends Specification {
 			assert mergeFields.LIIKME_NR == user.memberOrThrow.memberNumber
 			return expectedMemberInfo
 		}
-		memberInfo == expectedMemberInfo
+		memberInfo.get() == expectedMemberInfo
 	}
 }

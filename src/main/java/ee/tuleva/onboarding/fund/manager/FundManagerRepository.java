@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.fund;
+package ee.tuleva.onboarding.fund.manager;
 
 import org.springframework.data.repository.CrudRepository;
 

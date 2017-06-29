@@ -36,10 +36,10 @@ class PensionFundStatisticsServiceSpec extends Specification {
 				MediaType.APPLICATION_XML))
 
 		when:
-		def response = service.getPensionFundStatistics()
+		def statistics = service.getPensionFundStatistics()
 
 		then:
-		response.pensionFundStatistics == null
+		statistics == null
 	}
 
 	def "GetPensionFundStatistics works with one pension fund statistic"() {
@@ -56,9 +56,9 @@ class PensionFundStatisticsServiceSpec extends Specification {
 		def statistics = service.getPensionFundStatistics()
 
 		then:
-		statistics.pensionFundStatistics != null
-		statistics.pensionFundStatistics.size() == 1
-		def fund = statistics.pensionFundStatistics.first()
+		statistics != null
+		statistics.size() == 1
+		def fund = statistics.first()
 		fund.isin == "EE3600109435"
 		fund.nav == 0.63337
 		fund.volume == 27_630_899.99114
@@ -75,9 +75,9 @@ class PensionFundStatisticsServiceSpec extends Specification {
 		def statistics = service.getPensionFundStatistics()
 
 		then:
-		statistics.pensionFundStatistics != null
-		statistics.pensionFundStatistics.size() == 22
-		def fund = statistics.pensionFundStatistics.first()
+		statistics != null
+		statistics.size() == 22
+		def fund = statistics.first()
 		fund.isin == "EE3600019717"
 		fund.nav == 0.91511
 		fund.volume == 59_899_459.39470

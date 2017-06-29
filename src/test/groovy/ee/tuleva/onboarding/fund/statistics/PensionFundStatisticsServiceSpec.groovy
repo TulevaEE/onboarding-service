@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.statistics
+package ee.tuleva.onboarding.fund.statistics
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest

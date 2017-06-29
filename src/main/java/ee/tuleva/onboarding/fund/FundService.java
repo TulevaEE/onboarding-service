@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.fund;
 
 import ee.tuleva.onboarding.fund.response.FundResponse;
-import ee.tuleva.onboarding.statistics.PensionFundStatistics;
-import ee.tuleva.onboarding.statistics.PensionFundStatisticsService;
+import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
+import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

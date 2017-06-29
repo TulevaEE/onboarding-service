@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.statistics;
+package ee.tuleva.onboarding.fund.statistics;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.fund
 
-import ee.tuleva.onboarding.statistics.PensionFundStatistics
-import ee.tuleva.onboarding.statistics.PensionFundStatisticsService
+import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics
+import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds

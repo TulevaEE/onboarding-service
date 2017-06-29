@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.fund.response;
 
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.manager.FundManager;
-import ee.tuleva.onboarding.statistics.PensionFundStatistics;
+import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 

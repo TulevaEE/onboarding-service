@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.statistics;
+package ee.tuleva.onboarding.fund.statistics;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;

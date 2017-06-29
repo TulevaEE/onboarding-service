@@ -9,7 +9,8 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 class EmailServiceSpec extends Specification {
 
     MandateEmailConfiguration mandateEmailConfiguration = Mock(MandateEmailConfiguration)
-    EmailService service = new EmailService(mandateEmailConfiguration)
+    EmailContentService emailContentService = Mock(EmailContentService)
+    EmailService service = new EmailService(mandateEmailConfiguration, emailContentService)
 
     def setup() {
         mandateEmailConfiguration.from >> "avaldused@tuleva.ee"
@@ -21,6 +22,9 @@ class EmailServiceSpec extends Specification {
 
     @Ignore
     def "Send mandate email"() {
+        given:
+        emailContentService.getMandateEmailHtml() >> "html"
+
         when:
         service.sendMandate(sampleUser().build(), 123, "file".bytes)
 
@@ -30,6 +34,9 @@ class EmailServiceSpec extends Specification {
 
     @Ignore
     def "send member number email"() {
+        given:
+        emailContentService.getMembershipEmailHtml(_) >> "html"
+
         when:
         service.sendMemberNumber(sampleUser().email("erko@risthein.ee").build())
 

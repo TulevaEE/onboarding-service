@@ -6,20 +6,20 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextBuilder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.preferences.UserPreferences;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
-import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
-import javax.annotation.PostConstruct;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Component
+@RequiredArgsConstructor
 public class HtmlMandateContentCreator implements MandateContentCreator {
 
-    TemplateEngine templateEngine;
+    private final TemplateEngine templateEngine;
     User user;
     Mandate mandate;
     List<Fund> funds;
@@ -56,7 +56,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
                 .funds(funds)
                 .build();
 
-        String htmlContent = templateEngine.process("future_contributions_fund", ctx);
+        String htmlContent = templateEngine.process("/mandate/future_contributions_fund", ctx);
 
         return MandateContentFile.builder()
                 .name("valikuavaldus_" + documentNumber + ".html")
@@ -107,7 +107,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
                 .funds(funds)
                 .build();
 
-        String htmlContent = templateEngine.process("fund_transfer", ctx);
+        String htmlContent = templateEngine.process("/mandate/fund_transfer", ctx);
 
         return MandateContentFile.builder()
                 .name("vahetuseavaldus_" + documentNumber + ".html")
@@ -115,18 +115,5 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
                 .content(htmlContent.getBytes())
                 .build();
     }
-
-    @PostConstruct
-    private void initialize() {
-        ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
-        templateResolver.setPrefix("templates/mandate/");
-        templateResolver.setSuffix(".html");
-        templateResolver.setTemplateMode("XHTML");
-        templateResolver.setCharacterEncoding("UTF-8");
-
-        templateEngine = new TemplateEngine();
-        templateEngine.setTemplateResolver(templateResolver);
-    }
-
 
 }

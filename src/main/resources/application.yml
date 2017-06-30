@@ -75,6 +75,11 @@ epis:
 frontend:
   url: http://localhost:3000
 
+pensionikeskus:
+  statistics:
+    endpoint:
+      url: https://public.pensionikeskus.ee/public/corporate/pensionFundStatistics.jsp
+
 mailchimp:
   api:
     key: someKey

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.notification.email
 
 import ee.tuleva.onboarding.config.MandateEmailConfiguration
-import org.junit.Ignore
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -20,7 +19,6 @@ class EmailServiceSpec extends Specification {
         service.initialize()
     }
 
-    @Ignore
     def "Send mandate email"() {
         given:
         emailContentService.getMandateEmailHtml() >> "html"
@@ -32,7 +30,6 @@ class EmailServiceSpec extends Specification {
         true
     }
 
-    @Ignore
     def "send member number email"() {
         given:
         emailContentService.getMembershipEmailHtml(_) >> "html"

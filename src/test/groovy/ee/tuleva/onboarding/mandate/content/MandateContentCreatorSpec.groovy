@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.content
 
+import ee.tuleva.onboarding.config.TemplateEngineWrapper
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateFixture
 import spock.lang.Specification
@@ -11,10 +12,13 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
 class MandateContentCreatorSpec extends Specification {
 
-    MandateContentCreator mandateContentCreator = new HtmlMandateContentCreator()
+    TemplateEngineWrapper templateEngine = Mock(TemplateEngineWrapper)
+    MandateContentCreator mandateContentCreator = new HtmlMandateContentCreator(templateEngine)
+
+    String sampleContent = "content"
 
     def setup() {
-        mandateContentCreator.initialize()
+        templateEngine.process(_, _) >> sampleContent
     }
 
     def "Generate mandate content"() {
@@ -38,14 +42,9 @@ class MandateContentCreatorSpec extends Specification {
         mandateContentFiles[2].name == "valikuavaldus_123.html"
         mandateContentFiles[2].mimeType == "text/html"
 
-        //not very nice test, but will act as a primitive hash function,
-        // breaking when template or data is changed.
-        //if needed, copy data over to this test
-        mandateContentFiles[0].content.length == 29574
-        mandateContentFiles[1].content.length == 30047
-        mandateContentFiles[2].content.length == 25566
-
-//        writeFilesOut(mandateContentFiles)
+        mandateContentFiles[0].content != null
+        mandateContentFiles[1].content != null
+        mandateContentFiles[2].content != null
     }
 
     def "Generate mandate only for transfer with percent over 0"() {
@@ -68,12 +67,9 @@ class MandateContentCreatorSpec extends Specification {
 
         mandateContentFiles[2].name == "valikuavaldus_123.html"
         mandateContentFiles[2].mimeType == "text/html"
-        //not very nice test, but will act as a primitive hash function,
-        // breaking when template or data is changed.
-        //if needed, copy data over to this test
-        mandateContentFiles[0].content.length == 29574
-        mandateContentFiles[1].content.length == 30047
-        mandateContentFiles[2].content.length == 25566
+        mandateContentFiles[0].content != null
+        mandateContentFiles[1].content != null
+        mandateContentFiles[2].content != null
     }
 
     def "Generate mandate only for fund transfer when future contribution isin not set"() {
@@ -99,18 +95,8 @@ class MandateContentCreatorSpec extends Specification {
         mandateContentFiles[1].name == "vahetuseavaldus_1234.html"
         mandateContentFiles[1].mimeType == "text/html"
 
-        mandateContentFiles[0].content.length == 29574
-        mandateContentFiles[1].content.length == 30047
-    }
-
-    private void writeFilesOut(List<MandateContentFile> files) {
-
-        files.each { file ->
-            FileOutputStream fos = new FileOutputStream("/Users/jordan.valdma/Downloads/temp/" + file.name);
-            fos.write(file.content);
-            fos.close();
-        }
-
+        mandateContentFiles[0].content != null
+        mandateContentFiles[1].content != null
     }
 
 }

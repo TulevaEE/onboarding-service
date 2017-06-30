@@ -1,15 +1,27 @@
 package ee.tuleva.onboarding.config;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.IContext;
 import org.thymeleaf.templateresolver.ClassLoaderTemplateResolver;
 
-@Configuration
-public class ThymeleafConfiguration {
+import javax.annotation.PostConstruct;
 
-    @Bean
-    public TemplateEngine templateEngine() {
+@Component
+public class TemplateEngineWrapper {
+
+    TemplateEngine templateEngine;
+
+    @PostConstruct
+    private void initialize() {
+        this.templateEngine = templateEngine();
+    }
+
+    public String process(String templateName, IContext context) {
+        return this.templateEngine.process(templateName, context);
+    }
+
+    private TemplateEngine templateEngine() {
         ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
         templateResolver.setPrefix("templates");
         templateResolver.setSuffix(".html");

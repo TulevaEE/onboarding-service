@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.content;
 
+import ee.tuleva.onboarding.config.TemplateEngineWrapper;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -8,7 +9,6 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.preferences.UserPreferences;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.math.BigDecimal;
@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HtmlMandateContentCreator implements MandateContentCreator {
 
-    private final TemplateEngine templateEngine;
+    private final TemplateEngineWrapper templateEngine;
     User user;
     Mandate mandate;
     List<Fund> funds;

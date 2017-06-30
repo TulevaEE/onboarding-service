@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.fund;
 
-import com.fasterxml.jackson.annotation.JsonView;
+import ee.tuleva.onboarding.fund.manager.FundManager;
 import lombok.*;
 import org.hibernate.validator.constraints.NotBlank;
 
@@ -19,22 +19,18 @@ public class Fund {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @JsonView(FundView.SkipFundManager.class)
     private Long id;
 
     @ManyToOne
     private FundManager fundManager;
 
     @NotBlank
-    @JsonView(FundView.SkipFundManager.class)
     private String isin;
 
     @NotBlank
-    @JsonView(FundView.SkipFundManager.class)
     private String name;
 
     @NotNull
-    @JsonView(FundView.SkipFundManager.class)
     private BigDecimal managementFeeRate;
 
 }

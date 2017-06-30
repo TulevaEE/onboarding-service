@@ -2,19 +2,22 @@ package ee.tuleva.onboarding.fund
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.mandate.MandateFixture
+import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 
 import java.util.stream.Collectors
 
 import static org.hamcrest.Matchers.hasSize
+import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 class FundControllerSpec extends BaseControllerSpec {
 
-    FundRepository fundRepository = Mock(FundRepository)
-    FundController controller = new FundController(fundRepository)
+    FundService fundService = Mock(FundService)
+    FundController controller = new FundController(fundService)
 
     private MockMvc mockMvc
 
@@ -24,7 +27,7 @@ class FundControllerSpec extends BaseControllerSpec {
 
     def "get: Get all funds"() {
         given:
-        1 * fundRepository.findAll() >> MandateFixture.sampleFunds()
+        1 * fundService.getFunds(Optional.empty()) >> MandateFixture.sampleFunds()
         expect:
         mockMvc
                 .perform(get("/v1/funds"))
@@ -37,13 +40,14 @@ class FundControllerSpec extends BaseControllerSpec {
         given:
         String fundManagerName = "Tuleva"
         Iterable<Fund> funds = MandateFixture.sampleFunds().stream().filter( { f -> f.fundManager.name == fundManagerName}).collect(Collectors.toList())
-        1 * fundRepository.findByFundManagerNameIgnoreCase(fundManagerName) >> funds
+        1 * fundService.getFunds(Optional.of(fundManagerName)) >> funds
         expect:
         mockMvc
                 .perform(get("/v1/funds?fundManager.name=" + fundManagerName))
-
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath('$', hasSize(funds.size())));
+                .andExpect(jsonPath('$', hasSize(funds.size())))
+                .andExpect(jsonPath('$[0].fundManager.name', is(fundManagerName)))
     }
 
 

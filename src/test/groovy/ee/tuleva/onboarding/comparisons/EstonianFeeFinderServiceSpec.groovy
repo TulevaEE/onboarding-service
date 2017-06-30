@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.comparisons
 import ee.tuleva.onboarding.comparisons.exceptions.FeeSizeException
 import ee.tuleva.onboarding.comparisons.exceptions.FundManagerNotFoundException
 import ee.tuleva.onboarding.comparisons.exceptions.SourceHTMLChangedException
-import ee.tuleva.onboarding.fund.FundManagerRepository
+import ee.tuleva.onboarding.fund.manager.FundManagerRepository
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import spock.lang.Specification

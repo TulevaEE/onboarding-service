@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.account.AccountStatementFixture
 import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.auth.PersonFixture
 import ee.tuleva.onboarding.fund.Fund
-import ee.tuleva.onboarding.fund.FundManager
+import ee.tuleva.onboarding.fund.manager.FundManager
 import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.MandateApplicationStatus
 import ee.tuleva.onboarding.mandate.transfer.TransferExchange
 import ee.tuleva.onboarding.mandate.transfer.TransferExchangeService

@@ -8,15 +8,12 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.config.MandateEmailConfiguration;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.member.Member;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.IOException;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -28,7 +25,7 @@ import java.util.List;
 public class EmailService {
 
     private final MandateEmailConfiguration mandateEmailConfiguration;
-
+    private final EmailContentService emailContentService;
     private MandrillApi mandrillApi;
 
     @PostConstruct
@@ -49,8 +46,10 @@ public class EmailService {
             return;
         }
 
-        MandrillMessage message = newMandrillMessage(getRecipients(user), getMandateEmailSubject(),
-          getMandateHtml(), getMandateTags(), getMandateAttachements(file, user, mandateId));
+        MandrillMessage message = newMandrillMessage(
+                getRecipients(user), getMandateEmailSubject(),
+                emailContentService.getMandateEmailHtml(), getMandateTags(),
+                getMandateAttachements(file, user, mandateId));
 
         send(user, message);
     }
@@ -64,8 +63,10 @@ public class EmailService {
 
         log.info("Sending member number email to user: {}", user);
 
-        MandrillMessage message = newMandrillMessage(getRecipients(user), getMemberNumberEmailSubject(),
-          getMemberNumberHtml(user), getMemberNumberTags(), null);
+        MandrillMessage message = newMandrillMessage(
+                getRecipients(user), getMemberNumberEmailSubject(),
+                emailContentService.getMembershipEmailHtml(user),
+                getMemberNumberTags(), null);
 
         send(user, message);
     }
@@ -119,29 +120,6 @@ public class EmailService {
         } catch (IOException e) {
             log.error(e.getLocalizedMessage(), e);
         }
-    }
-
-    private String getMandateHtml() {
-        return new StringBuilder()
-                .append("Tervist. <br/>")
-                .append("Olete teinud Tuleva veebirakenduse kaudu pensionifondi valiku- ja/või vahetusavalduse. " +
-                        "Käesolevale kirjale on lisatud koopia teie poolt esitatud avaldustest, " +
-                        "mis on saadetud Eesti Pensioni Infosüsteemi.<br/>")
-                .append("Küsimuste puhul kirjutage palun tuleva@tuleva.ee või helistage 644 5100. <br/><br/>")
-                .append("Tuleva </br>")
-                .toString();
-    }
-
-    private String getMemberNumberHtml(User user) {
-        DateTimeFormatter formatter =
-          DateTimeFormatter.ISO_LOCAL_DATE
-            .withZone(ZoneId.of("Europe/Tallinn"));
-        Member member = user.getMemberOrThrow();
-        String memberDate = formatter.format(member.getCreatedDate());
-
-        return "Tuleva liikmetunnistus nr " + member.getMemberNumber() + "<br />" +
-          "<strong>" + user.getFirstName() + " " + user.getLastName() + "</strong><br />" +
-          "on Tulundusühistu Tuleva liikmeks vastu võetud " + memberDate + "<br />";
     }
 
     private List<Recipient> getRecipients(User user) {

@@ -20,28 +20,24 @@ import java.util.stream.Collectors;
 public class HtmlMandateContentCreator implements MandateContentCreator {
 
     private final TemplateEngineWrapper templateEngine;
-    User user;
-    Mandate mandate;
-    List<Fund> funds;
-    UserPreferences userPreferences;
 
     @Override
     public List<MandateContentFile> getContentFiles(User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
-        this.user = user;
-        this.mandate = mandate;
-        this.userPreferences = userPreferences;
-        this.funds = funds;
-
-        List<MandateContentFile> files = new ArrayList<>(getFundTransferMandateContentFiles(mandate));
+        List<MandateContentFile> files = new ArrayList<>(getFundTransferMandateContentFiles(
+                user, mandate, funds, userPreferences
+        ));
 
         if (mandate.getFutureContributionFundIsin().isPresent()) {
-            files.add(getFutureContributionsFundMandateContentFile(mandate));
+            files.add(getFutureContributionsFundMandateContentFile(
+                    user, mandate, funds, userPreferences
+            ));
         }
 
         return files;
     }
 
-    private MandateContentFile getFutureContributionsFundMandateContentFile(Mandate mandate) {
+    private MandateContentFile getFutureContributionsFundMandateContentFile(
+            User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
         String transactionId = UUID.randomUUID().toString();
 
         String documentNumber = mandate.getId().toString();
@@ -65,17 +61,22 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
                 .build();
     }
 
-    private List<MandateContentFile> getFundTransferMandateContentFiles(Mandate mandate) {
+    private List<MandateContentFile> getFundTransferMandateContentFiles(
+            User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
         return allocateAndGetFundTransferFiles(
-                getPrintableFundExchangeStructure(mandate)
+                getPrintableFundExchangeStructure(mandate),
+                user, mandate, funds, userPreferences
         );
     }
 
-    private List<MandateContentFile> allocateAndGetFundTransferFiles(Map<String, List<FundTransferExchange>> exchangeMap) {
+    private List<MandateContentFile> allocateAndGetFundTransferFiles(
+            Map<String, List<FundTransferExchange>> exchangeMap,
+            User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences
+            ) {
         return exchangeMap.keySet().stream().map(
                 sourceIsin -> getFundTransferMandateContentFile(new ArrayList<>(
                         exchangeMap.get(sourceIsin)
-                ))).collect(Collectors.toList());
+                ), user, mandate, funds, userPreferences)).collect(Collectors.toList());
     }
 
     private Map<String, List<FundTransferExchange>> getPrintableFundExchangeStructure(Mandate mandate) {
@@ -93,7 +94,10 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
         return exchangeMap;
     }
 
-    private MandateContentFile getFundTransferMandateContentFile(List<FundTransferExchange> fundTransferExchanges) {
+    private MandateContentFile getFundTransferMandateContentFile(
+            List<FundTransferExchange> fundTransferExchanges,
+            User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences
+    ) {
         String transactionId = UUID.randomUUID().toString();
         String documentNumber = fundTransferExchanges.get(0).getId().toString();
 

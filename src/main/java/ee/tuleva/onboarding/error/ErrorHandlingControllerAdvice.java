@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.error;
 
+import ee.tuleva.onboarding.account.PensionRegistryAccountStatementConnectionException;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.GATEWAY_TIMEOUT;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 /*
@@ -36,6 +38,12 @@ public class ErrorHandlingControllerAdvice {
     public ResponseEntity<ErrorsResponse> handleErrors(IdSessionException exception) {
         log.info("IdSessionException {}", exception.toString());
         return new ResponseEntity<>(exception.getErrorsResponse(), UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(PensionRegistryAccountStatementConnectionException.class)
+    public ResponseEntity<ErrorsResponse> handleErrors(PensionRegistryAccountStatementConnectionException exception) {
+        log.info("PensionRegistryAccountStatementConnectionException {}", exception.toString());
+        return new ResponseEntity<>(exception.getErrorsResponse(), GATEWAY_TIMEOUT);
     }
 
     @ExceptionHandler(ErrorsResponseException.class)

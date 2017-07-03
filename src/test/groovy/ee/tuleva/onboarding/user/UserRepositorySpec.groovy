@@ -41,4 +41,25 @@ class UserRepositorySpec extends Specification {
 		user.updatedDate != null
 	}
 
+	def "persisting a user with just personal code and email works"() {
+		given:
+		entityManager.persist(User.builder()
+				.personalCode("38501010002")
+				.email("erko@risthein.ee")
+				.active(true)
+				.build())
+
+		entityManager.flush()
+
+		when:
+		User user = repository.findByPersonalCode("38501010002")
+
+		then:
+		user.id != null
+		user.personalCode == "38501010002"
+		user.email == "erko@risthein.ee"
+		user.createdDate != null
+		user.updatedDate != null
+	}
+
 }

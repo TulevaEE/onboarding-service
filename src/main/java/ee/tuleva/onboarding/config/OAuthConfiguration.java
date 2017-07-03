@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.auth.mobileid.MobileIdTokenGranter;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -24,6 +23,7 @@ import org.springframework.security.oauth2.config.annotation.web.configurers.Aut
 import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
 import org.springframework.security.oauth2.provider.CompositeTokenGranter;
 import org.springframework.security.oauth2.provider.TokenGranter;
+import org.springframework.security.oauth2.provider.client.ClientCredentialsTokenGranter;
 import org.springframework.security.oauth2.provider.client.JdbcClientDetailsService;
 import org.springframework.security.oauth2.provider.refresh.RefreshTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
@@ -59,7 +59,9 @@ public class OAuthConfiguration {
                             "/v1" + INITIAL_CAPITAL_URI,
                             "/v1" + MANDATES_URI + ".*"
                             ).hasAuthority(Authority.MEMBER)
-                    .regexMatchers("/v1/.*").authenticated()
+                    .regexMatchers("/v1/funds").hasAnyAuthority(Authority.USER, Authority.ROLE_CLIENT)
+                    .regexMatchers("/v1/users").hasAuthority(Authority.ROLE_CLIENT)
+                    .regexMatchers("/v1/.*").hasAuthority(Authority.USER)
                     ;
         }
     }
@@ -130,8 +132,12 @@ public class OAuthConfiguration {
             TokenGranter idCardTokenGranter = idCardTokenGranter(endpoints);
             TokenGranter refreshTokenGranter = new RefreshTokenGranter(
               endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
+            TokenGranter clientCredentialsTokenGranter =
+              new ClientCredentialsTokenGranter(
+                endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
 
-            return new CompositeTokenGranter(asList(mobileIdTokenGranter, idCardTokenGranter, refreshTokenGranter));
+            return new CompositeTokenGranter(asList(mobileIdTokenGranter, idCardTokenGranter,
+              refreshTokenGranter, clientCredentialsTokenGranter));
         }
 
         private MobileIdTokenGranter mobileIdTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {

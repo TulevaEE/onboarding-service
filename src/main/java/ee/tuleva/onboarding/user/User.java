@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import lombok.*;
 import org.hibernate.validator.constraints.Email;
-import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
 import javax.validation.constraints.Min;
@@ -40,10 +39,8 @@ public class User implements Person, Serializable {
 
 	private String phoneNumber;
 
-	@NotBlank
 	private String firstName;
 
-	@NotBlank
 	private String lastName;
 
 	@NotNull

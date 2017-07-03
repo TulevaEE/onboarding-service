@@ -25,7 +25,7 @@ public class EmailContentService {
     public String getMandateEmailHtml() {
         Context ctx = new Context();
         ctx.setLocale(localeResolver.resolveLocale(request));
-        String htmlContent = templateEngine.process("/email/mandate", ctx);
+        String htmlContent = templateEngine.process("mandate", ctx);
         return htmlContent;
     }
 
@@ -43,7 +43,7 @@ public class EmailContentService {
         ctx.setVariable("memberDate", memberDate);
         ctx.setLocale(localeResolver.resolveLocale(request));
 
-        String htmlContent = templateEngine.process("/email/membership", ctx);
+        String htmlContent = templateEngine.process("membership", ctx);
         return htmlContent;
     }
 

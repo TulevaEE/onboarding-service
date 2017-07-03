@@ -52,7 +52,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
                 .funds(funds)
                 .build();
 
-        String htmlContent = templateEngine.process("/mandate/future_contributions_fund", ctx);
+        String htmlContent = templateEngine.process("future_contributions_fund", ctx);
 
         return MandateContentFile.builder()
                 .name("valikuavaldus_" + documentNumber + ".html")
@@ -111,7 +111,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
                 .funds(funds)
                 .build();
 
-        String htmlContent = templateEngine.process("/mandate/fund_transfer", ctx);
+        String htmlContent = templateEngine.process("fund_transfer", ctx);
 
         return MandateContentFile.builder()
                 .name("vahetuseavaldus_" + documentNumber + ".html")

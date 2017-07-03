@@ -23,7 +23,7 @@ public class TemplateEngineWrapper {
 
     private TemplateEngine templateEngine() {
         ClassLoaderTemplateResolver templateResolver = new ClassLoaderTemplateResolver();
-        templateResolver.setPrefix("templates");
+        templateResolver.setPrefix("templates/");
         templateResolver.setSuffix(".html");
         templateResolver.setTemplateMode("XHTML");
         templateResolver.setCharacterEncoding("UTF-8");

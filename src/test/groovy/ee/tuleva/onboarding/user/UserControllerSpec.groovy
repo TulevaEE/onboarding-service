@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.user
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.user.command.CreateUserCommand
 import ee.tuleva.onboarding.user.command.UpdateUserCommand
 import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService
 import ee.tuleva.onboarding.user.preferences.UserPreferences
@@ -10,8 +11,7 @@ import org.springframework.http.MediaType
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static org.hamcrest.Matchers.*
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
 class UserControllerSpec extends BaseControllerSpec {
@@ -74,7 +74,7 @@ class UserControllerSpec extends BaseControllerSpec {
 				.andExpect(jsonPath('$.addressRow1', is("Telliskivi")))
 	}
 
-	def "saves a new user"() {
+	def "updates an existing user"() {
 		given:
 		def command = new UpdateUserCommand(
 				email: "erko@risthein.ee",
@@ -118,6 +118,34 @@ class UserControllerSpec extends BaseControllerSpec {
 				.andExpect(jsonPath('$.errors', hasSize(1)))
 	}
 
+	def "create a new user"() {
+		given:
+		def command = new CreateUserCommand(
+				personalCode: "38501010002",
+				email: "erko@risthein.ee",
+				phoneNumber: "5555555")
+		def mvc = mockMvc(controller)
+
+		when:
+		def performCall = mvc
+				.perform(post("/v1/users")
+				.content(mapper.writeValueAsString(command))
+				.contentType(MediaType.APPLICATION_JSON))
+
+		then:
+		1 * userService.createNewUser({ User user ->
+			user.personalCode == command.personalCode &&
+					user.email == command.email &&
+					user.phoneNumber == command.phoneNumber &&
+					user.active
+		}) >> userFrom(command)
+		performCall.andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+				.andExpect(jsonPath('$.personalCode', is("38501010002")))
+				.andExpect(jsonPath('$.email', is("erko@risthein.ee")))
+				.andExpect(jsonPath('$.phoneNumber', is("5555555")))
+	}
+
 	private User userFrom(AuthenticatedPerson authenticatedPerson, UpdateUserCommand command = null) {
 		User.builder()
 				.id(authenticatedPerson.userId)
@@ -126,6 +154,14 @@ class UserControllerSpec extends BaseControllerSpec {
 				.personalCode(authenticatedPerson.personalCode)
 				.email(command?.email)
 				.phoneNumber(command?.phoneNumber)
+				.build()
+	}
+
+	private User userFrom(CreateUserCommand command) {
+		User.builder()
+				.personalCode(command.personalCode)
+				.email(command.email)
+				.phoneNumber(command.phoneNumber)
 				.build()
 	}
 

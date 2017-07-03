@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-import static java.util.Collections.emptyList;
+import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
 @Service
@@ -26,8 +26,8 @@ public class GrantedAuthorityFactory {
         User user = userService.getById(userId);
 
         List<SimpleGrantedAuthority> grantedAuthorities = user.getMember()
-          .map(member -> singletonList(new SimpleGrantedAuthority(Authority.MEMBER)))
-          .orElse(emptyList());
+          .map(member -> asList(new SimpleGrantedAuthority(Authority.USER), new SimpleGrantedAuthority(Authority.MEMBER)))
+          .orElse(singletonList(new SimpleGrantedAuthority(Authority.USER)));
 
         log.info("User #{} granted authorities: {}", userId, grantedAuthorities);
 

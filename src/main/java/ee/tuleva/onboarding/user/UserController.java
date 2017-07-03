@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
+import ee.tuleva.onboarding.user.command.CreateUserCommand;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
 import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService;
 import ee.tuleva.onboarding.user.preferences.UserPreferences;
@@ -42,6 +43,27 @@ public class UserController {
 		}
 
 		User user = userService.updateUser(authenticatedPerson.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
+
+		return UserResponse.fromUser(user);
+	}
+
+	@ApiOperation(value = "Update the current user")
+	@PostMapping("/users")
+	public UserResponse createUser(@Valid @RequestBody CreateUserCommand cmd,
+															@ApiIgnore Errors errors) throws ValidationErrorsException {
+
+		if (errors != null && errors.hasErrors()) {
+			throw new ValidationErrorsException(errors);
+		}
+
+		User user = userService.createNewUser(
+			User.builder()
+				.personalCode(cmd.getPersonalCode())
+				.email(cmd.getEmail())
+				.phoneNumber(cmd.getPhoneNumber())
+				.active(true)
+				.build()
+		);
 
 		return UserResponse.fromUser(user);
 	}

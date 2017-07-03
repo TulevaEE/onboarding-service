@@ -65,6 +65,10 @@ public class User implements Person, Serializable {
 		return getMember().orElseThrow(NotAMemberException::new);
 	}
 
+	public boolean hasName() {
+		return firstName != null || lastName != null;
+	}
+
 	@PrePersist
 	protected void onCreate() {
 		createdDate = Instant.now();

@@ -23,7 +23,7 @@ class AccountStatementServiceSpec extends Specification {
     }
     PersonalSelectionResponseType personalSelection
     PensionAccountBalanceResponseType resp = Mock(PensionAccountBalanceResponseType) {
-        1 * getUnits()  >> units
+        getUnits()  >> units
     }
 
     def setup() {
@@ -54,6 +54,39 @@ class AccountStatementServiceSpec extends Specification {
         activeFundBalance.fund.name == activeFund.name
         activeFundBalance.fund.isin == activeFund.isin
         activeFundBalance.value == activeFundBalanceValue
+    }
+
+    def "GetMyPensionAccountStatement: Handle get statement exceptions"() {
+        given:
+        Fund activeFund = MandateFixture.sampleFunds().get(0)
+        personalSelection.getPensionAccount().setSecurityName(activeFund.name)
+        BigDecimal activeFundBalanceValue = new BigDecimal(100000)
+        FundBalance sampleFundBalance = sampleFundBalance(activeFund, activeFundBalanceValue)
+
+        kprClient
+                .pensionAccountBalance(_ as PensionAccountBalanceType, PersonFixture.samplePerson().getPersonalCode()) >> new SocketTimeoutException()
+
+        when:
+        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(PersonFixture.samplePerson())
+        then:
+        thrown PensionRegistryAccountStatementConnectionException
+    }
+
+    def "GetMyPensionAccountStatement: Handle get personal information exceptions"() {
+        given:
+        Fund activeFund = MandateFixture.sampleFunds().get(0)
+        personalSelection.getPensionAccount().setSecurityName(activeFund.name)
+        BigDecimal activeFundBalanceValue = new BigDecimal(100000)
+        FundBalance sampleFundBalance = sampleFundBalance(activeFund, activeFundBalanceValue)
+
+        kprClient.pensionAccountBalance(_ as PensionAccountBalanceType, PersonFixture.samplePerson().getPersonalCode()) >> resp
+        kprUnitsOsakudToFundBalanceConverter.convert(_ as PensionAccountBalanceResponseType.Units.Balance) >> sampleFundBalance
+        kprClient.personalSelection(PersonFixture.samplePerson().getPersonalCode()) >> new SocketTimeoutException()
+
+        when:
+        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(PersonFixture.samplePerson())
+        then:
+        thrown PensionRegistryAccountStatementConnectionException
     }
 
     def "GetMyPensionAccountStatement: Flag active fund balance, even if names are in different case"() {

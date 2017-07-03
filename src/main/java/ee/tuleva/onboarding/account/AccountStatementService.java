@@ -47,7 +47,13 @@ public class AccountStatementService {
     private PensionAccountBalanceResponseType getPensionAccountBalance(Person person) {
         PensionAccountBalanceType request = new PensionAccountBalanceType();
         request.setBalanceDate(null);
-        return kprClient.pensionAccountBalance(request, person.getPersonalCode());
+        PensionAccountBalanceResponseType response = null;
+        try {
+            response = kprClient.pensionAccountBalance(request, person.getPersonalCode());
+        } catch (Exception e) {
+            throw new PensionRegistryAccountStatementConnectionException();
+        }
+        return response;
     }
 
     private List<FundBalance> convertXRoadResponse(PensionAccountBalanceResponseType response) {
@@ -58,7 +64,12 @@ public class AccountStatementService {
     }
 
     private String getActiveFundName(Person person) {
-        PersonalSelectionResponseType csdPersonalSelection = kprClient.personalSelection(person.getPersonalCode());
+        PersonalSelectionResponseType csdPersonalSelection;
+        try {
+            csdPersonalSelection = kprClient.personalSelection(person.getPersonalCode());
+        } catch (Exception e) {
+            throw new PensionRegistryAccountStatementConnectionException();
+        }
         String activeFundName = csdPersonalSelection.getPensionAccount().getSecurityName();
         log.info("Active fund name is {}", activeFundName);
         return activeFundName;
@@ -105,7 +116,5 @@ public class AccountStatementService {
 
         return activeFundBalance;
     }
-
-
 
 }

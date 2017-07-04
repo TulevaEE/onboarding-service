@@ -133,12 +133,8 @@ class UserControllerSpec extends BaseControllerSpec {
 				.contentType(MediaType.APPLICATION_JSON))
 
 		then:
-		1 * userService.createNewUser({ User user ->
-			user.personalCode == command.personalCode &&
-					user.email == command.email &&
-					user.phoneNumber == command.phoneNumber &&
-					user.active
-		}) >> userFrom(command)
+		1 * userService.createOrUpdateUser(command.personalCode, command.email, command.phoneNumber) >>
+				userFrom(command)
 		performCall.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
 				.andExpect(jsonPath('$.personalCode', is("38501010002")))

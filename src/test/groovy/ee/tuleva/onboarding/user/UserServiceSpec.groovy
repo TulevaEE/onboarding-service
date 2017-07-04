@@ -168,6 +168,7 @@ class UserServiceSpec extends Specification {
 
     then:
     0 * userRepository.save(_)
+    thrown UserAlreadyAMemberException
 
     where:
     userByEmail | userByPersonalCode

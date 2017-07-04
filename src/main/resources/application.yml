@@ -38,8 +38,8 @@ xroad:
   memberClass: COM
   memberCode: 14041764
   subsystemCode: tuleva
-  requestTimeout: 5000
-  connectionTimeout: 3000
+  requestTimeout: 15000
+  connectionTimeout: 9000
 
 ssl:
   trustAllHTTPSHosts: true

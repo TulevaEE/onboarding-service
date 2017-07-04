@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.config;
 
+import ee.tuleva.onboarding.auth.AccessTokenValidityAwareClientCredentialsTokenGranter;
 import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.idcard.IdCardTokenGranter;

@@ -10,6 +10,10 @@ import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
 
+import static org.apache.commons.lang3.StringUtils.substringAfterLast;
+import static org.apache.commons.lang3.StringUtils.substringBeforeLast;
+import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -66,5 +70,16 @@ public class UserService {
     User savedUser = userRepository.save(user);
     mailChimpService.createOrUpdateMember(savedUser);
     return savedUser;
+  }
+
+  public User updateNameIfMissing(User user, String fullName) {
+    if(!user.hasName()) {
+      String firstName = substringBeforeLast(fullName, " ");
+      String lastName = substringAfterLast(fullName, " ");
+      user.setFirstName(capitalizeFully(firstName));
+      user.setLastName(capitalizeFully(lastName));
+      return userRepository.save(user);
+    }
+    return user;
   }
 }

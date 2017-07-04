@@ -10,6 +10,8 @@ import org.springframework.web.client.RestOperations;
 
 import java.util.List;
 
+import static java.util.Collections.emptyList;
+
 @Service
 @Slf4j
 public class PensionFundStatisticsService {
@@ -39,7 +41,12 @@ public class PensionFundStatisticsService {
   }
 
   List<PensionFundStatistics> getPensionFundStatistics() {
-    return restTemplate.getForObject(statisticsEndpoint, PensionFundStatisticsResponse.class).getPensionFundStatistics();
+    try {
+      return restTemplate.getForObject(statisticsEndpoint, PensionFundStatisticsResponse.class).getPensionFundStatistics();
+    } catch (Exception e) {
+      log.error("Error getting pension fund statistics", e);
+      return emptyList();
+    }
   }
 
 }

@@ -6,6 +6,8 @@ import spock.lang.Unroll
 import javax.validation.Validation
 import java.time.Instant
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+
 class UserSpec extends Specification {
 
 	def validatorFactory = Validation.buildDefaultValidatorFactory()
@@ -71,5 +73,20 @@ class UserSpec extends Specification {
 				.updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
 				.active(true)
 				.build()
+	}
+
+	def "user has a name when at least one of the names exist"() {
+		when:
+		def user = sampleUser().firstName(firstName).lastName(lastName).build()
+
+		then:
+		user.hasName() == hasName
+
+		where:
+		firstName | lastName || hasName
+		null      | null     || false
+		null      | "Smith"  || true
+		"John"    | null     || true
+		"John"    | "Smith"  || true
 	}
 }

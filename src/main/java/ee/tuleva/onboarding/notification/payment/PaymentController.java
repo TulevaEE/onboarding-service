@@ -57,6 +57,7 @@ public class PaymentController {
 
     if (statusCompleted && !isAMember) {
       User user = userService.registerAsMember(userId);
+      userService.updateNameIfMissing(user, payment.getCustomerName());
       emailService.sendMemberNumber(user);
       response.sendRedirect(frontendUrl + "/steps/select-sources?isNewMember=true");
     } else {

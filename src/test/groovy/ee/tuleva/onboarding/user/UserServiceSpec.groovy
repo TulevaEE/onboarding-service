@@ -111,4 +111,36 @@ class UserServiceSpec extends Specification {
     1 * mailChimpService.createOrUpdateMember(user)
   }
 
+  def "correctly updates user name"() {
+    given:
+    def user = sampleUser().firstName(null).lastName(null).build()
+    userRepository.save(_ as User) >> { User u -> u }
+
+    when:
+    def updatedUser = service.updateNameIfMissing(user, givenFullName)
+
+    then:
+    updatedUser.firstName == expectedFirstName
+    updatedUser.lastName == expectedLastName
+
+    where:
+    givenFullName     || expectedFirstName | expectedLastName
+    null              || null              | null
+    ""                || ""                | ""
+    "Erko"            || "Erko"            | ""
+    "ERKO RISTHEIN"   || "Erko"            | "Risthein"
+    "John Jack Smith" || "John Jack"       | "Smith"
+  }
+
+  def "doesn't try to update user name when it already exists"() {
+    given:
+    def user = sampleUser().build()
+
+    when:
+    def updatedUser = service.updateNameIfMissing(user, "New Name")
+
+    then:
+    updatedUser.firstName == user.firstName
+    updatedUser.lastName == user.lastName
+  }
 }

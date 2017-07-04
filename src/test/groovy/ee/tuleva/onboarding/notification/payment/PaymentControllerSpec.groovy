@@ -54,6 +54,8 @@ class PaymentControllerSpec extends BaseControllerSpec {
     1 * validator.validate(*_)
     1 * userService.registerAsMember(1L) >> sampleUser
     1 * emailService.sendMemberNumber(sampleUser)
+    1 * userService.updateNameIfMissing(sampleUser, json.customer_name)
+
   }
 
   def "validates mac for incoming payment"() {
@@ -81,7 +83,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     1 * validator.validate(*_)
     0 * userService.registerAsMember(_)
     0 * emailService.sendMemberNumber(_)
-
+    0 * userService.updateNameIfMissing(_)
   }
 
   def "doesn't try to create the member more than once"() {
@@ -103,7 +105,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     1 * validator.validate(*_)
     0 * userService.registerAsMember(_)
     0 * emailService.sendMemberNumber(_)
-
+    0 * userService.updateNameIfMissing(_)
   }
 
 }

@@ -59,7 +59,7 @@ public class PaymentController {
       User user = userService.registerAsMember(userId);
       userService.updateNameIfMissing(user, payment.getCustomerName());
       emailService.sendMemberNumber(user);
-      response.sendRedirect(frontendUrl + "/steps/select-sources?isNewMember=true");
+      response.sendRedirect(frontendUrl + "/steps/select-sources?isNewMember=true&shortFlow=true");
     } else {
       log.error("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
       response.sendRedirect(frontendUrl);

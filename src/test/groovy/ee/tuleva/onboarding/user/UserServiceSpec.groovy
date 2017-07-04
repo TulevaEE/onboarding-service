@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.user
 import ee.tuleva.onboarding.notification.mailchimp.MailChimpService
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
+import spock.lang.Shared
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -14,6 +15,18 @@ class UserServiceSpec extends Specification {
   def memberRepository = Mock(MemberRepository)
   def mailChimpService = Mock(MailChimpService)
   def service = new UserService(userRepository, memberRepository, mailChimpService)
+
+  @Shared def sampleUser = sampleUser().build()
+  @Shared def sampleUserNonMember = User.builder()
+          .phoneNumber("somePhone")
+          .email("someEmail")
+          .personalCode("somePersonalCode")
+
+  @Shared def otherUserNonMember = User.builder()
+          .phoneNumber("someOtherPhone")
+          .email("someOtherEmail")
+          .personalCode("someOtherPersonalCode")
+
 
   def "get user by id"() {
     given:
@@ -30,7 +43,7 @@ class UserServiceSpec extends Specification {
   def "can update user email and phone number based on personal code"() {
     given:
     def user = sampleUser().build()
-    userRepository.findByPersonalCode(user.personalCode) >> user
+    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
     userRepository.save(user) >> user
 
     when:
@@ -71,10 +84,10 @@ class UserServiceSpec extends Specification {
 
   def "isAMember() works"() {
     given:
-    userRepository.findOne(user.id) >> user
+    userRepository.findOne(user?.id) >> user
 
     when:
-    def result = service.isAMember(user.id)
+    def result = service.isAMember(user?.id)
 
     then:
     result == isAMember
@@ -83,12 +96,13 @@ class UserServiceSpec extends Specification {
     user                          | isAMember
     sampleUser().build()          | true
     sampleUserNonMember().build() | false
+    null                          | false
   }
 
   def "updating a user also updates it in Mailchimp"() {
     given:
     def user = sampleUser().build()
-    userRepository.findByPersonalCode(user.personalCode) >> user
+    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
     userRepository.save(user) >> user
 
     when:
@@ -142,5 +156,52 @@ class UserServiceSpec extends Specification {
     then:
     updatedUser.firstName == user.firstName
     updatedUser.lastName == user.lastName
+  }
+
+  def "never overwrites existing member data"() {
+    given:
+    userRepository.findByPersonalCode(sampleUser.personalCode) >> Optional.ofNullable(userByPersonalCode)
+    userRepository.findByEmail(sampleUser.email) >> Optional.ofNullable(userByEmail)
+
+    when:
+    service.createOrUpdateUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
+
+    then:
+    0 * userRepository.save(_)
+
+    where:
+    userByEmail | userByPersonalCode
+    sampleUser  | null
+    sampleUser  | sampleUser
+    null        | sampleUser
+  }
+
+  def "correctly overwrites existing non-member users in the database"() {
+    given:
+    userRepository.findByPersonalCode(sampleUser.personalCode) >> Optional.ofNullable(userByPersonalCode)
+    userRepository.findByEmail(sampleUser.email) >> Optional.ofNullable(userByEmail)
+    userRepository.save(_ as User) >> { User u -> u }
+
+    when:
+    def returnedUser = service.createOrUpdateUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
+
+    then:
+    returnedUser == expectedUser
+
+    where:
+    userByEmail                 | userByPersonalCode          | expectedUser
+    null                        | null                        | newUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
+    sampleUserNonMember.build() | null                        | updatedUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
+    null                        | sampleUserNonMember.build() | newUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
+    sampleUserNonMember.build() | sampleUserNonMember.build() | updatedUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
+    sampleUserNonMember.build() | otherUserNonMember.build()  | updatedUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
+  }
+
+  private User updatedUser(String personalCode, String email, String phoneNumber) {
+    sampleUserNonMember.personalCode(personalCode).email(email).phoneNumber(phoneNumber).build()
+  }
+
+  private User newUser(String personalCode, String email, String phoneNumber) {
+    User.builder().personalCode(personalCode).email(email).phoneNumber(phoneNumber).build()
   }
 }

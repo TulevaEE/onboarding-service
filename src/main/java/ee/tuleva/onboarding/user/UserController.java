@@ -56,14 +56,7 @@ public class UserController {
 			throw new ValidationErrorsException(errors);
 		}
 
-		User user = userService.createNewUser(
-			User.builder()
-				.personalCode(cmd.getPersonalCode())
-				.email(cmd.getEmail())
-				.phoneNumber(cmd.getPhoneNumber())
-				.active(true)
-				.build()
-		);
+		User user = userService.createOrUpdateUser(cmd.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
 
 		return UserResponse.fromUser(user);
 	}

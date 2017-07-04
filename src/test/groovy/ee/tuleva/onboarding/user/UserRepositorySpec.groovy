@@ -28,7 +28,7 @@ class UserRepositorySpec extends Specification {
 		entityManager.flush()
 
 		when:
-		User user = repository.findByPersonalCode("38501010002")
+		User user = repository.findByPersonalCode("38501010002").get()
 
 		then:
 		user.id != null
@@ -52,7 +52,7 @@ class UserRepositorySpec extends Specification {
 		entityManager.flush()
 
 		when:
-		User user = repository.findByPersonalCode("38501010002")
+		User user = repository.findByPersonalCode("38501010002").get()
 
 		then:
 		user.id != null
@@ -62,4 +62,10 @@ class UserRepositorySpec extends Specification {
 		user.updatedDate != null
 	}
 
+	def "can not save null"() {
+		when:
+		repository.save(null)
+		then:
+		thrown RuntimeException
+	}
 }

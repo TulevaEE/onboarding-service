@@ -23,7 +23,6 @@ import org.springframework.security.oauth2.config.annotation.web.configurers.Aut
 import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
 import org.springframework.security.oauth2.provider.CompositeTokenGranter;
 import org.springframework.security.oauth2.provider.TokenGranter;
-import org.springframework.security.oauth2.provider.client.ClientCredentialsTokenGranter;
 import org.springframework.security.oauth2.provider.client.JdbcClientDetailsService;
 import org.springframework.security.oauth2.provider.refresh.RefreshTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
@@ -133,7 +132,7 @@ public class OAuthConfiguration {
             TokenGranter refreshTokenGranter = new RefreshTokenGranter(
               endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
             TokenGranter clientCredentialsTokenGranter =
-              new ClientCredentialsTokenGranter(
+              new AccessTokenValidityAwareClientCredentialsTokenGranter(
                 endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
 
             return new CompositeTokenGranter(asList(mobileIdTokenGranter, idCardTokenGranter,

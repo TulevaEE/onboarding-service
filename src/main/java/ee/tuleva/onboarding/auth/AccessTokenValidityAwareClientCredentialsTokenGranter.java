@@ -58,8 +58,10 @@ public class AccessTokenValidityAwareClientCredentialsTokenGranter extends Abstr
 		if (token != null) {
 			DefaultOAuth2AccessToken norefresh = new DefaultOAuth2AccessToken(token);
 			ClientDetails clientDetails = clientDetailsService.loadClientByClientId(tokenRequest.getClientId());
-			Long delta = clientDetails.getAccessTokenValiditySeconds() * 1000L;
-			norefresh.setExpiration(new Date(System.currentTimeMillis() + delta));
+			if (clientDetails != null && clientDetails.getAccessTokenValiditySeconds() != null) {
+				Long delta = clientDetails.getAccessTokenValiditySeconds() * 1000L;
+				norefresh.setExpiration(new Date(System.currentTimeMillis() + delta));
+			}
 			// The spec says that client credentials should not be allowed to get a refresh token
 			if (!allowRefresh) {
 				norefresh.setRefreshToken(null);

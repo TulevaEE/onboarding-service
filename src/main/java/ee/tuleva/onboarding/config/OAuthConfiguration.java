@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.config;
 
-import ee.tuleva.onboarding.auth.AccessTokenValidityAwareClientCredentialsTokenGranter;
 import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.idcard.IdCardTokenGranter;
@@ -24,6 +23,7 @@ import org.springframework.security.oauth2.config.annotation.web.configurers.Aut
 import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
 import org.springframework.security.oauth2.provider.CompositeTokenGranter;
 import org.springframework.security.oauth2.provider.TokenGranter;
+import org.springframework.security.oauth2.provider.client.ClientCredentialsTokenGranter;
 import org.springframework.security.oauth2.provider.client.JdbcClientDetailsService;
 import org.springframework.security.oauth2.provider.refresh.RefreshTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
@@ -106,6 +106,7 @@ public class OAuthConfiguration {
             tokenServices.setSupportRefreshToken(true);
             tokenServices.setReuseRefreshToken(false);
             tokenServices.setAuthenticationManager(refreshingAuthenticationManager);
+            tokenServices.setClientDetailsService(clientDetailsService());
             return tokenServices;
         }
 
@@ -133,8 +134,8 @@ public class OAuthConfiguration {
             TokenGranter refreshTokenGranter = new RefreshTokenGranter(
               endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
             TokenGranter clientCredentialsTokenGranter =
-              new AccessTokenValidityAwareClientCredentialsTokenGranter(
-                endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
+                    new ClientCredentialsTokenGranter(
+                            endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
 
             return new CompositeTokenGranter(asList(mobileIdTokenGranter, idCardTokenGranter,
               refreshTokenGranter, clientCredentialsTokenGranter));

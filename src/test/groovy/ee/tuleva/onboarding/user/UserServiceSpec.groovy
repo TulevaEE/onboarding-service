@@ -203,6 +203,6 @@ class UserServiceSpec extends Specification {
   }
 
   private User newUser(String personalCode, String email, String phoneNumber) {
-    User.builder().personalCode(personalCode).email(email).phoneNumber(phoneNumber).build()
+    User.builder().personalCode(personalCode).email(email).phoneNumber(phoneNumber).active(true).build()
   }
 }

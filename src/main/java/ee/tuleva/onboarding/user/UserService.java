@@ -104,6 +104,7 @@ public class UserService {
         .personalCode(personalCode)
         .email(email)
         .phoneNumber(phoneNumber)
+        .active(true)
         .build());
 
     return userRepository.save(user);

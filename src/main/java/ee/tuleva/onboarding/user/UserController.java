@@ -47,7 +47,7 @@ public class UserController {
 		return UserResponse.fromUser(user);
 	}
 
-	@ApiOperation(value = "Update the current user")
+	@ApiOperation(value = "Create a new user")
 	@PostMapping("/users")
 	public UserResponse createUser(@Valid @RequestBody CreateUserCommand cmd,
 															@ApiIgnore Errors errors) throws ValidationErrorsException {
@@ -56,14 +56,7 @@ public class UserController {
 			throw new ValidationErrorsException(errors);
 		}
 
-		User user = userService.createNewUser(
-			User.builder()
-				.personalCode(cmd.getPersonalCode())
-				.email(cmd.getEmail())
-				.phoneNumber(cmd.getPhoneNumber())
-				.active(true)
-				.build()
-		);
+		User user = userService.createOrUpdateUser(cmd.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
 
 		return UserResponse.fromUser(user);
 	}

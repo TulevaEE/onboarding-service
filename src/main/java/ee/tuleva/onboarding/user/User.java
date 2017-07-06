@@ -50,7 +50,7 @@ public class User implements Person, Serializable {
 	private Instant updatedDate;
 
 	@NotNull
-	private Boolean active;
+	private Boolean active = true;
 
 	@Min(18)
 	public int getAge() {

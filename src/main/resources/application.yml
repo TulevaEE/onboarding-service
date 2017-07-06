@@ -72,8 +72,8 @@ epis:
     url: http://localhost:9005/v1
     bic: "ECSDEE20"
 
-frontend:
-  url: http://localhost:3000
+membership-success:
+  url: http://localhost:8000/membership-success/
 
 pensionikeskus:
   statistics:
@@ -152,8 +152,8 @@ epis:
     url: https://epis-service.tuleva.ee/v1
     bic: "ECSDEE2X"
 
-frontend:
-  url: https://pension.tuleva.ee
+membership-success:
+  url: https://tuleva.ee/membership-success/
 
 mailchimp:
   api:

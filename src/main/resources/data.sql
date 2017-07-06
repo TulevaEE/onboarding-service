@@ -135,8 +135,6 @@ INSERT INTO users(
         SELECT * FROM users WHERE id = 2
       );
 
-
-
 INSERT INTO initial_capital(
             id, user_id, amount, currency)
     SELECT 1, 1, 10000.00, 'EUR'

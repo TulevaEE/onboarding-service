@@ -20,8 +20,10 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
   def mvc = mockMvc(controller)
 
+  String membershipSuccessUrl = 'a_URL';
+
   def setup() {
-    controller.frontendUrl = 'FRONTEND_URL'
+    controller.membershipSuccessUrl = membershipSuccessUrl
   }
 
   def "incoming payment is correctly mapped to DTO, mac is validated and member is created in the database"() {
@@ -50,7 +52,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     then:
     perform
         .andExpect(status().isFound())
-        .andExpect(redirectedUrl("FRONTEND_URL/steps/select-sources?isNewMember=true&shortFlow=true"))
+        .andExpect(redirectedUrl(membershipSuccessUrl))
     1 * validator.validate(*_)
     1 * userService.registerAsMember(1L) >> sampleUser
     1 * emailService.sendMemberNumber(sampleUser)
@@ -79,7 +81,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
     then:
     perform.andExpect(status().isFound())
-            .andExpect(redirectedUrl("FRONTEND_URL"))
+            .andExpect(redirectedUrl(membershipSuccessUrl))
     1 * validator.validate(*_)
     0 * userService.registerAsMember(_)
     0 * emailService.sendMemberNumber(_)

@@ -47,7 +47,7 @@ public class UserController {
 		return UserResponse.fromUser(user);
 	}
 
-	@ApiOperation(value = "Update the current user")
+	@ApiOperation(value = "Create a new user")
 	@PostMapping("/users")
 	public UserResponse createUser(@Valid @RequestBody CreateUserCommand cmd,
 															@ApiIgnore Errors errors) throws ValidationErrorsException {

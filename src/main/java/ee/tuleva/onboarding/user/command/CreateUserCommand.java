@@ -21,7 +21,7 @@ public class CreateUserCommand {
   private String phoneNumber;
 
   @Min(18)
-  public int getAge() {
+  private int getAge() {
     return PersonalCode.getAge(personalCode);
   }
 

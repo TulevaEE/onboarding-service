@@ -33,8 +33,8 @@ public class PaymentController {
   private final SmartValidator validator;
   private final EmailService emailService;
 
-  @Value("${frontend.url}")
-  private String frontendUrl;
+  @Value("${membership-success.url}")
+  private String membershipSuccessUrl;
 
   @PostMapping("/payments")
   public void incomingPayment(@ModelAttribute @Valid IncomingPayment incomingPayment,
@@ -59,10 +59,10 @@ public class PaymentController {
       User user = userService.registerAsMember(userId);
       userService.updateNameIfMissing(user, payment.getCustomerName());
       emailService.sendMemberNumber(user);
-      response.sendRedirect(frontendUrl + "/steps/select-sources?isNewMember=true&shortFlow=true");
+      response.sendRedirect(membershipSuccessUrl);
     } else {
       log.error("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
-      response.sendRedirect(frontendUrl);
+      response.sendRedirect(membershipSuccessUrl);
     }
 
   }

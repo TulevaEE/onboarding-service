@@ -48,19 +48,7 @@ class UserConversionServiceSpec extends Specification {
                 PersonFixture.samplePerson
         ) >> accountBalanceResponse
 
-        1 * transferExchangeService.get(PersonFixture.samplePerson) >> sampleTransfersApplicationList
-
-//        1 * fundRepository.findByIsin(_ as String) >>
-//                Fund.builder().
-//                        isin(COVERING_ISN).
-//                        name("Aktsiafond")
-//                        .id(123)
-//                        .fundManager(
-//                        FundManager.builder()
-//                                .id(123)
-//                                .name(UserConversionService.CONVERTED_FUND_MANAGER_NAME)
-//                                .build()
-//                ).build()
+        1 * transferExchangeService.get(PersonFixture.samplePerson) >> sampleTransfersApplicationListWithFullPendingTransferCoverage
 
         when:
         ConversionResponse conversionResponse = service.getConversion(
@@ -77,7 +65,29 @@ class UserConversionServiceSpec extends Specification {
 
     }
 
-    List<TransferExchange> sampleTransfersApplicationList = [
+    def "GetConversion: Only full value pending transfer will be marked as covering the lack"() {
+        given:
+        1 * accountStatementService.getMyPensionAccountStatement(
+                PersonFixture.samplePerson
+        ) >> accountBalanceResponse
+
+        1 * transferExchangeService.get(PersonFixture.samplePerson) >> sampleTransfersApplicationListWithPartialPendingTransferCoverage
+
+        when:
+        ConversionResponse conversionResponse = service.getConversion(
+                PersonFixture.samplePerson
+        )
+        then:
+        conversionResponse.selectionComplete == selectionComplete
+        conversionResponse.transfersComplete == transferComplete
+
+        where:
+        accountBalanceResponse                                                       | selectionComplete | transferComplete
+        AccountStatementFixture.sampleNonConvertedFundBalanceWithActiveNonTulevaFund | false             | false
+
+    }
+
+    List<TransferExchange> sampleTransfersApplicationListWithFullPendingTransferCoverage = [
             TransferExchange.builder()
                     .status(MandateApplicationStatus.FAILED)
                     .build(),
@@ -86,6 +96,40 @@ class UserConversionServiceSpec extends Specification {
                     .build(),
             TransferExchange.builder()
                     .status(MandateApplicationStatus.PENDING)
+                    .amount(new BigDecimal(1.0))
+                    .targetFund(
+                    Fund.builder()
+                            .isin(COVERING_ISN)
+                            .fundManager(
+                            FundManager.builder()
+                                    .name(
+                                    UserConversionService.CONVERTED_FUND_MANAGER_NAME
+                            ).build()
+
+                    )
+                            .build()
+
+            )
+                    .sourceFund(
+                    Fund.builder().isin(
+                            AccountStatementFixture.sampleNonConvertedFundBalanceWithActiveNonTulevaFund
+                                    .first().getFund().getIsin()
+
+                    ).build()
+            )
+                    .build()
+    ]
+
+    List<TransferExchange> sampleTransfersApplicationListWithPartialPendingTransferCoverage = [
+            TransferExchange.builder()
+                    .status(MandateApplicationStatus.FAILED)
+                    .build(),
+            TransferExchange.builder()
+                    .status(MandateApplicationStatus.COMPLETE)
+                    .build(),
+            TransferExchange.builder()
+                    .status(MandateApplicationStatus.PENDING)
+                    .amount(0.5)
                     .targetFund(
                     Fund.builder()
                             .isin(COVERING_ISN)

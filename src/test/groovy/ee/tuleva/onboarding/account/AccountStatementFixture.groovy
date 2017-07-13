@@ -69,4 +69,37 @@ class AccountStatementFixture {
                     ).build()
             ).build()
     )
+
+    public static List<FundBalance> sampleConvertedFundBalanceWithNonActiveTulevaFund = Lists.asList(
+            FundBalance.builder()
+                    .value(0)
+                    .activeContributions(true)
+                    .fund(
+                    Fund.builder().
+                            isin("AE1232322222").
+                            name("LHV fund")
+                            .id(123)
+                            .fundManager(
+                            FundManager.builder()
+                                    .id(123)
+                                    .name("LHV")
+                                    .build()
+                    ).build()
+            ).build(),
+            FundBalance.builder()
+                    .value(100)
+                    .fund(
+                    Fund.builder().
+                            isin("AE123232332").
+                            name("Tuleva maailma võlakirjade pensionifond")
+                            .id(124)
+                            .fundManager(
+                            FundManager.builder()
+                                    .id(123)
+                                    .name("Tuleva")
+                                    .build()
+                    ).build()
+            ).build()
+    )
+
 }

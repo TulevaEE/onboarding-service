@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -76,13 +77,13 @@ public class UserConversionService {
 
     List<String> unConvertedIsins(List<FundBalance> fundBalances) {
         return fundBalances.stream()
-                .filter(
-                        fundBalance ->
-                                !fundBalance.getFund()
+                .filter(fundBalance -> {
+                                return !fundBalance.getFund()
                                         .getFundManager()
                                         .getName()
-                                        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME)
-                )
+                                        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME) &&
+                                        fundBalance.getValue().compareTo(BigDecimal.ZERO) > 0;
+                })
                 .map(fundBalance -> fundBalance.getFund().getIsin())
                 .collect(Collectors.toList());
     }

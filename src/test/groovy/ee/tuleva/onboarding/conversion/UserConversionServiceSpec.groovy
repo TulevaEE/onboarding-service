@@ -39,6 +39,7 @@ class UserConversionServiceSpec extends Specification {
         accountBalanceResponse                                                       | selectionComplete | transferComplete
         AccountStatementFixture.sampleConvertedFundBalanceWithActiveTulevaFund       | true              | true
         AccountStatementFixture.sampleNonConvertedFundBalanceWithActiveNonTulevaFund | false             | false
+        AccountStatementFixture.sampleConvertedFundBalanceWithNonActiveTulevaFund    | false             | true
 
     }
 

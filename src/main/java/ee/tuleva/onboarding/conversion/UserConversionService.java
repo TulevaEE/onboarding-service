@@ -48,17 +48,20 @@ public class UserConversionService {
     }
 
     boolean isTransfersComplete(Person person, List<FundBalance> fundBalances) {
-        return getIsinsOfPendingTransfersToConvertedFundManager(person)
+        return getIsinsOfFullPendingTransfersToConvertedFundManager(person)
                 .containsAll(unConvertedIsins(fundBalances));
     }
 
-    List<String> getIsinsOfPendingTransfersToConvertedFundManager(Person person) {
-        return getPendingTransfers(person).stream().filter(transferExchange ->
-                transferExchange
-                        .getTargetFund()
-                        .getFundManager()
-                        .getName()
-                        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME)
+    List<String> getIsinsOfFullPendingTransfersToConvertedFundManager(Person person) {
+        return getPendingTransfers(person).stream().filter(transferExchange -> {
+                    return transferExchange
+                            .getTargetFund()
+                            .getFundManager()
+                            .getName()
+                            .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME) &&
+                            transferExchange.getAmount().intValue() == 1;
+
+                }
         ).map(transferExchange -> transferExchange.getSourceFund().getIsin())
                 .collect(Collectors.toList());
     }

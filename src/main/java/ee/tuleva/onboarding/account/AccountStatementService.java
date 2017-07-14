@@ -81,6 +81,11 @@ public class AccountStatementService {
     }
 
     private List<FundBalance> handleActiveFundBalance(List<FundBalance> fundBalances, String activeFundName) {
+
+        if (fundBalances.size() == 0) {
+            return Arrays.asList();
+        }
+
         fundBalances.stream().forEach( fb-> {
             log.info("Having fund {} with isin {}",
                     fb.getFund().getName(), fb.getFund().getIsin());

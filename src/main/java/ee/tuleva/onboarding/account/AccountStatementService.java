@@ -31,25 +31,6 @@ public class AccountStatementService {
 
     @Cacheable(value=ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
     public List<FundBalance> getMyPensionAccountStatement(Person person) {
-        /*
-        return Arrays.asList(
-                FundBalance.builder()
-                        .activeContributions(true)
-                        .currency("EUR")
-                        .pillar(2)
-                        .value(new BigDecimal(0))
-                        .fund(fundRepository.findByIsin("EE3600019766"))
-                        .build(),
-                FundBalance.builder()
-                        .activeContributions(false)
-                        .currency("EUR")
-                        .pillar(2)
-                        .value(new BigDecimal(1.0))
-//                        .fund(fundRepository.findByIsin("EE3600109435"))
-                        .fund(fundRepository.findByIsin("EE3600109443"))
-                        .build()
-        );
-*/
         log.info("Getting pension account statement for {} {}", person.getFirstName(), person.getLastName());
         List<FundBalance> fundBalances = convertXRoadResponse(getPensionAccountBalance(person));
 

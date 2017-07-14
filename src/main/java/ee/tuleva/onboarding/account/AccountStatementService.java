@@ -14,6 +14,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -57,10 +58,14 @@ public class AccountStatementService {
     }
 
     private List<FundBalance> convertXRoadResponse(PensionAccountBalanceResponseType response) {
-        return
-                response.getUnits().getBalance().stream()
-                        .map(kprUnitsOsakudToFundBalanceConverter::convert)
-                        .collect(Collectors.toList());
+        try {
+            return response.getUnits().getBalance().stream()
+                    .map(kprUnitsOsakudToFundBalanceConverter::convert)
+                    .collect(Collectors.toList());
+        } catch (NullPointerException e) {
+            log.info("Person didn't have second pillar pension funds");
+            return Arrays.asList();
+        }
     }
 
     private String getActiveFundName(Person person) {

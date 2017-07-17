@@ -28,6 +28,8 @@ public class AccountStatementService {
     private final FundRepository fundRepository;
     private final KPRUnitsOsakudToFundBalanceConverter kprUnitsOsakudToFundBalanceConverter;
 
+    private final String NO_SECOND_PILLAR_FAULT_CODE = "40351";
+
     private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
 
     @Cacheable(value=ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
@@ -35,8 +37,9 @@ public class AccountStatementService {
         log.info("Getting pension account statement for {} {}", person.getFirstName(), person.getLastName());
         List<FundBalance> fundBalances = convertXRoadResponse(getPensionAccountBalance(person));
 
-        fundBalances = handleActiveFundBalance(fundBalances, getActiveFundName(person));
-        return fundBalances;
+        return getActiveFundName(person)
+                .map(activeFundName -> handleActiveFundBalance(fundBalances, activeFundName))
+                .orElse(fundBalances);
     }
 
     @CacheEvict(value=ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
@@ -58,30 +61,42 @@ public class AccountStatementService {
     }
 
     private List<FundBalance> convertXRoadResponse(PensionAccountBalanceResponseType response) {
+        if (response.getFaultCode() != null &&
+                response.getFaultCode().equals(NO_SECOND_PILLAR_FAULT_CODE)) {
+            log.info("Person didn't have second pillar pension funds");
+            return Arrays.asList();
+        }
+
         try {
             return response.getUnits().getBalance().stream()
                     .map(kprUnitsOsakudToFundBalanceConverter::convert)
                     .collect(Collectors.toList());
         } catch (NullPointerException e) {
-            log.info("Person didn't have second pillar pension funds");
+            log.error("Unknown response conversion error. Fault code {}", response.getFaultCode());
             return Arrays.asList();
         }
     }
 
-    private String getActiveFundName(Person person) {
+    private Optional<String> getActiveFundName(Person person) {
         PersonalSelectionResponseType csdPersonalSelection;
         try {
             csdPersonalSelection = kprClient.personalSelection(person.getPersonalCode());
         } catch (Exception e) {
             throw new PensionRegistryAccountStatementConnectionException();
         }
+
+        if (csdPersonalSelection.getFaultCode() != null &&
+                csdPersonalSelection.getFaultCode().equals(NO_SECOND_PILLAR_FAULT_CODE)) {
+            log.info("Person didn't have second pillar personal data.");
+            return Optional.empty();
+        }
+
         String activeFundName = csdPersonalSelection.getPensionAccount().getSecurityName();
         log.info("Active fund name is {}", activeFundName);
-        return activeFundName;
+        return Optional.of(activeFundName);
     }
 
     private List<FundBalance> handleActiveFundBalance(List<FundBalance> fundBalances, String activeFundName) {
-
         if (fundBalances.size() == 0) {
             return Arrays.asList();
         }

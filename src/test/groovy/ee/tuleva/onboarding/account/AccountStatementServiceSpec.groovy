@@ -56,6 +56,25 @@ class AccountStatementServiceSpec extends Specification {
         activeFundBalance.value == activeFundBalanceValue
     }
 
+    def "GetMyPensionAccountStatement: Handles missing second pillar"() {
+        given:
+
+        PensionAccountBalanceResponseType resp = Mock(PensionAccountBalanceResponseType) {
+            getFaultCode()  >> "40351"
+        }
+
+        Fund activeFund = MandateFixture.sampleFunds().get(0)
+        personalSelection.setFaultCode("40351")
+
+        1 * kprClient.pensionAccountBalance(_ as PensionAccountBalanceType, PersonFixture.samplePerson().getPersonalCode()) >> resp
+        1 * kprClient.personalSelection(PersonFixture.samplePerson().getPersonalCode()) >> personalSelection
+
+        when:
+        List<FundBalance> fundBalances = service.getMyPensionAccountStatement(PersonFixture.samplePerson())
+        then:
+        fundBalances.size() == 0
+    }
+
     def "GetMyPensionAccountStatement: Handle get statement exceptions"() {
         given:
         Fund activeFund = MandateFixture.sampleFunds().get(0)

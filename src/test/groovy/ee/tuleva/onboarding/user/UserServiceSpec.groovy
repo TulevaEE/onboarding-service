@@ -16,16 +16,20 @@ class UserServiceSpec extends Specification {
   def mailChimpService = Mock(MailChimpService)
   def service = new UserService(userRepository, memberRepository, mailChimpService)
 
+  @Shared String personalCodeSample = "somePersonalCode"
+
   @Shared def sampleUser = sampleUser().build()
   @Shared def sampleUserNonMember = User.builder()
           .phoneNumber("somePhone")
           .email("someEmail")
-          .personalCode("somePersonalCode")
+          .personalCode(personalCodeSample)
+          .active(true)
 
   @Shared def otherUserNonMember = User.builder()
           .phoneNumber("someOtherPhone")
           .email("someOtherEmail")
           .personalCode("someOtherPersonalCode")
+          .active(true)
 
 
   def "get user by id"() {
@@ -192,10 +196,10 @@ class UserServiceSpec extends Specification {
     where:
     userByEmail                 | userByPersonalCode          | expectedUser
     null                        | null                        | newUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-    sampleUserNonMember.build() | null                        | updatedUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-    null                        | sampleUserNonMember.build() | newUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-    sampleUserNonMember.build() | sampleUserNonMember.build() | updatedUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-    sampleUserNonMember.build() | otherUserNonMember.build()  | updatedUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
+    sampleUserNonMember.build() | null                        | updatedUser(sampleUser.personalCode, sampleUserNonMember.email, sampleUser.phoneNumber)
+    null                        | sampleUserNonMember.build() | newUser(personalCodeSample, sampleUser.email, sampleUser.phoneNumber)
+    sampleUserNonMember.build() | sampleUserNonMember.build() | updatedUser(personalCodeSample, sampleUser.email, sampleUser.phoneNumber)
+    sampleUserNonMember.build() | otherUserNonMember.build()  | updatedUser(otherUserNonMember.personalCode, sampleUser.email, sampleUser.phoneNumber)
   }
 
   private User updatedUser(String personalCode, String email, String phoneNumber) {

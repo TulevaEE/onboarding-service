@@ -55,9 +55,9 @@ public class UserService {
     }
 
     Member newMember = Member.builder()
-      .user(user)
-      .memberNumber(memberRepository.getNextMemberNumber())
-      .build();
+            .user(user)
+            .memberNumber(memberRepository.getNextMemberNumber())
+            .build();
 
     log.info("Registering user as new member #{}: {}", newMember.getMemberNumber(), user);
 
@@ -92,29 +92,26 @@ public class UserService {
       throw new UserAlreadyAMemberException("This user is already a member");
     }
 
-    clearPersonalCodeCollision(personalCode);
-
-    User user = userRepository.findByEmail(email)
-      .map(u -> {
-        u.setPersonalCode(personalCode);
-        u.setEmail(email);
-        u.setPhoneNumber(phoneNumber);
-        return u;
-      }).orElse(User.builder()
-        .personalCode(personalCode)
-        .email(email)
-        .phoneNumber(phoneNumber)
-        .active(true)
-        .build());
+    User user = userRepository.findByPersonalCode(personalCode)
+            .map(u -> {
+              u.setEmail(email);
+              u.setPhoneNumber(phoneNumber);
+              return u;
+            }).orElse(
+                    userRepository.findByEmail(email)
+                            .map(u -> {
+                              u.setPersonalCode(personalCode);
+                              u.setPhoneNumber(phoneNumber);
+                              return u;
+                            }).orElse(User.builder()
+                            .personalCode(personalCode)
+                            .email(email)
+                            .phoneNumber(phoneNumber)
+                            .active(true)
+                            .build())
+            );
 
     return userRepository.save(user);
-  }
-
-  private void clearPersonalCodeCollision(String personalCode) {
-    userRepository.findByPersonalCode(personalCode).ifPresent(user -> {
-      user.setPersonalCode(null);
-      userRepository.save(user);
-    });
   }
 
   private boolean isAMember(String personalCode, String email) {

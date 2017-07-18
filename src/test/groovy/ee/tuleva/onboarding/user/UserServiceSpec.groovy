@@ -16,16 +16,20 @@ class UserServiceSpec extends Specification {
   def mailChimpService = Mock(MailChimpService)
   def service = new UserService(userRepository, memberRepository, mailChimpService)
 
+  @Shared String personalCodeSample = "somePersonalCode"
+
   @Shared def sampleUser = sampleUser().build()
   @Shared def sampleUserNonMember = User.builder()
           .phoneNumber("somePhone")
           .email("someEmail")
-          .personalCode("somePersonalCode")
+          .personalCode(personalCodeSample)
+          .active(true)
 
   @Shared def otherUserNonMember = User.builder()
           .phoneNumber("someOtherPhone")
           .email("someOtherEmail")
           .personalCode("someOtherPersonalCode")
+          .active(true)
 
 
   def "get user by id"() {
@@ -192,10 +196,69 @@ class UserServiceSpec extends Specification {
     where:
     userByEmail                 | userByPersonalCode          | expectedUser
     null                        | null                        | newUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-    sampleUserNonMember.build() | null                        | updatedUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-    null                        | sampleUserNonMember.build() | newUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-    sampleUserNonMember.build() | sampleUserNonMember.build() | updatedUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-    sampleUserNonMember.build() | otherUserNonMember.build()  | updatedUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
+    sampleUserNonMember.build() | null                        | updatedUser(sampleUser.personalCode, sampleUserNonMember.email, sampleUser.phoneNumber)
+    null                        | sampleUserNonMember.build() | newUser(personalCodeSample, sampleUser.email, sampleUser.phoneNumber)
+    sampleUserNonMember.build() | sampleUserNonMember.build() | updatedUser(personalCodeSample, sampleUser.email, sampleUser.phoneNumber)
+    sampleUserNonMember.build() | otherUserNonMember.build()  | updatedUser(otherUserNonMember.personalCode, sampleUser.email, sampleUser.phoneNumber)
+  }
+
+  def "if non member user with given personal code is already present, us it on new user registration"() {
+    User oldUser = sampleUserNonMember
+            .id(999999)
+            .build()
+    String newEmail = "test@email.com"
+    String newPhone = "2222222"
+
+    userRepository.findByPersonalCode(oldUser.personalCode) >> Optional.ofNullable(oldUser)
+    userRepository.findByEmail(newEmail) >> Optional.empty()
+    userRepository.save(_ as User) >> { User u -> u }
+
+    when:
+    def returnedUser = service.createOrUpdateUser(oldUser.personalCode, newEmail, newPhone)
+
+    then:
+    returnedUser.id == oldUser.id
+    returnedUser.phoneNumber == newPhone
+    returnedUser.email == newEmail
+  }
+
+  def "if non member user with given personal code is not present, use one found with email"() {
+    User sampleUser = sampleUserNonMember
+            .id(999999)
+            .build()
+
+    userRepository.findByPersonalCode(sampleUser.personalCode) >> Optional.empty()
+    userRepository.findByEmail(sampleUser.email) >> Optional.empty()
+    userRepository.save(_ as User) >> { User u -> u }
+
+    when:
+    def returnedUser = service.createOrUpdateUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
+
+    then:
+    returnedUser.id != sampleUser.id
+    returnedUser.phoneNumber == sampleUser.phoneNumber
+    returnedUser.personalCode == sampleUser.personalCode
+    returnedUser.email == sampleUser.email
+  }
+
+  def "if non member user with given personal code and email is not present, build a new user"() {
+    User oldUser = sampleUserNonMember
+            .id(999999)
+            .build()
+    String newPhone = "2222222"
+    String newPersonalCode = "newPersonalCode"
+
+    userRepository.findByPersonalCode(newPersonalCode) >> Optional.empty()
+    userRepository.findByEmail(oldUser.email) >> Optional.ofNullable(oldUser)
+    userRepository.save(_ as User) >> { User u -> u }
+
+    when:
+    def returnedUser = service.createOrUpdateUser(newPersonalCode, oldUser.email, newPhone)
+
+    then:
+    returnedUser.id == oldUser.id
+    returnedUser.phoneNumber == newPhone
+    returnedUser.personalCode == newPersonalCode
   }
 
   private User updatedUser(String personalCode, String email, String phoneNumber) {

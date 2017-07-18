@@ -97,35 +97,6 @@ test {
 	}
 }
 
-configurations {
-    integrationTestCompile.extendsFrom testCompile
-    integrationTestRuntime.extendsFrom testRuntime
-}
-
-sourceSets {
-    integrationTest {
-        java {
-            compileClasspath += main.output + test.output
-            runtimeClasspath += main.output + test.output
-            srcDirs file('src/integration-test/java')
-        }
-
-		groovy {
-			compileClasspath += main.output + test.output
-			runtimeClasspath += main.output + test.output
-			srcDirs file('src/integration-test/groovy')
-		}
-
-        resources.srcDirs file('src/integration-test/resources')
-    }
-}
-
-task integrationTest(type: Test, description: 'Runs the integration tests.', group: 'Verification') {
-    testClassesDir = sourceSets.integrationTest.output.classesDir
-    classpath = sourceSets.integrationTest.runtimeClasspath
-	enableAssertions = false
-}
-
 bootRun {
 	systemProperties['spring.profiles.active'] = 'dev'
 }

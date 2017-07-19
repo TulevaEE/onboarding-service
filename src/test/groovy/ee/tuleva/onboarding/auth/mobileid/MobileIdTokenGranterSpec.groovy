@@ -2,10 +2,12 @@ package ee.tuleva.onboarding.auth.mobileid
 
 import com.codeborne.security.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
+import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.oauth2.common.OAuth2AccessToken
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
 import org.springframework.security.oauth2.provider.*
@@ -24,6 +26,7 @@ class MobileIdTokenGranterSpec extends Specification {
     PrincipalService principalService = Mock(PrincipalService)
     GenericSessionStore sessionStore = Mock(GenericSessionStore)
     GrantedAuthorityFactory grantedAuthorityFactory = Mock(GrantedAuthorityFactory)
+    ApplicationEventPublisher applicationEventPublisher = Mock(ApplicationEventPublisher)
 
     def setup() {
         mobileIdTokenGranter = new MobileIdTokenGranter(
@@ -33,7 +36,8 @@ class MobileIdTokenGranterSpec extends Specification {
                 mobileIdAuthService,
                 principalService,
                 sessionStore,
-                grantedAuthorityFactory
+                grantedAuthorityFactory,
+                applicationEventPublisher
         )
     }
 
@@ -86,6 +90,7 @@ class MobileIdTokenGranterSpec extends Specification {
         }
         mobileIdTokenGranter.getTokenServices() >> authorizationServerTokenServices
         1 * authorizationServerTokenServices.createAccessToken(_ as OAuth2Authentication) >> Mock(OAuth2AccessToken)
+        1 * applicationEventPublisher.publishEvent(_ as BeforeTokenGrantedEvent)
 
         when:
         OAuth2AccessToken token = mobileIdTokenGranter.getAccessToken(sampleClientDetails, tokenRequest)

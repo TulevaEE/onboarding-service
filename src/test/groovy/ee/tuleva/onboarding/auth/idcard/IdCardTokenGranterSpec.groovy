@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.auth.idcard
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
 import org.springframework.security.oauth2.provider.ClientDetails
 import org.springframework.security.oauth2.provider.ClientDetailsService
@@ -20,6 +21,7 @@ class IdCardTokenGranterSpec extends Specification {
     GenericSessionStore genericSessionStore = Mock(GenericSessionStore)
     PrincipalService principalService = Mock(PrincipalService)
     GrantedAuthorityFactory grantedAuthorityFactory = Mock(GrantedAuthorityFactory)
+    ApplicationEventPublisher applicationEventPublisher = Mock(ApplicationEventPublisher)
 
     def setup() {
         tokenGranter = new IdCardTokenGranter(
@@ -28,7 +30,8 @@ class IdCardTokenGranterSpec extends Specification {
                 oAuth2RequestFactory,
                 genericSessionStore,
                 principalService,
-                grantedAuthorityFactory)
+                grantedAuthorityFactory,
+                applicationEventPublisher)
     }
 
     def "GetAccessToken: Logging in with no client id fails"() {

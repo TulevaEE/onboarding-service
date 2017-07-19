@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
 import com.codeborne.security.mobileid.MobileIDSession;
+import ee.tuleva.onboarding.auth.BeforeTokenGrantedEventPublisher;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -8,6 +9,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
@@ -25,6 +27,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
     private final PrincipalService principalService;
     private final GenericSessionStore genericSessionStore;
     private final GrantedAuthorityFactory grantedAuthorityFactory;
+    private BeforeTokenGrantedEventPublisher beforeTokenGrantedEventPublisher;
 
     public MobileIdTokenGranter(AuthorizationServerTokenServices tokenServices,
                                 ClientDetailsService clientDetailsService,
@@ -32,7 +35,8 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
                                 MobileIdAuthService mobileIdAuthService,
                                 PrincipalService principalService,
                                 GenericSessionStore genericSessionStore,
-                                GrantedAuthorityFactory grantedAuthorityFactory) {
+                                GrantedAuthorityFactory grantedAuthorityFactory,
+                                ApplicationEventPublisher applicationEventPublisher) {
 
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
 
@@ -45,6 +49,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
         this.principalService = principalService;
         this.genericSessionStore = genericSessionStore;
         this.grantedAuthorityFactory = grantedAuthorityFactory;
+        this.beforeTokenGrantedEventPublisher = new BeforeTokenGrantedEventPublisher(applicationEventPublisher);
     }
 
     @Override
@@ -97,6 +102,8 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
         final OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request,
                 userAuthentication
         );
+
+        beforeTokenGrantedEventPublisher.publish(oAuth2Authentication);
 
         return getTokenServices().createAccessToken(oAuth2Authentication);
     }

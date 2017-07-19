@@ -12,6 +12,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
@@ -61,7 +62,8 @@ public class OAuthConfiguration {
                             "/v1" + MANDATES_URI + ".*"
                             ).hasAuthority(Authority.MEMBER)
                     .regexMatchers("/v1/funds").hasAnyAuthority(Authority.USER, Authority.ROLE_CLIENT)
-                    .regexMatchers("/v1/users").hasAuthority(Authority.ROLE_CLIENT)
+                    .regexMatchers(HttpMethod.POST, "/v1/users").hasAuthority(Authority.ROLE_CLIENT)
+                    .regexMatchers(HttpMethod.HEAD, "/v1/members").hasAuthority(Authority.ROLE_CLIENT)
                     .regexMatchers("/v1/.*").hasAuthority(Authority.USER)
                     ;
         }

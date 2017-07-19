@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.auth.idcard;
 
+import ee.tuleva.onboarding.auth.BeforeTokenGrantedEventPublisher;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
@@ -20,6 +22,7 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
     private final GenericSessionStore sessionStore;
     private final PrincipalService principalService;
     private final GrantedAuthorityFactory grantedAuthorityFactory;
+    private BeforeTokenGrantedEventPublisher beforeTokenGrantedEventPublisher;
 
     private static final String GRANT_TYPE = "id_card";
 
@@ -28,11 +31,13 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
                               OAuth2RequestFactory requestFactory,
                               GenericSessionStore genericSessionStore,
                               PrincipalService principalService,
-                              GrantedAuthorityFactory grantedAuthorityFactory) {
+                              GrantedAuthorityFactory grantedAuthorityFactory,
+                              ApplicationEventPublisher applicationEventPublisher) {
         super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
         this.sessionStore = genericSessionStore;
         this.principalService = principalService;
         this.grantedAuthorityFactory = grantedAuthorityFactory;
+        this.beforeTokenGrantedEventPublisher = new BeforeTokenGrantedEventPublisher(applicationEventPublisher);
     }
 
     @Override
@@ -73,6 +78,8 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
 
         OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);
         OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, userAuthentication);
+
+        beforeTokenGrantedEventPublisher.publish(oAuth2Authentication);
 
         return getTokenServices().createAccessToken(oAuth2Authentication);
     }

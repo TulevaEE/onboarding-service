@@ -97,7 +97,7 @@ INSERT INTO fund(
 
 INSERT INTO fund(
             isin, name, management_fee_rate, fund_manager_id)
-    SELECT 'EE3600019774', 'LHV Pensionifond M', 1.06400, 2
+    SELECT 'EE3600019774', 'LHV Pensionifond M', 0.06400, 2
     WHERE
       NOT EXISTS (
         SELECT * FROM fund WHERE id = 5
@@ -105,10 +105,18 @@ INSERT INTO fund(
 
 INSERT INTO fund(
   isin, name, management_fee_rate, fund_manager_id)
-  SELECT 'EE3600109401', 'LHV Pensionifond Indeks', 1.03900, 2
+  SELECT 'EE3600109401', 'LHV Pensionifond Indeks', 0.03900, 2
   WHERE
     NOT EXISTS (
         SELECT * FROM fund WHERE id = 6
+    );
+
+INSERT INTO fund(
+  isin, name, management_fee_rate, fund_manager_id)
+  SELECT 'EE3600019758', 'Swedbank Pensionifond K3 (kasvustrateegia)', 0.09200, 2
+  WHERE
+    NOT EXISTS (
+        SELECT * FROM fund WHERE id = 7
     );
 
 INSERT INTO users(
@@ -116,7 +124,7 @@ INSERT INTO users(
     SELECT true, '38812022762', 'Jordan', 'Valdma', '2015-01-31 14:06:01', '2017-01-31 14:06:01', 100, '5523533', 'jordan@mail.ee'
     WHERE
       NOT EXISTS (
-        SELECT * FROM users WHERE id = 0
+        SELECT * FROM users WHERE id = 1
       );
 
 INSERT INTO users(
@@ -124,7 +132,7 @@ INSERT INTO users(
     SELECT true, '39911223344', 'Firstname', 'Lastname', '2015-01-31 14:06:01', '2017-01-31 14:06:01', 1, '1234567', 'first.last@mail.ee'
     WHERE
       NOT EXISTS (
-        SELECT * FROM users WHERE id = 1
+        SELECT * FROM users WHERE id = 2
       );
 
 INSERT INTO users(
@@ -132,7 +140,7 @@ INSERT INTO users(
     SELECT true, '37807256017', 'Ziim', 'Kaba', '2015-01-31 14:06:01', '2017-01-31 14:06:01', 2419, '1234567', 'ziim@mail.ee'
     WHERE
       NOT EXISTS (
-        SELECT * FROM users WHERE id = 2
+        SELECT * FROM users WHERE id = 3
       );
 
 INSERT INTO initial_capital(

@@ -3,3 +3,7 @@ deployment:
     branch: master
     heroku:
       appname: tuleva-onboarding-service
+
+machine:
+  environment:
+    GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'

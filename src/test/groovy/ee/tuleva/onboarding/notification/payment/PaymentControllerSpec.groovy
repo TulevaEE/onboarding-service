@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.notification.payment
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.notification.email.EmailService
+import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.http.MediaType
 import org.springframework.validation.SmartValidator
@@ -26,7 +27,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     controller.membershipSuccessUrl = membershipSuccessUrl
   }
 
-  def "incoming payment is correctly mapped to DTO, mac is validated and member is created in the database"() {
+  def "incoming payment is correctly mapped to DTO, mac is validated and a member is created in the database with the correct name"() {
     given:
     def json = [
       "amount": "100.0",
@@ -41,8 +42,9 @@ class PaymentControllerSpec extends BaseControllerSpec {
       "status": "COMPLETED",
       "transaction": "235e8a24-c510-4c8d-9fa8-2a322ba80bb2"
     ]
+    def sampleUserWithoutName = sampleUser().firstName(null).lastName(null).build()
     def sampleUser = sampleUser().build()
-
+    
     when:
     def perform = mvc.perform(post("/notifications/payments")
             .contentType(MediaType.APPLICATION_JSON)
@@ -54,10 +56,12 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .andExpect(status().isFound())
         .andExpect(redirectedUrl(membershipSuccessUrl))
     1 * validator.validate(*_)
-    1 * userService.registerAsMember(1L) >> sampleUser
-    1 * emailService.sendMemberNumber(sampleUser)
-    1 * userService.updateNameIfMissing(sampleUser, json.customer_name)
-
+    1 * userService.registerAsMember(1L) >> sampleUserWithoutName
+    1 * userService.updateNameIfMissing(sampleUserWithoutName, json.customer_name) >> sampleUser
+    1 * emailService.sendMemberNumber({ User user ->
+              user.firstName == sampleUser.firstName &&
+              user.lastName == sampleUser.lastName
+    })
   }
 
   def "validates mac for incoming payment"() {

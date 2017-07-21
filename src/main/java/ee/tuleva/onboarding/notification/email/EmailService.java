@@ -6,13 +6,12 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
-import ee.tuleva.onboarding.config.MandateEmailConfiguration;
+import ee.tuleva.onboarding.config.EmailConfiguration;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,20 +23,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class EmailService {
 
-    private final MandateEmailConfiguration mandateEmailConfiguration;
+    private final EmailConfiguration emailConfiguration;
     private final EmailContentService emailContentService;
-    private MandrillApi mandrillApi;
-
-    @PostConstruct
-    private void initialize() {
-
-        if(!mandateEmailConfiguration.getMandrillKey().isPresent()) {
-            log.warn("Mandrill key not present.");
-        }
-
-        mandrillApi = mandateEmailConfiguration.getMandrillKey()
-                .map(MandrillApi::new).orElse(null);
-    }
+    private final MandrillApi mandrillApi;
 
     public void sendMandate(User user, Long mandateId, byte[] file) {
 
@@ -75,7 +63,7 @@ public class EmailService {
         MandrillMessage message = new MandrillMessage();
 
         message.setSubject(subject);
-        message.setFromEmail(mandateEmailConfiguration.getFrom());
+        message.setFromEmail(emailConfiguration.getFrom());
         message.setFromName(getFromName());
         message.setHtml(html);
         message.setAutoText(true);
@@ -107,7 +95,7 @@ public class EmailService {
     private void send(User user, MandrillMessage message) {
         try {
             log.info("Sending email from {} to member {} {} at {}",
-              mandateEmailConfiguration.getFrom(),
+              emailConfiguration.getFrom(),
               user.getFirstName(), user.getLastName(),
               user.getEmail()
             );
@@ -132,7 +120,7 @@ public class EmailService {
 
         //Collector inbox
         Recipient collector = new Recipient();
-        collector.setEmail(mandateEmailConfiguration.getBcc());
+        collector.setEmail(emailConfiguration.getBcc());
         collector.setType(Recipient.Type.BCC);
         recipients.add(collector);
 

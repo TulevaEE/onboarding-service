@@ -30,12 +30,12 @@ public class PensionFundStatisticsService {
       .build();
   }
 
-  @Cacheable(PENSION_FUND_STATISTICS_CACHE)
+  @Cacheable(value = PENSION_FUND_STATISTICS_CACHE, unless = "#result.isEmpty()")
   public List<PensionFundStatistics> getCachedStatistics() {
     return getPensionFundStatistics();
   }
 
-  @CachePut(PENSION_FUND_STATISTICS_CACHE)
+  @CachePut(value = PENSION_FUND_STATISTICS_CACHE, unless = "#result.isEmpty()")
   public List<PensionFundStatistics> refreshCachedStatistics() {
     return getPensionFundStatistics();
   }

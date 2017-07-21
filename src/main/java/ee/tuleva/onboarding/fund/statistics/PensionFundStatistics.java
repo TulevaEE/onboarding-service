@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlAttribute;
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 @Data
@@ -15,7 +16,9 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @AllArgsConstructor
 @XmlAccessorType(XmlAccessType.FIELD)
-public class PensionFundStatistics {
+public class PensionFundStatistics implements Serializable {
+
+  private static final long serialVersionUID = 6065879655793615150L;
 
   public static final PensionFundStatistics NULL = new PensionFundStatistics();
 

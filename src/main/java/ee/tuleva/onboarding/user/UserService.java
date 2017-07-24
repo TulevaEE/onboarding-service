@@ -44,10 +44,10 @@ public class UserService {
     User user = findByPersonalCode(personalCode);
     user.setEmail(email);
     user.setPhoneNumber(phoneNumber);
-    return updateUser(user);
+    return saveUser(user);
   }
 
-  public User registerAsMember(Long userId) {
+  public User registerAsMember(Long userId, String fullName) {
     User user = userRepository.findOne(userId);
 
     if (user.getMember().isPresent()) {
@@ -62,7 +62,9 @@ public class UserService {
     log.info("Registering user as new member #{}: {}", newMember.getMemberNumber(), user);
 
     user.setMember(newMember);
-    return updateUser(user);
+    updateNameIfMissing(user, fullName);
+
+    return saveUser(user);
   }
 
   public boolean isAMember(Long userId) {
@@ -70,21 +72,21 @@ public class UserService {
     return user.map(u -> u.getMember().isPresent()).orElse(false);
   }
 
-  private User updateUser(User user) {
-    User savedUser = userRepository.save(user);
-    mailChimpService.createOrUpdateMember(savedUser);
-    return savedUser;
-  }
-
-  public User updateNameIfMissing(User user, String fullName) {
+  private User updateNameIfMissing(User user, String fullName) {
     if (!user.hasName()) {
       String firstName = substringBeforeLast(fullName, " ");
       String lastName = substringAfterLast(fullName, " ");
       user.setFirstName(capitalizeFully(firstName));
       user.setLastName(capitalizeFully(lastName));
-      return userRepository.save(user);
+      log.info("Updating user name to {} {}", user.getFirstName(), user.getLastName());
     }
     return user;
+  }
+
+  private User saveUser(User user) {
+    User savedUser = userRepository.save(user);
+    mailChimpService.createOrUpdateMember(savedUser);
+    return savedUser;
   }
 
   public User createOrUpdateUser(String personalCode, String email, String phoneNumber) {

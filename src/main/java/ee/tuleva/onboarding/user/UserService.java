@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
@@ -30,10 +29,8 @@ public class UserService {
     return userRepository.findOne(userId);
   }
 
-  // TODO: return Optional<User> instead
-  @Nullable
-  public User findByPersonalCode(String personalCode) {
-    return userRepository.findByPersonalCode(personalCode).orElse(null);
+  public Optional<User> findByPersonalCode(String personalCode) {
+    return userRepository.findByPersonalCode(personalCode);
   }
 
   public User createNewUser(User user) {
@@ -41,9 +38,12 @@ public class UserService {
   }
 
   public User updateUser(String personalCode, String email, String phoneNumber) {
-    User user = findByPersonalCode(personalCode);
-    user.setEmail(email);
-    user.setPhoneNumber(phoneNumber);
+    User user = findByPersonalCode(personalCode).map(existingUser -> {
+      existingUser.setEmail(email);
+      existingUser.setPhoneNumber(phoneNumber);
+      return existingUser;
+    }).orElseThrow(() -> new RuntimeException("User does not exist"));
+
     return updateUser(user);
   }
 

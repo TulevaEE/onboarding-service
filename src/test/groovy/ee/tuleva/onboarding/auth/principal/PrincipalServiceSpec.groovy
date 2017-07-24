@@ -19,7 +19,7 @@ class PrincipalServiceSpec extends Specification {
         given:
         Person person = PersonFixture.samplePerson()
 
-        1 * userService.findByPersonalCode(person.personalCode) >> sampleUser
+        1 * userService.findByPersonalCode(person.personalCode) >> Optional.ofNullable(sampleUser)
 
         when:
         AuthenticatedPerson authenticatedPerson = service.getFrom(person)
@@ -42,7 +42,7 @@ class PrincipalServiceSpec extends Specification {
         person.lastName = lastNameUncapitalized
 
 
-        1 * userService.findByPersonalCode(person.personalCode) >> null
+        1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
 
         when:
         AuthenticatedPerson authenticatedPerson = service.getFrom(person)
@@ -55,6 +55,7 @@ class PrincipalServiceSpec extends Specification {
                     user.active
         }) >> User.builder()
                 .id(123)
+                .active(true)
                 .build()
 
         authenticatedPerson.userId == 123
@@ -64,8 +65,9 @@ class PrincipalServiceSpec extends Specification {
     def "getFromPerson: initialising non active user exceptions" () {
         given:
         Person person = PersonFixture.samplePerson()
+        User user = User.builder().active(false).build()
 
-        1 * userService.findByPersonalCode(person.personalCode) >> User.builder().active(false).build()
+        1 * userService.findByPersonalCode(person.personalCode) >> Optional.ofNullable(user)
 
         when:
         service.getFrom(person)

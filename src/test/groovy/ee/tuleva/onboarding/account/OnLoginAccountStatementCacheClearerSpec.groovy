@@ -6,7 +6,7 @@ import ee.tuleva.onboarding.auth.principal.Person
 import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
 
-class OnLoginAccountStatementCacheClearerTest extends Specification {
+class OnLoginAccountStatementCacheClearerSpec extends Specification {
 
     AccountStatementService accountStatementService = Mock(AccountStatementService)
     OnLoginAccountStatementCacheClearer service =

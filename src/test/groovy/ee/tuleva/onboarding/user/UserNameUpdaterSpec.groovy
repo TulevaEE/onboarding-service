@@ -9,9 +9,8 @@ import spock.lang.Specification
 class UserNameUpdaterSpec extends Specification {
 
     UserService userService = Mock(UserService)
-    UserRepository userRepository = Mock(UserRepository)
 
-    UserNameUpdater service = new UserNameUpdater(userService, userRepository)
+    UserNameUpdater service = new UserNameUpdater(userService)
 
     def "OnBeforeTokenGrantedEvent: Update user name on before token granted event"() {
         given:
@@ -35,7 +34,7 @@ class UserNameUpdaterSpec extends Specification {
                 .build()
         )
 
-        1 * userRepository.save({ User user ->
+        1 * userService.save({ User user ->
             user.firstName == samplePerson.firstName && user.lastName == samplePerson.lastName})
 
     }

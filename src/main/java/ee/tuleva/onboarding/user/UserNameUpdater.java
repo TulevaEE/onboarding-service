@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 public class UserNameUpdater {
 
     private final UserService userService;
-    private final UserRepository userRepository;
 
     @EventListener
     public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
@@ -27,7 +26,7 @@ public class UserNameUpdater {
         userService.findByPersonalCode(person.getPersonalCode()).ifPresent(user -> {
             user.setFirstName(person.getFirstName());
             user.setLastName(person.getLastName());
-            userRepository.save(user);
+            userService.save(user);
         });
     }
 

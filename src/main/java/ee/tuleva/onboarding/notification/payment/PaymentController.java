@@ -56,8 +56,7 @@ public class PaymentController {
     boolean statusCompleted = COMPLETED.equalsIgnoreCase(payment.getStatus());
 
     if (statusCompleted && !isAMember) {
-      User user = userService.registerAsMember(userId);
-      user = userService.updateNameIfMissing(user, payment.getCustomerName());
+      User user = userService.registerAsMember(userId, payment.getCustomerName());
       emailService.sendMemberNumber(user);
       response.sendRedirect(membershipSuccessUrl);
     } else {

@@ -66,7 +66,7 @@ class UserServiceSpec extends Specification {
     userRepository.save(_ as User) >> { User u -> u }
 
     when:
-    def returnedUser = service.registerAsMember(user.id)
+    def returnedUser = service.registerAsMember(user.id, "${user.firstName} ${user.lastName}")
     def member = returnedUser.member.get()
 
     then:
@@ -80,7 +80,7 @@ class UserServiceSpec extends Specification {
     userRepository.findOne(user.id) >> user
 
     when:
-    service.registerAsMember(user.id)
+    service.registerAsMember(user.id, "${user.firstName} ${user.lastName}")
 
     then:
     thrown(UserAlreadyAMemberException)
@@ -116,17 +116,21 @@ class UserServiceSpec extends Specification {
     1 * mailChimpService.createOrUpdateMember(user)
   }
 
-  def "registering a user as a member also updates Mailchimp"() {
+  def "registering a user as a member also updates Mailchimp with correct firstName & lastName"() {
     given:
-    def user = sampleUserNonMember().build()
+    def user = sampleUserNonMember().firstName(null).lastName(null).build()
+    def firstName = "John"
+    def lastName = "Smith"
     userRepository.findOne(user.id) >> user
     userRepository.save(_ as User) >> { User u -> u }
 
     when:
-    service.registerAsMember(user.id)
+    def returnedUser = service.registerAsMember(user.id, "${firstName} ${lastName}")
 
     then:
     1 * mailChimpService.createOrUpdateMember(user)
+    returnedUser.firstName == firstName
+    returnedUser.lastName == lastName
   }
 
   def "correctly updates user name"() {

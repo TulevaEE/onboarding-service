@@ -23,7 +23,7 @@ public class MailChimpService {
 
   @Async
   public void createOrUpdateMember(User user) {
-    log.info("Creating or updating Mailchimp member in a separate thread");
+    log.info("Creating or updating Mailchimp member in a separate thread: {}", user);
 
     EditMemberMethod.CreateOrUpdate method = new EditMemberMethod.CreateOrUpdate(listId, user.getEmail());
 

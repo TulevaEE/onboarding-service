@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.notification.payment
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.notification.email.EmailService
-import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.http.MediaType
 import org.springframework.validation.SmartValidator
@@ -42,7 +41,6 @@ class PaymentControllerSpec extends BaseControllerSpec {
       "status": "COMPLETED",
       "transaction": "235e8a24-c510-4c8d-9fa8-2a322ba80bb2"
     ]
-    def sampleUserWithoutName = sampleUser().firstName(null).lastName(null).build()
     def sampleUser = sampleUser().build()
     
     when:
@@ -56,12 +54,8 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .andExpect(status().isFound())
         .andExpect(redirectedUrl(membershipSuccessUrl))
     1 * validator.validate(*_)
-    1 * userService.registerAsMember(1L) >> sampleUserWithoutName
-    1 * userService.updateNameIfMissing(sampleUserWithoutName, json.customer_name) >> sampleUser
-    1 * emailService.sendMemberNumber({ User user ->
-              user.firstName == sampleUser.firstName &&
-              user.lastName == sampleUser.lastName
-    })
+    1 * userService.registerAsMember(1L, json.customer_name) >> sampleUser
+    1 * emailService.sendMemberNumber(sampleUser)
   }
 
   def "validates mac for incoming payment"() {
@@ -87,9 +81,8 @@ class PaymentControllerSpec extends BaseControllerSpec {
     perform.andExpect(status().isFound())
             .andExpect(redirectedUrl(membershipSuccessUrl))
     1 * validator.validate(*_)
-    0 * userService.registerAsMember(_)
+    0 * userService.registerAsMember(*_)
     0 * emailService.sendMemberNumber(_)
-    0 * userService.updateNameIfMissing(_)
   }
 
   def "doesn't try to create the member more than once"() {
@@ -109,9 +102,8 @@ class PaymentControllerSpec extends BaseControllerSpec {
     then:
     perform.andExpect(status().isFound())
     1 * validator.validate(*_)
-    0 * userService.registerAsMember(_)
+    0 * userService.registerAsMember(*_)
     0 * emailService.sendMemberNumber(_)
-    0 * userService.updateNameIfMissing(_)
   }
 
 }

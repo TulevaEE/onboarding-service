@@ -82,6 +82,7 @@ public class MandateMessageResponseHandler {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static <T> T unmarshallMessage(String msg, Class<T> expectedType) {
         try {
             JAXBContext jaxbContext = JAXBContext.newInstance("ee.tuleva.epis.gen");

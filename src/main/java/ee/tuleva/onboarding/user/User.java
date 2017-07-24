@@ -50,6 +50,7 @@ public class User implements Person, Serializable {
 	private Instant updatedDate;
 
 	@NotNull
+	@Builder.Default
 	private Boolean active = true;
 
 	@Min(18)

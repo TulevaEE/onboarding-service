@@ -12,9 +12,15 @@ import java.math.BigDecimal;
 @Setter
 @Builder
 public class FundBalance {
+
     private Fund fund;
     private BigDecimal value;
     private String currency;
+
+    @Builder.Default
     private int pillar = 2;
+
+    @Builder.Default
     private boolean activeContributions = false;
+
 }

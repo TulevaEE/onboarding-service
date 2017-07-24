@@ -32,7 +32,7 @@ public class MemberController {
         HttpHeaders headers = new HttpHeaders();
         headers.add("x-total-count", String.valueOf(memberCount));
 
-        return new ResponseEntity(null, headers, HttpStatus.OK);
+        return new ResponseEntity<>(null, headers, HttpStatus.OK);
     }
 
 }

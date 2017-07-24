@@ -54,7 +54,7 @@ public class EpisService {
               url, person.getFirstName(), person.getLastName());
 
       ResponseEntity<TransferExchangeDTO[]> response = restTemplate.exchange(
-              url, HttpMethod.GET, new HttpEntity(getHeaders()), TransferExchangeDTO[].class);
+              url, HttpMethod.GET, new HttpEntity<>(getHeaders()), TransferExchangeDTO[].class);
 
       return Arrays.asList(response.getBody());
    }

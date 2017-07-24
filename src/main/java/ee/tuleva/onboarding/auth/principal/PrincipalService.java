@@ -21,14 +21,7 @@ public class PrincipalService {
 
         Optional<User> userOptional = userService.findByPersonalCode(person.getPersonalCode());
 
-        User user = userOptional.orElse(userService.createNewUser(
-                User.builder()
-                        .firstName(WordUtils.capitalizeFully(person.getFirstName()))
-                        .lastName(WordUtils.capitalizeFully(person.getLastName()))
-                        .personalCode(person.getPersonalCode())
-                        .active(true)
-                        .build()
-        ));
+        User user = userOptional.orElseGet(() -> createUser(person));
 
         if (!user.getActive()) {
             log.info("Failed to login inactive user with personal code {}", person.getPersonalCode());
@@ -42,6 +35,17 @@ public class PrincipalService {
                 .userId(user.getId())
                 .build();
 
+    }
+
+    private User createUser(Person person) {
+        return userService.createNewUser(
+                User.builder()
+                        .firstName(WordUtils.capitalizeFully(person.getFirstName()))
+                        .lastName(WordUtils.capitalizeFully(person.getLastName()))
+                        .personalCode(person.getPersonalCode())
+                        .active(true)
+                        .build()
+        );
     }
 
 }

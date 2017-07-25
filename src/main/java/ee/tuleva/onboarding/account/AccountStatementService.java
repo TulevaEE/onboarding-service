@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.account;
 import ee.eesti.xtee6.kpr.PensionAccountBalanceResponseType;
 import ee.eesti.xtee6.kpr.PensionAccountBalanceType;
 import ee.eesti.xtee6.kpr.PersonalSelectionResponseType;
+import ee.tuleva.onboarding.audit.AuditEventPublisher;
+import ee.tuleva.onboarding.audit.AuditEventType;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
@@ -27,6 +29,7 @@ public class AccountStatementService {
     private final KPRClient kprClient;
     private final FundRepository fundRepository;
     private final KPRUnitsOsakudToFundBalanceConverter kprUnitsOsakudToFundBalanceConverter;
+    private final AuditEventPublisher auditEventPublisher;
 
     private final String NO_SECOND_PILLAR_FAULT_CODE = "40351";
 
@@ -35,6 +38,7 @@ public class AccountStatementService {
     @Cacheable(value=ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
     public List<FundBalance> getMyPensionAccountStatement(Person person) {
         log.info("Getting pension account statement for {} {}", person.getFirstName(), person.getLastName());
+        auditEventPublisher.publish(person.getPersonalCode(), AuditEventType.GET_ACCOUNT_STATEMENT);
         List<FundBalance> fundBalances = convertXRoadResponse(getPensionAccountBalance(person));
 
         return getActiveFundName(person)

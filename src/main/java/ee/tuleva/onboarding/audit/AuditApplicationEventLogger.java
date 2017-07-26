@@ -1,0 +1,38 @@
+package ee.tuleva.onboarding.audit;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.actuate.audit.AuditEvent;
+import org.springframework.boot.actuate.audit.listener.AuditApplicationEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.stereotype.Component;
+
+@Component
+@Slf4j
+@RequiredArgsConstructor
+public class AuditApplicationEventLogger {
+
+    private final AuditLogRepository auditLogRepository;
+
+    @EventListener
+    public void onAuditEvent(AuditApplicationEvent event) {
+        AuditEvent auditEvent = event.getAuditEvent();
+
+        log.info("Logging audit application event: timestamp: {}, principal: {}, type: {}, data: {}",
+                auditEvent.getTimestamp(),
+                auditEvent.getPrincipal(),
+                auditEvent.getType(),
+                auditEvent.getData()
+        );
+
+        auditLogRepository.save(
+            AuditLog.builder()
+                    .type(auditEvent.getType())
+                    .principal(auditEvent.getPrincipal())
+                    .timestamp(auditEvent.getTimestamp().toInstant())
+                    .data(auditEvent.getData())
+                    .build()
+        );
+
+    }
+}

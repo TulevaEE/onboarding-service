@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.account
 import ee.eesti.xtee6.kpr.PensionAccountBalanceResponseType
 import ee.eesti.xtee6.kpr.PensionAccountBalanceType
 import ee.eesti.xtee6.kpr.PersonalSelectionResponseType
-import ee.tuleva.onboarding.audit.AuditEventPublisher
-import ee.tuleva.onboarding.audit.AuditEventType
 import ee.tuleva.onboarding.auth.PersonFixture
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
@@ -16,7 +14,6 @@ class AccountStatementServiceSpec extends Specification {
 
     AccountStatementService service
 
-    AuditEventPublisher auditEventPublisher = Mock(AuditEventPublisher)
     KPRUnitsOsakudToFundBalanceConverter kprUnitsOsakudToFundBalanceConverter = Mock(KPRUnitsOsakudToFundBalanceConverter)
     FundRepository fundRepository = Mock(FundRepository)
     KPRClient kprClient = Mock(KPRClient)
@@ -31,7 +28,7 @@ class AccountStatementServiceSpec extends Specification {
 
     def setup() {
         service = new AccountStatementService(kprClient, fundRepository,
-                kprUnitsOsakudToFundBalanceConverter, auditEventPublisher)
+                kprUnitsOsakudToFundBalanceConverter)
 
         personalSelection = new PersonalSelectionResponseType()
         personalSelection.setPensionAccount(new PersonalSelectionResponseType.PensionAccount())
@@ -47,7 +44,6 @@ class AccountStatementServiceSpec extends Specification {
         1 * kprClient.pensionAccountBalance(_ as PensionAccountBalanceType, PersonFixture.samplePerson().getPersonalCode()) >> resp
         2 * kprUnitsOsakudToFundBalanceConverter.convert(_ as PensionAccountBalanceResponseType.Units.Balance) >> sampleFundBalance
         1 * kprClient.personalSelection(PersonFixture.samplePerson().getPersonalCode()) >> personalSelection
-        1 * auditEventPublisher.publish(PersonFixture.samplePerson().getPersonalCode(), AuditEventType.GET_ACCOUNT_STATEMENT)
 
         when:
         List<FundBalance> fundBalances = service.getMyPensionAccountStatement(PersonFixture.samplePerson())

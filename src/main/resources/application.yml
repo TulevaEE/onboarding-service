@@ -77,6 +77,9 @@ epis:
 membership-success:
   url: http://localhost:8000/membership-success/
 
+frontend:
+  url: http://localhost:3000/
+
 pensionikeskus:
   statistics:
     endpoint:
@@ -156,6 +159,9 @@ epis:
 
 membership-success:
   url: https://tuleva.ee/membership-success/
+
+frontend:
+  url: https://pension.tuleva.ee/
 
 mailchimp:
   api:

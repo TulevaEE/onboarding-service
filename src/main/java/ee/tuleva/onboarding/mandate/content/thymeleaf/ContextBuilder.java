@@ -10,6 +10,7 @@ import org.thymeleaf.context.Context;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class ContextBuilder {
@@ -74,6 +75,16 @@ public class ContextBuilder {
 
     public ContextBuilder fundTransferExchanges(List<FundTransferExchange> fundTransferExchanges) {
         this.ctx.setVariable("fundTransferExchanges", fundTransferExchanges);
+        return this;
+    }
+
+    public ContextBuilder groupedTransferExchanges(List<FundTransferExchange> fundTransferExchanges) {
+
+        Map<String, List<FundTransferExchange>> groupedTransferExchanges
+                = fundTransferExchanges.stream()
+                .collect(Collectors.groupingBy(FundTransferExchange::getSourceFundIsin));
+
+        this.ctx.setVariable("groupedFundTransferExchanges", groupedTransferExchanges);
         return this;
     }
 

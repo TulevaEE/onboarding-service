@@ -26,6 +26,22 @@
                         Country=${countryCode},
                         PostalIndex=${postCode},
                         Territory=${districtCode}"/>
+
+                        <ApplicationData
+                                th:each="fundTransferExchangeList : ${groupedFundTransferExchanges}"
+                                Pillar="2"
+                                th:attr="
+                                SourceISIN=${fundTransferExchangeList[0].sourceFundIsin}
+                                ">
+                        <ApplicationRow
+                                th:each="fundTransferExchange : ${fundTransferExchangeList}"
+                                th:attr="
+                                        DestinationISIN=${fundTransferExchange.targetFundIsin},
+                                        Percentage=${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}
+                                    "/>
+                        </ApplicationData>
+
+
                         <ApplicationData
                                 th:each="fundTransferExchange : ${fundTransferExchanges}"
                                 Pillar="2"

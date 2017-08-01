@@ -17,8 +17,8 @@
     </cache>
 
     <cache name="pensionFundStatistics"
-           maxEntriesLocalHeap="1"
-           maxEntriesLocalDisk="1"
+           maxEntriesLocalHeap="100"
+           maxEntriesLocalDisk="100"
            overflowToDisk="true"
            diskPersistent="true"
            eternal="true">

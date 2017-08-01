@@ -11,6 +11,7 @@ import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.test.web.servlet.MockMvc
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 
 class AuthControllerSpec extends BaseControllerSpec {
@@ -78,6 +79,18 @@ class AuthControllerSpec extends BaseControllerSpec {
                 .header("ssl_client_cert", "test_cert")).andReturn().response
         then:
         response.status == HttpStatus.OK.value()
+        1 * idCardAuthService.checkCertificate("test_cert")
+    }
+
+    def "Authenticate: redirect successful id card login back to the app when using the GET method"() {
+        when:
+        MockHttpServletResponse response = mockMvc
+                .perform(get("/idLogin")
+                .header("X-Authorization", "Bearer secretz")
+                .header("ssl_client_verify", "SUCCESS")
+                .header("ssl_client_cert", "test_cert")).andReturn().response
+        then:
+        response.status == HttpStatus.FOUND.value()
         1 * idCardAuthService.checkCertificate("test_cert")
     }
 

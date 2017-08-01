@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
@@ -25,6 +26,8 @@ public class UserService {
     private final MemberRepository memberRepository;
     private final MailChimpService mailChimpService;
 
+    //TODO: replace with Optional<User>
+    @Nullable
     public User getById(Long userId) {
         return userRepository.findOne(userId);
     }
@@ -51,7 +54,7 @@ public class UserService {
         User user = userRepository.findOne(userId);
 
         if (user.getMember().isPresent()) {
-            throw new UserAlreadyAMemberException("User is already a member!");
+            throw new UserAlreadyAMemberException("User is already a member! " + userId);
         }
 
         Member newMember = Member.builder()
@@ -91,7 +94,7 @@ public class UserService {
 
     public User createOrUpdateUser(String personalCode, String email, String phoneNumber) {
         if (isAMember(personalCode, email)) {
-            throw new UserAlreadyAMemberException("This user is already a member");
+            throw new UserAlreadyAMemberException("This user is already a member: " + personalCode + " " + email);
         }
 
         User user = userRepository.findByPersonalCode(personalCode)

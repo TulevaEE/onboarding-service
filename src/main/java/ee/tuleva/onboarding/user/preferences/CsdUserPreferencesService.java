@@ -18,7 +18,7 @@ public class CsdUserPreferencesService {
                 .addressRow1(csdPersonData.getContactData().getAddressRow1())
                 .addressRow2(csdPersonData.getContactData().getAddressRow2())
                 .addressRow3(csdPersonData.getContactData().getAddressRow3())
-                .country(csdPersonData.getContactData().getCountry().value())
+                .country(csdPersonData.getContactData().getCountry().value()) // TODO: nullpointer exception
                 .postalIndex(csdPersonData.getContactData().getPostalIndex())
                 .districtCode(csdPersonData.getContactData().getDistrictCode())
                 .contactPreference(UserPreferences.ContactPreferenceType.valueOf(csdPersonData.getContactData().getContactPreference().value()))

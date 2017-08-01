@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.text.WordUtils;
+import org.jetbrains.annotations.NotNull;
 
 @Builder
 @Getter
@@ -24,7 +25,7 @@ public class UserResponse {
         return PersonalCode.getAge(personalCode);
     }
 
-    public static UserResponse fromUser(User user) {
+    public static UserResponse fromUser(@NotNull User user) {
         return builder()
             .id(user.getId())
             .firstName(capitalize(user.getFirstName()))

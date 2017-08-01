@@ -27,16 +27,17 @@
                         PostalIndex=${postCode},
                         Territory=${districtCode}"/>
                         <ApplicationData
-                                th:each="fundTransferExchange : ${fundTransferExchanges}"
+                                th:each="fundTransferExchangeList : ${groupedFundTransferExchanges}"
                                 Pillar="2"
                                 th:attr="
-                                SourceISIN=${fundTransferExchange.sourceFundIsin}
+                                SourceISIN=${fundTransferExchangeList.key}
                                 ">
                             <ApplicationRow
+                                    th:each="fundTransferExchange : ${fundTransferExchangeList.value}"
                                     th:attr="
-                                        DestinationISIN=${fundTransferExchange.targetFundIsin},
-                                        Percentage=${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}
-                                    "/>
+                                            DestinationISIN=${fundTransferExchange.targetFundIsin},
+                                            Percentage=${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}
+                                        "/>
                         </ApplicationData>
                     </Request>
                 </OSAKUTE_VAHETAMISE_AVALDUS>

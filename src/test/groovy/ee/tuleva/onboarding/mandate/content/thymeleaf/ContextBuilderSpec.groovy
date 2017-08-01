@@ -116,6 +116,15 @@ class ContextBuilderSpec extends Specification {
         context.getVariables().get("fundTransferExchanges") == MandateFixture.sampleMandate().fundTransferExchanges
     }
 
+    def "GroupedFundTransferExchanges"() {
+        when:
+        Context context = ContextBuilder.builder()
+                .groupedTransferExchanges(MandateFixture.sampleMandate().fundTransferExchanges)
+                .build()
+        then:
+        context.getVariables().get("groupedFundTransferExchanges").size() == 2
+    }
+
     def "UserPreferences"() {
         when:
         Context context = ContextBuilder.builder()

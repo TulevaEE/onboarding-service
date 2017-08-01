@@ -108,6 +108,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
                 .transactionId(transactionId)
                 .documentNumber(documentNumber)
                 .fundTransferExchanges(fundTransferExchanges)
+                .groupedTransferExchanges(fundTransferExchanges)
                 .funds(funds)
                 .build();
 

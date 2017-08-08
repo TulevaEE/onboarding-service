@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
+import static org.jsoup.helper.StringUtil.isBlank;
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -25,9 +27,13 @@ public class MailChimpService {
   public void createOrUpdateMember(User user) {
     log.info("Creating or updating Mailchimp member in a separate thread: {}", user);
 
+    if (isBlank(user.getEmail())) {
+      return;
+    }
+
     EditMemberMethod.CreateOrUpdate method = new EditMemberMethod.CreateOrUpdate(listId, user.getEmail());
 
-    method.status = "subscribed";
+    method.status = "subscribed"; // TODO: maybe the user has manually unsubscribed?
     method.merge_fields = new MailchimpObject();
 
     Map<String, Object> mergeFields = method.merge_fields.mapping;
@@ -39,7 +45,11 @@ public class MailChimpService {
       mergeFields.put("LIIKME_NR", user.getMemberOrThrow().getMemberNumber());
     }
 
-    mailChimpClient.execute(method);
+    try {
+      mailChimpClient.execute(method);
+    } catch(MailChimpException e) {
+      log.error("Error updating user in Mailchimp", e);
+    }
   }
 
 }

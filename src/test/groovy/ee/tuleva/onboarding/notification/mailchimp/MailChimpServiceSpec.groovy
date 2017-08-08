@@ -32,4 +32,27 @@ class MailChimpServiceSpec extends Specification {
 			assert mergeFields.LIIKME_NR == user.memberOrThrow.memberNumber
 		}
 	}
+
+	def "trying to update a user with no email does not throw exception"() {
+		given:
+		def user = sampleUser().email(null).build()
+
+		when:
+		service.createOrUpdateMember(user)
+
+		then:
+		0 * mailChimpClient.execute(_)
+	}
+
+	def "handles any Mailchimp exceptions"() {
+		given:
+		def user = sampleUser().build()
+		mailChimpClient.execute(_) >> { throw new MailChimpException(new RuntimeException("boo")) }
+
+		when:
+		service.createOrUpdateMember(user)
+
+		then:
+		noExceptionThrown()
+	}
 }

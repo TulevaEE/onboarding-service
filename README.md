@@ -67,13 +67,26 @@ Using https://letsencrypt.org/
 
 `./certbot-auto certonly --manual`
 
+If certs have been expired run with debug and verbose flag.
+`sudo certbot certonly --debug-challenges -v --webroot -w .`
+
+Then get acme challenges from file system from `.well-known` and update acme challenges in applications and nginx.
+
 To generate certs for
 
-`id.tuleva.ee,onboarding-service.tuleva.ee,epis-service.tuleva.ee,pension.tuleva.ee`
+`id.tuleva.ee,epis-service.tuleva.ee,onboarding-service.tuleva.ee,pension.tuleva.ee`
 
 ACME challenge controller in the applications and `id.tuleva.ee` is in `nginx.conf`
 
 Cert hosting is correspondingly in Heroku and `nginx.conf`
+
+After generating new certificated copy them fro `id.tuleva.ee` so that nginx will pick them up.
+
+```
+cp -f /etc/letsencrypt/live/pension.tuleva.ee/fullchain.pem /home/ubuntu/subdomain.tuleva.ee.fullchain.pem
+cp -f /etc/letsencrypt/live/pension.tuleva.ee/privkey.pem /home/ubuntu/subdomain.tuleva.ee.privkey.pem
+service nginx restart
+```
 
 ### References
 

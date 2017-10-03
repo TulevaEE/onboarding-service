@@ -30,9 +30,6 @@ repositories {
 	maven {
 		url "https://jitpack.io"
 	}
-	maven {
-		url "https://pubnexus.zerotech.ee/content/repositories/zeropublic/"
-	}
 }
 
 dependencies {
@@ -64,17 +61,6 @@ dependencies {
 	compile('com.rollbar:rollbar:0.5.3')
 	compile('com.mandrillapp.wrapper.lutung:lutung:0.0.7')
 
-    compile('org.springframework:spring-jms')
-    compile('org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1')
-    compile('com.ibm:disthub2:7.1.0.0')
-    compile('com.ibm:mq:7.1.0.0')
-    compile('com.ibm:mq-commonservices:7.1.0.0')
-    compile('com.ibm:mq-headers:7.1.0.0')
-    compile('com.ibm:mq-jmqi:7.1.0.0')
-    compile('com.ibm:mq-jms:7.1.0.0')
-    compile('com.ibm:mq-jms-nojndi:7.1.0.0')
-    compile('com.ibm:mq-pcf:7.1.0.0')
-	compile('ee.tuleva:epis-api:1.0')
 	compile('com.ecwid:maleorang:3.0-0.9.6')
 
 	testCompile("com.h2database:h2")

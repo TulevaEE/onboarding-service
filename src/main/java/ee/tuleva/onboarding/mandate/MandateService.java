@@ -32,6 +32,9 @@ import java.util.UUID;
 @Slf4j
 public class MandateService {
 
+	private static final String OUTSTANDING_TRANSACTION = "OUTSTANDING_TRANSACTION";
+	private static final String SIGNATURE = "SIGNATURE";
+
 	private final MandateRepository mandateRepository;
 	private final SignatureService signService;
 	private final CreateMandateCommandToMandateConverter converter;
@@ -43,6 +46,7 @@ public class MandateService {
 	private final UserService userService;
 	private final EpisService episService;
 	private final AccountStatementService accountStatementService;
+
 
 	public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
 		validateCreateMandateCommand(createMandateCommand);
@@ -119,9 +123,9 @@ public class MandateService {
 		if (signedFile != null) { // TODO: use Optional
 			persistSignedFile(mandate, signedFile);
 			mandateProcessor.start(user, mandate);
-			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
+			return OUTSTANDING_TRANSACTION; // TODO: use enum
 		} else {
-			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
+			return OUTSTANDING_TRANSACTION; // TODO: use enum
 		}
 	}
 
@@ -152,9 +156,9 @@ public class MandateService {
 			clearMandateRelatedCache(user);
 			handleMandateProcessingErrors(mandate);
 
-			return "SIGNATURE"; // TODO: use enum
+			return SIGNATURE; // TODO: use enum
 		} else {
-			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
+			return OUTSTANDING_TRANSACTION; // TODO: use enum
 		}
 	}
 
@@ -177,7 +181,7 @@ public class MandateService {
 		if (signedFile != null) { // TODO: use Optional
 			persistSignedFile(mandate, signedFile);
 			mandateProcessor.start(user, mandate);
-			return "OUTSTANDING_TRANSACTION"; // TODO: use enum
+			return OUTSTANDING_TRANSACTION; // TODO: use enum
 		} else {
 			throw new IllegalStateException("There is no signed file to persist");
 		}

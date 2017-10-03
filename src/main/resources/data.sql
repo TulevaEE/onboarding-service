@@ -49,10 +49,10 @@ INSERT INTO fund_manager(
       );
 INSERT INTO fund_manager(
             id, name)
-    SELECT 4, 'Nordea'
+    SELECT 4, 'Luminor'
     WHERE
       NOT EXISTS (
-        SELECT * FROM fund_manager WHERE name = 'Nordea'
+        SELECT * FROM fund_manager WHERE name = 'Luminor'
       );
 
 INSERT INTO fund_manager(

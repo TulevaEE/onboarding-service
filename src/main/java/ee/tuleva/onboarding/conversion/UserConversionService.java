@@ -11,9 +11,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.MandateApplicationStatus.PENDING;
+import static java.util.stream.Collectors.toList;
 
 @Service
 @Slf4j
@@ -64,7 +64,7 @@ public class UserConversionService {
 
                 }
         ).map(transferExchange -> transferExchange.getSourceFund().getIsin())
-                .collect(Collectors.toList());
+                .collect(toList());
     }
 
     List<TransferExchange> getPendingTransfers(Person person) {
@@ -72,20 +72,18 @@ public class UserConversionService {
         return transferExchangeService.get(person).stream()
                 .filter(transferExchange ->
                         transferExchange.getStatus().equals(PENDING)
-                ).collect(Collectors.toList());
+                ).collect(toList());
     }
 
     List<String> unConvertedIsins(List<FundBalance> fundBalances) {
         return fundBalances.stream()
-                .filter(fundBalance -> {
-                                return !fundBalance.getFund()
-                                        .getFundManager()
-                                        .getName()
-                                        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME) &&
-                                        fundBalance.getValue().compareTo(BigDecimal.ZERO) > 0;
-                })
+                .filter(fundBalance -> !fundBalance.getFund()
+                        .getFundManager()
+                        .getName()
+                        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME) &&
+                        fundBalance.getValue().compareTo(BigDecimal.ZERO) > 0)
                 .map(fundBalance -> fundBalance.getFund().getIsin())
-                .collect(Collectors.toList());
+                .collect(toList());
     }
 
 }

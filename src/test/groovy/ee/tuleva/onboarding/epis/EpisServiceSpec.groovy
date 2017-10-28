@@ -20,8 +20,9 @@ import static UserPreferences.defaultUserPreferences
 class EpisServiceSpec extends Specification {
 
     RestTemplate restTemplate = Mock(RestTemplate)
+    FundBalanceDTOToFundBalanceConverter fundBalanceConverter = Mock(FundBalanceDTOToFundBalanceConverter)
 
-    EpisService service = new EpisService(restTemplate)
+    EpisService service = new EpisService(restTemplate, fundBalanceConverter)
 
     String sampleToken = "123"
 

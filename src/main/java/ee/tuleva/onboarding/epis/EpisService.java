@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.epis;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO;
 import ee.tuleva.onboarding.epis.account.FundBalance;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,9 +17,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static java.util.Arrays.asList;
+import static java.util.stream.Collectors.toList;
 
 @Service
 @Slf4j
@@ -31,6 +33,7 @@ public class EpisService {
    private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
 
    private final RestTemplate restTemplate;
+   private final FundBalanceDTOToFundBalanceConverter fundBalanceConverter;
 
    @Value("${epis.service.url}")
    String episServiceUrl;
@@ -120,10 +123,12 @@ public class EpisService {
       log.info("Getting account statement from {} for {} {}",
           url, person.getFirstName(), person.getLastName());
 
-      ResponseEntity<FundBalance[]> response = restTemplate.exchange(
-          url, HttpMethod.GET, new HttpEntity(getHeaders()), FundBalance[].class);
+      ResponseEntity<FundBalanceDTO[]> response = restTemplate.exchange(
+          url, HttpMethod.GET, new HttpEntity(getHeaders()), FundBalanceDTO[].class);
 
-      return asList(response.getBody());
+      return Arrays.stream(response.getBody())
+              .map(fundBalanceConverter::convert)
+              .collect(toList());
    }
 
    @CacheEvict(value= ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")

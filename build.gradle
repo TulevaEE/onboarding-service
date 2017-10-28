@@ -50,7 +50,6 @@ dependencies {
 	compile('net.sf.ehcache:ehcache')
 
 	compile('com.github.ErkoRisthein:mobileid:1.7')
-    compile('ee.eesti.xtee6.kpr:xtee-kpr:1.2.1')
 
 	compile('com.getsentry.raven:raven-logback:7.8.3')
 	compile('io.springfox:springfox-swagger2:2.6.1')

@@ -4,9 +4,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
-/**
- * User preferences from CSD KPR registry.
- */
 @Getter
 @Setter
 @Builder

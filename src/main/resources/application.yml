@@ -34,15 +34,6 @@ security:
     resource:
       filter-order: 3
 
-xroad:
-  instance: ee-dev
-  kprEndpoint: https://zoot.ml.ee/cgi-bin/TreasuryXrdWS/services/TreasuryXrdWS
-  memberClass: COM
-  memberCode: 14041764
-  subsystemCode: tuleva
-  requestTimeout: 15000
-  connectionTimeout: 9000
-
 ssl:
   trustAllHTTPSHosts: true
 
@@ -112,10 +103,6 @@ flyway:
 
 server:
   session.cookie.domain: tuleva.ee # for session sharing across sub-domains
-
-xroad:
-  instance: EE
-  kprEndpoint: https://karin.ml.ee/cgi-bin/TreasuryXrdWS/services/TreasuryXrdWS
 
 ssl:
   keystore: ${SSL_KEYSTORE}

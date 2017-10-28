@@ -44,7 +44,7 @@ public class AccountStatementService {
 
     @CacheEvict(value=ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
     public void clearCache(Person person) {
-        log.info("Clearning exchanges cache for {} {}",
+        log.info("Clearing exchanges cache for {} {}",
                 person.getFirstName(), person.getLastName());
     }
 

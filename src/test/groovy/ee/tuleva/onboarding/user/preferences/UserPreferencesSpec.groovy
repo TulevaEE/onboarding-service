@@ -19,6 +19,6 @@ class UserPreferencesSpec extends Specification {
                 (UserPreferences.LanguagePreferenceType.valueOf(
                         "EST")
                 ))
-        userPreferences.noticeNeeded.equals(1)
+        userPreferences.noticeNeeded.equals("Y")
     }
 }

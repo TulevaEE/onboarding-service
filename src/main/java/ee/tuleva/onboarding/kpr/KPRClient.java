@@ -74,15 +74,6 @@ public class KPRClient {
                 new Holder<String>("4.0"));
     }
 
-    public PersonDataResponseType personData(String idcode) {
-        return getPort().personData(new VoidType(),
-                new Holder<XRoadClientIdentifierType>(client),
-                new Holder<XRoadServiceIdentifierType>(getServiceIdentifier("personData")),
-                new Holder<String>("EE" + idcode),
-                new Holder<String>(UUID.randomUUID().toString()),
-                new Holder<String>("4.0"));
-    }
-
     public PersonalSelectionResponseType personalSelection(String idcode) {
         return getPort().personalSelection(new VoidType(),
                 new Holder<XRoadClientIdentifierType>(client),

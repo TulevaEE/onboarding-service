@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.processor.implementation;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
 import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO;
+import ee.tuleva.onboarding.user.preferences.UserPreferences;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,19 +13,20 @@ import org.springframework.http.*;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
 import java.util.List;
 
-// FIXME: butt ugly proof of concept
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class EpisService {
 
    private final String TRANSFER_APPLICATIONS_CACHE_NAME = "transferApplications";
+   private final String CONTACT_DETAILS_CACHE_NAME = "contactDetails";
+
    private final RestTemplate restTemplate;
 
    @Value("${epis.service.url}")
@@ -39,11 +41,10 @@ public class EpisService {
       CreateProcessingCommand command = new CreateProcessingCommand(messages);
 
       try {
-         CreateProcessingCommand response = restTemplate.postForObject(url, getProcessingRequest(command), CreateProcessingCommand.class);
-      } catch (HttpClientErrorException e) {
-         log.error(e.toString(), e);
+         restTemplate.postForObject(url, getProcessingRequest(command), CreateProcessingCommand.class);
+      } catch (HttpStatusCodeException e) {
+         throw new EpisServiceException("Error processing mandate messages through epis-service", e);
       }
-
    }
 
    @Cacheable(value=TRANSFER_APPLICATIONS_CACHE_NAME, key="#person.personalCode")
@@ -59,17 +60,38 @@ public class EpisService {
       return Arrays.asList(response.getBody());
    }
 
-   @CacheEvict(value=TRANSFER_APPLICATIONS_CACHE_NAME, key="#person.personalCode")
    public void clearCache(Person person) {
-      log.info("Clearning exchanges cache for {} {}",
-              person.getFirstName(), person.getLastName());
+      clearTransferApplicationsCache(person);
+      clearContactDetailsCache(person);
+   }
+
+   @CacheEvict(value=TRANSFER_APPLICATIONS_CACHE_NAME, key="#person.personalCode")
+   public void clearTransferApplicationsCache(Person person) {
+      log.info("Clearing exchanges cache for {} {}",
+          person.getFirstName(), person.getLastName());
+   }
+
+   @Cacheable(value=CONTACT_DETAILS_CACHE_NAME, key="#person.personalCode")
+   public UserPreferences getContactDetails(Person person) {
+      String url = episServiceUrl + "/contact-details";
+
+      log.info("Getting contact details from {} for {} {}",
+          url, person.getFirstName(), person.getLastName());
+
+      ResponseEntity<UserPreferences> response = restTemplate.exchange(
+          url, HttpMethod.GET, new HttpEntity(getHeaders()), UserPreferences.class);
+
+      return response.getBody();
+   }
+
+   @CacheEvict(value=CONTACT_DETAILS_CACHE_NAME, key="#person.personalCode")
+   public void clearContactDetailsCache(Person person) {
+      log.info("Clearing contact cache for {} {}",
+          person.getFirstName(), person.getLastName());
    }
 
    private HttpEntity getProcessingRequest(CreateProcessingCommand command) {
-      HttpHeaders headers = getHeaders();
-
-      HttpEntity<CreateProcessingCommand> request = new HttpEntity<CreateProcessingCommand>(command, headers);
-      return request;
+      return new HttpEntity<>(command, getHeaders());
    }
 
    private HttpHeaders getHeaders() {

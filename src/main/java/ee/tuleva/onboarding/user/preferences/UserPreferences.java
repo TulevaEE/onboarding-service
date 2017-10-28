@@ -12,47 +12,40 @@ import lombok.Setter;
 @Builder
 public class UserPreferences {
 
-    public enum ContactPreferenceType { //E - email, P - postal
-        E, P
-    }
+  public enum ContactPreferenceType {E, P} // E - email, P - postal
 
-    public enum LanguagePreferenceType {
-        EST, RUS, ENG
-    }
+  private ContactPreferenceType contactPreference;
 
-    private ContactPreferenceType contactPreference;
+  private String districtCode;
 
-    private String districtCode;
+  private String addressRow1;
 
-    private String addressRow1;
+  private String addressRow2;
 
-    private String addressRow2;
+  private String addressRow3;
 
-    private String addressRow3;
+  private String postalIndex;
 
-    private String postalIndex;
+  private String country;
 
-    private String country;
+  public enum LanguagePreferenceType {EST, RUS, ENG}
 
-    private LanguagePreferenceType languagePreference;
+  private LanguagePreferenceType languagePreference;
 
-    private Integer noticeNeeded; //enum { '0', '1' }
+  private String noticeNeeded; // boolean { 'Y', 'N' }
 
-    public static UserPreferences defaultUserPreferences() {
-        return UserPreferences.builder()
-                .addressRow1("Tuleva, Telliskivi 60")
-                .addressRow2("TALLINN")
-                .addressRow3("TALLINN")
-                .country("EE")
-                .postalIndex("10412")
-                .districtCode("0784")
-                .contactPreference(UserPreferences.ContactPreferenceType.valueOf("E"))
-                .languagePreference(
-                        (UserPreferences.LanguagePreferenceType.valueOf(
-                                "EST")
-                        ))
-                .noticeNeeded(1)
-                .build();
-    }
+  public static UserPreferences defaultUserPreferences() {
+    return builder()
+        .addressRow1("Tuleva, Telliskivi 60")
+        .addressRow2("TALLINN")
+        .addressRow3("TALLINN")
+        .country("EE")
+        .postalIndex("10412")
+        .districtCode("0784")
+        .contactPreference(UserPreferences.ContactPreferenceType.valueOf("E"))
+        .languagePreference(UserPreferences.LanguagePreferenceType.valueOf("EST"))
+        .noticeNeeded("Y")
+        .build();
+  }
 
 }

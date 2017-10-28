@@ -4,9 +4,9 @@ import com.codeborne.security.mobileid.SignatureFile;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
-import ee.tuleva.onboarding.user.UserService;
-import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService;
+import ee.tuleva.onboarding.mandate.processor.implementation.EpisService;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.preferences.UserPreferences;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,7 +25,7 @@ public class MandateFileService {
 
     private final MandateRepository mandateRepository;
     private final FundRepository fundRepository;
-    private final CsdUserPreferencesService csdUserPreferencesService;
+    private final EpisService episService;
     private final MandateContentCreator mandateContentCreator;
     private final UserService userService;
 
@@ -36,7 +36,7 @@ public class MandateFileService {
         List<Fund> funds = new ArrayList<>();
         fundRepository.findAll().forEach(funds::add);
 
-        UserPreferences userPreferences = csdUserPreferencesService.getPreferences(user.getPersonalCode());
+        UserPreferences userPreferences = episService.getContactDetails(user);
         userPreferences = checkUserPreferences(userPreferences);
 
         return mandateContentCreator.getContentFiles(user, mandate, funds, userPreferences)

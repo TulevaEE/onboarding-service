@@ -4,8 +4,6 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.user.command.CreateUserCommand;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
-import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService;
-import ee.tuleva.onboarding.user.preferences.UserPreferences;
 import ee.tuleva.onboarding.user.response.UserResponse;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
@@ -21,7 +19,6 @@ import javax.validation.Valid;
 @AllArgsConstructor
 public class UserController {
 
-	private final CsdUserPreferencesService preferencesService;
 	private final UserService userService;
 
 	@ApiOperation(value = "Get info about the current user")
@@ -59,12 +56,6 @@ public class UserController {
 		User user = userService.createOrUpdateUser(cmd.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
 
 		return UserResponse.fromUser(user);
-	}
-
-	@ApiOperation(value = "Get info about the current user preferences from CSD")
-	@GetMapping("/preferences")
-	public UserPreferences getPreferences(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-		return preferencesService.getPreferences(authenticatedPerson.getPersonalCode());
 	}
 
 }

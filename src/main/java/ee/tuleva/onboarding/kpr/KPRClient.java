@@ -65,16 +65,6 @@ public class KPRClient {
         return kprV6PortType;
     }
 
-    public PensionAccountTransactionResponseType pensionAccountTransaction(PensionAccountTransactionType request, String idcode) {
-        return getPort().pensionAccountTransaction(
-                request,
-                new Holder<XRoadClientIdentifierType>(client),
-                new Holder<XRoadServiceIdentifierType>(getServiceIdentifier("pensionAccountTransaction")),
-                new Holder<String>("EE" + idcode),
-                new Holder<String>(UUID.randomUUID().toString()),
-                new Holder<String>("4.0"));
-    }
-
     public PensionAccountBalanceResponseType pensionAccountBalance(PensionAccountBalanceType request, String idcode) {
         return getPort().pensionAccountBalance(request,
                 new Holder<XRoadClientIdentifierType>(client),

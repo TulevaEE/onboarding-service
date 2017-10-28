@@ -4,8 +4,6 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.user.command.CreateUserCommand
 import ee.tuleva.onboarding.user.command.UpdateUserCommand
-import ee.tuleva.onboarding.user.preferences.CsdUserPreferencesService
-import ee.tuleva.onboarding.user.preferences.UserPreferences
 import org.springframework.http.MediaType
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
@@ -16,10 +14,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class UserControllerSpec extends BaseControllerSpec {
 
-	CsdUserPreferencesService preferencesService = Mock(CsdUserPreferencesService)
 	UserService userService = Mock(UserService)
 
-	UserController controller = new UserController(preferencesService, userService)
+	UserController controller = new UserController(userService)
 
 	def "/me endpoint works with non member"() {
 		given:
@@ -59,19 +56,6 @@ class UserControllerSpec extends BaseControllerSpec {
 				.andExpect(jsonPath('$.email', is(user.email)))
 				.andExpect(jsonPath('$.phoneNumber',is(user.phoneNumber)))
 				.andExpect(jsonPath('$.memberNumber', is(user.member.get().memberNumber)))
-	}
-
-	def "/preferences endpoint works"() {
-		given:
-		1 * preferencesService.getPreferences(sampleAuthenticatedPerson.personalCode) >> UserPreferences.builder().addressRow1("Telliskivi").build()
-
-		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
-
-		expect:
-		mvc.perform(get("/v1/preferences"))
-				.andExpect(status().isOk())
-				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-				.andExpect(jsonPath('$.addressRow1', is("Telliskivi")))
 	}
 
 	def "updates an existing user"() {

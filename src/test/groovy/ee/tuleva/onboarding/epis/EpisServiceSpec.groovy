@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.epis
 
+import ee.tuleva.onboarding.epis.contact.UserPreferences
+import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
 import ee.tuleva.onboarding.mandate.MandateApplicationType
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
-import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
-import ee.tuleva.onboarding.epis.contact.UserPreferences
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -14,15 +14,13 @@ import org.springframework.security.oauth2.provider.authentication.OAuth2Authent
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static UserPreferences.defaultUserPreferences
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 
 class EpisServiceSpec extends Specification {
 
     RestTemplate restTemplate = Mock(RestTemplate)
-    FundBalanceDTOToFundBalanceConverter fundBalanceConverter = Mock(FundBalanceDTOToFundBalanceConverter)
-
-    EpisService service = new EpisService(restTemplate, fundBalanceConverter)
+    EpisService service = new EpisService(restTemplate)
 
     String sampleToken = "123"
 

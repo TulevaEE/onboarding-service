@@ -67,7 +67,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
         }
         MobileIDSession mobileIdSession = session.get();
 
-        boolean isComplete = mobileIdAuthService.isLoginComplete(mobileIdSession) || true;
+        boolean isComplete = mobileIdAuthService.isLoginComplete(mobileIdSession);
         if (!isComplete) {
             throw new MobileIdAuthNotCompleteException();
         }

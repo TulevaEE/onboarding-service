@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.conversion
 
-import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
 import ee.tuleva.onboarding.mandate.transfer.TransferExchange
@@ -13,16 +13,16 @@ import static ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus.*
 
 class UserConversionServiceSpec extends Specification {
 
-    EpisService episService = Mock(EpisService)
+    AccountStatementService accountStatementService = Mock(AccountStatementService)
     TransferExchangeService transferExchangeService = Mock(TransferExchangeService)
     UserConversionService service =
-            new UserConversionService(episService, transferExchangeService)
+            new UserConversionService(accountStatementService, transferExchangeService)
 
     final String COVERING_ISN = "SOME ISIN"
 
     def "GetConversion: Get conversion response for fund selection and transfer"() {
         given:
-        1 * episService.getAccountStatement(samplePerson) >> accountBalanceResponse
+        1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
 
         1 * transferExchangeService.get(samplePerson) >> []
 
@@ -44,7 +44,7 @@ class UserConversionServiceSpec extends Specification {
 
     def "GetConversion: Get conversion response for fund transfer given pending mandates cover the lack"() {
         given:
-        1 * episService.getAccountStatement(samplePerson) >> accountBalanceResponse
+        1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
 
         1 * transferExchangeService.get(samplePerson) >> sampleTransfersApplicationListWithFullPendingTransferCoverage
 
@@ -65,7 +65,7 @@ class UserConversionServiceSpec extends Specification {
 
     def "GetConversion: Only full value pending transfer will be marked as covering the lack"() {
         given:
-        1 * episService.getAccountStatement(samplePerson) >> accountBalanceResponse
+        1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
 
         1 * transferExchangeService.get(samplePerson) >> sampleTransfersApplicationListWithPartialPendingTransferCoverage
 

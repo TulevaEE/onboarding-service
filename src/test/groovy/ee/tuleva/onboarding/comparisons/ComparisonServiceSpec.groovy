@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.comparisons
 
+import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.fund.FundRepository
-import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
@@ -10,10 +10,10 @@ import java.math.RoundingMode
 class ComparisonServiceSpec extends Specification {
 
 	def userService = Mock(UserService)
-	def episService = Mock(EpisService)
+	def accountStatementService = Mock(AccountStatementService)
 	def fundReposirtory = Mock(FundRepository)
 
-	def service = new ComparisonService(fundReposirtory, episService, userService)
+	def service = new ComparisonService(fundReposirtory, accountStatementService, userService)
 
 	def cmd = new ComparisonCommand(
 			isinTo: "tulevaIsin",

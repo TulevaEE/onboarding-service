@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.statistics;
 
-import ee.tuleva.onboarding.epis.account.FundBalance;
+import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.mandate.Mandate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

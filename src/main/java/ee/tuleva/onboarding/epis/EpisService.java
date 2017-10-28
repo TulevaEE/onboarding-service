@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.epis;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.account.FundBalance;
+import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
@@ -17,11 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Arrays;
 import java.util.List;
 
 import static java.util.Arrays.asList;
-import static java.util.stream.Collectors.toList;
 
 @Service
 @Slf4j
@@ -33,7 +31,6 @@ public class EpisService {
    private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
 
    private final RestTemplate restTemplate;
-   private final FundBalanceDTOToFundBalanceConverter fundBalanceConverter;
 
    @Value("${epis.service.url}")
    String episServiceUrl;
@@ -117,18 +114,16 @@ public class EpisService {
    }
 
    @Cacheable(value= ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
-   public List<FundBalance> getAccountStatement(Person person) {
+   public List<FundBalanceDto> getAccountStatement(Person person) {
       String url = episServiceUrl + "/account-statement";
 
       log.info("Getting account statement from {} for {} {}",
           url, person.getFirstName(), person.getLastName());
 
-      ResponseEntity<FundBalanceDTO[]> response = restTemplate.exchange(
-          url, HttpMethod.GET, new HttpEntity(getHeaders()), FundBalanceDTO[].class);
+      ResponseEntity<FundBalanceDto[]> response = restTemplate.exchange(
+          url, HttpMethod.GET, new HttpEntity(getHeaders()), FundBalanceDto[].class);
 
-      return Arrays.stream(response.getBody())
-              .map(fundBalanceConverter::convert)
-              .collect(toList());
+      return asList(response.getBody());
    }
 
    @CacheEvict(value= ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")

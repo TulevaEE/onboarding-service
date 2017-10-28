@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.user.preferences;
+package ee.tuleva.onboarding.epis.contact;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -10,6 +10,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @Builder
+// TODO: rename to ContactDetails
 public class UserPreferences {
 
   public enum ContactPreferenceType {E, P} // E - email, P - postal

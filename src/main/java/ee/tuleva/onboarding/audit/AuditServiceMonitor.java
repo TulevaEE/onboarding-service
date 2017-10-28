@@ -13,7 +13,7 @@ public class AuditServiceMonitor {
 
     private final AuditEventPublisher auditEventPublisher;
 
-    @Before("execution(* ee.tuleva.onboarding.account.AccountStatementService.getMyPensionAccountStatement(..)) && args(person)")
+    @Before("execution(* ee.tuleva.onboarding.epis.EpisService.getAccountStatement(..)) && args(person)")
     public void logServiceAccess(Person person) {
         auditEventPublisher.publish(person.getPersonalCode(), AuditEventType.GET_ACCOUNT_STATEMENT);
     }

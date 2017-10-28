@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user.preferences
 
+import ee.tuleva.onboarding.epis.contact.UserPreferences
 import spock.lang.Specification
 
 class UserPreferencesSpec extends Specification {

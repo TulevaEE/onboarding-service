@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.processor.implementation;
+package ee.tuleva.onboarding.epis;
 
 public class EpisServiceException extends RuntimeException {
 

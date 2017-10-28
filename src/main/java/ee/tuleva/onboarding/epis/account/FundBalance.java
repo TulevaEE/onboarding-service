@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.account;
+package ee.tuleva.onboarding.epis.account;
 
 
 import ee.tuleva.onboarding.fund.Fund;

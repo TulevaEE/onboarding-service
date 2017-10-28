@@ -1,9 +1,10 @@
-package ee.tuleva.onboarding.mandate.processor.implementation;
+package ee.tuleva.onboarding.epis;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO;
+import ee.tuleva.onboarding.epis.account.FundBalance;
+import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO;
-import ee.tuleva.onboarding.user.preferences.UserPreferences;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,8 +17,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Arrays;
 import java.util.List;
+
+import static java.util.Arrays.asList;
 
 @Service
 @Slf4j
@@ -26,6 +28,7 @@ public class EpisService {
 
    private final String TRANSFER_APPLICATIONS_CACHE_NAME = "transferApplications";
    private final String CONTACT_DETAILS_CACHE_NAME = "contactDetails";
+   private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
 
    private final RestTemplate restTemplate;
 
@@ -57,12 +60,13 @@ public class EpisService {
       ResponseEntity<TransferExchangeDTO[]> response = restTemplate.exchange(
               url, HttpMethod.GET, new HttpEntity(getHeaders()), TransferExchangeDTO[].class);
 
-      return Arrays.asList(response.getBody());
+      return asList(response.getBody());
    }
 
    public void clearCache(Person person) {
       clearTransferApplicationsCache(person);
       clearContactDetailsCache(person);
+      clearAccountStatementCache(person);
    }
 
    @CacheEvict(value=TRANSFER_APPLICATIONS_CACHE_NAME, key="#person.personalCode")
@@ -107,6 +111,25 @@ public class EpisService {
               (OAuth2AuthenticationDetails) SecurityContextHolder.getContext().getAuthentication().getDetails();
 
       return details.getTokenValue();
+   }
+
+   @Cacheable(value= ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
+   public List<FundBalance> getAccountStatement(Person person) {
+      String url = episServiceUrl + "/account-statement";
+
+      log.info("Getting account statement from {} for {} {}",
+          url, person.getFirstName(), person.getLastName());
+
+      ResponseEntity<FundBalance[]> response = restTemplate.exchange(
+          url, HttpMethod.GET, new HttpEntity(getHeaders()), FundBalance[].class);
+
+      return asList(response.getBody());
+   }
+
+   @CacheEvict(value= ACCOUNT_STATEMENT_CACHE_NAME, key="#person.personalCode")
+   public void clearAccountStatementCache(Person person) {
+      log.info("Clearing account statement cache for {} {}",
+          person.getFirstName(), person.getLastName());
    }
 
 }

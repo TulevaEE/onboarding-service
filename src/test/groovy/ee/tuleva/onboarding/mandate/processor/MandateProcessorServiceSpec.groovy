@@ -1,14 +1,15 @@
 package ee.tuleva.onboarding.mandate.processor
 
-import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.Mandate
-import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
 import ee.tuleva.onboarding.mandate.content.MandateXmlService
-import ee.tuleva.onboarding.mandate.processor.implementation.EpisService
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
+
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
 class MandateProcessorServiceSpec extends Specification {
 
@@ -21,9 +22,9 @@ class MandateProcessorServiceSpec extends Specification {
             mandateProcessRepository, mandateProcessErrorResolver, episService)
 
 
-    User sampleUser = UserFixture.sampleUser().build()
-    Mandate sampleMandate = MandateFixture.sampleMandate()
-    List<MandateXmlMessage> sampleMessages = [];
+    User sampleUser = sampleUser().build()
+    Mandate sampleMandate = sampleMandate()
+    List<MandateXmlMessage> sampleMessages = []
 
     def "Start: starts processing mandate and saves mandate processes for every mandate message"() {
         given:

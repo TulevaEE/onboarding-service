@@ -3,9 +3,9 @@ package ee.tuleva.onboarding.mandate.transfer
 import ee.tuleva.onboarding.auth.PersonFixture
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.MandateFixture
-import ee.tuleva.onboarding.mandate.processor.implementation.EpisService
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.MandateApplicationStatus
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO
+import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus
+import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
 import spock.lang.Specification
 
 class TransferExchangeServiceSpec extends Specification {

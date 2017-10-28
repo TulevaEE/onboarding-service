@@ -1,15 +1,14 @@
 package ee.tuleva.onboarding.mandate
 
 import com.codeborne.security.mobileid.SignatureFile
-import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
-import ee.tuleva.onboarding.mandate.processor.implementation.EpisService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
-import ee.tuleva.onboarding.user.preferences.UserPreferences
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.*
@@ -25,7 +24,7 @@ class MandateFileServiceSpec extends Specification {
     MandateFileService service = new MandateFileService(mandateRepository, fundRepository,
             episService, mandateContentCreator, userService)
 
-    User user = UserFixture.sampleUser().build()
+    User user = sampleUser().build()
     Mandate mandate = MandateFixture.sampleMandate()
 
     def "getMandateFiles: generates mandate content files"() {

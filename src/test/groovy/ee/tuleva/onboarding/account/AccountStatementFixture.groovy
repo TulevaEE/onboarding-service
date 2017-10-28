@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.account
 import com.google.common.collect.Lists
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
+import ee.tuleva.onboarding.epis.account.FundBalance
 
 class AccountStatementFixture {
 

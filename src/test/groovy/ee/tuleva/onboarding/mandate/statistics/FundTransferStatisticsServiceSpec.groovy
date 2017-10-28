@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.statistics
 
-import ee.tuleva.onboarding.account.FundBalance
+import ee.tuleva.onboarding.epis.account.FundBalance
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.mandate.MandateFixture
 import spock.lang.Specification

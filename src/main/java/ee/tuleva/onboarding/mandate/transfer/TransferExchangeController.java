@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.transfer;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.MandateApplicationStatus;
+import ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

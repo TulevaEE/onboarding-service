@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.conversion;
 
-import ee.tuleva.onboarding.account.AccountStatementService;
-import ee.tuleva.onboarding.account.FundBalance;
+import ee.tuleva.onboarding.epis.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.mandate.transfer.TransferExchange;
 import ee.tuleva.onboarding.mandate.transfer.TransferExchangeService;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.util.List;
 
-import static ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.MandateApplicationStatus.PENDING;
+import static ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus.PENDING;
 import static java.util.stream.Collectors.toList;
 
 @Service
@@ -20,15 +20,14 @@ import static java.util.stream.Collectors.toList;
 @RequiredArgsConstructor
 public class UserConversionService {
 
-    private final AccountStatementService accountStatementService;
+    private final EpisService episService;
     private final TransferExchangeService transferExchangeService;
 
     private static final String CONVERTED_FUND_MANAGER_NAME = "Tuleva";
 
     public ConversionResponse getConversion(Person person) {
 
-        List<FundBalance> fundBalances =
-                accountStatementService.getMyPensionAccountStatement(person);
+        List<FundBalance> fundBalances = episService.getAccountStatement(person);
 
         return ConversionResponse.builder()
                 .selectionComplete(isSelectionComplete(fundBalances))

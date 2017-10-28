@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.transfer;
 
 import ee.tuleva.onboarding.fund.Fund;
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.MandateApplicationStatus;
+import ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus;
 import lombok.Builder;
 import lombok.Getter;
 

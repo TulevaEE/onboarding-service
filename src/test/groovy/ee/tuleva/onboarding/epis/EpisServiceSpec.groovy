@@ -1,9 +1,9 @@
-package ee.tuleva.onboarding.mandate.processor.implementation
+package ee.tuleva.onboarding.epis
 
 import ee.tuleva.onboarding.mandate.MandateApplicationType
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO
-import ee.tuleva.onboarding.user.preferences.UserPreferences
+import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
+import ee.tuleva.onboarding.epis.contact.UserPreferences
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -15,7 +15,7 @@ import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.user.preferences.UserPreferences.defaultUserPreferences
+import static UserPreferences.defaultUserPreferences
 
 class EpisServiceSpec extends Specification {
 

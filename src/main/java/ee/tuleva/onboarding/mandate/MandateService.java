@@ -3,13 +3,12 @@ package ee.tuleva.onboarding.mandate;
 import com.codeborne.security.mobileid.IdCardSignatureSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.codeborne.security.mobileid.SignatureFile;
-import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
-import ee.tuleva.onboarding.mandate.processor.implementation.EpisService;
+import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService;
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
@@ -45,8 +44,6 @@ public class MandateService {
 	private final MandateFileService mandateFileService;
 	private final UserService userService;
 	private final EpisService episService;
-	private final AccountStatementService accountStatementService;
-
 
 	public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
 		validateCreateMandateCommand(createMandateCommand);
@@ -153,18 +150,13 @@ public class MandateService {
 					mandate.getMandate()
 							.orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file."))
 			);
-			clearMandateRelatedCache(user);
+			episService.clearCache(user);
 			handleMandateProcessingErrors(mandate);
 
 			return SIGNATURE; // TODO: use enum
 		} else {
 			return OUTSTANDING_TRANSACTION; // TODO: use enum
 		}
-	}
-
-	private void clearMandateRelatedCache(User user) {
-		accountStatementService.clearCache(user);
-		episService.clearCache(user);
 	}
 
 	private void handleMandateProcessingErrors(Mandate mandate) {

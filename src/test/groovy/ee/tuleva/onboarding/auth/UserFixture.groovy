@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.auth
 
 import ee.tuleva.onboarding.user.MemberFixture
 import ee.tuleva.onboarding.user.User
-import ee.tuleva.onboarding.user.preferences.UserPreferences
+import ee.tuleva.onboarding.epis.contact.UserPreferences
 
 import java.time.Instant
 

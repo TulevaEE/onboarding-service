@@ -42,7 +42,13 @@ public class PensionFundStatisticsService {
 
   List<PensionFundStatistics> getPensionFundStatistics() {
     try {
-      return restTemplate.getForObject(statisticsEndpoint, PensionFundStatisticsResponse.class).getPensionFundStatistics();
+      List<PensionFundStatistics> result = restTemplate.getForObject(statisticsEndpoint, PensionFundStatisticsResponse.class).getPensionFundStatistics();
+
+      if(result == null) {
+        log.info("Pension fund statistics is empty");
+        return emptyList();
+      }
+      return result;
     } catch (Exception e) {
       log.error("Error getting pension fund statistics", e);
       return emptyList();

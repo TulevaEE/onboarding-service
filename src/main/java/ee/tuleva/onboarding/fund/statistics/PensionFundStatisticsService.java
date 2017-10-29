@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConverter;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestOperations;
 
@@ -25,8 +26,9 @@ public class PensionFundStatisticsService {
 
   public PensionFundStatisticsService(RestTemplateBuilder restTemplateBuilder) {
     restTemplate = restTemplateBuilder
-      .setConnectTimeout(30_000)
-      .setReadTimeout(60_000)
+        .setConnectTimeout(30_000)
+        .setReadTimeout(60_000)
+        .additionalMessageConverters(new Jaxb2RootElementHttpMessageConverter())
       .build();
   }
 

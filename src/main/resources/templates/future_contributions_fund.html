@@ -147,7 +147,7 @@
             <p class="c5"><span class="c1">Soovin Eesti v&auml;&auml;rtpaberite keskregistri teatist pensionikonto j&auml;&auml;gi kohta</span></p>
         </td>
         <td class="c20" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0" th:text="${userPreferences.noticeNeeded == 'Y' ? 'X' : '' }"></span></p>
+            <p class="c5 c8"><span class="c0" th:text="${userPreferences.noticeNeeded.equalsIgnoreCase('Y') ? 'X' : '' }"></span></p>
         </td>
     </tr>
     <tr class="c23">

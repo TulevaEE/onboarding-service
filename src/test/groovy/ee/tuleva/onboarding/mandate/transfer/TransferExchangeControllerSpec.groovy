@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.transfer
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.MandateApplicationStatus
+import ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus
 import org.hamcrest.Matchers
 import org.springframework.test.web.servlet.MockMvc
 

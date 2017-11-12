@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.auth
 
 import ee.tuleva.onboarding.user.MemberFixture
 import ee.tuleva.onboarding.user.User
-import ee.tuleva.onboarding.user.preferences.UserPreferences
+import ee.tuleva.onboarding.epis.contact.UserPreferences
 
 import java.time.Instant
 
@@ -46,7 +46,7 @@ public class UserFixture {
                 .districtCode("0784")
                 .contactPreference(UserPreferences.ContactPreferenceType.E)
                 .languagePreference(UserPreferences.LanguagePreferenceType.EST)
-                .noticeNeeded(1)
+                .noticeNeeded("Y")
                 .build();
     }
 
@@ -62,7 +62,7 @@ public class UserFixture {
                         .districtCode("0784")
                         .contactPreference(null)
                         .languagePreference(UserPreferences.LanguagePreferenceType.EST)
-                        .noticeNeeded(1)
+                        .noticeNeeded("Y")
                         .build(),
                 UserPreferences.builder()
                         .addressRow1("Tatari 19-17")
@@ -73,7 +73,7 @@ public class UserFixture {
                         .districtCode("0784")
                         .contactPreference(UserPreferences.ContactPreferenceType.E)
                         .languagePreference(null)
-                        .noticeNeeded(1)
+                        .noticeNeeded("Y")
                         .build(),
                 UserPreferences.builder()
                         .addressRow1("Tatari 19-17")
@@ -99,7 +99,7 @@ public class UserFixture {
                 .districtCode("0784")
                 .contactPreference(UserPreferences.ContactPreferenceType.E)
                 .languagePreference(UserPreferences.LanguagePreferenceType.EST)
-                .noticeNeeded(1)
+                .noticeNeeded("Y")
                 .build(),
             UserPreferences.builder()
                     .addressRow1("Tatari 19-17")
@@ -110,7 +110,7 @@ public class UserFixture {
                     .districtCode("0784")
                     .contactPreference(UserPreferences.ContactPreferenceType.E)
                     .languagePreference(UserPreferences.LanguagePreferenceType.EST)
-                    .noticeNeeded(1)
+                    .noticeNeeded("Y")
                     .build(),
             UserPreferences.builder()
                     .addressRow1("Tatari 19-17")
@@ -121,7 +121,7 @@ public class UserFixture {
                     .districtCode("0784")
                     .contactPreference(UserPreferences.ContactPreferenceType.E)
                     .languagePreference(UserPreferences.LanguagePreferenceType.EST)
-                    .noticeNeeded(1)
+                    .noticeNeeded("Y")
                     .build(),
             UserPreferences.builder()
                     .addressRow1("Tatari 19-17")
@@ -132,7 +132,7 @@ public class UserFixture {
                     .districtCode("0784")
                     .contactPreference(UserPreferences.ContactPreferenceType.E)
                     .languagePreference(UserPreferences.LanguagePreferenceType.EST)
-                    .noticeNeeded(1)
+                    .noticeNeeded("Y")
                     .build(),
             UserPreferences.builder()
                     .addressRow1("Tatari 19-17")
@@ -143,7 +143,7 @@ public class UserFixture {
                     .districtCode("0784")
                     .contactPreference(UserPreferences.ContactPreferenceType.E)
                     .languagePreference(UserPreferences.LanguagePreferenceType.EST)
-                    .noticeNeeded(1)
+                    .noticeNeeded("Y")
                     .build(),
             UserPreferences.builder()
                     .addressRow1("Tatari 19-17")
@@ -154,7 +154,7 @@ public class UserFixture {
                     .districtCode("")
                     .contactPreference(UserPreferences.ContactPreferenceType.E)
                     .languagePreference(UserPreferences.LanguagePreferenceType.EST)
-                    .noticeNeeded(1)
+                    .noticeNeeded("Y")
                     .build(),
                 ]
     }

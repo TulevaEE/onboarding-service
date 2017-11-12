@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.comparisons;
 
 import ee.tuleva.onboarding.account.AccountStatementService;
-import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.comparisons.exceptions.IsinNotFoundException;
+import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.user.User;
@@ -68,7 +68,7 @@ public class ComparisonService {
     }
 
     private List<FundBalance> getBalances(User user) {
-        return accountStatementService.getMyPensionAccountStatement(user);
+        return accountStatementService.getAccountStatement(user);
     }
 
     public ComparisonResponse getComparisonResponse(ComparisonCommand in) {

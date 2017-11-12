@@ -1,9 +1,9 @@
-package ee.tuleva.onboarding.mandate.processor.implementation
+package ee.tuleva.onboarding.epis
 
-import ee.tuleva.onboarding.auth.PersonFixture
+import ee.tuleva.onboarding.epis.contact.UserPreferences
+import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
 import ee.tuleva.onboarding.mandate.MandateApplicationType
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
-import ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication.TransferExchangeDTO
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -14,10 +14,12 @@ import org.springframework.security.oauth2.provider.authentication.OAuth2Authent
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
+import static UserPreferences.defaultUserPreferences
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+
 class EpisServiceSpec extends Specification {
 
     RestTemplate restTemplate = Mock(RestTemplate)
-
     EpisService service = new EpisService(restTemplate)
 
     String sampleToken = "123"
@@ -65,10 +67,29 @@ class EpisServiceSpec extends Specification {
 
         when:
         List<TransferExchangeDTO> transferApplicationDTOList =
-                service.getTransferApplications(PersonFixture.samplePerson())
+                service.getTransferApplications(samplePerson())
 
         then:
         transferApplicationDTOList.size() == 1
+    }
+
+    def "getContactDetails"() {
+        given:
+
+        UserPreferences userPreferences = defaultUserPreferences()
+        ResponseEntity<UserPreferences> response =
+                new ResponseEntity(userPreferences, HttpStatus.OK)
+
+        1 * restTemplate.exchange(
+                _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
+            doesHttpEntityContainToken(httpEntity, sampleToken)
+        }, UserPreferences.class) >> response
+
+        when:
+        UserPreferences contactDetails = service.getContactDetails(samplePerson())
+
+        then:
+        contactDetails == userPreferences
     }
 
     boolean doesHttpEntityContainToken(HttpEntity httpEntity, String sampleToken) {

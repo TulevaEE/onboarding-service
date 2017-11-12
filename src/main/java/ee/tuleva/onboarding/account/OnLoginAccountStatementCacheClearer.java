@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.account;
 
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.EpisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -12,7 +13,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class OnLoginAccountStatementCacheClearer {
 
-    private final AccountStatementService accountStatementService;
+    private final EpisService episService;
 
     @EventListener
     public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
@@ -23,7 +24,7 @@ public class OnLoginAccountStatementCacheClearer {
                 person.getLastName()
         );
 
-        accountStatementService.clearCache(person);
+        episService.clearCache(person);
     }
 
 }

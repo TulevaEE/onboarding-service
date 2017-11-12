@@ -1,21 +1,23 @@
 package ee.tuleva.onboarding.account
 
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
-import ee.tuleva.onboarding.auth.PersonFixture
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.epis.EpisService
 import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+
 class OnLoginAccountStatementCacheClearerSpec extends Specification {
 
-    AccountStatementService accountStatementService = Mock(AccountStatementService)
+    EpisService episService = Mock(EpisService)
     OnLoginAccountStatementCacheClearer service =
-            new OnLoginAccountStatementCacheClearer(accountStatementService)
+            new OnLoginAccountStatementCacheClearer(episService)
 
     def "OnBeforeTokenGrantedEvent: Starts clearing cache on event"() {
         given:
 
-        Person samplePerson = PersonFixture.samplePerson()
+        Person samplePerson = samplePerson()
 
         OAuth2Authentication oAuth2Authentication = Mock({
             getPrincipal() >> samplePerson
@@ -27,6 +29,6 @@ class OnLoginAccountStatementCacheClearerSpec extends Specification {
         service.onBeforeTokenGrantedEvent(beforeTokenGrantedEvent)
 
         then:
-        1 * accountStatementService.clearCache(samplePerson)
+        1 * episService.clearCache(samplePerson)
     }
 }

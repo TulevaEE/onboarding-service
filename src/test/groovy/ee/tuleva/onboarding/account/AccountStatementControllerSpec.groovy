@@ -25,7 +25,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
         given:
         List<FundBalance> fundBalances = []
         UUID statisticsIdentifier = UUID.randomUUID()
-        1 * accountStatementService.getMyPensionAccountStatement(_ as Person) >> fundBalances
+        1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
         1 * fundTransferStatisticsService.saveFundValueStatistics(fundBalances, statisticsIdentifier)
         expect:
             mockMvc.perform(get("/v1/pension-account-statement").header("x-statistics-identifier", statisticsIdentifier))

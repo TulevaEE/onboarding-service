@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.processor.implementation.MandateApplication;
+package ee.tuleva.onboarding.epis.mandate;
 
 import lombok.Builder;
 import lombok.Getter;

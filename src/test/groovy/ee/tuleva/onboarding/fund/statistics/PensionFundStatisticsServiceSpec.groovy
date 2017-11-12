@@ -39,7 +39,7 @@ class PensionFundStatisticsServiceSpec extends Specification {
 		def statistics = service.getPensionFundStatistics()
 
 		then:
-		statistics == null
+		statistics == []
 	}
 
 	def "GetPensionFundStatistics works with one pension fund statistic"() {

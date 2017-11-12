@@ -17,7 +17,7 @@
                                       Name=${lastName},
                                       PersonId=${idCode},
                                       Phone=${phoneNumber},
-                                      ExtractFlag=${userPreferences.noticeNeeded == 1 ? 'Y' : 'N' },
+                                      ExtractFlag=${userPreferences.noticeNeeded},
                                       LanguagePreference=${userPreferences.languagePreference}
                                       "/>
                         <Address th:attr="
@@ -173,7 +173,7 @@
             <p class="c14"><span class="c5">Soovin Eesti v&auml;&auml;rtpaberite keskregistri teatist pensionikonto j&auml;&auml;gi kohta</span></p>
         </td>
         <td class="c30" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3" th:text="${userPreferences.noticeNeeded == 1 ? 'X' : '' }"></span></p>
+            <p class="c0"><span class="c3" th:text="${userPreferences.noticeNeeded.equalsIgnoreCase('Y') ? 'X' : '' }"></span></p>
         </td>
     </tr>
     <tr class="c7">

@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
 import ee.tuleva.onboarding.mandate.content.MandateXmlService;
-import ee.tuleva.onboarding.mandate.processor.implementation.EpisService;
+import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

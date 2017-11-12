@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.processor.implementation;
+package ee.tuleva.onboarding.epis;
 
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
 import lombok.AllArgsConstructor;

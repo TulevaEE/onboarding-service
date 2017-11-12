@@ -16,6 +16,12 @@
            memoryStoreEvictionPolicy="LRU">
     </cache>
 
+    <cache name="contactDetails"
+           maxElementsInMemory="10000"
+           eternal="true"
+           memoryStoreEvictionPolicy="LRU">
+    </cache>
+
     <cache name="pensionFundStatistics"
            maxEntriesLocalHeap="100"
            maxEntriesLocalDisk="100"

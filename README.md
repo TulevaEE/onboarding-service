@@ -62,8 +62,10 @@ oAuth with mobile-ID and ID-card sign-in
 **Production:**
 Merge GitHub pull request to master -> build in CircleCI -> redeploy to Heroku (if build is green)
 
-###SSL
+### SSL
 Using https://letsencrypt.org/
+
+`ssh id.tuleva.ee`
 
 `./certbot-auto certonly --manual`
 

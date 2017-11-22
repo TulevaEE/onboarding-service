@@ -7,6 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
+
 @Component
 @Slf4j
 @RequiredArgsConstructor
@@ -17,15 +19,18 @@ public class UserNameUpdater {
     @EventListener
     public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
         Person person = (Person) event.getAuthentication().getPrincipal();
+        String firstName = capitalizeFully(person.getFirstName());
+        String lastName = capitalizeFully(person.getLastName());
+
         log.info("Updating user name: timestamp: {}, name: {} {}",
                 event.getTimestamp(),
-                person.getFirstName(),
-                person.getLastName()
+                firstName,
+                lastName
         );
 
         userService.findByPersonalCode(person.getPersonalCode()).ifPresent(user -> {
-            user.setFirstName(person.getFirstName());
-            user.setLastName(person.getLastName());
+            user.setFirstName(firstName);
+            user.setLastName(lastName);
             userService.save(user);
         });
     }

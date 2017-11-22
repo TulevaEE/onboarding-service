@@ -4,11 +4,12 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.text.WordUtils;
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
+
+import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
 @Service
 @Slf4j
@@ -40,8 +41,8 @@ public class PrincipalService {
     private User createUser(Person person) {
         return userService.createNewUser(
                 User.builder()
-                        .firstName(WordUtils.capitalizeFully(person.getFirstName()))
-                        .lastName(WordUtils.capitalizeFully(person.getLastName()))
+                        .firstName(capitalizeFully(person.getFirstName()))
+                        .lastName(capitalizeFully(person.getLastName()))
                         .personalCode(person.getPersonalCode())
                         .active(true)
                         .build()

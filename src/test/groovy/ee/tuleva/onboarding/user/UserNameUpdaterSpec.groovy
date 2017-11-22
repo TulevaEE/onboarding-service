@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.user
 
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
-import ee.tuleva.onboarding.auth.PersonFixture
 import ee.tuleva.onboarding.auth.principal.Person
 import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
+
+import static ee.tuleva.onboarding.auth.PersonFixture.PersonImp
 
 class UserNameUpdaterSpec extends Specification {
 
@@ -15,7 +16,11 @@ class UserNameUpdaterSpec extends Specification {
     def "OnBeforeTokenGrantedEvent: Update user name on before token granted event"() {
         given:
 
-        Person samplePerson = PersonFixture.samplePerson()
+        Person samplePerson = new PersonImp(
+                personalCode: "38512121215",
+                firstName: "ERKO",
+                lastName: "RISTHEIN"
+        )
 
         OAuth2Authentication oAuth2Authentication = Mock({
             getPrincipal() >> samplePerson
@@ -35,7 +40,9 @@ class UserNameUpdaterSpec extends Specification {
         )
 
         1 * userService.save({ User user ->
-            user.firstName == samplePerson.firstName && user.lastName == samplePerson.lastName})
+            user.firstName == "Erko" &&
+            user.lastName  == "Risthein"
+        })
 
     }
 }

@@ -36,7 +36,7 @@ public class UserFixture {
                 .member(null)
     }
 
-    public static UserPreferences sampleUserPreferences() {
+    public static UserPreferences.UserPreferencesBuilder sampleUserPreferences() {
         return UserPreferences.builder()
                 .addressRow1("Tatari 19-17")
                 .addressRow2("TALLINN")
@@ -47,7 +47,7 @@ public class UserFixture {
                 .contactPreference(UserPreferences.ContactPreferenceType.E)
                 .languagePreference(UserPreferences.LanguagePreferenceType.EST)
                 .noticeNeeded("Y")
-                .build();
+                .email("tuleva@tuleva.ee")
     }
 
 
@@ -63,6 +63,7 @@ public class UserFixture {
                         .contactPreference(null)
                         .languagePreference(UserPreferences.LanguagePreferenceType.EST)
                         .noticeNeeded("Y")
+                        .email("tuleva@tuleva.ee")
                         .build(),
                 UserPreferences.builder()
                         .addressRow1("Tatari 19-17")
@@ -74,6 +75,7 @@ public class UserFixture {
                         .contactPreference(UserPreferences.ContactPreferenceType.E)
                         .languagePreference(null)
                         .noticeNeeded("Y")
+                        .email("tuleva@tuleva.ee")
                         .build(),
                 UserPreferences.builder()
                         .addressRow1("Tatari 19-17")
@@ -85,10 +87,24 @@ public class UserFixture {
                         .contactPreference(UserPreferences.ContactPreferenceType.E)
                         .languagePreference(UserPreferences.LanguagePreferenceType.EST)
                         .noticeNeeded(null)
+                        .email("tuleva@tuleva.ee")
+                        .build(),
+                UserPreferences.builder()
+                        .addressRow1("Tatari 19-17")
+                        .addressRow2("TALLINN")
+                        .addressRow3("TALLINN")
+                        .country("EE")
+                        .postalIndex("12345")
+                        .districtCode("0784")
+                        .contactPreference(UserPreferences.ContactPreferenceType.E)
+                        .languagePreference(UserPreferences.LanguagePreferenceType.EST)
+                        .noticeNeeded("N")
+                        .email(null)
                         .build()
+
         ]
     }
-    public static List<UserPreferences> userPreferencesWithAddresPartiallyEmpty() {
+    public static List<UserPreferences> userPreferencesWithAddressPartiallyEmpty() {
         return [
             UserPreferences.builder()
                 .addressRow1("")
@@ -100,6 +116,7 @@ public class UserFixture {
                 .contactPreference(UserPreferences.ContactPreferenceType.E)
                 .languagePreference(UserPreferences.LanguagePreferenceType.EST)
                 .noticeNeeded("Y")
+                .email("tuleva@tuleva.ee")
                 .build(),
             UserPreferences.builder()
                     .addressRow1("Tatari 19-17")
@@ -111,6 +128,7 @@ public class UserFixture {
                     .contactPreference(UserPreferences.ContactPreferenceType.E)
                     .languagePreference(UserPreferences.LanguagePreferenceType.EST)
                     .noticeNeeded("Y")
+                    .email("tuleva@tuleva.ee")
                     .build(),
             UserPreferences.builder()
                     .addressRow1("Tatari 19-17")
@@ -122,6 +140,7 @@ public class UserFixture {
                     .contactPreference(UserPreferences.ContactPreferenceType.E)
                     .languagePreference(UserPreferences.LanguagePreferenceType.EST)
                     .noticeNeeded("Y")
+                    .email("tuleva@tuleva.ee")
                     .build(),
             UserPreferences.builder()
                     .addressRow1("Tatari 19-17")
@@ -133,6 +152,7 @@ public class UserFixture {
                     .contactPreference(UserPreferences.ContactPreferenceType.E)
                     .languagePreference(UserPreferences.LanguagePreferenceType.EST)
                     .noticeNeeded("Y")
+                    .email("tuleva@tuleva.ee")
                     .build(),
             UserPreferences.builder()
                     .addressRow1("Tatari 19-17")
@@ -144,6 +164,7 @@ public class UserFixture {
                     .contactPreference(UserPreferences.ContactPreferenceType.E)
                     .languagePreference(UserPreferences.LanguagePreferenceType.EST)
                     .noticeNeeded("Y")
+                    .email("tuleva@tuleva.ee")
                     .build(),
             UserPreferences.builder()
                     .addressRow1("Tatari 19-17")
@@ -155,6 +176,7 @@ public class UserFixture {
                     .contactPreference(UserPreferences.ContactPreferenceType.E)
                     .languagePreference(UserPreferences.LanguagePreferenceType.EST)
                     .noticeNeeded("Y")
+                    .email("tuleva@tuleva.ee")
                     .build(),
                 ]
     }

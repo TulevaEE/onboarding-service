@@ -36,7 +36,6 @@ import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
 import javax.sql.DataSource;
 
 import static ee.tuleva.onboarding.capital.InitialCapitalController.INITIAL_CAPITAL_URI;
-import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
 import static java.util.Arrays.asList;
 
 @Configuration

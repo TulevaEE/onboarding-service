@@ -1,30 +1,31 @@
 package ee.tuleva.onboarding.mandate.content.thymeleaf
 
-import ee.tuleva.onboarding.auth.UserFixture
+import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.mandate.Mandate
-import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.user.User
-import ee.tuleva.onboarding.epis.contact.UserPreferences
 import org.thymeleaf.context.Context
 import spock.lang.Specification
 
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUserPreferences
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
 class ContextBuilderSpec extends Specification {
 
     def "Build: Building Context works"() {
         when:
-        Context context = ContextBuilder.builder().build()
+        ContextBuilder.builder().build()
         then:
         true
     }
 
     def "Builder: Instantiating a builder"() {
         when:
-        ContextBuilder contextBuilder = ContextBuilder.builder()
+        ContextBuilder.builder()
         then:
         true
     }
@@ -46,7 +47,7 @@ class ContextBuilderSpec extends Specification {
 
     def "Mandate"() {
         when:
-        Mandate sampleMandate = MandateFixture.sampleMandate();
+        Mandate sampleMandate = sampleMandate();
         Instant createdDate = Instant.ofEpochMilli(1000)
         sampleMandate.setCreatedDate(createdDate)
 
@@ -61,13 +62,13 @@ class ContextBuilderSpec extends Specification {
     def "Funds"() {
         when:
         Context context = ContextBuilder.builder()
-                .funds(MandateFixture.sampleFunds())
+                .funds(sampleFunds())
                 .build()
         then:
         List<Fund> funds = context.getVariables().get("funds")
         areFundsSortedByName(funds)
         Map<String, String> fundIsinNames = context.getVariables().get("fundIsinNames")
-        fundIsinNames.get(MandateFixture.sampleFunds().get(0).isin) == MandateFixture.sampleFunds().get(0).name
+        fundIsinNames.get(sampleFunds().get(0).isin) == sampleFunds().get(0).name
     }
 
     boolean areFundsSortedByName(List<Fund> funds) {
@@ -110,34 +111,49 @@ class ContextBuilderSpec extends Specification {
     def "FundTransferExchanges"() {
         when:
         Context context = ContextBuilder.builder()
-                .fundTransferExchanges(MandateFixture.sampleMandate().fundTransferExchanges)
+                .fundTransferExchanges(sampleMandate().fundTransferExchanges)
                 .build()
         then:
-        context.getVariables().get("fundTransferExchanges") == MandateFixture.sampleMandate().fundTransferExchanges
+        context.getVariables().get("fundTransferExchanges") == sampleMandate().fundTransferExchanges
     }
 
     def "GroupedFundTransferExchanges"() {
         when:
         Context context = ContextBuilder.builder()
-                .groupedTransferExchanges(MandateFixture.sampleMandate().fundTransferExchanges)
+                .groupedTransferExchanges(sampleMandate().fundTransferExchanges)
                 .build()
         then:
         context.getVariables().get("groupedFundTransferExchanges").size() == 2
     }
 
     def "UserPreferences"() {
+        def dummyUserPreferences = sampleUserPreferences().build()
         when:
         Context context = ContextBuilder.builder()
-                .userPreferences(UserFixture.sampleUserPreferences())
+                .userPreferences(dummyUserPreferences)
                 .build()
         then:
         UserPreferences userPreferences = context.getVariables().get("userPreferences")
-        userPreferences.country == UserFixture.sampleUserPreferences().country
-        context.getVariables().get("addressLine1") == UserFixture.sampleUserPreferences().addressRow1
-        context.getVariables().get("addressLine2") == UserFixture.sampleUserPreferences().addressRow2
-        context.getVariables().get("settlement") == UserFixture.sampleUserPreferences().addressRow2
-        context.getVariables().get("countryCode") == UserFixture.sampleUserPreferences().country
-        context.getVariables().get("postCode") == UserFixture.sampleUserPreferences().postalIndex
-        context.getVariables().get("districtCode") == UserFixture.sampleUserPreferences().districtCode
+        userPreferences.country == dummyUserPreferences.country
+        context.getVariables().get("addressLine1") == dummyUserPreferences.addressRow1
+        context.getVariables().get("addressLine2") == dummyUserPreferences.addressRow2
+        context.getVariables().get("settlement") == dummyUserPreferences.addressRow2
+        context.getVariables().get("countryCode") == dummyUserPreferences.country
+        context.getVariables().get("postCode") == dummyUserPreferences.postalIndex
+        context.getVariables().get("districtCode") == dummyUserPreferences.districtCode
+        context.getVariables().get("email") == dummyUserPreferences.email
+    }
+
+    def "UserPreferences don't overwrite User email"() {
+        given:
+        User user = sampleUser().email("expected@email.com").build()
+        UserPreferences preferences = sampleUserPreferences().email("other@email.com").build()
+        when:
+        Context context = ContextBuilder.builder()
+                .user(user)
+                .userPreferences(preferences)
+                .build()
+        then:
+        context.getVariables().get("email") == user.email
     }
 }

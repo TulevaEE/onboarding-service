@@ -28,7 +28,7 @@ class MandateContentCreatorSpec extends Specification {
                         sampleUser().build(),
                         sampleMandate(),
                         sampleFunds(),
-                        sampleUserPreferences()
+                        sampleUserPreferences().build()
                 )
         then:
         mandateContentFiles.size() == 3
@@ -54,7 +54,7 @@ class MandateContentCreatorSpec extends Specification {
                         sampleUser().build(),
                         MandateFixture.sampleMandateWithEmptyTransfer(),
                         sampleFunds(),
-                        sampleUserPreferences()
+                        sampleUserPreferences().build()
                 )
         then:
         mandateContentFiles.size() == 3
@@ -83,7 +83,7 @@ class MandateContentCreatorSpec extends Specification {
                 sampleUser().build(),
                 mandate,
                 sampleFunds(),
-                sampleUserPreferences()
+                sampleUserPreferences().build()
             )
 
         then:

@@ -29,7 +29,7 @@ class MandateFileServiceSpec extends Specification {
 
     def "getMandateFiles: generates mandate content files"() {
         given:
-        UserPreferences sampleUserPreferences = sampleUserPreferences()
+        UserPreferences sampleUserPreferences = sampleUserPreferences().build()
         mockMandateFiles(user, mandate.id, sampleUserPreferences)
 
         1 * mandateContentCreator.
@@ -49,7 +49,7 @@ class MandateFileServiceSpec extends Specification {
 
     def "getMandateFiles: on empty user address preferences generates mandate content files with defaults"() {
         given:
-        UserPreferences sampleUserPreferences = userPreferencesWithAddresPartiallyEmpty()[0]
+        UserPreferences sampleUserPreferences = userPreferencesWithAddressPartiallyEmpty()[0]
         mockMandateFiles(user, mandate.id, sampleUserPreferences)
 
         1 * mandateContentCreator.

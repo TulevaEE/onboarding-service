@@ -32,6 +32,8 @@ public class UserPreferences {
 
   private String noticeNeeded; // boolean { 'Y', 'N' }
 
+  private String email;
+
   public static UserPreferences defaultUserPreferences() {
     return builder()
         .addressRow1("Tuleva, Telliskivi 60")
@@ -40,9 +42,10 @@ public class UserPreferences {
         .country("EE")
         .postalIndex("10412")
         .districtCode("0784")
-        .contactPreference(UserPreferences.ContactPreferenceType.valueOf("E"))
-        .languagePreference(UserPreferences.LanguagePreferenceType.valueOf("EST"))
+        .contactPreference(ContactPreferenceType.valueOf("E"))
+        .languagePreference(LanguagePreferenceType.valueOf("EST"))
         .noticeNeeded("Y")
+        .email("tuleva@tuleva.ee")
         .build();
   }
 

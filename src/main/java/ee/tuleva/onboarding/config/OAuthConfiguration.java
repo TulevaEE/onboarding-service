@@ -57,10 +57,7 @@ public class OAuthConfiguration {
         public void configure(HttpSecurity http) throws Exception {
             http
                     .authorizeRequests()
-                    .regexMatchers(
-                            "/v1" + INITIAL_CAPITAL_URI,
-                            "/v1" + MANDATES_URI + ".*"
-                            ).hasAuthority(Authority.MEMBER)
+                    .regexMatchers("/v1" + INITIAL_CAPITAL_URI).hasAuthority(Authority.MEMBER)
                     .regexMatchers(HttpMethod.GET, "/v1/funds.*").hasAnyAuthority(Authority.USER, Authority.ROLE_CLIENT)
                     .regexMatchers(HttpMethod.POST, "/v1/users").hasAuthority(Authority.ROLE_CLIENT)
                     .regexMatchers(HttpMethod.HEAD, "/v1/members").hasAuthority(Authority.ROLE_CLIENT)

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth;
 
-import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.principal.Person
+import groovy.transform.ToString;
 
 public class PersonFixture {
 
@@ -15,6 +16,7 @@ public class PersonFixture {
         return samplePerson
     }
 
+    @ToString
     static class PersonImp implements Person {
 
         String personalCode

@@ -33,4 +33,20 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
         fundBalance.pillar == fundBalanceDto.pillar
         fundBalance.activeContributions == fundBalanceDto.activeContributions
     }
+
+    def "handles missing funds by thrown an exception"() {
+        given:
+        def isin = "someIsin"
+        FundBalanceDto fundBalanceDto = FundBalanceDto.builder()
+                .isin(isin)
+                .build()
+
+        fundRepository.findByIsin(isin) >> null
+
+        when:
+        converter.convert(fundBalanceDto)
+
+        then:
+        thrown(IllegalArgumentException)
+    }
 }

@@ -28,4 +28,21 @@ class AccountStatementServiceSpec extends Specification {
         then:
         accountStatement == [fundBalance]
     }
+
+    def "handles fundBalanceDto to fundBalance conversion exceptions"() {
+        given:
+        def person = samplePerson()
+        def fundBalanceDto = FundBalanceDto.builder().isin("someIsin").build()
+
+        episService.getAccountStatement(person) >> [fundBalanceDto]
+        fundBalanceConverter.convert(fundBalanceDto) >> {
+            throw new IllegalArgumentException()
+        }
+
+        when:
+        service.getAccountStatement(person)
+
+        then:
+        thrown(IllegalStateException)
+    }
 }

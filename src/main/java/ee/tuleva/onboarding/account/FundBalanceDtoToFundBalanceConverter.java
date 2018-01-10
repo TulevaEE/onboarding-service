@@ -16,18 +16,18 @@ public class FundBalanceDtoToFundBalanceConverter implements Converter<FundBalan
   private final FundRepository fundRepository;
 
   @Override
-  public FundBalance convert(FundBalanceDto source) {
-    Fund fund = fundRepository.findByIsin(source.getIsin());
+  public FundBalance convert(FundBalanceDto sourceFund) {
+    Fund fund = fundRepository.findByIsin(sourceFund.getIsin());
 
     if (fund == null) {
-      throw new IllegalArgumentException("Provided fund isin not found in the database " + source.getIsin());
+      throw new IllegalArgumentException("Provided fund isin not found in the database: " + sourceFund);
     }
 
     return FundBalance.builder()
-        .activeContributions(source.isActiveContributions())
-        .currency(source.getCurrency())
-        .pillar(source.getPillar())
-        .value(source.getValue())
+        .activeContributions(sourceFund.isActiveContributions())
+        .currency(sourceFund.getCurrency())
+        .pillar(sourceFund.getPillar())
+        .value(sourceFund.getValue())
         .fund(fund)
         .build();
 

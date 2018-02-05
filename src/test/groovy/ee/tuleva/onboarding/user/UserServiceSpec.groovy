@@ -103,36 +103,6 @@ class UserServiceSpec extends Specification {
     null                          | false
   }
 
-  def "updating a user also updates it in Mailchimp"() {
-    given:
-    def user = sampleUser().build()
-    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
-    userRepository.save(user) >> user
-
-    when:
-    service.updateUser(user.personalCode, "erko@risthein.ee", "555555")
-
-    then:
-    1 * mailChimpService.createOrUpdateMember(user)
-  }
-
-  def "registering a user as a member also updates Mailchimp with correct firstName & lastName"() {
-    given:
-    def user = sampleUserNonMember().firstName(null).lastName(null).build()
-    def firstName = "John"
-    def lastName = "Smith"
-    userRepository.findOne(user.id) >> user
-    userRepository.save(_ as User) >> { User u -> u }
-
-    when:
-    def returnedUser = service.registerAsMember(user.id, "${firstName} ${lastName}")
-
-    then:
-    1 * mailChimpService.createOrUpdateMember(user)
-    returnedUser.firstName == firstName
-    returnedUser.lastName == lastName
-  }
-
   def "correctly updates user name"() {
     given:
     def user = sampleUser().firstName(null).lastName(null).build()

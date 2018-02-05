@@ -87,9 +87,7 @@ public class UserService {
     }
 
     public User save(User user) {
-        User savedUser = userRepository.save(user);
-        mailChimpService.createOrUpdateMember(savedUser);
-        return savedUser;
+        return userRepository.save(user);
     }
 
     public User createOrUpdateUser(String personalCode, String email, String phoneNumber) {

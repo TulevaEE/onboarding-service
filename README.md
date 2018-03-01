@@ -82,7 +82,7 @@ ACME challenge controller in the applications and `id.tuleva.ee` is in `nginx.co
 
 Cert hosting is correspondingly in Heroku and `nginx.conf`
 
-After generating new certificated copy them fro `id.tuleva.ee` so that nginx will pick them up.
+After generating new certificated copy them from `id.tuleva.ee` so that nginx will pick them up.
 
 ```
 cp -f /etc/letsencrypt/live/pension.tuleva.ee/fullchain.pem /home/ubuntu/subdomain.tuleva.ee.fullchain.pem
@@ -90,6 +90,11 @@ cp -f /etc/letsencrypt/live/pension.tuleva.ee/privkey.pem /home/ubuntu/subdomain
 service nginx restart
 ```
 
+To copy the certs into your local machine, run this locally:
+```
+scp -r id.tuleva.ee:~/subdomain.tuleva.ee.fullchain.pem ~/Desktop/
+scp -r id.tuleva.ee:~/subdomain.tuleva.ee.privkey.pem ~/Desktop/
+```
 ### References
 
 [DigiDocService Documentation](http://sk-eid.github.io/dds-documentation/)

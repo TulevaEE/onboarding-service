@@ -95,6 +95,11 @@ To copy the certs into your local machine, run this locally:
 scp -r id.tuleva.ee:~/subdomain.tuleva.ee.fullchain.pem ~/Desktop/
 scp -r id.tuleva.ee:~/subdomain.tuleva.ee.privkey.pem ~/Desktop/
 ```
+
+### How to add new pension funds?
+1. Add the new fund to the `funds` database table.
+2. Add the fund name translations into the frontend `src/translations/` json files (i.e. `"target.funds.EE000000000.title": "My Pension Fund",`)
+
 ### References
 
 [DigiDocService Documentation](http://sk-eid.github.io/dds-documentation/)

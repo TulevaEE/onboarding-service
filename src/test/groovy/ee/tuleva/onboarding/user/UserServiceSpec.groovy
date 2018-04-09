@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
 import spock.lang.Shared
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
@@ -103,25 +104,29 @@ class UserServiceSpec extends Specification {
     null                          | false
   }
 
-  def "correctly updates user name"() {
+  @Unroll
+  def 'correctly updates user name from "#oldFirstName #oldLastName" to "#newFirstName #newLastName"'() {
     given:
-    def user = sampleUser().firstName(null).lastName(null).build()
+    def user = sampleUser().firstName(oldFirstName).lastName(oldLastName).build()
     userRepository.save(_ as User) >> { User u -> u }
 
     when:
     def updatedUser = service.updateNameIfMissing(user, givenFullName)
 
     then:
-    updatedUser.firstName == expectedFirstName
-    updatedUser.lastName == expectedLastName
+    updatedUser.firstName == newFirstName
+    updatedUser.lastName == newLastName
 
     where:
-    givenFullName     || expectedFirstName | expectedLastName
-    null              || null              | null
-    ""                || ""                | ""
-    "Erko"            || "Erko"            | ""
-    "ERKO RISTHEIN"   || "Erko"            | "Risthein"
-    "John Jack Smith" || "John Jack"       | "Smith"
+    oldFirstName | oldLastName | givenFullName     || newFirstName | newLastName
+    null         | null        | null              || null         | null
+    null         | null        | ""                || ""           | ""
+    null         | null        | "Erko"            || "Erko"       | ""
+    null         | null        | "ERKO RISTHEIN"   || "Erko"       | "Risthein"
+    null         | null        | "John Jack Smith" || "John Jack"  | "Smith"
+    "John"       | null        | "John Smith"      || "John"       | null
+    null         | "Smith"     | "John Smith"      || null         | "Smith"
+    "John"       | "Smith"     | "John Jack Smith" || "John"       | "Smith"
   }
 
   def "doesn't try to update user name when it already exists"() {

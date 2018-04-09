@@ -77,11 +77,12 @@ public class UserService {
 
     private User updateNameIfMissing(User user, String fullName) {
         if (!user.hasName()) {
-            String firstName = substringBeforeLast(fullName, " ");
-            String lastName = substringAfterLast(fullName, " ");
-            user.setFirstName(capitalizeFully(firstName));
-            user.setLastName(capitalizeFully(lastName));
-            log.info("Updating user name to {} {}", user.getFirstName(), user.getLastName());
+            String firstName = capitalizeFully(substringBeforeLast(fullName, " "));
+            String lastName = capitalizeFully(substringAfterLast(fullName, " "));
+            log.info("Updating user name from {} {} to {} {}",
+                user.getFirstName(), user.getLastName(), firstName, lastName);
+            user.setFirstName(firstName);
+            user.setLastName(lastName);
         }
         return user;
     }

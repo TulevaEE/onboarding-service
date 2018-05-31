@@ -7,10 +7,10 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @Controller
 public class AcmeChallengeController {
 
-	@RequestMapping(value = "/.well-known/acme-challenge/GKEVxEXTdrGSVjHZQVV5deARet9io_4yGBVwmkqauGg")
+	@RequestMapping(value = "/.well-known/acme-challenge/EW8WoDb74_B7ObIDV2OPS_JVwllolN9lLSxmGEHXkLE")
 	@ResponseBody
 	public String challenge() {
-		return "GKEVxEXTdrGSVjHZQVV5deARet9io_4yGBVwmkqauGg.EMEBBxvSam3n_ien1J0z4dXeTuc2JuR3HqfAP6teLjE";
+		return "EW8WoDb74_B7ObIDV2OPS_JVwllolN9lLSxmGEHXkLE.EMEBBxvSam3n_ien1J0z4dXeTuc2JuR3HqfAP6teLjE";
 	}
 
 }

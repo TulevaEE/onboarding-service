@@ -85,9 +85,9 @@ Cert hosting is correspondingly in Heroku and `nginx.conf`
 After generating new certificated copy them from `id.tuleva.ee` so that nginx will pick them up.
 
 ```
-cp -f /etc/letsencrypt/live/pension.tuleva.ee/fullchain.pem /home/ubuntu/subdomain.tuleva.ee.fullchain.pem
-cp -f /etc/letsencrypt/live/pension.tuleva.ee/privkey.pem /home/ubuntu/subdomain.tuleva.ee.privkey.pem
-service nginx restart
+sudo cp -f /etc/letsencrypt/live/pension.tuleva.ee/fullchain.pem /home/ubuntu/subdomain.tuleva.ee.fullchain.pem
+sudo cp -f /etc/letsencrypt/live/pension.tuleva.ee/privkey.pem /home/ubuntu/subdomain.tuleva.ee.privkey.pem
+sudo service nginx restart
 ```
 
 To copy the certs into your local machine, run this locally:

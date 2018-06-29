@@ -90,11 +90,7 @@ sudo cp -f /etc/letsencrypt/live/pension.tuleva.ee/privkey.pem /home/ubuntu/subd
 sudo service nginx restart
 ```
 
-To copy the certs into your local machine, run this locally:
-```
-scp -r id.tuleva.ee:~/subdomain.tuleva.ee.fullchain.pem ~/Desktop/
-scp -r id.tuleva.ee:~/subdomain.tuleva.ee.privkey.pem ~/Desktop/
-```
+Now add the certs to Heroku, too. To all of the 3 services hosted there (epis-service, onboarding-service & onboarding-client).
 
 ### How to add new pension funds?
 1. Add the new fund to the `funds` database table.

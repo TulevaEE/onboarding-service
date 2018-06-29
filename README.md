@@ -2,10 +2,6 @@
 
 [![CircleCI](https://circleci.com/gh/TulevaEE/onboarding-service/tree/master.svg?style=shield)](https://circleci.com/gh/TulevaEE/onboarding-service/tree/master)
 
-## Design
-
-![N|Solid](reference/design.png)
-
 ## Tech stack
 
 **Database:**
@@ -61,6 +57,10 @@ oAuth with mobile-ID and ID-card sign-in
 
 **Production:**
 Merge GitHub pull request to master -> build in CircleCI -> redeploy to Heroku (if build is green)
+
+## Design (outdated)
+
+![N|Solid](reference/design.png)
 
 ### SSL
 Using https://letsencrypt.org/

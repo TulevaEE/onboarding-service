@@ -15,19 +15,20 @@ docker run -d --name tuleva-onboarding-database \
                  -e "POSTGRES_DB=tuleva-onboarding" \
                  postgres:9.6
 ```
-
+Creating a database:
 To run Flyway migrations for the first time, uncomment these lines in `application.yml`:
 ```
 #flyway:
 #  baseline-on-migrate: true
 ```
 
+and set `spring.initialize` to `true`
+
 **Backend:**
 Java 8, Spring Boot, Gradle, Spock for testing
 
 **Frontend:**
 React, ES6, scss, custom bootstrap, enzyme + jest for testing
-
 
 **Error tracking:**
 Rollbar
@@ -107,3 +108,10 @@ Now add the certs to Heroku, too. To all of the 3 services hosted there (epis-se
 [hwcrypto.js](https://hwcrypto.github.io/)
 
 [hwcrypto Sequence Diagram](https://github.com/hwcrypto/hwcrypto.js/wiki/SequenceDiagram)
+
+###Development notes
+Front-end localhost development needs, cors enabling at `CORSFilter.java`
+e.g. `        response.setHeader("Access-Control-Allow-Origin", "http://localhost:8000");`
+
+If you don't want to run epis-serivice,
+then you can mock `TransferExchangeService.java`, which calls epis-service.

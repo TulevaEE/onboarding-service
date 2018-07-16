@@ -1,9 +1,9 @@
 version: 2
 jobs:
-  environment:
-    GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
-    _JAVA_OPTIONS: "-Xms512m -Xmx1024m"
   build:
+    environment:
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
+      _JAVA_OPTIONS: "-Xms512m -Xmx1024m"
     docker:
       - image: circleci/openjdk:8-node-browsers
     steps:
@@ -16,6 +16,9 @@ jobs:
           paths:
             - ~/.gradle
   test:
+    environment:
+      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
+      _JAVA_OPTIONS: "-Xms512m -Xmx1024m"
     docker:
       - image: circleci/openjdk:8-node-browsers
     steps:

@@ -9,14 +9,16 @@ PostgreSQL
 
 Running locally with docker:
 ```
-docker run -d --name tuleva-onboarding-database \
-                 -p 5432:5432 \
-                 -e "POSTGRES_USER=tuleva-onboarding" \
-                 -e "POSTGRES_DB=tuleva-onboarding" \
-                 postgres:9.6
+docker run -d \
+ --name tuleva-onboarding-database \
+ -p 5432:5432 \
+ -e "POSTGRES_USER=tuleva-onboarding" \
+ -e "POSTGRES_DB=tuleva-onboarding" \
+ postgres:9.6
 ```
 Creating a database:
 To run Flyway migrations for the first time, uncomment these lines in `application.yml`:
+
 ```
 #flyway:
 #  baseline-on-migrate: true
@@ -109,9 +111,21 @@ Now add the certs to Heroku, too. To all of the 3 services hosted there (epis-se
 
 [hwcrypto Sequence Diagram](https://github.com/hwcrypto/hwcrypto.js/wiki/SequenceDiagram)
 
-###Development notes
-Front-end localhost development needs, cors enabling at `CORSFilter.java`
-e.g. `        response.setHeader("Access-Control-Allow-Origin", "http://localhost:8000");`
+### Development notes
 
-If you don't want to run epis-serivice,
-then you can mock `TransferExchangeService.java`, which calls epis-service.
+The service requires environment vars to run:
+
+* `MANDRILL_KEY`
+* `MHUB_KEYSTORE`
+* `MHUB_KEYSTORE_PASSWORD`
+* `QUOTAGUARDSTATIC_URL`
+* `SOCKS_PROXY_URL`
+
+Front-end localhost development needs, cors enabling at `CORSFilter.java`
+e.g. `response.setHeader("Access-Control-Allow-Origin", "http://localhost:8000");`
+
+If you don't want to run epis-serivice, you can mock `TransferExchangeService.java`, which calls epis-service.
+
+## Mobile-ID
+
+Auth is done against Mobile-ID servers. To run the service in a prod-like setup integration with [Test-DigiDocService](https://demo.sk.ee/MIDCertsReg/).

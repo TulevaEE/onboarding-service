@@ -49,6 +49,7 @@ workflows:
       - deploy:
           requires:
             - test
+          context: heroku-deployment
           filters:
             branches:
               only: master

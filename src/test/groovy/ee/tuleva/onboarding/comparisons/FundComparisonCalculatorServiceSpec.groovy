@@ -31,8 +31,8 @@ class FundComparisonCalculatorServiceSpec extends Specification {
     def "it uses an account overview for the given person and start time" () {
         given:
             Person person = Mock(Person)
-            Instant startTime = Instant.ofEpochSecond(1531813018) // 17 July 2018
-            Instant endTime = Instant.ofEpochSecond(1531913018)
+            Instant startTime = parseInstant("2018-06-17")
+            Instant endTime = parseInstant("2018-06-18")
             fakeNoReturnFundValues()
         when:
             fundComparisonCalculatorService.calculateComparison(person, startTime)
@@ -46,8 +46,8 @@ class FundComparisonCalculatorServiceSpec extends Specification {
 
     def "it successfully calculates a return of 0%" () {
         given:
-            Instant startTime = Instant.ofEpochSecond(1531813018)
-            Instant endTime = Instant.ofEpochSecond(1531913018)
+            Instant startTime = parseInstant("2018-06-17")
+            Instant endTime = parseInstant("2018-06-18")
             fakeNoReturnFundValues()
             accountOverviewProvider.getAccountOverview(_, _) >> new AccountOverview([
                     new Transaction(-100, startTime),
@@ -167,7 +167,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
     }
 
     private void fakeNoReturnFundValues() {
-        Instant time = Instant.ofEpochSecond(1531813018)
+        Instant time = parseInstant("2018-06-17")
         estonianAverageValueProvider.getFundValueClosestToTime(_) >> new FundValue(time, 1)
         marketAverageValueProvider.getFundValueClosestToTime(_) >> new FundValue(time, 1)
     }

@@ -48,6 +48,7 @@ dependencies {
 	compile("org.jsoup:jsoup:1.8.1")
 	compile('org.apache.commons:commons-lang3:3.5')
 	compile('net.sf.ehcache:ehcache')
+	compile('org.decampo:xirr:0.0')
 
 	compile('com.github.ErkoRisthein:mobileid:1.7')
 

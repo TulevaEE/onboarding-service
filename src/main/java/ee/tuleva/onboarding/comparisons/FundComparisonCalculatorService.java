@@ -11,6 +11,7 @@ import java.math.MathContext;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,24 +42,57 @@ public class FundComparisonCalculatorService {
     }
 
     private double getRateOfReturn(AccountOverview accountOverview) {
-        return calculateInternalRateOfReturn(accountOverview.getTransactions());
+        List<Transaction> buyTransactions = getBuyTransactions(accountOverview);
+
+        return calculateReturn(buyTransactions, accountOverview.getEndingBalance(), accountOverview.getEndTime());
     }
 
     private double getRateOfReturn(AccountOverview accountOverview, FundValueProvider fundValueProvider) {
+        List<Transaction> buyTransactions = getBuyTransactions(accountOverview);
+
         BigDecimal virtualFundUnitsBought = BigDecimal.ZERO;
-        List<Transaction> transactionsWithoutWithdrawal = withoutLastRow(accountOverview.getTransactions());
-        for (Transaction transaction: transactionsWithoutWithdrawal) {
+        for (Transaction transaction: buyTransactions) {
             BigDecimal fundValueAtTime = fundValueProvider.getFundValueClosestToTime(transaction.getCreatedAt()).getValue();
-            BigDecimal currentlyBoughtVirtualFundUnits = transaction.getAmount().negate().divide(fundValueAtTime, MathContext.DECIMAL128);
+            BigDecimal currentlyBoughtVirtualFundUnits = transaction.getAmount().divide(fundValueAtTime, MathContext.DECIMAL128);
             virtualFundUnitsBought = virtualFundUnitsBought.add(currentlyBoughtVirtualFundUnits);
         }
-
         BigDecimal finalVirtualFundPrice = fundValueProvider.getFundValueClosestToTime(accountOverview.getEndTime()).getValue();
         BigDecimal sellAmount = finalVirtualFundPrice.multiply(virtualFundUnitsBought);
-        Transaction withdrawalRow = new Transaction(sellAmount, accountOverview.getEndTime());
-        transactionsWithoutWithdrawal.add(withdrawalRow);
 
-        return calculateInternalRateOfReturn(transactionsWithoutWithdrawal);
+        return calculateReturn(buyTransactions, sellAmount, accountOverview.getEndTime());
+    }
+
+    private List<Transaction> getBuyTransactions(AccountOverview accountOverview) {
+        List<Transaction> transactions = accountOverview.getTransactions();
+        Transaction beginningTransaction = new Transaction(accountOverview.getBeginningBalance(), accountOverview.getStartTime());
+
+        List<Transaction> buyTransactions = new ArrayList<>();
+        buyTransactions.add(beginningTransaction);
+        buyTransactions.addAll(transactions);
+
+        return buyTransactions;
+    }
+
+    private List<Transaction> negateTransactionAmounts(List<Transaction> transactions) {
+        return transactions
+                .stream()
+                .map(FundComparisonCalculatorService::negateTransactionAmount)
+                .collect(Collectors.toList());
+    }
+
+    private static Transaction negateTransactionAmount(Transaction transaction) {
+        return new Transaction(transaction.getAmount().negate(), transaction.getCreatedAt());
+    }
+
+    private double calculateReturn(List<Transaction> buyTransactions, BigDecimal endingBalance, Instant endTime) {
+        List<Transaction> negatedTransactions = negateTransactionAmounts(buyTransactions);
+        Transaction endingTransaction = new Transaction(endingBalance, endTime);
+
+        List<Transaction> internalTransactions = new ArrayList<>();
+        internalTransactions.addAll(negatedTransactions);
+        internalTransactions.add(endingTransaction);
+
+        return calculateInternalRateOfReturn(internalTransactions);
     }
 
     private double calculateInternalRateOfReturn(List<Transaction> transactions) {
@@ -78,9 +112,5 @@ public class FundComparisonCalculatorService {
 
     private static org.decampo.xirr.Transaction xirrTransactionFromInternalTransaction(Transaction transaction) {
         return new org.decampo.xirr.Transaction(transaction.getAmount().doubleValue(), Date.from(transaction.getCreatedAt()));
-    }
-
-    private static <T> List<T> withoutLastRow(List<T> list) {
-        return list.subList(0, list.size() - 1);
     }
 }

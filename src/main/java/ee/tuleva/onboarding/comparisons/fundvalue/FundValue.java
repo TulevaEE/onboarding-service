@@ -9,4 +9,5 @@ import java.time.Instant;
 public class FundValue {
     private Instant time;
     private BigDecimal value;
+    private ComparisonFund comparisonFund;
 }

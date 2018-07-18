@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons
 
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider
 import spock.lang.Specification
@@ -102,7 +103,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             Instant endTime = parseInstant("2018-07-16")
             Map<String, BigDecimal> fundValues = getEpiFundValuesMap()
             mockFundValues(estonianAverageValueProvider, fundValues)
-            marketAverageValueProvider.getFundValueClosestToTime(_) >> { Instant time -> new FundValue(time, 123.0) }
+            marketAverageValueProvider.getFundValueClosestToTime(_) >> { Instant time -> new FundValue(time, 123.0, ComparisonFund.MARKET) }
             accountOverviewProvider.getAccountOverview(_, _) >> new AccountOverview([
                     new Transaction(-30, parseInstant("2010-01-01")),
                     new Transaction(-30, parseInstant("2010-07-01")),
@@ -156,7 +157,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
     private void mockFundValues(FundValueProvider provider, Map<String, BigDecimal> values) {
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd")
         provider.getFundValueClosestToTime(_) >> {
-            Instant time -> new FundValue(time, values[format.format(Date.from(time))])
+            Instant time -> new FundValue(time, values[format.format(Date.from(time))], ComparisonFund.MARKET)
         }
     }
 
@@ -168,7 +169,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
 
     private void fakeNoReturnFundValues() {
         Instant time = parseInstant("2018-06-17")
-        estonianAverageValueProvider.getFundValueClosestToTime(_) >> new FundValue(time, 1)
-        marketAverageValueProvider.getFundValueClosestToTime(_) >> new FundValue(time, 1)
+        estonianAverageValueProvider.getFundValueClosestToTime(_) >> new FundValue(time, 1, ComparisonFund.MARKET)
+        marketAverageValueProvider.getFundValueClosestToTime(_) >> new FundValue(time, 1, ComparisonFund.MARKET)
     }
 }

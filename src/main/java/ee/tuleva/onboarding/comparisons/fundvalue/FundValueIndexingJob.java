@@ -58,7 +58,7 @@ public class FundValueIndexingJob {
     }
 
     private static LocalDate instantToLocalDate(Instant instant) {
-        return LocalDateTime.ofInstant(instant, ZoneId.systemDefault()).toLocalDate();
+        return LocalDateTime.ofInstant(instant, ZoneId.of("Europe/Tallinn")).toLocalDate();
     }
 
     private static Instant parseInstant(String format) {

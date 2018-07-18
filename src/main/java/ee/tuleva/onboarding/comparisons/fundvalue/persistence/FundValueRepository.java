@@ -7,6 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FundValueRepository {
-    List<FundValue> saveAll(List<FundValue> fundValues);
+    void saveAll(List<FundValue> fundValues);
     Optional<FundValue> findLastValueForFund(ComparisonFund fund);
 }

@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
-public class JDBCFundValueRepository implements FundValueRepository {
+public class JdbcFundValueRepository implements FundValueRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 

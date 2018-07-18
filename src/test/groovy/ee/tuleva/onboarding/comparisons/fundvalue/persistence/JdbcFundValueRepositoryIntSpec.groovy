@@ -17,7 +17,7 @@ import java.time.Instant
 @SpringBootTest(classes = OnboardingServiceApplication)
 @ContextConfiguration
 @Transactional
-class JDBCFundValueRepositoryIntSpec extends Specification {
+class JdbcFundValueRepositoryIntSpec extends Specification {
 
     JdbcTemplate jdbcTemplate
 
@@ -27,7 +27,7 @@ class JDBCFundValueRepositoryIntSpec extends Specification {
     }
 
     @Autowired
-    JDBCFundValueRepository fundValueRepository
+    JdbcFundValueRepository fundValueRepository
 
     def "it can persist a bunch of fund values"() {
         given:
@@ -54,9 +54,9 @@ class JDBCFundValueRepositoryIntSpec extends Specification {
 
     def "it handles missing fund values properly"() {
         when:
-            Optional<FundValue> missingValue = fundValueRepository.findLastValueForFund(ComparisonFund.EPI)
+            Optional<FundValue> value = fundValueRepository.findLastValueForFund(ComparisonFund.EPI)
         then:
-            !missingValue.isPresent()
+            !value.isPresent()
     }
 
     private static List<FundValue> getFakeFundValues() {

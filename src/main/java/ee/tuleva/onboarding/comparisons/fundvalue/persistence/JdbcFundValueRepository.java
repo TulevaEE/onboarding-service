@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.comparisons.fundvalue.persistence;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -12,6 +14,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -24,16 +27,23 @@ public class JdbcFundValueRepository implements FundValueRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
-    private static final String FIND_LAST_VALUE_QUERY = ""+
+    private static final String FIND_LAST_VALUE_QUERY = "" +
             "SELECT * " +
             "FROM comparison_fund_values " +
             "WHERE fund=:fund " +
             "ORDER BY time DESC NULLS LAST " +
             "LIMIT 1";
 
+    private static final String FIND_CLOSEST_VALUE_QUERY = "" +
+            "SELECT * " +
+            "FROM comparison_fund_values " +
+            "WHERE fund=:fund " +
+            "ORDER BY abs(timestampdiff('SECOND', time, :time)) ASC NULLS LAST " +
+            "LIMIT 1";
+
     private static final String INSERT_VALUES_QUERY = "" +
             "INSERT INTO comparison_fund_values (fund, time, value) " +
-            "values (:fund, :time, :value)";
+            "VALUES (:fund, :time, :value)";
 
     private class FundValueRowMapper implements RowMapper<FundValue> {
         @Override
@@ -71,5 +81,22 @@ public class JdbcFundValueRepository implements FundValueRepository {
             new FundValueRowMapper()
         );
         return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    }
+
+    @Bean(name = "estonianAverageFundValueProvider")
+    public FundValueProvider getEstonianAverageFundValueProvider() {
+        return time -> getFundValueClosestToTime(ComparisonFund.EPI, time);
+    }
+
+    // TODO: convert to optional
+    private FundValue getFundValueClosestToTime(ComparisonFund fund, Instant time) {
+        List<FundValue> result = jdbcTemplate.query(
+                FIND_CLOSEST_VALUE_QUERY,
+                new MapSqlParameterSource()
+                        .addValue("fund", fund.toString(), Types.VARCHAR)
+                        .addValue("time", Timestamp.from(time), Types.TIMESTAMP),
+                new FundValueRowMapper()
+        );
+        return result.isEmpty() ? null : result.get(0);
     }
 }

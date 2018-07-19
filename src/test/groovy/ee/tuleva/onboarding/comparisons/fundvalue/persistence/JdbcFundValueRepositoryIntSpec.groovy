@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional
 import spock.lang.Specification
 
 import javax.sql.DataSource
+import java.text.SimpleDateFormat
 import java.time.Instant
 
 @SpringBootTest(classes = OnboardingServiceApplication)
@@ -59,6 +60,16 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
             !value.isPresent()
     }
 
+    def "it can find the value closest for a time for the estonian average"() {
+        given:
+            List<FundValue> values = getFakeTimedFundValues()
+            fundValueRepository.saveAll(values)
+        when:
+            FundValue value = fundValueRepository.getEstonianAverageFundValueProvider().getFundValueClosestToTime(parseInstant("1990-01-03"))
+        then:
+            valuesEqual(value, values[2])
+    }
+
     private static List<FundValue> getFakeFundValues() {
         Instant now = Instant.now()
         Instant recent = Instant.ofEpochSecond(now.epochSecond - 100)
@@ -70,7 +81,22 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         ]
     }
 
+    private static List<FundValue> getFakeTimedFundValues() {
+        return [
+                new FundValue(parseInstant("1990-01-04"), 100, ComparisonFund.EPI),
+                new FundValue(parseInstant("1990-01-04"), 100, ComparisonFund.MARKET),
+                new FundValue(parseInstant("1990-01-02"), 100, ComparisonFund.EPI),
+                new FundValue(parseInstant("1990-01-02"), 100, ComparisonFund.MARKET),
+                new FundValue(parseInstant("1990-01-01"), 100, ComparisonFund.EPI),
+                new FundValue(parseInstant("1990-01-02"), 100, ComparisonFund.MARKET),
+        ]
+    }
+
     private static boolean valuesEqual(FundValue one, FundValue two) {
         return one.time == two.time && one.comparisonFund == two.comparisonFund && one.value == two.value
+    }
+
+    private static Instant parseInstant(String format) {
+        return new SimpleDateFormat("yyyy-MM-dd").parse(format).toInstant()
     }
 }

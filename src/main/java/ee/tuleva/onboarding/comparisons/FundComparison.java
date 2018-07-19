@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.comparisons;
 
-import lombok.Builder;
-import lombok.Value;
+import lombok.*;
 
-@Value
+@Data
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 public class FundComparison {
     private double actualReturnPercentage;
     private double estonianAverageReturnPercentage;

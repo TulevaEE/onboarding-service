@@ -62,7 +62,7 @@ class WorldIndexValueRetrieverSpec extends Specification {
         values == expectedValues
     }
 
-    def "it filters out lines with correct dates"() {
+    def "it filters out lines with incorrect dates"() {
         given:
         Instant startTime = parseInstant("2018-07-16")
         Instant endTime = parseInstant("2018-07-17")

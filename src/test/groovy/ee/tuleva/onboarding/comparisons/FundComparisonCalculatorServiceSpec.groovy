@@ -4,6 +4,9 @@ import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider
+import ee.tuleva.onboarding.comparisons.overview.AccountOverview
+import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
+import ee.tuleva.onboarding.comparisons.overview.Transaction
 import spock.lang.Specification
 
 import java.text.SimpleDateFormat

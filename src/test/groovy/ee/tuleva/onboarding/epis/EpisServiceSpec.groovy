@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.epis
 
+import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto
+import ee.tuleva.onboarding.epis.cashflows.CashFlowValueDto
 import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
 import ee.tuleva.onboarding.mandate.MandateApplicationType
@@ -13,6 +15,9 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
+
+import java.text.SimpleDateFormat
+import java.time.Instant
 
 import static UserPreferences.defaultUserPreferences
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -92,9 +97,54 @@ class EpisServiceSpec extends Specification {
         contactDetails == userPreferences
     }
 
+    def "getCashFlowStatement calls the right endpoint"() {
+
+        given:
+            service.episServiceUrl = "http://example.com"
+            CashFlowStatementDto cashFlowStatementDto = getFakeCashFlowStatement()
+            ResponseEntity<CashFlowStatementDto> response =
+                    new ResponseEntity(cashFlowStatementDto, HttpStatus.OK)
+
+            Instant startTime = parseInstant("2001-01-01")
+            Instant endTime = parseInstant("2018-01-01")
+
+            1 * restTemplate.exchange(
+                    "http://example.com/account-cash-flow-statement?from-date=2001-01-01&to-date=2018-01-01", HttpMethod.GET, { HttpEntity httpEntity ->
+                doesHttpEntityContainToken(httpEntity, sampleToken)
+            }, CashFlowStatementDto.class) >> response
+
+        when:
+        CashFlowStatementDto responseDto = service.getCashFlowStatement(samplePerson(), startTime, endTime)
+
+        then:
+            cashFlowStatementDto == responseDto
+    }
+
+    private static CashFlowStatementDto getFakeCashFlowStatement() {
+        Instant randomTime = parseInstant("2001-01-01")
+        CashFlowStatementDto cashFlowStatementDto = CashFlowStatementDto.builder()
+            .startBalance([
+                    "1": new CashFlowValueDto(randomTime, 100, "EEK"),
+                    "2": new CashFlowValueDto(randomTime, 115, "EUR"),
+            ])
+            .endBalance([
+                    "1": new CashFlowValueDto(randomTime, 110, "EEK"),
+                    "2": new CashFlowValueDto(randomTime, 125, "EUR"),
+            ])
+            .transactions([
+                new CashFlowValueDto(randomTime, 100, "EEK"),
+                new CashFlowValueDto(randomTime, 115, "EUR"),
+            ]).build()
+        return cashFlowStatementDto
+    }
+
     boolean doesHttpEntityContainToken(HttpEntity httpEntity, String sampleToken) {
         httpEntity.headers.getFirst("authorization") == ("Bearer " + sampleToken)
     }
 
     List<MandateXmlMessage> sampleMessages = [new MandateXmlMessage("123", "message", MandateApplicationType.SELECTION)]
+
+    private static Instant parseInstant(String format) {
+        return new SimpleDateFormat("yyyy-MM-dd").parse(format).toInstant();
+    }
 }

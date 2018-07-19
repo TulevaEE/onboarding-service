@@ -5,9 +5,8 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
-// TODO: delete this once we have implemented an account overview provider, this is just here so spring boots.
 @Service
-public class DummyAccountOverviewProvider implements AccountOverviewProvider {
+public class EpisAccountOverviewProvider implements AccountOverviewProvider {
     @Override
     public AccountOverview getAccountOverview(Person person, Instant startTime) {
         return null;

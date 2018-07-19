@@ -34,7 +34,7 @@ class WorldIndexValueRetrieverSpec extends Specification {
         ComparisonFund retrievalFund = retriever.getRetrievalFund()
 
         then:
-        retrievalFund == ComparisonFund.WORLD_INDEX
+        retrievalFund == ComparisonFund.MARKET
     }
 
     def "it successfully parses a valid fund values"() {
@@ -47,8 +47,8 @@ class WorldIndexValueRetrieverSpec extends Specification {
 """
         ClientHttpResponse response = createResponse(HttpStatus.OK, responseBody)
         List<FundValue> expectedValues = [
-                FundValue.builder().comparisonFund(ComparisonFund.WORLD_INDEX).value(279.09).time(parseInstant("2018-07-18")).build(),
-                FundValue.builder().comparisonFund(ComparisonFund.WORLD_INDEX).value(278.07).time(parseInstant("2018-07-17")).build(),
+                FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(279.09).time(parseInstant("2018-07-18")).build(),
+                FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(278.07).time(parseInstant("2018-07-17")).build(),
         ]
 
         when:
@@ -76,8 +76,8 @@ class WorldIndexValueRetrieverSpec extends Specification {
 """
         ClientHttpResponse response = createResponse(HttpStatus.OK, responseBody)
         List<FundValue> expectedValues = [
-                FundValue.builder().comparisonFund(ComparisonFund.WORLD_INDEX).value(228.65).time(parseInstant("2018-07-17")).build(),
-                FundValue.builder().comparisonFund(ComparisonFund.WORLD_INDEX).value(227.74).time(parseInstant("2018-07-16")).build(),
+                FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(228.65).time(parseInstant("2018-07-17")).build(),
+                FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(227.74).time(parseInstant("2018-07-16")).build(),
         ]
 
         when:
@@ -102,8 +102,8 @@ broken
 "17-Jul-2018","24.05","224.01","8.1931","0.3617","278.07","",""
 """)
         List<FundValue> expectedValues = [
-            FundValue.builder().comparisonFund(ComparisonFund.WORLD_INDEX).value(279.09).time(parseInstant("2018-07-18")).build(),
-            FundValue.builder().comparisonFund(ComparisonFund.WORLD_INDEX).value(278.07).time(parseInstant("2018-07-17")).build(),
+            FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(279.09).time(parseInstant("2018-07-18")).build(),
+            FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(278.07).time(parseInstant("2018-07-17")).build(),
         ]
 
         when:

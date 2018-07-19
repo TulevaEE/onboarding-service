@@ -47,7 +47,7 @@ public class WorldIndexValueRetriever implements FundValueRetriever {
 
     @Override
     public ComparisonFund getRetrievalFund() {
-        return ComparisonFund.WORLD_INDEX;
+        return ComparisonFund.MARKET;
     }
 
     @Override
@@ -101,7 +101,7 @@ public class WorldIndexValueRetriever implements FundValueRetriever {
         }
 
         return Optional.of(FundValue.builder()
-            .comparisonFund(ComparisonFund.WORLD_INDEX)
+            .comparisonFund(ComparisonFund.MARKET)
             .time(time.get())
             .value(value.get())
             .build());

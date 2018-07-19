@@ -71,5 +71,4 @@ public class FundValueIndexingJob {
             return Instant.now();
         }
     }
-
 }

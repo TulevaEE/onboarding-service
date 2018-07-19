@@ -2,6 +2,9 @@ package ee.tuleva.onboarding.comparisons;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
+import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
+import ee.tuleva.onboarding.comparisons.overview.Transaction;
 import lombok.RequiredArgsConstructor;
 import org.decampo.xirr.Xirr;
 import org.springframework.stereotype.Service;

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.comparisons;
+package ee.tuleva.onboarding.comparisons.overview;
 
 import lombok.Value;
 

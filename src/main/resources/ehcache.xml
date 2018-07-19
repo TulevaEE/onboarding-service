@@ -16,6 +16,12 @@
            memoryStoreEvictionPolicy="LRU">
     </cache>
 
+    <cache name="cashFlowStatement"
+           maxElementsInMemory="1000"
+           eternal="true"
+           memoryStoreEvictionPolicy="LRU">
+    </cache>
+
     <cache name="contactDetails"
            maxElementsInMemory="10000"
            eternal="true"

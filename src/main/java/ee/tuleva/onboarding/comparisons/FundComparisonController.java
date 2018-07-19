@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.comparisons;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.annotations.ApiOperation;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,7 +19,7 @@ import java.util.Date;
 
 @RestController
 @RequestMapping("/v1")
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class FundComparisonController {
 
     private static final Instant DEFAULT_TIME = parseInstant("1900-01-01");

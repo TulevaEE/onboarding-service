@@ -42,16 +42,16 @@ public class FundComparisonCalculatorService {
     }
 
     private double getRateOfReturn(AccountOverview accountOverview) {
-        List<Transaction> buyTransactions = getBuyTransactions(accountOverview);
+        List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
-        return calculateReturn(buyTransactions, accountOverview.getEndingBalance(), accountOverview.getEndTime());
+        return calculateReturn(purchaseTransactions, accountOverview.getEndingBalance(), accountOverview.getEndTime());
     }
 
     private double getRateOfReturn(AccountOverview accountOverview, FundValueProvider fundValueProvider) {
-        List<Transaction> buyTransactions = getBuyTransactions(accountOverview);
+        List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
         BigDecimal virtualFundUnitsBought = BigDecimal.ZERO;
-        for (Transaction transaction: buyTransactions) {
+        for (Transaction transaction: purchaseTransactions) {
             BigDecimal fundValueAtTime = fundValueProvider.getFundValueClosestToTime(transaction.getCreatedAt()).getValue();
             BigDecimal currentlyBoughtVirtualFundUnits = transaction.getAmount().divide(fundValueAtTime, MathContext.DECIMAL128);
             virtualFundUnitsBought = virtualFundUnitsBought.add(currentlyBoughtVirtualFundUnits);
@@ -59,18 +59,18 @@ public class FundComparisonCalculatorService {
         BigDecimal finalVirtualFundPrice = fundValueProvider.getFundValueClosestToTime(accountOverview.getEndTime()).getValue();
         BigDecimal sellAmount = finalVirtualFundPrice.multiply(virtualFundUnitsBought);
 
-        return calculateReturn(buyTransactions, sellAmount, accountOverview.getEndTime());
+        return calculateReturn(purchaseTransactions, sellAmount, accountOverview.getEndTime());
     }
 
-    private List<Transaction> getBuyTransactions(AccountOverview accountOverview) {
+    private List<Transaction> getPurchaseTransactions(AccountOverview accountOverview) {
         List<Transaction> transactions = accountOverview.getTransactions();
         Transaction beginningTransaction = new Transaction(accountOverview.getBeginningBalance(), accountOverview.getStartTime());
 
-        List<Transaction> buyTransactions = new ArrayList<>();
-        buyTransactions.add(beginningTransaction);
-        buyTransactions.addAll(transactions);
+        List<Transaction> purchaseTransactions = new ArrayList<>();
+        purchaseTransactions.add(beginningTransaction);
+        purchaseTransactions.addAll(transactions);
 
-        return buyTransactions;
+        return purchaseTransactions;
     }
 
     private List<Transaction> negateTransactionAmounts(List<Transaction> transactions) {
@@ -84,8 +84,8 @@ public class FundComparisonCalculatorService {
         return new Transaction(transaction.getAmount().negate(), transaction.getCreatedAt());
     }
 
-    private double calculateReturn(List<Transaction> buyTransactions, BigDecimal endingBalance, Instant endTime) {
-        List<Transaction> negatedTransactions = negateTransactionAmounts(buyTransactions);
+    private double calculateReturn(List<Transaction> purchaseTransactions, BigDecimal endingBalance, Instant endTime) {
+        List<Transaction> negatedTransactions = negateTransactionAmounts(purchaseTransactions);
         Transaction endingTransaction = new Transaction(endingBalance, endTime);
 
         List<Transaction> internalTransactions = new ArrayList<>();

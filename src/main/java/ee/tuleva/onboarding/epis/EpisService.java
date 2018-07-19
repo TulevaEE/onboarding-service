@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.epis;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
+import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
@@ -17,7 +18,11 @@ import org.springframework.security.oauth2.provider.authentication.OAuth2Authent
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 
 import static java.util.Arrays.asList;
@@ -30,6 +35,7 @@ public class EpisService {
   private final String TRANSFER_APPLICATIONS_CACHE_NAME = "transferApplications";
   private final String CONTACT_DETAILS_CACHE_NAME = "contactDetails";
   private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
+  private final String CASH_FLOW_STATEMENT_CACHE_NAME = "cashFlowStatement";
 
   private final RestTemplate restTemplate;
 
@@ -64,15 +70,37 @@ public class EpisService {
     return asList(response.getBody());
   }
 
+  @Cacheable(value = CASH_FLOW_STATEMENT_CACHE_NAME, key="#person.personalCode")
+  public CashFlowStatementDto getCashFlowStatement(Person person, Instant startTime, Instant endTime) {
+
+    SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+    String url = UriComponentsBuilder
+            .fromHttpUrl(episServiceUrl + "/account-cash-flow-statement")
+            .queryParam("from-date", dateFormat.format(Date.from(startTime)))
+            .queryParam("to-date", dateFormat.format(Date.from(endTime)))
+            .build()
+            .toUriString();
+
+    log.info("Getting cash flows from {}", url);
+    return restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(getHeaders()), CashFlowStatementDto.class).getBody();
+  }
+
   @Caching(evict = {
       @CacheEvict(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
       @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
-      @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode")
+      @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
+      @CacheEvict(value = CASH_FLOW_STATEMENT_CACHE_NAME, key = "#person.personalCode")
   })
   public void clearCache(Person person) {
     clearTransferApplicationsCache(person);
     clearContactDetailsCache(person);
     clearAccountStatementCache(person);
+    clearCashFlowCache(person);
+  }
+
+  @CacheEvict(value = CASH_FLOW_STATEMENT_CACHE_NAME, key = "#person.personalCode")
+  public void clearCashFlowCache(Person person) {
+    log.info("Clearing cash flows cache for {} {}", person.getFirstName(), person.getLastName());
   }
 
   @CacheEvict(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode")

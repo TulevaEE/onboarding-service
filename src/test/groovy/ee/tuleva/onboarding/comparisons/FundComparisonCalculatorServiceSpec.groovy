@@ -15,20 +15,17 @@ import java.time.Instant
 class FundComparisonCalculatorServiceSpec extends Specification {
 
     AccountOverviewProvider accountOverviewProvider
-    FundValueProvider estonianAverageValueProvider
-    FundValueProvider marketAverageValueProvider
+    FundValueProvider fundValueProvider
 
     FundComparisonCalculatorService fundComparisonCalculatorService
 
     void setup() {
         accountOverviewProvider = Mock(AccountOverviewProvider)
-        estonianAverageValueProvider = Mock(FundValueProvider)
-        marketAverageValueProvider = Mock(FundValueProvider)
+        fundValueProvider = Mock(FundValueProvider)
 
         fundComparisonCalculatorService = new FundComparisonCalculatorService(
                 accountOverviewProvider,
-                estonianAverageValueProvider,
-                marketAverageValueProvider
+                fundValueProvider
         )
     }
 
@@ -101,8 +98,10 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             Instant startTime = parseInstant("2010-01-01")
             Instant endTime = parseInstant("2018-07-16")
             Map<String, BigDecimal> fundValues = getEpiFundValuesMap()
-            mockFundValues(estonianAverageValueProvider, fundValues)
-            marketAverageValueProvider.getFundValueClosestToTime(_) >> { Instant time -> new FundValue(time, 123.0, ComparisonFund.MARKET) }
+            mockFundValues(ComparisonFund.EPI, fundValues)
+            fundValueProvider.getFundValueClosestToTime(ComparisonFund.MARKET, _) >> {
+                ComparisonFund givenFund, Instant time -> Optional.of(new FundValue(time, 123.0, ComparisonFund.MARKET))
+            }
             accountOverviewProvider.getAccountOverview(_, _) >> new AccountOverview([
                     new Transaction(30, parseInstant("2010-07-01")),
                     new Transaction(30, parseInstant("2011-01-01")),
@@ -125,6 +124,36 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             FundComparison comparison = fundComparisonCalculatorService.calculateComparison(null, startTime)
         then:
             comparison.estonianAverageReturnPercentage == 0.0326.doubleValue()
+            comparison.marketAverageReturnPercentage == 0
+    }
+
+    def "it handles missing fund values"() {
+        given:
+            Instant startTime = parseInstant("2010-01-01")
+            Instant endTime = parseInstant("2018-07-16")
+            fundValueProvider.getFundValueClosestToTime(_, _) >> Optional.empty()
+            accountOverviewProvider.getAccountOverview(_, _) >> new AccountOverview([
+                    new Transaction(30, parseInstant("2010-07-01")),
+                    new Transaction(30, parseInstant("2011-01-01")),
+                    new Transaction(30, parseInstant("2011-07-01")),
+                    new Transaction(30, parseInstant("2012-01-01")),
+                    new Transaction(30, parseInstant("2012-07-01")),
+                    new Transaction(30, parseInstant("2013-01-01")),
+                    new Transaction(30, parseInstant("2013-07-01")),
+                    new Transaction(30, parseInstant("2014-01-01")),
+                    new Transaction(30, parseInstant("2014-07-01")),
+                    new Transaction(30, parseInstant("2015-01-01")),
+                    new Transaction(30, parseInstant("2015-07-01")),
+                    new Transaction(30, parseInstant("2016-01-01")),
+                    new Transaction(30, parseInstant("2016-07-01")),
+                    new Transaction(30, parseInstant("2017-01-01")),
+                    new Transaction(30, parseInstant("2017-07-01")),
+                    new Transaction(30, parseInstant("2018-01-01")),
+            ], 30, 123123, startTime, endTime)
+        when:
+            FundComparison comparison = fundComparisonCalculatorService.calculateComparison(null, startTime)
+        then:
+            comparison.estonianAverageReturnPercentage == 0
             comparison.marketAverageReturnPercentage == 0
     }
 
@@ -151,10 +180,10 @@ class FundComparisonCalculatorServiceSpec extends Specification {
         ]
     }
 
-    private void mockFundValues(FundValueProvider provider, Map<String, BigDecimal> values) {
+    private void mockFundValues(ComparisonFund fund, Map<String, BigDecimal> values) {
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd")
-        provider.getFundValueClosestToTime(_) >> {
-            Instant time -> new FundValue(time, values[format.format(Date.from(time))], ComparisonFund.MARKET)
+        fundValueProvider.getFundValueClosestToTime(fund, _) >> {
+            ComparisonFund givenFund, Instant time -> Optional.of(new FundValue(time, values[format.format(Date.from(time))], ComparisonFund.MARKET))
         }
     }
 
@@ -166,7 +195,6 @@ class FundComparisonCalculatorServiceSpec extends Specification {
 
     private void fakeNoReturnFundValues() {
         Instant time = parseInstant("2018-06-17")
-        estonianAverageValueProvider.getFundValueClosestToTime(_) >> new FundValue(time, 1, ComparisonFund.MARKET)
-        marketAverageValueProvider.getFundValueClosestToTime(_) >> new FundValue(time, 1, ComparisonFund.MARKET)
+        fundValueProvider.getFundValueClosestToTime(_, _) >> Optional.of(new FundValue(time, 1, ComparisonFund.MARKET))
     }
 }

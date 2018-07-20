@@ -34,13 +34,6 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
     }
 
     private AccountOverview transformCashFlowStatementToAccountOverview(CashFlowStatementDto cashFlowStatementDto, Instant startTime, Instant endTime) {
-        log.info("Writing out balances"); // TODO: remove this before prod release
-        log.info(cashFlowStatementDto.toString());
-        try {
-            log.info(new ObjectMapper().writeValueAsString(cashFlowStatementDto));
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
         BigDecimal beginningBalance = convertBalance(cashFlowStatementDto.getStartBalance());
         BigDecimal endingBalance = convertBalance(cashFlowStatementDto.getEndBalance());
         List<Transaction> transactions = convertTransactions(cashFlowStatementDto.getTransactions());

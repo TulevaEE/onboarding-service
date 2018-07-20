@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundValueRetriever
+import org.springframework.core.env.Environment
 import spock.lang.Specification
 
 import java.text.SimpleDateFormat
@@ -20,7 +21,8 @@ class FundValueIndexingJobSpec extends Specification {
         fundValueRetriever = Mock(FundValueRetriever)
         fundValueIndexingJob = new FundValueIndexingJob(
             fundValueRepository,
-            Collections.singletonList(fundValueRetriever)
+            Collections.singletonList(fundValueRetriever),
+            Mock(Environment)
         )
     }
 

@@ -10,7 +10,6 @@ import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -18,8 +17,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
-import java.time.temporal.TemporalAmount;
-import java.time.temporal.TemporalUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -42,11 +39,12 @@ public class FundValueIndexingJob {
             Optional<FundValue> fundValue = fundValueRepository.findLastValueForFund(fund);
             if (fundValue.isPresent()) {
                 Instant lastUpdateTime = fundValue.get().getTime();
-                if (!isRecent(lastUpdateTime)) {
-                    log.info("Last update for comparison fund " + fund + " was before yesterday, so updating until today");
-                    loadAndPersistDataForStartTime(fundValueRetriever, lastUpdateTime);
+                Instant startTime = lastUpdateTime.plus(1, ChronoUnit.DAYS);
+                if (!isToday(lastUpdateTime)) {
+                    log.info("Last update for comparison fund " + fund + ": {}. Updating from {}", lastUpdateTime, startTime);
+                    loadAndPersistDataForStartTime(fundValueRetriever, startTime);
                 } else {
-                    log.info("Last update for comparison fund " + fund + " was today, so not updating");
+                    log.info("Last update for comparison fund " + fund + ": {}. Not updating", lastUpdateTime);
                 }
             } else {
                 log.info("No info for comparison fund " + fund + " so downloading all data until today");
@@ -69,14 +67,10 @@ public class FundValueIndexingJob {
         log.info("Successfully pulled and saved " + valuesPulled.size() + " fund values");
     }
 
-    private static boolean isRecent(Instant time) {
+    private static boolean isToday(Instant time) {
         LocalDate otherDate = instantToLocalDate(time);
-        LocalDate yesterday = getYesterday();
-        return otherDate.isAfter(yesterday) || otherDate.isEqual(yesterday);
-    }
-
-    private static LocalDate getYesterday() {
-        return instantToLocalDate(Instant.now()).minus(1, ChronoUnit.DAYS);
+        LocalDate today = instantToLocalDate(Instant.now());
+        return otherDate.equals(today);
     }
 
     private static LocalDate instantToLocalDate(Instant instant) {

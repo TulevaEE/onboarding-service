@@ -7,7 +7,6 @@ import spock.lang.Specification
 
 import java.text.SimpleDateFormat
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 
 class FundValueIndexingJobSpec extends Specification {
 
@@ -40,25 +39,26 @@ class FundValueIndexingJobSpec extends Specification {
             1 * fundValueRepository.saveAll(fakeFundValues())
     }
 
-    def "if saved fund values found, downloads from the last fund value"() {
+    def "if saved fund values found, downloads from the next day after last fund value"() {
         given:
             fundValueRetriever.getRetrievalFund() >> ComparisonFund.MARKET
             Instant lastFundValueTime = parseInstant("2018-05-01")
+            Instant dayFromlastFundValueTime = parseInstant("2018-05-02")
             fundValueRepository.findLastValueForFund(ComparisonFund.MARKET) >> Optional.of(new FundValue(lastFundValueTime, 120, ComparisonFund.MARKET))
         when:
             fundValueIndexingJob.runIndexingJob()
         then:
             1 * fundValueRetriever.retrieveValuesForRange(
-                    lastFundValueTime,
+                    dayFromlastFundValueTime,
                     { Instant time -> verifyTimeCloseToNow(time) } as Instant
             ) >> fakeFundValues()
             1 * fundValueRepository.saveAll(fakeFundValues())
     }
 
-    def "if last saved fund value was found yesterday or today, does nothing"() {
+    def "if last saved fund value was found today, does nothing"() {
         given:
             fundValueRetriever.getRetrievalFund() >> ComparisonFund.MARKET
-            Instant lastFundValueTime = Instant.now().minus(1, ChronoUnit.DAYS)
+            Instant lastFundValueTime = Instant.now()
             fundValueRepository.findLastValueForFund(ComparisonFund.MARKET) >> Optional.of(new FundValue(lastFundValueTime, 120, ComparisonFund.MARKET))
         when:
             fundValueIndexingJob.runIndexingJob()

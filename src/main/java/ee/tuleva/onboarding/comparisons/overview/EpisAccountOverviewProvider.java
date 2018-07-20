@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.comparisons.overview;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto;
@@ -32,6 +34,13 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
     }
 
     private AccountOverview transformCashFlowStatementToAccountOverview(CashFlowStatementDto cashFlowStatementDto, Instant startTime, Instant endTime) {
+        log.info("Writing out balances"); // TODO: remove this before prod release
+        log.info(cashFlowStatementDto.toString());
+        try {
+            log.info(new ObjectMapper().writeValueAsString(cashFlowStatementDto));
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
         BigDecimal beginningBalance = convertBalance(cashFlowStatementDto.getStartBalance());
         BigDecimal endingBalance = convertBalance(cashFlowStatementDto.getEndBalance());
         List<Transaction> transactions = convertTransactions(cashFlowStatementDto.getTransactions());

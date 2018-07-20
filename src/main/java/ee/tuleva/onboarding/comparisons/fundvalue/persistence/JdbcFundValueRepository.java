@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
-public class JdbcFundValueRepository implements FundValueRepository {
+public class JdbcFundValueRepository implements FundValueRepository, FundValueProvider {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -83,13 +83,8 @@ public class JdbcFundValueRepository implements FundValueRepository {
         return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
     }
 
-    @Bean(name = "estonianAverageFundValueProvider")
-    public FundValueProvider getEstonianAverageFundValueProvider() {
-        return time -> getFundValueClosestToTime(ComparisonFund.EPI, time);
-    }
-
-    // TODO: convert to optional
-    private FundValue getFundValueClosestToTime(ComparisonFund fund, Instant time) {
+    @Override
+    public Optional<FundValue> getFundValueClosestToTime(ComparisonFund fund, Instant time) {
         List<FundValue> result = jdbcTemplate.query(
                 FIND_CLOSEST_VALUE_QUERY,
                 new MapSqlParameterSource()
@@ -97,6 +92,6 @@ public class JdbcFundValueRepository implements FundValueRepository {
                         .addValue("time", Timestamp.from(time), Types.TIMESTAMP),
                 new FundValueRowMapper()
         );
-        return result.isEmpty() ? null : result.get(0);
+        return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
     }
 }

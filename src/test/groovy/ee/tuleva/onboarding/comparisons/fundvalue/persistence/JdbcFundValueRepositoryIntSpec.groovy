@@ -60,14 +60,18 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
             !value.isPresent()
     }
 
-    def "it can find the value closest for a time for the estonian average"() {
+    def "it can find the value closest for a time for a fund"() {
         given:
             List<FundValue> values = getFakeTimedFundValues()
             fundValueRepository.saveAll(values)
         when:
-            FundValue value = fundValueRepository.getEstonianAverageFundValueProvider().getFundValueClosestToTime(parseInstant("1990-01-03"))
+            Optional<FundValue> epiValue = fundValueRepository.getFundValueClosestToTime(ComparisonFund.EPI, parseInstant("1990-01-03"))
+            Optional<FundValue> marketValue = fundValueRepository.getFundValueClosestToTime(ComparisonFund.MARKET, parseInstant("1990-01-06"))
         then:
-            valuesEqual(value, values[2])
+            epiValue.isPresent()
+            marketValue.isPresent()
+            valuesEqual(epiValue.get(), values[2])
+            valuesEqual(marketValue.get(), values[1])
     }
 
     private static List<FundValue> getFakeFundValues() {

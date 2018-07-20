@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.comparisons;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
@@ -15,6 +17,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,8 +25,7 @@ import java.util.stream.Collectors;
 public class FundComparisonCalculatorService {
 
     private final AccountOverviewProvider accountOverviewProvider;
-    private final FundValueProvider estonianAverageValueProvider;
-    private final FundValueProvider marketAverageValueProvider;
+    private final FundValueProvider fundValueProvider;
 
     private static final int OUTPUT_SCALE = 4;
 
@@ -34,8 +36,8 @@ public class FundComparisonCalculatorService {
 
     private FundComparison calculateForAccountOverview(AccountOverview accountOverview) {
         double actualRateOfReturn = getRateOfReturn(accountOverview);
-        double estonianAverageRateOfReturn = getRateOfReturn(accountOverview, estonianAverageValueProvider);
-        double marketAverageRateOfReturn = getRateOfReturn(accountOverview, marketAverageValueProvider);
+        double estonianAverageRateOfReturn = getRateOfReturn(accountOverview, ComparisonFund.EPI);
+        double marketAverageRateOfReturn = getRateOfReturn(accountOverview, ComparisonFund.MARKET);
 
         return FundComparison.builder()
             .actualReturnPercentage(actualRateOfReturn)
@@ -50,16 +52,24 @@ public class FundComparisonCalculatorService {
         return calculateReturn(purchaseTransactions, accountOverview.getEndingBalance(), accountOverview.getEndTime());
     }
 
-    private double getRateOfReturn(AccountOverview accountOverview, FundValueProvider fundValueProvider) {
+    private double getRateOfReturn(AccountOverview accountOverview, ComparisonFund comparisonFund) {
         List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
         BigDecimal virtualFundUnitsBought = BigDecimal.ZERO;
         for (Transaction transaction: purchaseTransactions) {
-            BigDecimal fundValueAtTime = fundValueProvider.getFundValueClosestToTime(transaction.getCreatedAt()).getValue();
-            BigDecimal currentlyBoughtVirtualFundUnits = transaction.getAmount().divide(fundValueAtTime, MathContext.DECIMAL128);
+            Optional<FundValue> fundValueAtTime = fundValueProvider.getFundValueClosestToTime(comparisonFund, transaction.getCreatedAt());
+            if (!fundValueAtTime.isPresent()) {
+                return 0;
+            }
+            BigDecimal fundPriceAtTime = fundValueAtTime.get().getValue();
+            BigDecimal currentlyBoughtVirtualFundUnits = transaction.getAmount().divide(fundPriceAtTime, MathContext.DECIMAL128);
             virtualFundUnitsBought = virtualFundUnitsBought.add(currentlyBoughtVirtualFundUnits);
         }
-        BigDecimal finalVirtualFundPrice = fundValueProvider.getFundValueClosestToTime(accountOverview.getEndTime()).getValue();
+        Optional<FundValue> finalVirtualFundValue = fundValueProvider.getFundValueClosestToTime(comparisonFund, accountOverview.getEndTime());
+        if (!finalVirtualFundValue.isPresent()) {
+            return 0;
+        }
+        BigDecimal finalVirtualFundPrice = finalVirtualFundValue.get().getValue();
         BigDecimal sellAmount = finalVirtualFundPrice.multiply(virtualFundUnitsBought);
 
         return calculateReturn(purchaseTransactions, sellAmount, accountOverview.getEndTime());

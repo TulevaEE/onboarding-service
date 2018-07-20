@@ -39,16 +39,17 @@ class FundValueIndexingJobSpec extends Specification {
             1 * fundValueRepository.saveAll(fakeFundValues())
     }
 
-    def "if saved fund values found, downloads from the last fund value"() {
+    def "if saved fund values found, downloads from the next day after last fund value"() {
         given:
             fundValueRetriever.getRetrievalFund() >> ComparisonFund.MARKET
             Instant lastFundValueTime = parseInstant("2018-05-01")
+            Instant dayFromlastFundValueTime = parseInstant("2018-05-02")
             fundValueRepository.findLastValueForFund(ComparisonFund.MARKET) >> Optional.of(new FundValue(lastFundValueTime, 120, ComparisonFund.MARKET))
         when:
             fundValueIndexingJob.runIndexingJob()
         then:
             1 * fundValueRetriever.retrieveValuesForRange(
-                    lastFundValueTime,
+                    dayFromlastFundValueTime,
                     { Instant time -> verifyTimeCloseToNow(time) } as Instant
             ) >> fakeFundValues()
             1 * fundValueRepository.saveAll(fakeFundValues())

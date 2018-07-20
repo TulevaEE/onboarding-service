@@ -4,15 +4,21 @@ import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepositor
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundValueRetriever;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalAmount;
+import java.time.temporal.TemporalUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -25,6 +31,7 @@ public class FundValueIndexingJob {
 
     private static final Instant START_TIME = parseInstant("2002-01-01");
 
+    @EventListener(ApplicationReadyEvent.class) // after every deploy
     @Scheduled(cron = "0 0 14 * * ?", zone = "Europe/Tallinn") // every day at 2 o clock
     public void runIndexingJob() {
         fundValueRetrievers.forEach(fundValueRetriever -> {
@@ -33,8 +40,8 @@ public class FundValueIndexingJob {
             Optional<FundValue> fundValue = fundValueRepository.findLastValueForFund(fund);
             if (fundValue.isPresent()) {
                 Instant lastUpdateTime = fundValue.get().getTime();
-                if (!isToday(lastUpdateTime)) {
-                    log.info("Last update for comparison fund " + fund + " was before today, so updating until today");
+                if (!isRecent(lastUpdateTime)) {
+                    log.info("Last update for comparison fund " + fund + " was before yesterday, so updating until today");
                     loadAndPersistDataForStartTime(fundValueRetriever, lastUpdateTime);
                 } else {
                     log.info("Last update for comparison fund " + fund + " was today, so not updating");
@@ -53,10 +60,14 @@ public class FundValueIndexingJob {
         log.info("Successfully pulled and saved " + valuesPulled.size() + " fund values");
     }
 
-    private static boolean isToday(Instant time) {
+    private static boolean isRecent(Instant time) {
         LocalDate otherDate = instantToLocalDate(time);
-        LocalDate today = instantToLocalDate(Instant.now());
-        return otherDate.equals(today);
+        LocalDate yesterday = getYesterday();
+        return otherDate.isAfter(yesterday) || otherDate.isEqual(yesterday);
+    }
+
+    private static LocalDate getYesterday() {
+        return instantToLocalDate(Instant.now()).minus(1, ChronoUnit.DAYS);
     }
 
     private static LocalDate instantToLocalDate(Instant instant) {

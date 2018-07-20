@@ -4,6 +4,8 @@ import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepositor
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundValueRetriever;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +27,7 @@ public class FundValueIndexingJob {
 
     private static final Instant START_TIME = parseInstant("2002-01-01");
 
+    @EventListener(ApplicationReadyEvent.class)
     @Scheduled(cron = "0 0 14 * * ?", zone = "Europe/Tallinn") // every day at 2 o clock
     public void runIndexingJob() {
         fundValueRetrievers.forEach(fundValueRetriever -> {

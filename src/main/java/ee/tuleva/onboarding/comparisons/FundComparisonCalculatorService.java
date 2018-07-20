@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.overview.Transaction;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.decampo.xirr.Xirr;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class FundComparisonCalculatorService {
 
@@ -31,6 +33,11 @@ public class FundComparisonCalculatorService {
 
     public FundComparison calculateComparison(Person person, Instant startTime) {
         AccountOverview overview = accountOverviewProvider.getAccountOverview(person, startTime);
+
+        // TODO: Remove when feature goes public
+        log.info("Writing out account overview");
+        log.info(overview.toString());
+
         return calculateForAccountOverview(overview);
     }
 
@@ -48,6 +55,10 @@ public class FundComparisonCalculatorService {
 
     private double getRateOfReturn(AccountOverview accountOverview) {
         List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
+
+        // TODO: Remove when feature goes public
+        log.info("Writing out purchase transactions");
+        log.info(purchaseTransactions.toString());
 
         return calculateReturn(purchaseTransactions, accountOverview.getEndingBalance(), accountOverview.getEndTime());
     }
@@ -79,6 +90,10 @@ public class FundComparisonCalculatorService {
         List<Transaction> transactions = accountOverview.getTransactions();
         Transaction beginningTransaction = new Transaction(accountOverview.getBeginningBalance(), accountOverview.getStartTime());
 
+        // TODO: Remove when feature goes public
+        log.info("Writing out beginning transaction");
+        log.info(beginningTransaction.toString());
+
         List<Transaction> purchaseTransactions = new ArrayList<>();
         purchaseTransactions.add(beginningTransaction);
         purchaseTransactions.addAll(transactions);
@@ -104,6 +119,10 @@ public class FundComparisonCalculatorService {
         List<Transaction> internalTransactions = new ArrayList<>();
         internalTransactions.addAll(negatedTransactions);
         internalTransactions.add(endingTransaction);
+
+        // TODO: Remove when feature goes public
+        log.info("Writing out internal transactions");
+        log.info(internalTransactions.toString());
 
         return calculateInternalRateOfReturn(internalTransactions);
     }

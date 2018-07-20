@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.overview.Transaction;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.decampo.xirr.Xirr;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class FundComparisonCalculatorService {
 
@@ -29,6 +31,10 @@ public class FundComparisonCalculatorService {
 
     public FundComparison calculateComparison(Person person, Instant startTime) {
         AccountOverview overview = accountOverviewProvider.getAccountOverview(person, startTime);
+        if (person.getPersonalCode().equals("39610017037")) {
+            log.info("Writing out account overview for uku");
+            log.info(overview.toString());
+        }
         return calculateForAccountOverview(overview);
     }
 

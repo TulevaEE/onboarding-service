@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -38,11 +39,12 @@ public class FundValueIndexingJob {
             Optional<FundValue> fundValue = fundValueRepository.findLastValueForFund(fund);
             if (fundValue.isPresent()) {
                 Instant lastUpdateTime = fundValue.get().getTime();
+                Instant startTime = lastUpdateTime.plus(1, ChronoUnit.DAYS);
                 if (!isToday(lastUpdateTime)) {
-                    log.info("Last update for comparison fund " + fund + " was before today, so updating until today");
-                    loadAndPersistDataForStartTime(fundValueRetriever, lastUpdateTime);
+                    log.info("Last update for comparison fund " + fund + ": {}. Updating from {}", lastUpdateTime, startTime);
+                    loadAndPersistDataForStartTime(fundValueRetriever, startTime);
                 } else {
-                    log.info("Last update for comparison fund " + fund + " was today, so not updating");
+                    log.info("Last update for comparison fund " + fund + ": {}. Not updating", lastUpdateTime);
                 }
             } else {
                 log.info("No info for comparison fund " + fund + " so downloading all data until today");

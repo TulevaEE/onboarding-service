@@ -76,7 +76,7 @@ public class EpisService {
     return getCashFlowStatement(person, dateFormat.format(Date.from(startTime)), dateFormat.format(Date.from(endTime)));
   }
 
-  @Cacheable(value = CASH_FLOW_STATEMENT_CACHE_NAME, key="#person.personalCode + #startDate + #endDate")
+  @Cacheable(value = CASH_FLOW_STATEMENT_CACHE_NAME, key="{ #person.personalCode, #startDate, #endDate }")
   public CashFlowStatementDto getCashFlowStatement(Person person, String startDate, String endDate) {
     String url = UriComponentsBuilder
             .fromHttpUrl(episServiceUrl + "/account-cash-flow-statement")

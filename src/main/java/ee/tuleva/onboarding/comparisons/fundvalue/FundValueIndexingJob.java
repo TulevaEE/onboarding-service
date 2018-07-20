@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +20,7 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAmount;
 import java.time.temporal.TemporalUnit;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,10 +30,10 @@ import java.util.Optional;
 public class FundValueIndexingJob {
     private final FundValueRepository fundValueRepository;
     private final List<FundValueRetriever> fundValueRetrievers;
+    private final Environment environment;
 
     private static final Instant START_TIME = parseInstant("2002-01-01");
 
-    @EventListener(ApplicationReadyEvent.class) // after every deploy
     @Scheduled(cron = "0 0 14 * * ?", zone = "Europe/Tallinn") // every day at 2 o clock
     public void runIndexingJob() {
         fundValueRetrievers.forEach(fundValueRetriever -> {
@@ -51,6 +53,13 @@ public class FundValueIndexingJob {
                 loadAndPersistDataForStartTime(fundValueRetriever, START_TIME);
             }
         });
+    }
+
+    @EventListener(ApplicationReadyEvent.class) // after every deploy
+    public void onApplicationReady() {
+        if (!Arrays.asList(environment.getActiveProfiles()).contains("test")) {
+            runIndexingJob();
+        }
     }
 
     private void loadAndPersistDataForStartTime(FundValueRetriever fundValueRetriever, Instant startTime) {

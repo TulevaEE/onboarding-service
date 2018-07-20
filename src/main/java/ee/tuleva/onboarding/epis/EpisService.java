@@ -70,18 +70,13 @@ public class EpisService {
     return asList(response.getBody());
   }
 
+  // No caching here is on purpose
   public CashFlowStatementDto getCashFlowStatement(Person person, Instant startTime, Instant endTime) {
     SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-
-    return getCashFlowStatement(person, dateFormat.format(Date.from(startTime)), dateFormat.format(Date.from(endTime)));
-  }
-
-  @Cacheable(value = CASH_FLOW_STATEMENT_CACHE_NAME, key="{ #person.personalCode, #startDate, #endDate }")
-  public CashFlowStatementDto getCashFlowStatement(Person person, String startDate, String endDate) {
     String url = UriComponentsBuilder
             .fromHttpUrl(episServiceUrl + "/account-cash-flow-statement")
-            .queryParam("from-date", startDate)
-            .queryParam("to-date", endDate)
+            .queryParam("from-date", dateFormat.format(Date.from(startTime)))
+            .queryParam("to-date", dateFormat.format(Date.from(endTime)))
             .build()
             .toUriString();
 

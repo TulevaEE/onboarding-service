@@ -82,7 +82,7 @@ public class WorldIndexValueRetriever implements FundValueRetriever {
     }
 
     private Optional<FundValue> parseLine(String line) {
-        log.info("Parsing line: [{}].", line);
+        log.debug("Parsing line: [{}].", line);
         String[] parts = line.split("\",\"");
         if (parts.length < 6) {
             warn("Invalid line: Less than 6 columns.");

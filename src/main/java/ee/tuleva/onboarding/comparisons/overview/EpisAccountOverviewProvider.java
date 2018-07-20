@@ -61,7 +61,7 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
     }
 
     private Transaction convertTransaction(CashFlowValueDto cashFlowValue) {
-        BigDecimal amount = convertCurrencyToEur(cashFlowValue.getAmount(), cashFlowValue.getCurrency());
+        BigDecimal amount = convertCurrencyToEur(cashFlowValue.getAmount().negate(), cashFlowValue.getCurrency());
         return new Transaction(amount, cashFlowValue.getTime());
     }
 

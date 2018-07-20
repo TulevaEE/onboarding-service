@@ -65,11 +65,11 @@ class EpisAccountOverviewProviderSpec extends Specification {
             accountOverview.transactions.size() == 2
             roundToTwoPlaces(accountOverview.transactions[0].amount) == 6.39
             accountOverview.transactions[0].createdAt == getFakeCashFlowStatement().transactions[0].time
-            accountOverview.transactions[1].amount == getFakeCashFlowStatement().transactions[1].amount
+            accountOverview.transactions[1].amount == -getFakeCashFlowStatement().transactions[1].amount
             accountOverview.transactions[1].createdAt == getFakeCashFlowStatement().transactions[1].time
     }
 
-    private BigDecimal roundToTwoPlaces(BigDecimal value) {
+    private static BigDecimal roundToTwoPlaces(BigDecimal value) {
         DecimalFormat format = new DecimalFormat("##.00")
         format.setParseBigDecimal(true)
         return new BigDecimal(format.format(value));
@@ -87,8 +87,8 @@ class EpisAccountOverviewProviderSpec extends Specification {
                 "2": new CashFlowValueDto(randomTime, 125, "EUR"),
              ])
             .transactions([
-                new CashFlowValueDto(randomTime, 100, "EEK"),
-                new CashFlowValueDto(randomTime, 20, "EUR"),
+                new CashFlowValueDto(randomTime, -100, "EEK"),
+                new CashFlowValueDto(randomTime, -20, "EUR"),
             ]).build()
         return cashFlowStatementDto
     }

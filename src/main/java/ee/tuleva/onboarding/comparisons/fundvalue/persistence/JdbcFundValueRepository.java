@@ -38,7 +38,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
             "SELECT * " +
             "FROM comparison_fund_values " +
             "WHERE fund=:fund " +
-            "ORDER BY abs(timestampdiff('SECOND', time, :time)) ASC NULLS LAST " +
+            "ORDER BY abs(extract(epoch from (time - :time))) ASC NULLS LAST " +
             "LIMIT 1";
 
     private static final String INSERT_VALUES_QUERY = "" +

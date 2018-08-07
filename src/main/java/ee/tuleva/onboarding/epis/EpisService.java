@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO;
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class EpisService {
   private final String CONTACT_DETAILS_CACHE_NAME = "contactDetails";
   private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
   private final String CASH_FLOW_STATEMENT_CACHE_NAME = "cashFlowStatement";
+  private final String FUNDS_CACHE_NAME = "funds";
 
   private final RestTemplate restTemplate;
 
@@ -163,6 +165,18 @@ public class EpisService {
   public void clearAccountStatementCache(Person person) {
     log.info("Clearing account statement cache for {} {}",
         person.getFirstName(), person.getLastName());
+  }
+
+  @Cacheable(value = FUNDS_CACHE_NAME, unless = "#result.isEmpty()")
+  public List<FundDto> getFunds() {
+    String url = episServiceUrl + "/funds";
+
+    log.info("Getting funds from", url);
+
+    ResponseEntity<FundDto[]> response = restTemplate.exchange(
+        url, HttpMethod.GET, new HttpEntity(getHeaders()), FundDto[].class);
+
+    return asList(response.getBody());
   }
 
 }

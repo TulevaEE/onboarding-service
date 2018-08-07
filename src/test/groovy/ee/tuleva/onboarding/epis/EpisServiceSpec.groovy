@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.epis
 
+import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto
 import ee.tuleva.onboarding.epis.cashflows.CashFlowValueDto
 import ee.tuleva.onboarding.epis.contact.UserPreferences
+import ee.tuleva.onboarding.epis.fund.FundDto
 import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
 import ee.tuleva.onboarding.mandate.MandateApplicationType
 import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
@@ -19,8 +21,9 @@ import spock.lang.Specification
 import java.text.SimpleDateFormat
 import java.time.Instant
 
-import static UserPreferences.defaultUserPreferences
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.epis.contact.UserPreferences.defaultUserPreferences
+import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE
 
 class EpisServiceSpec extends Specification {
 
@@ -120,6 +123,40 @@ class EpisServiceSpec extends Specification {
             cashFlowStatementDto == responseDto
     }
 
+    def "gets account statement"() {
+        given:
+        FundBalanceDto fundBalanceDto = FundBalanceDto.builder().isin("someIsin").build()
+        FundBalanceDto[] response = [fundBalanceDto]
+
+        1 * restTemplate.exchange(
+                _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
+            doesHttpEntityContainToken(httpEntity, sampleToken)
+        }, FundBalanceDto[].class) >> new ResponseEntity(response, HttpStatus.OK)
+
+        when:
+        List<FundBalanceDto> fundBalances = service.getAccountStatement(samplePerson())
+
+        then:
+        fundBalances == response
+    }
+
+    def "gets funds"() {
+        given:
+
+        FundDto[] sampleFunds = [new FundDto("EE3600109435", "Tuleva Maailma Aktsiate Pensionifond", "TUK75", 2, ACTIVE)]
+
+        1 * restTemplate.exchange(
+                _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
+            doesHttpEntityContainToken(httpEntity, sampleToken)
+        }, FundDto[].class) >> new ResponseEntity(sampleFunds, HttpStatus.OK)
+
+        when:
+        List<FundDto> funds = service.getFunds()
+
+        then:
+        funds == sampleFunds
+    }
+
     private static CashFlowStatementDto getFakeCashFlowStatement() {
         Instant randomTime = parseInstant("2001-01-01")
         CashFlowStatementDto cashFlowStatementDto = CashFlowStatementDto.builder()
@@ -145,6 +182,6 @@ class EpisServiceSpec extends Specification {
     List<MandateXmlMessage> sampleMessages = [new MandateXmlMessage("123", "message", MandateApplicationType.SELECTION)]
 
     private static Instant parseInstant(String format) {
-        return new SimpleDateFormat("yyyy-MM-dd").parse(format).toInstant();
+        return new SimpleDateFormat("yyyy-MM-dd").parse(format).toInstant()
     }
 }

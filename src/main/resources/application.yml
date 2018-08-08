@@ -63,7 +63,7 @@ maksekeskus:
 epis:
   service:
     url: http://localhost:9005/v1
-    bic: "ECSDEE20"
+    bic: "LCDELV22XXX"
 
 membership-success:
   url: http://localhost:8000/membership-success/
@@ -142,7 +142,7 @@ maksekeskus:
 epis:
   service:
     url: https://epis-service.tuleva.ee/v1
-    bic: "ECSDEE2X"
+    bic: "LCDELV22XXX"
 
 membership-success:
   url: https://tuleva.ee/membership-success/

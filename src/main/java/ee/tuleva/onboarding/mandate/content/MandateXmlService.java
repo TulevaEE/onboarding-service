@@ -69,7 +69,7 @@ public class MandateXmlService {
         return type;
     }
 
-    private String senderBic = "TULEVA20";
+    private String senderBic = "TULEVA20PPP";
 
     private String episEnvelopePrefix(String id)  {
         return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +

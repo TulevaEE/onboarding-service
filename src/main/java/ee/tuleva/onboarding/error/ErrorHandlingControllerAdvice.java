@@ -42,13 +42,13 @@ public class ErrorHandlingControllerAdvice {
 
     @ExceptionHandler(PensionRegistryAccountStatementConnectionException.class)
     public ResponseEntity<ErrorsResponse> handleErrors(PensionRegistryAccountStatementConnectionException exception) {
-        log.info("PensionRegistryAccountStatementConnectionException {}", exception.toString());
+        log.error("PensionRegistryAccountStatementConnectionException {}", exception.toString());
         return new ResponseEntity<>(exception.getErrorsResponse(), GATEWAY_TIMEOUT);
     }
 
     @ExceptionHandler(ErrorsResponseException.class)
     public ResponseEntity<ErrorsResponse> handleErrors(ErrorsResponseException exception) {
-        log.info("ErrorsResponseException {}", exception.toString());
+        log.error("{}", exception.toString());
         return new ResponseEntity<>(exception.getErrorsResponse(), BAD_REQUEST);
     }
 

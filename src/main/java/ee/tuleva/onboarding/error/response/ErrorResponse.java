@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.error.response;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,6 +13,7 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 @Getter
 @JsonInclude(NON_NULL)
 @Builder
+@ToString
 public class ErrorResponse {
 	private String code;
 	private String message;

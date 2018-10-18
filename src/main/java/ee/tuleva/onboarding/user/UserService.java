@@ -37,6 +37,7 @@ public class UserService {
     }
 
     public User createNewUser(User user) {
+        log.info("Creating new user {}", user);
         return userRepository.save(user);
     }
 
@@ -46,6 +47,8 @@ public class UserService {
             existingUser.setPhoneNumber(phoneNumber);
             return existingUser;
         }).orElseThrow(() -> new RuntimeException("User does not exist"));
+
+        log.info("Updating user {}", user);
 
         return save(user);
     }
@@ -88,6 +91,7 @@ public class UserService {
     }
 
     public User save(User user) {
+        log.info("Saving user {}", user);
         return userRepository.save(user);
     }
 
@@ -114,7 +118,7 @@ public class UserService {
                                 .active(true)
                                 .build())
                 );
-
+        log.info("Creating or updating user {}", user);
         return userRepository.save(user);
     }
 

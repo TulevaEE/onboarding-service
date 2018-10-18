@@ -1,11 +1,15 @@
 package ee.tuleva.onboarding.error.response;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.util.Collections;
 import java.util.List;
 
 @Getter
+@NoArgsConstructor
+@ToString
 public class ErrorsResponse {
 
 	private List<ErrorResponse> errors;
@@ -24,12 +28,5 @@ public class ErrorsResponse {
 
 	public boolean hasErrors() {
 		return errors.size() > 0;
-	}
-
-	public String toString() {
-		return errors.stream()
-				.map(errorResponse -> errorResponse.getCode()
-						.concat(";")).reduce(String::concat)
-				.orElse("No errors present");
 	}
 }

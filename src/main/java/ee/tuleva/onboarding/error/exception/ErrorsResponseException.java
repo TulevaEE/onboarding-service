@@ -2,12 +2,14 @@ package ee.tuleva.onboarding.error.exception;
 
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import lombok.Getter;
+import lombok.ToString;
 
 /**
  * Exception to propagate ErrorsResponse to ControllerAdvice
  */
 @Getter
-public abstract class ErrorsResponseException extends RuntimeException {
+@ToString
+public class ErrorsResponseException extends RuntimeException {
 
     protected ErrorsResponse errorsResponse;
 

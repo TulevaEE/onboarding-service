@@ -19,7 +19,8 @@ public class TransferExchangeService {
     private final FundRepository fundRepository;
 
     public List<TransferExchange> get(Person person) {
-        return episService.getTransferApplications(person).stream()
+        return
+            episService.getTransferApplications(person).stream()
                 .map(transferExchangeDTO -> TransferExchange.builder()
                         .amount(transferExchangeDTO.getAmount())
                         .currency(transferExchangeDTO.getCurrency())

@@ -30,6 +30,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.util.Collections.emptyList;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -76,8 +78,8 @@ public class EPIFundValueRetriever implements FundValueRetriever {
                 Stream<String> lines = reader.lines().skip(1); // skip tsv header
                 return parseLines(lines);
             } else {
-                warn("Calling pensionikeskus for EPI values returned non-200 response code (failed)");
-                return Collections.emptyList();
+                warn("Calling Pensionikeskus for EPI values returned response code: " + response.getStatusCode());
+                return emptyList();
             }
         };
     }

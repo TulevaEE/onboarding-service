@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.config.http;
 
+import ee.tuleva.onboarding.error.RestResponseErrorHandler;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -10,9 +12,12 @@ public class RestTemplateConfiguration {
 
     @Bean
     @Primary
-    RestTemplate restTemplate() {
-        final RestTemplate restTemplate = new RestTemplate();
-        return restTemplate;
+    RestTemplate restTemplate(RestTemplateBuilder restTemplateBuilder, RestResponseErrorHandler errorHandler) {
+        return restTemplateBuilder
+            .errorHandler(errorHandler)
+            .setConnectTimeout(60_000)
+            .setReadTimeout(60_000)
+            .build();
     }
 
 }

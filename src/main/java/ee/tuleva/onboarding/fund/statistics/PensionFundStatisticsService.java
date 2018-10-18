@@ -26,7 +26,7 @@ public class PensionFundStatisticsService {
 
   public PensionFundStatisticsService(RestTemplateBuilder restTemplateBuilder) {
     restTemplate = restTemplateBuilder
-        .setConnectTimeout(30_000)
+        .setConnectTimeout(60_000)
         .setReadTimeout(60_000)
         .additionalMessageConverters(new Jaxb2RootElementHttpMessageConverter())
       .build();

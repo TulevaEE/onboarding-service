@@ -42,11 +42,11 @@ public class HttpsURLConnectionConfiguration {
 
     private void initializeSslContext(KeyManager[] keyManagers, TrustManager[] trustManagers) {
         try {
-            SSLContext sslContext = SSLContext.getInstance("SSL");
+            SSLContext sslContext = SSLContext.getInstance("TLSv1.2");
             sslContext.init(keyManagers, trustManagers, new SecureRandom());
             SSLSocketFactory socketFactory = sslContext.getSocketFactory();
             HttpsURLConnection.setDefaultSSLSocketFactory(socketFactory);
-
+            SSLContext.setDefault(sslContext);
         } catch (NoSuchAlgorithmException | KeyManagementException e) {
             throw new RuntimeException(e);
         }
@@ -55,7 +55,7 @@ public class HttpsURLConnectionConfiguration {
     private TrustManager[] getTrustManagers() {
         return new TrustManager[] { new X509TrustManager() {
             public X509Certificate[] getAcceptedIssuers() {
-                return null;
+                return new X509Certificate[0];
             }
 
             public void checkClientTrusted(X509Certificate[] certs, String t) {

@@ -43,7 +43,7 @@ public class EPIFundValueRetriever implements FundValueRetriever {
     @Value("${logging.rollbar.accessToken:#{null}}")
     private String accessToken;
 
-    private static final String EPI_URL = "http://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/";
+    private static final String EPI_URL = "https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/";
 
     @Override
     public ComparisonFund getRetrievalFund() {

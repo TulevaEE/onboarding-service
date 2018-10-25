@@ -66,7 +66,7 @@ class EpiFundValueRetrieverSpec extends Specification {
         when:
             epiFundValueRetriever.retrieveValuesForRange(startTime, endTime)
         then:
-            1 * restTemplate.execute("http://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/?date_from=03.02.2018&date_to=05.04.2018&download=xls", _, _, _, _)
+            1 * restTemplate.execute("https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/?date_from=03.02.2018&date_to=05.04.2018&download=xls", _, _, _, _)
     }
 
     def "when a row is misformed it is ignored"() {

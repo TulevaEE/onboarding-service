@@ -1,0 +1,16 @@
+SELECT audit.audit_table('audit_log');
+SELECT audit.audit_table('comparison_fund_values');
+SELECT audit.audit_table('fund');
+SELECT audit.audit_table('fund_manager');
+SELECT audit.audit_table('fund_transfer_exchange');
+SELECT audit.audit_table('fund_transfer_statistics');
+SELECT audit.audit_table('fund_value_statistics');
+SELECT audit.audit_table('initial_capital');
+SELECT audit.audit_table('mandate');
+SELECT audit.audit_table('mandate_process');
+SELECT audit.audit_table('member');
+SELECT audit.audit_table('oauth_access_token');
+SELECT audit.audit_table('oauth_client_details');
+SELECT audit.audit_table('oauth_refresh_token');
+SELECT audit.audit_table('schema_version');
+SELECT audit.audit_table('users');

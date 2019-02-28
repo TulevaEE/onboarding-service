@@ -1,14 +1,17 @@
 package ee.tuleva.onboarding.epis.mandate;
 
-import lombok.Builder;
-import lombok.Getter;
+import lombok.*;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 
 @Getter
+@Setter
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
 public class TransferExchangeDTO implements Serializable {
 
     private String currency;

@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.epis.fund;
 
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 
-@Data
+@Getter
+@Setter
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
 public class FundDto {
 
   private String isin;

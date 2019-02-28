@@ -1,14 +1,15 @@
 package ee.tuleva.onboarding.epis.account;
 
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.math.BigDecimal;
 
-@Data
+@Getter
+@Setter
 @Builder
+@AllArgsConstructor
 @NoArgsConstructor
+@ToString
 public class FundBalanceDto {
     private String isin;
     private BigDecimal value;

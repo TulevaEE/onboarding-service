@@ -11,6 +11,6 @@ class InitialCapitalFixture {
                 .user(forUser)
                 .amount(1000.0)
                 .currency("EUR")
-                .ownershipFraction(0.0000_0001)
+                .ownershipFraction(0.000_000_0001)
     }
 }

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding
 
+import com.fasterxml.jackson.core.JsonGenerator
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.SerializationFeature
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
@@ -56,6 +57,7 @@ class BaseControllerSpec extends Specification {
     private MappingJackson2HttpMessageConverter jacksonMessageConverter() {
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules()
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+        objectMapper.enable(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN)
         MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter()
         converter.setObjectMapper(objectMapper)
         return converter

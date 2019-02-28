@@ -1,11 +1,17 @@
 package ee.tuleva.onboarding.capital
 
 import ee.tuleva.onboarding.BaseControllerSpec
-import org.springframework.http.HttpStatus
-import org.springframework.mock.web.MockHttpServletResponse
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.user.User
+import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.capital.InitialCapitalFixture.initialCapitalFixture
+import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
 class InitialCapitalControllerSpec extends BaseControllerSpec {
 
@@ -13,22 +19,25 @@ class InitialCapitalControllerSpec extends BaseControllerSpec {
 
     InitialCapitalRepository initialCapitalRepository = Mock(InitialCapitalRepository)
     InitialCapitalController controller = new InitialCapitalController(initialCapitalRepository)
-
-    InitialCapital sampleInitialCapital = new InitialCapital()
+    User user = sampleUser().build()
+    AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build()
 
     def setup() {
-        mockMvc = mockMvc(controller)
+        mockMvc = mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
     }
 
     def "InitialCapital: Get information about current user initial capital"() {
         given:
-        1 * initialCapitalRepository.findByUserId(_ as Long) >> sampleInitialCapital
-        when:
-        MockHttpServletResponse response = mockMvc
-                .perform(get("/v1/me/initial-capital")).andReturn().response
-        then:
-        response.status == HttpStatus.OK.value()
+        def initialCapital = initialCapitalFixture(user).build()
+        1 * initialCapitalRepository.findByUserId(user.id) >> initialCapital
 
+        expect:
+        mockMvc.perform(get("/v1/me/initial-capital"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(jsonPath('$.amount', is(initialCapital.amount.toDouble())))
+                .andExpect(jsonPath('$.currency', is(initialCapital.currency)))
+                .andExpect(jsonPath('$.ownershipFraction', is(initialCapital.ownershipFraction.toDouble())))
     }
 
 }

@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
+import static ee.tuleva.onboarding.capital.InitialCapitalFixture.initialCapitalFixture
 
 @DataJpaTest
 class InitialCapitalRepositorySpec extends Specification {
@@ -21,11 +22,7 @@ class InitialCapitalRepositorySpec extends Specification {
 		given:
 		User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
 
-		InitialCapital sampleInitialCapital = InitialCapital.builder()
-				.user(sampleUser)
-				.amount(1000)
-				.currency("EUR")
-				.build()
+		InitialCapital sampleInitialCapital = initialCapitalFixture(sampleUser).build()
 
 		entityManager.persist(sampleInitialCapital)
 
@@ -38,8 +35,8 @@ class InitialCapitalRepositorySpec extends Specification {
 		initialCapital.id != null
 		initialCapital.amount == sampleInitialCapital.amount
 		initialCapital.currency == sampleInitialCapital.currency
+        initialCapital.ownershipFraction == sampleInitialCapital.ownershipFraction
 		initialCapital.user == sampleUser
-
 	}
 
 }

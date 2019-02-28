@@ -16,7 +16,7 @@ class AuthenticatedPersonFixture {
         return authenticatedPersonFromUser(sampleUserNonMember().build())
     }
 
-    private static AuthenticatedPerson.AuthenticatedPersonBuilder authenticatedPersonFromUser(User user) {
+    static AuthenticatedPerson.AuthenticatedPersonBuilder authenticatedPersonFromUser(User user) {
         return AuthenticatedPerson.builder()
                 .firstName(user.firstName)
                 .lastName(user.lastName)

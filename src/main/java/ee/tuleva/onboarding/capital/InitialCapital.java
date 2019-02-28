@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.capital;
 
-import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.user.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,15 +25,16 @@ public class InitialCapital {
     private Long id;
 
     @NotNull
-    @JsonView(InitialCapitalView.SkipUserField.class)
-    BigDecimal amount;
+    private BigDecimal amount;
 
     @NotBlank
     @Size(min = 3, max = 3)
-    @JsonView(InitialCapitalView.SkipUserField.class)
-    String currency;
+    private String currency;
+
+    @NotNull
+    private BigDecimal ownershipFraction;
 
     @OneToOne
-    User user;
+    private User user;
 
 }

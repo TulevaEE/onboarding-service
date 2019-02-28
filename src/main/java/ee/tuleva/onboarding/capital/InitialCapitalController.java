@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.capital;
 
-import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +20,9 @@ public class InitialCapitalController {
 
     @ApiOperation(value = "Get info about current user initial capital")
     @RequestMapping(method = GET, value = INITIAL_CAPITAL_URI)
-    @JsonView(InitialCapitalView.SkipUserField.class)
-    public InitialCapital initialCapital(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-        return initialCapitalRepository.findByUserId(authenticatedPerson.getUserId());
+    public InitialCapitalDto initialCapital(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+        InitialCapital initialCapital = initialCapitalRepository.findByUserId(authenticatedPerson.getUserId());
+        return InitialCapitalDto.from(initialCapital);
     }
 
 }

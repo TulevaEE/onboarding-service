@@ -91,6 +91,21 @@ broken
             values == expectedValues
     }
 
+    def "zero values are ignored"() {
+        given:
+        ClientHttpResponse response = createResponse(HttpStatus.OK, """ignore\tthis\theader
+2013-01-07\tEPI\t0
+""")
+        1 * restTemplate.execute(_, _, _, _, _) >> {
+            String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
+                handler.extractData(response)
+        }
+        when:
+        List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(Instant.now(), Instant.now())
+        then:
+        values.empty
+    }
+
     def "when an invalid response is received, an empty list is returned"() {
         given:
         ClientHttpResponse response = createResponse(HttpStatus.BAD_REQUEST, "")

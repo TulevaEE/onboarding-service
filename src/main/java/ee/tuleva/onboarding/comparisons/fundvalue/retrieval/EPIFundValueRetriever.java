@@ -30,6 +30,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static java.math.BigDecimal.ZERO;
 import static java.util.Collections.emptyList;
 
 @Slf4j
@@ -108,6 +109,10 @@ public class EPIFundValueRetriever implements FundValueRetriever {
         Optional<BigDecimal> value = parseAmount(parts[2]);
 
         if (!time.isPresent() || !value.isPresent()) {
+            return Optional.empty();
+        }
+
+        if (value.get().compareTo(ZERO) <= 0) {
             return Optional.empty();
         }
 

@@ -96,6 +96,7 @@ bootRun {
 jacocoTestReport {
 	reports {
 		xml.enabled true
+		xml.destination "${buildDir}/reports/jacoco/report.xml"
 		html.enabled false
 		csv.enabled false
 	}

@@ -27,7 +27,7 @@ jobs:
           key: dependency-cache-{{ checksum "build.gradle" }}
       - run:
           name: Run tests
-          command: ./gradlew test
+          command: ./gradlew check
       - store_test_results:
           path: ./build/test-results
       - store_artifacts:

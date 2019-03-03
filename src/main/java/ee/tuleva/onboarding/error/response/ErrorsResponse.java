@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.error.response;
 
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 
 import java.util.Collections;
 import java.util.List;
 
 @Getter
+@Setter
 @NoArgsConstructor
+@AllArgsConstructor
 @ToString
 public class ErrorsResponse {
 
@@ -20,10 +20,6 @@ public class ErrorsResponse {
 
 	public static ErrorsResponse ofSingleError(ErrorResponse error) {
 		return new ErrorsResponse(Collections.singletonList(error));
-	}
-
-	public ErrorsResponse(List<ErrorResponse> errors) {
-		this.errors = errors;
 	}
 
 	public boolean hasErrors() {

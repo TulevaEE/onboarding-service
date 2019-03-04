@@ -11,6 +11,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.capital.InitialCapitalFixture.initialCapitalFixture
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
 class InitialCapitalControllerSpec extends BaseControllerSpec {
@@ -38,6 +39,17 @@ class InitialCapitalControllerSpec extends BaseControllerSpec {
                 .andExpect(jsonPath('$.amount', is(initialCapital.amount.toDouble())))
                 .andExpect(jsonPath('$.currency', is(initialCapital.currency)))
                 .andExpect(jsonPath('$.ownershipFraction', is(initialCapital.ownershipFraction.toDouble())))
+    }
+
+    def "InitialCapital: Return empty result when no initial capital"() {
+        given:
+        1 * initialCapitalRepository.findByUserId(user.id) >> null
+
+        expect:
+        mockMvc.perform(get("/v1/me/initial-capital"))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().string(""))
     }
 
 }

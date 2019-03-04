@@ -14,6 +14,10 @@ class InitialCapitalDto {
     private BigDecimal ownershipFraction;
 
     static InitialCapitalDto from(InitialCapital initialCapital) {
+        if (initialCapital == null) {
+            return null;
+        }
+        
         return builder()
             .amount(initialCapital.getAmount())
             .currency(initialCapital.getCurrency())

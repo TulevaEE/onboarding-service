@@ -1,34 +1,34 @@
 package ee.tuleva.onboarding.notification.email
 
-import org.thymeleaf.TemplateEngine
-import org.thymeleaf.context.Context
-import spock.lang.Ignore
+
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
 import spock.lang.Specification
 
-@Ignore
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+
+@SpringBootTest
 class EmailContentServiceSpec extends Specification {
 
-    TemplateEngine templateEngine = Mock(TemplateEngine)
-    EmailContentService emailContentService = new EmailContentService(templateEngine)
+    @Autowired
+    EmailContentService emailContentService
 
     def "get mandate email html content"() {
         given:
-        String sampleContent = "<p>hello</p>";
-        templateEngine.process("mandate_email", _ as Context) >> sampleContent
         when:
         String html = emailContentService.getMandateEmailHtml()
         then:
-        html == sampleContent
+        html.contains('tuleva@tuleva.ee')
     }
 
     def "get membership email html content"() {
         given:
-        String sampleContent = "<p>hello</p>";
-        templateEngine.process("mandate_email", _ as Context) >> sampleContent
+        def user = sampleUser().build()
         when:
-        String html = emailContentService.getMembershipEmailHtml()
+        String html = emailContentService.getMembershipEmailHtml(user)
         then:
-        html == sampleContent
+        html.contains(user.firstName)
+        html.contains(user.lastName)
     }
 
 }

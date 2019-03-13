@@ -50,8 +50,7 @@ truststore:
 
 mandate:
   email:
-    from: "avaldused@tuleva.ee"
-    bcc: "avaldused@tuleva.ee"
+    from: "tuleva@tuleva.ee"
 
 proxy:
   url: ${QUOTAGUARDSTATIC_URL}

@@ -16,8 +16,7 @@ class EmailServiceSpec extends Specification {
     EmailService service = new EmailService(mandateEmailConfiguration, emailContentService, mandrillApi)
 
     def setup() {
-        mandateEmailConfiguration.from >> "avaldused@tuleva.ee"
-        mandateEmailConfiguration.bcc >> "avaldused@tuleva.ee"
+        mandateEmailConfiguration.from >> "tuleva@tuleva.ee"
         mandateEmailConfiguration.mandrillKey >> Optional.of("")
     }
 

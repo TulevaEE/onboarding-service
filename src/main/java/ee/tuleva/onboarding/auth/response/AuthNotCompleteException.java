@@ -1,9 +1,9 @@
-package ee.tuleva.onboarding.auth.mobileid;
+package ee.tuleva.onboarding.auth.response;
 
 import org.springframework.security.oauth2.common.exceptions.ClientAuthenticationException;
 
-public class MobileIdAuthNotCompleteException extends ClientAuthenticationException {
-    MobileIdAuthNotCompleteException() {
+public class AuthNotCompleteException extends ClientAuthenticationException {
+    public AuthNotCompleteException() {
         super("Please keep polling.");
     }
 

@@ -10,11 +10,7 @@ PostgreSQL
 
 Running locally with docker:
 ```
-docker run -d --name tuleva-onboarding-database \
-                 -p 5432:5432 \
-                 -e "POSTGRES_USER=tuleva-onboarding" \
-                 -e "POSTGRES_DB=tuleva-onboarding" \
-                 postgres:9.6
+docker-compose up -d
 ```
 Creating a database:
 To run Flyway migrations for the first time, uncomment these lines in `application.yml`:

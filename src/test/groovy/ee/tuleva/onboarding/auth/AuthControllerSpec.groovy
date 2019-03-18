@@ -2,10 +2,14 @@ package ee.tuleva.onboarding.auth
 
 import com.codeborne.security.mobileid.MobileIDSession
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.auth.command.AuthenticationType
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService
 import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService
 import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService
+import ee.tuleva.onboarding.auth.smartid.SmartIdFixture
+import ee.tuleva.onboarding.auth.smartid.SmartIdSession
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletResponse
@@ -17,14 +21,28 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 class AuthControllerSpec extends BaseControllerSpec {
 
     MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
+    SmartIdAuthService smartIdAuthService = Mock(SmartIdAuthService)
     GenericSessionStore sessionStore = Mock(GenericSessionStore)
     IdCardAuthService idCardAuthService = Mock(IdCardAuthService)
-    AuthController controller = new AuthController(mobileIdAuthService, sessionStore, idCardAuthService)
+    AuthController controller = new AuthController(mobileIdAuthService, smartIdAuthService, sessionStore, idCardAuthService)
     private MockMvc mockMvc
 
     def setup() {
         mockMvc = mockMvc(controller)
         controller.idCardSecretToken = "Bearer secretz"
+    }
+
+    def "Authenticate: Initiate mobile id authentication (deprecated)"() {
+        given:
+        1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber) >> MobileIdFixture.sampleMobileIdSession
+        1 * sessionStore.save(_ as MobileIDSession)
+        when:
+        MockHttpServletResponse response = mockMvc
+                .perform(post("/authenticate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(sampleDeprecatedAuthenticateCommand()))).andReturn().response
+        then:
+        response.status == HttpStatus.OK.value()
     }
 
     def "Authenticate: Initiate mobile id authentication"() {
@@ -35,7 +53,20 @@ class AuthControllerSpec extends BaseControllerSpec {
         MockHttpServletResponse response = mockMvc
                 .perform(post("/authenticate")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(sampleAuthenticateCommand()))).andReturn().response
+                .content(mapper.writeValueAsString(sampleMobileIdAuthenticateCommand()))).andReturn().response
+        then:
+        response.status == HttpStatus.OK.value()
+    }
+
+    def "Authenticate: Initiate smart id authentication"() {
+        given:
+        1 * smartIdAuthService.startLogin(SmartIdFixture.identityCode) >> SmartIdFixture.sampleSmartIdSession
+        1 * sessionStore.save(_ as SmartIdSession)
+        when:
+        MockHttpServletResponse response = mockMvc
+                .perform(post("/authenticate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(sampleSmartIdAuthenticateCommand()))).andReturn().response
         then:
         response.status == HttpStatus.OK.value()
     }
@@ -94,9 +125,23 @@ class AuthControllerSpec extends BaseControllerSpec {
         1 * idCardAuthService.checkCertificate("test_cert")
     }
 
-    private sampleAuthenticateCommand() {
+    private sampleDeprecatedAuthenticateCommand() {
         [
                 phoneNumber: MobileIdFixture.samplePhoneNumber
+        ]
+    }
+
+    private sampleMobileIdAuthenticateCommand() {
+        [
+                value: MobileIdFixture.samplePhoneNumber,
+                type : AuthenticationType.MOBILE_ID.toString()
+        ]
+    }
+
+    private sampleSmartIdAuthenticateCommand() {
+        [
+                value: SmartIdFixture.identityCode,
+                type : AuthenticationType.SMART_ID.toString()
         ]
     }
 

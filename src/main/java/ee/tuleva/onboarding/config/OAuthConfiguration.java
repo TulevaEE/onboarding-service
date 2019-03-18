@@ -7,6 +7,8 @@ import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdTokenGranter;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService;
+import ee.tuleva.onboarding.auth.smartid.SmartIdTokenGranter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
@@ -61,7 +63,7 @@ public class OAuthConfiguration {
                     .regexMatchers(HttpMethod.POST, "/v1/users").hasAuthority(Authority.ROLE_CLIENT)
                     .regexMatchers(HttpMethod.HEAD, "/v1/members").hasAuthority(Authority.ROLE_CLIENT)
                     .regexMatchers("/v1/.*").hasAuthority(Authority.USER)
-                    ;
+            ;
         }
     }
 
@@ -74,6 +76,9 @@ public class OAuthConfiguration {
 
         @Autowired
         private MobileIdAuthService mobileIdAuthService;
+
+        @Autowired
+        private SmartIdAuthService smartIdAuthService;
 
         @Autowired
         private PrincipalService principalService;
@@ -132,27 +137,40 @@ public class OAuthConfiguration {
 
         private TokenGranter compositeTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {
             TokenGranter mobileIdTokenGranter = mobileIdTokenGranter(endpoints);
+            TokenGranter smartIdTokenGranter = smartIdTokenGranter(endpoints);
             TokenGranter idCardTokenGranter = idCardTokenGranter(endpoints);
             TokenGranter refreshTokenGranter = new RefreshTokenGranter(
-              endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
+                    endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
             TokenGranter clientCredentialsTokenGranter =
                     new ClientCredentialsTokenGranter(
                             endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
 
-            return new CompositeTokenGranter(asList(mobileIdTokenGranter, idCardTokenGranter,
-              refreshTokenGranter, clientCredentialsTokenGranter));
+            return new CompositeTokenGranter(asList(mobileIdTokenGranter, smartIdTokenGranter, idCardTokenGranter,
+                    refreshTokenGranter, clientCredentialsTokenGranter));
         }
 
         private MobileIdTokenGranter mobileIdTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {
             return new MobileIdTokenGranter(
-                            endpoints.getTokenServices(),
-                            clientDetailsService(),
-                            endpoints.getOAuth2RequestFactory(),
-                            mobileIdAuthService,
-                            principalService,
-                            genericSessionStore,
-                            grantedAuthorityFactory,
-                            applicationEventPublisher);
+                    endpoints.getTokenServices(),
+                    clientDetailsService(),
+                    endpoints.getOAuth2RequestFactory(),
+                    mobileIdAuthService,
+                    principalService,
+                    genericSessionStore,
+                    grantedAuthorityFactory,
+                    applicationEventPublisher);
+        }
+
+        private SmartIdTokenGranter smartIdTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {
+            return new SmartIdTokenGranter(
+                    endpoints.getTokenServices(),
+                    clientDetailsService(),
+                    endpoints.getOAuth2RequestFactory(),
+                    smartIdAuthService,
+                    principalService,
+                    genericSessionStore,
+                    grantedAuthorityFactory,
+                    applicationEventPublisher);
         }
 
         private IdCardTokenGranter idCardTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {

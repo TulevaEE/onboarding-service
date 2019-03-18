@@ -27,26 +27,36 @@ public class SmartIdAuthService {
 
         smartIdExecutor.execute(() -> {
             log.info("Starting authentication");
-            SmartIdAuthenticationResponse authenticationResponse = smartIdClient
-                    .createAuthentication()
-                    .withNationalIdentity(nationalIdentity)
-                    .withAuthenticationHash(authenticationHash)
-                    .withCertificateLevel("QUALIFIED") // Certificate level can either be "QUALIFIED" or "ADVANCED"
-                    .authenticate();
+            SmartIdAuthenticationResponse authenticationResponse = getSmartIdAuthenticationResponse(nationalIdentity, authenticationHash);
             log.info("Authentication ended");
 
-            AuthenticationResponseValidator authenticationResponseValidator = new AuthenticationResponseValidator();
-            SmartIdAuthenticationResult authenticationResult =
-                    authenticationResponseValidator.validate(authenticationResponse);
-            log.info("Response is valid {}", authenticationResult.isValid());
-            if (!authenticationResult.getErrors().isEmpty()) {
-                authenticationResult.getErrors().forEach(log::error);
-            }
+            SmartIdAuthenticationResult authenticationResult = getAuthenticationResult(authenticationResponse);
             session.setAuthenticationResult(authenticationResult);
 
         });
 
         return session;
+    }
+
+    SmartIdAuthenticationResponse getSmartIdAuthenticationResponse(NationalIdentity nationalIdentity,
+                                                                   AuthenticationHash authenticationHash) {
+        return smartIdClient
+                .createAuthentication()
+                .withNationalIdentity(nationalIdentity)
+                .withAuthenticationHash(authenticationHash)
+                .withCertificateLevel("QUALIFIED") // Certificate level can either be "QUALIFIED" or "ADVANCED"
+                .authenticate();
+    }
+
+    SmartIdAuthenticationResult getAuthenticationResult(SmartIdAuthenticationResponse authenticationResponse) {
+        AuthenticationResponseValidator authenticationResponseValidator = new AuthenticationResponseValidator();
+        SmartIdAuthenticationResult authenticationResult =
+                authenticationResponseValidator.validate(authenticationResponse);
+        log.info("Response is valid {}", authenticationResult.isValid());
+        if (!authenticationResult.getErrors().isEmpty()) {
+            authenticationResult.getErrors().forEach(log::error);
+        }
+        return authenticationResult;
     }
 
     public boolean isLoginComplete(SmartIdSession smartIdSession) {

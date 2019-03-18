@@ -125,20 +125,20 @@ class AuthControllerSpec extends BaseControllerSpec {
         1 * idCardAuthService.checkCertificate("test_cert")
     }
 
-    private sampleDeprecatedAuthenticateCommand() {
+    private static sampleDeprecatedAuthenticateCommand() {
         [
                 phoneNumber: MobileIdFixture.samplePhoneNumber
         ]
     }
 
-    private sampleMobileIdAuthenticateCommand() {
+    private static sampleMobileIdAuthenticateCommand() {
         [
                 value: MobileIdFixture.samplePhoneNumber,
                 type : AuthenticationType.MOBILE_ID.toString()
         ]
     }
 
-    private sampleSmartIdAuthenticateCommand() {
+    private static sampleSmartIdAuthenticateCommand() {
         [
                 value: SmartIdFixture.identityCode,
                 type : AuthenticationType.SMART_ID.toString()

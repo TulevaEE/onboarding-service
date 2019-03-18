@@ -1,7 +1,11 @@
 package ee.tuleva.onboarding.auth.smartid
 
 import ee.sk.smartid.AuthenticationHash
+import ee.sk.smartid.AuthenticationRequestBuilder
+import ee.sk.smartid.SmartIdAuthenticationResponse
 import ee.sk.smartid.SmartIdClient
+import ee.sk.smartid.exception.TechnicalErrorException
+import ee.sk.smartid.rest.dao.NationalIdentity
 import spock.lang.Specification
 
 import java.util.concurrent.Executor
@@ -57,5 +61,28 @@ class SmartIdAuthServiceSpec extends Specification {
         boolean isLoginComplete = smartIdAuthService.isLoginComplete(SmartIdFixture.sampleFinalSmartIdSession)
         then:
         isLoginComplete
+    }
+
+    def "GetSmartIdAuthenticationResponse: calls authenticate"() {
+        given:
+        NationalIdentity identity = new NationalIdentity("EE", SmartIdFixture.identityCode)
+        AuthenticationRequestBuilder mockBuilder = Mock(AuthenticationRequestBuilder)
+        1 * smartIdClient.createAuthentication() >> mockBuilder
+        1 * mockBuilder.withNationalIdentity(identity) >> mockBuilder
+        1 * mockBuilder.withAuthenticationHash(hash) >> mockBuilder
+        1 * mockBuilder.withCertificateLevel("QUALIFIED") >> mockBuilder
+        when:
+        smartIdAuthService.getSmartIdAuthenticationResponse(identity, hash)
+        then:
+        1 * mockBuilder.authenticate()
+    }
+
+    def "GetAuthenticationResult: throws when no cert"() {
+        given:
+        SmartIdAuthenticationResponse response = Mock(SmartIdAuthenticationResponse)
+        when:
+        smartIdAuthService.getAuthenticationResult(response)
+        then:
+        thrown(TechnicalErrorException)
     }
 }

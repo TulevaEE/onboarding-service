@@ -10,6 +10,7 @@ public class SmartIdFixture {
     public static String surName = "Kadakas";
     public static SmartIdSession sampleSmartIdSession = new SmartIdSession("12345");
     public static SmartIdSession sampleFinalSmartIdSession = new SmartIdSession("12345");
+    public static SmartIdSession sampleFinalSmartIdSessionWithErrors = new SmartIdSession("12345");
 
     static {
         SmartIdAuthenticationResult result = new SmartIdAuthenticationResult();
@@ -20,5 +21,10 @@ public class SmartIdFixture {
         identity.setSurName(surName);
         result.setAuthenticationIdentity(identity);
         sampleFinalSmartIdSession.setAuthenticationResult(result);
+
+        SmartIdAuthenticationResult result2 = new SmartIdAuthenticationResult();
+        result2.setValid(false);
+        result2.addError(SmartIdAuthenticationResult.Error.CERTIFICATE_EXPIRED);
+        sampleFinalSmartIdSessionWithErrors.setAuthenticationResult(result2);
     }
 }

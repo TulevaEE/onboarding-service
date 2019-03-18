@@ -38,6 +38,20 @@ class SmartIdAuthServiceSpec extends Specification {
         1 * smartIdExecutor.execute(_)
     }
 
+    def "IsLoginComplete: Login is not complete when no result"() {
+        when:
+        boolean isLoginComplete = smartIdAuthService.isLoginComplete(SmartIdFixture.sampleSmartIdSession)
+        then:
+        !isLoginComplete
+    }
+
+    def "IsLoginComplete: Login is not complete when result is not valid"() {
+        when:
+        smartIdAuthService.isLoginComplete(SmartIdFixture.sampleFinalSmartIdSessionWithErrors)
+        then:
+        thrown(IllegalStateException)
+    }
+
     def "IsLoginComplete: Fetch state of smart id login"() {
         when:
         boolean isLoginComplete = smartIdAuthService.isLoginComplete(SmartIdFixture.sampleFinalSmartIdSession)

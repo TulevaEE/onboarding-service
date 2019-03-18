@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth.mobileid
+package ee.tuleva.onboarding.auth.smartid
 
 import com.codeborne.security.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
@@ -11,30 +11,35 @@ import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.oauth2.common.OAuth2AccessToken
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
-import org.springframework.security.oauth2.provider.*
+import org.springframework.security.oauth2.provider.ClientDetails
+import org.springframework.security.oauth2.provider.ClientDetailsService
+import org.springframework.security.oauth2.provider.OAuth2Authentication
+import org.springframework.security.oauth2.provider.OAuth2Request
+import org.springframework.security.oauth2.provider.OAuth2RequestFactory
+import org.springframework.security.oauth2.provider.TokenRequest
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.sampleMobileIdSession
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sampleSmartIdSession
 
-class MobileIdTokenGranterSpec extends Specification {
+class SmartIdTokenGranterSpec extends Specification {
 
-    MobileIdTokenGranter mobileIdTokenGranter
+    SmartIdTokenGranter smartIdTokenGranter
     AuthorizationServerTokenServices authorizationServerTokenServices = Mock(AuthorizationServerTokenServices)
     ClientDetailsService clientDetailsService = Mock(ClientDetailsService)
     OAuth2RequestFactory oAuth2RequestFactory = Mock(OAuth2RequestFactory)
-    MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
+    SmartIdAuthService smartIdAuthService = Mock(SmartIdAuthService)
     PrincipalService principalService = Mock(PrincipalService)
     GenericSessionStore sessionStore = Mock(GenericSessionStore)
     GrantedAuthorityFactory grantedAuthorityFactory = Mock(GrantedAuthorityFactory)
     ApplicationEventPublisher applicationEventPublisher = Mock(ApplicationEventPublisher)
 
     def setup() {
-        mobileIdTokenGranter = new MobileIdTokenGranter(
+        smartIdTokenGranter = new SmartIdTokenGranter(
                 authorizationServerTokenServices,
                 clientDetailsService,
                 oAuth2RequestFactory,
-                mobileIdAuthService,
+                smartIdAuthService,
                 principalService,
                 sessionStore,
                 grantedAuthorityFactory,
@@ -49,52 +54,52 @@ class MobileIdTokenGranterSpec extends Specification {
         }
 
         when:
-        mobileIdTokenGranter.getAccessToken(clientDetails, Mock(TokenRequest))
+        smartIdTokenGranter.getAccessToken(clientDetails, Mock(TokenRequest))
         then:
         thrown InvalidRequestException
     }
 
-    def "GetAccessToken: Logging in without a mobile id session is not allowed"() {
+    def "GetAccessToken: Logging in without a smart id session is not allowed"() {
         given:
-        1 * sessionStore.get(MobileIDSession) >> Optional.of(sampleMobileIdSession)
-        1 * mobileIdAuthService.isLoginComplete(sampleMobileIdSession) >> false
+        1 * sessionStore.get(SmartIdSession) >> Optional.of(sampleSmartIdSession)
+        1 * smartIdAuthService.isLoginComplete(sampleSmartIdSession) >> false
 
         when:
-        mobileIdTokenGranter.getAccessToken(sampleClientDetails(), Mock(TokenRequest))
+        smartIdTokenGranter.getAccessToken(sampleClientDetails(), Mock(TokenRequest))
         then:
         thrown AuthNotCompleteException
     }
 
-    def "GetAccessToken: Logging in with no mobile id session returns null"() {
+    def "GetAccessToken: Logging in with no smart id session returns null"() {
         given:
-        1 * sessionStore.get(MobileIDSession) >> Optional.empty()
+        1 * sessionStore.get(SmartIdSession) >> Optional.empty()
 
         when:
-        OAuth2AccessToken token = mobileIdTokenGranter.getAccessToken(sampleClientDetails(), Mock(TokenRequest))
+        OAuth2AccessToken token = smartIdTokenGranter.getAccessToken(sampleClientDetails(), Mock(TokenRequest))
         then:
         token == null
     }
 
     def "GetAccessToken: Logging in with user and grant access token"() {
         given:
-        1 * sessionStore.get(MobileIDSession) >> Optional.of(sampleMobileIdSession)
-        1 * mobileIdAuthService.isLoginComplete(sampleMobileIdSession) >> true
+        1 * sessionStore.get(SmartIdSession) >> Optional.of(SmartIdFixture.sampleFinalSmartIdSession)
+        1 * smartIdAuthService.isLoginComplete(SmartIdFixture.sampleFinalSmartIdSession) >> true
         1 * principalService.getFrom({ Person person ->
-                    person.personalCode == sampleMobileIdSession.personalCode &&
-                    person.firstName == sampleMobileIdSession.firstName &&
-                    person.lastName == sampleMobileIdSession.lastName
+            person.personalCode == SmartIdFixture.identityCode &&
+                    person.firstName == SmartIdFixture.givenName &&
+                    person.lastName == SmartIdFixture.surName
 
         }) >> AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
         ClientDetails sampleClientDetails = sampleClientDetails()
         TokenRequest tokenRequest = Mock(TokenRequest) {
             1 * createOAuth2Request(sampleClientDetails) >> Mock(OAuth2Request)
         }
-        mobileIdTokenGranter.getTokenServices() >> authorizationServerTokenServices
+        smartIdTokenGranter.getTokenServices() >> authorizationServerTokenServices
         1 * authorizationServerTokenServices.createAccessToken(_ as OAuth2Authentication) >> Mock(OAuth2AccessToken)
         1 * applicationEventPublisher.publishEvent(_ as BeforeTokenGrantedEvent)
 
         when:
-        OAuth2AccessToken token = mobileIdTokenGranter.getAccessToken(sampleClientDetails, tokenRequest)
+        OAuth2AccessToken token = smartIdTokenGranter.getAccessToken(sampleClientDetails, tokenRequest)
         then:
         token != null
     }
@@ -104,5 +109,4 @@ class MobileIdTokenGranterSpec extends Specification {
             1 * getClientId() >> "test"
         }
     }
-
 }

@@ -2,11 +2,14 @@ package ee.tuleva.onboarding.auth;
 
 import com.codeborne.security.mobileid.MobileIDSession;
 import ee.tuleva.onboarding.auth.command.AuthenticateCommand;
+import ee.tuleva.onboarding.auth.command.AuthenticationType;
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
 import ee.tuleva.onboarding.auth.response.AuthenticateResponse;
 import ee.tuleva.onboarding.auth.response.IdCardLoginResponse;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService;
+import ee.tuleva.onboarding.auth.smartid.SmartIdSession;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +36,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
 public class AuthController {
 
     private final MobileIdAuthService mobileIdAuthService;
+    private final SmartIdAuthService smartIdAuthService;
     private final GenericSessionStore genericSessionStore;
     private final IdCardAuthService idCardAuthService;
 
@@ -48,6 +52,17 @@ public class AuthController {
             value = "/authenticate",
             consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
     public ResponseEntity<AuthenticateResponse> authenticate(@Valid @RequestBody AuthenticateCommand authenticateCommand) {
+        if (authenticateCommand.getType() == AuthenticationType.MOBILE_ID) {
+            MobileIDSession loginSession = mobileIdAuthService.startLogin(authenticateCommand.getValue());
+            genericSessionStore.save(loginSession);
+            return new ResponseEntity<>(AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);
+
+        } else if (authenticateCommand.getType() == AuthenticationType.SMART_ID) {
+            SmartIdSession loginSession = smartIdAuthService.startLogin(authenticateCommand.getValue());
+            genericSessionStore.save(loginSession);
+            return new ResponseEntity<>(AuthenticateResponse.fromSmartIdSession(loginSession), HttpStatus.OK);
+
+        }
         MobileIDSession loginSession = mobileIdAuthService.startLogin(authenticateCommand.getPhoneNumber());
         genericSessionStore.save(loginSession);
         return new ResponseEntity<>(AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);

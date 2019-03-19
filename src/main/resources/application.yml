@@ -83,7 +83,7 @@ mailchimp:
     id: someId
 
 smartid:
-  relyingPartyUUID: '00000000-0000-0000-0000-000000000000'
+  relyingPartyUUID: ${SMARTID_RELYING_PARTY_UUID:00000000-0000-0000-0000-000000000000}
   relyingPartyName: 'DEMO'
   hostUrl: 'https://sid.demo.sk.ee/smart-id-rp/v1/'
 

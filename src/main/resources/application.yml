@@ -90,7 +90,11 @@ smartid:
 # uncomment when starting with a clean DB
 #flyway:
 #  baseline-on-migrate: true
-
+logging:
+  level:
+    ee:
+      sk:
+        smartid: DEBUG
 ---
 
 spring:

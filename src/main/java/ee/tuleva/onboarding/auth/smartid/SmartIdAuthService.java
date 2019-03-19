@@ -1,11 +1,16 @@
 package ee.tuleva.onboarding.auth.smartid;
 
 import ee.sk.smartid.*;
+import ee.sk.smartid.exception.ServerMaintenanceException;
+import ee.sk.smartid.exception.TechnicalErrorException;
+import ee.sk.smartid.exception.UserAccountNotFoundException;
+import ee.sk.smartid.exception.UserRefusedException;
 import ee.sk.smartid.rest.dao.NationalIdentity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.concurrent.Executor;
 
 @Service
@@ -26,12 +31,25 @@ public class SmartIdAuthService {
         SmartIdSession session = new SmartIdSession(verificationCode);
 
         smartIdExecutor.execute(() -> {
-            log.info("Starting authentication");
-            SmartIdAuthenticationResponse authenticationResponse = getSmartIdAuthenticationResponse(nationalIdentity, authenticationHash);
-            log.info("Authentication ended");
+            try {
+                log.info("Starting authentication");
+                SmartIdAuthenticationResponse authenticationResponse = getSmartIdAuthenticationResponse(nationalIdentity, authenticationHash);
 
-            SmartIdAuthenticationResult authenticationResult = getAuthenticationResult(authenticationResponse);
-            session.setAuthenticationResult(authenticationResult);
+                SmartIdAuthenticationResult authenticationResult = getAuthenticationResult(authenticationResponse);
+                session.setAuthenticationResult(authenticationResult);
+
+            } catch (UserAccountNotFoundException e) {
+                log.info("User account not found", e);
+                session.setErrors(Collections.singletonList("User account not found"));
+            } catch (UserRefusedException e) {
+                log.info("User refused", e);
+                session.setErrors(Collections.singletonList("User refused"));
+            } catch (TechnicalErrorException | ServerMaintenanceException e) {
+                log.info("Technical error", e);
+                session.setErrors(Collections.singletonList("Smart ID technical error"));
+            } finally {
+                log.info("Authentication ended");
+            }
 
         });
 
@@ -60,14 +78,10 @@ public class SmartIdAuthService {
     }
 
     public boolean isLoginComplete(SmartIdSession smartIdSession) {
-        SmartIdAuthenticationResult authenticationResult = smartIdSession.authenticationResult;
-        if (authenticationResult == null) {
-            return false;
-        }
-        if (!authenticationResult.getErrors().isEmpty()) {
-            throw new IllegalStateException(String.join(",", smartIdSession.getAuthenticationResult().getErrors()));
+        if (!smartIdSession.getErrors().isEmpty()) {
+            throw new IllegalStateException(String.join(",", smartIdSession.getErrors()));
 
         }
-        return authenticationResult.isValid();
+        return smartIdSession.isValid();
     }
 }

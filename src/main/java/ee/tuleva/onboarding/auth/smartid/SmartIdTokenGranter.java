@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.auth.smartid;
 
-import ee.sk.smartid.AuthenticationIdentity;
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEventPublisher;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
@@ -72,22 +71,21 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
             throw new AuthNotCompleteException();
         }
 
-        AuthenticationIdentity identity = smartIdSession.authenticationResult.getAuthenticationIdentity();
 
         AuthenticatedPerson authenticatedPerson = principalService.getFrom(new Person() {
             @Override
             public String getPersonalCode() {
-                return identity.getIdentityCode();
+                return smartIdSession.getIdentityCode();
             }
 
             @Override
             public String getFirstName() {
-                return identity.getGivenName();
+                return smartIdSession.getGivenName();
             }
 
             @Override
             public String getLastName() {
-                return identity.getSurName();
+                return smartIdSession.getSurName();
             }
         });
 

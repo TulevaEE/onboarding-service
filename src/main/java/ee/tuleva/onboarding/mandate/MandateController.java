@@ -7,6 +7,7 @@ import com.codeborne.security.mobileid.SignatureFile;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import ee.tuleva.onboarding.auth.smartid.SmartIdSession;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
@@ -15,8 +16,8 @@ import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.MandateSignatureStatusResponse;
-import ee.tuleva.onboarding.mandate.response.MobileIdSignatureResponse;
-import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
+import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -55,8 +56,8 @@ public class MandateController {
     @RequestMapping(method = POST)
     @JsonView(MandateView.Default.class)
     public Mandate create(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-                                 @Valid @RequestBody CreateMandateCommand createMandateCommand,
-                                 @ApiIgnore Errors errors) throws ValidationErrorsException {
+                          @Valid @RequestBody CreateMandateCommand createMandateCommand,
+                          @ApiIgnore Errors errors) throws ValidationErrorsException {
         if (errors.hasErrors()) {
             log.info("Create mandate command is not valid: {}", errors);
             throw new ValidationErrorsException(errors);
@@ -68,8 +69,8 @@ public class MandateController {
 
     @ApiOperation(value = "Start signing mandate with mobile ID")
     @RequestMapping(method = PUT, value = "/{id}/signature/mobileId")
-    public MobileIdSignatureResponse startMobileIdSignature(@PathVariable("id") Long mandateId,
-                                                            @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    public MobileSignatureResponse startMobileIdSignature(@PathVariable("id") Long mandateId,
+                                                          @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
         Optional<MobileIDSession> session = genericSessionStore.get(MobileIDSession.class);
         MobileIDSession loginSession = session
@@ -78,7 +79,7 @@ public class MandateController {
         MobileIdSignatureSession signatureSession = mandateService.mobileIdSign(mandateId, authenticatedPerson.getUserId(), loginSession.phoneNumber);
         genericSessionStore.save(signatureSession);
 
-        return new MobileIdSignatureResponse(signatureSession.challenge);
+        return new MobileSignatureResponse(signatureSession.challenge, signatureSession.challenge);
     }
 
     @ApiOperation(value = "Is mandate successfully signed with mobile ID")
@@ -92,6 +93,31 @@ public class MandateController {
                 .orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
 
         String statusCode = mandateService.finalizeMobileIdSignature(authenticatedPerson.getUserId(), statisticsIdentifier, mandateId, session);
+
+        return new MandateSignatureStatusResponse(statusCode);
+    }
+
+    @ApiOperation(value = "Start signing mandate with Smart ID")
+    @RequestMapping(method = PUT, value = "/{id}/signature/smartId")
+    public MobileSignatureResponse startSmartIdSignature(@PathVariable("id") Long mandateId,
+                                                         @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+        SmartIdSignatureSession signatureSession = mandateService.smartIdSign(mandateId, authenticatedPerson.getUserId());
+        genericSessionStore.save(signatureSession);
+
+        return new MobileSignatureResponse(signatureSession.getChallengeCode(), signatureSession.getChallengeCode());
+    }
+
+    @ApiOperation(value = "Is mandate successfully signed with Smart ID")
+    @RequestMapping(method = GET, value = "/{id}/signature/smartId/status")
+    public MandateSignatureStatusResponse getSmartIdSignatureStatus(@PathVariable("id") Long mandateId,
+                                                                    @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+                                                                    @RequestHeader("x-statistics-identifier") UUID statisticsIdentifier) {
+
+        Optional<SmartIdSignatureSession> signatureSession = genericSessionStore.get(SmartIdSignatureSession.class);
+        SmartIdSignatureSession session = signatureSession
+                .orElseThrow(IdSessionException::smartIdSignatureSessionNotFound);
+
+        String statusCode = mandateService.finalizeSmartIdSignature(authenticatedPerson.getUserId(), statisticsIdentifier, mandateId, session);
 
         return new MandateSignatureStatusResponse(statusCode);
     }
@@ -142,10 +168,10 @@ public class MandateController {
     }
 
     @ApiOperation(value = "Get mandate file")
-    @RequestMapping(method = GET, value = "/{id}/file/preview", produces="application/zip")
+    @RequestMapping(method = GET, value = "/{id}/file/preview", produces = "application/zip")
     public void getMandateFilePreview(@PathVariable("id") Long mandateId,
-                               @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-                               HttpServletResponse response) throws IOException {
+                                      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+                                      HttpServletResponse response) throws IOException {
 
         List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, authenticatedPerson.getUserId());
         response.addHeader("Content-Disposition", "attachment; filename=Tuleva_avaldus.zip");
@@ -158,7 +184,7 @@ public class MandateController {
     private Mandate getMandateOrThrow(Long mandateId, Long userId) {
         Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
-        if(mandate == null) {
+        if (mandate == null) {
             throw new MandateNotFoundException();
         }
 

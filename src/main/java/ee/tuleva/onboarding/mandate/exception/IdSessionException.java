@@ -16,10 +16,24 @@ public class IdSessionException extends ErrorsResponseException {
         ));
     }
 
+    public static IdSessionException smartIdSessionNotFound() {
+        return new IdSessionException(ErrorsResponse.ofSingleError(
+                "smart.id.session.not.found",
+                "Smart ID session not found"
+        ));
+    }
+
     public static IdSessionException mobileSignatureSessionNotFound() {
         return new IdSessionException(ErrorsResponse.ofSingleError(
                 "mobile.id.signature.session.not.found",
                 "Mobile id signature session not found"
+        ));
+    }
+
+    public static IdSessionException smartIdSignatureSessionNotFound() {
+        return new IdSessionException(ErrorsResponse.ofSingleError(
+                "smart.id.signature.session.not.found",
+                "Smart ID signature session not found"
         ));
     }
 

@@ -13,21 +13,30 @@ import java.util.List;
 @AllArgsConstructor
 public class SignatureService {
 
-	private final MobileIDAuthenticator signer;
+    private final MobileIDAuthenticator signer;
+    private final SmartIdSigner smartIdSigner;
 
-	public MobileIdSignatureSession startSign(List<SignatureFile> files, String personalCode, String phone) {
-		return signer.startSign(files, personalCode, phone);
-	}
+    public MobileIdSignatureSession startSign(List<SignatureFile> files, String personalCode, String phone) {
+        return signer.startSign(files, personalCode, phone);
+    }
 
-	public byte[] getSignedFile(MobileIdSignatureSession session) {
-		return signer.getSignedFile(session);
-	}
+    public SmartIdSignatureSession startSmartIdSign(List<SignatureFile> files, String personalCode) {
+        return smartIdSigner.sign(files, personalCode);
+    }
 
-	public IdCardSignatureSession startSign(List<SignatureFile> files, String signingCertificate) {
-		return signer.startSign(files, signingCertificate);
-	}
+    public byte[] getSignedFile(SmartIdSignatureSession session) {
+        return smartIdSigner.getSignedFile(session);
+    }
 
-	public byte[] getSignedFile(IdCardSignatureSession session, String signedHash) {
-		return signer.getSignedFile(session, signedHash);
-	}
+    public byte[] getSignedFile(MobileIdSignatureSession session) {
+        return signer.getSignedFile(session);
+    }
+
+    public IdCardSignatureSession startSign(List<SignatureFile> files, String signingCertificate) {
+        return signer.startSign(files, signingCertificate);
+    }
+
+    public byte[] getSignedFile(IdCardSignatureSession session, String signedHash) {
+        return signer.getSignedFile(session, signedHash);
+    }
 }

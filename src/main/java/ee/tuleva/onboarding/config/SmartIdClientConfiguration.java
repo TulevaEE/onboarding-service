@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth.smartid;
+package ee.tuleva.onboarding.config;
 
 import ee.sk.smartid.SmartIdClient;
 import lombok.RequiredArgsConstructor;

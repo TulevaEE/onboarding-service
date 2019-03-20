@@ -11,7 +11,8 @@ import static java.util.Collections.singletonList
 class SignatureServiceTest extends Specification {
 
     def signer = Mock(MobileIDAuthenticator)
-    def service = new SignatureService(signer)
+    def smartIdSigner = Mock(SmartIdSigner)
+    def service = new SignatureService(signer, smartIdSigner)
 
     def "startSign() works for mobile id"() {
         given:

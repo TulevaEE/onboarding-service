@@ -7,8 +7,10 @@ import lombok.RequiredArgsConstructor;
 @Data
 @Builder
 @RequiredArgsConstructor
-public class MobileIdSignatureResponse {
+public class MobileSignatureResponse {
 
-	private final String mobileIdChallengeCode;
+    @Deprecated
+    private final String mobileIdChallengeCode;
+    private final String challengeCode;
 
 }

@@ -6,11 +6,10 @@ import com.codeborne.security.mobileid.SignatureFile;
 import ee.sk.smartid.*;
 import ee.sk.smartid.rest.dao.NationalIdentity;
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.springframework.stereotype.Service;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateEncodingException;
 import java.util.List;
 import java.util.concurrent.Executor;
@@ -40,8 +39,13 @@ public class SmartIdSigner {
             throw new RuntimeException(e);
         }
 
-        MessageDigest messageDigest = getMessageDigest();
-        SignableHash signableHash = signableHash(messageDigest.digest(idCardSession.hash.getBytes()));
+        SignableHash signableHash = new SignableHash();
+        try {
+            signableHash.setHash(Hex.decodeHex(idCardSession.hash.toCharArray()));
+        } catch (DecoderException e) {
+            throw new RuntimeException(e);
+        }
+        signableHash.setHashType(HashType.SHA256);
 
         SmartIdSignatureSession session = new SmartIdSignatureSession(signableHash.calculateVerificationCode(), idCardSession);
 
@@ -59,23 +63,6 @@ public class SmartIdSigner {
         });
 
         return session;
-    }
-
-    private MessageDigest getMessageDigest() {
-        MessageDigest digest;
-        try {
-            digest = MessageDigest.getInstance("SHA-256");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-        return digest;
-    }
-
-    private SignableHash signableHash(byte[] signatureToSign) {
-        SignableHash hashToSign = new SignableHash();
-        hashToSign.setHashType(HashType.SHA256);
-        hashToSign.setHash(signatureToSign);
-        return hashToSign;
     }
 
     public byte[] getSignedFile(SmartIdSignatureSession session) {

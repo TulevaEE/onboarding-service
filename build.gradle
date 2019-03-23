@@ -52,7 +52,7 @@ dependencies {
 	compile('net.sf.ehcache:ehcache')
 	compile('org.decampo:xirr:0.0')
 
-	compile('com.github.ErkoRisthein:mobileid:1.7')
+	compile('com.github.ErkoRisthein:mobileid:1.9')
 	compile('ee.sk.smartid:smart-id-java-client:1.0')
 
 	compile('com.getsentry.raven:raven-logback:7.8.3')

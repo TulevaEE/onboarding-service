@@ -5,7 +5,6 @@ import org.springframework.boot.actuate.audit.AuditEvent;
 
 import javax.persistence.*;
 import java.time.Instant;
-import java.util.Date;
 import java.util.Map;
 
 @Data
@@ -32,7 +31,7 @@ public class AuditLog {
 
     public static AuditLog fromAuditEvent(AuditEvent auditEvent) {
         return AuditLog.builder()
-                .timestamp(auditEvent.getTimestamp().toInstant())
+                .timestamp(auditEvent.getTimestamp())
                 .principal(auditEvent.getPrincipal())
                 .type(auditEvent.getType())
                 .data(auditEvent.getData())
@@ -41,7 +40,7 @@ public class AuditLog {
 
     public AuditEvent toAuditEvent() {
         return new AuditEvent(
-                Date.from(this.getTimestamp()),
+                this.getTimestamp(),
                 this.getPrincipal(),
                 this.getType(),
                 this.getData()

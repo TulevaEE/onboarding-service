@@ -29,7 +29,7 @@ public class UserService {
     //TODO: replace with Optional<User>
     @Nullable
     public User getById(Long userId) {
-        return userRepository.findOne(userId);
+        return userRepository.findById(userId).orElse(null);
     }
 
     public Optional<User> findByPersonalCode(String personalCode) {
@@ -54,7 +54,7 @@ public class UserService {
     }
 
     public User registerAsMember(Long userId, String fullName) {
-        User user = userRepository.findOne(userId);
+        User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("No user found"));
 
         if (user.getMember().isPresent()) {
             throw new UserAlreadyAMemberException("User is already a member! " + userId);
@@ -74,7 +74,7 @@ public class UserService {
     }
 
     public boolean isAMember(Long userId) {
-        Optional<User> user = Optional.ofNullable(userRepository.findOne(userId));
+        Optional<User> user = userRepository.findById(userId);
         return user.map(u -> u.getMember().isPresent()).orElse(false);
     }
 
@@ -83,7 +83,7 @@ public class UserService {
             String firstName = capitalizeFully(substringBeforeLast(fullName, " "));
             String lastName = capitalizeFully(substringAfterLast(fullName, " "));
             log.info("Updating user name from {} {} to {} {}",
-                user.getFirstName(), user.getLastName(), firstName, lastName);
+                    user.getFirstName(), user.getLastName(), firstName, lastName);
             user.setFirstName(firstName);
             user.setLastName(lastName);
         }

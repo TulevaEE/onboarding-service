@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.user.personalcode;
 
 
-import org.hibernate.validator.constraints.NotBlank;
+import javax.validation.constraints.NotBlank;
 
 import javax.validation.Constraint;
 import javax.validation.Payload;

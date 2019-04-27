@@ -6,9 +6,9 @@ import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import lombok.*;
-import org.hibernate.validator.constraints.Email;
 
 import javax.persistence.*;
+import javax.validation.constraints.Email;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.io.Serializable;
@@ -21,62 +21,63 @@ import java.util.Optional;
 @Table(name = "users")
 @AllArgsConstructor
 @NoArgsConstructor
-@EqualsAndHashCode(exclude={"member"})
+@EqualsAndHashCode(exclude = {"member"})
 public class User implements Person, Serializable {
 
-	@Id
-	@GeneratedValue(strategy = GenerationType.IDENTITY)
-	private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-	@OneToOne(cascade = CascadeType.ALL, mappedBy = "user", fetch = FetchType.LAZY)
-	Member member;
+    @OneToOne(cascade = CascadeType.ALL, mappedBy = "user", fetch = FetchType.LAZY)
+    Member member;
 
-	@ValidPersonalCode
-	private String personalCode;
+    @ValidPersonalCode
+    private String personalCode;
 
-	@Email
-	private String email;
+    @Email
+    private String email;
 
-	private String phoneNumber;
+    private String phoneNumber;
 
-	private String firstName;
+    private String firstName;
 
-	private String lastName;
+    private String lastName;
 
-	@NotNull
-	private Instant createdDate;
+    @NotNull
+    private Instant createdDate;
 
-	@NotNull
-	private Instant updatedDate;
+    @NotNull
+    private Instant updatedDate;
 
-	@NotNull
-	private Boolean active = true;
+    @NotNull
+    @Builder.Default
+    private Boolean active = true;
 
-	@Min(18)
-	public int getAge() {
-		return PersonalCode.getAge(personalCode);
-	}
+    @Min(18)
+    public int getAge() {
+        return PersonalCode.getAge(personalCode);
+    }
 
-	public Optional<Member> getMember() {
-		return Optional.ofNullable(member);
-	}
+    public Optional<Member> getMember() {
+        return Optional.ofNullable(member);
+    }
 
-	public Member getMemberOrThrow() {
-		return getMember().orElseThrow(NotAMemberException::new);
-	}
+    public Member getMemberOrThrow() {
+        return getMember().orElseThrow(NotAMemberException::new);
+    }
 
-	public boolean hasName() {
-		return firstName != null || lastName != null;
-	}
+    public boolean hasName() {
+        return firstName != null || lastName != null;
+    }
 
-	@PrePersist
-	protected void onCreate() {
-		createdDate = Instant.now();
-		updatedDate = Instant.now();
-	}
+    @PrePersist
+    protected void onCreate() {
+        createdDate = Instant.now();
+        updatedDate = Instant.now();
+    }
 
-	@PreUpdate
-	protected void onUpdate() {
-		updatedDate = Instant.now();
-	}
+    @PreUpdate
+    protected void onUpdate() {
+        updatedDate = Instant.now();
+    }
 }

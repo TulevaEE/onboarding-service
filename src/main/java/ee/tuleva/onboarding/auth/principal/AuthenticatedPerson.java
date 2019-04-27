@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.auth.principal;
 
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import lombok.*;
-import org.hibernate.validator.constraints.NotBlank;
 
+import javax.validation.constraints.NotBlank;
 import java.io.Serializable;
 
 @Builder

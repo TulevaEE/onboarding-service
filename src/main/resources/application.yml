@@ -1,8 +1,9 @@
 server:
   port: 9000
   error.whitelabel.enabled: false
-  session:
-    timeout: 3600
+  servlet:
+    session:
+      timeout: 3600
 
 spring:
   datasource:
@@ -10,11 +11,11 @@ spring:
     url: jdbc:postgresql://localhost:5432/tuleva-onboarding
     username: tuleva-onboarding
     password: tuleva-onboarding
-    initialize: false # set to true when starting with a clean DB
     continue-on-error: false
     test-on-borrow: true
     test-while-idle: true
     driver-class-name: org.postgresql.Driver
+    initialization-mode: never # set to always when starting with a clean DB
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
@@ -22,10 +23,6 @@ spring:
       ddl-auto: none
   mvc:
     throw-exception-if-no-handler-found: true
-  jackson:
-    date-format: com.fasterxml.jackson.databind.util.ISO8601DateFormat
-    serialization:
-      write_dates_as_timestamps: false
   cache:
     type: ehcache
 
@@ -103,15 +100,16 @@ spring:
     url: ${JDBC_DATABASE_URL}
     username: ${JDBC_DATABASE_USERNAME}
     password: ${JDBC_DATABASE_PASSWORD}
-    initialize: false
     tomcat:
       max-active: 60
+    initialization-mode: never
 
-flyway:
-  baseline-on-migrate: false
+  flyway:
+    baseline-on-migrate: false
 
 server:
-  session.cookie.domain: tuleva.ee # for session sharing across sub-domains
+  servlet:
+    session.cookie.domain: tuleva.ee # for session sharing across sub-domains
 
 ssl:
   keystore: ${SSL_KEYSTORE}
@@ -132,11 +130,6 @@ digidoc:
 id-card:
   secret:
     token: ${ID_CARD_SECRET_HEADER_TOKEN}
-
-endpoints:
-  enabled: false
-  health:
-    enabled: true
 
 mandrill:
   key: ${MANDRILL_KEY}

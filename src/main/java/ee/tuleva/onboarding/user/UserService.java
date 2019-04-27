@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.user;
 
-import ee.tuleva.onboarding.notification.mailchimp.MailChimpService;
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
@@ -24,7 +23,6 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final MemberRepository memberRepository;
-    private final MailChimpService mailChimpService;
 
     //TODO: replace with Optional<User>
     @Nullable

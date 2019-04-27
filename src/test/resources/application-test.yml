@@ -6,12 +6,14 @@ spring:
     password:
     driver-class-name: org.h2.Driver
     url: jdbc:h2:mem:testdb;MODE=PostgreSQL
-    initialize: true
     continue-on-error: false
+    initialization-mode: always
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: none
+  flyway:
+    baseline-on-migrate: true
 
 proxy:
   url: "http://sample:sample@sample:8000"
@@ -24,9 +26,6 @@ epis:
 
 logging.level:
   org.hibernate.type: TRACE
-
-flyway:
-  baseline-on-migrate: true
 
 mailchimp:
   api:

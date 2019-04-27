@@ -51,10 +51,10 @@ class UserSpec extends Specification {
 		firstName | lastName   | personalCode   | createdDate                           | updatedDate                           | email              | phone     | active || propertyName   | message
 		"Erko"    | "Risthein" | "385010100029" | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | "erko@risthein.ee" | "5555555" | true   || "personalCode" | "{ee.tuleva.onboarding.user.personalcode.ValidPersonalCode.message}"
 		"Erko"    | "Risthein" | "38501010001"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | "erko@risthein.ee" | "5555555" | true   || "personalCode" | "{ee.tuleva.onboarding.user.personalcode.ValidPersonalCode.message}"
-		"Erko"    | "Risthein" | "38501010002"  | null                                  | Instant.parse("2017-01-31T10:06:01Z") | "erko@risthein.ee" | "5555555" | true   || "createdDate"  | "may not be null"
-		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | null                                  | "erko@risthein.ee" | "5555555" | true   || "updatedDate"  | "may not be null"
-		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | " "                | "5555555" | true   || "email"        | "not a well-formed email address"
-		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | "erko@risthein.ee" | "5555555" | null   || "active"       | "may not be null"
+		"Erko"    | "Risthein" | "38501010002"  | null                                  | Instant.parse("2017-01-31T10:06:01Z") | "erko@risthein.ee" | "5555555" | true   || "createdDate"  | "must not be null"
+		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | null                                  | "erko@risthein.ee" | "5555555" | true   || "updatedDate"  | "must not be null"
+		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | " "                | "5555555" | true   || "email"        | "must be a well-formed email address"
+		"Erko"    | "Risthein" | "38501010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | "erko@risthein.ee" | "5555555" | null   || "active"       | "must not be null"
 		"Erko"    | "Risthein" | "59001010002"  | Instant.parse("2017-01-31T10:06:01Z") | Instant.parse("2017-01-31T10:06:01Z") | "erko@risthein.ee" | "5555555" | true   || "age"          | "must be greater than or equal to 18" // ticking time bomb. test will start failing in a hundred years :trollface:
 	}
 

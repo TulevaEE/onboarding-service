@@ -21,7 +21,7 @@ class PensionFundStatisticsServiceSpec extends Specification {
 	@Autowired
 	private MockRestServiceServer server
 
-	private static final String statisticsEndpointUrl = "endpointUrl"
+	private static final String statisticsEndpointUrl = "/endpointUrl"
 
 	def setup() {
 		service.statisticsEndpoint = statisticsEndpointUrl

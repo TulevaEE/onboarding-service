@@ -31,14 +31,16 @@ class MandateControllerSpec extends BaseControllerSpec {
     MockMvc mvc = mockMvc(controller)
 
     def "save a mandate"() {
-        expect:
+        when:
+        mandateService.save(_, _) >> sampleMandate()
+        then:
         mvc
-                .perform(post("/v1/mandates/")
-                .content(mapper.writeValueAsString(sampleCreateMandateCommand()))
-                .contentType(MediaType.APPLICATION_JSON))
+                .perform(post("/v1/mandates")
+                        .content(mapper.writeValueAsString(sampleCreateMandateCommand()))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-//TODO                .andExpect(jsonPath('$.futureContributionFundIsin', is(MandateFixture.sampleMandate().futureContributionFundIsin)))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
+                .andExpect(jsonPath('$.futureContributionFundIsin', is(sampleMandate().futureContributionFundIsin.get())))
 
     }
 
@@ -50,9 +52,9 @@ class MandateControllerSpec extends BaseControllerSpec {
         then:
         mvc
                 .perform(put("/v1/mandates/1/signature/mobileId")
-                .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
                 .andExpect(jsonPath('$.mobileIdChallengeCode', is("1234")))
     }
 
@@ -62,7 +64,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
         when:
         MvcResult result = mvc.perform(put("/v1/mandates/1/signature/mobileId"))
-        .andReturn()
+                .andReturn()
 
         then:
         IdSessionException exception = result.resolvedException
@@ -99,8 +101,8 @@ class MandateControllerSpec extends BaseControllerSpec {
         then:
         mvc
                 .perform(put("/v1/mandates/1/signature/idCard")
-                .content(mapper.writeValueAsString(sampleStartIdCardSignCommand("clientCertificate")))
-                .contentType(MediaType.APPLICATION_JSON))
+                        .content(mapper.writeValueAsString(sampleStartIdCardSignCommand("clientCertificate")))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath('$.hash', is("asdfg")))
@@ -116,8 +118,8 @@ class MandateControllerSpec extends BaseControllerSpec {
         then:
         mvc
                 .perform(put("/v1/mandates/1/signature/idCard/status").header("x-statistics-identifier", statisticsIdentifier)
-                .content(mapper.writeValueAsString(sampleFinishIdCardSignCommand("signedHash")))
-                .contentType(MediaType.APPLICATION_JSON))
+                        .content(mapper.writeValueAsString(sampleFinishIdCardSignCommand("signedHash")))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
@@ -127,7 +129,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         expect:
         mvc
                 .perform(put("/v1/mandates/1/signature/idCard/status")
-                .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
     }
 

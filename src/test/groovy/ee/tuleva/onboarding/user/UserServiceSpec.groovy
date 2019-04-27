@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.user
 
-import ee.tuleva.onboarding.notification.mailchimp.MailChimpService
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
 import spock.lang.Shared
@@ -14,8 +13,7 @@ class UserServiceSpec extends Specification {
 
   def userRepository = Mock(UserRepository)
   def memberRepository = Mock(MemberRepository)
-  def mailChimpService = Mock(MailChimpService)
-  def service = new UserService(userRepository, memberRepository, mailChimpService)
+  def service = new UserService(userRepository, memberRepository)
 
   @Shared String personalCodeSample = "somePersonalCode"
 
@@ -36,7 +34,7 @@ class UserServiceSpec extends Specification {
   def "get user by id"() {
     given:
     def user = sampleUser().build()
-    userRepository.findOne(1L) >> user
+    userRepository.findById(1L) >> Optional.of(user)
 
     when:
     def returnedUser = service.getById(1L)
@@ -62,7 +60,7 @@ class UserServiceSpec extends Specification {
   def "can register a non member user as a member"() {
     given:
     def user = sampleUserNonMember().build()
-    userRepository.findOne(user.id) >> user
+    userRepository.findById(user.id) >> Optional.of(user)
     memberRepository.getNextMemberNumber() >> 1000
     userRepository.save(_ as User) >> { User u -> u }
 
@@ -78,7 +76,7 @@ class UserServiceSpec extends Specification {
   def "trying to register a user who is already a member as a new member throws exception"() {
     given:
     def user = sampleUser().build()
-    userRepository.findOne(user.id) >> user
+    userRepository.findById(user.id) >> Optional.of(user)
 
     when:
     service.registerAsMember(user.id, "${user.firstName} ${user.lastName}")
@@ -89,7 +87,7 @@ class UserServiceSpec extends Specification {
 
   def "isAMember() works"() {
     given:
-    userRepository.findOne(user?.id) >> user
+    userRepository.findById(user?.id) >> Optional.ofNullable(user)
 
     when:
     def result = service.isAMember(user?.id)

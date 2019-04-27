@@ -35,7 +35,7 @@ class ErrorHandlingControllerAdviceSpec extends BaseControllerSpec {
                 ))
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
-                .andExpect(content().json('{"errors":[{"code":"NotNull","message":"may not be null","path":"fundTransferExchanges","arguments":[]}]}'))
+                .andExpect(content().json('{"errors":[{"code":"NotNull","message":"must not be null","path":"fundTransferExchanges","arguments":[]}]}'))
     }
 
 }

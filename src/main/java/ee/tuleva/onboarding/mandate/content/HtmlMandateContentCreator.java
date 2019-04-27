@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.mandate.content;
 
-import ee.tuleva.onboarding.config.TemplateEngineWrapper;
+import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextBuilder;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.thymeleaf.ITemplateEngine;
 import org.thymeleaf.context.Context;
 
 import java.math.BigDecimal;
@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class HtmlMandateContentCreator implements MandateContentCreator {
 
-    private final TemplateEngineWrapper templateEngine;
+    private final ITemplateEngine templateEngine;
 
     @Override
     public List<MandateContentFile> getContentFiles(User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {

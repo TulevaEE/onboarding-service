@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.mandate.content
 
-import ee.tuleva.onboarding.config.TemplateEngineWrapper
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateFixture
+import org.thymeleaf.ITemplateEngine
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -12,7 +12,7 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
 class MandateContentCreatorSpec extends Specification {
 
-    TemplateEngineWrapper templateEngine = Mock(TemplateEngineWrapper)
+    ITemplateEngine templateEngine = Mock(ITemplateEngine)
     MandateContentCreator mandateContentCreator = new HtmlMandateContentCreator(templateEngine)
 
     String sampleContent = "content"

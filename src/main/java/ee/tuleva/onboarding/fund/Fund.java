@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.fund;
 
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import lombok.*;
-import org.hibernate.validator.constraints.NotBlank;
 
 import javax.persistence.*;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 

@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.user.command;
 
 import lombok.Data;
-import org.hibernate.validator.constraints.Email;
 
+import javax.validation.constraints.Email;
 import javax.validation.constraints.NotNull;
 
 @Data

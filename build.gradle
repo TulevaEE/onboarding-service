@@ -34,7 +34,6 @@ repositories {
 }
 
 dependencies {
-	runtime("org.springframework.boot:spring-boot-properties-migrator")
 	compileOnly('org.projectlombok:lombok:1.18.6')
 	annotationProcessor('org.projectlombok:lombok:1.18.6')
 	compile('org.springframework.boot:spring-boot-starter-actuator')
@@ -54,16 +53,15 @@ dependencies {
 	compile('net.sf.ehcache:ehcache')
 	compile('org.decampo:xirr:0.0')
 
-	compile('com.github.ErkoRisthein:mobileid:1.9')
+	compile('com.github.ErkoRisthein:mobileid:1.9') {
+		exclude group: 'commons-logging', module: 'commons-logging'
+	}
 	compile('ee.sk.smartid:smart-id-java-client:1.0')
-    compile('com.github.ErkoRisthein:mobileid:1.9') {
-        exclude group: 'commons-logging', module: 'commons-logging'
-    }
 
 	compile('com.getsentry.raven:raven-logback:7.8.3')
 	compile('io.springfox:springfox-swagger2:2.6.1')
 	compile('io.springfox:springfox-swagger-ui:2.6.1')
-	
+
 	compile('org.hibernate:hibernate-java8')
 	compile('com.rollbar:rollbar:0.5.3')
 	compile('com.mandrillapp.wrapper.lutung:lutung:0.0.7')

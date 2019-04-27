@@ -19,10 +19,6 @@ spring:
     driver-class-name: org.postgresql.Driver
     initialization-mode: never # set to always when starting with a clean DB
   jpa:
-    properties:
-      hibernate:
-        temp:
-          use_jdbc_metadata_defaults: false
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
     hibernate:

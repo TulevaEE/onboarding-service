@@ -38,11 +38,11 @@ class ContextBuilderSpec extends Specification {
                 .user(user)
                 .build()
         then:
-        context.getVariables().get("email") == user.email
-        context.getVariables().get("firstName") == user.firstName
-        context.getVariables().get("lastName") == user.lastName
-        context.getVariables().get("idCode") == user.personalCode
-        context.getVariables().get("phoneNumber") == user.phoneNumber
+        context.getVariable("email") == user.email
+        context.getVariable("firstName") == user.firstName
+        context.getVariable("lastName") == user.lastName
+        context.getVariable("idCode") == user.personalCode
+        context.getVariable("phoneNumber") == user.phoneNumber
     }
 
     def "Mandate"() {
@@ -55,8 +55,8 @@ class ContextBuilderSpec extends Specification {
                 .mandate(sampleMandate)
                 .build()
         then:
-        context.getVariables().get("documentDate") == "1970-01-01"
-        context.getVariables().get("documentDatePPKKAAAA") == "01.01.1970"
+        context.getVariable("documentDate") == "1970-01-01"
+        context.getVariable("documentDatePPKKAAAA") == "01.01.1970"
     }
 
     def "Funds"() {
@@ -65,9 +65,9 @@ class ContextBuilderSpec extends Specification {
                 .funds(sampleFunds())
                 .build()
         then:
-        List<Fund> funds = context.getVariables().get("funds")
+        List<Fund> funds = context.getVariable("funds")
         areFundsSortedByName(funds)
-        Map<String, String> fundIsinNames = context.getVariables().get("fundIsinNames")
+        Map<String, String> fundIsinNames = context.getVariable("fundIsinNames")
         fundIsinNames.get(sampleFunds().get(0).isin) == sampleFunds().get(0).name
     }
 
@@ -83,7 +83,7 @@ class ContextBuilderSpec extends Specification {
                 .transactionId(sampleTransactionId)
                 .build()
         then:
-        context.getVariables().get("transactionId") == sampleTransactionId
+        context.getVariable("transactionId") == sampleTransactionId
     }
 
     def "FutureContributionFundIsin"() {
@@ -94,7 +94,7 @@ class ContextBuilderSpec extends Specification {
                 .futureContributionFundIsin(selectedFundIsin)
                 .build()
         then:
-        context.getVariables().get("selectedFundIsin") == selectedFundIsin
+        context.getVariable("selectedFundIsin") == selectedFundIsin
     }
 
     def "DocumentNumber"() {
@@ -105,7 +105,7 @@ class ContextBuilderSpec extends Specification {
                 .documentNumber(documentNumber)
                 .build()
         then:
-        context.getVariables().get("documentNumber") == documentNumber
+        context.getVariable("documentNumber") == documentNumber
     }
 
     def "FundTransferExchanges"() {
@@ -114,7 +114,7 @@ class ContextBuilderSpec extends Specification {
                 .fundTransferExchanges(sampleMandate().fundTransferExchanges)
                 .build()
         then:
-        context.getVariables().get("fundTransferExchanges") == sampleMandate().fundTransferExchanges
+        context.getVariable("fundTransferExchanges") == sampleMandate().fundTransferExchanges
     }
 
     def "GroupedFundTransferExchanges"() {
@@ -123,7 +123,7 @@ class ContextBuilderSpec extends Specification {
                 .groupedTransferExchanges(sampleMandate().fundTransferExchanges)
                 .build()
         then:
-        context.getVariables().get("groupedFundTransferExchanges").size() == 2
+        context.getVariable("groupedFundTransferExchanges").size() == 2
     }
 
     def "UserPreferences"() {
@@ -133,15 +133,15 @@ class ContextBuilderSpec extends Specification {
                 .userPreferences(dummyUserPreferences)
                 .build()
         then:
-        UserPreferences userPreferences = context.getVariables().get("userPreferences")
+        UserPreferences userPreferences = context.getVariable("userPreferences")
         userPreferences.country == dummyUserPreferences.country
-        context.getVariables().get("addressLine1") == dummyUserPreferences.addressRow1
-        context.getVariables().get("addressLine2") == dummyUserPreferences.addressRow2
-        context.getVariables().get("settlement") == dummyUserPreferences.addressRow2
-        context.getVariables().get("countryCode") == dummyUserPreferences.country
-        context.getVariables().get("postCode") == dummyUserPreferences.postalIndex
-        context.getVariables().get("districtCode") == dummyUserPreferences.districtCode
-        context.getVariables().get("email") == dummyUserPreferences.email
+        context.getVariable("addressLine1") == dummyUserPreferences.addressRow1
+        context.getVariable("addressLine2") == dummyUserPreferences.addressRow2
+        context.getVariable("settlement") == dummyUserPreferences.addressRow2
+        context.getVariable("countryCode") == dummyUserPreferences.country
+        context.getVariable("postCode") == dummyUserPreferences.postalIndex
+        context.getVariable("districtCode") == dummyUserPreferences.districtCode
+        context.getVariable("email") == dummyUserPreferences.email
     }
 
     def "UserPreferences don't overwrite User email"() {
@@ -154,6 +154,6 @@ class ContextBuilderSpec extends Specification {
                 .userPreferences(preferences)
                 .build()
         then:
-        context.getVariables().get("email") == user.email
+        context.getVariable("email") == user.email
     }
 }

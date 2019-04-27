@@ -8,8 +8,8 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.config.EmailConfiguration;
 import ee.tuleva.onboarding.user.User;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -20,16 +20,26 @@ import java.util.List;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class EmailService {
 
     private final EmailConfiguration emailConfiguration;
     private final EmailContentService emailContentService;
     private final MandrillApi mandrillApi;
 
+    @Autowired
+    public EmailService(EmailConfiguration emailConfiguration,
+                        EmailContentService emailContentService,
+                        @Autowired(required = false)
+                                MandrillApi mandrillApi) {
+        this.emailConfiguration = emailConfiguration;
+        this.emailContentService = emailContentService;
+        this.mandrillApi = mandrillApi;
+    }
+
+
     public void sendMandate(User user, Long mandateId, byte[] file) {
 
-        if(mandrillApi == null) {
+        if (mandrillApi == null) {
             log.warn("Mandrill not initialised, not sending mandate email for user {} and mandate {}.", user.getId(), mandateId);
             return;
         }
@@ -44,7 +54,7 @@ public class EmailService {
 
     public void sendMemberNumber(User user) {
 
-        if(mandrillApi == null) {
+        if (mandrillApi == null) {
             log.warn("Mandrill not initialised, not sending member number email for userId {}, member #", user.getId(), user.getMemberOrThrow().getMemberNumber());
             return;
         }
@@ -95,12 +105,12 @@ public class EmailService {
     private void send(User user, MandrillMessage message) {
         try {
             log.info("Sending email from {} to member {} {} at {}",
-              emailConfiguration.getFrom(),
-              user.getFirstName(), user.getLastName(),
-              user.getEmail()
+                    emailConfiguration.getFrom(),
+                    user.getFirstName(), user.getLastName(),
+                    user.getEmail()
             );
             MandrillMessageStatus[] messageStatusReports = mandrillApi
-              .messages().send(message, false);
+                    .messages().send(message, false);
 
             log.info("Mandrill API response {}", messageStatusReports[0].getStatus()); //FIXME [0]
         } catch (MandrillApiError mandrillApiError) {
@@ -130,7 +140,7 @@ public class EmailService {
     private List<MessageContent> getMandateAttachements(byte[] file, User user, Long mandateId) {
         MessageContent attachement = new MessageContent();
 
-        attachement.setName(getNameSuffix(user)+ "_avaldus_" + mandateId + ".bdoc");
+        attachement.setName(getNameSuffix(user) + "_avaldus_" + mandateId + ".bdoc");
         attachement.setType("application/bdoc");
         attachement.setContent(
                 Base64.getEncoder().encodeToString(file)

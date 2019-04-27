@@ -8,6 +8,8 @@ import org.springframework.boot.actuate.security.AuthenticationAuditListener;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
+
 @Component
 @Slf4j
 @RequiredArgsConstructor
@@ -19,7 +21,7 @@ public class AuditApplicationEventLogger {
     public void onAuditEvent(AuditApplicationEvent event) {
         AuditEvent auditEvent = event.getAuditEvent();
 
-        if (auditEvent.getType() == AuthenticationAuditListener.AUTHENTICATION_SUCCESS) {
+        if (Objects.equals(auditEvent.getType(), AuthenticationAuditListener.AUTHENTICATION_SUCCESS)) {
             return;
         }
 
@@ -34,7 +36,7 @@ public class AuditApplicationEventLogger {
             AuditLog.builder()
                     .type(auditEvent.getType())
                     .principal(auditEvent.getPrincipal())
-                    .timestamp(auditEvent.getTimestamp().toInstant())
+                    .timestamp(auditEvent.getTimestamp())
                     .data(auditEvent.getData())
                     .build()
         );

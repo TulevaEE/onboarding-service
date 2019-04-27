@@ -97,7 +97,7 @@ public class ContextBuilder {
         ctx.setVariable("countryCode", userPreferences.getCountry());
         ctx.setVariable("postCode", userPreferences.getPostalIndex());
         ctx.setVariable("districtCode", userPreferences.getDistrictCode());
-        if (ctx.getVariables().get("email") == null) {
+        if (ctx.getVariable("email") == null) {
             ctx.setVariable("email", userPreferences.getEmail());
         }
         return this;

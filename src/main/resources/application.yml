@@ -138,6 +138,7 @@ spring:
 server:
   servlet:
     session.cookie.domain: tuleva.ee # for session sharing across sub-domains
+  port: 5000
 
 ssl:
   keystore: ${SSL_KEYSTORE}

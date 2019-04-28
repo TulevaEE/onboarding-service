@@ -39,6 +39,12 @@ repositories {
 	}
 }
 
+processResources {
+	from ('.ebextensions/') {
+		into '.ebextensions'
+	}
+}
+
 dependencies {
 	compileOnly('org.projectlombok:lombok:1.18.6')
 	annotationProcessor('org.projectlombok:lombok:1.18.6')

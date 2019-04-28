@@ -2,49 +2,57 @@ version: 2
 jobs:
   build:
     environment:
-      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
-      _JAVA_OPTIONS: "-Xms512m -Xmx1024m"
+      TERM: dumb
     docker:
-      - image: circleci/openjdk:8-node-browsers
+      - image: circleci/openjdk:8-jdk
     steps:
       - checkout
-      - run:
-          name: Download dependencies
-          command: ./gradlew dependencies
-      - save_cache:
-          key: dependency-cache-{{ checksum "build.gradle" }}
-          paths:
-            - ~/.gradle
-  test:
-    environment:
-      GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
-      _JAVA_OPTIONS: "-Xms512m -Xmx1024m"
-    docker:
-      - image: circleci/openjdk:8-node-browsers
-    steps:
-      - checkout
+
       - restore_cache:
-          key: dependency-cache-{{ checksum "build.gradle" }}
+          keys:
+            - v1-dependencies-{{ arch }}-{{ checksum "build.gradle" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+
       - run:
-          name: Run tests
-          command: ./gradlew check
+          name: Build
+          command: ./gradlew build --no-daemon --stacktrace
+
       - store_test_results:
           path: ./build/test-results
+
       - store_artifacts:
           path: ./build/reports/
           destination: /reports
-      - run:
-          name: Upload coverage report
-          command: bash <(curl -s https://codecov.io/bash)
+
+      - save_cache:
+          key: v1-dependencies-{{ arch }}-{{ checksum "build.gradle" }}
+          paths:
+            - ~/.gradle
+
+      # Cache the build folder for the deploy job
+      - save_cache:
+          key: v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}
+          paths:
+            - build/libs
   deploy:
     docker:
-      - image: buildpack-deps:trusty
+      - image: meetfrank/circleci-node-awsebcli:latest
     steps:
       - checkout
+
+      # Restore the build folder from the build job
+      - restore_cache:
+          keys:
+            - v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}
+
       - run:
-          name: Deploy master to Heroku
+          name: Upgrade awsebcli
           command: |
-            git push https://heroku:$HEROKU_API_KEY@git.heroku.com/tuleva-onboarding-service.git master
+            sudo pip install awsebcli --upgrade
+      - deploy:
+          name: Deploy master to Production
+          command: eb deploy onboarding-service --label ${CIRCLE_SHA1} --timeout 20
 
 workflows:
   version: 2

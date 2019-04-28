@@ -1,0 +1,21 @@
+branch-defaults:
+  beanstalk:
+    environment: onboarding-service
+deploy:
+  artifact: build/libs/onboarding-service-0.0.1-SNAPSHOT.jar
+environment-defaults:
+  onboarding-service:
+    branch: null
+    repository: null
+global:
+  application_name: onboarding-service
+  default_ec2_keyname: DevOps
+  default_platform: arn:aws:elasticbeanstalk:eu-central-1::platform/Java 8 running
+    on 64bit Amazon Linux/2.7.1
+  default_region: eu-central-1
+  include_git_submodules: true
+  instance_profile: null
+  platform_name: null
+  platform_version: null
+  sc: git
+  workspace_type: Application

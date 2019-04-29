@@ -25,6 +25,7 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.R
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.ResourceServerSecurityConfigurer;
+import org.springframework.security.oauth2.provider.ClientDetailsService;
 import org.springframework.security.oauth2.provider.CompositeTokenGranter;
 import org.springframework.security.oauth2.provider.TokenGranter;
 import org.springframework.security.oauth2.provider.client.ClientCredentialsTokenGranter;
@@ -95,10 +96,8 @@ public class OAuthConfiguration {
         @Autowired
         private ApplicationEventPublisher applicationEventPublisher;
 
-        @Bean
-        public JdbcClientDetailsService clientDetailsService() {
-            return new JdbcClientDetailsService(dataSource);
-        }
+        @Autowired
+        private ClientDetailsService clientDetailsService;
 
         @Bean
         public TokenStore tokenStore() {
@@ -113,25 +112,25 @@ public class OAuthConfiguration {
             tokenServices.setSupportRefreshToken(true);
             tokenServices.setReuseRefreshToken(false);
             tokenServices.setAuthenticationManager(refreshingAuthenticationManager);
-            tokenServices.setClientDetailsService(clientDetailsService());
+            tokenServices.setClientDetailsService(clientDetailsService);
             return tokenServices;
         }
 
         @Override
         public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
-            clients.withClientDetails(clientDetailsService());
+            clients.jdbc(dataSource);
         }
 
         @Override
-        public void configure(AuthorizationServerSecurityConfigurer oauthServer) throws Exception {
+        public void configure(AuthorizationServerSecurityConfigurer oauthServer) {
             oauthServer.checkTokenAccess("hasAuthority('ROLE_TRUSTED_CLIENT')");
         }
 
         @Override
-        public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
+        public void configure(AuthorizationServerEndpointsConfigurer endpoints) {
             endpoints
-                    .tokenServices(tokenServices())
-                    .tokenGranter(compositeTokenGranter(endpoints));
+                .tokenServices(tokenServices())
+                .tokenGranter(compositeTokenGranter(endpoints));
 
         }
 
@@ -140,10 +139,10 @@ public class OAuthConfiguration {
             TokenGranter smartIdTokenGranter = smartIdTokenGranter(endpoints);
             TokenGranter idCardTokenGranter = idCardTokenGranter(endpoints);
             TokenGranter refreshTokenGranter = new RefreshTokenGranter(
-                    endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
+                    endpoints.getTokenServices(), clientDetailsService, endpoints.getOAuth2RequestFactory());
             TokenGranter clientCredentialsTokenGranter =
                     new ClientCredentialsTokenGranter(
-                            endpoints.getTokenServices(), clientDetailsService(), endpoints.getOAuth2RequestFactory());
+                            endpoints.getTokenServices(), clientDetailsService, endpoints.getOAuth2RequestFactory());
 
             return new CompositeTokenGranter(asList(mobileIdTokenGranter, smartIdTokenGranter, idCardTokenGranter,
                     refreshTokenGranter, clientCredentialsTokenGranter));
@@ -152,7 +151,7 @@ public class OAuthConfiguration {
         private MobileIdTokenGranter mobileIdTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {
             return new MobileIdTokenGranter(
                     endpoints.getTokenServices(),
-                    clientDetailsService(),
+                    clientDetailsService,
                     endpoints.getOAuth2RequestFactory(),
                     mobileIdAuthService,
                     principalService,
@@ -164,7 +163,7 @@ public class OAuthConfiguration {
         private SmartIdTokenGranter smartIdTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {
             return new SmartIdTokenGranter(
                     endpoints.getTokenServices(),
-                    clientDetailsService(),
+                    clientDetailsService,
                     endpoints.getOAuth2RequestFactory(),
                     smartIdAuthService,
                     principalService,
@@ -176,7 +175,7 @@ public class OAuthConfiguration {
         private IdCardTokenGranter idCardTokenGranter(AuthorizationServerEndpointsConfigurer endpoints) {
             return new IdCardTokenGranter(
                     endpoints.getTokenServices(),
-                    clientDetailsService(),
+                    clientDetailsService,
                     endpoints.getOAuth2RequestFactory(),
                     genericSessionStore,
                     principalService,

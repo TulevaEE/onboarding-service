@@ -9,7 +9,9 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService;
 import ee.tuleva.onboarding.auth.smartid.SmartIdTokenGranter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,26 +31,42 @@ import org.springframework.security.oauth2.provider.ClientDetailsService;
 import org.springframework.security.oauth2.provider.CompositeTokenGranter;
 import org.springframework.security.oauth2.provider.TokenGranter;
 import org.springframework.security.oauth2.provider.client.ClientCredentialsTokenGranter;
-import org.springframework.security.oauth2.provider.client.JdbcClientDetailsService;
 import org.springframework.security.oauth2.provider.refresh.RefreshTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
 import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
 import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import javax.sql.DataSource;
 
 import static ee.tuleva.onboarding.capital.InitialCapitalController.INITIAL_CAPITAL_URI;
+import static ee.tuleva.onboarding.config.OAuthConfiguration.ResourceServerPathConfiguration.RESOURCE_REQUEST_MATCHER_BEAN;
 import static java.util.Arrays.asList;
 
 @Configuration
 public class OAuthConfiguration {
 
     @Configuration
+    public static class ResourceServerPathConfiguration {
+        public static final String RESOURCE_REQUEST_MATCHER_BEAN = "resourceServerRequestMatcher";
+
+        @Bean(RESOURCE_REQUEST_MATCHER_BEAN)
+        public RequestMatcher resources() {
+            return new AntPathRequestMatcher("/v1/**");
+        }
+    }
+
+    @Configuration
     @EnableResourceServer
+    @RequiredArgsConstructor
     protected static class OAuthResourceServerConfig extends ResourceServerConfigurerAdapter {
 
         private static final String RESOURCE_ID = "onboarding-service";
+
+        @Qualifier(RESOURCE_REQUEST_MATCHER_BEAN)
+        final RequestMatcher resources;
 
         @Override
         public void configure(ResourceServerSecurityConfigurer resources) {
@@ -57,14 +75,14 @@ public class OAuthConfiguration {
 
         @Override
         public void configure(HttpSecurity http) throws Exception {
-            http
-                    .authorizeRequests()
-                    .regexMatchers("/v1" + INITIAL_CAPITAL_URI).hasAuthority(Authority.MEMBER)
-                    .regexMatchers(HttpMethod.GET, "/v1/funds.*").hasAnyAuthority(Authority.USER, Authority.ROLE_CLIENT)
-                    .regexMatchers(HttpMethod.POST, "/v1/users").hasAuthority(Authority.ROLE_CLIENT)
-                    .regexMatchers(HttpMethod.HEAD, "/v1/members").hasAuthority(Authority.ROLE_CLIENT)
-                    .regexMatchers("/v1/.*").hasAuthority(Authority.USER)
-            ;
+            http.requestMatcher(resources)
+                .authorizeRequests()
+                .regexMatchers("/v1" + INITIAL_CAPITAL_URI).hasAuthority(Authority.MEMBER)
+                .regexMatchers(HttpMethod.GET, "/v1/funds.*").hasAnyAuthority(Authority.USER, Authority.ROLE_CLIENT)
+                .regexMatchers(HttpMethod.POST, "/v1/users").hasAuthority(Authority.ROLE_CLIENT)
+                .regexMatchers(HttpMethod.HEAD, "/v1/members").hasAuthority(Authority.ROLE_CLIENT)
+                .regexMatchers("/v1/.*").hasAuthority(Authority.USER).
+                and().csrf().ignoringAntMatchers("/v1/**");
         }
     }
 

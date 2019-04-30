@@ -8,10 +8,11 @@ import javax.annotation.PostConstruct;
 import javax.net.ssl.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.Base64;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
@@ -20,7 +21,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 public class HttpsURLConnectionConfiguration {
 
     @Value("${ssl.keystore:#{null}}")
-    private String base64PKCSKeystore;
+    private String keystore;
 
     @Value("${ssl.keystore.password:#{null}}")
     private String keystorePassword;
@@ -53,7 +54,7 @@ public class HttpsURLConnectionConfiguration {
     }
 
     private TrustManager[] getTrustManagers() {
-        return new TrustManager[] { new X509TrustManager() {
+        return new TrustManager[]{new X509TrustManager() {
             public X509Certificate[] getAcceptedIssuers() {
                 return new X509Certificate[0];
             }
@@ -63,15 +64,15 @@ public class HttpsURLConnectionConfiguration {
 
             public void checkServerTrusted(X509Certificate[] certs, String t) {
             }
-        } };
+        }};
     }
 
     private KeyManager[] getKeyManagers() {
         KeyManager[] keyManagers = null;
 
         try {
-            if (!isBlank(base64PKCSKeystore)) {
-                byte[] p12 = Base64.getDecoder().decode(this.base64PKCSKeystore);
+            if (!isBlank(keystore)) {
+                byte[] p12 = Files.readAllBytes(Paths.get(keystore));
                 ByteArrayInputStream stream = new ByteArrayInputStream(p12);
 
                 KeyStore keyStore = KeyStore.getInstance("pkcs12");

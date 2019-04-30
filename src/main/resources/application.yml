@@ -66,7 +66,7 @@ mobile-id:
     name: "Testimine"
 
 truststore:
-  path: "test_keys/truststore.jks"
+  path: "/tmp/truststore.jks"
 
 mandate:
   email:
@@ -141,7 +141,7 @@ server:
   port: 5000
 
 ssl:
-  keystore: ${SSL_KEYSTORE}
+  keystore: /tmp/keystore.p12
   keystore.password: ${SSL_KEYSTORE_PASSWORD}
 
 proxy:

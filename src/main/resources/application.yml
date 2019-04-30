@@ -8,6 +8,8 @@ server:
       timeout: 3600
 
 spring:
+  application:
+    name: 'Onboarding Service'
   datasource:
     platform: POSTGRESQL
     url: jdbc:postgresql://localhost:5432/tuleva-onboarding
@@ -27,11 +29,23 @@ spring:
     throw-exception-if-no-handler-found: true
   cache:
     type: ehcache
+  boot:
+    admin:
+      client:
+        enabled: false
+        username: admin
+        password: Kalamaja123
+        url: http://localhost:8081
+        instance:
+          metadata:
+            user.name: ${spring.security.user.name}
+            user.password: ${spring.security.user.password}
 
-security:
-  oauth2:
-    resource:
-      filter-order: 3
+management:
+  endpoints:
+    web:
+      exposure:
+        include: '*'
 
 ssl:
   trustAllHTTPSHosts: true
@@ -108,6 +122,11 @@ spring:
 
   flyway:
     baseline-on-migrate: false
+  boot:
+    admin:
+      client:
+        enabled: true
+        url: 'https://admin.producement.com'
 
 server:
   servlet:

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.error
 
+import ee.tuleva.onboarding.config.OAuthConfiguration
 import ee.tuleva.onboarding.error.converter.ErrorAttributesConverter
 import ee.tuleva.onboarding.error.converter.InputErrorsConverter
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
@@ -26,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ErrorHandlingController)
 @WithMockUser
-@Import([ErrorResponseEntityFactory, InputErrorsConverter, ErrorAttributesConverter])
+@Import([ErrorResponseEntityFactory, InputErrorsConverter, ErrorAttributesConverter, OAuthConfiguration.ResourceServerPathConfiguration])
 class ErrorHandlingControllerSpec extends Specification {
 
     @TestConfiguration

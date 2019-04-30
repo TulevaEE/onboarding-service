@@ -62,7 +62,7 @@ workflows:
       - deploy:
           requires:
             - build
-          context: heroku-deployment
+          context: elastic-beanstalk-deployment
           filters:
             branches:
               only: master

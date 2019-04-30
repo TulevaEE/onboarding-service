@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.error
 
 import ee.tuleva.onboarding.config.OAuthConfiguration
+import ee.tuleva.onboarding.config.SecurityConfiguration
 import ee.tuleva.onboarding.error.converter.ErrorAttributesConverter
 import ee.tuleva.onboarding.error.converter.InputErrorsConverter
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
@@ -27,7 +28,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ErrorHandlingController)
 @WithMockUser
-@Import([ErrorResponseEntityFactory, InputErrorsConverter, ErrorAttributesConverter, OAuthConfiguration.ResourceServerPathConfiguration])
+@Import([ErrorResponseEntityFactory, InputErrorsConverter, ErrorAttributesConverter,
+    OAuthConfiguration.ResourceServerPathConfiguration, SecurityConfiguration])
 class ErrorHandlingControllerSpec extends Specification {
 
     @TestConfiguration
@@ -47,15 +49,15 @@ class ErrorHandlingControllerSpec extends Specification {
     def "error handling works"() {
         expect:
         mvc.perform(get("/error")
-                .requestAttr(RequestDispatcher.ERROR_EXCEPTION, new RuntimeException())
-                .requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 403)
-                .requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/asdf")
-                .requestAttr(RequestDispatcher.ERROR_MESSAGE, "oops!"))
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-                .andExpect(jsonPath('$.errors[0].code', is("RuntimeException")))
-                .andExpect(jsonPath('$.errors[0].message', is("oops!")))
-                .andExpect(jsonPath('$.errors[0].path').doesNotExist())
-                .andExpect(jsonPath('$.errors[0].arguments').doesNotExist())
+            .requestAttr(RequestDispatcher.ERROR_EXCEPTION, new RuntimeException())
+            .requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 403)
+            .requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/asdf")
+            .requestAttr(RequestDispatcher.ERROR_MESSAGE, "oops!"))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(jsonPath('$.errors[0].code', is("RuntimeException")))
+            .andExpect(jsonPath('$.errors[0].message', is("oops!")))
+            .andExpect(jsonPath('$.errors[0].path').doesNotExist())
+            .andExpect(jsonPath('$.errors[0].arguments').doesNotExist())
     }
 
 }

@@ -56,15 +56,12 @@ jobs:
 
 workflows:
   version: 2
-  build-test-and-deploy:
+  build-and-deploy:
     jobs:
       - build
-      - test:
-          requires:
-            - build
       - deploy:
           requires:
-            - test
+            - build
           context: heroku-deployment
           filters:
             branches:

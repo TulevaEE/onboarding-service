@@ -106,7 +106,7 @@ public class SecurityConfiguration {
                 .anyRequest().authenticated()
                 .and().httpBasic().and()
                 .csrf().ignoringAntMatchers("/authenticate", "/idLogin", "/oauth/token",
-                "/notifications/payments")
+                "/notifications/payments", "/actuator/**")
                 .and().authenticationProvider(authenticationProvider);
         }
     }

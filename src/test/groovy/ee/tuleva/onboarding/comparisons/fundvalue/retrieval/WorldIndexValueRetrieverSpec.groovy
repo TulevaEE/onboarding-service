@@ -18,15 +18,11 @@ import java.time.Instant
 class WorldIndexValueRetrieverSpec extends Specification {
 
     RestTemplate restTemplate
-    Environment environment
     WorldIndexValueRetriever retriever
 
     void setup() {
         restTemplate = Mock(RestTemplate)
-        environment = Mock(Environment)
-        environment.getActiveProfiles() >> ["test"]
-        retriever = new WorldIndexValueRetriever(environment, restTemplate)
-        retriever.accessToken = "test"
+        retriever = new WorldIndexValueRetriever(restTemplate)
     }
 
     def "it is configured for the right fund"() {

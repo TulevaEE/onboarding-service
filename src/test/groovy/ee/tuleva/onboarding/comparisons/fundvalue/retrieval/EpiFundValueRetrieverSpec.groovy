@@ -18,15 +18,11 @@ import java.time.Instant
 class EpiFundValueRetrieverSpec extends Specification {
 
     RestTemplate restTemplate
-    Environment environment
     EPIFundValueRetriever epiFundValueRetriever
 
     void setup() {
         restTemplate = Mock(RestTemplate)
-        environment = Mock(Environment)
-        environment.getActiveProfiles() >> ["test"]
-        epiFundValueRetriever = new EPIFundValueRetriever(environment, restTemplate)
-        epiFundValueRetriever.accessToken = "test"
+        epiFundValueRetriever = new EPIFundValueRetriever(restTemplate)
     }
 
     def "it is configured for the right fund"() {

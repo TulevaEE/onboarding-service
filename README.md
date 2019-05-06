@@ -3,16 +3,26 @@
 [![CircleCI](https://circleci.com/gh/TulevaEE/onboarding-service/tree/master.svg?style=shield)](https://circleci.com/gh/TulevaEE/onboarding-service/tree/master)
 [![codecov](https://codecov.io/gh/TulevaEE/onboarding-service/branch/master/graph/badge.svg)](https://codecov.io/gh/TulevaEE/onboarding-service)
 
+## Prerequisites
+ 
+- JDK 8
+- Groovy
+- Git
+- Gradle
+- Lombok
+- IntelliJ
+- Docker
+
 ## Tech stack
 
-**Database:**
+**Database**
+
 PostgreSQL
 
-Running locally with docker:
-```
-docker-compose up -d
-```
-Creating a database:
+Running locally with Docker: `docker-compose up -d`
+
+**Creating a Database**
+
 To run Flyway migrations for the first time, uncomment these lines in `application.yml`:
 ```
 #flyway:
@@ -21,78 +31,61 @@ To run Flyway migrations for the first time, uncomment these lines in `applicati
 
 and set `spring.initialize` to `true`
 
-**Backend:**
+**Backend**
+
 Java 8, Spring Boot, Gradle, Spock for testing
 
-**Frontend:**
+Running locally: `./gradlew bootRun`
+
+**Frontend**
+
 React, ES6, scss, custom bootstrap, enzyme + jest for testing
 
-**Error tracking:**
+**Exception Monitoring**
+
 Sentry
 
-**Conversion funnel:**
+**Analytics**
+
 Google Analytics / Mixpanel
 
-**Hosting:**
-Heroku
+**Hosting**
 
-For static IP - quotaguard static Heroku plugin
+AWS Elastic BeanStalk: EC2 and ELB
 
-**CI:**
+**Continuous Integration**
+
 CircleCI
 
-### API
-oAuth with mobile-ID and ID-card sign-in
+**Production Logs**
 
-[Swagger](https://onboarding-service.tuleva.ee/swagger-ui.html)
+Papertrail
+
+### API
+
+Authentication: oAuth with Mobile-ID, ID-card and Smart-ID
+
+[Swagger UI](https://onboarding-service.tuleva.ee/swagger-ui.html)
 
 [Postman API collection](reference/api.postman_collection)
 
+
 ### Build pipeline
 
-**Dev environment:**
-`./gradlew bootRun`
-
 **Production:**
-Merge GitHub pull request to master -> build in CircleCI -> redeploy to Heroku (if build is green)
-
-## Design (outdated)
-
-![N|Solid](reference/design.png)
-
-### SSL
-Using https://letsencrypt.org/
-
-`ssh id.tuleva.ee`
-
-`./certbot-auto certonly --manual`
-
-If certs have been expired run with debug and verbose flag.
-`sudo certbot certonly --debug-challenges -v --webroot -w .`
-
-Then get acme challenges from file system from `.well-known` and update acme challenges in applications and nginx.
-
-To generate certs for
-
-`id.tuleva.ee,epis-service.tuleva.ee,onboarding-service.tuleva.ee,pension.tuleva.ee`
-
-ACME challenge controller in the applications and `id.tuleva.ee` is in `nginx.conf`
-
-Cert hosting is correspondingly in Heroku and `nginx.conf`
-
-After generating new certificated copy them from `id.tuleva.ee` so that nginx will pick them up.
-
-```
-sudo cp -f /etc/letsencrypt/live/pension.tuleva.ee/fullchain.pem /home/ubuntu/subdomain.tuleva.ee.fullchain.pem
-sudo cp -f /etc/letsencrypt/live/pension.tuleva.ee/privkey.pem /home/ubuntu/subdomain.tuleva.ee.privkey.pem
-sudo service nginx restart
-```
-
-Now add the certs to Heroku, too. To all of the 3 services hosted there (epis-service, onboarding-service & onboarding-client).
+Merge GitHub pull request to master -> build in CircleCI -> auto-redeploy (if build is green)
 
 ### How to add new pension funds?
 1. Add the new fund to the `funds` database table.
 2. Add the fund name translations into the frontend `src/translations/` json files (i.e. `"target.funds.EE000000000.title": "My Pension Fund",`)
+
+### Development notes
+
+Front-end localhost development needs, cors enabling at `CORSFilter.java`
+e.g. `response.setHeader("Access-Control-Allow-Origin", "http://localhost:8000");`
+
+If you don't want to run epis-serivice,
+then you can mock `TransferExchangeService.java`, which calls epis-service.
 
 ### References
 
@@ -105,10 +98,3 @@ Now add the certs to Heroku, too. To all of the 3 services hosted there (epis-se
 [hwcrypto.js](https://hwcrypto.github.io/)
 
 [hwcrypto Sequence Diagram](https://github.com/hwcrypto/hwcrypto.js/wiki/SequenceDiagram)
-
-###Development notes
-Front-end localhost development needs, cors enabling at `CORSFilter.java`
-e.g. `        response.setHeader("Access-Control-Allow-Origin", "http://localhost:8000");`
-
-If you don't want to run epis-serivice,
-then you can mock `TransferExchangeService.java`, which calls epis-service.

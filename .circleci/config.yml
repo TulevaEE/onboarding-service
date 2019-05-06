@@ -34,7 +34,7 @@ jobs:
       - save_cache:
           key: v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}
           paths:
-            - build/libs
+            - build/distributions
   deploy:
     docker:
       - image: meetfrank/circleci-node-awsebcli:latest

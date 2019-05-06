@@ -66,7 +66,7 @@ mobile-id:
     name: "Testimine"
 
 truststore:
-  path: "/tmp/truststore.jks"
+  path: "test_keys/truststore.jks"
 
 mandate:
   email:
@@ -151,6 +151,9 @@ proxy:
 mobile-id:
   service:
     name: "Tuleva"
+
+truststore:
+  path: "/tmp/truststore.jks"
 
 digidoc:
   service:

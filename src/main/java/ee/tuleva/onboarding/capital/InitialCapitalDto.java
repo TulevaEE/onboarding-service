@@ -17,7 +17,7 @@ class InitialCapitalDto {
         if (initialCapital == null) {
             return null;
         }
-        
+
         return builder()
             .amount(initialCapital.getAmount())
             .currency(initialCapital.getCurrency())

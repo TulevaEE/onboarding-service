@@ -54,6 +54,13 @@ jobs:
           name: Deploy master to Production
           command: eb deploy onboarding-service --label ${CIRCLE_SHA1} --timeout 20
 
+  notify:
+    docker:
+      - image: getsentry/sentry-cli
+    steps:
+      - sentry-cli releases new -p ${CIRCLE_PROJECT_REPONAME} ${CIRCLE_SHA1}
+      - sentry-cli releases set-commits --auto ${CIRCLE_SHA1}
+
 workflows:
   version: 2
   build-and-deploy:
@@ -62,6 +69,13 @@ workflows:
       - deploy:
           requires:
             - build
+          context: elastic-beanstalk-deployment
+          filters:
+            branches:
+              only: master
+      - notify:
+          requires:
+            - deploy
           context: elastic-beanstalk-deployment
           filters:
             branches:

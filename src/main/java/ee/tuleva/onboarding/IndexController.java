@@ -11,10 +11,4 @@ public class IndexController {
         return "redirect:/swagger-ui.html";
     }
 
-    // Temporary fix for health endpoint change
-    @RequestMapping("/health")
-    public String health() {
-        return "forward:/actuator/health";
-    }
-
 }

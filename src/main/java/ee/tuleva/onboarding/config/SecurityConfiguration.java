@@ -101,7 +101,7 @@ public class SecurityConfiguration {
                 .authorizeRequests()
                 .requestMatchers(EndpointRequest.to("health")).permitAll()
                 .requestMatchers(EndpointRequest.toAnyEndpoint().excluding("health")).authenticated()
-                .regexMatchers("/", "/health", "/swagger-ui.html", "/authenticate", "/idLogin", "/oauth/token",
+                .regexMatchers("/", "/swagger-ui.html" ,"/webjars", "/authenticate", "/idLogin", "/oauth/token",
                     "/notifications/payments").permitAll()
                 .anyRequest().authenticated()
                 .and().httpBasic().and()

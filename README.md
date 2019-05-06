@@ -23,13 +23,25 @@ Running locally with Docker: `docker-compose up -d`
 
 **Creating a Database**
 
-To run Flyway migrations for the first time, uncomment these lines in `application.yml`:
+To run Flyway migrations for the first time, set `baseline-on-migrate` flag to true in `application.yml`:
 ```
-#flyway:
-#  baseline-on-migrate: true
+spring:
+  flyway:
+    baseline-on-migrate: true
 ```
 
-and set `spring.initialize` to `true`
+and set `initialization-mode` to `always`:
+```
+spring:
+  datasource:
+    initialization-mode: always
+```
+
+After running the application for the first time, change these parameters back to `false` and `never`. 
+
+**Environment Variables**
+
+Ask your fellow engineers for the `QUOTAGUARDSTATIC_URL` environment variable.
 
 **Backend**
 
@@ -98,3 +110,9 @@ then you can mock `TransferExchangeService.java`, which calls epis-service.
 [hwcrypto.js](https://hwcrypto.github.io/)
 
 [hwcrypto Sequence Diagram](https://github.com/hwcrypto/hwcrypto.js/wiki/SequenceDiagram)
+
+[Test Authentication Methods](https://www.id.ee/?lang=en&id=35755)
+
+[Test Mobile ID](https://demo.sk.ee/MIDCertsReg/)
+
+[Test ID Card](https://demo.sk.ee/upload_cert/)

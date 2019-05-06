@@ -1,9 +1,6 @@
 package ee.tuleva.onboarding.auth.smartid
 
-import ee.sk.smartid.AuthenticationHash
-import ee.sk.smartid.AuthenticationRequestBuilder
-import ee.sk.smartid.SmartIdAuthenticationResponse
-import ee.sk.smartid.SmartIdClient
+import ee.sk.smartid.*
 import ee.sk.smartid.exception.TechnicalErrorException
 import ee.sk.smartid.rest.dao.NationalIdentity
 import spock.lang.Specification

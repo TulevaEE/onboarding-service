@@ -58,6 +58,7 @@ jobs:
     docker:
       - image: getsentry/sentry-cli
     steps:
+      - checkout
       - run: sentry-cli releases new -p ${CIRCLE_PROJECT_REPONAME} ${CIRCLE_SHA1}
       - run: sentry-cli releases set-commits --auto ${CIRCLE_SHA1}
 

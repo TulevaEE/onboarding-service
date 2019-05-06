@@ -17,9 +17,10 @@ import java.util.concurrent.Executor;
 @RequiredArgsConstructor
 @Slf4j
 public class SmartIdAuthService {
-    public final SmartIdClient smartIdClient;
-    public final SmartIdAuthenticationHashGenerator hashGenerator;
-    public final Executor smartIdExecutor;
+    private final SmartIdClient smartIdClient;
+    private final SmartIdAuthenticationHashGenerator hashGenerator;
+    private final Executor smartIdExecutor;
+    private final AuthenticationResponseValidator authenticationResponseValidator;
 
     public SmartIdSession startLogin(String nationalIdentityCode) {
         NationalIdentity nationalIdentity = new NationalIdentity("EE", nationalIdentityCode);
@@ -67,20 +68,17 @@ public class SmartIdAuthService {
     }
 
     SmartIdAuthenticationResult getAuthenticationResult(SmartIdAuthenticationResponse authenticationResponse) {
-        AuthenticationResponseValidator authenticationResponseValidator = new AuthenticationResponseValidator();
-        SmartIdAuthenticationResult authenticationResult =
-                authenticationResponseValidator.validate(authenticationResponse);
-        log.info("Response is valid {}", authenticationResult.isValid());
-        if (!authenticationResult.getErrors().isEmpty()) {
-            authenticationResult.getErrors().forEach(log::error);
+        SmartIdAuthenticationResult result = authenticationResponseValidator.validate(authenticationResponse);
+        log.info("Response is valid {}", result.isValid());
+        if (!result.getErrors().isEmpty()) {
+            result.getErrors().forEach(log::error);
         }
-        return authenticationResult;
+        return result;
     }
 
     public boolean isLoginComplete(SmartIdSession smartIdSession) {
         if (!smartIdSession.getErrors().isEmpty()) {
             throw new IllegalStateException(String.join(",", smartIdSession.getErrors()));
-
         }
         return smartIdSession.isValid();
     }

@@ -17,9 +17,10 @@ class SmartIdAuthServiceSpec extends Specification {
     SmartIdAuthenticationHashGenerator hashGenerator = Mock(SmartIdAuthenticationHashGenerator)
     Executor smartIdExecutor = Mock(Executor)
     AuthenticationHash hash = Mock(AuthenticationHash)
+    AuthenticationResponseValidator validator = new AuthenticationResponseValidator()
 
     def setup() {
-        smartIdAuthService = new SmartIdAuthService(smartIdClient, hashGenerator, smartIdExecutor)
+        smartIdAuthService = new SmartIdAuthService(smartIdClient, hashGenerator, smartIdExecutor, validator)
     }
 
     def "StartLogin: Start mobile id login generates hash"() {

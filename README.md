@@ -28,7 +28,7 @@ Java 8, Spring Boot, Gradle, Spock for testing
 React, ES6, scss, custom bootstrap, enzyme + jest for testing
 
 **Error tracking:**
-Rollbar
+Sentry
 
 **Conversion funnel:**
 Google Analytics / Mixpanel

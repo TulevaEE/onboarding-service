@@ -67,7 +67,6 @@ dependencies {
 	compile('io.springfox:springfox-swagger-ui:2.6.1')
 
 	compile('org.hibernate:hibernate-java8')
-	compile('com.rollbar:rollbar:0.5.3')
 	compile('com.mandrillapp.wrapper.lutung:lutung:0.0.7')
 
 	compile('com.ecwid:maleorang:3.0-0.9.6')

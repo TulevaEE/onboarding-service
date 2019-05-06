@@ -75,7 +75,7 @@ mandate:
 
 proxy:
   url: ${QUOTAGUARDSTATIC_URL}
-  nonProxyHosts: "mandrillapp.com|sk.ee|rollbar.com|localhost"
+  nonProxyHosts: "mandrillapp.com|sk.ee|sentry.io|localhost"
 
 maksekeskus:
   secret: IEmvmvjuuAc4XJWyD48LjdXnRej77JkSq72QAeDQYQgt2nY25tsjhdFg9ZA99lQf
@@ -146,7 +146,7 @@ ssl:
 
 proxy:
   url: ${QUOTAGUARDSTATIC_URL}
-  nonProxyHosts: "mandrillapp.com|rollbar.com|localhost"
+  nonProxyHosts: "mandrillapp.com|sentry.io|localhost"
 
 mobile-id:
   service:
@@ -162,10 +162,6 @@ id-card:
 
 mandrill:
   key: ${MANDRILL_KEY}
-
-logging:
-  rollbar:
-    accessToken: ${ROLLBAR_ACCESS_TOKEN}
 
 maksekeskus:
   secret: ${MAKSEKESKUS_SECRET}

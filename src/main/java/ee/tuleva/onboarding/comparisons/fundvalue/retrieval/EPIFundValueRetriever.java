@@ -1,12 +1,9 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
-import com.rollbar.Rollbar;
 import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -26,7 +23,10 @@ import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -38,11 +38,7 @@ import static java.util.Collections.emptyList;
 @RequiredArgsConstructor
 public class EPIFundValueRetriever implements FundValueRetriever {
 
-    private final Environment environment;
     private final RestTemplate restTemplate;
-
-    @Value("${logging.rollbar.accessToken:#{null}}")
-    private String accessToken;
 
     private static final String EPI_URL = "https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/";
 
@@ -63,12 +59,12 @@ public class EPIFundValueRetriever implements FundValueRetriever {
         String endDate = format.format(Date.from(endTime));
 
         return UriComponentsBuilder
-                .fromHttpUrl(EPI_URL)
-                .queryParam("date_from", startDate)
-                .queryParam("date_to", endDate)
-                .queryParam("download", "xls")
-                .build()
-                .toUriString();
+            .fromHttpUrl(EPI_URL)
+            .queryParam("date_from", startDate)
+            .queryParam("date_to", endDate)
+            .queryParam("download", "xls")
+            .build()
+            .toUriString();
     }
 
     private ResponseExtractor<List<FundValue>> getResponseExtractor() {
@@ -79,7 +75,7 @@ public class EPIFundValueRetriever implements FundValueRetriever {
                 Stream<String> lines = reader.lines().skip(1); // skip tsv header
                 return parseLines(lines);
             } else {
-                warn("Calling Pensionikeskus for EPI values returned response code: " + response.getStatusCode());
+                log.warn("Calling Pensionikeskus for EPI values returned response code: " + response.getStatusCode());
                 return emptyList();
             }
         };
@@ -87,16 +83,16 @@ public class EPIFundValueRetriever implements FundValueRetriever {
 
     private List<FundValue> parseLines(Stream<String> lines) {
         return lines
-                .map(this::parseLine)
-                .filter(Optional::isPresent)
-                .map(Optional::get)
-                .collect(Collectors.toList());
+            .map(this::parseLine)
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .collect(Collectors.toList());
     }
 
     private Optional<FundValue> parseLine(String line) {
         String[] parts = line.split("\t");
         if (parts.length != 3) {
-            warn("EPI response line did not have 3 tab-separated parts, so parsing failed");
+            log.warn("EPI response line did not have 3 tab-separated parts, so parsing failed");
             return Optional.empty();
         }
 
@@ -117,10 +113,10 @@ public class EPIFundValueRetriever implements FundValueRetriever {
         }
 
         return Optional.of(FundValue.builder()
-                .comparisonFund(ComparisonFund.EPI)
-                .time(time.get())
-                .value(value.get())
-                .build());
+            .comparisonFund(ComparisonFund.EPI)
+            .time(time.get())
+            .value(value.get())
+            .build());
     }
 
     private Optional<Instant> parseTime(String time) {
@@ -128,7 +124,7 @@ public class EPIFundValueRetriever implements FundValueRetriever {
         try {
             return Optional.of(format.parse(time).toInstant());
         } catch (ParseException e) {
-            warn("Failed to parse time out of a line of epi fund values response");
+            log.warn("Failed to parse time out of a line of epi fund values response");
             return Optional.empty();
         }
     }
@@ -141,21 +137,14 @@ public class EPIFundValueRetriever implements FundValueRetriever {
         try {
             return Optional.of((BigDecimal) decimalFormat.parse(amount));
         } catch (ParseException e) {
-            warn("Failed to parse value out of a line of epi fund values response");
+            log.warn("Failed to parse value out of a line of epi fund values response");
             return Optional.empty();
         }
     }
 
     private RequestCallback getRequestCallback() {
         return request -> request
-                .getHeaders()
-                .setAccept(Arrays.asList(MediaType.APPLICATION_OCTET_STREAM, MediaType.TEXT_PLAIN));
-    }
-
-    private void warn(String message) {
-        log.warn(message);
-        new Rollbar(accessToken, environment.getActiveProfiles()[0])
-            .platform(System.getProperty("java.version"))
-            .warning(message);
+            .getHeaders()
+            .setAccept(Arrays.asList(MediaType.APPLICATION_OCTET_STREAM, MediaType.TEXT_PLAIN));
     }
 }

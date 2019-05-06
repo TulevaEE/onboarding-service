@@ -17,7 +17,7 @@ spring:
 
 proxy:
   url: "http://sample:sample@sample:8000"
-  nonProxyHosts: "mandrillapp.com|sk.ee|rollbar.com|localhost"
+  nonProxyHosts: "mandrillapp.com|sk.ee|sentry.io|localhost"
 
 epis:
   service:

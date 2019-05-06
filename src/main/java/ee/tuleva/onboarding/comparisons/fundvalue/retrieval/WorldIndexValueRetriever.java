@@ -1,12 +1,9 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
-import com.rollbar.Rollbar;
 import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -37,11 +34,7 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class WorldIndexValueRetriever implements FundValueRetriever {
 
-    private final Environment environment;
     private final RestTemplate restTemplate;
-
-    @Value("${logging.rollbar.accessToken:#{null}}")
-    private String accessToken;
 
     private static final String SOURCE_URL = "https://docs.google.com/spreadsheets/d/125aXusxnf-Mij-4D4W5Qnneb8H4chjebnIMpyrAfRkI/gviz/tq?tqx=out:csv&gid=619370394";
 
@@ -63,7 +56,7 @@ public class WorldIndexValueRetriever implements FundValueRetriever {
                 Stream<String> lines = reader.lines().skip(3);
                 return parseLines(lines, startDate, endDate);
             } else {
-                warn("Failed to fetch World Index values");
+                log.warn("Failed to fetch World Index values");
                 return Collections.emptyList();
             }
         };
@@ -85,11 +78,11 @@ public class WorldIndexValueRetriever implements FundValueRetriever {
         log.debug("Parsing line: [{}].", line);
         String[] parts = line.split("\",\"");
         if (parts.length < 6) {
-            warn("Invalid line: Less than 6 columns.");
+            log.warn("Invalid line: Less than 6 columns.");
             return Optional.empty();
         }
         parts[0] = parts[0].replaceFirst("^\"", "");
-        parts[parts.length-1] = parts[parts.length-1].replaceFirst("\"$", "");
+        parts[parts.length - 1] = parts[parts.length - 1].replaceFirst("\"$", "");
 
         log.debug("Parts({}): {}", parts.length, parts);
 
@@ -112,7 +105,7 @@ public class WorldIndexValueRetriever implements FundValueRetriever {
         try {
             return Optional.of(format.parse(time).toInstant());
         } catch (ParseException e) {
-            warn("Failed to parse time");
+            log.warn("Failed to parse time");
             return Optional.empty();
         }
     }
@@ -125,21 +118,14 @@ public class WorldIndexValueRetriever implements FundValueRetriever {
         try {
             return Optional.of((BigDecimal) decimalFormat.parse(amount));
         } catch (ParseException e) {
-            warn("Failed to parse amount");
+            log.warn("Failed to parse amount");
             return Optional.empty();
         }
     }
 
     private RequestCallback getRequestCallback() {
         return request -> request
-                .getHeaders()
-                .setAccept(Arrays.asList(MediaType.APPLICATION_OCTET_STREAM, MediaType.TEXT_PLAIN));
-    }
-
-    private void warn(String message) {
-        log.warn(message);
-        new Rollbar(accessToken, environment.getActiveProfiles()[0])
-            .platform(System.getProperty("java.version"))
-            .warning(message);
+            .getHeaders()
+            .setAccept(Arrays.asList(MediaType.APPLICATION_OCTET_STREAM, MediaType.TEXT_PLAIN));
     }
 }

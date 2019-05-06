@@ -62,7 +62,7 @@ dependencies {
 	}
 	compile('ee.sk.smartid:smart-id-java-client:1.0')
 
-	compile('com.getsentry.raven:raven-logback:7.8.3')
+	compile("io.sentry:sentry-logback:1.7.16")
 	compile('io.springfox:springfox-swagger2:2.6.1')
 	compile('io.springfox:springfox-swagger-ui:2.6.1')
 

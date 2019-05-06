@@ -4,7 +4,7 @@ branch-defaults:
   beanstalk:
     environment: onboarding-service
 deploy:
-  artifact: build/libs/onboarding-service.jar
+  artifact: build/distributions/onboarding-service-0.0.1-SNAPSHOT.zip
 environment-defaults:
   onboarding-service:
     branch: null

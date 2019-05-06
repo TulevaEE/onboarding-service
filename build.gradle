@@ -22,10 +22,6 @@ apply plugin: 'io.spring.dependency-management'
 apply plugin: 'jacoco'
 apply plugin: 'com.gorylenko.gradle-git-properties'
 
-jar {
-	baseName = 'onboarding-service'
-	version = '0.0.1-SNAPSHOT'
-}
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
@@ -36,12 +32,6 @@ repositories {
 	}
 	maven {
 		url "https://jitpack.io"
-	}
-}
-
-processResources {
-	from ('.ebextensions/') {
-		into '.ebextensions'
 	}
 }
 
@@ -123,3 +113,16 @@ jacocoTestReport {
 }
 
 check.dependsOn jacocoTestReport
+
+task zipWithExtensions(type: Zip) {
+	dependsOn jar
+	from(jar.outputs.files.singleFile) {
+		rename { "application.jar" }
+	}
+	from("$rootDir/etc/eb/.ebextensions") {
+		into(".ebextensions")
+	}
+	from("$rootDir/etc/eb/Procfile")
+}
+
+assemble.dependsOn zipWithExtensions

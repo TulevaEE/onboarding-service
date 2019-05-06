@@ -23,6 +23,8 @@ spring:
     test-while-idle: true
     driver-class-name: org.postgresql.Driver
     initialization-mode: never # set to always when starting with a clean DB
+  flyway:
+    baseline-on-migrate: false # set to true when starting with a clean DB
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
@@ -107,9 +109,6 @@ smartid:
   relyingPartyName: 'DEMO'
   hostUrl: 'https://sid.demo.sk.ee/smart-id-rp/v1/'
 
-# uncomment when starting with a clean DB
-#flyway:
-#  baseline-on-migrate: true
 logging:
   level:
     ee:

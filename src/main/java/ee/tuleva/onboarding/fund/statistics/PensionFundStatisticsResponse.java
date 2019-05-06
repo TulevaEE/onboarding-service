@@ -9,7 +9,7 @@ import javax.xml.bind.annotation.XmlRootElement;
 import java.util.List;
 
 @Data
-@XmlRootElement(name = "RESPONSE", namespace = "http://corporate.epis.ee/producer/")
+@XmlRootElement(name = "RESPONSE")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class PensionFundStatisticsResponse {
 

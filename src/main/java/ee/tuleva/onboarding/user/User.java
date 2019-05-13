@@ -43,6 +43,8 @@ public class User implements Person, Serializable {
 
     private String lastName;
 
+    private Boolean resident;
+
     @NotNull
     private Instant createdDate;
 

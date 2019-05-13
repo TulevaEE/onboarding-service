@@ -23,12 +23,16 @@ public class AccountStatementService {
     List<FundBalanceDto> accountStatement = episService.getAccountStatement(person);
 
     return accountStatement.stream()
+        .filter(fundBalanceDto -> fundBalanceDto.getIsin() != null)
         .map(fundBalanceDto -> convertToFundBalance(fundBalanceDto, person))
         .collect(toList());
   }
 
   private FundBalance convertToFundBalance(FundBalanceDto fundBalanceDto, Person person) {
     try {
+        if (log.isDebugEnabled()) {
+            log.debug("Fund Balance DTO: {}", fundBalanceDto);
+        }
       return fundBalanceConverter.convert(fundBalanceDto);
     } catch(IllegalArgumentException e) {
       throw new IllegalStateException("Could not convert fund balance for person " + person, e);

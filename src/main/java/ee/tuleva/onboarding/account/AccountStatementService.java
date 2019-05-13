@@ -23,6 +23,7 @@ public class AccountStatementService {
     List<FundBalanceDto> accountStatement = episService.getAccountStatement(person);
 
     return accountStatement.stream()
+        .filter(fundBalanceDto -> fundBalanceDto.getIsin() != null)
         .map(fundBalanceDto -> convertToFundBalance(fundBalanceDto, person))
         .collect(toList());
   }

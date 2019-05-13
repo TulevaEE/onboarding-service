@@ -14,7 +14,7 @@ class IdCardAuthServiceSpec extends Specification {
     def "CheckCertificate delegates to the authenticator and saves to session"() {
         given:
         authenticator.checkCertificate("cert") >> new CheckCertificateResponse("Chuck", "Norris", "38512121212")
-        def expectedResponse = new IdCardSession("Chuck", "Norris", "38512121212")
+        def expectedResponse = new IdCardSession("Chuck", "Norris", "38512121212", IdDocumentType.UNKNOWN)
 
         when:
         def response = service.checkCertificate("cert")

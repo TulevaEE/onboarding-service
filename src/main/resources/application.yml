@@ -26,10 +26,13 @@ spring:
   flyway:
     baseline-on-migrate: false # set to true when starting with a clean DB
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    database-platform: org.hibernate.dialect.PostgreSQL95Dialect
     show-sql: false
     hibernate:
       ddl-auto: none
+    properties:
+      hibernate:
+        jdbc.lob.non_contextual_creation: true
   mvc:
     throw-exception-if-no-handler-found: true
   cache:

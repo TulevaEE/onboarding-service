@@ -30,7 +30,7 @@ public class AccountStatementService {
   private FundBalance convertToFundBalance(FundBalanceDto fundBalanceDto, Person person) {
     try {
         if (log.isDebugEnabled()) {
-            log.debug("Fund Balance DTO:" + fundBalanceDto);
+            log.debug("Fund Balance DTO: {}", fundBalanceDto);
         }
       return fundBalanceConverter.convert(fundBalanceDto);
     } catch(IllegalArgumentException e) {

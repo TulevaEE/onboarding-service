@@ -29,6 +29,21 @@ class AccountStatementServiceSpec extends Specification {
         accountStatement == [fundBalance]
     }
 
+    def "fundBalanceDto with no Isin code are filtered out and will not try to convert"() {
+        given:
+            def person = samplePerson()
+            def fundBalanceDto = FundBalanceDto.builder().isin(null).build()
+            episService.getAccountStatement(person) >> [fundBalanceDto]
+
+
+        when:
+            List<FundBalance> accountStatement = service.getAccountStatement(person)
+
+        then:
+            accountStatement.isEmpty()
+            0 * fundBalanceConverter.convert(fundBalanceDto)
+    }
+
     def "handles fundBalanceDto to fundBalance conversion exceptions"() {
         given:
         def person = samplePerson()

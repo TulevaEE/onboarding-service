@@ -51,6 +51,18 @@ public class UserService {
         return save(user);
     }
 
+    public User setResidency(String personalCode, Boolean resident) {
+        User user = findByPersonalCode(personalCode).map(existingUser -> {
+            if (existingUser.getResident() == null && resident != null) {
+                log.info("Setting user {} as resident {}", personalCode, resident);
+                existingUser.setResident(resident);
+            }
+            return existingUser;
+        }).orElseThrow(() -> new RuntimeException("User does not exist"));
+        log.info("Updating user {}", user);
+        return save(user);
+    }
+
     public User registerAsMember(Long userId, String fullName) {
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("No user found"));
 
@@ -59,9 +71,9 @@ public class UserService {
         }
 
         Member newMember = Member.builder()
-                .user(user)
-                .memberNumber(memberRepository.getNextMemberNumber())
-                .build();
+            .user(user)
+            .memberNumber(memberRepository.getNextMemberNumber())
+            .build();
 
         log.info("Registering user as new member #{}: {}", newMember.getMemberNumber(), user);
 
@@ -81,7 +93,7 @@ public class UserService {
             String firstName = capitalizeFully(substringBeforeLast(fullName, " "));
             String lastName = capitalizeFully(substringAfterLast(fullName, " "));
             log.info("Updating user name from {} {} to {} {}",
-                    user.getFirstName(), user.getLastName(), firstName, lastName);
+                user.getFirstName(), user.getLastName(), firstName, lastName);
             user.setFirstName(firstName);
             user.setLastName(lastName);
         }
@@ -99,23 +111,23 @@ public class UserService {
         }
 
         User user = userRepository.findByPersonalCode(personalCode)
-                .map(u -> {
-                    u.setEmail(email);
-                    u.setPhoneNumber(phoneNumber);
-                    return u;
-                }).orElse(
-                        userRepository.findByEmail(email)
-                                .map(u -> {
-                                    u.setPersonalCode(personalCode);
-                                    u.setPhoneNumber(phoneNumber);
-                                    return u;
-                                }).orElse(User.builder()
-                                .personalCode(personalCode)
-                                .email(email)
-                                .phoneNumber(phoneNumber)
-                                .active(true)
-                                .build())
-                );
+            .map(u -> {
+                u.setEmail(email);
+                u.setPhoneNumber(phoneNumber);
+                return u;
+            }).orElse(
+                userRepository.findByEmail(email)
+                    .map(u -> {
+                        u.setPersonalCode(personalCode);
+                        u.setPhoneNumber(phoneNumber);
+                        return u;
+                    }).orElse(User.builder()
+                    .personalCode(personalCode)
+                    .email(email)
+                    .phoneNumber(phoneNumber)
+                    .active(true)
+                    .build())
+            );
         log.info("Creating or updating user {}", user);
         return userRepository.save(user);
     }

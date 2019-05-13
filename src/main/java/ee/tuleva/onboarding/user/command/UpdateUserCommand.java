@@ -8,10 +8,11 @@ import javax.validation.constraints.NotNull;
 @Data
 public class UpdateUserCommand {
 
-  @NotNull
-  @Email
-  private String email;
+    @NotNull
+    @Email
+    private String email;
 
-  private String phoneNumber;
+    private String phoneNumber;
 
+    private Boolean resident;
 }

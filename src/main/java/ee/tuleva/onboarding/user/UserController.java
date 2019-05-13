@@ -19,43 +19,48 @@ import javax.validation.Valid;
 @AllArgsConstructor
 public class UserController {
 
-	private final UserService userService;
+    private final UserService userService;
 
-	@ApiOperation(value = "Get info about the current user")
-	@GetMapping("/me")
-	public UserResponse me(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-		Long userId = authenticatedPerson.getUserId();
-		User user = userService.getById(userId);
-		return UserResponse.fromUser(user);
-	}
+    @ApiOperation(value = "Get info about the current user")
+    @GetMapping("/me")
+    public UserResponse me(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+        Long userId = authenticatedPerson.getUserId();
+        User user = userService.getById(userId);
+        return UserResponse.fromUser(user);
+    }
 
-	@ApiOperation(value = "Update the current user")
-	@PatchMapping("/me")
-	public UserResponse patchMe(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-								@Valid @RequestBody UpdateUserCommand cmd,
-								@ApiIgnore Errors errors) throws ValidationErrorsException {
+    @ApiOperation(value = "Update the current user")
+    @PatchMapping("/me")
+    public UserResponse patchMe(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+                                @Valid @RequestBody UpdateUserCommand cmd,
+                                @ApiIgnore Errors errors) throws ValidationErrorsException {
 
-		if (errors != null && errors.hasErrors()) {
-			throw new ValidationErrorsException(errors);
-		}
+        if (errors != null && errors.hasErrors()) {
+            throw new ValidationErrorsException(errors);
+        }
 
-		User user = userService.updateUser(authenticatedPerson.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
+        if (cmd.getResident() != null) {
+            return UserResponse.fromUser(userService.setResidency(authenticatedPerson.getPersonalCode(), cmd.getResident()));
+        } else {
+            return UserResponse.fromUser(userService.updateUser(
+                authenticatedPerson.getPersonalCode(),
+                cmd.getEmail(),
+                cmd.getPhoneNumber()));
+        }
+    }
 
-		return UserResponse.fromUser(user);
-	}
+    @ApiOperation(value = "Create a new user")
+    @PostMapping("/users")
+    public UserResponse createUser(@Valid @RequestBody CreateUserCommand cmd,
+                                   @ApiIgnore Errors errors) throws ValidationErrorsException {
 
-	@ApiOperation(value = "Create a new user")
-	@PostMapping("/users")
-	public UserResponse createUser(@Valid @RequestBody CreateUserCommand cmd,
-															@ApiIgnore Errors errors) throws ValidationErrorsException {
+        if (errors != null && errors.hasErrors()) {
+            throw new ValidationErrorsException(errors);
+        }
 
-		if (errors != null && errors.hasErrors()) {
-			throw new ValidationErrorsException(errors);
-		}
+        User user = userService.createOrUpdateUser(cmd.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
 
-		User user = userService.createOrUpdateUser(cmd.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
-
-		return UserResponse.fromUser(user);
-	}
+        return UserResponse.fromUser(user);
+    }
 
 }

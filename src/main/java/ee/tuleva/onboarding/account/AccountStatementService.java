@@ -29,6 +29,9 @@ public class AccountStatementService {
 
   private FundBalance convertToFundBalance(FundBalanceDto fundBalanceDto, Person person) {
     try {
+        if (log.isDebugEnabled()) {
+            log.debug("Fund Balance DTO:" + fundBalanceDto);
+        }
       return fundBalanceConverter.convert(fundBalanceDto);
     } catch(IllegalArgumentException e) {
       throw new IllegalStateException("Could not convert fund balance for person " + person, e);

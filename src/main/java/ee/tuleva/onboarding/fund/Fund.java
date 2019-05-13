@@ -31,6 +31,11 @@ public class Fund {
     private String name;
 
     @NotNull
+    private Integer pillar;
+
+    @NotNull
     private BigDecimal managementFeeRate;
 
+    @NotNull
+    private BigDecimal ongoingChargesFigure;
 }

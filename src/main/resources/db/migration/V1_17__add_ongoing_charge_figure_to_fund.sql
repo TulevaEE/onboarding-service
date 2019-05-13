@@ -1,0 +1,2 @@
+ALTER TABLE fund
+  ADD COLUMN ongoing_charges_figure NUMERIC(10, 8) NOT NULL DEFAULT 0;

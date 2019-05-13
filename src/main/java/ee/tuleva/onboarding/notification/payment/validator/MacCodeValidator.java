@@ -10,6 +10,8 @@ import javax.validation.ConstraintValidatorContext;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 @Component
 @Slf4j
 public class MacCodeValidator implements ConstraintValidator<ValidMacCode, IncomingPayment> {
@@ -21,7 +23,8 @@ public class MacCodeValidator implements ConstraintValidator<ValidMacCode, Incom
   public boolean isValid(IncomingPayment incomingPayment, ConstraintValidatorContext context) {
     String json = incomingPayment.getJson();
     String mac = incomingPayment.getMac();
-    String calculatedHash = sha512(json + secret);
+    String payload = json + secret;
+    String calculatedHash = sha512(payload);
 
     return calculatedHash.equalsIgnoreCase(mac);
   }
@@ -30,10 +33,10 @@ public class MacCodeValidator implements ConstraintValidator<ValidMacCode, Incom
   public void initialize(ValidMacCode constraintAnnotation) {
   }
 
-  private static String sha512(String string) {
+  private static String sha512(String payload) {
     MessageDigest messageDigest = sha512MessageDigest();
-    messageDigest.update(string.getBytes());
-    byte hash[] = messageDigest.digest();
+    messageDigest.update(payload.getBytes(UTF_8));
+    byte[] hash = messageDigest.digest();
 
     StringBuilder hex = new StringBuilder();
     for (byte b : hash) {

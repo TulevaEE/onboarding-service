@@ -8,7 +8,7 @@ class BeforeTokenGrantedEventPublisherSpec extends Specification {
 
     ApplicationEventPublisher applicationEventPublisher = Mock(ApplicationEventPublisher)
     BeforeTokenGrantedEventPublisher service =
-            new BeforeTokenGrantedEventPublisher(applicationEventPublisher)
+        new BeforeTokenGrantedEventPublisher(applicationEventPublisher)
 
 
     def "Publish: Publishes the event"() {
@@ -16,11 +16,11 @@ class BeforeTokenGrantedEventPublisherSpec extends Specification {
         OAuth2Authentication sampleOAuth2Authentication = Mock(OAuth2Authentication)
 
         when:
-        service.publish(sampleOAuth2Authentication)
+        service.publish(sampleOAuth2Authentication, GrantType.ID_CARD)
         then:
         1 * applicationEventPublisher
-                .publishEvent({BeforeTokenGrantedEvent beforeTokenGrantedEvent ->
-            beforeTokenGrantedEvent.authentication == sampleOAuth2Authentication
-        })
+            .publishEvent({ BeforeTokenGrantedEvent beforeTokenGrantedEvent ->
+                beforeTokenGrantedEvent.authentication == sampleOAuth2Authentication
+            })
     }
 }

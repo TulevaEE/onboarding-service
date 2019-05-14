@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.idcard;
 
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEventPublisher;
+import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -24,7 +25,7 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
     private final GrantedAuthorityFactory grantedAuthorityFactory;
     private BeforeTokenGrantedEventPublisher beforeTokenGrantedEventPublisher;
 
-    private static final String GRANT_TYPE = "id_card";
+    private static final GrantType GRANT_TYPE = GrantType.ID_CARD;
 
     public IdCardTokenGranter(AuthorizationServerTokenServices tokenServices,
                               ClientDetailsService clientDetailsService,
@@ -33,7 +34,7 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
                               PrincipalService principalService,
                               GrantedAuthorityFactory grantedAuthorityFactory,
                               ApplicationEventPublisher applicationEventPublisher) {
-        super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
+        super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE.name().toLowerCase());
         this.sessionStore = genericSessionStore;
         this.principalService = principalService;
         this.grantedAuthorityFactory = grantedAuthorityFactory;
@@ -71,15 +72,15 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
         });
 
         Authentication userAuthentication = new PersonalCodeAuthentication<>(
-                authenticatedPerson,
-                idCardSession,
-                grantedAuthorityFactory.from(authenticatedPerson));
+            authenticatedPerson,
+            idCardSession,
+            grantedAuthorityFactory.from(authenticatedPerson));
         userAuthentication.setAuthenticated(true);
 
         OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);
         OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request, userAuthentication);
 
-        beforeTokenGrantedEventPublisher.publish(oAuth2Authentication);
+        beforeTokenGrantedEventPublisher.publish(oAuth2Authentication, GRANT_TYPE);
 
         return getTokenServices().createAccessToken(oAuth2Authentication);
     }

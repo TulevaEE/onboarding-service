@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.user
 
-
+import ee.tuleva.onboarding.aml.AmlCheckType
+import ee.tuleva.onboarding.aml.AmlService
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
+import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType
 import ee.tuleva.onboarding.auth.principal.Person
@@ -13,9 +15,10 @@ import static ee.tuleva.onboarding.auth.PersonFixture.PersonImpl
 
 class UserDetailsUpdaterSpec extends Specification {
 
-    UserService userService = Mock(UserService)
+    UserService userService = Mock()
+    AmlService amlService = Mock()
 
-    UserDetailsUpdater service = new UserDetailsUpdater(userService)
+    UserDetailsUpdater service = new UserDetailsUpdater(userService, amlService)
 
     def "OnBeforeTokenGrantedEvent: Update user details on before token granted event"(IdDocumentType documentType, Boolean resident) {
         given:
@@ -39,7 +42,7 @@ class UserDetailsUpdaterSpec extends Specification {
             getUserAuthentication() >> auth
         })
 
-        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication)
+        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication, GrantType.ID_CARD)
 
         when:
         service.onBeforeTokenGrantedEvent(beforeTokenGrantedEvent)
@@ -57,6 +60,9 @@ class UserDetailsUpdaterSpec extends Specification {
                 user.lastName == "Risthein" &&
                 user.resident == resident
         })
+        if (resident != null) {
+            1 * amlService.addCheckIfMissing(_, AmlCheckType.RESIDENCY_AUTO, resident)
+        }
 
         where:
         documentType                                                 | resident
@@ -86,7 +92,7 @@ class UserDetailsUpdaterSpec extends Specification {
             getUserAuthentication() >> Mock(Authentication)
         })
 
-        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication)
+        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication, GrantType.ID_CARD)
 
         when:
         service.onBeforeTokenGrantedEvent(beforeTokenGrantedEvent)
@@ -128,7 +134,7 @@ class UserDetailsUpdaterSpec extends Specification {
             getUserAuthentication() >> auth
         })
 
-        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication)
+        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication, GrantType.ID_CARD)
 
         when:
         service.onBeforeTokenGrantedEvent(beforeTokenGrantedEvent)

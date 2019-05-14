@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.Person;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +14,7 @@ import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 @Component
 @Slf4j
 @RequiredArgsConstructor
-public class UserNameUpdater {
+public class UserDetailsUpdater {
 
     private final UserService userService;
 
@@ -21,18 +23,32 @@ public class UserNameUpdater {
         Person person = (Person) event.getAuthentication().getPrincipal();
         String firstName = capitalizeFully(person.getFirstName());
         String lastName = capitalizeFully(person.getLastName());
+        Object credentials = event.getAuthentication().getCredentials();
+        Boolean resident = isResident(credentials);
 
-        log.info("Updating user name: timestamp: {}, name: {} {}",
-                event.getTimestamp(),
-                firstName,
-                lastName
+        log.info("Updating user name: timestamp: {}, name: {} {} resident: {}",
+            event.getTimestamp(),
+            firstName,
+            lastName,
+            resident
         );
 
         userService.findByPersonalCode(person.getPersonalCode()).ifPresent(user -> {
             user.setFirstName(firstName);
             user.setLastName(lastName);
+            if (user.getResident() == null) {
+                user.setResident(resident);
+            }
             userService.save(user);
         });
+    }
+
+    private Boolean isResident(Object credentials) {
+        if (credentials instanceof IdCardSession) {
+            val documentType = ((IdCardSession) credentials).documentType;
+            return documentType.isResident();
+        }
+        return null;
     }
 
 }

@@ -48,9 +48,9 @@ class EpisServiceSpec extends Specification {
         given:
         CreateProcessingCommand sampleCreateProcessingCommand = new CreateProcessingCommand(sampleMessages)
 
-        1 * restTemplate.postForObject(_ as String, {HttpEntity httpEntity ->
+        1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
             doesHttpEntityContainToken(httpEntity, sampleToken) &&
-            httpEntity.body.messages[0].processId == sampleMessages.get(0).processId
+                httpEntity.body.messages[0].processId == sampleMessages.get(0).processId
         }, CreateProcessingCommand.class) >> sampleCreateProcessingCommand
 
         when:
@@ -66,16 +66,16 @@ class EpisServiceSpec extends Specification {
 
         TransferExchangeDTO[] responseBody = [TransferExchangeDTO.builder().build()]
         ResponseEntity<TransferExchangeDTO[]> result =
-                new ResponseEntity(responseBody, HttpStatus.OK)
+            new ResponseEntity(responseBody, HttpStatus.OK)
 
         1 * restTemplate.exchange(
-                _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
+            _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
             doesHttpEntityContainToken(httpEntity, sampleToken)
         }, TransferExchangeDTO[].class) >> result
 
         when:
         List<TransferExchangeDTO> transferApplicationDTOList =
-                service.getTransferApplications(samplePerson())
+            service.getTransferApplications(samplePerson())
 
         then:
         transferApplicationDTOList.size() == 1
@@ -86,10 +86,10 @@ class EpisServiceSpec extends Specification {
 
         UserPreferences userPreferences = defaultUserPreferences()
         ResponseEntity<UserPreferences> response =
-                new ResponseEntity(userPreferences, HttpStatus.OK)
+            new ResponseEntity(userPreferences, HttpStatus.OK)
 
         1 * restTemplate.exchange(
-                _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
+            _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
             doesHttpEntityContainToken(httpEntity, sampleToken)
         }, UserPreferences.class) >> response
 
@@ -103,24 +103,24 @@ class EpisServiceSpec extends Specification {
     def "getCashFlowStatement calls the right endpoint"() {
 
         given:
-            service.episServiceUrl = "http://example.com"
-            CashFlowStatementDto cashFlowStatementDto = getFakeCashFlowStatement()
-            ResponseEntity<CashFlowStatementDto> response =
-                    new ResponseEntity(cashFlowStatementDto, HttpStatus.OK)
+        service.episServiceUrl = "http://example.com"
+        CashFlowStatementDto cashFlowStatementDto = getFakeCashFlowStatement()
+        ResponseEntity<CashFlowStatementDto> response =
+            new ResponseEntity(cashFlowStatementDto, HttpStatus.OK)
 
-            Instant startTime = parseInstant("2001-01-01")
-            Instant endTime = parseInstant("2018-01-01")
+        Instant startTime = parseInstant("2001-01-01")
+        Instant endTime = parseInstant("2018-01-01")
 
-            1 * restTemplate.exchange(
-                    "http://example.com/account-cash-flow-statement?from-date=2001-01-01&to-date=2018-01-01", HttpMethod.GET, { HttpEntity httpEntity ->
-                doesHttpEntityContainToken(httpEntity, sampleToken)
-            }, CashFlowStatementDto.class) >> response
+        1 * restTemplate.exchange(
+            "http://example.com/account-cash-flow-statement?from-date=2001-01-01&to-date=2018-01-01", HttpMethod.GET, { HttpEntity httpEntity ->
+            doesHttpEntityContainToken(httpEntity, sampleToken)
+        }, CashFlowStatementDto.class) >> response
 
         when:
         CashFlowStatementDto responseDto = service.getCashFlowStatement(samplePerson(), startTime, endTime)
 
         then:
-            cashFlowStatementDto == responseDto
+        cashFlowStatementDto == responseDto
     }
 
     def "gets account statement"() {
@@ -129,7 +129,7 @@ class EpisServiceSpec extends Specification {
         FundBalanceDto[] response = [fundBalanceDto]
 
         1 * restTemplate.exchange(
-                _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
+            _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
             doesHttpEntityContainToken(httpEntity, sampleToken)
         }, FundBalanceDto[].class) >> new ResponseEntity(response, HttpStatus.OK)
 
@@ -146,7 +146,7 @@ class EpisServiceSpec extends Specification {
         FundDto[] sampleFunds = [new FundDto("EE3600109435", "Tuleva Maailma Aktsiate Pensionifond", "TUK75", 2, ACTIVE)]
 
         1 * restTemplate.exchange(
-                _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
+            _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
             doesHttpEntityContainToken(httpEntity, sampleToken)
         }, FundDto[].class) >> new ResponseEntity(sampleFunds, HttpStatus.OK)
 
@@ -161,16 +161,16 @@ class EpisServiceSpec extends Specification {
         Instant randomTime = parseInstant("2001-01-01")
         CashFlowStatementDto cashFlowStatementDto = CashFlowStatementDto.builder()
             .startBalance([
-                    "1": new CashFlowValueDto(randomTime, 100, "EEK"),
-                    "2": new CashFlowValueDto(randomTime, 115, "EUR"),
+                "1": CashFlowValueDto.builder().time(randomTime).amount(100.0).currency("EEK").pillar(2).build(),
+                "2": CashFlowValueDto.builder().time(randomTime).amount(115.0).currency("EUR").pillar(2).build(),
             ])
             .endBalance([
-                    "1": new CashFlowValueDto(randomTime, 110, "EEK"),
-                    "2": new CashFlowValueDto(randomTime, 125, "EUR"),
+                "1": CashFlowValueDto.builder().time(randomTime).amount(110.0).currency("EEK").pillar(2).build(),
+                "2": CashFlowValueDto.builder().time(randomTime).amount(125.0).currency("EUR").pillar(2).build(),
             ])
             .transactions([
-                new CashFlowValueDto(randomTime, 100, "EEK"),
-                new CashFlowValueDto(randomTime, 115, "EUR"),
+                CashFlowValueDto.builder().time(randomTime).amount(100.0).currency("EEK").pillar(2).build(),
+                CashFlowValueDto.builder().time(randomTime).amount(115.0).currency("EUR").pillar(2).build(),
             ]).build()
         return cashFlowStatementDto
     }

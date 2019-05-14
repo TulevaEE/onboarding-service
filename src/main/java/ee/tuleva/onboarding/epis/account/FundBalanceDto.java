@@ -14,6 +14,6 @@ public class FundBalanceDto {
     private String isin;
     private BigDecimal value;
     private String currency;
-    private int pillar = 2;
-    private boolean activeContributions = false;
+    private Integer pillar;
+    private boolean activeContributions;
 }

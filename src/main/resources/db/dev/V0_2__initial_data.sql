@@ -119,7 +119,6 @@ INSERT INTO fund(
         SELECT * FROM fund WHERE id = 7
     );
 
-
 INSERT INTO users(
             active, personal_code, first_name, last_name, created_date, updated_date, member_number, phone_number, email)
     SELECT true, '38812022762', 'Jordan', 'Valdma', '2015-01-31 14:06:01', '2017-01-31 14:06:01', 100, '5523533', 'jordan@mail.ee'

@@ -81,7 +81,7 @@ class UserDetailsUpdaterSpec extends Specification {
             lastName: "RISTHEIN"
         )
 
-        OAuth2Authentication oAuth2Authenticati`on = Mock({
+        OAuth2Authentication oAuth2Authentication = Mock({
             getPrincipal() >> samplePerson
             getUserAuthentication() >> Mock(Authentication)
         })

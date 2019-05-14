@@ -116,7 +116,7 @@ logging:
 ---
 
 spring:
-  profiles: dev
+  profiles: dev, test
   flyway:
     locations: classpath:/db/migration, classpath:/db/dev
 

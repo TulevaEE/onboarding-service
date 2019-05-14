@@ -23,7 +23,7 @@ public class UserDetailsUpdater {
         Person person = (Person) event.getAuthentication().getPrincipal();
         String firstName = capitalizeFully(person.getFirstName());
         String lastName = capitalizeFully(person.getLastName());
-        Object credentials = event.getAuthentication().getCredentials();
+        Object credentials = event.getAuthentication().getUserAuthentication().getCredentials();
         Boolean resident = isResident(credentials);
 
         log.info("Updating user name: timestamp: {}, name: {} {} resident: {}",

@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.comparisons.overview;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto;
@@ -15,7 +13,8 @@ import java.math.MathContext;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 @Service
 @Slf4j
@@ -48,18 +47,17 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
     }
 
     private BigDecimal convertBalance(Map<String, CashFlowValueDto> balance) {
-        return balance
-                .values()
-                .stream()
+        return balance.values().stream()
+                .filter(cashFlowValueDto -> cashFlowValueDto.getPillar() == 2)
                 .map(cashFlowValueDto -> convertCurrencyToEur(cashFlowValueDto.getAmount(), cashFlowValueDto.getCurrency()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private List<Transaction> convertTransactions(List<CashFlowValueDto> cashFlowValues) {
-        return cashFlowValues
-                .stream()
+        return cashFlowValues.stream()
+                .filter(cashFlowValueDto -> cashFlowValueDto.getPillar() == 2)
                 .map(this::convertTransaction)
-                .collect(Collectors.toList());
+                .collect(toList());
     }
 
     private Transaction convertTransaction(CashFlowValueDto cashFlowValue) {
@@ -68,10 +66,9 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
     }
 
     private BigDecimal convertCurrencyToEur(BigDecimal amount, String currency) {
-        String uppercaseCurrency = currency.toUpperCase();
-        if ("EUR".equals(uppercaseCurrency)) {
+        if ("EUR".equalsIgnoreCase(currency)) {
             return amount;
-        } else if ("EEK".equals(uppercaseCurrency)) {
+        } else if ("EEK".equalsIgnoreCase(currency)) {
             return amount.divide(EEK_TO_EUR_EXCHANGE_RATE, MathContext.DECIMAL128);
         } else {
             log.error("Needed to convert currency other than EEK, statement will be invalid");

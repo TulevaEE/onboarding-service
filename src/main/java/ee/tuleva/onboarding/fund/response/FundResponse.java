@@ -12,20 +12,26 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class FundResponse {
 
-  private FundManager fundManager;
-  private String isin;
-  private String name;
-  private BigDecimal managementFeeRate;
-  private BigDecimal nav;
-  private BigDecimal volume;
+    private FundManager fundManager;
+    private String isin;
+    private String name;
+    private BigDecimal managementFeeRate;
+    private BigDecimal nav;
+    private BigDecimal volume;
+    private Integer pillar;
+    private BigDecimal ongoingChargesFigure;
+    private Fund.FundStatus status;
 
-  public FundResponse(Fund fund, PensionFundStatistics pensionFundStatistics) {
-    this.fundManager = fund.getFundManager();
-    this.isin = fund.getIsin();
-    this.name = fund.getName();
-    this.managementFeeRate = fund.getManagementFeeRate();
-    this.nav = pensionFundStatistics.getNav();
-    this.volume = pensionFundStatistics.getVolume();
-  }
 
+    public FundResponse(Fund fund, PensionFundStatistics pensionFundStatistics) {
+        this.fundManager = fund.getFundManager();
+        this.isin = fund.getIsin();
+        this.name = fund.getName();
+        this.managementFeeRate = fund.getManagementFeeRate();
+        this.nav = pensionFundStatistics.getNav();
+        this.volume = pensionFundStatistics.getVolume();
+        this.pillar = fund.getPillar();
+        this.ongoingChargesFigure = fund.getOngoingChargesFigure();
+        this.status = fund.getStatus();
+    }
 }

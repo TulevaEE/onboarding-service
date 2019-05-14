@@ -20,6 +20,7 @@ public class FundResponse {
     private BigDecimal volume;
     private Integer pillar;
     private BigDecimal ongoingChargesFigure;
+    private Fund.FundStatus status;
 
 
     public FundResponse(Fund fund, PensionFundStatistics pensionFundStatistics) {
@@ -31,5 +32,6 @@ public class FundResponse {
         this.volume = pensionFundStatistics.getVolume();
         this.pillar = fund.getPillar();
         this.ongoingChargesFigure = fund.getOngoingChargesFigure();
+        this.status = fund.getStatus();
     }
 }

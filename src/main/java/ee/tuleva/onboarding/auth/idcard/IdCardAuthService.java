@@ -43,25 +43,37 @@ public class IdCardAuthService {
         return session;
     }
 
-    private IdDocumentType getDocumentTypeFromCertificate(String certificate) {
+    public IdDocumentType getDocumentTypeFromCertificate(String certificate) {
         try {
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
             val certStream = toInputStream(certificate, "UTF8");
             X509Certificate cert = (X509Certificate) cf.generateCertificate(certStream);
+            return getDocumentTypeFromCertificate(cert);
+        } catch (CertificateException | IOException e) {
+            return IdDocumentType.UNKNOWN;
+        }
+    }
+
+    public IdDocumentType getDocumentTypeFromCertificate(X509Certificate cert) {
+        try {
             byte[] encodedExtensionValue = cert.getExtensionValue(OID);
             if (encodedExtensionValue != null) {
                 DLSequence extensionValue = (DLSequence) parseExtensionValue(encodedExtensionValue);
-                DLSequence first = (DLSequence) extensionValue.getObjectAt(POLICY_NO_1);
-                DLSequence second = (DLSequence) extensionValue.getObjectAt(POLICY_NO_2);
-                if (Objects.equals(second.getObjectAt(0).toString(), AUTHENTICATION_POLICY_ID)) {
-                    return IdDocumentType.findByIdentifier(first.getObjectAt(POLICY_NO_1).toString());
-                } else {
-                    log.warn("Unknown identifier {}", second.getObjectAt(0));
+                try {
+                    DLSequence first = (DLSequence) extensionValue.getObjectAt(POLICY_NO_1);
+                    DLSequence second = (DLSequence) extensionValue.getObjectAt(POLICY_NO_2);
+                    if (Objects.equals(second.getObjectAt(0).toString(), AUTHENTICATION_POLICY_ID)) {
+                        return IdDocumentType.findByIdentifier(first.getObjectAt(POLICY_NO_1).toString());
+                    } else {
+                        log.warn("Unknown identifier {}", second.getObjectAt(0));
+                    }
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    log.warn("Extension of card certificate not known: {}", extensionValue.toString());
                 }
             } else {
                 log.warn("Extension missing!");
             }
-        } catch (CertificateException | IOException e) {
+        } catch (IOException e) {
             log.warn("Could not parse certificate");
         }
         return IdDocumentType.UNKNOWN;

@@ -27,7 +27,7 @@ Ask your fellow engineers for the `QUOTAGUARDSTATIC_URL` environment variable.
 
 **Spring Profile**
 
-**Set your Spring active profile** to `dev` - this will also run DB schema/dev data migration
+IMPORTANT: Set your Spring active profile to `dev` - this will also run DB schema/dev data migration
 
 **Backend**
 

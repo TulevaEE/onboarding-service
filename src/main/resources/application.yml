@@ -19,12 +19,7 @@ spring:
     username: tuleva-onboarding
     password: tuleva-onboarding
     continue-on-error: false
-    test-on-borrow: true
-    test-while-idle: true
     driver-class-name: org.postgresql.Driver
-    initialization-mode: never # set to always when starting with a clean DB
-  flyway:
-    baseline-on-migrate: false # set to true when starting with a clean DB
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQL95Dialect
     show-sql: false
@@ -117,6 +112,14 @@ logging:
     ee:
       sk:
         smartid: DEBUG
+
+---
+
+spring:
+  profiles: dev
+  flyway:
+    locations: classpath:/db/migration, classpath:/db/dev
+
 ---
 
 spring:

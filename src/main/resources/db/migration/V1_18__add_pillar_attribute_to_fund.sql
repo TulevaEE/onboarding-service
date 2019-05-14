@@ -1,3 +1,3 @@
 ALTER TABLE fund ADD COLUMN pillar SMALLINT;
-UPDATE fund SET pillar = 2 where pillar is null;
+UPDATE fund SET pillar = 2 WHERE pillar IS NULL;
 ALTER TABLE fund ALTER COLUMN pillar SET NOT NULL;

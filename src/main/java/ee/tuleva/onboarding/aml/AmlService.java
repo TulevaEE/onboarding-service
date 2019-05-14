@@ -19,6 +19,18 @@ public class AmlService {
 
     public void checkUserAfterLogin(User user, Person person) {
         addCheckIfMissing(user, AmlCheckType.DOCUMENT, true);
+        addPensionRegistryNameCheckIfMissing(user);
+        addSkNameCheckIfMissing(user, person);
+    }
+
+    private void addSkNameCheckIfMissing(User user, Person person) {
+        if (!hasCheck(user, AmlCheckType.SK_NAME)) {
+            addCheck(user, AmlCheckType.SK_NAME,
+                personDataMatches(user, person.getFirstName(), person.getLastName(), person.getPersonalCode()));
+        }
+    }
+
+    private void addPensionRegistryNameCheckIfMissing(User user) {
         if (!hasCheck(user, AmlCheckType.PENSION_REGISTRY_NAME)) {
             UserPreferences userPreferences = episService.getContactDetails(user);
             addCheck(user, AmlCheckType.PENSION_REGISTRY_NAME,
@@ -26,10 +38,6 @@ public class AmlService {
                     userPreferences.getFirstName(),
                     userPreferences.getLastName(),
                     userPreferences.getPersonalCode()));
-        }
-        if (!hasCheck(user, AmlCheckType.SK_NAME)) {
-            addCheck(user, AmlCheckType.SK_NAME,
-                personDataMatches(user, person.getFirstName(), person.getLastName(), person.getPersonalCode()));
         }
     }
 

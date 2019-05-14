@@ -67,7 +67,7 @@ class UserDetailsUpdaterSpec extends Specification {
 
     }
 
-    def "OnBeforeTokenGrantedEvent: Does notchange resident if not ID card login"() {
+    def "OnBeforeTokenGrantedEvent: Does not change resident if not ID card login"() {
         given:
 
         Person samplePerson = new PersonImpl(
@@ -98,6 +98,45 @@ class UserDetailsUpdaterSpec extends Specification {
             user.firstName == "Erko" &&
                 user.lastName == "Risthein" &&
                 user.resident == null
+        })
+    }
+
+    def "OnBeforeTokenGrantedEvent: Does not change resident if already set"() {
+        given:
+
+        Person samplePerson = new PersonImpl(
+            personalCode: "38512121215",
+            firstName: "ERKO",
+            lastName: "RISTHEIN"
+        )
+
+        OAuth2Authentication oAuth2Authentication = Mock({
+            getPrincipal() >> samplePerson
+            getCredentials() >> IdCardSession.builder()
+                .firstName("ERKO")
+                .lastName("RISTHEIN")
+                .documentType(IdDocumentType.ESTONIAN_CITIZEN_ID_CARD)
+                .build()
+        })
+
+        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication)
+
+        when:
+        service.onBeforeTokenGrantedEvent(beforeTokenGrantedEvent)
+
+        then:
+        1 * userService.findByPersonalCode(samplePerson.personalCode) >> Optional.of(
+            User.builder()
+                .firstName("this will change")
+                .lastName("this will also change")
+                .resident(false)
+                .build()
+        )
+
+        1 * userService.save({ User user ->
+            user.firstName == "Erko" &&
+                user.lastName == "Risthein" &&
+                !user.resident
         })
     }
 }

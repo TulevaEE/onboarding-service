@@ -17,6 +17,14 @@ import java.math.BigDecimal;
 @Getter
 public class Fund {
 
+    public enum FundStatus {
+        ACTIVE, // Aktiivne
+        LIQUIDATED, // Likvideeritud
+        SUSPENDED, // Peatatud
+        CONTRIBUTIONS_FORBIDDEN, // Sissemaksed keelatud
+        PAYOUTS_FORBIDDEN // Väljamaksed keelatud
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -38,4 +46,7 @@ public class Fund {
 
     @NotNull
     private BigDecimal ongoingChargesFigure;
+
+    @NotNull
+    private FundStatus status;
 }

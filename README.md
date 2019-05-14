@@ -21,31 +21,13 @@ PostgreSQL
 
 Running locally with Docker: `docker-compose up -d`
 
-**Creating a Database**
-
-To run Flyway migrations for the first time, set `baseline-on-migrate` flag to true in `application.yml` under the default Spring profile:
-```
-spring:
-  flyway:
-    baseline-on-migrate: true
-```
-
-and set `initialization-mode` to `always`:
-```
-spring:
-  datasource:
-    initialization-mode: always
-```
-
-After running the application for the first time, change these parameters back to `false` and `never`. 
-
 **Environment Variables**
 
 Ask your fellow engineers for the `QUOTAGUARDSTATIC_URL` environment variable.
 
 **Spring Profile**
 
-Set your Spring active profile to `dev`
+IMPORTANT: Set your Spring active profile to `dev` - this will also run DB schema/dev data migration
 
 **Backend**
 

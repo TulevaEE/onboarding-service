@@ -53,6 +53,6 @@ public class Fund {
     private BigDecimal ongoingChargesFigure;
 
     @NotNull
-    @Enumerated(value = STRING)
+    @Enumerated(STRING)
     private FundStatus status;
 }

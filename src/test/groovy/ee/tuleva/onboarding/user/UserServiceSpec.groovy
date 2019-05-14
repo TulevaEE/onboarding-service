@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user
 
+import ee.tuleva.onboarding.aml.AmlService
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
 import spock.lang.Shared
@@ -13,7 +14,8 @@ class UserServiceSpec extends Specification {
 
     def userRepository = Mock(UserRepository)
     def memberRepository = Mock(MemberRepository)
-    def service = new UserService(userRepository, memberRepository)
+    def amlService = Mock(AmlService)
+    def service = new UserService(userRepository, memberRepository, amlService)
 
     @Shared
     String personalCodeSample = "somePersonalCode"

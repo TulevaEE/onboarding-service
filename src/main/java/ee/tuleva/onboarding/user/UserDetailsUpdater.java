@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.user;
 
+import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -17,6 +19,7 @@ import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 public class UserDetailsUpdater {
 
     private final UserService userService;
+    private final AmlService amlService;
 
     @EventListener
     public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
@@ -36,8 +39,9 @@ public class UserDetailsUpdater {
         userService.findByPersonalCode(person.getPersonalCode()).ifPresent(user -> {
             user.setFirstName(firstName);
             user.setLastName(lastName);
-            if (user.getResident() == null) {
+            if (user.getResident() == null && resident != null) {
                 user.setResident(resident);
+                amlService.addCheckIfMissing(user, AmlCheckType.RESIDENCY_AUTO, resident);
             }
             userService.save(user);
         });

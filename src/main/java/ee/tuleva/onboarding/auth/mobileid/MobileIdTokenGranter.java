@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.mobileid;
 
 import com.codeborne.security.mobileid.MobileIDSession;
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEventPublisher;
+import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -22,13 +23,13 @@ import java.util.Optional;
 
 @Slf4j
 public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenGranter {
-    public static final String GRANT_TYPE = "mobile_id";
+    private static final GrantType GRANT_TYPE = GrantType.MOBILE_ID;
 
     private final MobileIdAuthService mobileIdAuthService;
     private final PrincipalService principalService;
     private final GenericSessionStore genericSessionStore;
     private final GrantedAuthorityFactory grantedAuthorityFactory;
-    private BeforeTokenGrantedEventPublisher beforeTokenGrantedEventPublisher;
+    private final BeforeTokenGrantedEventPublisher beforeTokenGrantedEventPublisher;
 
     public MobileIdTokenGranter(AuthorizationServerTokenServices tokenServices,
                                 ClientDetailsService clientDetailsService,
@@ -39,7 +40,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
                                 GrantedAuthorityFactory grantedAuthorityFactory,
                                 ApplicationEventPublisher applicationEventPublisher) {
 
-        super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
+        super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE.name().toLowerCase());
 
         assert mobileIdAuthService != null;
         assert principalService != null;
@@ -91,20 +92,20 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
         });
 
         Authentication userAuthentication =
-                new PersonalCodeAuthentication<>(
-                        authenticatedPerson,
-                        mobileIdSession,
-                        grantedAuthorityFactory.from(authenticatedPerson)
-                );
+            new PersonalCodeAuthentication<>(
+                authenticatedPerson,
+                mobileIdSession,
+                grantedAuthorityFactory.from(authenticatedPerson)
+            );
 
         userAuthentication.setAuthenticated(true);
 
         final OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);
         final OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request,
-                userAuthentication
+            userAuthentication
         );
 
-        beforeTokenGrantedEventPublisher.publish(oAuth2Authentication);
+        beforeTokenGrantedEventPublisher.publish(oAuth2Authentication, GRANT_TYPE);
 
         return getTokenServices().createAccessToken(oAuth2Authentication);
     }

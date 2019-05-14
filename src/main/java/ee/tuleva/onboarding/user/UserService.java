@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.user;
 
+import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
@@ -23,6 +25,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final MemberRepository memberRepository;
+    private final AmlService amlService;
 
     //TODO: replace with Optional<User>
     @Nullable
@@ -56,6 +59,7 @@ public class UserService {
             if (existingUser.getResident() == null && resident != null) {
                 log.info("Setting user {} as resident {}", personalCode, resident);
                 existingUser.setResident(resident);
+                amlService.addCheckIfMissing(existingUser, AmlCheckType.RESIDENCY_MANUAL, resident);
             }
             return existingUser;
         }).orElseThrow(() -> new RuntimeException("User does not exist"));

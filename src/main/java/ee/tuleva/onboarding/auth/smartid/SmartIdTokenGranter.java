@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.smartid;
 
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEventPublisher;
+import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -21,7 +22,7 @@ import java.util.Optional;
 
 @Slf4j
 public class SmartIdTokenGranter extends AbstractTokenGranter {
-    private static final String GRANT_TYPE = "smart_id";
+    private static final GrantType GRANT_TYPE = GrantType.SMART_ID;
 
     private final SmartIdAuthService smartIdAuthService;
     private final PrincipalService principalService;
@@ -37,7 +38,7 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
                                GenericSessionStore genericSessionStore,
                                GrantedAuthorityFactory grantedAuthorityFactory,
                                ApplicationEventPublisher applicationEventPublisher) {
-        super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE);
+        super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE.name().toLowerCase());
 
         assert smartIdAuthService != null;
         assert principalService != null;
@@ -90,20 +91,20 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
         });
 
         Authentication userAuthentication =
-                new PersonalCodeAuthentication<>(
-                        authenticatedPerson,
-                        smartIdSession,
-                        grantedAuthorityFactory.from(authenticatedPerson)
-                );
+            new PersonalCodeAuthentication<>(
+                authenticatedPerson,
+                smartIdSession,
+                grantedAuthorityFactory.from(authenticatedPerson)
+            );
 
         userAuthentication.setAuthenticated(true);
 
         final OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);
         final OAuth2Authentication oAuth2Authentication = new OAuth2Authentication(oAuth2Request,
-                userAuthentication
+            userAuthentication
         );
 
-        beforeTokenGrantedEventPublisher.publish(oAuth2Authentication);
+        beforeTokenGrantedEventPublisher.publish(oAuth2Authentication, GRANT_TYPE);
 
         return getTokenServices().createAccessToken(oAuth2Authentication);
     }

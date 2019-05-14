@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType
 import ee.tuleva.onboarding.auth.principal.Person
+import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
 
@@ -25,13 +26,17 @@ class UserDetailsUpdaterSpec extends Specification {
             lastName: "RISTHEIN"
         )
 
-        OAuth2Authentication oAuth2Authentication = Mock({
-            getPrincipal() >> samplePerson
+        Authentication auth = Mock({
             getCredentials() >> IdCardSession.builder()
                 .firstName("ERKO")
                 .lastName("RISTHEIN")
                 .documentType(documentType)
                 .build()
+        })
+
+        OAuth2Authentication oAuth2Authentication = Mock({
+            getPrincipal() >> samplePerson
+            getUserAuthentication() >> auth
         })
 
         BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication)
@@ -76,9 +81,9 @@ class UserDetailsUpdaterSpec extends Specification {
             lastName: "RISTHEIN"
         )
 
-        OAuth2Authentication oAuth2Authentication = Mock({
+        OAuth2Authentication oAuth2Authenticati`on = Mock({
             getPrincipal() >> samplePerson
-            getCredentials() >> null
+            getUserAuthentication() >> Mock(Authentication)
         })
 
         BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication)
@@ -110,13 +115,17 @@ class UserDetailsUpdaterSpec extends Specification {
             lastName: "RISTHEIN"
         )
 
-        OAuth2Authentication oAuth2Authentication = Mock({
-            getPrincipal() >> samplePerson
+        Authentication auth = Mock({
             getCredentials() >> IdCardSession.builder()
                 .firstName("ERKO")
                 .lastName("RISTHEIN")
                 .documentType(IdDocumentType.ESTONIAN_CITIZEN_ID_CARD)
                 .build()
+        })
+
+        OAuth2Authentication oAuth2Authentication = Mock({
+            getPrincipal() >> samplePerson
+            getUserAuthentication() >> auth
         })
 
         BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication)

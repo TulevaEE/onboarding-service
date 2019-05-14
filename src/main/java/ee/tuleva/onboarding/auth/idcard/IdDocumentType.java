@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.auth.idcard;
 
 import java.util.Arrays;
 
+import static com.google.common.collect.Lists.newArrayList;
+
 public enum IdDocumentType {
 
     ESTONIAN_CITIZEN_ID_CARD(1),
@@ -41,5 +43,20 @@ public enum IdDocumentType {
         return Arrays.stream(IdDocumentType.values())
             .filter(d -> d.identifier.equals(identifier))
             .findFirst().orElse(UNKNOWN);
+    }
+
+    public Boolean isResident() {
+        if (newArrayList(
+            ESTONIAN_CITIZEN_ID_CARD,
+            OLD_ID_CARD).contains(this)) {
+            return true;
+        } else if (newArrayList(
+            DIPLOMATIC_ID_CARD,
+            E_RESIDENT_DIGITAL_ID_CARD,
+            EUROPEAN_CITIZEN_FAMILY_MEMBER_RESIDENCE_CARD,
+            EUROPEAN_CITIZEN_ID_CARD).contains(this)) {
+            return false;
+        }
+        return null;
     }
 }

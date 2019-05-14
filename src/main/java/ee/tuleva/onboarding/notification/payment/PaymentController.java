@@ -46,7 +46,7 @@ public class PaymentController {
     Payment payment = mapper.readValue(incomingPayment.getJson(), Payment.class);
 
     validator.validate(payment, errors);
-    if (errors != null && errors.hasErrors()) {
+    if (errors.hasErrors()) {
       throw new ValidationErrorsException(errors);
     }
 

@@ -5,7 +5,7 @@ import org.springframework.security.oauth2.provider.OAuth2Authentication;
 
 public class BeforeTokenGrantedEvent extends ApplicationEvent {
 
-    OAuth2Authentication authentication;
+    private final OAuth2Authentication authentication;
 
     public BeforeTokenGrantedEvent(Object source, OAuth2Authentication authentication) {
         super(source);

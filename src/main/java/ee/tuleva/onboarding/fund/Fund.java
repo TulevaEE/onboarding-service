@@ -8,6 +8,8 @@ import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
+import static javax.persistence.EnumType.STRING;
+
 @Data
 @Builder
 @Entity
@@ -48,5 +50,6 @@ public class Fund {
     private BigDecimal ongoingChargesFigure;
 
     @NotNull
+    @Enumerated(value = STRING)
     private FundStatus status;
 }

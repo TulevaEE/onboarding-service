@@ -15,6 +15,6 @@ public class FundBalance {
     private Fund fund;
     private BigDecimal value;
     private String currency;
-    private int pillar = 2;
-    private boolean activeContributions = false;
+    private Integer pillar;
+    private boolean activeContributions;
 }

@@ -36,7 +36,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
             Instant startTime = parseInstant("1998-01-01")
             AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, startTime)
         then:
-            episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
+            1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
             accountOverview.startTime == startTime
             verifyTimeCloseToNow(accountOverview.endTime)
     }
@@ -45,7 +45,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
         when:
             AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null)
         then:
-            episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
+            1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
             roundToTwoPlaces(accountOverview.beginningBalance) == 178.91
     }
 
@@ -53,7 +53,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
         when:
             AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null)
         then:
-            episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
+            1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
             roundToTwoPlaces(accountOverview.endingBalance) == 195.30
     }
 
@@ -61,7 +61,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
         when:
             AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null)
         then:
-            episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
+            1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
             accountOverview.transactions.size() == 2
             roundToTwoPlaces(accountOverview.transactions[0].amount) == 6.39
             accountOverview.transactions[0].createdAt == getFakeCashFlowStatement().transactions[0].time
@@ -72,23 +72,27 @@ class EpisAccountOverviewProviderSpec extends Specification {
     private static BigDecimal roundToTwoPlaces(BigDecimal value) {
         DecimalFormat format = new DecimalFormat("##.00")
         format.setParseBigDecimal(true)
-        return new BigDecimal(format.format(value));
+        return new BigDecimal(format.format(value))
     }
 
     private static CashFlowStatementDto getFakeCashFlowStatement() {
         Instant randomTime = parseInstant("2001-01-01")
         CashFlowStatementDto cashFlowStatementDto = CashFlowStatementDto.builder()
             .startBalance([
-                "1": new CashFlowValueDto(randomTime, 1000, "EEK"),
-                "2": new CashFlowValueDto(randomTime, 115, "EUR"),
+                "1": CashFlowValueDto.builder().time(randomTime).amount(1000.0).currency("EEK").pillar(2).build(),
+                "2": CashFlowValueDto.builder().time(randomTime).amount(115.0).currency("EUR").pillar(2).build(),
+                "3": CashFlowValueDto.builder().time(randomTime).amount(225.0).currency("EUR").pillar(3).build(),
+
             ])
             .endBalance([
-                "1": new CashFlowValueDto(randomTime, 1100, "EEK"),
-                "2": new CashFlowValueDto(randomTime, 125, "EUR"),
-             ])
+                "1": CashFlowValueDto.builder().time(randomTime).amount(1100.0).currency("EEK").pillar(2).build(),
+                "2": CashFlowValueDto.builder().time(randomTime).amount(125.0).currency("EUR").pillar(2).build(),
+                "3": CashFlowValueDto.builder().time(randomTime).amount(250.0).currency("EUR").pillar(3).build(),
+            ])
             .transactions([
-                new CashFlowValueDto(randomTime, -100, "EEK"),
-                new CashFlowValueDto(randomTime, -20, "EUR"),
+                CashFlowValueDto.builder().time(randomTime).amount(-100.0).currency("EEK").pillar(2).build(),
+                CashFlowValueDto.builder().time(randomTime).amount(-20.0).currency("EUR").pillar(2).build(),
+                CashFlowValueDto.builder().time(randomTime).amount(-25.0).currency("EUR").pillar(3).build(),
             ]).build()
         return cashFlowStatementDto
     }

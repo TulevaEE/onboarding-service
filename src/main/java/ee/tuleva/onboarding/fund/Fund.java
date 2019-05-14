@@ -38,7 +38,10 @@ public class Fund {
     private String isin;
 
     @NotBlank
-    private String name;
+    private String nameEstonian;
+
+    @NotBlank
+    private String nameEnglish;
 
     @NotNull
     private Integer pillar;

@@ -40,14 +40,14 @@ public class AccountStatementService {
             .collect(toList());
 
         if (calculateContributionSum) {
-            calculateContributionSum(person, fundBalances);
+            calculateAndUpdateContributionSum(person, fundBalances);
 
         }
 
         return fundBalances;
     }
 
-    private void calculateContributionSum(Person person, List<FundBalance> fundBalances) {
+    private void calculateAndUpdateContributionSum(Person person, List<FundBalance> fundBalances) {
         fundBalances.stream().forEach(fundBalance -> {
             AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(person, START_TIME, fundBalance.getPillar());
 

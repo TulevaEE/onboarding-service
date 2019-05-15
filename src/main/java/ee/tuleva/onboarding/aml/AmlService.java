@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
@@ -14,11 +13,9 @@ import org.springframework.stereotype.Service;
 public class AmlService {
 
     private final AmlCheckRepository amlCheckRepository;
-    private final EpisService episService;
 
     public void checkUserAfterLogin(User user, Person person) {
         addCheckIfMissing(user, AmlCheckType.DOCUMENT, true);
-        //addPensionRegistryNameCheckIfMissing(user);
         addSkNameCheckIfMissing(user, person);
     }
 
@@ -29,9 +26,8 @@ public class AmlService {
         }
     }
 
-    private void addPensionRegistryNameCheckIfMissing(User user) {
+    public void addPensionRegistryNameCheckIfMissing(User user, UserPreferences userPreferences) {
         if (!hasCheck(user, AmlCheckType.PENSION_REGISTRY_NAME)) {
-            UserPreferences userPreferences = episService.getContactDetails(user);
             addCheck(user, AmlCheckType.PENSION_REGISTRY_NAME,
                 personDataMatches(user,
                     userPreferences.getFirstName(),

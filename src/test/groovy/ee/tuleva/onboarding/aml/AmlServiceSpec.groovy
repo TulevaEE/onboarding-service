@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.aml
 
-import ee.tuleva.onboarding.epis.EpisService
+
 import ee.tuleva.onboarding.epis.contact.UserPreferences
 import spock.lang.Specification
 
@@ -9,8 +9,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 class AmlServiceSpec extends Specification {
 
     AmlCheckRepository amlCheckRepository = Mock()
-    EpisService episService = Mock()
-    AmlService amlService = new AmlService(amlCheckRepository, episService)
+    AmlService amlService = new AmlService(amlCheckRepository)
 
     def "adds user checks"() {
         given:
@@ -23,21 +22,30 @@ class AmlServiceSpec extends Specification {
                 check.type == AmlCheckType.DOCUMENT &&
                 check.success
         })
-        0 * amlCheckRepository.save({ check ->
-            check.user == user &&
-                check.type == AmlCheckType.PENSION_REGISTRY_NAME &&
-                check.success
-        })
         1 * amlCheckRepository.save({ check ->
             check.user == user &&
                 check.type == AmlCheckType.SK_NAME &&
                 check.success
         })
-        0 * episService.getContactDetails(_) >> UserPreferences.builder()
+    }
+
+    def "add pension registry name check if missing"() {
+        given:
+        def user = sampleUserNonMember().build()
+        def userPreferences = UserPreferences.builder()
             .firstName(user.firstName)
             .lastName(user.lastName)
             .personalCode(user.personalCode)
             .build()
+        when:
+        amlService.addPensionRegistryNameCheckIfMissing(user, userPreferences)
+        then:
+        1 * amlCheckRepository.save({ check ->
+            check.user == user &&
+                check.type == AmlCheckType.PENSION_REGISTRY_NAME &&
+                check.success
+        })
+        1 * amlCheckRepository.existsByUserAndType(user, AmlCheckType.PENSION_REGISTRY_NAME) >> false
     }
 
     def "adds check if missing"() {

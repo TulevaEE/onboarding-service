@@ -15,4 +15,5 @@ public class AccountOverview {
     private BigDecimal endingBalance;
     private Instant startTime;
     private Instant endTime;
+    private Integer pillar;
 }

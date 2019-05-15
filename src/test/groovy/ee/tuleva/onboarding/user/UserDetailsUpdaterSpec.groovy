@@ -57,8 +57,7 @@ class UserDetailsUpdaterSpec extends Specification {
 
         1 * userService.save({ User user ->
             user.firstName == "Erko" &&
-                user.lastName == "Risthein" &&
-                user.resident == resident
+                user.lastName == "Risthein"
         })
         if (resident != null) {
             1 * amlService.addCheckIfMissing(_, AmlCheckType.RESIDENCY_AUTO, resident)
@@ -107,51 +106,7 @@ class UserDetailsUpdaterSpec extends Specification {
 
         1 * userService.save({ User user ->
             user.firstName == "Erko" &&
-                user.lastName == "Risthein" &&
-                user.resident == null
-        })
-    }
-
-    def "OnBeforeTokenGrantedEvent: Does not change resident if already set"() {
-        given:
-
-        Person samplePerson = new PersonImpl(
-            personalCode: "38512121215",
-            firstName: "ERKO",
-            lastName: "RISTHEIN"
-        )
-
-        Authentication auth = Mock({
-            getCredentials() >> IdCardSession.builder()
-                .firstName("ERKO")
-                .lastName("RISTHEIN")
-                .documentType(IdDocumentType.ESTONIAN_CITIZEN_ID_CARD)
-                .build()
-        })
-
-        OAuth2Authentication oAuth2Authentication = Mock({
-            getPrincipal() >> samplePerson
-            getUserAuthentication() >> auth
-        })
-
-        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication, GrantType.ID_CARD)
-
-        when:
-        service.onBeforeTokenGrantedEvent(beforeTokenGrantedEvent)
-
-        then:
-        1 * userService.findByPersonalCode(samplePerson.personalCode) >> Optional.of(
-            User.builder()
-                .firstName("this will change")
-                .lastName("this will also change")
-                .resident(false)
-                .build()
-        )
-
-        1 * userService.save({ User user ->
-            user.firstName == "Erko" &&
-                user.lastName == "Risthein" &&
-                !user.resident
+                user.lastName == "Risthein"
         })
     }
 }

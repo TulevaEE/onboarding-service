@@ -54,19 +54,6 @@ public class UserService {
         return save(user);
     }
 
-    public User setResidency(String personalCode, Boolean resident) {
-        User user = findByPersonalCode(personalCode).map(existingUser -> {
-            if (existingUser.getResident() == null && resident != null) {
-                log.info("Setting user {} as resident {}", personalCode, resident);
-                existingUser.setResident(resident);
-                amlService.addCheckIfMissing(existingUser, AmlCheckType.RESIDENCY_MANUAL, resident);
-            }
-            return existingUser;
-        }).orElseThrow(() -> new RuntimeException("User does not exist"));
-        log.info("Updating user {}", user);
-        return save(user);
-    }
-
     public User registerAsMember(Long userId, String fullName) {
         User user = userRepository.findById(userId).orElseThrow(() -> new IllegalStateException("No user found"));
 

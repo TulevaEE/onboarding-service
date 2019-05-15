@@ -31,7 +31,7 @@ public class AccountStatementService {
 
     }
 
-    public List<FundBalance> getAccountStatement(Person person, boolean calculateContribution) {
+    public List<FundBalance> getAccountStatement(Person person, boolean calculateContributionSum) {
         List<FundBalanceDto> accountStatement = episService.getAccountStatement(person);
 
         List<FundBalance> fundBalances = accountStatement.stream()
@@ -39,8 +39,7 @@ public class AccountStatementService {
             .map(fundBalanceDto -> convertToFundBalance(fundBalanceDto, person))
             .collect(toList());
 
-        if (calculateContribution) {
-            //Calculate total contribution for each fund balance
+        if (calculateContributionSum) {
             calculateContributionSum(person, fundBalances);
 
         }

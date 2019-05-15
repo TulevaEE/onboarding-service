@@ -1,10 +1,7 @@
 package ee.tuleva.onboarding.aml;
 
 import ee.tuleva.onboarding.user.User;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 
 import javax.persistence.*;
@@ -15,6 +12,7 @@ import java.time.Instant;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString(exclude = {"user"})
 public class AmlCheck {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

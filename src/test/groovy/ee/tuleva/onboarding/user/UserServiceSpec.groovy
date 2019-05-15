@@ -63,32 +63,6 @@ class UserServiceSpec extends Specification {
         updatedUser.phoneNumber == "555555"
     }
 
-    def "can update user residency based on personal code"() {
-        given:
-        def user = sampleUser().build()
-        userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
-        userRepository.save(user) >> user
-
-        when:
-        def updatedUser = service.setResidency(user.personalCode, true)
-
-        then:
-        updatedUser.resident
-    }
-
-    def "can only update residency if it is missing"() {
-        given:
-        def user = sampleUser().resident(false).build()
-        userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
-        userRepository.save(user) >> user
-
-        when:
-        def updatedUser = service.setResidency(user.personalCode, true)
-
-        then:
-        !updatedUser.resident
-    }
-
     def "can register a non member user as a member"() {
         given:
         def user = sampleUserNonMember().build()

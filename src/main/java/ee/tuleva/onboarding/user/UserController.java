@@ -39,14 +39,10 @@ public class UserController {
             throw new ValidationErrorsException(errors);
         }
 
-        if (cmd.getResident() != null) {
-            return UserResponse.fromUser(userService.setResidency(authenticatedPerson.getPersonalCode(), cmd.getResident()));
-        } else {
-            return UserResponse.fromUser(userService.updateUser(
-                authenticatedPerson.getPersonalCode(),
-                cmd.getEmail(),
-                cmd.getPhoneNumber()));
-        }
+        return UserResponse.fromUser(userService.updateUser(
+            authenticatedPerson.getPersonalCode(),
+            cmd.getEmail(),
+            cmd.getPhoneNumber()));
     }
 
     @ApiOperation(value = "Create a new user")

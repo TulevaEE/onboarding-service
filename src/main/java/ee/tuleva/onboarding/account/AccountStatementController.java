@@ -33,29 +33,13 @@ public class AccountStatementController {
 
     private final AccountStatementService accountStatementService;
     private final FundTransferStatisticsService fundTransferStatisticsService;
-    private final EpisAccountOverviewProvider episAccountOverviewProvider;
-    private static final Instant START_TIME = Utils.parseInstant("2002-01-01");
 
     @ApiOperation(value = "Get pension register account statement")
     @RequestMapping(method = GET, value = "/pension-account-statement")
     public List<FundBalance> getMyPensionAccountStatement(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                                           @RequestHeader(value = "x-statistics-identifier", required = false) UUID statisticsIdentifier) {
-        List<FundBalance> fundBalances = accountStatementService.getAccountStatement(authenticatedPerson);
-
-        //Calculate total contribution for each fund balance
-        fundBalances.stream().forEach(fundBalance -> {
-                AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(authenticatedPerson, START_TIME, fundBalance.getPillar());
-
-                BigDecimal sumOfAllContributions = accountOverview.getTransactions().stream()
-                    .map(Transaction::getAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-                
-                fundBalance.setContributionSum(sumOfAllContributions);
-            });
-
+        List<FundBalance> fundBalances = accountStatementService.getAccountStatement(authenticatedPerson, true);
         fundTransferStatisticsService.saveFundValueStatistics(fundBalances, statisticsIdentifier);
-
-
 
         return fundBalances;
     }

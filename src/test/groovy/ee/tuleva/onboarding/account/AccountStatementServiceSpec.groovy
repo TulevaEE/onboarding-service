@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.account
 
+import ee.tuleva.onboarding.comparisons.overview.EpisAccountOverviewProvider
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import spock.lang.Specification
@@ -11,7 +12,9 @@ class AccountStatementServiceSpec extends Specification {
 
     def episService = Mock(EpisService)
     def fundBalanceConverter = Mock(FundBalanceDtoToFundBalanceConverter)
-    def service = new AccountStatementService(episService, fundBalanceConverter)
+    def episAccountOverviewProvider = Mock(EpisAccountOverviewProvider)
+
+    def service = new AccountStatementService(episService, fundBalanceConverter, episAccountOverviewProvider)
 
     def "returns an account statement"() {
         given:

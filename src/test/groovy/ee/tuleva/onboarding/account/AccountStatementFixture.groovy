@@ -7,97 +7,103 @@ import ee.tuleva.onboarding.fund.manager.FundManager
 class AccountStatementFixture {
 
     public static List<FundBalance> sampleConvertedFundBalanceWithActiveTulevaFund = Lists.asList(
-            FundBalance.builder()
-                    .value(100)
-                    .activeContributions(true)
-                    .fund(
-                    Fund.builder().
-                            isin("AE123232331").
-                            name("Tuleva maailma aktsiate pensionifond")
+        FundBalance.builder()
+            .value(100)
+            .activeContributions(true)
+            .fund(
+                Fund.builder().
+                    isin("AE123232331").
+                    nameEstonian("Tuleva maailma aktsiate pensionifond")
+                    .nameEnglish("Tuleva world stock pensionfund")
+                    .id(123)
+                    .fundManager(
+                        FundManager.builder()
                             .id(123)
-                            .fundManager(
-                            FundManager.builder()
-                                    .id(123)
-                                    .name("Tuleva")
-                                    .build()
+                            .name("Tuleva")
+                            .build()
                     ).build()
             ).build(),
-            FundBalance.builder()
-                    .value(100)
-                    .fund(
-                    Fund.builder().
-                            isin("AE123232332").
-                            name("Tuleva maailma võlakirjade pensionifond")
-                            .id(124)
-                            .fundManager(
-                            FundManager.builder()
-                                    .id(123)
-                                    .name("Tuleva")
-                                    .build()
+        FundBalance.builder()
+            .value(100)
+            .fund(
+                Fund.builder().
+                    isin("AE123232332").
+                    nameEstonian("Tuleva maailma võlakirjade pensionifond")
+                    .nameEnglish("Tuleva world bond pensionfund")
+                    .id(124)
+                    .fundManager(
+                        FundManager.builder()
+                            .id(123)
+                            .name("Tuleva")
+                            .build()
                     ).build()
             ).build()
     )
 
     public static List<FundBalance> sampleNonConvertedFundBalanceWithActiveNonTulevaFund = Lists.asList(
-            FundBalance.builder()
-                    .value(100)
-                    .activeContributions(true)
-                    .fund(
-                    Fund.builder().
-                            isin("AE123232337").
-                            name("LHV XL")
+        FundBalance.builder()
+            .value(100)
+            .activeContributions(true)
+            .fund(
+                Fund.builder()
+                    .isin("AE123232337")
+                    .nameEstonian("LHV XL")
+                    .nameEnglish("LHV XL")
+                    .id(123)
+                    .fundManager(
+                        FundManager.builder()
                             .id(123)
-                            .fundManager(
-                            FundManager.builder()
-                                    .id(123)
-                                    .name("LHV")
-                                    .build()
+                            .name("LHV")
+                            .build()
                     ).build()
             ).build(),
-            FundBalance.builder()
-                    .value(100)
-                    .fund(
-                    Fund.builder().
-                            isin("AE123232332").
-                            name("Tuleva maailma võlakirjade pensionifond")
-                            .id(124)
-                            .fundManager(
-                            FundManager.builder()
-                                    .id(123)
-                                    .name("Tuleva")
-                                    .build()
+        FundBalance.builder()
+            .value(100)
+            .fund(
+                Fund.builder()
+                    .isin("AE123232332")
+                    .nameEstonian("Tuleva maailma võlakirjade pensionifond")
+                    .nameEnglish("Tuleva world bond pensionfund")
+                    .id(124)
+                    .fundManager(
+                        FundManager.builder()
+                            .id(123)
+                            .name("Tuleva")
+                            .build()
                     ).build()
             ).build()
     )
 
     public static List<FundBalance> sampleConvertedFundBalanceWithNonActiveTulevaFund = Lists.asList(
-            FundBalance.builder()
-                    .value(0)
-                    .activeContributions(true)
-                    .fund(
-                    Fund.builder().
-                            isin("AE1232322222").
-                            name("LHV fund")
+        FundBalance.builder()
+            .value(0)
+            .activeContributions(true)
+            .fund(
+                Fund.builder()
+                    .isin("AE1232322222")
+                    .nameEstonian("LHV fund")
+                    .nameEnglish("LHV fund")
+                    .id(123)
+                    .fundManager(
+                        FundManager.builder()
                             .id(123)
-                            .fundManager(
-                            FundManager.builder()
-                                    .id(123)
-                                    .name("LHV")
-                                    .build()
+                            .name("LHV")
+                            .build()
                     ).build()
             ).build(),
-            FundBalance.builder()
-                    .value(100)
-                    .fund(
-                    Fund.builder().
-                            isin("AE123232332").
-                            name("Tuleva maailma võlakirjade pensionifond")
-                            .id(124)
-                            .fundManager(
-                            FundManager.builder()
-                                    .id(123)
-                                    .name("Tuleva")
-                                    .build()
+        FundBalance.builder()
+            .value(100)
+            .fund(
+                Fund.builder()
+                    .isin("AE123232332")
+                    .nameEstonian("Tuleva maailma võlakirjade pensionifond")
+                    .nameEnglish("Tuleva world bond pensionfund")
+                    .id(124)
+                    .fundManager(
+                        FundManager.builder()
+                            .id(123)
+                            .name("Tuleva")
+                            .build()
                     ).build()
             ).build()
     )

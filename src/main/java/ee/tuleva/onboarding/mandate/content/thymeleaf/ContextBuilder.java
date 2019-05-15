@@ -49,11 +49,11 @@ public class ContextBuilder {
 
     public ContextBuilder funds(List<Fund> funds) {
         //sort because by law, funds need to be in alphabetical order
-        funds.sort((Fund fund1, Fund fund2) -> fund1.getName().compareToIgnoreCase(fund2.getName()));
+        funds.sort((Fund fund1, Fund fund2) -> fund1.getNameEstonian().compareToIgnoreCase(fund2.getNameEstonian()));
         ctx.setVariable("funds", funds);
         ctx.setVariable(
                 "fundIsinNames",
-                funds.stream().collect(Collectors.toMap(Fund::getIsin, Fund::getName))
+                funds.stream().collect(Collectors.toMap(Fund::getIsin, Fund::getNameEstonian))
         );
         return this;
     }

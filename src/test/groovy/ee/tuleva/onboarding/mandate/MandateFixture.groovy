@@ -7,7 +7,7 @@ import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand
 
-import java.time.Instant;
+import java.time.Instant
 
 class MandateFixture {
 
@@ -15,14 +15,14 @@ class MandateFixture {
 
     static CreateMandateCommand sampleCreateMandateCommand() {
         return [
-                "fundTransferExchanges": [
-                        new MandateFundTransferExchangeCommand(
-                                "amount": 0.88,
-                                "sourceFundIsin": "SOMEISIN",
-                                "targetFundIsin": futureContibutionFundIsin
-                        )
-                ],
-                "futureContributionFundIsin": futureContibutionFundIsin
+            "fundTransferExchanges"     : [
+                new MandateFundTransferExchangeCommand(
+                    "amount": 0.88,
+                    "sourceFundIsin": "SOMEISIN",
+                    "targetFundIsin": futureContibutionFundIsin
+                )
+            ],
+            "futureContributionFundIsin": futureContibutionFundIsin
         ]
     }
 
@@ -36,63 +36,63 @@ class MandateFixture {
 
     static CreateMandateCommand invalidCreateMandateCommand() {
         return [
-                "fundTransferExchanges": [
-                        new MandateFundTransferExchangeCommand(
-                                "amount": 0.88,
-                                "sourceFundIsin": "SOMEISIN",
-                                "targetFundIsin": futureContibutionFundIsin
-                        ),
-                        new MandateFundTransferExchangeCommand(
-                                "amount": 0.90,
-                                "sourceFundIsin": "SOMEISIN",
-                                "targetFundIsin": futureContibutionFundIsin
-                        )
-                ],
-                "futureContributionFundIsin": futureContibutionFundIsin
+            "fundTransferExchanges"     : [
+                new MandateFundTransferExchangeCommand(
+                    "amount": 0.88,
+                    "sourceFundIsin": "SOMEISIN",
+                    "targetFundIsin": futureContibutionFundIsin
+                ),
+                new MandateFundTransferExchangeCommand(
+                    "amount": 0.90,
+                    "sourceFundIsin": "SOMEISIN",
+                    "targetFundIsin": futureContibutionFundIsin
+                )
+            ],
+            "futureContributionFundIsin": futureContibutionFundIsin
         ]
     }
 
     static CreateMandateCommand invalidCreateMandateCommandWithSameSourceAndTargetFund =
-            [
-                    "fundTransferExchanges": [
-                            new MandateFundTransferExchangeCommand(
-                                    "amount": 0.88,
-                                    "sourceFundIsin": "SOMEOTHER",
-                                    "targetFundIsin": futureContibutionFundIsin
-                            ),
-                            new MandateFundTransferExchangeCommand(
-                                    "amount": 0.90,
-                                    "sourceFundIsin": "SOMEISIN",
-                                    "targetFundIsin": "SOMEISIN"
-                            )
-                    ],
-                    "futureContributionFundIsin": futureContibutionFundIsin
-            ];
+        [
+            "fundTransferExchanges"     : [
+                new MandateFundTransferExchangeCommand(
+                    "amount": 0.88,
+                    "sourceFundIsin": "SOMEOTHER",
+                    "targetFundIsin": futureContibutionFundIsin
+                ),
+                new MandateFundTransferExchangeCommand(
+                    "amount": 0.90,
+                    "sourceFundIsin": "SOMEISIN",
+                    "targetFundIsin": "SOMEISIN"
+                )
+            ],
+            "futureContributionFundIsin": futureContibutionFundIsin
+        ];
 
     static Mandate sampleMandate() {
         Mandate mandate = Mandate.builder()
-                .fundTransferExchanges([
+            .fundTransferExchanges([
                 FundTransferExchange.builder()
-                        .id(1234)
-                        .sourceFundIsin("AE123232331")
-                        .targetFundIsin(futureContibutionFundIsin)
-                        .amount(new BigDecimal(0.2))
-                        .build(),
+                    .id(1234)
+                    .sourceFundIsin("AE123232331")
+                    .targetFundIsin(futureContibutionFundIsin)
+                    .amount(new BigDecimal(0.2))
+                    .build(),
                 FundTransferExchange.builder()
-                        .id(1235)
-                        .sourceFundIsin("AE123232331")
-                        .targetFundIsin(futureContibutionFundIsin)
-                        .amount(new BigDecimal(0.8))
-                        .build(),
+                    .id(1235)
+                    .sourceFundIsin("AE123232331")
+                    .targetFundIsin(futureContibutionFundIsin)
+                    .amount(new BigDecimal(0.8))
+                    .build(),
                 FundTransferExchange.builder()
-                        .id(1236)
-                        .sourceFundIsin("AE123232337")
-                        .targetFundIsin(futureContibutionFundIsin)
-                        .amount(new BigDecimal(1))
-                        .build()
-        ])
-                .futureContributionFundIsin(futureContibutionFundIsin)
-                .build()
+                    .id(1236)
+                    .sourceFundIsin("AE123232337")
+                    .targetFundIsin(futureContibutionFundIsin)
+                    .amount(new BigDecimal(1))
+                    .build()
+            ])
+            .futureContributionFundIsin(futureContibutionFundIsin)
+            .build()
 
         mandate.setId(123)
         mandate.setCreatedDate(Instant.now())
@@ -102,35 +102,35 @@ class MandateFixture {
 
     static Mandate sampleMandateWithEmptyTransfer() {
         Mandate mandate = Mandate.builder()
-                .fundTransferExchanges([
+            .fundTransferExchanges([
                 FundTransferExchange.builder()
-                        .id(1234)
-                        .sourceFundIsin("AE123232331")
-                        .targetFundIsin(futureContibutionFundIsin)
-                        .amount(new BigDecimal(0.2))
-                        .build(),
+                    .id(1234)
+                    .sourceFundIsin("AE123232331")
+                    .targetFundIsin(futureContibutionFundIsin)
+                    .amount(new BigDecimal(0.2))
+                    .build(),
                 FundTransferExchange.builder()
-                        .id(1235)
-                        .sourceFundIsin("AE123232331")
-                        .targetFundIsin(futureContibutionFundIsin)
-                        .amount(new BigDecimal(0.8))
-                        .build(),
+                    .id(1235)
+                    .sourceFundIsin("AE123232331")
+                    .targetFundIsin(futureContibutionFundIsin)
+                    .amount(new BigDecimal(0.8))
+                    .build(),
                 FundTransferExchange.builder()
-                        .id(1236)
-                        .sourceFundIsin("AE123232337")
-                        .targetFundIsin(futureContibutionFundIsin)
-                        .amount(new BigDecimal(1))
-                        .build(),
+                    .id(1236)
+                    .sourceFundIsin("AE123232337")
+                    .targetFundIsin(futureContibutionFundIsin)
+                    .amount(new BigDecimal(1))
+                    .build(),
                 FundTransferExchange.builder()
-                        .id(1236)
-                        .sourceFundIsin("AE123232337")
-                        .targetFundIsin(futureContibutionFundIsin)
-                        .amount(BigDecimal.ZERO)
-                        .build()
+                    .id(1236)
+                    .sourceFundIsin("AE123232337")
+                    .targetFundIsin(futureContibutionFundIsin)
+                    .amount(BigDecimal.ZERO)
+                    .build()
 
-        ])
-                .futureContributionFundIsin(futureContibutionFundIsin)
-                .build()
+            ])
+            .futureContributionFundIsin(futureContibutionFundIsin)
+            .build()
 
         mandate.setId(123)
         mandate.setCreatedDate(Instant.now())
@@ -140,28 +140,28 @@ class MandateFixture {
 
     static Mandate sampleUnsignedMandate() {
         Mandate mandate = Mandate.builder()
-                .fundTransferExchanges([
+            .fundTransferExchanges([
                 FundTransferExchange.builder()
-                        .id(1234)
-                        .sourceFundIsin("AE123232331")
-                        .targetFundIsin(futureContibutionFundIsin)
-                        .amount(new BigDecimal(0.2))
-                        .build(),
+                    .id(1234)
+                    .sourceFundIsin("AE123232331")
+                    .targetFundIsin(futureContibutionFundIsin)
+                    .amount(new BigDecimal(0.2))
+                    .build(),
                 FundTransferExchange.builder()
-                        .id(1235)
-                        .sourceFundIsin("AE123232331")
-                        .targetFundIsin(futureContibutionFundIsin)
-                        .amount(new BigDecimal(0.8))
-                        .build(),
+                    .id(1235)
+                    .sourceFundIsin("AE123232331")
+                    .targetFundIsin(futureContibutionFundIsin)
+                    .amount(new BigDecimal(0.8))
+                    .build(),
                 FundTransferExchange.builder()
-                        .id(1236)
-                        .sourceFundIsin("AE123232337")
-                        .targetFundIsin(futureContibutionFundIsin)
-                        .amount(new BigDecimal(1))
-                        .build()
-        ])
-                .futureContributionFundIsin(futureContibutionFundIsin)
-                .build()
+                    .id(1236)
+                    .sourceFundIsin("AE123232337")
+                    .targetFundIsin(futureContibutionFundIsin)
+                    .amount(new BigDecimal(1))
+                    .build()
+            ])
+            .futureContributionFundIsin(futureContibutionFundIsin)
+            .build()
 
         mandate.setId(123)
         mandate.setCreatedDate(Instant.now())
@@ -170,57 +170,68 @@ class MandateFixture {
 
     static List<Fund> sampleFunds() {
         return Arrays.asList(
-                Fund.builder().
-                        isin(futureContibutionFundIsin).
-                        name("Tuleva maailma aktsiate pensionifond")
+            Fund.builder().
+                isin(futureContibutionFundIsin)
+                .nameEstonian("Tuleva maailma aktsiate pensionifond")
+                .nameEnglish("Tuleva World Stock Fund")
+                .id(123)
+                .fundManager(
+                    FundManager.builder()
                         .id(123)
-                        .fundManager(
-                        FundManager.builder()
-                                .id(123)
-                                .name("Tuleva")
-                                .build()
-                )
-                        .build(),
-                Fund.builder().isin("EE3600019775").name("SEB fond")
-                        .fundManager(
-                        FundManager.builder()
-                                .id(124)
-                                .name("SEB")
-                                .build()
-                )
-                        .build(),
-                Fund.builder().isin("EE3600019776").name("LHV XL")
-                        .fundManager(
-                        FundManager.builder()
-                                .id(125)
-                                .name("LHV")
-                                .build()
-                )
-                        .build(),
-                Fund.builder().isin("EE3600019777").name("Swedbänk fond")
-                        .fundManager(
-                        FundManager.builder()
-                                .id(126)
-                                .name("Swedbank")
-                                .build()
-                )
-                        .build(),
-                Fund.builder().isin("AE123232331").name("Nordea fond")
-                        .fundManager(
-                        FundManager.builder()
-                                .id(127)
-                                .name("Nordea")
-                                .build()
-                )
-                        .build(),
-                Fund.builder().isin("AE123232337").name("LHV S")
-                        .fundManager(
-                        FundManager.builder()
-                                .id(125)
-                                .name("LHV")
-                                .build()
-                )
+                        .name("Tuleva")
                         .build()
+                )
+                .build(),
+            Fund.builder().isin("EE3600019775")
+                .nameEstonian("SEB fond")
+                .nameEnglish("SEB fund")
+                .fundManager(
+                    FundManager.builder()
+                        .id(124)
+                        .name("SEB")
+                        .build()
+                )
+                .build(),
+            Fund.builder().isin("EE3600019776")
+                .nameEstonian("LHV XL")
+                .nameEnglish("LHV XL eng")
+                .fundManager(
+                    FundManager.builder()
+                        .id(125)
+                        .name("LHV")
+                        .build()
+                )
+                .build(),
+            Fund.builder().isin("EE3600019777")
+                .nameEstonian("Swedbänk fond")
+                .nameEnglish("Swedbank fund")
+                .fundManager(
+                    FundManager.builder()
+                        .id(126)
+                        .name("Swedbank")
+                        .build()
+                )
+                .build(),
+            Fund.builder().isin("AE123232331")
+                .nameEstonian("Nordea fond")
+                .nameEnglish("Nordea fund")
+                .fundManager(
+                    FundManager.builder()
+                        .id(127)
+                        .name("Nordea")
+                        .build()
+                )
+                .build(),
+            Fund.builder().isin("AE123232337")
+                .nameEstonian("LHV S")
+                .nameEnglish("LHV S eng")
+                .fundManager(
+                    FundManager.builder()
+                        .id(125)
+                        .name("LHV")
+                        .build()
+                )
+                .build()
         )
     }
 

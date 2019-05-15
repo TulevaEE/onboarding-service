@@ -38,7 +38,14 @@ public class Fund {
     private String isin;
 
     @NotBlank
-    private String name;
+    private String nameEstonian;
+
+    @NotBlank
+    private String nameEnglish;
+
+    public String getName(String language) {
+        return "en".equalsIgnoreCase(language) ? nameEnglish : nameEstonian;
+    }
 
     @NotNull
     private Integer pillar;

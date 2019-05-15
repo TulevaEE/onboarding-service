@@ -14,6 +14,7 @@ class AccountStatementFixture {
                 Fund.builder().
                     isin("AE123232331").
                     nameEstonian("Tuleva maailma aktsiate pensionifond")
+                    .nameEnglish("Tuleva world stock pensionfund")
                     .id(123)
                     .fundManager(
                         FundManager.builder()
@@ -28,6 +29,7 @@ class AccountStatementFixture {
                 Fund.builder().
                     isin("AE123232332").
                     nameEstonian("Tuleva maailma võlakirjade pensionifond")
+                    .nameEnglish("Tuleva world bond pensionfund")
                     .id(124)
                     .fundManager(
                         FundManager.builder()
@@ -43,9 +45,10 @@ class AccountStatementFixture {
             .value(100)
             .activeContributions(true)
             .fund(
-                Fund.builder().
-                    isin("AE123232337").
-                    nameEstonian("LHV XL")
+                Fund.builder()
+                    .isin("AE123232337")
+                    .nameEstonian("LHV XL")
+                    .nameEnglish("LHV XL")
                     .id(123)
                     .fundManager(
                         FundManager.builder()
@@ -57,9 +60,10 @@ class AccountStatementFixture {
         FundBalance.builder()
             .value(100)
             .fund(
-                Fund.builder().
-                    isin("AE123232332").
-                    nameEstonian("Tuleva maailma võlakirjade pensionifond")
+                Fund.builder()
+                    .isin("AE123232332")
+                    .nameEstonian("Tuleva maailma võlakirjade pensionifond")
+                    .nameEnglish("Tuleva world bond pensionfund")
                     .id(124)
                     .fundManager(
                         FundManager.builder()
@@ -75,9 +79,10 @@ class AccountStatementFixture {
             .value(0)
             .activeContributions(true)
             .fund(
-                Fund.builder().
-                    isin("AE1232322222").
-                    nameEstonian("LHV fund")
+                Fund.builder()
+                    .isin("AE1232322222")
+                    .nameEstonian("LHV fund")
+                    .nameEnglish("LHV fund")
                     .id(123)
                     .fundManager(
                         FundManager.builder()
@@ -92,6 +97,7 @@ class AccountStatementFixture {
                 Fund.builder()
                     .isin("AE123232332")
                     .nameEstonian("Tuleva maailma võlakirjade pensionifond")
+                    .nameEnglish("Tuleva world bond pensionfund")
                     .id(124)
                     .fundManager(
                         FundManager.builder()

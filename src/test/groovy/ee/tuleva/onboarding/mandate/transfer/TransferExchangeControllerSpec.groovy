@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus
 import ee.tuleva.onboarding.fund.Fund
 import org.hamcrest.Matchers
 import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.result.MockMvcResultHandlers
 
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -34,7 +33,6 @@ class TransferExchangeControllerSpec extends BaseControllerSpec {
             .header('Accept-Language', language)
             .param('status', 'PENDING'))
             .andExpect(status().isOk())
-            .andDo(MockMvcResultHandlers.print())
             .andExpect(jsonPath('$.*', Matchers.hasSize(1)))
             .andExpect(jsonPath('$[0].sourceFund.name', is(srcTranslation)))
             .andExpect(jsonPath('$[0].targetFund.name', is(targetTranslation)))

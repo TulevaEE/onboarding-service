@@ -23,10 +23,10 @@ public class FundResponse {
     private Fund.FundStatus status;
 
 
-    public FundResponse(Fund fund, PensionFundStatistics pensionFundStatistics) {
+    public FundResponse(Fund fund, PensionFundStatistics pensionFundStatistics, String language) {
         this.fundManager = fund.getFundManager();
         this.isin = fund.getIsin();
-        this.name = fund.getName();
+        this.name = fund.getName(language);
         this.managementFeeRate = fund.getManagementFeeRate();
         this.nav = pensionFundStatistics.getNav();
         this.volume = pensionFundStatistics.getVolume();

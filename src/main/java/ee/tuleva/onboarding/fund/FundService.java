@@ -22,9 +22,9 @@ public class FundService {
   private final FundRepository fundRepository;
   private final PensionFundStatisticsService pensionFundStatisticsService;
 
-  public List<FundResponse> getFunds(Optional<String> fundManagerName) {
+  public List<FundResponse> getFunds(Optional<String> fundManagerName, String language) {
      return stream(fundsBy(fundManagerName).spliterator(), false)
-       .map(fund -> new FundResponse(fund, statistics(fund)))
+       .map(fund -> new FundResponse(fund, statistics(fund), language))
        .collect(toList());
   }
 

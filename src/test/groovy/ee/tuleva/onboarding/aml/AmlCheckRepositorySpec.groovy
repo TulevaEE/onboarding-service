@@ -61,4 +61,28 @@ class AmlCheckRepositorySpec extends Specification {
         then:
         exists
     }
+
+    def "findAllByUser() works"() {
+        given:
+        User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
+
+        AmlCheck sampleCheck = AmlCheck.builder()
+            .user(sampleUser)
+            .type(AmlCheckType.DOCUMENT)
+            .success(true)
+            .build()
+
+        entityManager.persist(sampleCheck)
+
+        entityManager.flush()
+
+        when:
+        def checks = repository.findAllByUser(sampleUser)
+
+        then:
+        checks.size() == 1
+        checks.first().id != null
+        checks.first().user == sampleUser
+        checks.first().type == AmlCheckType.DOCUMENT
+    }
 }

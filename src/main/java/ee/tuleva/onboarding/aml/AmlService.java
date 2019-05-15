@@ -7,6 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -64,5 +66,9 @@ public class AmlService {
 
     private boolean hasCheck(User user, AmlCheckType type) {
         return amlCheckRepository.existsByUserAndType(user, type);
+    }
+
+    public List<AmlCheck> getChecks(User user) {
+        return amlCheckRepository.findAllByUser(user);
     }
 }

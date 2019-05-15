@@ -64,6 +64,6 @@ class AmlServiceSpec extends Specification {
         amlService.addCheckIfMissing(user, type, success)
         then:
         0 * amlCheckRepository.save(_)
-        1 * amlCheckRepository.exists(_) >> true
+        1 * amlCheckRepository.existsByUserAndType(user, type) >> true
     }
 }

@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -68,6 +67,6 @@ public class AmlService {
     }
 
     private boolean hasCheck(User user, AmlCheckType type) {
-        return amlCheckRepository.exists(Example.of(AmlCheck.builder().user(user).type(type).build()));
+        return amlCheckRepository.existsByUserAndType(user, type);
     }
 }

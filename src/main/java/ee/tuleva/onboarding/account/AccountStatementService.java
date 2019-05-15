@@ -41,19 +41,23 @@ public class AccountStatementService {
 
         if (calculateContribution) {
             //Calculate total contribution for each fund balance
-            fundBalances.stream().forEach(fundBalance -> {
-                AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(person, START_TIME, fundBalance.getPillar());
-
-                BigDecimal sumOfAllContributions = accountOverview.getTransactions().stream()
-                    .map(Transaction::getAmount)
-                    .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-                fundBalance.setContributionSum(sumOfAllContributions);
-            });
+            calculateContributionSum(person, fundBalances);
 
         }
 
         return fundBalances;
+    }
+
+    private void calculateContributionSum(Person person, List<FundBalance> fundBalances) {
+        fundBalances.stream().forEach(fundBalance -> {
+            AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(person, START_TIME, fundBalance.getPillar());
+
+            BigDecimal sumOfAllContributions = accountOverview.getTransactions().stream()
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            fundBalance.setContributionSum(sumOfAllContributions);
+        });
     }
 
     private FundBalance convertToFundBalance(FundBalanceDto fundBalanceDto, Person person) {

@@ -1,9 +1,15 @@
 package ee.tuleva.onboarding.account
 
+import ee.tuleva.onboarding.common.Utils
+import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.EpisAccountOverviewProvider
+import ee.tuleva.onboarding.comparisons.overview.Transaction
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
+import ee.tuleva.onboarding.fund.Fund
 import spock.lang.Specification
+
+import java.time.Instant
 
 import static ee.tuleva.onboarding.account.AccountStatementFixture.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -30,6 +36,32 @@ class AccountStatementServiceSpec extends Specification {
 
         then:
         accountStatement == [fundBalance]
+    }
+
+    def "returns an account statement with properly calculated contributions when calculateContribuition is set to true"() {
+        given:
+            def person = samplePerson()
+            def fundBalanceDto = FundBalanceDto.builder().currency("EUR").pillar(2).isin("someIsin2ndPillar").build()
+            def fundBalance = sampleConvertedFundBalanceWithActiveTulevaFund.first()
+
+            //FundBalance fundBalance = new FundBalance(Mock(Fund), new BigDecimal(12000.00), "EUR", 2, true, new BigDecimal(0.00))
+
+            List< Transaction> transactions = [new Transaction(new BigDecimal(1000.00), Utils.parseInstant("2007-07-07")),
+                                               new Transaction(new BigDecimal(9000.00), Utils.parseInstant("2008-08-08"))]
+
+            AccountOverview accountOverview = new AccountOverview(transactions, new BigDecimal(10000.00), new BigDecimal(12000.00), Utils.parseInstant("2007-07-07"), Instant.now(), 2)
+
+            episService.getAccountStatement(person) >> [fundBalanceDto]
+            fundBalanceConverter.convert(fundBalanceDto) >> fundBalance
+            1 * episAccountOverviewProvider.getAccountOverview(person , _, _) >> accountOverview
+
+
+        when:
+            List<FundBalance> accountStatement = service.getAccountStatement(person, true)
+
+        then:
+            accountStatement == [fundBalance]
+            accountStatement.first().contributionSum == new BigDecimal(10000.00)
     }
 
     def "fundBalanceDto with no Isin code are filtered out and will not try to convert"() {

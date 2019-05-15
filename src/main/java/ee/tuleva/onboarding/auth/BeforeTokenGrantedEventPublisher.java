@@ -13,10 +13,10 @@ public class BeforeTokenGrantedEventPublisher {
 
     private final ApplicationEventPublisher applicationEventPublisher;
 
-    public void publish(OAuth2Authentication authentication) {
+    public void publish(OAuth2Authentication authentication, GrantType grantType) {
         log.info("Publishing BeforeTokenGrantedEvent. ");
         BeforeTokenGrantedEvent beforeTokenGrantedEvent
-                = new BeforeTokenGrantedEvent(this, authentication);
+            = new BeforeTokenGrantedEvent(this, authentication, grantType);
         applicationEventPublisher.publishEvent(beforeTokenGrantedEvent);
     }
 

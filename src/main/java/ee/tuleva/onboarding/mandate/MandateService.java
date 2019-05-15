@@ -3,12 +3,14 @@ package ee.tuleva.onboarding.mandate;
 import com.codeborne.security.mobileid.IdCardSignatureSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.codeborne.security.mobileid.SignatureFile;
+import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
-import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
 import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService;
@@ -19,7 +21,6 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -46,12 +47,15 @@ public class MandateService {
     private final MandateFileService mandateFileService;
     private final UserService userService;
     private final EpisService episService;
+    private final AmlService amlService;
 
     public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
         validateCreateMandateCommand(createMandateCommand);
         Mandate mandate = converter.convert(createMandateCommand);
-        mandate.setUser(userService.getById(userId));
-
+        User user = userService.getById(userId);
+        mandate.setUser(user);
+        UserPreferences userPreferences = episService.getContactDetails(user);
+        amlService.addPensionRegistryNameCheckIfMissing(user, userPreferences);
         log.info("Saving mandate {}", mandate);
         return mandateRepository.save(mandate);
     }
@@ -69,7 +73,7 @@ public class MandateService {
 
     private boolean isSameSourceToTargetTransferPresent(CreateMandateCommand createMandateCommand) {
         return createMandateCommand.getFundTransferExchanges().stream()
-                .anyMatch(fte -> fte.getSourceFundIsin().equalsIgnoreCase(fte.getTargetFundIsin()));
+            .anyMatch(fte -> fte.getSourceFundIsin().equalsIgnoreCase(fte.getTargetFundIsin()));
     }
 
     private Map<String, BigDecimal> summariseSourceFundTransferAmounts(CreateMandateCommand createMandateCommand) {
@@ -81,8 +85,8 @@ public class MandateService {
             }
 
             summaryMap.put(
-                    fte.getSourceFundIsin(),
-                    summaryMap.get(fte.getSourceFundIsin()).add(fte.getAmount())
+                fte.getSourceFundIsin(),
+                summaryMap.get(fte.getSourceFundIsin()).add(fte.getAmount())
             );
         });
 
@@ -171,9 +175,9 @@ public class MandateService {
             persistFundTransferExchangeStatistics(statisticsIdentifier, mandate);
 
             notifyAboutSignedMandate(user,
-                    mandate.getId(),
-                    mandate.getMandate()
-                            .orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file."))
+                mandate.getId(),
+                mandate.getMandate()
+                    .orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file."))
             );
             episService.clearCache(user);
             handleMandateProcessingErrors(mandate);

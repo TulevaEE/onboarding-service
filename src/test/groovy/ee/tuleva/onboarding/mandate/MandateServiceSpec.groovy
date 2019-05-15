@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.mandate
 import com.codeborne.security.mobileid.IdCardSignatureSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
+import ee.tuleva.onboarding.aml.AmlService
+import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.error.response.ErrorResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
@@ -10,7 +13,6 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConvert
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
-import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.mandate.signature.SignatureService
 import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService
 import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics
@@ -35,10 +37,11 @@ class MandateServiceSpec extends Specification {
     MandateFileService mandateFileService = Mock(MandateFileService)
     UserService userService = Mock(UserService)
     EpisService episService = Mock(EpisService)
+    AmlService amlService = Mock()
 
     MandateService service = new MandateService(mandateRepository, signService,
-            converter, emailService, fundValueStatisticsRepository, fundTransferStatisticsService,
-            mandateProcessor, mandateFileService, userService, episService)
+        converter, emailService, fundValueStatisticsRepository, fundTransferStatisticsService,
+        mandateProcessor, mandateFileService, userService, episService, amlService)
 
     Long sampleMandateId = 1L
     UUID sampleStatisticsIdentifier = UUID.randomUUID()
@@ -51,23 +54,29 @@ class MandateServiceSpec extends Specification {
 
     def "save: Converting create mandate command and persisting a mandate"() {
         given:
-            1 * mandateRepository.save(_ as Mandate) >> { Mandate mandate ->
-                return mandate
-            }
-            CreateMandateCommand createMandateCmd = sampleCreateMandateCommand()
+        1 * mandateRepository.save(_ as Mandate) >> { Mandate mandate ->
+            return mandate
+        }
+        CreateMandateCommand createMandateCmd = sampleCreateMandateCommand()
         when:
-            Mandate mandate = service.save(sampleUser.id, createMandateCmd)
+        Mandate mandate = service.save(sampleUser.id, createMandateCmd)
         then:
-            mandate.futureContributionFundIsin == Optional.of(createMandateCmd.futureContributionFundIsin)
-            mandate.fundTransferExchanges.size() == createMandateCmd.fundTransferExchanges.size()
-            mandate.fundTransferExchanges.first().sourceFundIsin ==
-                    createMandateCmd.fundTransferExchanges.first().sourceFundIsin
+        mandate.futureContributionFundIsin == Optional.of(createMandateCmd.futureContributionFundIsin)
+        mandate.fundTransferExchanges.size() == createMandateCmd.fundTransferExchanges.size()
+        mandate.fundTransferExchanges.first().sourceFundIsin ==
+            createMandateCmd.fundTransferExchanges.first().sourceFundIsin
 
-            mandate.fundTransferExchanges.first().targetFundIsin ==
-                    createMandateCmd.fundTransferExchanges.first().targetFundIsin
+        mandate.fundTransferExchanges.first().targetFundIsin ==
+            createMandateCmd.fundTransferExchanges.first().targetFundIsin
 
-            mandate.fundTransferExchanges.first().amount ==
-                    createMandateCmd.fundTransferExchanges.first().amount
+        mandate.fundTransferExchanges.first().amount ==
+            createMandateCmd.fundTransferExchanges.first().amount
+        1 * episService.getContactDetails(sampleUser) >> UserPreferences.builder()
+            .firstName(sampleUser.firstName)
+            .lastName(sampleUser.lastName)
+            .personalCode(sampleUser.personalCode)
+            .build()
+        1 * amlService.addPensionRegistryNameCheckIfMissing(sampleUser, _)
 
     }
 
@@ -96,7 +105,7 @@ class MandateServiceSpec extends Specification {
         def user = sampleUser()
         1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
         1 * signService.startSign(_ as List<SignatureFile>, user.personalCode, user.phoneNumber) >>
-                new MobileIdSignatureSession(1, "1234")
+            new MobileIdSignatureSession(1, "1234")
 
         when:
         def session = service.mobileIdSign(sampleMandateId, user.id, user.phoneNumber)
@@ -191,7 +200,7 @@ class MandateServiceSpec extends Specification {
         def user = sampleUser()
         1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
         1 * signService.startSign(_ as List<SignatureFile>, "signingCertificate") >>
-                new IdCardSignatureSession(1, "sigId", "hash")
+            new IdCardSignatureSession(1, "sigId", "hash")
 
         when:
         def session = service.idCardSign(sampleMandateId, user.id, "signingCertificate")
@@ -287,9 +296,9 @@ class MandateServiceSpec extends Specification {
 
     User sampleUser() {
         return User.builder()
-                .personalCode("38501010002")
-                .phoneNumber("5555555")
-                .build()
+            .personalCode("38501010002")
+            .phoneNumber("5555555")
+            .build()
     }
 
     ErrorsResponse sampleErrorsResponse = new ErrorsResponse([ErrorResponse.builder().code('sampe.error').build()])

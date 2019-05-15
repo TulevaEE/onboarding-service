@@ -10,43 +10,49 @@ import lombok.*;
 // TODO: rename to ContactDetails
 public class UserPreferences {
 
-  public enum ContactPreferenceType {E, P} // E - email, P - postal
+    public enum ContactPreferenceType {E, P} // E - email, P - postal
 
-  private ContactPreferenceType contactPreference;
+    private String firstName;
 
-  private String districtCode;
+    private String lastName;
 
-  private String addressRow1;
+    private String personalCode;
 
-  private String addressRow2;
+    private ContactPreferenceType contactPreference;
 
-  private String addressRow3;
+    private String districtCode;
 
-  private String postalIndex;
+    private String addressRow1;
 
-  private String country;
+    private String addressRow2;
 
-  public enum LanguagePreferenceType {EST, RUS, ENG}
+    private String addressRow3;
 
-  private LanguagePreferenceType languagePreference;
+    private String postalIndex;
 
-  private String noticeNeeded; // boolean { 'Y', 'N' }
+    private String country;
 
-  private String email;
+    public enum LanguagePreferenceType {EST, RUS, ENG}
 
-  public static UserPreferences defaultUserPreferences() {
-    return builder()
-        .addressRow1("Tuleva, Telliskivi 60")
-        .addressRow2("TALLINN")
-        .addressRow3("TALLINN")
-        .country("EE")
-        .postalIndex("10412")
-        .districtCode("0784")
-        .contactPreference(ContactPreferenceType.valueOf("E"))
-        .languagePreference(LanguagePreferenceType.valueOf("EST"))
-        .noticeNeeded("Y")
-        .email("tuleva@tuleva.ee")
-        .build();
-  }
+    private LanguagePreferenceType languagePreference;
+
+    private String noticeNeeded; // boolean { 'Y', 'N' }
+
+    private String email;
+
+    public static UserPreferences defaultUserPreferences() {
+        return builder()
+            .addressRow1("Tuleva, Telliskivi 60")
+            .addressRow2("TALLINN")
+            .addressRow3("TALLINN")
+            .country("EE")
+            .postalIndex("10412")
+            .districtCode("0784")
+            .contactPreference(ContactPreferenceType.valueOf("E"))
+            .languagePreference(LanguagePreferenceType.valueOf("EST"))
+            .noticeNeeded("Y")
+            .email("tuleva@tuleva.ee")
+            .build();
+    }
 
 }

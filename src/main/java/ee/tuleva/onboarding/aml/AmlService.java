@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -39,13 +40,13 @@ public class AmlService {
     }
 
     private boolean personDataMatches(User user, String firstName, String lastName, String personalCode) {
-        if (!user.getFirstName().toLowerCase().equals(firstName.toLowerCase())) {
+        if (!StringUtils.equalsIgnoreCase(user.getFirstName(), firstName)) {
             return false;
         }
-        if (!user.getLastName().toLowerCase().equals(lastName.toLowerCase())) {
+        if (!StringUtils.equalsIgnoreCase(user.getLastName(), lastName)) {
             return false;
         }
-        return user.getPersonalCode().equals(personalCode);
+        return StringUtils.equalsIgnoreCase(user.getPersonalCode(), personalCode);
     }
 
     public void addCheckIfMissing(User user, AmlCheckType type, Boolean success) {

@@ -28,7 +28,7 @@ public class FundBalanceResponseDto {
     }
 
     @Data
-    static class FundResponseDto {
+    public static class FundResponseDto {
         private FundManager fundManager;
         private String isin;
         private String name;
@@ -37,7 +37,7 @@ public class FundBalanceResponseDto {
         private BigDecimal ongoingChargesFigure;
         private Fund.FundStatus status;
 
-        FundResponseDto(Fund fund, String language) {
+        public FundResponseDto(Fund fund, String language) {
             this.fundManager = fund.getFundManager();
             this.isin = fund.getIsin();
             this.name = fund.getName(language);

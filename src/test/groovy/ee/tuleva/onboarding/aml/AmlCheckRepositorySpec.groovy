@@ -40,4 +40,25 @@ class AmlCheckRepositorySpec extends Specification {
         check.get().user == sampleUser
         check.get().type == AmlCheckType.DOCUMENT
     }
+
+    def "exists by user and type works"() {
+        given:
+        User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
+
+        AmlCheck sampleCheck = AmlCheck.builder()
+            .user(sampleUser)
+            .type(AmlCheckType.DOCUMENT)
+            .success(true)
+            .build()
+
+        entityManager.persist(sampleCheck)
+
+        entityManager.flush()
+
+        when:
+        def exists = repository.existsByUserAndType(sampleUser, AmlCheckType.DOCUMENT)
+
+        then:
+        exists
+    }
 }

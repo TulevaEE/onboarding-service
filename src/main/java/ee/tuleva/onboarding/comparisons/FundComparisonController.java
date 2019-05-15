@@ -30,9 +30,10 @@ public class FundComparisonController {
     @GetMapping("/fund-comparison")
     public FundComparison getComparison(
             @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-            @RequestParam(value = "from", required = false) @DateTimeFormat(pattern="yyyy-MM-dd") Date startDate) {
+            @RequestParam(value = "from", required = false) @DateTimeFormat(pattern="yyyy-MM-dd") Date startDate,
+            @RequestParam(value = "pillar", required = false, defaultValue = "2") Integer pillar) {
         Instant startTime = startDate == null ? DEFAULT_TIME : startDate.toInstant();
-        return fundComparisonCalculatorService.calculateComparison(authenticatedPerson, startTime);
+        return fundComparisonCalculatorService.calculateComparison(authenticatedPerson, startTime, pillar);
     }
 
     private static Instant parseInstant(String format) {

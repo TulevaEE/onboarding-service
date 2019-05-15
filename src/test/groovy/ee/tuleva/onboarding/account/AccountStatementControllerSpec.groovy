@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.account
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.comparisons.overview.EpisAccountOverviewProvider
 import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService
 import org.springframework.test.web.servlet.MockMvc
 
@@ -18,8 +19,9 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
 
     AccountStatementService accountStatementService = Mock(AccountStatementService)
     FundTransferStatisticsService fundTransferStatisticsService = Mock(FundTransferStatisticsService)
+    EpisAccountOverviewProvider episAccountOverviewProvider = Mock(EpisAccountOverviewProvider)
     AccountStatementController controller =
-            new AccountStatementController(accountStatementService, fundTransferStatisticsService)
+        new AccountStatementController(accountStatementService, fundTransferStatisticsService, episAccountOverviewProvider)
 
     def "/pension-account-statement endpoint works"() {
         given:

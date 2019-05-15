@@ -36,12 +36,12 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             Instant endTime = parseInstant("2018-06-18")
             fakeNoReturnFundValues()
         when:
-            fundComparisonCalculatorService.calculateComparison(person, startTime)
+            fundComparisonCalculatorService.calculateComparison(person, startTime, 2)
         then:
-            1 * accountOverviewProvider.getAccountOverview(_ as Person, _ as Instant) >> new AccountOverview([
+            1 * accountOverviewProvider.getAccountOverview(_ as Person, _ as Instant, _ as Integer) >> new AccountOverview([
                     new Transaction(100, startTime),
                     new Transaction(100, startTime),
-            ], 0, 200, startTime, endTime)
+            ], 0, 200, startTime, endTime, 2)
     }
 
     def "it successfully calculates a return of 0%" () {
@@ -49,12 +49,12 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             Instant startTime = parseInstant("2018-06-17")
             Instant endTime = parseInstant("2018-06-18")
             fakeNoReturnFundValues()
-            accountOverviewProvider.getAccountOverview(_ as Person, _ as Instant) >> new AccountOverview([
+            accountOverviewProvider.getAccountOverview(_ as Person, _ as Instant, _ as Integer) >> new AccountOverview([
                     new Transaction(100, startTime),
                     new Transaction(100, startTime),
-            ], 0, 200, startTime, endTime)
+            ], 0, 200, startTime, endTime, 2)
         when:
-            FundComparison comparison = fundComparisonCalculatorService.calculateComparison(_ as Person, startTime)
+            FundComparison comparison = fundComparisonCalculatorService.calculateComparison(_ as Person, startTime, 2)
         then:
             comparison.actualReturnPercentage == 0
             comparison.estonianAverageReturnPercentage == 0
@@ -67,7 +67,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
 
             Instant startTime = parseInstant("2010-01-01")
             Instant endTime = parseInstant("2018-07-18")
-            accountOverviewProvider.getAccountOverview(_, _) >> new AccountOverview([
+            accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
                     new Transaction(30, parseInstant("2010-07-01")),
                     new Transaction(30, parseInstant("2011-01-01")),
                     new Transaction(30, parseInstant("2011-07-01")),
@@ -84,9 +84,9 @@ class FundComparisonCalculatorServiceSpec extends Specification {
                     new Transaction(30, parseInstant("2017-01-01")),
                     new Transaction(30, parseInstant("2017-07-01")),
                     new Transaction(30, parseInstant("2018-01-01")),
-            ], 30, 620, startTime, endTime)
+            ], 30, 620, startTime, endTime, 2)
         when:
-            FundComparison comparison = fundComparisonCalculatorService.calculateComparison(null, startTime)
+            FundComparison comparison = fundComparisonCalculatorService.calculateComparison(null, startTime, 2)
         then:
             comparison.actualReturnPercentage == 0.0427.doubleValue()
             comparison.estonianAverageReturnPercentage == 0
@@ -102,7 +102,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             fundValueProvider.getFundValueClosestToTime(ComparisonFund.MARKET, _) >> {
                 ComparisonFund givenFund, Instant time -> Optional.of(new FundValue(time, 123.0, ComparisonFund.MARKET))
             }
-            accountOverviewProvider.getAccountOverview(_, _) >> new AccountOverview([
+            accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
                     new Transaction(30, parseInstant("2010-07-01")),
                     new Transaction(30, parseInstant("2011-01-01")),
                     new Transaction(30, parseInstant("2011-07-01")),
@@ -119,9 +119,9 @@ class FundComparisonCalculatorServiceSpec extends Specification {
                     new Transaction(30, parseInstant("2017-01-01")),
                     new Transaction(30, parseInstant("2017-07-01")),
                     new Transaction(30, parseInstant("2018-01-01")),
-            ], 30, 123123, startTime, endTime)
+            ], 30, 123123, startTime, endTime, 2)
         when:
-            FundComparison comparison = fundComparisonCalculatorService.calculateComparison(null, startTime)
+            FundComparison comparison = fundComparisonCalculatorService.calculateComparison(null, startTime, 2)
         then:
             comparison.estonianAverageReturnPercentage == 0.0326.doubleValue()
             comparison.marketAverageReturnPercentage == 0
@@ -132,7 +132,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             Instant startTime = parseInstant("2010-01-01")
             Instant endTime = parseInstant("2018-07-16")
             fundValueProvider.getFundValueClosestToTime(_, _) >> Optional.empty()
-            accountOverviewProvider.getAccountOverview(_, _) >> new AccountOverview([
+            accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
                     new Transaction(30, parseInstant("2010-07-01")),
                     new Transaction(30, parseInstant("2011-01-01")),
                     new Transaction(30, parseInstant("2011-07-01")),
@@ -149,9 +149,9 @@ class FundComparisonCalculatorServiceSpec extends Specification {
                     new Transaction(30, parseInstant("2017-01-01")),
                     new Transaction(30, parseInstant("2017-07-01")),
                     new Transaction(30, parseInstant("2018-01-01")),
-            ], 30, 123123, startTime, endTime)
+            ], 30, 123123, startTime, endTime, 2)
         when:
-            FundComparison comparison = fundComparisonCalculatorService.calculateComparison(null, startTime)
+            FundComparison comparison = fundComparisonCalculatorService.calculateComparison(null, startTime, 2)
         then:
             comparison.estonianAverageReturnPercentage == 0
             comparison.marketAverageReturnPercentage == 0

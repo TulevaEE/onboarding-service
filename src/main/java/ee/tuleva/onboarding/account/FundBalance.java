@@ -17,4 +17,5 @@ public class FundBalance {
     private String currency;
     private Integer pillar;
     private boolean activeContributions;
+    private BigDecimal contributionSum;
 }

@@ -29,8 +29,8 @@ public class FundComparisonCalculatorService {
 
     private static final int OUTPUT_SCALE = 4;
 
-    public FundComparison calculateComparison(Person person, Instant startTime) {
-        AccountOverview overview = accountOverviewProvider.getAccountOverview(person, startTime);
+    public FundComparison calculateComparison(Person person, Instant startTime, Integer pillar) {
+        AccountOverview overview = accountOverviewProvider.getAccountOverview(person, startTime, pillar);
         return calculateForAccountOverview(overview);
     }
 
@@ -77,7 +77,9 @@ public class FundComparisonCalculatorService {
 
     private List<Transaction> getPurchaseTransactions(AccountOverview accountOverview) {
         List<Transaction> transactions = accountOverview.getTransactions();
-        Transaction beginningTransaction = new Transaction(accountOverview.getBeginningBalance(), accountOverview.getStartTime());
+        Transaction beginningTransaction = new Transaction(
+            accountOverview.getBeginningBalance(),
+            accountOverview.getStartTime());
 
         List<Transaction> purchaseTransactions = new ArrayList<>();
         purchaseTransactions.add(beginningTransaction);

@@ -18,7 +18,7 @@ public class AmlService {
 
     public void checkUserAfterLogin(User user, Person person) {
         addCheckIfMissing(user, AmlCheckType.DOCUMENT, true);
-        addPensionRegistryNameCheckIfMissing(user);
+        //addPensionRegistryNameCheckIfMissing(user);
         addSkNameCheckIfMissing(user, person);
     }
 

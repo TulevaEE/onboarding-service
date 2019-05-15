@@ -23,7 +23,7 @@ class AmlServiceSpec extends Specification {
                 check.type == AmlCheckType.DOCUMENT &&
                 check.success
         })
-        1 * amlCheckRepository.save({ check ->
+        0 * amlCheckRepository.save({ check ->
             check.user == user &&
                 check.type == AmlCheckType.PENSION_REGISTRY_NAME &&
                 check.success
@@ -33,7 +33,7 @@ class AmlServiceSpec extends Specification {
                 check.type == AmlCheckType.SK_NAME &&
                 check.success
         })
-        1 * episService.getContactDetails(_) >> UserPreferences.builder()
+        0 * episService.getContactDetails(_) >> UserPreferences.builder()
             .firstName(user.firstName)
             .lastName(user.lastName)
             .personalCode(user.personalCode)

@@ -40,7 +40,7 @@ public class FundBalanceResponseDto {
         FundResponseDto(Fund fund, String language) {
             this.fundManager = fund.getFundManager();
             this.isin = fund.getIsin();
-            this.name = "et".equalsIgnoreCase(language) ? fund.getNameEstonian() : fund.getNameEnglish();
+            this.name = fund.getName(language);
             this.managementFeeRate = fund.getManagementFeeRate();
             this.pillar = fund.getPillar();
             this.ongoingChargesFigure = fund.getOngoingChargesFigure();

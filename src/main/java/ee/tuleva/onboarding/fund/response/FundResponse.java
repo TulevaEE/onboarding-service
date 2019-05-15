@@ -26,7 +26,7 @@ public class FundResponse {
     public FundResponse(Fund fund, PensionFundStatistics pensionFundStatistics, String language) {
         this.fundManager = fund.getFundManager();
         this.isin = fund.getIsin();
-        this.name = "et".equalsIgnoreCase(language) ? fund.getNameEstonian() : fund.getNameEnglish();
+        this.name = fund.getName(language);
         this.managementFeeRate = fund.getManagementFeeRate();
         this.nav = pensionFundStatistics.getNav();
         this.volume = pensionFundStatistics.getVolume();

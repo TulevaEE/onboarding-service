@@ -56,32 +56,9 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$', hasSize(fundBalances.size())))
         where:
         language | translation
+        'null'     | "Tuleva maailma aktsiate pensionifond"
         "et"     | "Tuleva maailma aktsiate pensionifond"
         "en"     | "Tuleva world stock pensionfund"
 
     }
-
-    def "/pension-account-statement endpoint falls back to Estonian if no Language-Accept given"() {
-        given:
-        List<FundBalance> fundBalances = AccountStatementFixture.sampleConvertedFundBalanceWithActiveTulevaFund
-
-        UUID statisticsIdentifier = UUID.randomUUID()
-        1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
-
-        expect:
-        mockMvc.perform(get("/v1/pension-account-statement")
-            .header("x-statistics-identifier", statisticsIdentifier)
-        )
-            .andDo(MockMvcResultHandlers.print())
-            .andExpect(jsonPath('$', hasSize(fundBalances.size())))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath('$', hasSize(fundBalances.size())))
-            .andExpect(jsonPath('$[0].fund.name', is(translation)))
-            .andExpect(jsonPath('$', hasSize(fundBalances.size())))
-        where:
-        language | translation
-        "et"     | "Tuleva maailma aktsiate pensionifond"
-
-    }
-
 }

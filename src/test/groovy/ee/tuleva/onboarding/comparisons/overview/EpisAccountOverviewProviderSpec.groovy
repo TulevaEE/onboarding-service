@@ -62,7 +62,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
             AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null, 2)
         then:
             1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
-            accountOverview.traparseInstantnsactions.size() == 2
+            accountOverview.transactions.size() == 2
             accountOverview.pillar == 2
             roundToTwoPlaces(accountOverview.transactions[0].amount) == 6.39
             accountOverview.transactions[0].createdAt == getFakeCashFlowStatement().transactions[0].time

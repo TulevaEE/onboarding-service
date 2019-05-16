@@ -63,10 +63,12 @@ class EpisAccountOverviewProviderSpec extends Specification {
         then:
             1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
             accountOverview.transactions.size() == 2
+            accountOverview.pillar == 2
             roundToTwoPlaces(accountOverview.transactions[0].amount) == 6.39
             accountOverview.transactions[0].createdAt == getFakeCashFlowStatement().transactions[0].time
             accountOverview.transactions[1].amount == -getFakeCashFlowStatement().transactions[1].amount
             accountOverview.transactions[1].createdAt == getFakeCashFlowStatement().transactions[1].time
+
     }
 
     private static BigDecimal roundToTwoPlaces(BigDecimal value) {

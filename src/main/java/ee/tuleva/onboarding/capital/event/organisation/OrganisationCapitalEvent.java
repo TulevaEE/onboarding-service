@@ -8,6 +8,8 @@ import lombok.NoArgsConstructor;
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Date;
 
 @Data
 @Builder
@@ -27,4 +29,6 @@ public class OrganisationCapitalEvent {
     @NotNull
     private BigDecimal fiatValue;
 
+    @NotNull
+    private LocalDate date;
 }

@@ -99,6 +99,6 @@ class FundRepositorySpec extends Specification {
         Iterable<Fund> thirdPillarFunds = repository.findAllByPillar(3)
 
         then:
-        thirdPillarFunds.size() == 1
+        thirdPillarFunds.size() == 13
     }
 }

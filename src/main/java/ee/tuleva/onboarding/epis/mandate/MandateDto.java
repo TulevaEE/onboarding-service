@@ -9,7 +9,7 @@ import java.util.List;
 
 @Data
 @Builder
-public class MandateDTO {
+public class MandateDto {
     private final Long id;
     private final String processId;
     private final String futureContributionFundIsin;

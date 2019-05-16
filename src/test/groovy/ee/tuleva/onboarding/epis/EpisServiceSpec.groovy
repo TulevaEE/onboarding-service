@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto
 import ee.tuleva.onboarding.epis.cashflows.CashFlowValueDto
 import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.epis.fund.FundDto
-import ee.tuleva.onboarding.epis.mandate.MandateDTO
+import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO
 import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
 import ee.tuleva.onboarding.mandate.MandateFixture
@@ -48,7 +48,7 @@ class EpisServiceSpec extends Specification {
     def "Send mandate: "() {
         given:
         def sampleMandate = MandateFixture.sampleMandate()
-        def mandateDto = MandateDTO.builder()
+        def mandateDto = MandateDto.builder()
             .id(sampleMandate.id)
             .build()
 

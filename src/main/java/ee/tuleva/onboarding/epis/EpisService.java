@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.epis.fund.FundDto;
-import ee.tuleva.onboarding.epis.mandate.MandateDTO;
+import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO;
 import lombok.RequiredArgsConstructor;
@@ -160,8 +160,8 @@ public class EpisService {
         return asList(response.getBody());
     }
 
-    public MandateResponseDTO sendMandate(MandateDTO mandate) {
-        String url = episServiceUrl + "/mandate";
+    public MandateResponseDTO sendMandate(MandateDto mandate) {
+        String url = episServiceUrl + "/mandates";
 
         return restTemplate.postForObject(
             url, new HttpEntity<>(mandate, getHeaders()), MandateResponseDTO.class);

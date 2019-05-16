@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.processor;
 
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.mandate.MandateDTO;
+import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
@@ -31,12 +31,13 @@ public class MandateProcessorService {
     public void start(User user, Mandate mandate) {
         log.info("Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
 
-        val mandateDTO = MandateDTO.builder();
-        mandateDTO.id(mandate.getId());
-        mandateDTO.createdDate(mandate.getCreatedDate());
-        addSelectionApplication(mandate, mandateDTO);
-        mandateDTO.fundTransferExchanges(getFundTransferExchanges(mandate));
-        val response = episService.sendMandate(mandateDTO.build());
+        val mandateDto = MandateDto.builder()
+            .id(mandate.getId())
+            .createdDate(mandate.getCreatedDate())
+            .fundTransferExchanges(getFundTransferExchanges(mandate))
+            .pillar(2);
+        addSelectionApplication(mandate, mandateDto);
+        val response = episService.sendMandate(mandateDto.build());
         handleApplicationProcessResponse(response);
     }
 
@@ -66,7 +67,7 @@ public class MandateProcessorService {
     }
 
     @NotNull
-    private List<MandateDTO.MandateFundsTransferExchangeDTO> getFundTransferExchanges(Mandate mandate) {
+    private List<MandateDto.MandateFundsTransferExchangeDTO> getFundTransferExchanges(Mandate mandate) {
         return mandate.getPrintableFundExchangeStructure().entrySet().stream().flatMap(entry -> {
             val process = createMandateProcess(mandate, MandateApplicationType.TRANSFER, mandate.getId(), entry.getKey());
             return entry.getValue().stream()
@@ -74,15 +75,15 @@ public class MandateProcessorService {
         }).collect(toList());
     }
 
-    private MandateDTO.MandateFundsTransferExchangeDTO dtoFromExchange(MandateProcess process, FundTransferExchange it) {
-        return new MandateDTO.MandateFundsTransferExchangeDTO(process.getProcessId(), it.getAmount(), it.getSourceFundIsin(), it.getTargetFundIsin());
+    private MandateDto.MandateFundsTransferExchangeDTO dtoFromExchange(MandateProcess process, FundTransferExchange it) {
+        return new MandateDto.MandateFundsTransferExchangeDTO(process.getProcessId(), it.getAmount(), it.getSourceFundIsin(), it.getTargetFundIsin());
     }
 
-    private void addSelectionApplication(Mandate mandate, MandateDTO.MandateDTOBuilder mandateDTO) {
+    private void addSelectionApplication(Mandate mandate, MandateDto.MandateDtoBuilder mandateDto) {
         if (mandate.getFutureContributionFundIsin().isPresent()) {
             val process = createMandateProcess(mandate, MandateApplicationType.SELECTION, mandate.getId(), "");
-            mandateDTO.futureContributionFundIsin(mandate.getFutureContributionFundIsin().get());
-            mandateDTO.processId(process.getProcessId());
+            mandateDto.futureContributionFundIsin(mandate.getFutureContributionFundIsin().get());
+            mandateDto.processId(process.getProcessId());
         }
     }
 

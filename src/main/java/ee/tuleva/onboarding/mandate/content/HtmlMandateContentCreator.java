@@ -66,7 +66,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
     private List<MandateContentFile> getFundTransferMandateContentFiles(
         User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
         return allocateAndGetFundTransferFiles(
-            mandate.getPrintableFundExchangeStructure(),
+            mandate.getFundTransferExchangesBySourceIsin(),
             user, mandate, funds, userPreferences
         );
     }
@@ -95,7 +95,6 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
             .transactionId(transactionId)
             .documentNumber(documentNumber)
             .fundTransferExchanges(fundTransferExchanges)
-            .groupedTransferExchanges(fundTransferExchanges)
             .funds(funds)
             .build();
 

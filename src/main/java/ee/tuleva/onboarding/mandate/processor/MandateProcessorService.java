@@ -68,8 +68,8 @@ public class MandateProcessorService {
 
     @NotNull
     private List<MandateDto.MandateFundsTransferExchangeDTO> getFundTransferExchanges(Mandate mandate) {
-        return mandate.getPrintableFundExchangeStructure().entrySet().stream().flatMap(entry -> {
-            val process = createMandateProcess(mandate, MandateApplicationType.TRANSFER, mandate.getId(), entry.getKey());
+        return mandate.getFundTransferExchangesBySourceIsin().entrySet().stream().flatMap(entry -> {
+            val process = createMandateProcess(mandate, MandateApplicationType.TRANSFER);
             return entry.getValue().stream()
                 .map(it -> dtoFromExchange(process, it));
         }).collect(toList());
@@ -81,15 +81,14 @@ public class MandateProcessorService {
 
     private void addSelectionApplication(Mandate mandate, MandateDto.MandateDtoBuilder mandateDto) {
         if (mandate.getFutureContributionFundIsin().isPresent()) {
-            val process = createMandateProcess(mandate, MandateApplicationType.SELECTION, mandate.getId(), "");
+            val process = createMandateProcess(mandate, MandateApplicationType.SELECTION);
             mandateDto.futureContributionFundIsin(mandate.getFutureContributionFundIsin().get());
             mandateDto.processId(process.getProcessId());
         }
     }
 
-    private MandateProcess createMandateProcess(Mandate mandate, MandateApplicationType type, Long id, String isin) {
-        String processId = UUID.nameUUIDFromBytes((type.toString() + id + isin).getBytes())
-            .toString().replace("-", "");
+    private MandateProcess createMandateProcess(Mandate mandate, MandateApplicationType type) {
+        String processId = UUID.randomUUID().toString().replace("-", "");
         return mandateProcessRepository.save(
             MandateProcess.builder()
                 .mandate(mandate)

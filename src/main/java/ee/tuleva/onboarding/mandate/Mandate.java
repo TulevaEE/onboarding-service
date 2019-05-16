@@ -59,11 +59,11 @@ public class Mandate {
         return Optional.ofNullable(futureContributionFundIsin);
     }
 
-    public Map<String, List<FundTransferExchange>> getPrintableFundExchangeStructure() {
+    public Map<String, List<FundTransferExchange>> getFundTransferExchangesBySourceIsin() {
         Map<String, List<FundTransferExchange>> exchangeMap = new HashMap<>();
 
         getFundTransferExchanges().stream()
-            .filter(fte -> fte.getAmount().compareTo(BigDecimal.ZERO) > 0)
+            .filter(exchange -> exchange.getAmount().compareTo(BigDecimal.ZERO) > 0)
             .forEach(exchange -> {
                 if (!exchangeMap.containsKey(exchange.getSourceFundIsin())) {
                     exchangeMap.put(exchange.getSourceFundIsin(), new ArrayList<>());

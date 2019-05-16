@@ -56,4 +56,49 @@ class FundRepositorySpec extends Specification {
         persistedFund.status == fund.status
         persistedFund.fundManager == fundManager
     }
+
+    def "finding by pillar works"() {
+        given:
+        def fundManager = FundManager.builder()
+            .id(1)
+            .name("Tuleva")
+            .build()
+        def fund = Fund.builder()
+            .isin("EE000000000")
+            .nameEstonian("Tuleva Maailma Aktsiate Pensionifond")
+            .nameEnglish("Tuleva Maailma Aktsiate Pensionifond")
+            .pillar(2)
+            .equityShare(0)
+            .managementFeeRate(new BigDecimal("0.0034"))
+            .ongoingChargesFigure(new BigDecimal("0.005"))
+            .status(ACTIVE)
+            .fundManager(fundManager)
+            .build()
+        entityManager.persist(fund)
+        entityManager.flush()
+
+        when:
+        Iterable<Fund> funds = repository.findAllByPillar(2)
+        Fund persistedFund = stream(funds.spliterator(), false)
+            .filter({ f -> f.isin == fund.isin })
+            .findFirst()
+            .get()
+
+        then:
+        persistedFund.id != null
+        persistedFund.isin == fund.isin
+        persistedFund.nameEstonian == fund.nameEstonian
+        persistedFund.nameEnglish == fund.nameEnglish
+        persistedFund.pillar == fund.pillar
+        persistedFund.managementFeeRate == fund.managementFeeRate
+        persistedFund.ongoingChargesFigure == fund.ongoingChargesFigure
+        persistedFund.status == fund.status
+        persistedFund.fundManager == fundManager
+
+        when:
+        Iterable<Fund> thirdPillarFunds = repository.findAllByPillar(3)
+
+        then:
+        thirdPillarFunds.size() == 1
+    }
 }

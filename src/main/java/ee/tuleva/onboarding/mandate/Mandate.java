@@ -30,6 +30,9 @@ public class Mandate {
     private String futureContributionFundIsin;
 
     @NotNull
+    private Integer pillar;
+
+    @NotNull
     @JsonView(MandateView.Default.class)
     private Instant createdDate;
 
@@ -45,10 +48,11 @@ public class Mandate {
     List<FundTransferExchange> fundTransferExchanges;
 
     @Builder
-    Mandate(User user, String futureContributionFundIsin, List<FundTransferExchange> fundTransferExchanges) {
+    Mandate(User user, String futureContributionFundIsin, List<FundTransferExchange> fundTransferExchanges, Integer pillar) {
         this.user = user;
         this.futureContributionFundIsin = futureContributionFundIsin;
         this.fundTransferExchanges = fundTransferExchanges;
+        this.pillar = pillar;
     }
 
     public Optional<byte[]> getMandate() {

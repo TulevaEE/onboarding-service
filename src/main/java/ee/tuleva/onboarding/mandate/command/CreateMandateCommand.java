@@ -15,6 +15,8 @@ public class CreateMandateCommand {
 
     private String futureContributionFundIsin;
 
+    private Integer pillar;
+
     @Valid
     @NotNull
     private List<MandateFundTransferExchangeCommand> fundTransferExchanges;

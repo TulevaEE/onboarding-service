@@ -29,6 +29,7 @@ class FundRepositorySpec extends Specification {
             .nameEstonian("Tuleva Maailma Aktsiate Pensionifond")
             .nameEnglish("Tuleva Maailma Aktsiate Pensionifond")
             .pillar(2)
+            .equityShare(0)
             .managementFeeRate(new BigDecimal("0.0034"))
             .ongoingChargesFigure(new BigDecimal("0.005"))
             .status(ACTIVE)

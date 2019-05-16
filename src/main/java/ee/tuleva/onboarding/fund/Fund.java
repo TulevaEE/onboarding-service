@@ -54,6 +54,9 @@ public class Fund {
     private BigDecimal managementFeeRate;
 
     @NotNull
+    private BigDecimal equityShare;
+
+    @NotNull
     private BigDecimal ongoingChargesFigure;
 
     @NotNull

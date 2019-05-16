@@ -42,7 +42,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
         List<FundBalance> fundBalances = AccountStatementFixture.sampleConvertedFundBalanceWithActiveTulevaFund
 
         UUID statisticsIdentifier = UUID.randomUUID()
-        1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
+        1 * accountStatementService.getAccountStatement(_ as Person, _) >> fundBalances
 
         expect:
         mockMvc.perform(get("/v1/pension-account-statement")

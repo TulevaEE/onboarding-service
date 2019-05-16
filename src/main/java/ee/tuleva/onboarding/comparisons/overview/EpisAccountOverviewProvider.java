@@ -26,16 +26,17 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
     private final EpisService episService;
 
     @Override
-    public AccountOverview getAccountOverview(Person person, Instant startTime) {
+    public AccountOverview getAccountOverview(Person person, Instant startTime, Integer pillar) {
         Instant endTime = Instant.now();
         CashFlowStatementDto cashFlowStatement = episService.getCashFlowStatement(person, startTime, endTime);
-        return transformCashFlowStatementToAccountOverview(cashFlowStatement, startTime, endTime);
+        return transformCashFlowStatementToAccountOverview(cashFlowStatement, startTime, endTime, pillar);
     }
 
-    private AccountOverview transformCashFlowStatementToAccountOverview(CashFlowStatementDto cashFlowStatementDto, Instant startTime, Instant endTime) {
-        BigDecimal beginningBalance = convertBalance(cashFlowStatementDto.getStartBalance());
-        BigDecimal endingBalance = convertBalance(cashFlowStatementDto.getEndBalance());
-        List<Transaction> transactions = convertTransactions(cashFlowStatementDto.getTransactions());
+    private AccountOverview transformCashFlowStatementToAccountOverview(
+        CashFlowStatementDto cashFlowStatementDto, Instant startTime, Instant endTime, Integer pillar) {
+        BigDecimal beginningBalance = convertBalance(cashFlowStatementDto.getStartBalance(), pillar);
+        BigDecimal endingBalance = convertBalance(cashFlowStatementDto.getEndBalance(), pillar);
+        List<Transaction> transactions = convertTransactions(cashFlowStatementDto.getTransactions(), pillar);
 
         return AccountOverview.builder()
                 .beginningBalance(beginningBalance)
@@ -43,19 +44,20 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
                 .transactions(transactions)
                 .startTime(startTime)
                 .endTime(endTime)
+                .pillar(pillar)
                 .build();
     }
 
-    private BigDecimal convertBalance(Map<String, CashFlowValueDto> balance) {
+    private BigDecimal convertBalance(Map<String, CashFlowValueDto> balance, Integer pillar) {
         return balance.values().stream()
-                .filter(cashFlowValueDto -> cashFlowValueDto.getPillar() == 2)
+                .filter(cashFlowValueDto -> cashFlowValueDto.isMatchingPillar(pillar))
                 .map(cashFlowValueDto -> convertCurrencyToEur(cashFlowValueDto.getAmount(), cashFlowValueDto.getCurrency()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private List<Transaction> convertTransactions(List<CashFlowValueDto> cashFlowValues) {
+    private List<Transaction> convertTransactions(List<CashFlowValueDto> cashFlowValues, Integer pillar) {
         return cashFlowValues.stream()
-                .filter(cashFlowValueDto -> cashFlowValueDto.getPillar() == 2)
+                .filter(cashFlowValueDto -> cashFlowValueDto.isMatchingPillar(pillar))
                 .map(this::convertTransaction)
                 .collect(toList());
     }

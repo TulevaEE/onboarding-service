@@ -29,7 +29,7 @@ class FundComparisonControllerSpec extends BaseControllerSpec {
     def "fund comparison returns the calculation with a set time"() {
         given:
             ObjectMapper mapper = new ObjectMapper()
-            1 * fundComparisonCalculatorService.calculateComparison(_ as Person, { verifyTimesClose(it, parseInstant("1996-01-01")) }) >> sampleComparison()
+            1 * fundComparisonCalculatorService.calculateComparison(_ as Person, { verifyTimesClose(it, parseInstant("1996-01-01")) }, 2) >> sampleComparison()
 
         expect:
             MvcResult result = mockMvc.perform(get('/v1/fund-comparison')
@@ -42,7 +42,7 @@ class FundComparisonControllerSpec extends BaseControllerSpec {
     def "fund comparison returns the calculation with a default time if not set"() {
         given:
             ObjectMapper mapper = new ObjectMapper()
-            1 * fundComparisonCalculatorService.calculateComparison(_ as Person, { verifyTimesClose(it, parseInstant("1900-01-01")) }) >> sampleComparison()
+            1 * fundComparisonCalculatorService.calculateComparison(_ as Person, { verifyTimesClose(it, parseInstant("1900-01-01")) }, 2) >> sampleComparison()
 
         expect:
             MvcResult result = mockMvc.perform(get('/v1/fund-comparison'))

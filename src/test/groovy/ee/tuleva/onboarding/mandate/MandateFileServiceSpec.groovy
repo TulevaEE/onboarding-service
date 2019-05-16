@@ -106,7 +106,7 @@ class MandateFileServiceSpec extends Specification {
     def mockMandateFiles(User user, Long mandateId, UserPreferences userPreferences) {
         1 * userService.getById(user.id) >> user
         1 * mandateRepository.findByIdAndUserId(mandateId, user.id) >> Mandate.builder().build()
-        1 * fundRepository.findAll() >> [new Fund(), new Fund()]
+        1 * fundRepository.findAllByPillar(mandate.pillar) >> [new Fund(), new Fund()]
         1 * episService.getContactDetails(user) >> userPreferences
     }
 

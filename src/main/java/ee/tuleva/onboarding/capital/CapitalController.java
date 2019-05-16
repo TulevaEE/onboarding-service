@@ -18,8 +18,8 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 public class CapitalController {
 
     public static final String CAPITAL_URI = "/me/capital";
-    private final CapitalService capitalService;
     private final UserService userService;
+    private final CapitalService capitalService;
 
     @ApiOperation(value = "Get info about current user initial capital")
     @RequestMapping(method = GET, value = CAPITAL_URI)

@@ -10,6 +10,7 @@ import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 @Data
 @Builder
@@ -25,4 +26,5 @@ public class AggregatedCapitalEvent {
     private BigDecimal totalFiatValue;
     private BigDecimal totalOwnershipUnitAmount;
     private BigDecimal ownershipUnitPrice;
+    private LocalDate date;
 }

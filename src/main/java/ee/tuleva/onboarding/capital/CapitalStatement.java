@@ -10,5 +10,7 @@ import java.math.BigDecimal;
 public class CapitalStatement {
     private BigDecimal membershipBonus;
     private BigDecimal capitalPayment;
+    private BigDecimal unvestedWorkCompensation;
+    private BigDecimal workCompensation;
     private BigDecimal profit;
 }

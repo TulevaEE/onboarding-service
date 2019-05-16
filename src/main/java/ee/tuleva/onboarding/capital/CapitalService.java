@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.capital;
 
+import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent;
+import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
@@ -7,8 +9,9 @@ import ee.tuleva.onboarding.capital.event.organisation.OrganisationCapitalEventR
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -17,28 +20,56 @@ public class CapitalService {
 
     private final MemberCapitalEventRepository memberCapitalEventRepository;
     private final OrganisationCapitalEventRepository organisationCapitalEventRepository;
+    private final AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
 
     CapitalStatement getCapitalStatement(Long memberId) {
         List<MemberCapitalEvent> events = memberCapitalEventRepository.findAllByMemberId(memberId);
 
         BigDecimal capitalPaymentAmount =
-            events.stream().filter(event -> event.getType() == MemberCapitalEventType.CAPITAL_PAYMENT)
-                .map(MemberCapitalEvent::getFiatValue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            getCapitalAmount(events, MemberCapitalEventType.CAPITAL_PAYMENT);
 
         BigDecimal membershipBonusAmount =
-            events.stream().filter(event -> event.getType() == MemberCapitalEventType.MEMBERSHIP_BONUS)
-                .map(MemberCapitalEvent::getFiatValue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            getCapitalAmount(events, MemberCapitalEventType.MEMBERSHIP_BONUS);
+
+        BigDecimal unvestedWorkCompensationAmount =
+            getCapitalAmount(events, MemberCapitalEventType.UNVESTED_WORK_COMPENSATION);
+
+        BigDecimal workCompensationAmount =
+            getCapitalAmount(events, MemberCapitalEventType.WORK_COMPENSATION);
+
 
        return new CapitalStatement(
-            membershipBonusAmount, capitalPaymentAmount, BigDecimal.ZERO
+           membershipBonusAmount, capitalPaymentAmount,
+           unvestedWorkCompensationAmount, workCompensationAmount,
+           getProfit(events)
        );
     }
 
-    BigDecimal getPricePerOwnershipUnit() {
-        return organisationCapitalEventRepository.getTotalValue()
-            .divide(memberCapitalEventRepository.getTotalOwnershipUnitAmount(), 7, RoundingMode.HALF_UP);
+    @NotNull
+    private BigDecimal getCapitalAmount(List<MemberCapitalEvent> events, MemberCapitalEventType capitalPayment) {
+        return events.stream().filter(event -> event.getType() == capitalPayment)
+            .map(MemberCapitalEvent::getFiatValue)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    private BigDecimal getProfit(List<MemberCapitalEvent> events) {
+
+        BigDecimal totalFiatValue = events.stream()
+            .filter(event -> event.getEffectiveDate().compareTo(LocalDate.now()) < 1)
+            .map(MemberCapitalEvent::getFiatValue)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalOwnershipUnitAmount = events.stream()
+            .filter(event -> event.getEffectiveDate().compareTo(LocalDate.now()) < 1)
+            .map(MemberCapitalEvent::getOwnershipUnitAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        AggregatedCapitalEvent latestAggregatedCapitalEvent =
+            aggregatedCapitalEventRepository.findTopByOrderByDateDesc();
+
+        BigDecimal investmentFiatValue =
+            latestAggregatedCapitalEvent.getOwnershipUnitPrice().multiply(totalOwnershipUnitAmount);
+
+        return investmentFiatValue.subtract(totalFiatValue);
+    }
 }

@@ -89,6 +89,28 @@ class AggregatedCapitalEventRepositorySpec extends Specification {
         )
 	}
 
+    def "finds latest event"() {
+        given:
+        OrganisationCapitalEvent organisationCapitalEvent = OrganisationCapitalEventFixture.fixture()
+            .date(new LocalDate(2017, 12, 31))
+            .build()
+        entityManager.persist(organisationCapitalEvent)
+        OrganisationCapitalEvent organisationCapitalEventNextYear = OrganisationCapitalEventFixture.fixture()
+            .date(new LocalDate(2018, 12, 31))
+            .build()
+        entityManager.persist(organisationCapitalEventNextYear)
+
+
+        entityManager.flush()
+
+        when:
+        def event = repository.findTopByOrderByDateDesc()
+
+        then:
+        event.date == organisationCapitalEventNextYear.date
+    }
+
+
     private assertBigDecimals(BigDecimal expected, BigDecimal actual) {
         expected.round(new MathContext(5)) == actual.round(new MathContext(5))
     }

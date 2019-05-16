@@ -26,8 +26,10 @@ class FundRepositorySpec extends Specification {
             .build()
         def fund = Fund.builder()
             .isin("EE000000000")
-            .name("Tuleva Maailma Aktsiate Pensionifond")
+            .nameEstonian("Tuleva Maailma Aktsiate Pensionifond")
+            .nameEnglish("Tuleva Maailma Aktsiate Pensionifond")
             .pillar(2)
+            .equityShare(0)
             .managementFeeRate(new BigDecimal("0.0034"))
             .ongoingChargesFigure(new BigDecimal("0.005"))
             .status(ACTIVE)
@@ -46,7 +48,8 @@ class FundRepositorySpec extends Specification {
         then:
         persistedFund.id != null
         persistedFund.isin == fund.isin
-        persistedFund.name == fund.name
+        persistedFund.nameEstonian == fund.nameEstonian
+        persistedFund.nameEnglish == fund.nameEnglish
         persistedFund.pillar == fund.pillar
         persistedFund.managementFeeRate == fund.managementFeeRate
         persistedFund.ongoingChargesFigure == fund.ongoingChargesFigure

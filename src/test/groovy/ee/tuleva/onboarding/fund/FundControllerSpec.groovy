@@ -27,10 +27,11 @@ class FundControllerSpec extends BaseControllerSpec {
 
     def "get: Get all funds"() {
         given:
-        1 * fundService.getFunds(Optional.empty()) >> MandateFixture.sampleFunds()
+        def language = "et"
+        1 * fundService.getFunds(Optional.empty(), language) >> MandateFixture.sampleFunds()
         expect:
         mockMvc
-                .perform(get("/v1/funds"))
+                .perform(get("/v1/funds").header("Accept-Language", language))
 
                 .andExpect(status().isOk())
                 .andExpect(jsonPath('$', hasSize(MandateFixture.sampleFunds().size())));
@@ -39,16 +40,15 @@ class FundControllerSpec extends BaseControllerSpec {
     def "get: Get all funds by manager name"() {
         given:
         String fundManagerName = "Tuleva"
+        def language = "et"
         Iterable<Fund> funds = MandateFixture.sampleFunds().stream().filter( { f -> f.fundManager.name == fundManagerName}).collect(Collectors.toList())
-        1 * fundService.getFunds(Optional.of(fundManagerName)) >> funds
+        1 * fundService.getFunds(Optional.of(fundManagerName), language) >> funds
         expect:
         mockMvc
-                .perform(get("/v1/funds?fundManager.name=" + fundManagerName))
+                .perform(get("/v1/funds?fundManager.name=" + fundManagerName).header("Accept-Language", language))
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath('$', hasSize(funds.size())))
                 .andExpect(jsonPath('$[0].fundManager.name', is(fundManagerName)))
     }
-
-
 }

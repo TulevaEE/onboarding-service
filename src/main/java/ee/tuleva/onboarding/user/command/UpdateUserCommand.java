@@ -13,6 +13,4 @@ public class UpdateUserCommand {
     private String email;
 
     private String phoneNumber;
-
-    private Boolean resident;
 }

@@ -37,12 +37,11 @@ public class UserDetailsUpdater {
         );
 
         userService.findByPersonalCode(person.getPersonalCode()).ifPresent(user -> {
-            user.setFirstName(firstName);
-            user.setLastName(lastName);
-            if (user.getResident() == null && resident != null) {
-                user.setResident(resident);
+            if (resident != null) {
                 amlService.addCheckIfMissing(user, AmlCheckType.RESIDENCY_AUTO, resident);
             }
+            user.setFirstName(firstName);
+            user.setLastName(lastName);
             userService.save(user);
         });
     }

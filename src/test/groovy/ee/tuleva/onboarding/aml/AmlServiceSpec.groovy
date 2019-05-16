@@ -74,4 +74,13 @@ class AmlServiceSpec extends Specification {
         0 * amlCheckRepository.save(_)
         1 * amlCheckRepository.existsByUserAndType(user, type) >> true
     }
+
+    def "gives all checks"() {
+        given:
+        def user = sampleUserNonMember().build()
+        when:
+        amlService.getChecks(user)
+        then:
+        1 * amlCheckRepository.findAllByUser(user)
+    }
 }

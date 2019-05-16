@@ -68,11 +68,11 @@ class ContextBuilderSpec extends Specification {
         List<Fund> funds = context.getVariable("funds")
         areFundsSortedByName(funds)
         Map<String, String> fundIsinNames = context.getVariable("fundIsinNames")
-        fundIsinNames.get(sampleFunds().get(0).isin) == sampleFunds().get(0).name
+        fundIsinNames.get(sampleFunds().get(0).isin) == sampleFunds().get(0).nameEstonian
     }
 
     boolean areFundsSortedByName(List<Fund> funds) {
-        return funds.get(0).name == "LHV S" && funds.get(5).name == "Tuleva maailma aktsiate pensionifond"
+        return funds.get(0).nameEstonian == "LHV S" && funds.get(5).nameEstonian == "Tuleva maailma aktsiate pensionifond"
     }
 
     def "TransactionId"() {
@@ -115,15 +115,6 @@ class ContextBuilderSpec extends Specification {
                 .build()
         then:
         context.getVariable("fundTransferExchanges") == sampleMandate().fundTransferExchanges
-    }
-
-    def "GroupedFundTransferExchanges"() {
-        when:
-        Context context = ContextBuilder.builder()
-                .groupedTransferExchanges(sampleMandate().fundTransferExchanges)
-                .build()
-        then:
-        context.getVariable("groupedFundTransferExchanges").size() == 2
     }
 
     def "UserPreferences"() {

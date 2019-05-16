@@ -17,4 +17,12 @@ public class CashFlowValueDto {
     private BigDecimal amount;
     private String currency;
     private Integer pillar;
+
+    public boolean isMatchingPillar(Integer inputPilllar){
+        if (pillar == null){
+            return true;
+        } else {
+            return pillar.equals(inputPilllar);
+        }
+    }
 }

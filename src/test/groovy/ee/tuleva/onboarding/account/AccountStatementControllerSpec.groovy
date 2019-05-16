@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.account
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.comparisons.overview.EpisAccountOverviewProvider
 import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers
@@ -29,7 +30,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
         given:
         List<FundBalance> fundBalances = []
         UUID statisticsIdentifier = UUID.randomUUID()
-        1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
+        1 * accountStatementService.getAccountStatement(_ as Person, true) >> fundBalances
         1 * fundTransferStatisticsService.saveFundValueStatistics(fundBalances, statisticsIdentifier)
         expect:
         mockMvc.perform(get("/v1/pension-account-statement").header("x-statistics-identifier", statisticsIdentifier))
@@ -41,7 +42,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
         List<FundBalance> fundBalances = AccountStatementFixture.sampleConvertedFundBalanceWithActiveTulevaFund
 
         UUID statisticsIdentifier = UUID.randomUUID()
-        1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
+        1 * accountStatementService.getAccountStatement(_ as Person, _) >> fundBalances
 
         expect:
         mockMvc.perform(get("/v1/pension-account-statement")

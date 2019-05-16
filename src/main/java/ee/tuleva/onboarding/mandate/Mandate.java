@@ -8,9 +8,9 @@ import lombok.NoArgsConstructor;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Data
 @Entity
@@ -30,6 +30,9 @@ public class Mandate {
     private String futureContributionFundIsin;
 
     @NotNull
+    private Integer pillar;
+
+    @NotNull
     @JsonView(MandateView.Default.class)
     private Instant createdDate;
 
@@ -45,10 +48,11 @@ public class Mandate {
     List<FundTransferExchange> fundTransferExchanges;
 
     @Builder
-    Mandate(User user, String futureContributionFundIsin, List<FundTransferExchange> fundTransferExchanges){
+    Mandate(User user, String futureContributionFundIsin, List<FundTransferExchange> fundTransferExchanges, Integer pillar) {
         this.user = user;
         this.futureContributionFundIsin = futureContributionFundIsin;
         this.fundTransferExchanges = fundTransferExchanges;
+        this.pillar = pillar;
     }
 
     public Optional<byte[]> getMandate() {
@@ -57,6 +61,21 @@ public class Mandate {
 
     public Optional<String> getFutureContributionFundIsin() {
         return Optional.ofNullable(futureContributionFundIsin);
+    }
+
+    public Map<String, List<FundTransferExchange>> getFundTransferExchangesBySourceIsin() {
+        Map<String, List<FundTransferExchange>> exchangeMap = new HashMap<>();
+
+        getFundTransferExchanges().stream()
+            .filter(exchange -> exchange.getAmount().compareTo(BigDecimal.ZERO) > 0)
+            .forEach(exchange -> {
+                if (!exchangeMap.containsKey(exchange.getSourceFundIsin())) {
+                    exchangeMap.put(exchange.getSourceFundIsin(), new ArrayList<>());
+                }
+                exchangeMap.get(exchange.getSourceFundIsin()).add(exchange);
+            });
+
+        return exchangeMap;
     }
 
 }

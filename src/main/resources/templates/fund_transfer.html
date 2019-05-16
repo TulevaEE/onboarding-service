@@ -1,49 +1,6 @@
 <!DOCTYPE HTML>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-    <script id="avaldus" type="text/xml">
-        <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns="http://epis.x-road.ee/producer/" xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:x="http://x-road.ee/xsd/x-road.xsd">
-            <soapenv:Header>
-                <x:consumer xmlns="http://epis.x-road.ee/producer/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://x-road.ee/xsd/x-road.xsd">XMLTULEVA</x:consumer>
-                <x:id xmlns="http://epis.x-road.ee/producer/" xmlns:ns2="urn:iso:std:iso:20022:tech:xsd:head.001.001.01" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://x-road.ee/xsd/x-road.xsd" th:text="${transactionId}"></x:id>
-            </soapenv:Header>
-            <soapenv:Body>
-                <OSAKUTE_VAHETAMISE_AVALDUS>
-                    <Request th:attr="DocumentDate=${documentDate}, DocumentNumber=${documentNumber}" >
-                        <PersonalData
-                                th:attr="E_MAIL=${email},
-                                      ContactPreference=${userPreferences.contactPreference},
-                                      FirstName=${firstName},
-                                      Name=${lastName},
-                                      PersonId=${idCode},
-                                      Phone=${phoneNumber},
-                                      ExtractFlag=${userPreferences.noticeNeeded},
-                                      LanguagePreference=${userPreferences.languagePreference}
-                                      "/>
-                        <Address th:attr="
-                        AddressRow1=${addressLine1},
-                        AddressRow2=${addressLine2},
-                        Country=${countryCode},
-                        PostalIndex=${postCode},
-                        Territory=${districtCode}"/>
-                        <ApplicationData
-                                th:each="fundTransferExchangeList : ${groupedFundTransferExchanges}"
-                                Pillar="2"
-                                th:attr="
-                                SourceISIN=${fundTransferExchangeList.key}
-                                ">
-                            <ApplicationRow
-                                    th:each="fundTransferExchange : ${fundTransferExchangeList.value}"
-                                    th:attr="
-                                            DestinationISIN=${fundTransferExchange.targetFundIsin},
-                                            Percentage=${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}
-                                        "/>
-                        </ApplicationData>
-                    </Request>
-                </OSAKUTE_VAHETAMISE_AVALDUS>
-            </soapenv:Body>
-        </soapenv:Envelope>
-    </script>
     <title>Ületoomise avaldus</title>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 

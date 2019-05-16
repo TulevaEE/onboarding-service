@@ -22,6 +22,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 @RequiredArgsConstructor
 public class AccountStatementController {
 
+    public static final boolean CALCULATE_CONTRIBUTION_SUM = true;
     private final AccountStatementService accountStatementService;
     private final FundTransferStatisticsService fundTransferStatisticsService;
 
@@ -31,7 +32,7 @@ public class AccountStatementController {
                                                                      @RequestHeader(value = "x-statistics-identifier", required = false) UUID statisticsIdentifier,
                                                                      @RequestHeader(value = "Accept-Language", defaultValue = "et") String language
     ) {
-        List<FundBalance> fundBalances = accountStatementService.getAccountStatement(authenticatedPerson);
+        List<FundBalance> fundBalances = accountStatementService.getAccountStatement(authenticatedPerson, CALCULATE_CONTRIBUTION_SUM);
         fundTransferStatisticsService.saveFundValueStatistics(fundBalances, statisticsIdentifier);
 
         return convertToDto(fundBalances, language);

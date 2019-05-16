@@ -26,7 +26,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
             person.getPersonalCode() >> "test"
             Instant startTime = parseInstant("1998-01-01")
         when:
-            episAccountOverviewProvider.getAccountOverview(person, startTime)
+            episAccountOverviewProvider.getAccountOverview(person, startTime, 2)
         then:
             1 * episService.getCashFlowStatement(person, startTime, { verifyTimeCloseToNow(it) }) >> getFakeCashFlowStatement()
     }
@@ -34,7 +34,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
     def "it sets the right start and end times"() {
         when:
             Instant startTime = parseInstant("1998-01-01")
-            AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, startTime)
+            AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, startTime, 2)
         then:
             1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
             accountOverview.startTime == startTime
@@ -43,7 +43,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
 
     def "it bunches together and converts the starting balance"() {
         when:
-            AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null)
+            AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null, 2)
         then:
             1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
             roundToTwoPlaces(accountOverview.beginningBalance) == 178.91
@@ -51,7 +51,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
 
     def "it bunches together and converts the ending balance"() {
         when:
-            AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null)
+            AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null, 2)
         then:
             1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
             roundToTwoPlaces(accountOverview.endingBalance) == 195.30
@@ -59,14 +59,16 @@ class EpisAccountOverviewProviderSpec extends Specification {
 
     def "it converts all transactions"() {
         when:
-            AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null)
+            AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null, 2)
         then:
             1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
             accountOverview.transactions.size() == 2
+            accountOverview.pillar == 2
             roundToTwoPlaces(accountOverview.transactions[0].amount) == 6.39
             accountOverview.transactions[0].createdAt == getFakeCashFlowStatement().transactions[0].time
             accountOverview.transactions[1].amount == -getFakeCashFlowStatement().transactions[1].amount
             accountOverview.transactions[1].createdAt == getFakeCashFlowStatement().transactions[1].time
+
     }
 
     private static BigDecimal roundToTwoPlaces(BigDecimal value) {

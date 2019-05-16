@@ -16,15 +16,21 @@ public class CreateMandateCommandToMandateConverter implements Converter<CreateM
         Mandate mandate = new Mandate();
 
         List<FundTransferExchange> fundTransferExchanges =
-                createMandateCommand.getFundTransferExchanges().stream().map(exchange -> FundTransferExchange.builder()
-                        .sourceFundIsin(exchange.getSourceFundIsin())
-                        .targetFundIsin(exchange.getTargetFundIsin())
-                        .amount(exchange.getAmount())
-                        .mandate(mandate)
-                        .build()).collect(Collectors.toList());
+            createMandateCommand.getFundTransferExchanges().stream().map(exchange -> FundTransferExchange.builder()
+                .sourceFundIsin(exchange.getSourceFundIsin())
+                .targetFundIsin(exchange.getTargetFundIsin())
+                .amount(exchange.getAmount())
+                .mandate(mandate)
+                .build()).collect(Collectors.toList());
 
         mandate.setFundTransferExchanges(fundTransferExchanges);
         mandate.setFutureContributionFundIsin(createMandateCommand.getFutureContributionFundIsin());
+        if (createMandateCommand.getPillar() != null) {
+            mandate.setPillar(createMandateCommand.getPillar());
+        } else {
+            // Temporary until frontend will give us the active pillar
+            mandate.setPillar(2);
+        }
 
         return mandate;
     }

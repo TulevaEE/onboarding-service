@@ -5,9 +5,10 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto
 import ee.tuleva.onboarding.epis.cashflows.CashFlowValueDto
 import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.epis.fund.FundDto
+import ee.tuleva.onboarding.epis.mandate.MandateDTO
+import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO
 import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
-import ee.tuleva.onboarding.mandate.MandateApplicationType
-import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
+import ee.tuleva.onboarding.mandate.MandateFixture
 import org.springframework.http.HttpEntity
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -44,17 +45,20 @@ class EpisServiceSpec extends Specification {
 
     }
 
-    def "Process: "() {
+    def "Send mandate: "() {
         given:
-        CreateProcessingCommand sampleCreateProcessingCommand = new CreateProcessingCommand(sampleMessages)
+        def sampleMandate = MandateFixture.sampleMandate()
+        def mandateDto = MandateDTO.builder()
+            .id(sampleMandate.id)
+            .build()
 
         1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
             doesHttpEntityContainToken(httpEntity, sampleToken) &&
-                httpEntity.body.messages[0].processId == sampleMessages.get(0).processId
-        }, CreateProcessingCommand.class) >> sampleCreateProcessingCommand
+                httpEntity.body.id == sampleMandate.id
+        }, MandateResponseDTO.class)
 
         when:
-        service.process(sampleMessages)
+        service.sendMandate(mandateDto)
 
         then:
         true
@@ -178,8 +182,6 @@ class EpisServiceSpec extends Specification {
     boolean doesHttpEntityContainToken(HttpEntity httpEntity, String sampleToken) {
         httpEntity.headers.getFirst("authorization") == ("Bearer " + sampleToken)
     }
-
-    List<MandateXmlMessage> sampleMessages = [new MandateXmlMessage("123", "message", MandateApplicationType.SELECTION)]
 
     private static Instant parseInstant(String format) {
         return new SimpleDateFormat("yyyy-MM-dd").parse(format).toInstant()

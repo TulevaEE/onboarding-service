@@ -11,8 +11,10 @@ import org.springframework.stereotype.Component;
 import org.thymeleaf.ITemplateEngine;
 import org.thymeleaf.context.Context;
 
-import java.math.BigDecimal;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Component
@@ -24,12 +26,12 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
     @Override
     public List<MandateContentFile> getContentFiles(User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
         List<MandateContentFile> files = new ArrayList<>(getFundTransferMandateContentFiles(
-                user, mandate, funds, userPreferences
+            user, mandate, funds, userPreferences
         ));
 
         if (mandate.getFutureContributionFundIsin().isPresent()) {
             files.add(getFutureContributionsFundMandateContentFile(
-                    user, mandate, funds, userPreferences
+                user, mandate, funds, userPreferences
             ));
         }
 
@@ -37,88 +39,73 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
     }
 
     private MandateContentFile getFutureContributionsFundMandateContentFile(
-            User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
+        User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
         String transactionId = UUID.randomUUID().toString();
 
         String documentNumber = mandate.getId().toString();
 
         Context ctx = ContextBuilder.builder()
-                .mandate(mandate)
-                .user(user)
-                .userPreferences(userPreferences)
-                .transactionId(transactionId)
-                .documentNumber(documentNumber)
-                .futureContributionFundIsin(mandate.getFutureContributionFundIsin().orElse(null))
-                .funds(funds)
-                .build();
+            .mandate(mandate)
+            .user(user)
+            .userPreferences(userPreferences)
+            .transactionId(transactionId)
+            .documentNumber(documentNumber)
+            .futureContributionFundIsin(mandate.getFutureContributionFundIsin().orElse(null))
+            .funds(funds)
+            .build();
 
         String htmlContent = templateEngine.process("future_contributions_fund", ctx);
 
         return MandateContentFile.builder()
-                .name("valikuavaldus_" + documentNumber + ".html")
-                .mimeType("text/html")
-                .content(htmlContent.getBytes())
-                .build();
+            .name("valikuavaldus_" + documentNumber + ".html")
+            .mimeType("text/html")
+            .content(htmlContent.getBytes())
+            .build();
     }
 
     private List<MandateContentFile> getFundTransferMandateContentFiles(
-            User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
+        User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
         return allocateAndGetFundTransferFiles(
-                getPrintableFundExchangeStructure(mandate),
-                user, mandate, funds, userPreferences
+            mandate.getPrintableFundExchangeStructure(),
+            user, mandate, funds, userPreferences
         );
     }
 
     private List<MandateContentFile> allocateAndGetFundTransferFiles(
-            Map<String, List<FundTransferExchange>> exchangeMap,
-            User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences
-            ) {
+        Map<String, List<FundTransferExchange>> exchangeMap,
+        User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences
+    ) {
         return exchangeMap.keySet().stream().map(
-                sourceIsin -> getFundTransferMandateContentFile(new ArrayList<>(
-                        exchangeMap.get(sourceIsin)
-                ), user, mandate, funds, userPreferences)).collect(Collectors.toList());
-    }
-
-    private Map<String, List<FundTransferExchange>> getPrintableFundExchangeStructure(Mandate mandate) {
-        Map<String, List<FundTransferExchange>> exchangeMap = new HashMap<>();
-
-        mandate.getFundTransferExchanges().stream()
-                .filter(fte -> fte.getAmount().compareTo(BigDecimal.ZERO) == 1)
-                .forEach(exchange -> {
-            if (!exchangeMap.containsKey(exchange.getSourceFundIsin())) {
-                exchangeMap.put(exchange.getSourceFundIsin(), new ArrayList<>());
-            }
-            exchangeMap.get(exchange.getSourceFundIsin()).add(exchange);
-        });
-
-        return exchangeMap;
+            sourceIsin -> getFundTransferMandateContentFile(new ArrayList<>(
+                exchangeMap.get(sourceIsin)
+            ), user, mandate, funds, userPreferences)).collect(Collectors.toList());
     }
 
     private MandateContentFile getFundTransferMandateContentFile(
-            List<FundTransferExchange> fundTransferExchanges,
-            User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences
+        List<FundTransferExchange> fundTransferExchanges,
+        User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences
     ) {
         String transactionId = UUID.randomUUID().toString();
         String documentNumber = fundTransferExchanges.get(0).getId().toString();
 
         Context ctx = ContextBuilder.builder()
-                .mandate(mandate)
-                .user(user)
-                .userPreferences(userPreferences)
-                .transactionId(transactionId)
-                .documentNumber(documentNumber)
-                .fundTransferExchanges(fundTransferExchanges)
-                .groupedTransferExchanges(fundTransferExchanges)
-                .funds(funds)
-                .build();
+            .mandate(mandate)
+            .user(user)
+            .userPreferences(userPreferences)
+            .transactionId(transactionId)
+            .documentNumber(documentNumber)
+            .fundTransferExchanges(fundTransferExchanges)
+            .groupedTransferExchanges(fundTransferExchanges)
+            .funds(funds)
+            .build();
 
         String htmlContent = templateEngine.process("fund_transfer", ctx);
 
         return MandateContentFile.builder()
-                .name("vahetuseavaldus_" + documentNumber + ".html")
-                .mimeType("text/html")
-                .content(htmlContent.getBytes())
-                .build();
+            .name("vahetuseavaldus_" + documentNumber + ".html")
+            .mimeType("text/html")
+            .content(htmlContent.getBytes())
+            .build();
     }
 
 }

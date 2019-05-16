@@ -1,10 +1,9 @@
 package ee.tuleva.onboarding.mandate.processor
 
 import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.Mandate
-import ee.tuleva.onboarding.mandate.content.MandateXmlMessage
-import ee.tuleva.onboarding.mandate.content.MandateXmlService
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
@@ -13,30 +12,30 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
 class MandateProcessorServiceSpec extends Specification {
 
-    MandateXmlService mandateXmlService = Mock(MandateXmlService)
     MandateProcessRepository mandateProcessRepository = Mock(MandateProcessRepository)
     MandateProcessErrorResolver mandateProcessErrorResolver = Mock(MandateProcessErrorResolver)
-    EpisService episService = Mock(EpisService);
+    EpisService episService = Mock(EpisService)
 
-    MandateProcessorService service = new MandateProcessorService(mandateXmlService,
-            mandateProcessRepository, mandateProcessErrorResolver, episService)
+    MandateProcessorService service = new MandateProcessorService(
+        mandateProcessRepository, mandateProcessErrorResolver, episService)
 
 
     User sampleUser = sampleUser().build()
     Mandate sampleMandate = sampleMandate()
-    List<MandateXmlMessage> sampleMessages = []
 
-    def "Start: starts processing mandate and saves mandate processes for every mandate message"() {
+    def "Start: starts processing mandate and saves mandate processes"() {
         given:
-        1 * mandateXmlService.getRequestContents(sampleUser, sampleMandate.id) >> sampleMessages
-        1 * episService.process(sampleMessages);
+        def mandateResponse = new MandateResponseDTO()
+        def response = new MandateResponseDTO.MandateResponse()
+        mandateResponse.mandateResponses = [response]
+        1 * episService.sendMandate(_) >> mandateResponse
+        1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
         when:
         service.start(sampleUser, sampleMandate)
         then:
-        sampleMessages.size() * mandateProcessRepository.save({ MandateProcess mandateProcess ->
-            mandateProcess.mandate == sampleMandate && mandateProcess.processId != null &&
-                    mandateProcess.type == sampleMessages.get(0).type
-        })
+        3 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
+            mandateProcess.mandate == sampleMandate && mandateProcess.processId != null
+        }) >> { args -> args[0] }
     }
 
     def "IsFinished: processing is complete when all message processes are finished"() {
@@ -71,11 +70,11 @@ class MandateProcessorServiceSpec extends Specification {
 
 
     List<MandateProcess> sampleCompleteProcesses = [
-            MandateProcess.builder().successful(true).build()
+        MandateProcess.builder().successful(true).build()
     ]
 
     List<MandateProcess> sampleIncompleteProcesses = [
-            MandateProcess.builder().build()
+        MandateProcess.builder().build()
     ]
 
 }

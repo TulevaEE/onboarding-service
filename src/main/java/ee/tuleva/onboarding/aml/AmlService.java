@@ -1,14 +1,23 @@
 package ee.tuleva.onboarding.aml;
 
+import com.google.common.collect.Lists;
+import ee.tuleva.onboarding.audit.AuditEventPublisher;
+import ee.tuleva.onboarding.audit.AuditEventType;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+
+import static com.google.common.collect.Lists.newArrayList;
+import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static java.util.stream.Collectors.toSet;
 
 @Slf4j
 @Service
@@ -16,22 +25,27 @@ import java.util.List;
 public class AmlService {
 
     private final AmlCheckRepository amlCheckRepository;
+    private final AuditEventPublisher auditEventPublisher;
+    private final List<List<AmlCheckType>> allowedCombinations = Lists.newArrayList(
+        newArrayList(POLITICALLY_EXPOSED_PERSON, SK_NAME, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_AUTO),
+        newArrayList(POLITICALLY_EXPOSED_PERSON, SK_NAME, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_MANUAL)
+    );
 
     public void checkUserAfterLogin(User user, Person person) {
-        addCheckIfMissing(user, AmlCheckType.DOCUMENT, true);
+        addCheckIfMissing(user, DOCUMENT, true);
         addSkNameCheckIfMissing(user, person);
     }
 
     private void addSkNameCheckIfMissing(User user, Person person) {
-        if (!hasCheck(user, AmlCheckType.SK_NAME)) {
-            addCheck(user, AmlCheckType.SK_NAME,
+        if (!hasCheck(user, SK_NAME)) {
+            addCheck(user, SK_NAME,
                 personDataMatches(user, person.getFirstName(), person.getLastName(), person.getPersonalCode()));
         }
     }
 
     public void addPensionRegistryNameCheckIfMissing(User user, UserPreferences userPreferences) {
-        if (!hasCheck(user, AmlCheckType.PENSION_REGISTRY_NAME)) {
-            addCheck(user, AmlCheckType.PENSION_REGISTRY_NAME,
+        if (!hasCheck(user, PENSION_REGISTRY_NAME)) {
+            addCheck(user, PENSION_REGISTRY_NAME,
                 personDataMatches(user,
                     userPreferences.getFirstName(),
                     userPreferences.getLastName(),
@@ -71,5 +85,25 @@ public class AmlService {
 
     public List<AmlCheck> getChecks(User user) {
         return amlCheckRepository.findAllByUser(user);
+    }
+
+    public boolean allChecksPassed(Mandate mandate) {
+        val user = mandate.getUser();
+        if (mandate.getPillar() == 2) {
+            // No checks needed for second pillar
+            return true;
+        } else if (mandate.getPillar() == 3) {
+            val checks = amlCheckRepository.findAllByUser(user);
+            val successfulTypes = checks.stream()
+                .filter(AmlCheck::isSuccess)
+                .map(AmlCheck::getType)
+                .collect(toSet());
+            if (allowedCombinations.stream().anyMatch(successfulTypes::containsAll)) {
+                return true;
+            }
+        }
+        log.error("All necessary AML checks not passed for user {}!", user.getId());
+        auditEventPublisher.publish(user.getEmail(), AuditEventType.MANDATE_DENIED);
+        return false;
     }
 }

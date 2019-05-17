@@ -57,6 +57,9 @@ public class MandateService {
         UserPreferences userPreferences = episService.getContactDetails(user);
         amlService.addPensionRegistryNameCheckIfMissing(user, userPreferences);
         log.info("Saving mandate {}", mandate);
+        if (!amlService.allChecksPassed(mandate)) {
+            throw InvalidMandateException.amlChecksMissing();
+        }
         return mandateRepository.save(mandate);
     }
 

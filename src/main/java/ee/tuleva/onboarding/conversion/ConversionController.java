@@ -19,7 +19,11 @@ public class ConversionController {
     @ApiOperation(value = "Get info about the current user conversion")
     @GetMapping("/me/conversion")
     public ConversionResponse conversion(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-        return userConversionService.getConversion(authenticatedPerson);
+        return ConversionResponse.builder()
+            .transfersComplete(true)
+            .selectionComplete(true)
+            .build();
+//        return userConversionService.getConversion(authenticatedPerson);
     }
 
 }

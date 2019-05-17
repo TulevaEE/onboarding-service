@@ -1,0 +1,304 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <style type="text/css">ol{margin:0;padding:0}table td,table th{padding:0}.c34{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:228pt;border-top-color:#000000;border-bottom-style:solid}.c2{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:59.2pt;border-top-color:#000000;border-bottom-style:solid}.c9{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:57pt;border-top-color:#000000;border-bottom-style:solid}.c29{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:55.5pt;border-top-color:#000000;border-bottom-style:solid}.c32{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:468pt;border-top-color:#000000;border-bottom-style:solid}.c26{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:240pt;border-top-color:#000000;border-bottom-style:solid}.c15{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:28.5pt;border-top-color:#000000;border-bottom-style:solid}.c20{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:29.6pt;border-top-color:#000000;border-bottom-style:solid}.c3{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:234pt;border-top-color:#000000;border-bottom-style:solid}.c27{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:191.2pt;border-top-color:#000000;border-bottom-style:solid}.c35{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:435.8pt;border-top-color:#000000;border-bottom-style:solid}.c14{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:27pt;border-top-color:#000000;border-bottom-style:solid}.c36{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:81.8pt;border-top-color:#000000;border-bottom-style:solid}.c7{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:156pt;border-top-color:#000000;border-bottom-style:solid}.c37{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:274.1pt;border-top-color:#000000;border-bottom-style:solid}.c4{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:27.8pt;border-top-color:#000000;border-bottom-style:solid}.c22{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:75pt;border-top-color:#000000;border-bottom-style:solid}.c21{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:26.2pt;border-top-color:#000000;border-bottom-style:solid}.c24{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:312pt;border-top-color:#000000;border-bottom-style:solid}.c16{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:72pt;border-top-color:#000000;border-bottom-style:solid}.c10{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:439.5pt;border-top-color:#000000;border-bottom-style:solid}.c0{color:#000000;font-weight:700;text-decoration:none;vertical-align:baseline;font-size:11pt;font-family:"Times New Roman";font-style:normal}.c31{color:#000000;font-weight:700;text-decoration:none;vertical-align:baseline;font-size:10pt;font-family:"Arial";font-style:normal}.c1{color:#000000;font-weight:400;text-decoration:none;vertical-align:baseline;font-size:11pt;font-family:"Times New Roman";font-style:normal}.c17{padding-top:0pt;padding-bottom:0pt;line-height:1.15;orphans:2;widows:2;text-align:left}.c28{padding-top:0pt;padding-bottom:0pt;line-height:0.9958333333333332;text-align:left}.c6{padding-top:0pt;padding-bottom:0pt;line-height:0.9958333333333332;text-align:center}.c25{border-spacing:0;border-collapse:collapse;margin-right:auto}.c30{padding-top:0pt;padding-bottom:0pt;line-height:0.8416666666666667;text-align:right}.c5{padding-top:0pt;padding-bottom:0pt;line-height:1.0;text-align:left}.c33{background-color:#ffffff;max-width:468pt;padding:72pt 72pt 72pt 72pt}.c11{font-weight:700;font-family:"Times New Roman"}.c18{font-weight:400;font-family:"Times New Roman"}.c12{height:0pt}.c23{height:21pt}.c13{height:20pt}.c19{height:23pt}.c8{height:11pt}.title{padding-top:0pt;color:#000000;font-size:26pt;padding-bottom:3pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}.subtitle{padding-top:0pt;color:#666666;font-size:15pt;padding-bottom:16pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}li{color:#000000;font-size:11pt;font-family:"Arial"}p{margin:0;color:#000000;font-size:11pt;font-family:"Arial"}h1{padding-top:20pt;color:#000000;font-size:20pt;padding-bottom:6pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}h2{padding-top:18pt;color:#000000;font-size:16pt;padding-bottom:6pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}h3{padding-top:16pt;color:#434343;font-size:14pt;padding-bottom:4pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}h4{padding-top:14pt;color:#666666;font-size:12pt;padding-bottom:4pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}h5{padding-top:12pt;color:#666666;font-size:11pt;padding-bottom:4pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}h6{padding-top:12pt;color:#666666;font-size:11pt;padding-bottom:4pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;font-style:italic;orphans:2;widows:2;text-align:left}</style>
+
+    <title>Valikuavaldus</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+</head>
+
+<body class="c33">
+<p class="c30"><a id="kix.g9q1qkk2mnqa"></a><span class="c1">&bdquo;Rahandusministri 26. aprilli 2011. a m&auml;&auml;ruse nr 25<br></br>&bdquo;Kohustusliku kogumispensioni avalduste vormide <br></br>kehtestamine&ldquo; lisa 1 <br></br>(muudetud s&otilde;nastuses)</span></p>
+<p class="c17 c8"><span class="c1"></span></p>
+<p class="c17 c8"><span class="c1"></span></p>
+<p class="c6"><span class="c1">VALIKUAVALDUS nr <span th:text="${documentNumber}"></span></span></p>
+<p class="c5 c8"><span class="c1"></span></p>
+<p class="c28"><span class="c11">1. Avalduse esitaja</span></p>
+<p class="c17 c8"><span class="c1"></span></p>
+<a id="t.712981a4452879ce0099246241239d458bf94b79"></a><a id="t.0"></a>
+<table class="c25">
+    <tbody>
+    <tr class="c19">
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1" th:text="${idCode}"></span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1" th:text="${firstName}"></span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1" th:text="${lastName}"></span></p>
+        </td>
+    </tr>
+    <tr class="c12">
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Isikukood</span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Eesnimi</span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Perekonnanimi</span></p>
+        </td>
+    </tr>
+    <tr class="c23">
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1" th:text="${phoneNumber}"></span></p>
+        </td>
+        <td class="c24" colspan="2" rowspan="1">
+            <p class="c5 c8"><span class="c1" th:text="${email}"></span></p>
+        </td>
+    </tr>
+    <tr class="c23">
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Kontakttelefon</span></p>
+        </td>
+        <td class="c24" colspan="2" rowspan="1">
+            <p class="c5"><span class="c1">E-posti aadress</span></p>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<p class="c8 c17"><span class="c1"></span></p>
+<p class="c5"><span class="c0">2. Aadress</span></p>
+<p class="c5 c8"><span class="c0"></span></p>
+<a id="t.e0927e35cdcaed5d1bfd3eb4cb10714eb91b9c37"></a><a id="t.1"></a>
+<table class="c25">
+    <tbody>
+    <tr class="c13">
+        <td class="c26" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0" th:text="${addressLine1}"></span></p>
+        </td>
+        <td class="c34" colspan="2" rowspan="1">
+            <p class="c5 c8"><span class="c0" th:text="${settlement}"></span></p>
+        </td>
+    </tr>
+    <tr class="c13">
+        <td class="c26" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">T&auml;nav, maja- ja/v&otilde;i korteri number, maakohas k&uuml;la</span></p>
+        </td>
+        <td class="c34" colspan="2" rowspan="1">
+            <p class="c5"><span class="c1">Asula v&otilde;i sidejaoskond</span></p>
+        </td>
+    </tr>
+    <tr class="c23">
+        <td class="c26" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1" th:text="${addressLine2}"></span></p>
+        </td>
+        <td class="c16" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1" th:text="${postCode}"></span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1" th:text="${countryCode}"></span></p>
+        </td>
+    </tr>
+    <tr class="c23">
+        <td class="c26" colspan="1" rowspan="1">
+            <p class="c5"><span class="c18">Linn v&otilde;i maakond</span></p>
+        </td>
+        <td class="c16" colspan="1" rowspan="1">
+            <p class="c5"><span class="c18">Sihtnumber</span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c18">Riik</span></p>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<p class="c5 c8"><span class="c0"></span></p>
+<p class="c5"><span class="c0">3. Isiku eelistused</span></p>
+<p class="c5 c8"><span class="c0"></span></p>
+<a id="t.032bcade378b103fe3f95a946ba9f148bbac3d44"></a><a id="t.2"></a>
+<table class="c25">
+    <tbody>
+    <tr class="c23">
+        <td class="c35" colspan="9" rowspan="1">
+            <p class="c5"><span class="c1">Soovin pensioniregistri teatist pensionikonto j&auml;&auml;gi kohta</span></p>
+        </td>
+        <td class="c20" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0" th:text="${userPreferences.noticeNeeded.equalsIgnoreCase('Y') ? 'X' : '' }"></span></p>
+        </td>
+    </tr>
+    <tr class="c23">
+        <td class="c27" colspan="4" rowspan="1">
+            <p class="c5"><span class="c1">Teatise esitamise viis</span></p>
+        </td>
+        <td class="c37" colspan="6" rowspan="1">
+            <p class="c5"><span class="c1">Keel</span></p>
+        </td>
+    </tr>
+    <tr class="c12">
+        <td class="c36" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Elektrooniliselt</span></p>
+        </td>
+        <td class="c21" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1"
+                                   th:text="${userPreferences.contactPreference.toString().equalsIgnoreCase('E') ? 'X' : ''}"></span></p>
+        </td>
+        <td class="c29" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Postiga</span></p>
+        </td>
+        <td class="c4" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1"
+                                   th:text="${userPreferences.contactPreference.toString().equalsIgnoreCase('P') ? 'X' : ''}"></span></p>
+        </td>
+        <td class="c9" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Eesti keel</span></p>
+        </td>
+        <td class="c14" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1"
+                                   th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('EST') ? 'X' : ''}"></span></p>
+        </td>
+        <td class="c2" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Vene keel</span></p>
+        </td>
+        <td class="c21" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1"
+                                   th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('RUS') ? 'X' : ''}"></span></p>
+        </td>
+        <td class="c22" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Inglise keel</span></p>
+        </td>
+        <td class="c20" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c1"
+                                   th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('ENG') ? 'X' : ''}"></span></p>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<p class="c5 c8"><span class="c0"></span></p>
+<p class="c5"><span class="c0">4. Kohustuslik pensionifond, kuhu soovin hakata tegema kohustusliku kogumispensioni sissemakseid&sup1;</span></p>
+<p class="c5 c8"><span class="c0"></span></p>
+<a id="t.02fe6cfe4ddff85327de913266a11873fe4457ee"></a><a id="t.3"></a>
+<table class="c25">
+    <tbody>
+    <tr class="c12">
+        <td class="c10" colspan="1" rowspan="1">
+            <p class="c5"><span class="c18">Pensionifondi nimetus</span></p>
+        </td>
+        <td class="c15" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+        </td>
+    </tr>
+
+    <tr class="c12" th:each="fund : ${funds}">
+        <td class="c10" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0" th:text="${fund.nameEstonian}"></span></p>
+        </td>
+        <td class="c15" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"
+                                   th:if="${fund.isin == selectedFundIsin}" th:text="X">
+            </span></p>
+        </td>
+    </tr>
+
+    </tbody>
+</table>
+<p class="c5 c8"><span class="c0"></span></p>
+<p class="c5"><span class="c0">Kinnitan, et mul on olnud v&otilde;imalik tutvuda k&otilde;igi registreeritud kohustuslike pensionifondide tingimuste ja emissiooniprospektidega ning n&otilde;ustun minu valitud pensionifondi tingimustega.</span></p>
+<p class="c5 c8"><span class="c0"></span></p>
+<p class="c5"><span class="c0">Olen teadlik asjaolust, et valikuavalduse esitamisega hakkavad minu kohustusliku kogumispensioni sissemaksed laekuma lahtris 4 valitud kohustuslikku pensionifondi. Valitud kohustusliku pensionifondi muutmiseks tuleb esitada uus valikuavaldus.</span></p>
+<p class="c5 c8"><span class="c0"></span></p>
+<p class="c5 c8"><span class="c0"></span></p>
+<a id="t.b2831fb258baf4dfb1c91996f8b9ea52c86b598f"></a><a id="t.4"></a>
+<table class="c25">
+    <tbody>
+    <tr class="c12">
+        <td class="c3" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0" th:text="${documentDatePPKKAAAA}"></span></p>
+            <p class="c5 c8"><span class="c0"></span></p>
+        </td>
+        <td class="c3" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+        </td>
+    </tr>
+    <tr class="c12">
+        <td class="c3" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Kuup&auml;ev (pp.kk.aaaa)</span></p>
+        </td>
+        <td class="c3" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Allkiri</span></p>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<p class="c5 c8"><span class="c0"></span></p>
+<p class="c5"><span class="c0">5. Seadusliku esindaja andmed&sup2;</span></p>
+<p class="c5 c8"><span class="c0"></span></p>
+<p class="c5 c8"><span class="c0"></span></p>
+<a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
+<table class="c25">
+    <tbody>
+    <tr class="c13">
+        <td class="c32" colspan="3" rowspan="1">
+            <p class="c5"><span class="c0">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
+        </td>
+    </tr>
+    <tr class="c12">
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+        </td>
+    </tr>
+    <tr class="c12">
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Seadusliku esindaja isikukood</span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Ees- ja perekonnanimi</span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Seadusliku esindaja allkiri</span></p>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<p class="c5 c8"><span class="c0"></span></p>
+<p class="c5"><span class="c0">6. Volitatud esindaja andmed&sup3;</span></p>
+<p class="c5 c8"><span class="c0"></span></p>
+<a id="t.364bbe539b833f885e6cdf18af613e0e4b587303"></a><a id="t.6"></a>
+<table class="c25">
+    <tbody>
+    <tr class="c12">
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+        </td>
+    </tr>
+    <tr class="c12">
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">F&uuml;&uuml;silise isiku puhul tema isikukood</span></p>
+            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5"><span class="c1">Juriidilise isiku puhul tema registrikood ja juriidilise isiku esindaja isikukood</span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">F&uuml;&uuml;silise isiku puhul tema ees- ja perekonnanimi</span></p>
+            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5"><span class="c1">Juriidilise isiku puhul tema &auml;rinimi ning juriidilise isiku esindaja ees- ja perekonnanimi</span></p>
+        </td>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Avalduse esitaja isikusamasust tuvastanud isiku allkiri</span></p>
+        </td>
+    </tr>
+    </tbody>
+</table>
+<p class="c5 c8"><span class="c0"></span></p>
+<p class="c5 c8"><span class="c0"></span></p>
+<p class="c5"><span class="c1">&sup1; Valitud kohustuslik pensionifond t&auml;histada ristiga paremal.</span></p>
+<p class="c5 c8"><span class="c1"></span></p>
+<p class="c5"><span class="c1">&sup2; Lahter t&auml;idetakse avalduse esitaja seadusliku esindaja poolt, kui tulenevalt &otilde;igusaktidest on avalduse esitamine lubatud &uuml;ksnes seadusliku esindaja poolt v&otilde;i tema n&otilde;usolekul.</span></p>
+<p class="c5 c8"><span class="c1"></span></p>
+<p class="c5"><span class="c1">&sup3; Lahter t&auml;idetakse, kui avaldus esitatakse muu esindaja kui seadusliku esindaja kaudu.</span></p>
+<p class="c5 c8"><span class="c31"></span></p>
+</body>
+
+</html>

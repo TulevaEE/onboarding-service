@@ -68,6 +68,9 @@ public class AccountStatementService {
 
             // Adding initial balance as a transaction
             if (fundBalance.getPillar() == 3) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Sum calculation update, current from transactions was: {}, adding beginning balance from: {} ", sumOfAllContributions, accountOverview);
+                }
                 sumOfAllContributions = sumOfAllContributions.add(accountOverview.getBeginningBalance());
             }
 

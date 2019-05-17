@@ -19,6 +19,13 @@ public class OnboardingServiceApplication {
         System.setProperty("http.agent", "HTTPie/1.0.2");
         val context = SpringApplication.run(OnboardingServiceApplication.class, args);
         trackRelease(context);
+        validateFileEncoding();
+    }
+
+    private static void validateFileEncoding() {
+        if (!System.getProperty("file.encoding", "").toLowerCase().equals("utf-8")) {
+            log.error("Unsupported file encoding {}!", System.getProperty("file.encoding"));
+        }
     }
 
     private static void trackRelease(ApplicationContext context) {

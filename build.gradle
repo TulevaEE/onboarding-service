@@ -36,10 +36,16 @@ repositories {
 	}
 }
 
+configurations {
+	developmentOnly
+	runtimeClasspath {
+		extendsFrom developmentOnly
+	}
+}
+
 dependencies {
 	compileOnly('org.projectlombok:lombok:1.18.6')
 	annotationProcessor('org.projectlombok:lombok:1.18.6')
-	runtime("org.springframework.boot:spring-boot-devtools")
 	implementation('org.springframework.boot:spring-boot-starter-actuator')
 	implementation('org.springframework.boot:spring-boot-starter-security')
 	implementation('org.springframework.boot:spring-boot-starter-web')
@@ -51,6 +57,7 @@ dependencies {
 	implementation('de.codecentric:spring-boot-admin-starter-client')
 	implementation('org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.1.4.RELEASE')
 
+	developmentOnly('org.springframework.boot:spring-boot-devtools')
 	runtimeOnly('org.postgresql:postgresql')
 
 	implementation('org.flywaydb:flyway-core')
@@ -106,7 +113,8 @@ test {
 }
 
 bootRun {
-	systemProperties['spring.profiles.active'] = 'dev'
+	systemProperty "file.encoding", "utf-8"
+	systemProperty "spring.profiles.active", "dev"
 }
 
 jacocoTestReport {

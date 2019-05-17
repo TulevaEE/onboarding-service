@@ -49,6 +49,7 @@ public class CapitalService {
     @NotNull
     private BigDecimal getCapitalAmount(List<MemberCapitalEvent> events, MemberCapitalEventType capitalPayment) {
         return events.stream().filter(event -> event.getType() == capitalPayment)
+            .filter(event -> event.getAccountingDate().compareTo(LocalDate.now()) < 1)
             .map(MemberCapitalEvent::getFiatValue)
             .reduce(BigDecimal.ZERO, BigDecimal::add).round(new MathContext(2));
     }
@@ -56,12 +57,12 @@ public class CapitalService {
     private BigDecimal getProfit(List<MemberCapitalEvent> events) {
 
         BigDecimal totalFiatValue = events.stream()
-            .filter(event -> event.getEffectiveDate().compareTo(LocalDate.now()) < 1)
+            .filter(event -> event.getAccountingDate().compareTo(LocalDate.now()) < 1)
             .map(MemberCapitalEvent::getFiatValue)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalOwnershipUnitAmount = events.stream()
-            .filter(event -> event.getEffectiveDate().compareTo(LocalDate.now()) < 1)
+            .filter(event -> event.getAccountingDate().compareTo(LocalDate.now()) < 1)
             .map(MemberCapitalEvent::getOwnershipUnitAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 

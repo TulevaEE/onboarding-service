@@ -14,12 +14,13 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
         given:
         def isin = "someIsin"
         FundBalanceDto fundBalanceDto = FundBalanceDto.builder()
-                .isin(isin)
-                .value(123)
-                .currency("EUR")
-                .pillar(3)
-                .activeContributions(true)
-                .build()
+            .isin(isin)
+            .value(123.0)
+            .units(345.0)
+            .currency("EUR")
+            .pillar(3)
+            .activeContributions(true)
+            .build()
 
         fundRepository.findByIsin(isin) >> Fund.builder().isin(isin).build()
 
@@ -29,6 +30,7 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
         then:
         fundBalance.fund.isin == fundBalanceDto.isin
         fundBalance.value == fundBalanceDto.value
+        fundBalance.units == fundBalanceDto.units
         fundBalance.currency == fundBalanceDto.currency
         fundBalance.pillar == fundBalanceDto.pillar
         fundBalance.activeContributions == fundBalanceDto.activeContributions
@@ -38,8 +40,8 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
         given:
         def isin = "someIsin"
         FundBalanceDto fundBalanceDto = FundBalanceDto.builder()
-                .isin(isin)
-                .build()
+            .isin(isin)
+            .build()
 
         fundRepository.findByIsin(isin) >> null
 

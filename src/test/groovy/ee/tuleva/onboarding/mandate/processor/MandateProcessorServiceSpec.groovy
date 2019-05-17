@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.processor
 
 import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.Mandate
@@ -23,19 +24,27 @@ class MandateProcessorServiceSpec extends Specification {
     User sampleUser = sampleUser().build()
     Mandate sampleMandate = sampleMandate()
 
-    def "Start: starts processing mandate and saves mandate processes"() {
+    def "Start: starts processing mandate and saves mandate processes"(Integer pillar) {
         given:
+        Mandate mandate = sampleMandate()
+        mandate.pillar = pillar
         def mandateResponse = new MandateResponseDTO()
         def response = new MandateResponseDTO.MandateResponse()
         mandateResponse.mandateResponses = [response]
-        1 * episService.sendMandate(_) >> mandateResponse
         1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
         when:
-        service.start(sampleUser, sampleMandate)
+        service.start(sampleUser, mandate)
         then:
         3 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
-            mandateProcess.mandate == sampleMandate && mandateProcess.processId != null
+            mandateProcess.mandate == mandate && mandateProcess.processId != null
         }) >> { args -> args[0] }
+        1 * episService.sendMandate({ MandateDto dto ->
+            dto.pillar == mandate.pillar
+        }) >> mandateResponse
+        where:
+        pillar | _
+        2      | _
+        3      | _
     }
 
     def "IsFinished: processing is complete when all message processes are finished"() {

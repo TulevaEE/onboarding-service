@@ -95,4 +95,22 @@ class AccountStatementServiceSpec extends Specification {
         then:
         thrown(IllegalStateException)
     }
+
+    def "start date is per pillar"(){
+        when:
+            def start_2nd = AccountStatementService.getStartTimeForPillar(2)
+            def start_3rd = AccountStatementService.getStartTimeForPillar(3)
+        then:
+            start_2nd == AccountStatementService.START_TIME_2ND_PILLAR
+            start_3rd == AccountStatementService.START_TIME_3RD_PILLAR
+    }
+
+    def "Exception is thrown when unknow pillar start time is asked"() {
+
+        when:
+            AccountStatementService.getStartTimeForPillar(777777)
+
+        then:
+            thrown(RuntimeException)
+    }
 }

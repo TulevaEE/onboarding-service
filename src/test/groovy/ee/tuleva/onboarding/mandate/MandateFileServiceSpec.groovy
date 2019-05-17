@@ -22,7 +22,7 @@ class MandateFileServiceSpec extends Specification {
     UserService userService = Mock(UserService)
 
     MandateFileService service = new MandateFileService(mandateRepository, fundRepository,
-            episService, mandateContentCreator, userService)
+        episService, mandateContentCreator, userService)
 
     User user = sampleUser().build()
     Mandate mandate = MandateFixture.sampleMandate()
@@ -33,10 +33,10 @@ class MandateFileServiceSpec extends Specification {
         mockMandateFiles(user, mandate.id, sampleUserPreferences)
 
         1 * mandateContentCreator.
-                getContentFiles(_ as User,
-                        _ as Mandate,
-                        _ as List,
-                        sampleUserPreferences) >> sampleFiles()
+            getContentFiles(_ as User,
+                _ as Mandate,
+                _ as List,
+                sampleUserPreferences) >> sampleFiles()
 
         when:
         List<SignatureFile> files = service.getMandateFiles(mandate.id, user.id)
@@ -53,17 +53,17 @@ class MandateFileServiceSpec extends Specification {
         mockMandateFiles(user, mandate.id, sampleUserPreferences)
 
         1 * mandateContentCreator.
-                getContentFiles(_ as User,
-                        _ as Mandate,
-                        _ as List,
-                        { UserPreferences it ->
-                            it.addressRow1 == UserPreferences.defaultUserPreferences().addressRow1
-                            it.addressRow2 == UserPreferences.defaultUserPreferences().addressRow2
-                            it.addressRow3 == UserPreferences.defaultUserPreferences().addressRow3
-                            it.getCountry() == UserPreferences.defaultUserPreferences().getCountry()
-                            it.getDistrictCode() == UserPreferences.defaultUserPreferences().getDistrictCode()
-                            it.getPostalIndex() == UserPreferences.defaultUserPreferences().getPostalIndex()
-                        }) >> sampleFiles()
+            getContentFiles(_ as User,
+                _ as Mandate,
+                _ as List,
+                { UserPreferences it ->
+                    it.addressRow1 == UserPreferences.defaultUserPreferences().addressRow1
+                    it.addressRow2 == UserPreferences.defaultUserPreferences().addressRow2
+                    it.addressRow3 == UserPreferences.defaultUserPreferences().addressRow3
+                    it.getCountry() == UserPreferences.defaultUserPreferences().getCountry()
+                    it.getDistrictCode() == UserPreferences.defaultUserPreferences().getDistrictCode()
+                    it.getPostalIndex() == UserPreferences.defaultUserPreferences().getPostalIndex()
+                }) >> sampleFiles()
 
         when:
         List<SignatureFile> files = service.getMandateFiles(mandate.id, user.id)
@@ -81,14 +81,14 @@ class MandateFileServiceSpec extends Specification {
         mockMandateFiles(user, mandate.id, sampleUserPreferences)
 
         1 * mandateContentCreator.
-                getContentFiles(_ as User,
-                        _ as Mandate,
-                        _ as List,
-                        { UserPreferences it ->
-                            it.languagePreference == UserPreferences.defaultUserPreferences().languagePreference
-                            it.contactPreference == UserPreferences.defaultUserPreferences().contactPreference
-                            it.noticeNeeded == UserPreferences.defaultUserPreferences().noticeNeeded
-                        }) >> sampleFiles()
+            getContentFiles(_ as User,
+                _ as Mandate,
+                _ as List,
+                { UserPreferences it ->
+                    it.languagePreference == UserPreferences.defaultUserPreferences().languagePreference
+                    it.contactPreference == UserPreferences.defaultUserPreferences().contactPreference
+                    it.noticeNeeded == UserPreferences.defaultUserPreferences().noticeNeeded
+                }) >> sampleFiles()
 
         when:
         List<SignatureFile> files = service.getMandateFiles(mandate.id, user.id)
@@ -105,7 +105,7 @@ class MandateFileServiceSpec extends Specification {
 
     def mockMandateFiles(User user, Long mandateId, UserPreferences userPreferences) {
         1 * userService.getById(user.id) >> user
-        1 * mandateRepository.findByIdAndUserId(mandateId, user.id) >> Mandate.builder().build()
+        1 * mandateRepository.findByIdAndUserId(mandateId, user.id) >> Mandate.builder().pillar(2).build()
         1 * fundRepository.findAllByPillar(mandate.pillar) >> [new Fund(), new Fund()]
         1 * episService.getContactDetails(user) >> userPreferences
     }

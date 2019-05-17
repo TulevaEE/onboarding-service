@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 public class FundBalance {
     private Fund fund;
     private BigDecimal value;
+    private BigDecimal units;
     private String currency;
     private Integer pillar;
     private boolean activeContributions;

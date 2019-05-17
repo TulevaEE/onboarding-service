@@ -28,6 +28,7 @@ public class FundBalanceDtoToFundBalanceConverter implements Converter<FundBalan
         .currency(sourceFund.getCurrency())
         .pillar(sourceFund.getPillar())
         .value(sourceFund.getValue())
+        .units(sourceFund.getUnits())
         .fund(fund)
         .build();
 

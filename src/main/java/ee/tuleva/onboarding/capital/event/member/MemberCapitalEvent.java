@@ -12,6 +12,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Date;
 
+import static javax.persistence.EnumType.STRING;
+
 @Data
 @Builder
 @Entity
@@ -30,6 +32,7 @@ public class MemberCapitalEvent {
     private Member member;
 
     @NotNull
+    @Enumerated(STRING)
     private MemberCapitalEventType type;
 
     @NotNull

@@ -11,6 +11,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Date;
 
+import static javax.persistence.EnumType.STRING;
+
 @Data
 @Builder
 @Entity
@@ -24,6 +26,7 @@ public class OrganisationCapitalEvent {
     private Long id;
 
     @NotNull
+    @Enumerated(STRING)
     private OrganisationCapitalEventType type;
 
     @NotNull

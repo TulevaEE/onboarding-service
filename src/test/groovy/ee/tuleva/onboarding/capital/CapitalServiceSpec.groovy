@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.user.MemberFixture
 import ee.tuleva.onboarding.user.member.Member
 import spock.lang.Specification
 
+import java.math.MathContext
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventFixture.memberCapitalEventFixture
@@ -47,12 +48,16 @@ class CapitalServiceSpec extends Specification {
         CapitalStatement capitalStatement = service.getCapitalStatement(member.id)
 
         then:
-        capitalStatement.capitalPayment == event1.fiatValue + event2.fiatValue
-        capitalStatement.membershipBonus == event3.fiatValue + event4.fiatValue
-        capitalStatement.unvestedWorkCompensation == event5.fiatValue + event6.fiatValue
-        capitalStatement.workCompensation == event7.fiatValue + event8.fiatValue
-        capitalStatement.profit ==
-            (events.sum { it.ownershipUnitAmount *  ownershipUnitPrice}) - events.sum { it.fiatValue }
+        assertBigDecimals(capitalStatement.capitalPayment, event1.fiatValue + event2.fiatValue)
+        assertBigDecimals(capitalStatement.membershipBonus, event3.fiatValue + event4.fiatValue)
+        assertBigDecimals(capitalStatement.unvestedWorkCompensation, event5.fiatValue + event6.fiatValue)
+        assertBigDecimals(capitalStatement.workCompensation, event7.fiatValue + event8.fiatValue)
+        assertBigDecimals(capitalStatement.profit,
+            (events.sum { it.ownershipUnitAmount *  ownershipUnitPrice}) - events.sum { it.fiatValue })
+    }
+
+    private assertBigDecimals(BigDecimal expected, BigDecimal actual) {
+        expected.round(new MathContext(2)) == actual.round(new MathContext(2))
     }
 
     private AggregatedCapitalEvent getAggregatedCapitalEvent(BigDecimal ownershipUnitPrice) {

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -49,7 +50,7 @@ public class CapitalService {
     private BigDecimal getCapitalAmount(List<MemberCapitalEvent> events, MemberCapitalEventType capitalPayment) {
         return events.stream().filter(event -> event.getType() == capitalPayment)
             .map(MemberCapitalEvent::getFiatValue)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            .reduce(BigDecimal.ZERO, BigDecimal::add).round(new MathContext(2));
     }
 
     private BigDecimal getProfit(List<MemberCapitalEvent> events) {
@@ -70,6 +71,6 @@ public class CapitalService {
         BigDecimal investmentFiatValue =
             latestAggregatedCapitalEvent.getOwnershipUnitPrice().multiply(totalOwnershipUnitAmount);
 
-        return investmentFiatValue.subtract(totalFiatValue);
+        return investmentFiatValue.subtract(totalFiatValue).round(new MathContext(2));
     }
 }

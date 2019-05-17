@@ -83,6 +83,7 @@ class MandateServiceSpec extends Specification {
             .build()
         1 * amlService.addPensionRegistryNameCheckIfMissing(sampleUser, _)
         1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
+        1 * amlService.allChecksPassed(_) >> true
 
     }
 
@@ -94,6 +95,18 @@ class MandateServiceSpec extends Specification {
         then:
         InvalidMandateException exception = thrown()
         exception.errorsResponse.errors.first().code == "invalid.mandate.source.amount.exceeded"
+    }
+
+    def "save: Create mandate with missing aml checks fails"() {
+        given:
+        CreateMandateCommand createMandateCmd = sampleCreateMandateCommand()
+        when:
+        service.save(sampleUser.id, createMandateCmd)
+        then:
+        InvalidMandateException exception = thrown()
+        exception.errorsResponse.errors.first().code == "invalid.mandate.checks.missing"
+        0 * mandateRepository.save(_)
+        1 * amlService.allChecksPassed(_) >> false
     }
 
     def "save: Create mandate with same source and target fund fails"() {

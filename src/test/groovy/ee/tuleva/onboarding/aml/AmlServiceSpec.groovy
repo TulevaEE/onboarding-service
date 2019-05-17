@@ -1,15 +1,20 @@
 package ee.tuleva.onboarding.aml
 
-
+import ee.tuleva.onboarding.audit.AuditEventPublisher
+import ee.tuleva.onboarding.audit.AuditEventType
+import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.epis.contact.UserPreferences
+import ee.tuleva.onboarding.mandate.MandateFixture
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.*
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 
 class AmlServiceSpec extends Specification {
 
     AmlCheckRepository amlCheckRepository = Mock()
-    AmlService amlService = new AmlService(amlCheckRepository)
+    AuditEventPublisher auditEventPublisher = Mock()
+    AmlService amlService = new AmlService(amlCheckRepository, auditEventPublisher)
 
     def "adds user checks"() {
         given:
@@ -19,12 +24,12 @@ class AmlServiceSpec extends Specification {
         then:
         1 * amlCheckRepository.save({ check ->
             check.user == user &&
-                check.type == AmlCheckType.DOCUMENT &&
+                check.type == DOCUMENT &&
                 check.success
         })
         1 * amlCheckRepository.save({ check ->
             check.user == user &&
-                check.type == AmlCheckType.SK_NAME &&
+                check.type == SK_NAME &&
                 check.success
         })
     }
@@ -42,16 +47,16 @@ class AmlServiceSpec extends Specification {
         then:
         1 * amlCheckRepository.save({ check ->
             check.user == user &&
-                check.type == AmlCheckType.PENSION_REGISTRY_NAME &&
+                check.type == PENSION_REGISTRY_NAME &&
                 check.success
         })
-        1 * amlCheckRepository.existsByUserAndType(user, AmlCheckType.PENSION_REGISTRY_NAME) >> false
+        1 * amlCheckRepository.existsByUserAndType(user, PENSION_REGISTRY_NAME) >> false
     }
 
     def "adds check if missing"() {
         given:
         def user = sampleUserNonMember().build()
-        def type = AmlCheckType.DOCUMENT
+        def type = DOCUMENT
         def success = true
         when:
         amlService.addCheckIfMissing(user, type, success)
@@ -66,7 +71,7 @@ class AmlServiceSpec extends Specification {
     def "does not add check if not missing"() {
         given:
         def user = sampleUserNonMember().build()
-        def type = AmlCheckType.DOCUMENT
+        def type = DOCUMENT
         def success = true
         when:
         amlService.addCheckIfMissing(user, type, success)
@@ -82,5 +87,40 @@ class AmlServiceSpec extends Specification {
         amlService.getChecks(user)
         then:
         1 * amlCheckRepository.findAllByUser(user)
+    }
+
+    def "does not do checks for second pillar"() {
+        given:
+        def mandate = MandateFixture.sampleMandate()
+        mandate.pillar = 2
+        when:
+        def result = amlService.allChecksPassed(mandate)
+        then:
+        result
+    }
+
+    def "sees if all checks are passed for third pillar"(List<AmlCheck> checks, boolean result) {
+        given:
+        def mandate = MandateFixture.sampleMandate()
+        mandate.user = UserFixture.sampleUser().build()
+        mandate.pillar = 3
+        when:
+        def actual = amlService.allChecksPassed(mandate)
+        then:
+        actual == result
+        1 * amlCheckRepository.findAllByUser(mandate.user) >> checks
+        if (!result) {
+            1 * auditEventPublisher.publish(mandate.user.getEmail(), AuditEventType.MANDATE_DENIED)
+        }
+        where:
+        checks                                                                                                                             | result
+        []                                                                                                                                 | false
+        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_AUTO), check(DOCUMENT), check(SK_NAME), check(PENSION_REGISTRY_NAME)]          | true
+        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_MANUAL), check(DOCUMENT), check(SK_NAME), check(PENSION_REGISTRY_NAME)]        | true
+        [check(POLITICALLY_EXPOSED_PERSON, false), check(RESIDENCY_MANUAL), check(DOCUMENT), check(SK_NAME), check(PENSION_REGISTRY_NAME)] | false
+    }
+
+    private static AmlCheck check(AmlCheckType type, boolean success = true) {
+        return AmlCheck.builder().type(type).success(success).build()
     }
 }

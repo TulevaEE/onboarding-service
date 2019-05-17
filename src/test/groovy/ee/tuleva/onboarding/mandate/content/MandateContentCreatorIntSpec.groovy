@@ -8,7 +8,7 @@ import spock.lang.Specification
 import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUserPreferences
+import static ee.tuleva.onboarding.auth.UserFixture.sampleContactDetails
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
@@ -41,7 +41,7 @@ class MandateContentCreatorIntSpec extends Specification {
                 sampleUser().build(),
                 mandate,
                 sampleFunds(),
-                sampleUserPreferences().build()
+                sampleContactDetails().build()
             )
 
         then:
@@ -70,7 +70,7 @@ class MandateContentCreatorIntSpec extends Specification {
                 sampleUser().build(),
                 mandate,
                 sampleFunds(),
-                sampleUserPreferences().build()
+                sampleContactDetails().build()
             )
 
         then:

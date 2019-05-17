@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.user.response
 
+import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 import spock.lang.Unroll
 
-class UserResponseTest extends Specification {
+class UserResponseSpec extends Specification {
 
   @Unroll
   def "fromAuthenticatedPerson correctly capitalizes names: #firstName #lastName"() {
@@ -13,9 +14,10 @@ class UserResponseTest extends Specification {
         .firstName(firstName)
         .lastName(lastName)
         .build()
+    def contactDetails = new UserPreferences()
 
     when:
-    def userResponse = UserResponse.fromUser(user)
+    def userResponse = UserResponse.fromUser(user, contactDetails)
 
     then:
     userResponse.firstName == responseFirstName

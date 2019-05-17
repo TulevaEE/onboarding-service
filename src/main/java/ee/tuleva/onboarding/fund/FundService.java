@@ -32,7 +32,7 @@ public class FundService {
     return pensionFundStatisticsService.getCachedStatistics().stream()
       .filter(statistic -> Objects.equals(statistic.getIsin(), fund.getIsin()))
       .findFirst()
-      .orElse(PensionFundStatistics.NULL);
+      .orElse(PensionFundStatistics.getNull());
   }
 
   private Iterable<Fund> fundsBy(Optional<String> fundManagerName) {

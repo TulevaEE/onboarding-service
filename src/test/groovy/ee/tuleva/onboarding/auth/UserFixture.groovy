@@ -36,7 +36,7 @@ public class UserFixture {
                 .member(null)
     }
 
-    public static UserPreferences.UserPreferencesBuilder sampleUserPreferences() {
+    static UserPreferences.UserPreferencesBuilder sampleContactDetails() {
         return UserPreferences.builder()
                 .addressRow1("Tatari 19-17")
                 .addressRow2("TALLINN")
@@ -48,6 +48,8 @@ public class UserFixture {
                 .languagePreference(UserPreferences.LanguagePreferenceType.EST)
                 .noticeNeeded("Y")
                 .email("tuleva@tuleva.ee")
+                .phoneNumber("+372546545")
+                .pensionAccountNumber("993432432")
     }
 
 

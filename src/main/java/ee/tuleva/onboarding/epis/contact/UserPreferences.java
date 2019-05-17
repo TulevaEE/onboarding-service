@@ -40,6 +40,10 @@ public class UserPreferences {
 
     private String email;
 
+    private String phoneNumber;
+
+    private String pensionAccountNumber;
+
     public static UserPreferences defaultUserPreferences() {
         return builder()
             .addressRow1("Tuleva, Telliskivi 60")

@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.user
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.user.command.CreateUserCommand
 import ee.tuleva.onboarding.user.command.UpdateUserCommand
 import org.springframework.http.MediaType
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.UserFixture.sampleContactDetails
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
@@ -14,38 +16,45 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class UserControllerSpec extends BaseControllerSpec {
 
-	UserService userService = Mock(UserService)
+	UserService userService = Mock()
+    EpisService episService = Mock()
 
-	UserController controller = new UserController(userService)
+	UserController controller = new UserController(userService, episService)
 
 	def "/me endpoint works with non member"() {
 		given:
-		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+        def contactDetails = sampleContactDetails().build()
 		1 * userService.getById(sampleAuthenticatedPerson.userId) >> userFrom(sampleAuthenticatedPerson)
+        1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
 
 		expect:
-		mvc.perform(get("/v1/me"))
+        mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+            .perform(get("/v1/me"))
  				.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
 				.andExpect(jsonPath('$.id', is(2)))
-				.andExpect(jsonPath('$.firstName', is("Erko")))
-				.andExpect(jsonPath('$.lastName', is("Risthein")))
-				.andExpect(jsonPath('$.personalCode', is("38501010002")))
+				.andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPerson.firstName)))
+				.andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPerson.lastName)))
+				.andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPerson.personalCode)))
 				.andExpect(jsonPath('$.age', isA(Integer)))
 				.andExpect(jsonPath('$.email', is(nullValue())))
 				.andExpect(jsonPath('$.phoneNumber',is(nullValue())))
 				.andExpect(jsonPath('$.memberNumber',is(nullValue())))
-	}
+                .andExpect(jsonPath('$.pensionAccountNumber',is(contactDetails.pensionAccountNumber)))
+
+    }
 
 	def "/me endpoint works with a member"() {
 		given:
 		def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-		def mvc = mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
-		def user = sampleUser().build()
-		1 * userService.getById(user.id) >> user
+        def user = sampleUser().build()
+        def contactDetails = sampleContactDetails().build()
+        1 * userService.getById(user.id) >> user
+        1 * episService.getContactDetails(authenticatedPerson) >> contactDetails
 
 		expect:
-		mvc.perform(get("/v1/me"))
+        mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
+            .perform(get("/v1/me"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
 				.andExpect(jsonPath('$.id', is(authenticatedPerson.userId.intValue())))
@@ -56,13 +65,21 @@ class UserControllerSpec extends BaseControllerSpec {
 				.andExpect(jsonPath('$.email', is(user.email)))
 				.andExpect(jsonPath('$.phoneNumber',is(user.phoneNumber)))
 				.andExpect(jsonPath('$.memberNumber', is(user.member.get().memberNumber)))
-	}
+                .andExpect(jsonPath('$.pensionAccountNumber',is(contactDetails.pensionAccountNumber)))
+
+    }
 
 	def "updates an existing user"() {
 		given:
-		def command = new UpdateUserCommand(
-				email: "erko@risthein.ee",
-				phoneNumber: "5555555")
+        def contactDetails = sampleContactDetails().build()
+        def command = new UpdateUserCommand(
+            email: "erko@risthein.ee",
+            phoneNumber: "5555555")
+
+        1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
+        1 * userService.updateUser(sampleAuthenticatedPerson.personalCode, command.email, command.phoneNumber) >>
+            userFrom(sampleAuthenticatedPerson, command)
+
 		def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
 		when:
@@ -72,8 +89,6 @@ class UserControllerSpec extends BaseControllerSpec {
 				.contentType(MediaType.APPLICATION_JSON))
 
 		then:
-		1 * userService.updateUser(sampleAuthenticatedPerson.personalCode, command.email, command.phoneNumber) >>
-				userFrom(sampleAuthenticatedPerson, command)
 		performCall.andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
 				.andExpect(jsonPath('$.firstName', is("Erko")))
@@ -82,7 +97,8 @@ class UserControllerSpec extends BaseControllerSpec {
 				.andExpect(jsonPath('$.email', is("erko@risthein.ee")))
 				.andExpect(jsonPath('$.phoneNumber', is("5555555")))
 				.andExpect(jsonPath('$.age', isA(Integer)))
-	}
+                .andExpect(jsonPath('$.pensionAccountNumber',is(contactDetails.pensionAccountNumber)))
+    }
 
 	def "validates a new user before saving"() {
 		given:

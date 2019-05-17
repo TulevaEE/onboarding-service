@@ -21,13 +21,13 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 @RequiredArgsConstructor
 public class AccountStatementService {
-    private static final Instant START_TIME_3RD_PILLAR = Utils.parseInstant("2018-08-06"); // When 3rd pillar was moved to pensionifond, no cash transactions available before
-    private static final Instant START_TIME_2ND_PILLAR = Utils.parseInstant("2002-01-01"); // Beginning of 2nd pillar
+    public static final Instant START_TIME_3RD_PILLAR = Utils.parseInstant("2018-08-06"); // When 3rd pillar was moved to pensionifond, no cash transactions available before
+    public static final Instant START_TIME_2ND_PILLAR = Utils.parseInstant("2002-01-01"); // Beginning of 2nd pillar
     private final EpisService episService;
     private final FundBalanceDtoToFundBalanceConverter fundBalanceConverter;
     private final EpisAccountOverviewProvider episAccountOverviewProvider;
 
-    private Instant getStartTimeForPillar(int pillar) {
+    private static Instant getStartTimeForPillar(int pillar) {
         if (pillar == 2) {
             return START_TIME_2ND_PILLAR;
         } else if (pillar == 3) {

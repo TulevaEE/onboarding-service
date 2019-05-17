@@ -10,12 +10,14 @@ class AccountStatementFixture {
         FundBalance.builder()
             .value(100)
             .activeContributions(true)
+            .pillar(2)
             .fund(
                 Fund.builder().
                     isin("AE123232331").
                     nameEstonian("Tuleva maailma aktsiate pensionifond")
                     .nameEnglish("Tuleva world stock pensionfund")
                     .id(123)
+                    .pillar(2)
                     .fundManager(
                         FundManager.builder()
                             .id(123)
@@ -25,12 +27,14 @@ class AccountStatementFixture {
             ).build(),
         FundBalance.builder()
             .value(100)
+            .pillar(2)
             .fund(
                 Fund.builder().
                     isin("AE123232332").
                     nameEstonian("Tuleva maailma võlakirjade pensionifond")
                     .nameEnglish("Tuleva world bond pensionfund")
                     .id(124)
+                    .pillar(2)
                     .fundManager(
                         FundManager.builder()
                             .id(123)

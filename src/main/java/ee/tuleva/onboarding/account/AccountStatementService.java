@@ -27,10 +27,10 @@ public class AccountStatementService {
     private final FundBalanceDtoToFundBalanceConverter fundBalanceConverter;
     private final EpisAccountOverviewProvider episAccountOverviewProvider;
 
-    private Instant getStartTimeForPillar(int pillar){
-        if (pillar == 2){
+    private Instant getStartTimeForPillar(int pillar) {
+        if (pillar == 2) {
             return START_TIME_2ND_PILLAR;
-        } else if (pillar == 3){
+        } else if (pillar == 3) {
             return START_TIME_3RD_PILLAR;
         } else {
             throw new RuntimeException("Unknown pillar: " + pillar);
@@ -68,7 +68,7 @@ public class AccountStatementService {
 
             // Adding initial balance as a transaction
             if (fundBalance.getPillar() == 3) {
-                sumOfAllContributions = sumOfAllContributions.add (accountOverview.getBeginningBalance());
+                sumOfAllContributions = sumOfAllContributions.add(accountOverview.getBeginningBalance());
             }
 
             fundBalance.setContributionSum(sumOfAllContributions);

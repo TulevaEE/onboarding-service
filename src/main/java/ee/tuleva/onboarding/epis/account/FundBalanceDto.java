@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 public class FundBalanceDto {
     private String isin;
     private BigDecimal value;
+    private BigDecimal units;
     private String currency;
     private Integer pillar;
     private boolean activeContributions;

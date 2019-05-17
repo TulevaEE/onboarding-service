@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.error
 
+import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.config.OAuthConfiguration
 import ee.tuleva.onboarding.config.SecurityConfiguration
 import ee.tuleva.onboarding.error.converter.ErrorAttributesConverter
@@ -45,6 +46,9 @@ class ErrorHandlingControllerSpec extends Specification {
 
     @MockBean
     FundRepository fundRepository
+
+    @MockBean
+    AccountStatementService accountStatementService
 
     def "error handling works"() {
         expect:

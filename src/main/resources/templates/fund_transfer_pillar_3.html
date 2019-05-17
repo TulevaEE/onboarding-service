@@ -9,22 +9,7 @@
 
 </head>
 <body class="c32">
-<div>
-    <p class="c18"><span class="c37"></span></p>
-</div>
-<p class="c12"><span class="c5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>
-<p class="c12"><span class="c5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>
-<p class="c12"><span class="c6">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span class="c16 c6">Rahandusministri 26. aprilli 2011. a ma&#776;a&#776;ruse nr 25 </span></p>
-<p class="c12"><span class="c16 c6">&bdquo;Kohustusliku kogumispensioni avalduste vormide </span></p>
-<p class="c12"><span class="c6 c16">kehtestamine&ldquo; lisa 2</span></p>
-<p class="c12"><span class="c16 c6">&nbsp;(muudetud so&#771;nastuses) </span></p>
-<p class="c12"><span class="c5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>
-<p class="c12"><span class="c5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>
-<p class="c12"><span class="c5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span></p>
-<p class="c12 c28"><span class="c5"></span></p>
-<p class="c18"><span class="c5"></span></p>
-<p class="c18"><span class="c5"></span></p>
-<p class="c31"><span class="c6">KOHUSTUSLIKU PENSIONIFONDI OSAKUTE VAHETAMISE AVALDUS nr <span th:text="${documentNumber}"></span></span></p>
+<p class="c31"><span class="c6">VABATAHTLIKU PENSIONIFONDI OSAKUTE VAHETAMISE AVALDUS nr <span th:text="${documentNumber}"></span></span></p>
 <p class="c0"><span class="c5"></span></p>
 
 <p class="c4"><span class="c39">1. Avalduse esitaja</span></p>
@@ -127,7 +112,7 @@
     <tbody>
     <tr class="c7">
         <td class="c29" colspan="9" rowspan="1">
-            <p class="c14"><span class="c5">Soovin Eesti v&auml;&auml;rtpaberite keskregistri teatist pensionikonto j&auml;&auml;gi kohta</span></p>
+            <p class="c14"><span class="c5">Soovin pensioniregistri teatist pensionikonto j&auml;&auml;gi kohta</span></p>
         </td>
         <td class="c30" colspan="1" rowspan="1">
             <p class="c0"><span class="c3" th:text="${userPreferences.noticeNeeded.equalsIgnoreCase('Y') ? 'X' : '' }"></span></p>
@@ -187,7 +172,7 @@
 <p class="c0"><span class="c3"></span></p>
 
 <!--MARK1-->
-<p class="c14"><span class="c3">4. Kohustusliku pensionifondi nimetus, mille osakuid soovin vahetada ja mille osakud v&otilde;etakse vahetamisel tagasi ning kohustuslik(ud) pensionifond(id), mille osakuid soovin vahetamisel omandada&sup1;</span></p>
+<p class="c14"><span class="c3">4. Vabatahtliku pensionifondi nimetus, mille osakuid soovin vahetada ja mille osakud v&otilde;etakse vahetamisel tagasi ning vabatahtlik(ud) pensionifond(id), mille osakuid soovin vahetamisel omandada&sup1;</span></p>
 <p class="c0"><span class="c3"></span></p>
 <a id="t.d6fdd94d45e9e36ceb8ba0e486558ebd2e046b42"></a><a id="t.3"></a>
 <table class="c15">
@@ -200,7 +185,7 @@
             <p class="c14"><span class="c5">Pensionifondi nimetus, mille osakuid soovin vahetamisel omandada</span></p>
         </td>
         <td class="c9" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Osakute vahetamisel tagasiv&otilde;tmisele kuuluvate osakute osakaal, mille eest soovin omandada valitud pensionifondi osakuid (%)</span></p>
+            <p class="c14"><span class="c5">Tagasivõetavate osakute arv, mille eest soovin omandada valitud väärtpaberi osakuid</span></p>
         </td>
     </tr>
 
@@ -219,7 +204,7 @@
         <td class="c25" colspan="1" rowspan="1" th:text="${fundIsinNames.get(fundTransferExchange.targetFundIsin)}">
         </td>
         <td class="c9" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3" th:text="${#numbers.formatInteger(fundTransferExchange.amount * 100, 2)}"></span></p>
+            <p class="c0"><span class="c3" th:text="${fundTransferExchange.amount}"></span></p>
         </td>
     </tr>
 
@@ -229,13 +214,7 @@
 
 
 <p class="c0"><span class="c3"></span></p>
-<p class="c14"><span class="c3">Kinnitan, et mul on olnud v&otilde;imalik tutvuda k&otilde;igi registreeritud kohustuslike pensionifondide tingimuste ja emissiooniprospektidega ning n&otilde;ustun minu valitud pensionifondi(de) tingimustega.</span></p>
-<p class="c0"><span class="c3"></span></p>
-<p class="c14"><span class="c3">Olen teadlik asjaolust, et kohustusliku pensionifondi osakute vahetamise avalduse esitamisega v&otilde;etakse avaldusel nimetatud pensionifondi osakud tagasi ja vahetatakse teis(t)e pensionifondi(de) osakute vastu. K&auml;esolevat avaldust saab muuta kuni kohustusliku pensionifondi osakute vahetamise avalduse esitamise t&auml;htp&auml;evani, esitades uue avalduse.</span></p>
-<p class="c0"><span class="c3"></span></p>
-<p class="c14"><span class="c3">Olen teadlik asjaolust, et m&auml;rkides lahtris 4 osakute vahetamisel tagasiv&otilde;tmisele kuuluvate osakute osakaalud selliselt, et nende summa on v&auml;iksem kui 100%, j&auml;&auml;b osa osakuid vahetamata.</span></p>
-<p class="c0"><span class="c3"></span></p>
-<p class="c14"><span class="c3">Olen teadlik asjaolust, et k&auml;esoleva avalduse esitamisega j&auml;&auml;b pensionifond, millesse minu kohustusliku kogumispensioni maksed laekuvad v&otilde;i peaksid laekuma, endiseks.</span></p>
+<p class="c14"><span class="c3">Olen teadlik asjaolust, et käesoleva avalduse esitamisega jääb pensionifond, millesse minu vabatahtliku kogumispensioni maksed laekuvad või peaksid laekuma, endiseks.</span></p>
 <p class="c0"><span class="c3"></span></p>
 <a id="t.b2831fb258baf4dfb1c91996f8b9ea52c86b598f"></a><a id="t.4"></a>
 <table class="c15">
@@ -330,15 +309,10 @@
 </table>
 <p class="c0"><span class="c3"></span></p>
 <p class="c0"><span class="c3"></span></p>
-<p class="c14"><span class="c5">&sup1; Kohustusliku pensionifondi osakute vahetamise avaldusega saab vahetada &uuml;he pensionifondi osakud &uuml;he v&otilde;i mitme teise pensionifondi osakute vastu.</span></p>
+<p class="c14"><span class="c5">&sup1; Vabatahtliku pensionifondi osakute vahetamise avaldusega saab vahetada ühe vabatahtliku pensionifondi osakud ühe või mitme teise vabatahtliku pensionfondi osakute vastu.</span></p>
 <p class="c0"><span class="c5"></span></p>
-<p class="c14"><span class="c5">Kohustusliku pensionifondi nimetuse juurde, mille osakuid soovitakse osakute vahetamisel omandada, m&auml;rgitakse osakute vahetamisel tagasiv&otilde;tmisele kuuluvate pensionifondi osakute osakaal protsentides, &uuml;heprotsendilise t&auml;psusega. Osakute arv, mis osakute vahetamisel tagasi v&otilde;etakse, m&auml;&auml;ratakse avaldusel m&auml;rgitud osakute osakaalu alusel osakute vahetamise hetke seisuga.</span></p>
+<p class="c14"><span class="c5">Vabatahtliku pensionifondi nimetuse juurde, mille osakuid soovitakse osakute vahetamisel omandada, märgitakse osakute arv, mis osakute vahetamisel tagasi võetakse. Kui osakute vahetamise käigus soovitakse omandada mitme vabatahtliku pensionifondi osakuid, märgitakse iga vabatahtliku pensionifondi nimetuse juurde, mille osakuid soovitakse omandada, vastavalt sellesse fondi vahetamisel tagasivõtmisele kuuluvate osakute arv.</span></p>
 <p class="c0"><span class="c5"></span></p>
-<p class="c14"><span class="c5">Kui soovitakse vahetada k&otilde;ik osakud teise kohustusliku pensionifondi osakute vastu, m&auml;rgitakse kohustusliku pensionifondi nimetuse juurde, mille osakuid soovitakse omandada, &bdquo;100%&rdquo;.</span></p>
-<p class="c0"><span class="c5"></span></p>
-<p class="c14"><span class="c5">Kui soovitakse vahetada vaid osa osakuid, m&auml;rgitakse kohustusliku pensionifondi nimetuse juurde, mille osakuid soovitakse omandada, nende osakute osakaal, mis v&otilde;etakse vahetamisel tagasi ja mille eest valitud pensionifondi osakuid omandada soovitakse (nt 50%).</span></p>
-<p class="c0"><span class="c5"></span></p>
-<p class="c14"><span class="c5">Kui osakute vahetamise k&auml;igus soovitakse omandada mitme kohustusliku pensionifondi osakuid, m&auml;rgitakse iga kohustusliku pensionifondi nimetuse juurde, mille osakuid soovitakse omandada, osakute vahetamisel tagasiv&otilde;tmisele kuuluvate osakute osakaal (m&auml;rkides n&auml;iteks kohustusliku pensionifondi 1 juurde &bdquo;50%&rdquo; ja kohustusliku pensionifondi 2 juurde &bdquo;50%&rdquo;, vahetatakse pooled olemasoleva fondi osakud fondi 1 ja pooled olemasoleva fondi osakud fondi 2 osakute vastu).</span></p>
 <p class="c0"><span class="c5"></span></p>
 <p class="c14"><span class="c5">&sup2; Lahter t&auml;idetakse avalduse esitaja seadusliku esindaja poolt, kui tulenevalt &otilde;igusaktidest on avalduse esitamine lubatud &uuml;ksnes seadusliku esindaja poolt v&otilde;i tema n&otilde;usolekul.</span></p>
 <p class="c0"><span class="c5"></span></p>

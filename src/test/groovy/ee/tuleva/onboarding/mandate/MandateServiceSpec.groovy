@@ -3,11 +3,14 @@ package ee.tuleva.onboarding.mandate
 import com.codeborne.security.mobileid.IdCardSignatureSession
 import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
+import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.aml.AmlService
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.error.response.ErrorResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
+import ee.tuleva.onboarding.fund.Fund
+import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
@@ -29,7 +32,9 @@ class MandateServiceSpec extends Specification {
 
     MandateRepository mandateRepository = Mock(MandateRepository)
     SignatureService signService = Mock(SignatureService)
-    CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter()
+    FundRepository fundRepository = Mock()
+    AccountStatementService accountStatementService = Mock()
+    CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository)
     EmailService emailService = Mock(EmailService)
     FundValueStatisticsRepository fundValueStatisticsRepository = Mock(FundValueStatisticsRepository)
     FundTransferStatisticsService fundTransferStatisticsService = Mock(FundTransferStatisticsService)
@@ -77,6 +82,7 @@ class MandateServiceSpec extends Specification {
             .personalCode(sampleUser.personalCode)
             .build()
         1 * amlService.addPensionRegistryNameCheckIfMissing(sampleUser, _)
+        1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
 
     }
 

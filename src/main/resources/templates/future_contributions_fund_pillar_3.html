@@ -8,10 +8,7 @@
 </head>
 
 <body class="c33">
-<p class="c30"><a id="kix.g9q1qkk2mnqa"></a><span class="c1">&bdquo;Rahandusministri 26. aprilli 2011. a m&auml;&auml;ruse nr 25<br></br>&bdquo;Kohustusliku kogumispensioni avalduste vormide <br></br>kehtestamine&ldquo; lisa 1 <br></br>(muudetud s&otilde;nastuses)</span></p>
-<p class="c17 c8"><span class="c1"></span></p>
-<p class="c17 c8"><span class="c1"></span></p>
-<p class="c6"><span class="c1">VALIKUAVALDUS nr <span th:text="${documentNumber}"></span></span></p>
+<p class="c6"><span class="c1">VABATAHTLIKU PENSIONIFONDI VALIKUAVALDUS nr <span th:text="${documentNumber}"></span></span></p>
 <p class="c5 c8"><span class="c1"></span></p>
 <p class="c28"><span class="c11">1. Avalduse esitaja</span></p>
 <p class="c17 c8"><span class="c1"></span></p>
@@ -112,7 +109,7 @@
     <tbody>
     <tr class="c23">
         <td class="c35" colspan="9" rowspan="1">
-            <p class="c5"><span class="c1">Soovin Eesti v&auml;&auml;rtpaberite keskregistri teatist pensionikonto j&auml;&auml;gi kohta</span></p>
+            <p class="c5"><span class="c1">Soovin pensioniregistri teatist pensionikonto j&auml;&auml;gi kohta</span></p>
         </td>
         <td class="c20" colspan="1" rowspan="1">
             <p class="c5 c8"><span class="c0" th:text="${userPreferences.noticeNeeded.equalsIgnoreCase('Y') ? 'X' : '' }"></span></p>
@@ -166,7 +163,7 @@
     </tbody>
 </table>
 <p class="c5 c8"><span class="c0"></span></p>
-<p class="c5"><span class="c0">4. Kohustuslik pensionifond, kuhu soovin hakata tegema kohustusliku kogumispensioni sissemakseid&sup1;</span></p>
+<p class="c5"><span class="c0">4. Vabatahtlik(ud) pensionifond(id), kuhu soovin hakata tegema vabatahtliku kogumispensioni sissemakseid&sup1;</span></p>
 <p class="c5 c8"><span class="c0"></span></p>
 <a id="t.02fe6cfe4ddff85327de913266a11873fe4457ee"></a><a id="t.3"></a>
 <table class="c25">
@@ -175,8 +172,8 @@
         <td class="c10" colspan="1" rowspan="1">
             <p class="c5"><span class="c18">Pensionifondi nimetus</span></p>
         </td>
-        <td class="c15" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
+        <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Igakordse sissemakse summa jaotuse osakaal valitud fondide vahel (%)</span></p>
         </td>
     </tr>
 
@@ -186,18 +183,13 @@
         </td>
         <td class="c15" colspan="1" rowspan="1">
             <p class="c5 c8"><span class="c0"
-                                   th:if="${fund.isin == selectedFundIsin}" th:text="X">
+                                   th:if="${fund.isin == selectedFundIsin}" th:text="100">
             </span></p>
         </td>
     </tr>
 
     </tbody>
 </table>
-<p class="c5 c8"><span class="c0"></span></p>
-<p class="c5"><span class="c0">Kinnitan, et mul on olnud v&otilde;imalik tutvuda k&otilde;igi registreeritud kohustuslike pensionifondide tingimuste ja emissiooniprospektidega ning n&otilde;ustun minu valitud pensionifondi tingimustega.</span></p>
-<p class="c5 c8"><span class="c0"></span></p>
-<p class="c5"><span class="c0">Olen teadlik asjaolust, et valikuavalduse esitamisega hakkavad minu kohustusliku kogumispensioni sissemaksed laekuma lahtris 4 valitud kohustuslikku pensionifondi. Valitud kohustusliku pensionifondi muutmiseks tuleb esitada uus valikuavaldus.</span></p>
-<p class="c5 c8"><span class="c0"></span></p>
 <p class="c5 c8"><span class="c0"></span></p>
 <a id="t.b2831fb258baf4dfb1c91996f8b9ea52c86b598f"></a><a id="t.4"></a>
 <table class="c25">
@@ -293,7 +285,7 @@
 </table>
 <p class="c5 c8"><span class="c0"></span></p>
 <p class="c5 c8"><span class="c0"></span></p>
-<p class="c5"><span class="c1">&sup1; Valitud kohustuslik pensionifond t&auml;histada ristiga paremal.</span></p>
+<p class="c5"><span class="c1">&sup1; Vabatahtlikku pensionifondi valikuavaldusega saab jaotada sissemakstud summa ühe või mitme erineva vabatahtliku pensionifondi vahel.</span></p>
 <p class="c5 c8"><span class="c1"></span></p>
 <p class="c5"><span class="c1">&sup2; Lahter t&auml;idetakse avalduse esitaja seadusliku esindaja poolt, kui tulenevalt &otilde;igusaktidest on avalduse esitamine lubatud &uuml;ksnes seadusliku esindaja poolt v&otilde;i tema n&otilde;usolekul.</span></p>
 <p class="c5 c8"><span class="c1"></span></p>

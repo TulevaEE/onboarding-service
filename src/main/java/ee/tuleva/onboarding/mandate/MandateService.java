@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
+import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWithUser;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
@@ -51,9 +52,8 @@ public class MandateService {
 
     public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
         validateCreateMandateCommand(createMandateCommand);
-        Mandate mandate = converter.convert(createMandateCommand);
         User user = userService.getById(userId);
-        mandate.setUser(user);
+        Mandate mandate = converter.convert(new CreateMandateCommandWithUser(createMandateCommand, user));
         UserPreferences userPreferences = episService.getContactDetails(user);
         amlService.addPensionRegistryNameCheckIfMissing(user, userPreferences);
         log.info("Saving mandate {}", mandate);

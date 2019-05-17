@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.command;
 
 import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.FundBalance;
+import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import static java.util.stream.Collectors.toList;
 public class CreateMandateCommandToMandateConverter implements Converter<CreateMandateCommandWithUser, Mandate> {
 
     private final AccountStatementService accountStatementService;
+    private final FundRepository fundRepository;
 
     @Override
     public Mandate convert(CreateMandateCommandWithUser createMandateCommandWithUser) {
@@ -28,12 +30,7 @@ public class CreateMandateCommandToMandateConverter implements Converter<CreateM
 
         val createMandateCommand = createMandateCommandWithUser.getCreateMandateCommand();
 
-        if (createMandateCommand.getPillar() != null) {
-            mandate.setPillar(createMandateCommand.getPillar());
-        } else {
-            // Temporary until frontend will give us the active pillar
-            mandate.setPillar(2);
-        }
+        mandate.setPillar(getPillar(createMandateCommand));
 
         List<FundTransferExchange> fundTransferExchanges =
             createMandateCommand.getFundTransferExchanges()
@@ -52,11 +49,35 @@ public class CreateMandateCommandToMandateConverter implements Converter<CreateM
         return mandate;
     }
 
+    private Integer getPillar(CreateMandateCommand createMandateCommand) {
+        val sourceIsin = getIsin(createMandateCommand);
+
+        if (sourceIsin == null) {
+            throw new IllegalArgumentException("Isin not found");
+        }
+
+        val fund = fundRepository.findByIsin(sourceIsin);
+
+        if (fund == null) {
+            throw new IllegalArgumentException(
+                "Provided fund isin not found in the database: " + createMandateCommand.getFutureContributionFundIsin());
+        }
+        return fund.getPillar();
+    }
+
+    private String getIsin(CreateMandateCommand createMandateCommand) {
+        if (createMandateCommand.getFutureContributionFundIsin() != null) {
+            return createMandateCommand.getFutureContributionFundIsin();
+        }
+        return createMandateCommand.getFundTransferExchanges().stream()
+            .map(MandateFundTransferExchangeCommand::getSourceFundIsin).findFirst().orElse(null);
+    }
+
     private BigDecimal getAmount(MandateFundTransferExchangeCommand exchange, Mandate mandate) {
         val pillar = mandate.getPillar();
-        if (pillar.equals(2)) {
+        if (pillar == 2) {
             return exchange.getAmount();
-        } else if (pillar.equals(3)) {
+        } else if (pillar == 3) {
             val statement = accountStatementService.getAccountStatement(mandate.getUser());
             val balance = getFundBalance(statement, exchange.getSourceFundIsin());
             val exchangeAmount = balance.getUnits().multiply(exchange.getAmount());

@@ -20,8 +20,6 @@ public class PensionFundStatistics implements Serializable {
 
   private static final long serialVersionUID = 6065879655793615150L;
 
-  public static final PensionFundStatistics NULL = new PensionFundStatistics();
-
   @XmlAttribute(name = "ISIN")
   private String isin;
 
@@ -30,5 +28,9 @@ public class PensionFundStatistics implements Serializable {
 
   @XmlAttribute(name = "NAV")
   private BigDecimal nav;
+
+  public static PensionFundStatistics getNull() {
+      return new PensionFundStatistics();
+    }
 
 }

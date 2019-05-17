@@ -44,7 +44,7 @@ class FundServiceSpec extends Specification {
         fundRepository.findByFundManagerNameIgnoreCase(fundManagerName) >> funds
 
         def tulevaFund = funds.first()
-        pensionFundStatisticsService.getCachedStatistics() >> singletonList(PensionFundStatistics.NULL)
+        pensionFundStatisticsService.getCachedStatistics() >> singletonList(PensionFundStatistics.getNull())
 
         expect:
         def response = service.getFunds(Optional.of(fundManagerName), language)

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.user.command.CreateUserCommand;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
@@ -20,13 +22,15 @@ import javax.validation.Valid;
 public class UserController {
 
     private final UserService userService;
+    private final EpisService episService;
 
     @ApiOperation(value = "Get info about the current user")
     @GetMapping("/me")
     public UserResponse me(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
         Long userId = authenticatedPerson.getUserId();
         User user = userService.getById(userId);
-        return UserResponse.fromUser(user);
+        UserPreferences contactDetails = episService.getContactDetails(authenticatedPerson);
+        return UserResponse.fromUser(user, contactDetails);
     }
 
     @ApiOperation(value = "Update the current user")
@@ -39,10 +43,14 @@ public class UserController {
             throw new ValidationErrorsException(errors);
         }
 
-        return UserResponse.fromUser(userService.updateUser(
+        User user = userService.updateUser(
             authenticatedPerson.getPersonalCode(),
             cmd.getEmail(),
-            cmd.getPhoneNumber()));
+            cmd.getPhoneNumber());
+
+        UserPreferences contactDetails = episService.getContactDetails(authenticatedPerson);
+
+        return UserResponse.fromUser(user, contactDetails);
     }
 
     @ApiOperation(value = "Create a new user")
@@ -55,6 +63,7 @@ public class UserController {
         }
 
         User user = userService.createOrUpdateUser(cmd.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
+
 
         return UserResponse.fromUser(user);
     }

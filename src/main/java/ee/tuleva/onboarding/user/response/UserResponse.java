@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user.response;
 
+import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import lombok.Builder;
@@ -20,12 +21,23 @@ public class UserResponse {
     private String email;
     private String phoneNumber;
     private Integer memberNumber;
+    private String pensionAccountNumber;
 
     public int getAge() {
         return PersonalCode.getAge(personalCode);
     }
 
     public static UserResponse fromUser(@NotNull User user) {
+        return responseBuilder(user).build();
+    }
+
+    public static UserResponse fromUser(@NotNull User user, UserPreferences contactDetails) {
+        return responseBuilder(user)
+            .pensionAccountNumber(contactDetails.getPensionAccountNumber())
+            .build();
+    }
+
+    private static UserResponseBuilder responseBuilder(@NotNull User user) {
         return builder()
             .id(user.getId())
             .firstName(capitalize(user.getFirstName()))
@@ -33,8 +45,7 @@ public class UserResponse {
             .personalCode(user.getPersonalCode())
             .email(user.getEmail())
             .phoneNumber(user.getPhoneNumber())
-            .memberNumber(user.getMember().map(member -> member.getMemberNumber()).orElse(null))
-            .build();
+            .memberNumber(user.getMember().map(member -> member.getMemberNumber()).orElse(null));
     }
 
     private static String capitalize(String string) {

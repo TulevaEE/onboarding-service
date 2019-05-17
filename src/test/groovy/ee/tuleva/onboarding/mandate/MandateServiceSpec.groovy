@@ -107,6 +107,7 @@ class MandateServiceSpec extends Specification {
         exception.errorsResponse.errors.first().code == "invalid.mandate.checks.missing"
         0 * mandateRepository.save(_)
         1 * amlService.allChecksPassed(_) >> false
+        1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
     }
 
     def "save: Create mandate with same source and target fund fails"() {

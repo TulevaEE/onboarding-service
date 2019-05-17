@@ -7,10 +7,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import javax.persistence.Entity;
+import javax.persistence.Enumerated;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+
+import static javax.persistence.EnumType.STRING;
 
 @Data
 @Builder
@@ -21,6 +24,7 @@ import java.time.LocalDate;
 public class AggregatedCapitalEvent {
     @Id
     private Long id;
+    @Enumerated(STRING)
     private OrganisationCapitalEventType type;
     private BigDecimal fiatValue;
     private BigDecimal totalFiatValue;

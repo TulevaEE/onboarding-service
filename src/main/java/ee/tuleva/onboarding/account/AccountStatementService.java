@@ -71,7 +71,8 @@ public class AccountStatementService {
                 if (log.isDebugEnabled()) {
                     log.debug("Sum calculation update, current from transactions was: {}, adding beginning balance from: {} ", sumOfAllContributions, accountOverview);
                 }
-                sumOfAllContributions = sumOfAllContributions.add(accountOverview.getBeginningBalance());
+             //Will not update currently as it is shaky
+                // sumOfAllContributions = sumOfAllContributions.add(accountOverview.getBeginningBalance());
             }
 
             fundBalance.setContributionSum(sumOfAllContributions);

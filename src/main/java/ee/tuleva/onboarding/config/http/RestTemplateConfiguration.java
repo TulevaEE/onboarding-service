@@ -48,8 +48,8 @@ public class RestTemplateConfiguration {
                 }
                 log.info("Sending request to {} \n {}", request.getURI(), new String(body));
                 ClientHttpResponse response = execution.execute(request, body);
-                log.info("Response status {} and body \n {}",
-                    response.getStatusCode(),
+                log.info("Response status {}", response.getStatusCode());
+                log.debug("Response body \n {}",
                     IOUtils.toString(response.getBody(), "UTF-8"));
                 return response;
             });

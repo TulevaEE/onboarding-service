@@ -73,10 +73,6 @@ mandate:
     from: "tuleva@tuleva.ee"
     bcc: "avaldused@tuleva.ee"
 
-proxy:
-  url: ${QUOTAGUARDSTATIC_URL}
-  nonProxyHosts: "mandrillapp.com|sk.ee|sentry.io|localhost"
-
 maksekeskus:
   secret: IEmvmvjuuAc4XJWyD48LjdXnRej77JkSq72QAeDQYQgt2nY25tsjhdFg9ZA99lQf
 
@@ -148,10 +144,6 @@ server:
 ssl:
   keystore: /tmp/keystore.p12
   keystore.password: ${SSL_KEYSTORE_PASSWORD}
-
-proxy:
-  url: ${QUOTAGUARDSTATIC_URL}
-  nonProxyHosts: "mandrillapp.com|sentry.io|localhost"
 
 mobile-id:
   service:

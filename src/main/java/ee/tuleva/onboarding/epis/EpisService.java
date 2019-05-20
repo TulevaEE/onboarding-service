@@ -21,11 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.text.SimpleDateFormat;
 import java.time.Instant;
-import java.util.Date;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+import static java.time.ZoneId.systemDefault;
 import static java.util.Arrays.asList;
 
 @Service
@@ -57,13 +57,13 @@ public class EpisService {
         return asList(response.getBody());
     }
 
-    // No caching here is on purpose
+    @Cacheable(value = CASH_FLOW_STATEMENT_CACHE_NAME, key="{ #person.personalCode, #startTime, #endTime }")
     public CashFlowStatementDto getCashFlowStatement(Person person, Instant startTime, Instant endTime) {
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(systemDefault());
         String url = UriComponentsBuilder
             .fromHttpUrl(episServiceUrl + "/account-cash-flow-statement")
-            .queryParam("from-date", dateFormat.format(Date.from(startTime)))
-            .queryParam("to-date", dateFormat.format(Date.from(endTime)))
+            .queryParam("from-date", dateFormatter.format(startTime))
+            .queryParam("to-date", dateFormatter.format(endTime))
             .build()
             .toUriString();
 
@@ -75,24 +75,9 @@ public class EpisService {
         @CacheEvict(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = CASH_FLOW_STATEMENT_CACHE_NAME, key = "#person.personalCode")
     })
     public void clearCache(Person person) {
-        clearTransferApplicationsCache(person);
-        clearContactDetailsCache(person);
-        clearAccountStatementCache(person);
-        clearCashFlowCache(person);
-    }
-
-    @CacheEvict(value = CASH_FLOW_STATEMENT_CACHE_NAME, key = "#person.personalCode")
-    public void clearCashFlowCache(Person person) {
-        log.info("Clearing cash flows cache for {} {}", person.getFirstName(), person.getLastName());
-    }
-
-    @CacheEvict(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode")
-    public void clearTransferApplicationsCache(Person person) {
-        log.info("Clearing exchanges cache for {} {}",
-            person.getFirstName(), person.getLastName());
+        log.info("Clearing cache for {}", person.getPersonalCode());
     }
 
     @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
@@ -106,12 +91,6 @@ public class EpisService {
             url, HttpMethod.GET, new HttpEntity(getHeaders()), UserPreferences.class);
 
         return response.getBody();
-    }
-
-    @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
-    public void clearContactDetailsCache(Person person) {
-        log.info("Clearing contact cache for {} {}",
-            person.getFirstName(), person.getLastName());
     }
 
     private HttpHeaders getHeaders() {
@@ -140,12 +119,6 @@ public class EpisService {
             url, HttpMethod.GET, new HttpEntity(getHeaders()), FundBalanceDto[].class);
 
         return asList(response.getBody());
-    }
-
-    @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode")
-    public void clearAccountStatementCache(Person person) {
-        log.info("Clearing account statement cache for {} {}",
-            person.getFirstName(), person.getLastName());
     }
 
     @Cacheable(value = FUNDS_CACHE_NAME, unless = "#result.isEmpty()")

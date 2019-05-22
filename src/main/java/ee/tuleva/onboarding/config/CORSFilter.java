@@ -40,7 +40,6 @@ public class CORSFilter extends GenericFilterBean {
 
         List<String> allowedHeaders = Arrays.asList(
                 "x-requested-with",
-                "x-statistics-identifier",
                 HttpHeaders.CONTENT_TYPE,
                 HttpHeaders.AUTHORIZATION,
                 HttpHeaders.USER_AGENT,

@@ -17,10 +17,6 @@ import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
 import ee.tuleva.onboarding.mandate.signature.SignatureService
-import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService
-import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics
-import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsFixture
-import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
@@ -36,8 +32,6 @@ class MandateServiceSpec extends Specification {
     AccountStatementService accountStatementService = Mock()
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository)
     EmailService emailService = Mock(EmailService)
-    FundValueStatisticsRepository fundValueStatisticsRepository = Mock(FundValueStatisticsRepository)
-    FundTransferStatisticsService fundTransferStatisticsService = Mock(FundTransferStatisticsService)
     MandateProcessorService mandateProcessor = Mock(MandateProcessorService)
     MandateFileService mandateFileService = Mock(MandateFileService)
     UserService userService = Mock(UserService)
@@ -45,12 +39,9 @@ class MandateServiceSpec extends Specification {
     AmlService amlService = Mock()
 
     MandateService service = new MandateService(mandateRepository, signService,
-        converter, emailService, fundValueStatisticsRepository, fundTransferStatisticsService,
-        mandateProcessor, mandateFileService, userService, episService, amlService)
+        converter, emailService, mandateProcessor, mandateFileService, userService, episService, amlService)
 
     Long sampleMandateId = 1L
-    UUID sampleStatisticsIdentifier = UUID.randomUUID()
-    List<FundValueStatistics> sampleFundValueStatisticsList = FundValueStatisticsFixture.sampleFundValueStatisticsList()
     User sampleUser = sampleUser()
 
     def setup() {
@@ -143,7 +134,7 @@ class MandateServiceSpec extends Specification {
         1 * signService.getSignedFile(_) >> null
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
 
         then:
         status == "OUTSTANDING_TRANSACTION"
@@ -159,7 +150,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
 
         then:
         1 * mandateProcessor.start(sampleUser, sampleMandate)
@@ -174,13 +165,13 @@ class MandateServiceSpec extends Specification {
         1 * mandateProcessor.isFinished(sampleMandate) >> false
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
 
         then:
         status == "OUTSTANDING_TRANSACTION"
     }
 
-    def "finalizeMobileIdSignature: get correct status and save statistics and notify and invalidate EPIS cache if mandate is signed and processed"() {
+    def "finalizeMobileIdSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
         given:
         Mandate sampleMandate = sampleMandate()
 
@@ -191,11 +182,10 @@ class MandateServiceSpec extends Specification {
         1 * episService.clearCache(sampleUser)
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
 
         then:
         status == "SIGNATURE"
-        1 * fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
 
     }
 
@@ -208,7 +198,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
 
         then:
         thrown InvalidMandateException
@@ -240,7 +230,7 @@ class MandateServiceSpec extends Specification {
         1 * signService.getSignedFile(session, "signedHash") >> null
 
         when:
-        service.finalizeIdCardSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
+        service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
 
         then:
         thrown(IllegalStateException)
@@ -256,7 +246,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
 
         when:
-        def status = service.finalizeIdCardSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
+        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
 
         then:
         1 * mandateProcessor.start(sampleUser, sampleMandate)
@@ -272,13 +262,13 @@ class MandateServiceSpec extends Specification {
         1 * mandateProcessor.isFinished(sampleMandate) >> false
 
         when:
-        def status = service.finalizeIdCardSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
+        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
 
         then:
         status == "OUTSTANDING_TRANSACTION"
     }
 
-    def "finalizeIdCardSignature: get correct status and save statistics and notify and invalidate EPIS cache if mandate is signed and processed"() {
+    def "finalizeIdCardSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
         given:
         Mandate sampleMandate = sampleMandate()
         IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
@@ -290,11 +280,10 @@ class MandateServiceSpec extends Specification {
         1 * episService.clearCache(sampleUser)
 
         when:
-        def status = service.finalizeIdCardSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
+        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
 
         then:
         status == "SIGNATURE"
-        1 * fundValueStatisticsRepository.findByIdentifier(sampleStatisticsIdentifier) >> sampleFundValueStatisticsList
     }
 
     def "finalizeIdCardSignature: throw exception if mandate is signed and processed and has errors"() {
@@ -307,7 +296,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
 
         when:
-        service.finalizeIdCardSignature(sampleUser.id, sampleStatisticsIdentifier, sampleMandate.id, session, "signedHash")
+        service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
 
         then:
         thrown InvalidMandateException

@@ -7,13 +7,12 @@ import com.codeborne.security.mobileid.SignatureFile;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
-import ee.tuleva.onboarding.auth.smartid.SmartIdSession;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
+import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.MandateSignatureStatusResponse;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
@@ -24,7 +23,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.annotations.ApiIgnore;
 
 import javax.servlet.http.HttpServletResponse;
@@ -33,7 +35,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
 import static org.springframework.web.bind.annotation.RequestMethod.*;
@@ -85,14 +86,13 @@ public class MandateController {
     @ApiOperation(value = "Is mandate successfully signed with mobile ID")
     @RequestMapping(method = GET, value = "/{id}/signature/mobileId/status")
     public MandateSignatureStatusResponse getMobileIdSignatureStatus(@PathVariable("id") Long mandateId,
-                                                                     @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-                                                                     @RequestHeader("x-statistics-identifier") UUID statisticsIdentifier) {
+                                                                     @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
         Optional<MobileIdSignatureSession> signatureSession = genericSessionStore.get(MobileIdSignatureSession.class);
         MobileIdSignatureSession session = signatureSession
                 .orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
 
-        String statusCode = mandateService.finalizeMobileIdSignature(authenticatedPerson.getUserId(), statisticsIdentifier, mandateId, session);
+        String statusCode = mandateService.finalizeMobileIdSignature(authenticatedPerson.getUserId(), mandateId, session);
 
         return new MandateSignatureStatusResponse(statusCode);
     }
@@ -110,14 +110,13 @@ public class MandateController {
     @ApiOperation(value = "Is mandate successfully signed with Smart ID")
     @RequestMapping(method = GET, value = "/{id}/signature/smartId/status")
     public MandateSignatureStatusResponse getSmartIdSignatureStatus(@PathVariable("id") Long mandateId,
-                                                                    @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-                                                                    @RequestHeader("x-statistics-identifier") UUID statisticsIdentifier) {
+                                                                    @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
         Optional<SmartIdSignatureSession> signatureSession = genericSessionStore.get(SmartIdSignatureSession.class);
         SmartIdSignatureSession session = signatureSession
                 .orElseThrow(IdSessionException::smartIdSignatureSessionNotFound);
 
-        String statusCode = mandateService.finalizeSmartIdSignature(authenticatedPerson.getUserId(), statisticsIdentifier, mandateId, session);
+        String statusCode = mandateService.finalizeSmartIdSignature(authenticatedPerson.getUserId(), mandateId, session);
 
         return new MandateSignatureStatusResponse(statusCode);
     }
@@ -139,14 +138,13 @@ public class MandateController {
     @RequestMapping(method = PUT, value = "/{id}/signature/idCard/status")
     public MandateSignatureStatusResponse getIdCardSignatureStatus(@PathVariable("id") Long mandateId,
                                                                    @Valid @RequestBody FinishIdCardSignCommand signCommand,
-                                                                   @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-                                                                   @RequestHeader(value = "x-statistics-identifier", required = false) UUID statisticsIdentifier) {
+                                                                   @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
         Optional<IdCardSignatureSession> signatureSession = genericSessionStore.get(IdCardSignatureSession.class);
         IdCardSignatureSession session = signatureSession
                 .orElseThrow(IdSessionException::cardSignatureSessionNotFound);
 
-        String statusCode = mandateService.finalizeIdCardSignature(authenticatedPerson.getUserId(), statisticsIdentifier, mandateId, session, signCommand.getSignedHash());
+        String statusCode = mandateService.finalizeIdCardSignature(authenticatedPerson.getUserId(), mandateId, session, signCommand.getSignedHash());
 
         return new MandateSignatureStatusResponse(statusCode);
     }

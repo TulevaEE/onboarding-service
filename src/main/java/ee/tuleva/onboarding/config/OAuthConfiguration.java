@@ -41,7 +41,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 
 import javax.sql.DataSource;
 
-import static ee.tuleva.onboarding.capital.InitialCapitalController.INITIAL_CAPITAL_URI;
+import static ee.tuleva.onboarding.capital.CapitalController.CAPITAL_URI;
 import static ee.tuleva.onboarding.config.OAuthConfiguration.ResourceServerPathConfiguration.RESOURCE_REQUEST_MATCHER_BEAN;
 import static java.util.Arrays.asList;
 
@@ -77,7 +77,7 @@ public class OAuthConfiguration {
         public void configure(HttpSecurity http) throws Exception {
             http.requestMatcher(resources)
                 .authorizeRequests()
-                .regexMatchers("/v1" + INITIAL_CAPITAL_URI).hasAuthority(Authority.MEMBER)
+                .regexMatchers("/v1" + CAPITAL_URI).hasAuthority(Authority.MEMBER)
                 .regexMatchers(HttpMethod.GET, "/v1/funds.*").hasAnyAuthority(Authority.USER, Authority.ROLE_CLIENT)
                 .regexMatchers(HttpMethod.POST, "/v1/users").hasAuthority(Authority.ROLE_CLIENT)
                 .regexMatchers(HttpMethod.HEAD, "/v1/members").hasAuthority(Authority.ROLE_CLIENT)

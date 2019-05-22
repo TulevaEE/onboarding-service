@@ -61,6 +61,23 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             comparison.marketAverageReturnPercentage == 0
     }
 
+    def "it successfully calculates a return of 0% for 0-valued transactions" () {
+        given:
+        Instant startTime = parseInstant("2018-06-17")
+        Instant endTime = parseInstant("2018-06-18")
+        fakeNoReturnFundValues()
+        accountOverviewProvider.getAccountOverview(_ as Person, _ as Instant, _ as Integer) >> new AccountOverview([
+            new Transaction(0, startTime),
+            new Transaction(0, startTime),
+        ], 0, 0, startTime, endTime, 2)
+        when:
+        FundComparison comparison = fundComparisonCalculatorService.calculateComparison(_ as Person, startTime, 2)
+        then:
+        comparison.actualReturnPercentage == 0
+        comparison.estonianAverageReturnPercentage == 0
+        comparison.marketAverageReturnPercentage == 0
+    }
+
     def "it correctly calculates actual return taking into account the beginning balance"() {
         given:
             fakeNoReturnFundValues()

@@ -47,10 +47,10 @@ public class MandateFileService {
         UserPreferences defaultUserPreferences = UserPreferences.defaultUserPreferences();
         if (Stream.of(
             userPreferences.getAddressRow1(),
-            userPreferences.getAddressRow2(),
             userPreferences.getCountry(),
             userPreferences.getDistrictCode(),
-            userPreferences.getPostalIndex()).anyMatch(str -> str == null || str.isEmpty())) {
+            userPreferences.getPostalIndex())
+            .anyMatch(str -> str == null || str.isEmpty())) {
 
             userPreferences.setAddressRow1(defaultUserPreferences.getAddressRow1());
             userPreferences.setAddressRow2(defaultUserPreferences.getAddressRow2());

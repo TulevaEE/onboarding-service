@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.overview.Transaction;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.decampo.xirr.Xirr;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class FundComparisonCalculatorService {
 
     private final AccountOverviewProvider accountOverviewProvider;
@@ -56,7 +58,7 @@ public class FundComparisonCalculatorService {
         List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
         BigDecimal virtualFundUnitsBought = BigDecimal.ZERO;
-        for (Transaction transaction: purchaseTransactions) {
+        for (Transaction transaction : purchaseTransactions) {
             Optional<FundValue> fundValueAtTime = fundValueProvider.getFundValueClosestToTime(comparisonFund, transaction.getCreatedAt());
             if (!fundValueAtTime.isPresent()) {
                 return 0;
@@ -90,9 +92,9 @@ public class FundComparisonCalculatorService {
 
     private List<Transaction> negateTransactionAmounts(List<Transaction> transactions) {
         return transactions
-                .stream()
-                .map(FundComparisonCalculatorService::negateTransactionAmount)
-                .collect(Collectors.toList());
+            .stream()
+            .map(FundComparisonCalculatorService::negateTransactionAmount)
+            .collect(Collectors.toList());
     }
 
     private static Transaction negateTransactionAmount(Transaction transaction) {
@@ -112,12 +114,17 @@ public class FundComparisonCalculatorService {
 
     private double calculateInternalRateOfReturn(List<Transaction> transactions) {
         // wish the author of this great library used interfaces instead
-        List<org.decampo.xirr.Transaction> xirrInternalTransactions = transactions
+        try {
+            List<org.decampo.xirr.Transaction> xirrInternalTransactions = transactions
                 .stream()
                 .map(FundComparisonCalculatorService::xirrTransactionFromInternalTransaction)
                 .collect(Collectors.toList());
-        double result = new Xirr(xirrInternalTransactions).xirr();
-        return roundPercentage(result);
+            double result = new Xirr(xirrInternalTransactions).xirr();
+            return roundPercentage(result);
+        } catch (IllegalArgumentException e) {
+            log.info("XIRR failed for Transactions: {}", transactions);
+            throw new IllegalArgumentException("XIRR calculation failed, see logs for more details", e);
+        }
     }
 
     private double roundPercentage(double percentage) {

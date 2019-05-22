@@ -12,6 +12,7 @@ import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.function.Predicate;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static java.math.BigDecimal.ROUND_HALF_DOWN;
@@ -36,9 +37,10 @@ public class CapitalService {
     }
 
     @NotNull
-    private BigDecimal getCapitalAmount(List<MemberCapitalEvent> events, MemberCapitalEventType capitalPayment) {
-        return events.stream().filter(event -> event.getType() == capitalPayment)
-            .filter(event -> event.getAccountingDate().compareTo(LocalDate.now()) <= 0)
+    private BigDecimal getCapitalAmount(List<MemberCapitalEvent> events, MemberCapitalEventType eventType) {
+        return events.stream()
+            .filter(event -> event.getType() == eventType)
+            .filter(pastEvents())
             .map(MemberCapitalEvent::getFiatValue)
             .reduce(BigDecimal.ZERO, BigDecimal::add)
             .setScale(2, ROUND_HALF_DOWN);
@@ -47,12 +49,12 @@ public class CapitalService {
     private BigDecimal getProfit(List<MemberCapitalEvent> events) {
 
         BigDecimal totalFiatValue = events.stream()
-            .filter(event -> event.getAccountingDate().compareTo(LocalDate.now()) <= 0)
+            .filter(pastEvents())
             .map(MemberCapitalEvent::getFiatValue)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         BigDecimal totalOwnershipUnitAmount = events.stream()
-            .filter(event -> event.getAccountingDate().compareTo(LocalDate.now()) <= 0)
+            .filter(pastEvents())
             .map(MemberCapitalEvent::getOwnershipUnitAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -63,5 +65,13 @@ public class CapitalService {
             latestAggregatedCapitalEvent.getOwnershipUnitPrice().multiply(totalOwnershipUnitAmount);
 
         return investmentFiatValue.subtract(totalFiatValue).setScale(2, ROUND_HALF_DOWN);
+    }
+
+    private Predicate<MemberCapitalEvent> pastEvents() {
+        return event -> isBeforeOrEqual(event.getAccountingDate(), LocalDate.now());
+    }
+
+    private boolean isBeforeOrEqual(LocalDate first, LocalDate second) {
+        return first.isBefore(second) || first.isEqual(second);
     }
 }

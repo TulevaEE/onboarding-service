@@ -11,7 +11,8 @@ import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.auth.UserFixture.*
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 
 class MandateFileServiceSpec extends Specification {
 
@@ -29,7 +30,7 @@ class MandateFileServiceSpec extends Specification {
 
     def "getMandateFiles: generates mandate content files"() {
         given:
-        UserPreferences sampleUserPreferences = sampleContactDetails().build()
+        UserPreferences sampleUserPreferences = contactDetailsFixture()
         mockMandateFiles(user, mandate.id, sampleUserPreferences)
 
         1 * mandateContentCreator.
@@ -37,58 +38,6 @@ class MandateFileServiceSpec extends Specification {
                 _ as Mandate,
                 _ as List,
                 sampleUserPreferences) >> sampleFiles()
-
-        when:
-        List<SignatureFile> files = service.getMandateFiles(mandate.id, user.id)
-
-        then:
-        files.size() == 1
-        files.get(0).mimeType == "html/text"
-        files.get(0).content.length == 4
-    }
-
-    def "getMandateFiles: on empty user address preferences generates mandate content files with defaults"() {
-        given:
-        UserPreferences sampleUserPreferences = userPreferencesWithAddressPartiallyEmpty()[0]
-        mockMandateFiles(user, mandate.id, sampleUserPreferences)
-
-        1 * mandateContentCreator.
-            getContentFiles(_ as User,
-                _ as Mandate,
-                _ as List,
-                { UserPreferences it ->
-                    it.addressRow1 == UserPreferences.defaultUserPreferences().addressRow1
-                    it.addressRow2 == UserPreferences.defaultUserPreferences().addressRow2
-                    it.addressRow3 == UserPreferences.defaultUserPreferences().addressRow3
-                    it.getCountry() == UserPreferences.defaultUserPreferences().getCountry()
-                    it.getDistrictCode() == UserPreferences.defaultUserPreferences().getDistrictCode()
-                    it.getPostalIndex() == UserPreferences.defaultUserPreferences().getPostalIndex()
-                }) >> sampleFiles()
-
-        when:
-        List<SignatureFile> files = service.getMandateFiles(mandate.id, user.id)
-
-        then:
-        files.size() == 1
-        files.get(0).mimeType == "html/text"
-        files.get(0).content.length == 4
-    }
-
-    def "getMandateFiles: on empty user contact preferences generates mandate content files with defaults"() {
-        given:
-        UserPreferences sampleUserPreferences = userPreferencesWithContactPreferencesPartiallyEmpty()[0]
-
-        mockMandateFiles(user, mandate.id, sampleUserPreferences)
-
-        1 * mandateContentCreator.
-            getContentFiles(_ as User,
-                _ as Mandate,
-                _ as List,
-                { UserPreferences it ->
-                    it.languagePreference == UserPreferences.defaultUserPreferences().languagePreference
-                    it.contactPreference == UserPreferences.defaultUserPreferences().contactPreference
-                    it.noticeNeeded == UserPreferences.defaultUserPreferences().noticeNeeded
-                }) >> sampleFiles()
 
         when:
         List<SignatureFile> files = service.getMandateFiles(mandate.id, user.id)

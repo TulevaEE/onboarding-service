@@ -8,8 +8,8 @@ import ee.tuleva.onboarding.user.command.UpdateUserCommand
 import org.springframework.http.MediaType
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
-import static ee.tuleva.onboarding.auth.UserFixture.sampleContactDetails
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
@@ -23,7 +23,7 @@ class UserControllerSpec extends BaseControllerSpec {
 
 	def "/me endpoint works with non member"() {
 		given:
-        def contactDetails = sampleContactDetails().build()
+        def contactDetails = contactDetailsFixture()
 		1 * userService.getById(sampleAuthenticatedPerson.userId) >> userFrom(sampleAuthenticatedPerson)
         1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
 
@@ -48,7 +48,7 @@ class UserControllerSpec extends BaseControllerSpec {
 		given:
 		def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
         def user = sampleUser().build()
-        def contactDetails = sampleContactDetails().build()
+        def contactDetails = contactDetailsFixture()
         1 * userService.getById(user.id) >> user
         1 * episService.getContactDetails(authenticatedPerson) >> contactDetails
 
@@ -71,7 +71,7 @@ class UserControllerSpec extends BaseControllerSpec {
 
 	def "updates an existing user"() {
 		given:
-        def contactDetails = sampleContactDetails().build()
+        def contactDetails = contactDetailsFixture()
         def command = new UpdateUserCommand(
             email: "erko@risthein.ee",
             phoneNumber: "5555555")

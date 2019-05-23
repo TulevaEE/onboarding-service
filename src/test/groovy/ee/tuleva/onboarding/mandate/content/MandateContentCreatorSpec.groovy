@@ -6,7 +6,7 @@ import org.thymeleaf.ITemplateEngine
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.auth.UserFixture.sampleContactDetails
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
@@ -28,7 +28,7 @@ class MandateContentCreatorSpec extends Specification {
                         sampleUser().build(),
                         sampleMandate(),
                         sampleFunds(),
-                        sampleContactDetails().build()
+                        contactDetailsFixture()
                 )
         then:
         mandateContentFiles.size() == 3
@@ -54,7 +54,7 @@ class MandateContentCreatorSpec extends Specification {
                         sampleUser().build(),
                         MandateFixture.sampleMandateWithEmptyTransfer(),
                         sampleFunds(),
-                        sampleContactDetails().build()
+                        contactDetailsFixture()
                 )
         then:
         mandateContentFiles.size() == 3
@@ -83,7 +83,7 @@ class MandateContentCreatorSpec extends Specification {
                 sampleUser().build(),
                 mandate,
                 sampleFunds(),
-                sampleContactDetails().build()
+                contactDetailsFixture()
             )
 
         then:

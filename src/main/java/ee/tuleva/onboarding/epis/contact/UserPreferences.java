@@ -51,19 +51,4 @@ public class UserPreferences {
 
     private String pensionAccountNumber;
 
-    public static UserPreferences defaultUserPreferences() {
-        return builder()
-            .addressRow1("Tuleva, Telliskivi 60")
-            .addressRow2("TALLINN")
-            .addressRow3("TALLINN")
-            .country("EE")
-            .postalIndex("10412")
-            .districtCode("0784")
-            .contactPreference(ContactPreferenceType.valueOf("E"))
-            .languagePreference(LanguagePreferenceType.valueOf("EST"))
-            .noticeNeeded("Y")
-            .email("tuleva@tuleva.ee")
-            .build();
-    }
-
 }

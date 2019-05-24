@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.overview.Transaction
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -61,21 +62,27 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             comparison.marketAverageReturnPercentage == 0
     }
 
-    def "it successfully calculates a return of 0% for 0-valued transactions" () {
+    @Unroll
+    def "it successfully calculates a return for 0-valued transactions" () {
         given:
         Instant startTime = parseInstant("2018-06-17")
         Instant endTime = parseInstant("2018-06-18")
         fakeNoReturnFundValues()
         accountOverviewProvider.getAccountOverview(_ as Person, _ as Instant, _ as Integer) >> new AccountOverview([
-            new Transaction(0, startTime),
-            new Transaction(0, startTime),
-        ], 0, 0, startTime, endTime, 2)
+            new Transaction(firstTransaction, startTime),
+            new Transaction(secondTransaction, startTime),
+        ], beginningBalance, endingBalance, startTime, endTime, 2)
         when:
         FundComparison comparison = fundComparisonCalculatorService.calculateComparison(_ as Person, startTime, 2)
         then:
-        comparison.actualReturnPercentage == 0
+        comparison.actualReturnPercentage == xirr.doubleValue()
         comparison.estonianAverageReturnPercentage == 0
         comparison.marketAverageReturnPercentage == 0
+        where:
+        firstTransaction | secondTransaction | beginningBalance | endingBalance || xirr
+        0.0              | 0.0               | 0.0              | 0.0           || 0.0
+        0.0              | 1.0               | 0.0              | 1.0           || 0.0
+        0.0              | -1.0              | 1.0              | 0.0           || 0.0
     }
 
     def "it correctly calculates actual return taking into account the beginning balance"() {

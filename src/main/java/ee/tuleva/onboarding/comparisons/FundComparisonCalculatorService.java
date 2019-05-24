@@ -115,17 +115,15 @@ public class FundComparisonCalculatorService {
     }
 
     private double calculateInternalRateOfReturn(List<Transaction> transactions) {
+        if (allZero(transactions)) {
+            return 0;
+        }
         // wish the author of this great library used interfaces instead
         try {
             List<org.decampo.xirr.Transaction> xirrInternalTransactions = transactions
                 .stream()
-                .filter(transaction -> !transaction.getAmount().equals(ZERO))
                 .map(FundComparisonCalculatorService::xirrTransactionFromInternalTransaction)
                 .collect(toList());
-
-            if (xirrInternalTransactions.isEmpty()) {
-                return 0;
-            }
 
             double result = new Xirr(xirrInternalTransactions).xirr();
             return roundPercentage(result);
@@ -133,6 +131,10 @@ public class FundComparisonCalculatorService {
             log.info("XIRR failed for Transactions: {}", transactions);
             throw new IllegalArgumentException("XIRR calculation failed, see logs for more details", e);
         }
+    }
+
+    private boolean allZero(List<Transaction> transactions) {
+        return transactions.stream().allMatch(transaction -> ZERO.compareTo(transaction.getAmount()) == 0);
     }
 
     private double roundPercentage(double percentage) {

@@ -2,6 +2,9 @@ package ee.tuleva.onboarding.epis.contact;
 
 import lombok.*;
 
+import static ee.tuleva.onboarding.epis.contact.UserPreferences.ContactPreferenceType.*;
+import static ee.tuleva.onboarding.epis.contact.UserPreferences.LanguagePreferenceType.*;
+
 @Getter
 @Setter
 @Builder
@@ -18,7 +21,8 @@ public class UserPreferences {
 
     private String personalCode;
 
-    private ContactPreferenceType contactPreference;
+    @Builder.Default
+    private ContactPreferenceType contactPreference = E;
 
     private String districtCode;
 
@@ -30,33 +34,21 @@ public class UserPreferences {
 
     private String postalIndex;
 
-    private String country;
+    @Builder.Default
+    private String country = "EE";
 
     public enum LanguagePreferenceType {EST, RUS, ENG}
 
-    private LanguagePreferenceType languagePreference;
+    @Builder.Default
+    private LanguagePreferenceType languagePreference = EST;
 
-    private String noticeNeeded; // boolean { 'Y', 'N' }
+    @Builder.Default
+    private String noticeNeeded = "Y"; // boolean { 'Y', 'N' }
 
     private String email;
 
     private String phoneNumber;
 
     private String pensionAccountNumber;
-
-    public static UserPreferences defaultUserPreferences() {
-        return builder()
-            .addressRow1("Tuleva, Telliskivi 60")
-            .addressRow2("TALLINN")
-            .addressRow3("TALLINN")
-            .country("EE")
-            .postalIndex("10412")
-            .districtCode("0784")
-            .contactPreference(ContactPreferenceType.valueOf("E"))
-            .languagePreference(LanguagePreferenceType.valueOf("EST"))
-            .noticeNeeded("Y")
-            .email("tuleva@tuleva.ee")
-            .build();
-    }
 
 }

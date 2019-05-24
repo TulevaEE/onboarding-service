@@ -15,11 +15,13 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.ArrayList;
 import java.util.Optional;
-import java.util.stream.Collectors;
+
+import static java.math.BigDecimal.ZERO;
+import static java.util.stream.Collectors.toList;
 
 @Service
 @RequiredArgsConstructor
@@ -57,7 +59,7 @@ public class FundComparisonCalculatorService {
     private double getRateOfReturn(AccountOverview accountOverview, ComparisonFund comparisonFund) {
         List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
-        BigDecimal virtualFundUnitsBought = BigDecimal.ZERO;
+        BigDecimal virtualFundUnitsBought = ZERO;
         for (Transaction transaction : purchaseTransactions) {
             Optional<FundValue> fundValueAtTime = fundValueProvider.getFundValueClosestToTime(comparisonFund, transaction.getCreatedAt());
             if (!fundValueAtTime.isPresent()) {
@@ -94,7 +96,7 @@ public class FundComparisonCalculatorService {
         return transactions
             .stream()
             .map(FundComparisonCalculatorService::negateTransactionAmount)
-            .collect(Collectors.toList());
+            .collect(toList());
     }
 
     private static Transaction negateTransactionAmount(Transaction transaction) {
@@ -117,8 +119,14 @@ public class FundComparisonCalculatorService {
         try {
             List<org.decampo.xirr.Transaction> xirrInternalTransactions = transactions
                 .stream()
+                .filter(transaction -> !transaction.getAmount().equals(ZERO))
                 .map(FundComparisonCalculatorService::xirrTransactionFromInternalTransaction)
-                .collect(Collectors.toList());
+                .collect(toList());
+
+            if (xirrInternalTransactions.isEmpty()) {
+                return 0;
+            }
+
             double result = new Xirr(xirrInternalTransactions).xirr();
             return roundPercentage(result);
         } catch (IllegalArgumentException e) {

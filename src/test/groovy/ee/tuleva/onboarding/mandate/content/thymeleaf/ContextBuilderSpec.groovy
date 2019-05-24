@@ -10,7 +10,7 @@ import spock.lang.Specification
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.auth.UserFixture.sampleContactDetails
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
@@ -118,7 +118,7 @@ class ContextBuilderSpec extends Specification {
     }
 
     def "UserPreferences"() {
-        def dummyUserPreferences = sampleContactDetails().build()
+        def dummyUserPreferences = contactDetailsFixture()
         when:
         Context context = ContextBuilder.builder()
                 .userPreferences(dummyUserPreferences)
@@ -138,7 +138,7 @@ class ContextBuilderSpec extends Specification {
     def "UserPreferences don't overwrite User email"() {
         given:
         User user = sampleUser().email("expected@email.com").build()
-        UserPreferences preferences = sampleContactDetails().email("other@email.com").build()
+        UserPreferences preferences = contactDetailsFixture()
         when:
         Context context = ContextBuilder.builder()
                 .user(user)

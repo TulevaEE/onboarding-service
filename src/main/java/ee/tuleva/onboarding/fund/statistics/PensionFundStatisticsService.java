@@ -11,6 +11,7 @@ import org.springframework.web.client.RestOperations;
 
 import java.util.List;
 
+import static java.time.Duration.ofSeconds;
 import static java.util.Collections.emptyList;
 
 @Service
@@ -26,8 +27,8 @@ public class PensionFundStatisticsService {
 
   public PensionFundStatisticsService(RestTemplateBuilder restTemplateBuilder) {
     restTemplate = restTemplateBuilder
-        .setConnectTimeout(60_000)
-        .setReadTimeout(60_000)
+        .setConnectTimeout(ofSeconds(60))
+        .setReadTimeout(ofSeconds(60))
         .additionalMessageConverters(new Jaxb2RootElementHttpMessageConverter())
       .build();
   }

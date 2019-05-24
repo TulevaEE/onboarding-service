@@ -14,9 +14,6 @@ import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
-import ee.tuleva.onboarding.mandate.statistics.FundTransferStatisticsService;
-import ee.tuleva.onboarding.mandate.statistics.FundValueStatistics;
-import ee.tuleva.onboarding.mandate.statistics.FundValueStatisticsRepository;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -28,7 +25,6 @@ import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -42,8 +38,6 @@ public class MandateService {
     private final SignatureService signService;
     private final CreateMandateCommandToMandateConverter converter;
     private final EmailService emailService;
-    private final FundValueStatisticsRepository fundValueStatisticsRepository;
-    private final FundTransferStatisticsService fundTransferStatisticsService;
     private final MandateProcessorService mandateProcessor;
     private final MandateFileService mandateFileService;
     private final UserService userService;
@@ -112,12 +106,12 @@ public class MandateService {
         return signService.startSmartIdSign(files, user.getPersonalCode());
     }
 
-    public String finalizeSmartIdSignature(Long userId, UUID statisticsIdentifier, Long mandateId, SmartIdSignatureSession session) {
+    public String finalizeSmartIdSignature(Long userId, Long mandateId, SmartIdSignatureSession session) {
         User user = userService.getById(userId);
         Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
         if (isMandateSigned(mandate)) {
-            return handleSignedMandate(user, mandate, statisticsIdentifier);
+            return handleSignedMandate(user, mandate);
         } else {
             return handleUnsignedMandateSmartId(user, mandate, session);
         }
@@ -143,12 +137,12 @@ public class MandateService {
         return signService.startSign(files, signingCertificate);
     }
 
-    public String finalizeMobileIdSignature(Long userId, UUID statisticsIdentifier, Long mandateId, MobileIdSignatureSession session) {
+    public String finalizeMobileIdSignature(Long userId, Long mandateId, MobileIdSignatureSession session) {
         User user = userService.getById(userId);
         Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
         if (isMandateSigned(mandate)) {
-            return handleSignedMandate(user, mandate, statisticsIdentifier);
+            return handleSignedMandate(user, mandate);
         } else {
             return handleUnsignedMandateMobileId(user, mandate, session);
         }
@@ -158,12 +152,12 @@ public class MandateService {
         return getStatus(user, mandate, signService.getSignedFile(session));
     }
 
-    public String finalizeIdCardSignature(Long userId, UUID statisticsIdentifier, Long mandateId, IdCardSignatureSession session, String signedHash) {
+    public String finalizeIdCardSignature(Long userId, Long mandateId, IdCardSignatureSession session, String signedHash) {
         User user = userService.getById(userId);
         Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
         if (isMandateSigned(mandate)) {
-            return handleSignedMandate(user, mandate, statisticsIdentifier);
+            return handleSignedMandate(user, mandate);
         } else {
             return handleUnsignedMandateIdCard(user, mandate, session, signedHash);
         }
@@ -173,10 +167,8 @@ public class MandateService {
         return mandate.getMandate().isPresent();
     }
 
-    private String handleSignedMandate(User user, Mandate mandate, UUID statisticsIdentifier) {
+    private String handleSignedMandate(User user, Mandate mandate) {
         if (mandateProcessor.isFinished(mandate)) {
-            persistFundTransferExchangeStatistics(statisticsIdentifier, mandate);
-
             notifyAboutSignedMandate(user,
                 mandate.getId(),
                 mandate.getMandate()
@@ -218,17 +210,6 @@ public class MandateService {
     private void persistSignedFile(Mandate mandate, byte[] signedFile) {
         mandate.setMandate(signedFile);
         mandateRepository.save(mandate);
-    }
-
-    private void persistFundTransferExchangeStatistics(UUID statisticsIdentifier, Mandate mandate) {
-        List<FundValueStatistics> fundValueStatisticsList = fundValueStatisticsRepository.findByIdentifier(statisticsIdentifier);
-        fundTransferStatisticsService.addFrom(mandate, fundValueStatisticsList);
-
-        // TODO: decide if we need to delete fund value statistics after adding or it might be needed in the same session
-        // to generate an other mandate and then be ereased by a chron job
-//		fundValueStatisticsList.forEach( fundValueStatistics -> {
-//			fundValueStatisticsRepository.delete(fundValueStatistics);
-//		});
     }
 
 }

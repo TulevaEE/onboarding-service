@@ -23,7 +23,7 @@ import java.text.SimpleDateFormat
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.epis.contact.UserPreferences.defaultUserPreferences
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE
 
 class EpisServiceSpec extends Specification {
@@ -88,7 +88,7 @@ class EpisServiceSpec extends Specification {
     def "getContactDetails"() {
         given:
 
-        UserPreferences userPreferences = defaultUserPreferences()
+        UserPreferences userPreferences = contactDetailsFixture()
         ResponseEntity<UserPreferences> response =
             new ResponseEntity(userPreferences, HttpStatus.OK)
 

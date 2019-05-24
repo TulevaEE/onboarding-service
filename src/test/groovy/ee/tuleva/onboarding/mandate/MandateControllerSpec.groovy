@@ -74,24 +74,16 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "get mobile ID signature status returns the status code"() {
         when:
-        UUID statisticsIdentifier = UUID.randomUUID()
         def session = new MobileIdSignatureSession(1, "1234")
         sessionStore.get(MobileIdSignatureSession) >> Optional.of(session)
-        mandateService.finalizeMobileIdSignature(_ as Long, statisticsIdentifier, 1L, session) >> "SIGNATURE"
+        mandateService.finalizeMobileIdSignature(_ as Long, 1L, session) >> "SIGNATURE"
 
         then:
         mvc
-                .perform(get("/v1/mandates/1/signature/mobileId/status").header("x-statistics-identifier", statisticsIdentifier))
+                .perform(get("/v1/mandates/1/signature/mobileId/status"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
-    }
-
-    def "get mobile ID signature without statistics identifier fails"() {
-        expect:
-        mvc
-                .perform(get("/v1/mandates/1/signature/mobileId/status"))
-                .andExpect(status().isBadRequest())
     }
 
     def "id card signature start returns the hash to be signed by the client"() {
@@ -110,27 +102,18 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "put ID card signature status returns the status code"() {
         when:
-        UUID statisticsIdentifier = UUID.randomUUID()
         def session = new IdCardSignatureSession(1, "sigId", "hash")
         sessionStore.get(IdCardSignatureSession) >> Optional.of(session)
-        mandateService.finalizeIdCardSignature(_ as Long, statisticsIdentifier, 1L, session, "signedHash") >> "SIGNATURE"
+        mandateService.finalizeIdCardSignature(_ as Long, 1L, session, "signedHash") >> "SIGNATURE"
 
         then:
         mvc
-                .perform(put("/v1/mandates/1/signature/idCard/status").header("x-statistics-identifier", statisticsIdentifier)
+                .perform(put("/v1/mandates/1/signature/idCard/status")
                         .content(mapper.writeValueAsString(sampleFinishIdCardSignCommand("signedHash")))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
-    }
-
-    def "put ID card signature status without statistics identifier fails"() {
-        expect:
-        mvc
-                .perform(put("/v1/mandates/1/signature/idCard/status")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
     }
 
     def "getMandateFile returns mandate file"() {

@@ -29,7 +29,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
   def "incoming payment is correctly mapped to DTO, mac is validated and a member is created in the database with the correct name"() {
     given:
     def json = [
-      "amount": "100.0",
+      "amount": "125.0",
       "currency": "EUR",
       "customer_name": "T\u00f5\u00f5ger Le\u00f5p\u00e4\u00f6ld",
       "merchant_data": null,
@@ -47,7 +47,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     def perform = mvc.perform(post("/notifications/payments")
             .contentType(MediaType.APPLICATION_JSON)
             .param("json", mapper.writeValueAsString(json))
-            .param("mac", "e9b1867c40e2a2ac3fd654ab4f26dedcbe320c48c0aec5058c8a442fc941429c8bcafa22c52240a1a645fb0abf6a05692f7b79b6cb83a41637aef0756cdb3dda"))
+            .param("mac", "c9bd73b2eaac5f73b15c24f4a0d06ec5d3bb14bbbc3ce2e3c709d1587f44e574a690a632190b3b8cb831da82d0a706daed7d011878cabaedf54236c3c45f6fbf"))
 
     then:
     perform

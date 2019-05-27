@@ -53,16 +53,16 @@ public class PaymentController {
     Long userId = payment.getReference();
 
     boolean isAMember = userService.isAMember(userId);
-    boolean statusCompleted = COMPLETED.equalsIgnoreCase(payment.getStatus());
+    boolean isStatusCompleted = COMPLETED.equalsIgnoreCase(payment.getStatus());
 
-    if (statusCompleted && !isAMember) {
+    if (isStatusCompleted && !isAMember) {
       User user = userService.registerAsMember(userId, payment.getCustomerName());
       emailService.sendMemberNumber(user);
-      response.sendRedirect(membershipSuccessUrl);
     } else {
-      log.error("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
-      response.sendRedirect(membershipSuccessUrl);
+      log.warn("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
     }
+
+    response.sendRedirect(membershipSuccessUrl);
 
   }
 

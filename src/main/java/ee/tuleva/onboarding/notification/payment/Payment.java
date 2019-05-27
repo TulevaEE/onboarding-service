@@ -13,7 +13,7 @@ import java.math.BigDecimal;
 @ToString
 public class Payment {
 
-  private static final int MIN_AMOUNT = 100;
+  private static final int MIN_AMOUNT = 125;
 
   @Min(MIN_AMOUNT)
   private BigDecimal amount;

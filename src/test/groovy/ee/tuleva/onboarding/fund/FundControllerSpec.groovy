@@ -34,7 +34,19 @@ class FundControllerSpec extends BaseControllerSpec {
                 .perform(get("/v1/funds").header("Accept-Language", language))
 
                 .andExpect(status().isOk())
-                .andExpect(jsonPath('$', hasSize(MandateFixture.sampleFunds().size())));
+                .andExpect(jsonPath('$', hasSize(MandateFixture.sampleFunds().size())))
+    }
+
+    def "get: Get all funds defaults to et"() {
+        given:
+        def language = "et"
+        1 * fundService.getFunds(Optional.empty(), language) >> MandateFixture.sampleFunds()
+        expect:
+        mockMvc
+            .perform(get("/v1/funds"))
+
+            .andExpect(status().isOk())
+            .andExpect(jsonPath('$', hasSize(MandateFixture.sampleFunds().size())))
     }
 
     def "get: Get all funds by manager name"() {

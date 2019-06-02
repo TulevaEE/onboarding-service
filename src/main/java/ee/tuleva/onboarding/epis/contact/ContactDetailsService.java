@@ -19,7 +19,7 @@ public class ContactDetailsService {
         contactDetails.setEmail(user.getEmail());
         contactDetails.setPhoneNumber(user.getPhoneNumber());
         contactDetails.setAddress(address);
-        return episService.updateContactDetails(contactDetails);
+        return episService.updateContactDetails(user, contactDetails);
     }
 
 }

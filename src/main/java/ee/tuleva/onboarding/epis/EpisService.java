@@ -141,7 +141,7 @@ public class EpisService {
     }
 
     @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
-    public UserPreferences updateContactDetails(UserPreferences contactDetails) {
+    public UserPreferences updateContactDetails(Person person, UserPreferences contactDetails) {
         String url = episServiceUrl + "/contact-details";
 
         log.info("Updating contact details for {}", contactDetails.getPersonalCode());

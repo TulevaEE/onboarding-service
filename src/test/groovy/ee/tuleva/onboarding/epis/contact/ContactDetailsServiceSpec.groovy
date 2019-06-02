@@ -24,7 +24,9 @@ class ContactDetailsServiceSpec extends Specification {
         addressService.updateContactDetails(user, address)
 
         then:
-        1 * episService.updateContactDetails({ contactDetails ->
+        1 * episService.updateContactDetails({ person ->
+            person == user
+        }, { contactDetails ->
             contactDetails.email == user.email
             contactDetails.phoneNumber == user.phoneNumber
             contactDetails.addressRow1 == address.street

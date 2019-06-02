@@ -169,7 +169,7 @@ class EpisServiceSpec extends Specification {
         }, UserPreferences.class)
 
         when:
-        service.updateContactDetails(contactDetails)
+        service.updateContactDetails(samplePerson, contactDetails)
 
         then:
         true

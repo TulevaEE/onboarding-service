@@ -61,6 +61,10 @@ public class CapitalService {
         AggregatedCapitalEvent latestAggregatedCapitalEvent =
             aggregatedCapitalEventRepository.findTopByOrderByDateDesc();
 
+        if (latestAggregatedCapitalEvent == null) {
+            return BigDecimal.ZERO;
+        }
+
         BigDecimal investmentFiatValue =
             latestAggregatedCapitalEvent.getOwnershipUnitPrice().multiply(totalOwnershipUnitAmount);
 

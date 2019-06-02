@@ -4,7 +4,6 @@ import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository
 import ee.tuleva.onboarding.capital.event.organisation.OrganisationCapitalEventType
-import ee.tuleva.onboarding.user.MemberFixture
 import ee.tuleva.onboarding.user.member.Member
 import spock.lang.Specification
 
@@ -12,6 +11,7 @@ import java.time.LocalDate
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventFixture.memberCapitalEventFixture
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*
+import static ee.tuleva.onboarding.user.MemberFixture.memberFixture
 
 class CapitalServiceSpec extends Specification {
     MemberCapitalEventRepository memberCapitalEventRepository = Mock(MemberCapitalEventRepository)
@@ -20,7 +20,7 @@ class CapitalServiceSpec extends Specification {
 
     def "GetCapitalStatement"() {
         given:
-        Member member = MemberFixture.memberFixture().build()
+        Member member = memberFixture().build()
         def event1 = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(1000.00)
             .ownershipUnitAmount(1.0).build()
         def event2 = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(0.123456)
@@ -56,6 +56,22 @@ class CapitalServiceSpec extends Specification {
         capitalStatement.profit == 170_019.28
     }
 
+    def "works with no capital"() {
+        given:
+        Member member = memberFixture().build()
+        memberCapitalEventRepository.findAllByMemberId(member.id) >> []
+        aggregatedCapitalEventRepository.findTopByOrderByDateDesc() >> null
+
+        when:
+        CapitalStatement capitalStatement = service.getCapitalStatement(member.id)
+
+        then:
+        capitalStatement.capitalPayment == 0
+        capitalStatement.membershipBonus == 0
+        capitalStatement.unvestedWorkCompensation == 0
+        capitalStatement.workCompensation == 0
+        capitalStatement.profit == 0
+    }
 
     private AggregatedCapitalEvent getAggregatedCapitalEvent(BigDecimal ownershipUnitPrice) {
         new AggregatedCapitalEvent(0,

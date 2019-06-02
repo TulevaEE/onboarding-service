@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.epis.contact;
 
+import ee.tuleva.onboarding.user.address.Address;
 import lombok.*;
 
-import static ee.tuleva.onboarding.epis.contact.UserPreferences.ContactPreferenceType.*;
-import static ee.tuleva.onboarding.epis.contact.UserPreferences.LanguagePreferenceType.*;
+import static ee.tuleva.onboarding.epis.contact.UserPreferences.ContactPreferenceType.E;
+import static ee.tuleva.onboarding.epis.contact.UserPreferences.LanguagePreferenceType.EST;
 
 @Getter
 @Setter
@@ -50,5 +51,22 @@ public class UserPreferences {
     private String phoneNumber;
 
     private String pensionAccountNumber;
+
+    public Address getAddress() {
+        return Address.builder()
+            .street(addressRow1)
+            .countryCode(country)
+            .postalCode(postalIndex)
+            .districtCode(districtCode)
+            .build();
+    }
+
+    public UserPreferences setAddress(Address address) {
+        addressRow1 = address.getStreet();
+        country = address.getCountryCode();
+        districtCode = address.getDistrictCode();
+        postalIndex = address.getPostalCode();
+        return this;
+    }
 
 }

@@ -139,4 +139,12 @@ public class EpisService {
         return restTemplate.postForObject(
             url, new HttpEntity<>(mandate, getHeaders()), MandateResponseDTO.class);
     }
+
+    public UserPreferences updateContactDetails(UserPreferences contactDetails) {
+        String url = episServiceUrl + "/contact-details";
+
+        log.info("Updating contact details for {}", contactDetails.getPersonalCode());
+
+        return restTemplate.postForObject(url, new HttpEntity<>(contactDetails, getHeaders()), UserPreferences.class);
+    }
 }

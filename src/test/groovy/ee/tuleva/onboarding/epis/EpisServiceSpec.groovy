@@ -62,7 +62,6 @@ class EpisServiceSpec extends Specification {
 
         then:
         true
-
     }
 
     def "getFundTransferExchanges: "() {
@@ -96,7 +95,6 @@ class EpisServiceSpec extends Specification {
             _ as String, HttpMethod.GET, { HttpEntity httpEntity ->
             doesHttpEntityContainToken(httpEntity, sampleToken)
         }, UserPreferences.class) >> response
-
         when:
         UserPreferences contactDetails = service.getContactDetails(samplePerson())
 
@@ -159,6 +157,22 @@ class EpisServiceSpec extends Specification {
 
         then:
         funds == sampleFunds
+    }
+
+    def "Updates contact details"() {
+        given:
+        def contactDetails = contactDetailsFixture()
+
+        1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
+            doesHttpEntityContainToken(httpEntity, sampleToken) &&
+                httpEntity.body.personalCode == contactDetails.personalCode
+        }, UserPreferences.class)
+
+        when:
+        service.updateContactDetails(contactDetails)
+
+        then:
+        true
     }
 
     private static CashFlowStatementDto getFakeCashFlowStatement() {

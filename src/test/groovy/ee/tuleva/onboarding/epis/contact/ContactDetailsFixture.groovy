@@ -6,6 +6,9 @@ class ContactDetailsFixture {
 
     static UserPreferences contactDetailsFixture() {
         return builder()
+            .firstName("Erko")
+            .lastName("Risthein")
+            .personalCode("38501010002")
             .addressRow1("Tuleva, Telliskivi 60")
             .addressRow2("TALLINN")
             .addressRow3("TALLINN")

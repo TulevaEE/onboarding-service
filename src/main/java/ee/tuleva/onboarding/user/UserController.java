@@ -64,8 +64,6 @@ public class UserController {
 
         User user = userService.createOrUpdateUser(cmd.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
 
-
         return UserResponse.fromUser(user);
     }
-
 }

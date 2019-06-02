@@ -1,29 +1,32 @@
-package ee.tuleva.onboarding.user.address
+package ee.tuleva.onboarding.epis.contact
+
 
 import ee.tuleva.onboarding.epis.EpisService
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
-class AddressServiceSpec extends Specification {
+class ContactDetailsServiceSpec extends Specification {
 
     def episService = Mock(EpisService)
 
-    def addressService = new AddressService(episService)
+    def addressService = new ContactDetailsService(episService)
 
-    def "Can update address"() {
+    def "Can update contact details"() {
         given:
-        def person = samplePerson
+        def user = sampleUser().build()
         def address = addressFixture().build()
-        episService.getContactDetails(person) >> contactDetailsFixture()
+        episService.getContactDetails(user) >> contactDetailsFixture()
 
         when:
-        addressService.updateAddress(person, address)
+        addressService.updateContactDetails(user, address)
 
         then:
         1 * episService.updateContactDetails({ contactDetails ->
+            contactDetails.email == user.email
+            contactDetails.phoneNumber == user.phoneNumber
             contactDetails.addressRow1 == address.street
             contactDetails.country == address.countryCode
             contactDetails.districtCode == address.districtCode

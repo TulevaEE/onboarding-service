@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
-import ee.tuleva.onboarding.user.address.AddressService;
+import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.user.command.CreateUserCommand;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
 import ee.tuleva.onboarding.user.response.UserResponse;
@@ -24,7 +24,7 @@ public class UserController {
 
     private final UserService userService;
     private final EpisService episService;
-    private final AddressService addressService;
+    private final ContactDetailsService contactDetailsService;
 
     @ApiOperation(value = "Get info about the current user")
     @GetMapping("/me")
@@ -50,7 +50,7 @@ public class UserController {
             cmd.getEmail(),
             cmd.getPhoneNumber());
 
-        UserPreferences contactDetails = addressService.updateAddress(authenticatedPerson, cmd.getAddress());
+        UserPreferences contactDetails = contactDetailsService.updateContactDetails(user, cmd.getAddress());
 
         return UserResponse.fromUser(user, contactDetails);
     }

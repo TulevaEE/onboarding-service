@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.user
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.user.address.AddressService
+import ee.tuleva.onboarding.epis.contact.ContactDetailsService
 import ee.tuleva.onboarding.user.command.CreateUserCommand
 import ee.tuleva.onboarding.user.command.UpdateUserCommand
 import org.springframework.http.MediaType
@@ -20,9 +20,9 @@ class UserControllerSpec extends BaseControllerSpec {
 
     UserService userService = Mock()
     EpisService episService = Mock()
-    AddressService addressService = Mock()
+    ContactDetailsService contactDetailsService = Mock()
 
-    UserController controller = new UserController(userService, episService, addressService)
+    UserController controller = new UserController(userService, episService, contactDetailsService)
 
     def "/me endpoint works with non member"() {
         given:
@@ -87,10 +87,12 @@ class UserControllerSpec extends BaseControllerSpec {
             phoneNumber: "5555555",
             address: address
         )
+        def updatedUser = userFrom(sampleAuthenticatedPerson, command)
 
         1 * userService.updateUser(sampleAuthenticatedPerson.personalCode, command.email, command.phoneNumber) >>
-            userFrom(sampleAuthenticatedPerson, command)
-        1 * addressService.updateAddress(sampleAuthenticatedPerson, command.address) >> contactDetails.setAddress(address)
+            updatedUser
+        1 * contactDetailsService.updateContactDetails(updatedUser, command.address) >>
+            contactDetails.setAddress(address)
 
         def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 

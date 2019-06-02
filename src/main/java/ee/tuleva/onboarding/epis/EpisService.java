@@ -140,6 +140,7 @@ public class EpisService {
             url, new HttpEntity<>(mandate, getHeaders()), MandateResponseDTO.class);
     }
 
+    @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
     public UserPreferences updateContactDetails(UserPreferences contactDetails) {
         String url = episServiceUrl + "/contact-details";
 

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.user
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.user.address.AddressService
 import ee.tuleva.onboarding.user.command.CreateUserCommand
 import ee.tuleva.onboarding.user.command.UpdateUserCommand
 import org.springframework.http.MediaType
@@ -10,6 +11,7 @@ import org.springframework.http.MediaType
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
@@ -18,8 +20,9 @@ class UserControllerSpec extends BaseControllerSpec {
 
     UserService userService = Mock()
     EpisService episService = Mock()
+    AddressService addressService = Mock()
 
-    UserController controller = new UserController(userService, episService)
+    UserController controller = new UserController(userService, episService, addressService)
 
     def "/me endpoint works with non member"() {
         given:
@@ -78,13 +81,16 @@ class UserControllerSpec extends BaseControllerSpec {
     def "updates an existing user"() {
         given:
         def contactDetails = contactDetailsFixture()
+        def address = addressFixture().build()
         def command = new UpdateUserCommand(
             email: "erko@risthein.ee",
-            phoneNumber: "5555555")
+            phoneNumber: "5555555",
+            address: address
+        )
 
-        1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
         1 * userService.updateUser(sampleAuthenticatedPerson.personalCode, command.email, command.phoneNumber) >>
             userFrom(sampleAuthenticatedPerson, command)
+        1 * addressService.updateAddress(sampleAuthenticatedPerson, command.address) >> contactDetails.setAddress(address)
 
         def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
@@ -104,10 +110,10 @@ class UserControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.phoneNumber', is("5555555")))
             .andExpect(jsonPath('$.age', isA(Integer)))
             .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
-            .andExpect(jsonPath('$.address.street', is(contactDetails.addressRow1)))
-            .andExpect(jsonPath('$.address.districtCode', is(contactDetails.districtCode)))
-            .andExpect(jsonPath('$.address.postalCode', is(contactDetails.postalIndex)))
-            .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
+            .andExpect(jsonPath('$.address.street', is(address.street)))
+            .andExpect(jsonPath('$.address.districtCode', is(address.districtCode)))
+            .andExpect(jsonPath('$.address.postalCode', is(address.postalCode)))
+            .andExpect(jsonPath('$.address.countryCode', is(address.countryCode)))
     }
 
     def "validates a new user before saving"() {

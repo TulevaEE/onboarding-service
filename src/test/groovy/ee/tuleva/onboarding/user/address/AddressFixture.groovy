@@ -4,10 +4,10 @@ class AddressFixture {
 
     static addressFixture() {
         return Address.builder()
-            .street("Telliskivi 60")
-            .countryCode("EE")
-            .postalCode("10412")
-            .districtCode("0784")
+            .street("Telliskivi 123")
+            .countryCode("US")
+            .postalCode("99999")
+            .districtCode("0123")
     }
 
 }

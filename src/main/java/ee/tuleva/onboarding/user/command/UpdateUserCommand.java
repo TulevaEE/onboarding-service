@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user.command;
 
+import ee.tuleva.onboarding.user.address.Address;
 import lombok.Data;
 
 import javax.validation.constraints.Email;
@@ -13,4 +14,6 @@ public class UpdateUserCommand {
     private String email;
 
     private String phoneNumber;
+
+    private Address address;
 }

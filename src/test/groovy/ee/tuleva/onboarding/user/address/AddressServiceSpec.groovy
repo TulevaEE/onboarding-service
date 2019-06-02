@@ -16,12 +16,7 @@ class AddressServiceSpec extends Specification {
     def "Can update address"() {
         given:
         def person = samplePerson
-        def address = addressFixture()
-            .street("Sample street")
-            .postalCode("Sample postal code")
-            .countryCode("Sample country code")
-            .districtCode("Sample district code")
-            .build()
+        def address = addressFixture().build()
         episService.getContactDetails(person) >> contactDetailsFixture()
 
         when:

@@ -14,6 +14,9 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class SmartIdSession implements Serializable {
+
+    private static final long serialVersionUID = 6407589354898164171L;
+
     public final String verificationCode;
     private boolean valid = false;
     private List<String> errors = new ArrayList<>();

@@ -4,6 +4,7 @@ import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.SmartIdAuthenticationResult;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -11,6 +12,7 @@ import java.util.List;
 
 @Data
 @RequiredArgsConstructor
+@Slf4j
 public class SmartIdSession implements Serializable {
     public final String verificationCode;
     private boolean valid = false;
@@ -31,6 +33,7 @@ public class SmartIdSession implements Serializable {
         } else {
             valid = false;
             errors.addAll(result.getErrors());
+            log.info("SmartID errors: {}", errors);
         }
     }
 }

@@ -45,7 +45,7 @@ public class SmartIdAuthService {
             } catch (UserRefusedException e) {
                 log.info("User refused", e);
                 session.setErrors(Collections.singletonList("User refused"));
-            } catch (TechnicalErrorException | ServerMaintenanceException e) {
+            } catch (Exception e) {
                 log.info("Technical error", e);
                 session.setErrors(Collections.singletonList("Smart ID technical error"));
             } finally {

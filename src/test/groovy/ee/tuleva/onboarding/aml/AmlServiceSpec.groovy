@@ -115,8 +115,10 @@ class AmlServiceSpec extends Specification {
         where:
         checks                                                                                                                             | result
         []                                                                                                                                 | false
-        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_AUTO), check(DOCUMENT), check(SK_NAME), check(PENSION_REGISTRY_NAME)]          | true
-        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_MANUAL), check(DOCUMENT), check(SK_NAME), check(PENSION_REGISTRY_NAME)]        | true
+        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_AUTO), check(DOCUMENT), check(PENSION_REGISTRY_NAME)]                          | true
+        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_MANUAL), check(DOCUMENT), check(PENSION_REGISTRY_NAME)]                        | true
+        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_AUTO), check(DOCUMENT), check(SK_NAME)]                                        | true
+        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_MANUAL), check(DOCUMENT), check(SK_NAME)]                                      | true
         [check(POLITICALLY_EXPOSED_PERSON, false), check(RESIDENCY_MANUAL), check(DOCUMENT), check(SK_NAME), check(PENSION_REGISTRY_NAME)] | false
     }
 

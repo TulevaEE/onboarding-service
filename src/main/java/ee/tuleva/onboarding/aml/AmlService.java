@@ -27,8 +27,10 @@ public class AmlService {
     private final AmlCheckRepository amlCheckRepository;
     private final AuditEventPublisher auditEventPublisher;
     private final List<List<AmlCheckType>> allowedCombinations = Lists.newArrayList(
-        newArrayList(POLITICALLY_EXPOSED_PERSON, SK_NAME, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_AUTO),
-        newArrayList(POLITICALLY_EXPOSED_PERSON, SK_NAME, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_MANUAL)
+        newArrayList(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO),
+        newArrayList(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL),
+        newArrayList(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_AUTO),
+        newArrayList(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_MANUAL)
     );
 
     public void checkUserAfterLogin(User user, Person person) {

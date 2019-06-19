@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
-import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.user.command.CreateUserCommand;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
 import ee.tuleva.onboarding.user.response.UserResponse;
@@ -33,6 +34,11 @@ public class UserController {
         User user = userService.getById(userId);
         UserPreferences contactDetails = episService.getContactDetails(authenticatedPerson);
         return UserResponse.fromUser(user, contactDetails);
+    }
+
+    @GetMapping("/me/principal")
+    public Person getPrincipal(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+        return authenticatedPerson;
     }
 
     @ApiOperation(value = "Update the current user")

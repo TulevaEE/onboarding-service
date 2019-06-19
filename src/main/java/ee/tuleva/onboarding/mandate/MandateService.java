@@ -36,7 +36,7 @@ public class MandateService {
 
     private final MandateRepository mandateRepository;
     private final SignatureService signService;
-    private final CreateMandateCommandToMandateConverter converter;
+    private final CreateMandateCommandToMandateConverter mandateConverter;
     private final EmailService emailService;
     private final MandateProcessorService mandateProcessor;
     private final MandateFileService mandateFileService;
@@ -47,7 +47,7 @@ public class MandateService {
     public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
         validateCreateMandateCommand(createMandateCommand);
         User user = userService.getById(userId);
-        Mandate mandate = converter.convert(new CreateMandateCommandWithUser(createMandateCommand, user));
+        Mandate mandate = mandateConverter.convert(new CreateMandateCommandWithUser(createMandateCommand, user));
         UserPreferences userPreferences = episService.getContactDetails(user);
         amlService.addPensionRegistryNameCheckIfMissing(user, userPreferences);
         log.info("Saving mandate {}", mandate);
@@ -125,10 +125,8 @@ public class MandateService {
         if (signedFile != null) {
             persistSignedFile(mandate, signedFile);
             mandateProcessor.start(user, mandate);
-            return OUTSTANDING_TRANSACTION; // TODO: use enum
-        } else {
-            return OUTSTANDING_TRANSACTION; // TODO: use enum
         }
+        return OUTSTANDING_TRANSACTION;
     }
 
 
@@ -177,9 +175,9 @@ public class MandateService {
             episService.clearCache(user);
             handleMandateProcessingErrors(mandate);
 
-            return SIGNATURE; // TODO: use enum
+            return SIGNATURE;
         } else {
-            return OUTSTANDING_TRANSACTION; // TODO: use enum
+            return OUTSTANDING_TRANSACTION;
         }
     }
 
@@ -197,7 +195,7 @@ public class MandateService {
         if (signedFile != null) { // TODO: use Optional
             persistSignedFile(mandate, signedFile);
             mandateProcessor.start(user, mandate);
-            return OUTSTANDING_TRANSACTION; // TODO: use enum
+            return OUTSTANDING_TRANSACTION;
         } else {
             throw new IllegalStateException("There is no signed file to persist");
         }

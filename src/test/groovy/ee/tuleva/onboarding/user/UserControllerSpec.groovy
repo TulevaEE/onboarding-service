@@ -78,6 +78,18 @@ class UserControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
     }
 
+    def "/me/principal endpoint works"() {
+        expect:
+        mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+            .perform(get("/v1/me/principal"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(jsonPath('$.userId', is(2)))
+            .andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPerson.firstName)))
+            .andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPerson.lastName)))
+            .andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPerson.personalCode)))
+    }
+
     def "updates an existing user"() {
         given:
         def contactDetails = contactDetailsFixture()

@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -24,6 +25,7 @@ public class CreateMandateCommandToMandateConverter implements Converter<CreateM
     private final FundRepository fundRepository;
 
     @Override
+    @NonNull
     public Mandate convert(CreateMandateCommandWithUser createMandateCommandWithUser) {
         Mandate mandate = new Mandate();
         mandate.setUser(createMandateCommandWithUser.getUser());

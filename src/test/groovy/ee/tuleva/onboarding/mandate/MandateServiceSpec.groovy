@@ -163,6 +163,7 @@ class MandateServiceSpec extends Specification {
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> false
+        0 * emailService.sendMandate(_, _, _)
 
         when:
         def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
@@ -196,6 +197,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
+        0 * emailService.sendMandate(_, _, _)
 
         when:
         service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
@@ -228,6 +230,7 @@ class MandateServiceSpec extends Specification {
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * signService.getSignedFile(session, "signedHash") >> null
+        0 * emailService.sendMandate(_, _, _)
 
         when:
         service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
@@ -244,6 +247,7 @@ class MandateServiceSpec extends Specification {
         1 * signService.getSignedFile(session, "signedHash") >> sampleFile
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
+        0 * emailService.sendMandate(_, _, _)
 
         when:
         def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
@@ -260,6 +264,7 @@ class MandateServiceSpec extends Specification {
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> false
+        0 * emailService.sendMandate(_, _, _)
 
         when:
         def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
@@ -294,6 +299,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
+        0 * emailService.sendMandate(_, _, _)
 
         when:
         service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")

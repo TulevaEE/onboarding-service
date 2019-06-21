@@ -167,13 +167,13 @@ public class MandateService {
 
     private String handleSignedMandate(User user, Mandate mandate) {
         if (mandateProcessor.isFinished(mandate)) {
+            episService.clearCache(user);
+            handleMandateProcessingErrors(mandate);
             notifyAboutSignedMandate(user,
                 mandate.getId(),
                 mandate.getMandate()
                     .orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file."))
             );
-            episService.clearCache(user);
-            handleMandateProcessingErrors(mandate);
 
             return SIGNATURE;
         } else {

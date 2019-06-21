@@ -56,9 +56,12 @@ public class UserController {
             cmd.getEmail(),
             cmd.getPhoneNumber());
 
-        UserPreferences contactDetails = contactDetailsService.updateContactDetails(user, cmd.getAddress());
+        if (cmd.getAddress() != null) {
+            UserPreferences contactDetails = contactDetailsService.updateContactDetails(user, cmd.getAddress());
+            return UserResponse.fromUser(user, contactDetails);
+        }
 
-        return UserResponse.fromUser(user, contactDetails);
+        return UserResponse.fromUser(user);
     }
 
     @ApiOperation(value = "Create a new user")

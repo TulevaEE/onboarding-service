@@ -130,6 +130,39 @@ class UserControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.address.countryCode', is(address.countryCode)))
     }
 
+    def "can update just email and phone number"() {
+        given:
+        def command = new UpdateUserCommand(
+            email: "erko@risthein.ee",
+            phoneNumber: "5555555"
+        )
+        def updatedUser = userFrom(sampleAuthenticatedPerson, command)
+
+        1 * userService.updateUser(sampleAuthenticatedPerson.personalCode, command.email, command.phoneNumber) >>
+            updatedUser
+        0 * contactDetailsService.updateContactDetails(_ , _)
+
+        def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+
+        when:
+        def performCall = mvc
+            .perform(patch("/v1/me")
+                .content(mapper.writeValueAsString(command))
+                .contentType(MediaType.APPLICATION_JSON))
+
+        then:
+        performCall.andExpect(status().isOk())
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(jsonPath('$.firstName', is("Erko")))
+            .andExpect(jsonPath('$.lastName', is("Risthein")))
+            .andExpect(jsonPath('$.personalCode', is("38501010002")))
+            .andExpect(jsonPath('$.email', is("erko@risthein.ee")))
+            .andExpect(jsonPath('$.phoneNumber', is("5555555")))
+            .andExpect(jsonPath('$.age', isA(Integer)))
+            .andExpect(jsonPath('$.pensionAccountNumber', is(null)))
+            .andExpect(jsonPath('$.address', is(null)))
+    }
+
     def "validates a new user before saving"() {
         given:
         def command = new UpdateUserCommand()

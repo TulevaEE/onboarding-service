@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.auth.smartid;
 
 import ee.sk.smartid.*;
-import ee.sk.smartid.exception.ServerMaintenanceException;
-import ee.sk.smartid.exception.TechnicalErrorException;
 import ee.sk.smartid.exception.UserAccountNotFoundException;
 import ee.sk.smartid.exception.UserRefusedException;
 import ee.sk.smartid.rest.dao.NationalIdentity;
@@ -46,7 +44,7 @@ public class SmartIdAuthService {
                 log.info("User refused", e);
                 session.setErrors(Collections.singletonList("User refused"));
             } catch (Exception e) {
-                log.info("Technical error", e);
+                log.error("Technical error", e);
                 session.setErrors(Collections.singletonList("Smart ID technical error"));
             } finally {
                 log.info("Authentication ended");

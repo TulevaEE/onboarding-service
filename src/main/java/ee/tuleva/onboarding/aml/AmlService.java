@@ -26,10 +26,10 @@ public class AmlService {
     private final AmlCheckRepository amlCheckRepository;
     private final AuditEventPublisher auditEventPublisher;
     private final List<List<AmlCheckType>> allowedCombinations = ImmutableList.of(
-        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO),
-        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL),
-        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_AUTO),
-        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_MANUAL)
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION),
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION),
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION),
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION)
     );
 
     public void checkUserAfterLogin(User user, Person person) {

@@ -116,13 +116,18 @@ class AmlServiceSpec extends Specification {
             1 * auditEventPublisher.publish(mandate.user.getEmail(), AuditEventType.MANDATE_DENIED)
         }
         where:
-        checks                                                                                                                             | result
-        []                                                                                                                                 | false
-        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_AUTO), check(DOCUMENT), check(PENSION_REGISTRY_NAME)]                          | true
-        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_MANUAL), check(DOCUMENT), check(PENSION_REGISTRY_NAME)]                        | true
-        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_AUTO), check(DOCUMENT), check(SK_NAME)]                                        | true
-        [check(POLITICALLY_EXPOSED_PERSON), check(RESIDENCY_MANUAL), check(DOCUMENT), check(SK_NAME)]                                      | true
-        [check(POLITICALLY_EXPOSED_PERSON, false), check(RESIDENCY_MANUAL), check(DOCUMENT), check(SK_NAME), check(PENSION_REGISTRY_NAME)] | false
+        checks                                                                                                      | result
+        []                                                                                                          | false
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION)   | true
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION) | true
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, SK_NAME, OCCUPATION)                 | true
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, SK_NAME, OCCUPATION)               | true
+        [check(POLITICALLY_EXPOSED_PERSON, false)] +
+            successfulChecks(RESIDENCY_MANUAL, DOCUMENT, SK_NAME, PENSION_REGISTRY_NAME, OCCUPATION)                | false
+    }
+
+    private static List<AmlCheck> successfulChecks(AmlCheckType... checkTypes) {
+        return checkTypes.collect({ type -> check(type) })
     }
 
     private static AmlCheck check(AmlCheckType type, boolean success = true) {

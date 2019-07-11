@@ -85,7 +85,8 @@ dependencies {
 
 	implementation('com.sun.xml.ws:jaxws-rt:2.2.10')
 
-	testImplementation("com.h2database:h2")
+	// replace with v1.4.200 once it's been released
+	testImplementation("com.github.h2database:h2database:-SNAPSHOT")
 	testImplementation("org.springframework.boot:spring-boot-starter-test") {
 		exclude module: "spock-core"
 	}

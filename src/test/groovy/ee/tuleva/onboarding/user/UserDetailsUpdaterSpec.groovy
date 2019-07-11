@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user
 
-import ee.tuleva.onboarding.aml.AmlCheckType
+import ee.tuleva.onboarding.aml.AmlCheck
 import ee.tuleva.onboarding.aml.AmlService
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.GrantType
@@ -11,6 +11,7 @@ import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_AUTO
 import static ee.tuleva.onboarding.auth.PersonFixture.PersonImpl
 
 class UserDetailsUpdaterSpec extends Specification {
@@ -59,8 +60,12 @@ class UserDetailsUpdaterSpec extends Specification {
             user.firstName == "Erko" &&
                 user.lastName == "Risthein"
         })
+
         if (resident != null) {
-            1 * amlService.addCheckIfMissing(_, AmlCheckType.RESIDENCY_AUTO, resident)
+            1 * amlService.addCheckIfMissing({ AmlCheck check ->
+                check.type == RESIDENCY_AUTO &&
+                    check.success == resident
+            })
         }
 
         where:

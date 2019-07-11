@@ -5,7 +5,10 @@ import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 
 import javax.persistence.*;
+import javax.validation.constraints.NotNull;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
 
 @Entity
 @Data
@@ -13,6 +16,7 @@ import java.time.Instant;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString(exclude = {"user"})
+@EqualsAndHashCode
 public class AmlCheck {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,9 +26,14 @@ public class AmlCheck {
     private User user;
 
     @Enumerated(value = EnumType.STRING)
+    @NotNull
     private AmlCheckType type;
 
     private boolean success;
+
+    @NotNull
+    @Builder.Default
+    private Map<String, Object> metadata = new HashMap<>();
 
     @CreatedDate
     private Instant createdTime;

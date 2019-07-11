@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml
 
+
 import ee.tuleva.onboarding.audit.AuditEventPublisher
 import ee.tuleva.onboarding.audit.AuditEventType
 import ee.tuleva.onboarding.auth.UserFixture
@@ -58,8 +59,9 @@ class AmlServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def type = DOCUMENT
         def success = true
+        def amlCheck = AmlCheck.builder().user(user).type(type).success(success).build()
         when:
-        amlService.addCheckIfMissing(user, type, success)
+        amlService.addCheckIfMissing(amlCheck)
         then:
         1 * amlCheckRepository.save({ check ->
             check.user == user &&
@@ -73,8 +75,9 @@ class AmlServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def type = DOCUMENT
         def success = true
+        def amlCheck = AmlCheck.builder().user(user).type(type).success(success).build()
         when:
-        amlService.addCheckIfMissing(user, type, success)
+        amlService.addCheckIfMissing(amlCheck)
         then:
         0 * amlCheckRepository.save(_)
         1 * amlCheckRepository.existsByUserAndType(user, type) >> true

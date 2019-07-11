@@ -14,6 +14,7 @@ import springfox.documentation.annotations.ApiIgnore;
 
 import javax.validation.Valid;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/v1/amlchecks")
@@ -35,8 +36,8 @@ class AmlCheckController {
     public AmlCheckCreatedResponse addCheck(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                             @Valid @RequestBody AmlCheckAddCommand command) {
         Long userId = authenticatedPerson.getUserId();
-        amlCheckService.addCheckIfMissing(userId, command.getType(), command.isSuccess());
-        return new AmlCheckCreatedResponse(command.getType(), command.isSuccess());
+        amlCheckService.addCheckIfMissing(userId, command);
+        return new AmlCheckCreatedResponse(command);
     }
 
     @Getter
@@ -45,5 +46,12 @@ class AmlCheckController {
     static class AmlCheckCreatedResponse {
         private AmlCheckType type;
         private boolean success;
+        private Map<String, Object> metadata;
+
+        AmlCheckCreatedResponse(AmlCheckAddCommand command) {
+            this.type = command.getType();
+            this.success = command.isSuccess();
+            this.metadata = command.getMetadata();
+        }
     }
 }

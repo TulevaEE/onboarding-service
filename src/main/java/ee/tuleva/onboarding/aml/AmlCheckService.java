@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
+import ee.tuleva.onboarding.aml.command.AmlCheckAddCommand;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -18,9 +19,15 @@ public class AmlCheckService {
     private final AmlService amlService;
     private final UserService userService;
 
-    public void addCheckIfMissing(Long userId, AmlCheckType type, boolean result) {
+    public void addCheckIfMissing(Long userId, AmlCheckAddCommand command) {
         User user = userService.getById(userId);
-        amlService.addCheckIfMissing(user, type, result);
+        AmlCheck check = AmlCheck.builder()
+            .user(user)
+            .type(command.getType())
+            .success(command.isSuccess())
+            .metadata(command.getMetadata())
+            .build();
+        amlService.addCheckIfMissing(check);
     }
 
     public List<AmlCheckType> getMissingChecks(Long userId) {

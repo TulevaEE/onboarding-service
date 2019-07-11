@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.ImmutableList;
 import ee.tuleva.onboarding.audit.AuditEventPublisher;
 import ee.tuleva.onboarding.audit.AuditEventType;
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -15,7 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-import static com.google.common.collect.Lists.newArrayList;
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static java.util.stream.Collectors.toSet;
 
@@ -26,32 +25,45 @@ public class AmlService {
 
     private final AmlCheckRepository amlCheckRepository;
     private final AuditEventPublisher auditEventPublisher;
-    private final List<List<AmlCheckType>> allowedCombinations = Lists.newArrayList(
-        newArrayList(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO),
-        newArrayList(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL),
-        newArrayList(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_AUTO),
-        newArrayList(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_MANUAL)
+    private final List<List<AmlCheckType>> allowedCombinations = ImmutableList.of(
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO),
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL),
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_AUTO),
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_MANUAL)
     );
 
     public void checkUserAfterLogin(User user, Person person) {
-        addCheckIfMissing(user, DOCUMENT, true);
+        AmlCheck check = AmlCheck.builder()
+            .user(user)
+            .type(DOCUMENT)
+            .success(true)
+            .build();
+        addCheckIfMissing(check);
         addSkNameCheckIfMissing(user, person);
     }
 
     private void addSkNameCheckIfMissing(User user, Person person) {
         if (!hasCheck(user, SK_NAME)) {
-            addCheck(user, SK_NAME,
-                personDataMatches(user, person.getFirstName(), person.getLastName(), person.getPersonalCode()));
+            AmlCheck check = AmlCheck.builder()
+                .user(user)
+                .type(SK_NAME)
+                .success(personDataMatches(user, person.getFirstName(), person.getLastName(), person.getPersonalCode()))
+                .build();
+            addCheck(check);
         }
     }
 
     public void addPensionRegistryNameCheckIfMissing(User user, UserPreferences userPreferences) {
         if (!hasCheck(user, PENSION_REGISTRY_NAME)) {
-            addCheck(user, PENSION_REGISTRY_NAME,
-                personDataMatches(user,
+            AmlCheck check = AmlCheck.builder()
+                .user(user)
+                .type(PENSION_REGISTRY_NAME)
+                .success(personDataMatches(user,
                     userPreferences.getFirstName(),
                     userPreferences.getLastName(),
-                    userPreferences.getPersonalCode()));
+                    userPreferences.getPersonalCode()))
+                .build();
+            addCheck(check);
         }
     }
 
@@ -65,19 +77,15 @@ public class AmlService {
         return StringUtils.equalsIgnoreCase(user.getPersonalCode(), personalCode);
     }
 
-    public void addCheckIfMissing(User user, AmlCheckType type, Boolean success) {
-        if (!hasCheck(user, type)) {
-            addCheck(user, type, success);
+    public void addCheckIfMissing(AmlCheck amlCheck) {
+        if (!hasCheck(amlCheck.getUser(), amlCheck.getType())) {
+            addCheck(amlCheck);
         }
     }
 
-    private void addCheck(User user, AmlCheckType type, Boolean success) {
-        log.info("Adding check {} to user {} with success {}", type, user.getId(), success);
-        AmlCheck amlCheck = AmlCheck.builder()
-            .user(user)
-            .type(type)
-            .success(success)
-            .build();
+    private void addCheck(AmlCheck amlCheck) {
+        log.info("Adding check {} to user {} with success {}", amlCheck.getType(), amlCheck.getUser().getId(),
+            amlCheck.isSuccess());
         amlCheckRepository.save(amlCheck);
     }
 

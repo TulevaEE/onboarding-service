@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user;
 
-import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
@@ -11,6 +11,7 @@ import lombok.val;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_AUTO;
 import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
 @Component
@@ -38,7 +39,12 @@ public class UserDetailsUpdater {
 
         userService.findByPersonalCode(person.getPersonalCode()).ifPresent(user -> {
             if (resident != null) {
-                amlService.addCheckIfMissing(user, AmlCheckType.RESIDENCY_AUTO, resident);
+                AmlCheck check = AmlCheck.builder()
+                    .user(user)
+                    .type(RESIDENCY_AUTO)
+                    .success(resident)
+                    .build();
+                amlService.addCheckIfMissing(check);
             }
             user.setFirstName(firstName);
             user.setLastName(lastName);

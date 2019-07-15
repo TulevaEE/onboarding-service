@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.DOCUMENT
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 
 @DataJpaTest
@@ -21,10 +22,12 @@ class AmlCheckRepositorySpec extends Specification {
         given:
         User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
 
+        def metadata = ["occupation": "asdfg"]
         AmlCheck sampleCheck = AmlCheck.builder()
             .user(sampleUser)
-            .type(AmlCheckType.DOCUMENT)
+            .type(DOCUMENT)
             .success(true)
+            .metadata(metadata)
             .build()
 
         entityManager.persist(sampleCheck)
@@ -38,7 +41,8 @@ class AmlCheckRepositorySpec extends Specification {
         check.isPresent()
         check.get().id != null
         check.get().user == sampleUser
-        check.get().type == AmlCheckType.DOCUMENT
+        check.get().type == DOCUMENT
+        check.get().metadata == metadata
     }
 
     def "exists by user and type works"() {
@@ -47,7 +51,7 @@ class AmlCheckRepositorySpec extends Specification {
 
         AmlCheck sampleCheck = AmlCheck.builder()
             .user(sampleUser)
-            .type(AmlCheckType.DOCUMENT)
+            .type(DOCUMENT)
             .success(true)
             .build()
 
@@ -56,7 +60,7 @@ class AmlCheckRepositorySpec extends Specification {
         entityManager.flush()
 
         when:
-        def exists = repository.existsByUserAndType(sampleUser, AmlCheckType.DOCUMENT)
+        def exists = repository.existsByUserAndType(sampleUser, DOCUMENT)
 
         then:
         exists
@@ -68,7 +72,7 @@ class AmlCheckRepositorySpec extends Specification {
 
         AmlCheck sampleCheck = AmlCheck.builder()
             .user(sampleUser)
-            .type(AmlCheckType.DOCUMENT)
+            .type(DOCUMENT)
             .success(true)
             .build()
 
@@ -83,6 +87,6 @@ class AmlCheckRepositorySpec extends Specification {
         checks.size() == 1
         checks.first().id != null
         checks.first().user == sampleUser
-        checks.first().type == AmlCheckType.DOCUMENT
+        checks.first().type == DOCUMENT
     }
 }

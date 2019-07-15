@@ -8,7 +8,8 @@ public enum AmlCheckType {
     RESIDENCY_AUTO,
     PENSION_REGISTRY_NAME,
     SK_NAME,
-    POLITICALLY_EXPOSED_PERSON(true);
+    POLITICALLY_EXPOSED_PERSON(true),
+    OCCUPATION(true);
 
     @Getter
     final boolean manual;

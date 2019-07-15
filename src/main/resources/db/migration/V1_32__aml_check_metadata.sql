@@ -1,0 +1,2 @@
+ALTER TABLE aml_check
+  ADD COLUMN metadata TEXT NOT NULL DEFAULT '{}';

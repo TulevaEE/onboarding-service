@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
+import ee.tuleva.onboarding.config.MapJsonConverter;
 import ee.tuleva.onboarding.user.User;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
@@ -33,6 +34,7 @@ public class AmlCheck {
 
     @NotNull
     @Builder.Default
+    @Convert(converter = MapJsonConverter.class)
     private Map<String, Object> metadata = new HashMap<>();
 
     @CreatedDate

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.audit;
 
+import ee.tuleva.onboarding.config.MapJsonConverter;
 import lombok.*;
 import org.springframework.boot.actuate.audit.AuditEvent;
 

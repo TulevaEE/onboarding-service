@@ -1,7 +1,8 @@
-package ee.tuleva.onboarding.audit;
+package ee.tuleva.onboarding.config;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.persistence.AttributeConverter;
 import javax.persistence.Converter;
@@ -9,19 +10,21 @@ import java.io.IOException;
 import java.util.Map;
 
 @Converter(autoApply = true)
-public class MapJsonConverter implements AttributeConverter<Map, String> {
+@Slf4j
+public class MapJsonConverter implements AttributeConverter<Map<String, Object>, String> {
+
+    private ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public String convertToDatabaseColumn(Map entityValue) {
-        if( entityValue == null )
+        if (entityValue == null) {
             return null;
-
-        ObjectMapper mapper = new ObjectMapper();
+        }
 
         try {
             return mapper.writeValueAsString(entityValue);
         } catch (JsonProcessingException e) {
-            e.printStackTrace();
+            log.error("JSON writing error", e);
         }
 
         return null;
@@ -29,16 +32,16 @@ public class MapJsonConverter implements AttributeConverter<Map, String> {
 
     @Override
     public Map<String, Object> convertToEntityAttribute(String databaseValue) {
-        if( databaseValue == null )
+        if (databaseValue == null) {
             return null;
-
-        ObjectMapper mapper = new ObjectMapper();
+        }
 
         try {
             return mapper.readValue(databaseValue, Map.class);
         } catch (IOException e) {
-            e.printStackTrace();
+            log.error("JSON reading error", e);
         }
+
         return null;
     }
 }

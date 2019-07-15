@@ -7,7 +7,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.aml.AmlCheckType.*
+import static ee.tuleva.onboarding.aml.AmlCheckType.DOCUMENT
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 
 @DataJpaTest

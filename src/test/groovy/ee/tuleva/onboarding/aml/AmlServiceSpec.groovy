@@ -1,15 +1,15 @@
 package ee.tuleva.onboarding.aml
 
-
 import ee.tuleva.onboarding.audit.AuditEventPublisher
 import ee.tuleva.onboarding.audit.AuditEventType
-import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.epis.contact.UserPreferences
-import ee.tuleva.onboarding.mandate.MandateFixture
+import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
 class AmlServiceSpec extends Specification {
 
@@ -59,7 +59,7 @@ class AmlServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def type = DOCUMENT
         def success = true
-        def amlCheck = AmlCheck.builder().user(user).type(type).success(success).build()
+        def amlCheck = check(type, success, user)
         when:
         amlService.addCheckIfMissing(amlCheck)
         then:
@@ -75,7 +75,7 @@ class AmlServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def type = DOCUMENT
         def success = true
-        def amlCheck = AmlCheck.builder().user(user).type(type).success(success).build()
+        def amlCheck = check(type, success, user)
         when:
         amlService.addCheckIfMissing(amlCheck)
         then:
@@ -94,7 +94,7 @@ class AmlServiceSpec extends Specification {
 
     def "does not do checks for second pillar"() {
         given:
-        def mandate = MandateFixture.sampleMandate()
+        def mandate = sampleMandate()
         mandate.pillar = 2
         when:
         def result = amlService.allChecksPassed(mandate)
@@ -104,8 +104,8 @@ class AmlServiceSpec extends Specification {
 
     def "sees if all checks are passed for third pillar"(List<AmlCheck> checks, boolean result) {
         given:
-        def mandate = MandateFixture.sampleMandate()
-        mandate.user = UserFixture.sampleUser().build()
+        def mandate = sampleMandate()
+        mandate.user = sampleUser().build()
         mandate.pillar = 3
         when:
         def actual = amlService.allChecksPassed(mandate)
@@ -130,7 +130,7 @@ class AmlServiceSpec extends Specification {
         return checkTypes.collect({ type -> check(type) })
     }
 
-    private static AmlCheck check(AmlCheckType type, boolean success = true) {
-        return AmlCheck.builder().type(type).success(success).build()
+    private static AmlCheck check(AmlCheckType type, boolean success = true, User user = null) {
+        return AmlCheck.builder().type(type).success(success).user(user).build()
     }
 }

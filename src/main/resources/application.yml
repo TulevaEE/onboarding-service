@@ -142,7 +142,7 @@ server:
   port: 5000
 
 ssl:
-  keystore: /tmp/keystore.p12
+  keystore: /home/ec2-user/keystore.p12
   keystore.password: ${SSL_KEYSTORE_PASSWORD}
 
 mobile-id:
@@ -150,7 +150,7 @@ mobile-id:
     name: "Tuleva"
 
 truststore:
-  path: "/tmp/truststore.jks"
+  path: "/home/ec2-user/truststore.jks"
 
 digidoc:
   service:

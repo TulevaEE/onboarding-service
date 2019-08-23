@@ -79,11 +79,16 @@ Merge GitHub pull request to master -> build in CircleCI -> auto-redeploy (if bu
 
 ### Development notes
 
-Front-end localhost development needs, cors enabling at `CORSFilter.java`
-e.g. `response.setHeader("Access-Control-Allow-Origin", "http://localhost:8000");`
-
 If you don't want to run epis-serivice,
 then you can mock `TransferExchangeService.java`, which calls epis-service.
+
+### Common Issues
+
+`error="unsupported_grant_type", error_description="Unsupported grant type: mobile_id"`
+
+Make sure you are running against the right backend environment (dev or prod).
+- If you do `npm run develop` your `package.json` must proxy to `http://localhost:9000`
+- If you do `npm run develop-production` your `package.json` must proxy to `https://onboarding-service.tuleva.ee`
 
 ### References
 

@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.comparisons.overview.Transaction
 import spock.lang.Specification
 import spock.lang.Unroll
 
-import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -207,14 +206,18 @@ class FundComparisonCalculatorServiceSpec extends Specification {
     }
 
     private void mockFundValues(ComparisonFund fund, Map<String, BigDecimal> values) {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd")
         fundValueProvider.getFundValueClosestToTime(fund, _) >> {
-            ComparisonFund givenFund, Instant time -> Optional.of(new FundValue(time, values[format.format(Date.from(time))], ComparisonFund.MARKET))
+            ComparisonFund givenFund, Instant time ->
+                Optional.of(new FundValue(time, values[toLocalDate(time)], ComparisonFund.MARKET))
         }
     }
 
     private static Instant parseInstant(String date) {
         return LocalDate.parse(date).atStartOfDay(ZoneOffset.UTC).toInstant()
+    }
+
+    private String toLocalDate(Instant time) {
+        time.atZone(ZoneOffset.UTC).toLocalDate().toString()
     }
 
     private void fakeNoReturnFundValues() {

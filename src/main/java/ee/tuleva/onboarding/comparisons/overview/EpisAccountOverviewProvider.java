@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.comparisons.overview;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowValueDto;
+import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
+import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,6 +13,9 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -30,15 +33,16 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
     @Override
     public AccountOverview getAccountOverview(Person person, Instant startTime, Integer pillar) {
         Instant endTime = Instant.now();
-        CashFlowStatementDto cashFlowStatement = episService.getCashFlowStatement(person, startTime, endTime);
+        CashFlowStatement cashFlowStatement =
+            episService.getCashFlowStatement(person, toLocalDate(startTime), toLocalDate(endTime));
         return transformCashFlowStatementToAccountOverview(cashFlowStatement, startTime, endTime, pillar);
     }
 
     private AccountOverview transformCashFlowStatementToAccountOverview(
-        CashFlowStatementDto cashFlowStatementDto, Instant startTime, Instant endTime, Integer pillar) {
-        BigDecimal beginningBalance = convertBalance(cashFlowStatementDto.getStartBalance(), pillar);
-        BigDecimal endingBalance = convertBalance(cashFlowStatementDto.getEndBalance(), pillar);
-        List<Transaction> transactions = convertTransactions(cashFlowStatementDto.getTransactions(), pillar);
+        CashFlowStatement cashFlowStatement, Instant startTime, Instant endTime, Integer pillar) {
+        BigDecimal beginningBalance = convertBalance(cashFlowStatement.getStartBalance(), pillar);
+        BigDecimal endingBalance = convertBalance(cashFlowStatement.getEndBalance(), pillar);
+        List<Transaction> transactions = convertTransactions(cashFlowStatement.getTransactions(), pillar);
 
         return AccountOverview.builder()
             .beginningBalance(beginningBalance)
@@ -50,14 +54,14 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
             .build();
     }
 
-    private BigDecimal convertBalance(Map<String, CashFlowValueDto> balance, Integer pillar) {
+    private BigDecimal convertBalance(Map<String, CashFlow> balance, Integer pillar) {
         return balance.values().stream()
             .filter(cashFlow -> getAllIsinsBy(pillar).contains(cashFlow.getIsin()))
             .map(cashFlow -> convertCurrencyToEur(cashFlow.getAmount(), cashFlow.getCurrency()))
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private List<Transaction> convertTransactions(List<CashFlowValueDto> cashFlowValues, Integer pillar) {
+    private List<Transaction> convertTransactions(List<CashFlow> cashFlowValues, Integer pillar) {
         return cashFlowValues.stream()
             .filter(cashFlow -> getAllIsinsBy(pillar).contains(cashFlow.getIsin()))
             .map(this::convertTransaction)
@@ -72,7 +76,7 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
             .collect(toList());
     }
 
-    private Transaction convertTransaction(CashFlowValueDto cashFlowValue) {
+    private Transaction convertTransaction(CashFlow cashFlowValue) {
         BigDecimal amount = convertCurrencyToEur(cashFlowValue.getAmount().negate(), cashFlowValue.getCurrency());
         return new Transaction(amount, cashFlowValue.getDate());
     }
@@ -86,5 +90,9 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
             log.error("Needed to convert currency other than EEK, statement will be invalid");
             return amount;
         }
+    }
+
+    private LocalDate toLocalDate(Instant startTime) {
+        return startTime == null ? null : LocalDateTime.ofInstant(startTime, ZoneOffset.UTC).toLocalDate();
     }
 }

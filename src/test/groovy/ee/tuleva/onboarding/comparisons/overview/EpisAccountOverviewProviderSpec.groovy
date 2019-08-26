@@ -2,16 +2,16 @@ package ee.tuleva.onboarding.comparisons.overview
 
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto
-import ee.tuleva.onboarding.epis.cashflows.CashFlowValueDto
+import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
 import ee.tuleva.onboarding.epis.fund.FundDto
 import spock.lang.Specification
 
 import java.text.DecimalFormat
-import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 
+import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE
 
 class EpisAccountOverviewProviderSpec extends Specification {
@@ -33,19 +33,21 @@ class EpisAccountOverviewProviderSpec extends Specification {
         given:
             Person person = Mock(Person)
             person.getPersonalCode() >> "test"
-            Instant startTime = parseInstant("1998-01-01")
+            LocalDate startDate = LocalDate.parse("1998-01-01")
+            Instant startTime = startDate.atStartOfDay().toInstant(ZoneOffset.UTC)
         when:
             episAccountOverviewProvider.getAccountOverview(person, startTime, 2)
         then:
-            1 * episService.getCashFlowStatement(person, startTime, { verifyTimeCloseToNow(it) }) >> getFakeCashFlowStatement()
+            1 * episService.getCashFlowStatement(person, startDate, LocalDate.now()) >> cashFlowFixture()
     }
 
     def "it sets the right start and end times"() {
         when:
-            Instant startTime = parseInstant("1998-01-01")
+            LocalDate startDate = LocalDate.parse("1998-01-01")
+            Instant startTime = startDate.atStartOfDay().toInstant(ZoneOffset.UTC)
             AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, startTime, 2)
         then:
-            1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
+            1 * episService.getCashFlowStatement(_, _, _) >> cashFlowFixture()
             accountOverview.startTime == startTime
             verifyTimeCloseToNow(accountOverview.endTime)
     }
@@ -54,7 +56,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
         when:
             AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null, 2)
         then:
-            1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
+            1 * episService.getCashFlowStatement(_, _, _) >> cashFlowFixture()
             roundToTwoPlaces(accountOverview.beginningBalance) == 178.91
     }
 
@@ -62,21 +64,23 @@ class EpisAccountOverviewProviderSpec extends Specification {
         when:
             AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null, 2)
         then:
-            1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
+            1 * episService.getCashFlowStatement(_, _, _) >> cashFlowFixture()
             roundToTwoPlaces(accountOverview.endingBalance) == 195.30
     }
 
     def "it converts all transactions"() {
+        given:
+            CashFlowStatement cashFlow = cashFlowFixture()
+            1 * episService.getCashFlowStatement(_, _, _) >> cashFlow
         when:
             AccountOverview accountOverview = episAccountOverviewProvider.getAccountOverview(null, null, 2)
         then:
-            1 * episService.getCashFlowStatement(_, _, _) >> getFakeCashFlowStatement()
             accountOverview.transactions.size() == 2
             accountOverview.pillar == 2
             roundToTwoPlaces(accountOverview.transactions[0].amount) == 6.39
-            accountOverview.transactions[0].date == getFakeCashFlowStatement().transactions[0].date
-            accountOverview.transactions[1].amount == -getFakeCashFlowStatement().transactions[1].amount
-            accountOverview.transactions[1].date == getFakeCashFlowStatement().transactions[1].date
+            accountOverview.transactions[0].date == cashFlow.transactions[0].date
+            accountOverview.transactions[1].amount == -cashFlow.transactions[1].amount
+            accountOverview.transactions[1].date == cashFlow.transactions[1].date
 
     }
 
@@ -86,33 +90,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
         return new BigDecimal(format.format(value))
     }
 
-    private static CashFlowStatementDto getFakeCashFlowStatement() {
-        def randomTime = LocalDate.parse("2001-01-01")
-        CashFlowStatementDto cashFlowStatementDto = CashFlowStatementDto.builder()
-            .startBalance([
-                "1": CashFlowValueDto.builder().date(randomTime).amount(1000.0).currency("EEK").isin("1").build(),
-                "2": CashFlowValueDto.builder().date(randomTime).amount(115.0).currency("EUR").isin("2").build(),
-                "3": CashFlowValueDto.builder().date(randomTime).amount(225.0).currency("EUR").isin("3").build(),
-
-            ])
-            .endBalance([
-                "1": CashFlowValueDto.builder().date(randomTime).amount(1100.0).currency("EEK").isin("1").build(),
-                "2": CashFlowValueDto.builder().date(randomTime).amount(125.0).currency("EUR").isin("2").build(),
-                "3": CashFlowValueDto.builder().date(randomTime).amount(250.0).currency("EUR").isin("3").build(),
-            ])
-            .transactions([
-                CashFlowValueDto.builder().date(randomTime).amount(-100.0).currency("EEK").isin("1").build(),
-                CashFlowValueDto.builder().date(randomTime).amount(-20.0).currency("EUR").isin("2").build(),
-                CashFlowValueDto.builder().date(randomTime).amount(-25.0).currency("EUR").isin("3").build(),
-            ]).build()
-        return cashFlowStatementDto
-    }
-
     private static boolean verifyTimeCloseToNow(Instant time) {
         return time.epochSecond > (Instant.now().epochSecond - 100)
-    }
-
-    private static Instant parseInstant(String format) {
-        return new SimpleDateFormat("yyyy-MM-dd").parse(format).toInstant();
     }
 }

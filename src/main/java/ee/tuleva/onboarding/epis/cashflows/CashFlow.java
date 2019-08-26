@@ -6,14 +6,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class CashFlowValueDto {
+public class CashFlow {
     private String isin;
     private LocalDate date;
     private BigDecimal amount;

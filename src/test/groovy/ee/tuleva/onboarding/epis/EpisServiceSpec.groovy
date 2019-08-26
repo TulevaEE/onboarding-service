@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.epis
 
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto
-import ee.tuleva.onboarding.epis.cashflows.CashFlowValueDto
+import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
 import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.epis.fund.FundDto
 import ee.tuleva.onboarding.epis.mandate.MandateDto
@@ -19,11 +18,10 @@ import org.springframework.security.oauth2.provider.authentication.OAuth2Authent
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
-import java.text.SimpleDateFormat
-import java.time.Instant
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE
 
@@ -67,7 +65,6 @@ class EpisServiceSpec extends Specification {
 
     def "getFundTransferExchanges: "() {
         given:
-
         TransferExchangeDTO[] responseBody = [TransferExchangeDTO.builder().build()]
         ResponseEntity<TransferExchangeDTO[]> result =
             new ResponseEntity(responseBody, HttpStatus.OK)
@@ -104,26 +101,24 @@ class EpisServiceSpec extends Specification {
     }
 
     def "getCashFlowStatement calls the right endpoint"() {
-
         given:
         service.episServiceUrl = "http://example.com"
-        CashFlowStatementDto cashFlowStatementDto = getFakeCashFlowStatement()
-        ResponseEntity<CashFlowStatementDto> response =
-            new ResponseEntity(cashFlowStatementDto, HttpStatus.OK)
+        CashFlowStatement cashFlowStatement = cashFlowFixture()
+        ResponseEntity<CashFlowStatement> response = new ResponseEntity(cashFlowStatement, HttpStatus.OK)
 
-        Instant startTime = parseInstant("2001-01-01")
-        Instant endTime = parseInstant("2018-01-01")
+        LocalDate fromDate = LocalDate.parse("2001-01-01")
+        LocalDate toDate = LocalDate.parse("2018-01-01")
 
         1 * restTemplate.exchange(
-            "http://example.com/account-cash-flow-statement?from-date=2001-01-01&to-date=2018-01-01", HttpMethod.GET, { HttpEntity httpEntity ->
-            doesHttpEntityContainToken(httpEntity, sampleToken)
-        }, CashFlowStatementDto.class) >> response
+            "http://example.com/account-cash-flow-statement?from-date=2001-01-01&to-date=2018-01-01", HttpMethod.GET, {
+            HttpEntity httpEntity -> doesHttpEntityContainToken(httpEntity, sampleToken)
+        }, CashFlowStatement.class) >> response
 
         when:
-        CashFlowStatementDto responseDto = service.getCashFlowStatement(samplePerson(), startTime, endTime)
+        CashFlowStatement responseDto = service.getCashFlowStatement(samplePerson(), fromDate, toDate)
 
         then:
-        cashFlowStatementDto == responseDto
+        cashFlowStatement == responseDto
     }
 
     def "gets account statement"() {
@@ -176,29 +171,8 @@ class EpisServiceSpec extends Specification {
         true
     }
 
-    private static CashFlowStatementDto getFakeCashFlowStatement() {
-        def randomTime = LocalDate.parse("2001-01-01")
-        CashFlowStatementDto cashFlowStatementDto = CashFlowStatementDto.builder()
-            .startBalance([
-                "1": CashFlowValueDto.builder().date(randomTime).amount(100.0).currency("EEK").build(),
-                "2": CashFlowValueDto.builder().date(randomTime).amount(115.0).currency("EUR").build(),
-            ])
-            .endBalance([
-                "1": CashFlowValueDto.builder().date(randomTime).amount(110.0).currency("EEK").build(),
-                "2": CashFlowValueDto.builder().date(randomTime).amount(125.0).currency("EUR").build(),
-            ])
-            .transactions([
-                CashFlowValueDto.builder().date(randomTime).amount(100.0).currency("EEK").build(),
-                CashFlowValueDto.builder().date(randomTime).amount(115.0).currency("EUR").build(),
-            ]).build()
-        return cashFlowStatementDto
-    }
-
     boolean doesHttpEntityContainToken(HttpEntity httpEntity, String sampleToken) {
         httpEntity.headers.getFirst("authorization") == ("Bearer " + sampleToken)
     }
 
-    private static Instant parseInstant(String format) {
-        return new SimpleDateFormat("yyyy-MM-dd").parse(format).toInstant()
-    }
 }

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.comparisons;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.annotations.ApiOperation;
-import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -40,8 +39,7 @@ public class FundComparisonController {
         try {
             return new SimpleDateFormat("yyyy-MM-dd").parse(format).toInstant();
         } catch (ParseException e) {
-            e.printStackTrace();
-            return Instant.now();
+            throw new RuntimeException(e);
         }
     }
 }

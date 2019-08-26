@@ -8,9 +8,10 @@ class AccountStatementFixture {
 
     public static List<FundBalance> sampleConvertedFundBalanceWithActiveTulevaFund = Lists.asList(
         FundBalance.builder()
-            .value(100)
+            .value(100.0)
             .activeContributions(true)
             .pillar(2)
+            .contributionSum(90.0)
             .fund(
                 Fund.builder().
                     isin("AE123232331").
@@ -26,8 +27,9 @@ class AccountStatementFixture {
                     ).build()
             ).build(),
         FundBalance.builder()
-            .value(100)
+            .value(100.0)
             .pillar(2)
+            .contributionSum(90.0)
             .fund(
                 Fund.builder().
                     isin("AE123232332").
@@ -46,8 +48,10 @@ class AccountStatementFixture {
 
     public static List<FundBalance> sampleNonConvertedFundBalanceWithActiveNonTulevaFund = Lists.asList(
         FundBalance.builder()
-            .value(100)
+            .value(100.0)
             .activeContributions(true)
+            .pillar(2)
+            .contributionSum(90.0)
             .fund(
                 Fund.builder()
                     .isin("AE123232337")
@@ -62,7 +66,9 @@ class AccountStatementFixture {
                     ).build()
             ).build(),
         FundBalance.builder()
-            .value(100)
+            .value(100.0)
+            .contributionSum(90.0)
+            .pillar(2)
             .fund(
                 Fund.builder()
                     .isin("AE123232332")
@@ -80,8 +86,10 @@ class AccountStatementFixture {
 
     public static List<FundBalance> sampleConvertedFundBalanceWithNonActiveTulevaFund = Lists.asList(
         FundBalance.builder()
-            .value(0)
+            .value(0.0)
+            .pillar(2)
             .activeContributions(true)
+            .contributionSum(0.0)
             .fund(
                 Fund.builder()
                     .isin("AE1232322222")
@@ -96,7 +104,9 @@ class AccountStatementFixture {
                     ).build()
             ).build(),
         FundBalance.builder()
-            .value(100)
+            .value(100.0)
+            .pillar(2)
+            .contributionSum(90.0)
             .fund(
                 Fund.builder()
                     .isin("AE123232332")

@@ -1,36 +1,57 @@
 package ee.tuleva.onboarding.account;
 
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
+import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
 
 @Component
 @Slf4j
 @AllArgsConstructor
 public class FundBalanceDtoToFundBalanceConverter implements Converter<FundBalanceDto, FundBalance> {
 
-  private final FundRepository fundRepository;
+    private final FundRepository fundRepository;
+    private final CashFlowService cashFlowService;
 
-  @Override
-  public FundBalance convert(FundBalanceDto sourceFund) {
-    Fund fund = fundRepository.findByIsin(sourceFund.getIsin());
-
-    if (fund == null) {
-      throw new IllegalArgumentException("Provided fund isin not found in the database: " + sourceFund);
+    @NonNull
+    public FundBalance convert(FundBalanceDto fundBalanceDto, Person person) {
+        FundBalance fundBalance = convert(fundBalanceDto);
+        fundBalance.setContributionSum(calculateContributionSum(person));
+        return fundBalance;
     }
 
-    return FundBalance.builder()
-        .activeContributions(sourceFund.isActiveContributions())
-        .currency(sourceFund.getCurrency())
-        .pillar(sourceFund.getPillar())
-        .value(sourceFund.getValue())
-        .units(sourceFund.getUnits())
-        .fund(fund)
-        .build();
+    @Override
+    @NonNull
+    public FundBalance convert(FundBalanceDto fundBalanceDto) {
+        Fund fund = fundRepository.findByIsin(fundBalanceDto.getIsin());
 
-  }
+        if (fund == null) {
+            throw new IllegalArgumentException("Provided fund isin not found in the database: " + fundBalanceDto);
+        }
+
+        return FundBalance.builder()
+            .activeContributions(fundBalanceDto.isActiveContributions())
+            .currency(fundBalanceDto.getCurrency())
+            .pillar(fundBalanceDto.getPillar())
+            .value(fundBalanceDto.getValue())
+            .units(fundBalanceDto.getUnits())
+            .fund(fund)
+            .build();
+    }
+
+    private BigDecimal calculateContributionSum(Person person) {
+        return cashFlowService.getCashFlowStatement(person)
+            .getTransactions()
+            .stream()
+            .map(CashFlow::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
 }

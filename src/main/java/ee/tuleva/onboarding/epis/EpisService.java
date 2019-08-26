@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.epis;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto;
+import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
@@ -21,11 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.time.Instant;
-import java.time.format.DateTimeFormatter;
+import java.time.LocalDate;
 import java.util.List;
 
-import static java.time.ZoneId.systemDefault;
 import static java.util.Arrays.asList;
 
 @Service
@@ -57,18 +55,17 @@ public class EpisService {
         return asList(response.getBody());
     }
 
-    @Cacheable(value = CASH_FLOW_STATEMENT_CACHE_NAME, key="{ #person.personalCode, #startTime, #endTime }")
-    public CashFlowStatementDto getCashFlowStatement(Person person, Instant startTime, Instant endTime) {
-        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(systemDefault());
+    @Cacheable(value = CASH_FLOW_STATEMENT_CACHE_NAME, key="{ #person.personalCode, #fromDate, #toDate }")
+    public CashFlowStatement getCashFlowStatement(Person person, LocalDate fromDate, LocalDate toDate) {
         String url = UriComponentsBuilder
             .fromHttpUrl(episServiceUrl + "/account-cash-flow-statement")
-            .queryParam("from-date", dateFormatter.format(startTime))
-            .queryParam("to-date", dateFormatter.format(endTime))
+            .queryParam("from-date", fromDate)
+            .queryParam("to-date", toDate)
             .build()
             .toUriString();
 
         log.info("Getting cash flows from {}", url);
-        return restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(getHeaders()), CashFlowStatementDto.class).getBody();
+        return restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(getHeaders()), CashFlowStatement.class).getBody();
     }
 
     @Caching(evict = {

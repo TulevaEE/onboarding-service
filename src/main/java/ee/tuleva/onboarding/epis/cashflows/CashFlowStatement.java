@@ -12,9 +12,9 @@ import java.util.Map;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class CashFlowStatementDto {
-    private Map<String, CashFlowValueDto> startBalance;
-    private Map<String, CashFlowValueDto> endBalance;
+public class CashFlowStatement {
+    private Map<String, CashFlow> startBalance;
+    private Map<String, CashFlow> endBalance;
 
-    private List<CashFlowValueDto> transactions;
+    private List<CashFlow> transactions;
 }

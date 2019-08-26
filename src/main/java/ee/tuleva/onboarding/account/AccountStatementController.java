@@ -20,15 +20,15 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 @RequiredArgsConstructor
 public class AccountStatementController {
 
-    public static final boolean CALCULATE_CONTRIBUTION_SUM = true;
     private final AccountStatementService accountStatementService;
 
     @ApiOperation(value = "Get pension register account statement")
     @RequestMapping(method = GET, value = "/pension-account-statement")
-    public List<FundBalanceResponseDto> getMyPensionAccountStatement(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-                                                                     @RequestHeader(value = "Accept-Language", defaultValue = "et") String language
+    public List<FundBalanceResponseDto> getMyPensionAccountStatement(
+        @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+        @RequestHeader(value = "Accept-Language", defaultValue = "et") String language
     ) {
-        List<FundBalance> fundBalances = accountStatementService.getAccountStatement(authenticatedPerson, CALCULATE_CONTRIBUTION_SUM);
+        List<FundBalance> fundBalances = accountStatementService.getAccountStatement(authenticatedPerson);
         return convertToDto(fundBalances, language);
     }
 

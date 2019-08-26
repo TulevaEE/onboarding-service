@@ -16,8 +16,8 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -62,7 +62,10 @@ public class FundComparisonCalculatorService {
 
         BigDecimal virtualFundUnitsBought = ZERO;
         for (Transaction transaction : purchaseTransactions) {
-            Optional<FundValue> fundValueAtTime = fundValueProvider.getFundValueClosestToTime(comparisonFund, transaction.getDate().atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant());
+            Optional<FundValue> fundValueAtTime = fundValueProvider.getFundValueClosestToTime(
+                comparisonFund,
+                transaction.getDate().atStartOfDay(ZoneOffset.UTC).toInstant()
+            );
             if (!fundValueAtTime.isPresent()) {
                 return 0;
             }
@@ -84,7 +87,8 @@ public class FundComparisonCalculatorService {
         List<Transaction> transactions = accountOverview.getTransactions();
         Transaction beginningTransaction = new Transaction(
             accountOverview.getBeginningBalance(),
-            accountOverview.getStartTime().atZone(ZoneId.of("Europe/Tallinn")).toLocalDate());
+            accountOverview.getStartTime().atZone(ZoneOffset.UTC).toLocalDate()
+        );
 
         List<Transaction> purchaseTransactions = new ArrayList<>();
         purchaseTransactions.add(beginningTransaction);

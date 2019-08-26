@@ -39,7 +39,6 @@ public class AccountStatementService {
 
     public List<FundBalance> getAccountStatement(Person person) {
         return getAccountStatement(person, false);
-
     }
 
     public List<FundBalance> getAccountStatement(Person person, boolean calculateContributionSum) {

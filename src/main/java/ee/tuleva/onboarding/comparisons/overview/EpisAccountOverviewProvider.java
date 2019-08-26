@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlowValueDto;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -30,7 +31,6 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
     public AccountOverview getAccountOverview(Person person, Instant startTime, Integer pillar) {
         Instant endTime = Instant.now();
         CashFlowStatementDto cashFlowStatement = episService.getCashFlowStatement(person, startTime, endTime);
-        List<FundDto> funds = episService.getFunds();
         return transformCashFlowStatementToAccountOverview(cashFlowStatement, startTime, endTime, pillar);
     }
 
@@ -41,27 +41,35 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
         List<Transaction> transactions = convertTransactions(cashFlowStatementDto.getTransactions(), pillar);
 
         return AccountOverview.builder()
-                .beginningBalance(beginningBalance)
-                .endingBalance(endingBalance)
-                .transactions(transactions)
-                .startTime(startTime)
-                .endTime(endTime)
-                .pillar(pillar)
-                .build();
+            .beginningBalance(beginningBalance)
+            .endingBalance(endingBalance)
+            .transactions(transactions)
+            .startTime(startTime)
+            .endTime(endTime)
+            .pillar(pillar)
+            .build();
     }
 
     private BigDecimal convertBalance(Map<String, CashFlowValueDto> balance, Integer pillar) {
         return balance.values().stream()
-//                .filter(cashFlowValueDto -> cashFlowValueDto.isMatchingPillar(pillar))
-                .map(cashFlowValueDto -> convertCurrencyToEur(cashFlowValueDto.getAmount(), cashFlowValueDto.getCurrency()))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            .filter(cashFlow -> getAllIsinsBy(pillar).contains(cashFlow.getIsin()))
+            .map(cashFlow -> convertCurrencyToEur(cashFlow.getAmount(), cashFlow.getCurrency()))
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private List<Transaction> convertTransactions(List<CashFlowValueDto> cashFlowValues, Integer pillar) {
         return cashFlowValues.stream()
-//                .filter(cashFlowValueDto -> cashFlowValueDto.isMatchingPillar(pillar))
-                .map(this::convertTransaction)
-                .collect(toList());
+            .filter(cashFlow -> getAllIsinsBy(pillar).contains(cashFlow.getIsin()))
+            .map(this::convertTransaction)
+            .collect(toList());
+    }
+
+    @NotNull
+    private List<String> getAllIsinsBy(Integer pillar) {
+        return episService.getFunds().stream()
+            .filter(fund -> fund.getPillar() == pillar)
+            .map(FundDto::getIsin)
+            .collect(toList());
     }
 
     private Transaction convertTransaction(CashFlowValueDto cashFlowValue) {

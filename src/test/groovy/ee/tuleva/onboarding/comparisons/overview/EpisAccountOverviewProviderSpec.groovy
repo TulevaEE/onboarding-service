@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto
 import ee.tuleva.onboarding.epis.cashflows.CashFlowValueDto
+import ee.tuleva.onboarding.epis.fund.FundDto
 import spock.lang.Specification
 
 import java.text.DecimalFormat
@@ -11,14 +12,21 @@ import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.LocalDate
 
+import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE
+
 class EpisAccountOverviewProviderSpec extends Specification {
 
     EpisService episService
     EpisAccountOverviewProvider episAccountOverviewProvider
 
-    void setup() {
+    def setup() {
         episService = Mock(EpisService)
         episAccountOverviewProvider = new EpisAccountOverviewProvider(episService)
+        episService.getFunds() >> [
+            new FundDto("1", "Fund 1", "TUK75", 2, ACTIVE),
+            new FundDto("2", "Fund 2", "TUK75", 2, ACTIVE),
+            new FundDto("3", "Fund 3", "TUK75", 3, ACTIVE)
+        ]
     }
 
     def "it gets an account overview for the right person and time"() {
@@ -82,20 +90,20 @@ class EpisAccountOverviewProviderSpec extends Specification {
         def randomTime = LocalDate.parse("2001-01-01")
         CashFlowStatementDto cashFlowStatementDto = CashFlowStatementDto.builder()
             .startBalance([
-                "1": CashFlowValueDto.builder().date(randomTime).amount(1000.0).currency("EEK").build(),
-                "2": CashFlowValueDto.builder().date(randomTime).amount(115.0).currency("EUR").build(),
-                "3": CashFlowValueDto.builder().date(randomTime).amount(225.0).currency("EUR").build(),
+                "1": CashFlowValueDto.builder().date(randomTime).amount(1000.0).currency("EEK").isin("1").build(),
+                "2": CashFlowValueDto.builder().date(randomTime).amount(115.0).currency("EUR").isin("2").build(),
+                "3": CashFlowValueDto.builder().date(randomTime).amount(225.0).currency("EUR").isin("3").build(),
 
             ])
             .endBalance([
-                "1": CashFlowValueDto.builder().date(randomTime).amount(1100.0).currency("EEK").build(),
-                "2": CashFlowValueDto.builder().date(randomTime).amount(125.0).currency("EUR").build(),
-                "3": CashFlowValueDto.builder().date(randomTime).amount(250.0).currency("EUR").build(),
+                "1": CashFlowValueDto.builder().date(randomTime).amount(1100.0).currency("EEK").isin("1").build(),
+                "2": CashFlowValueDto.builder().date(randomTime).amount(125.0).currency("EUR").isin("2").build(),
+                "3": CashFlowValueDto.builder().date(randomTime).amount(250.0).currency("EUR").isin("3").build(),
             ])
             .transactions([
-                CashFlowValueDto.builder().date(randomTime).amount(-100.0).currency("EEK").build(),
-                CashFlowValueDto.builder().date(randomTime).amount(-20.0).currency("EUR").build(),
-                CashFlowValueDto.builder().date(randomTime).amount(-25.0).currency("EUR").build(),
+                CashFlowValueDto.builder().date(randomTime).amount(-100.0).currency("EEK").isin("1").build(),
+                CashFlowValueDto.builder().date(randomTime).amount(-20.0).currency("EUR").isin("2").build(),
+                CashFlowValueDto.builder().date(randomTime).amount(-25.0).currency("EUR").isin("3").build(),
             ]).build()
         return cashFlowStatementDto
     }

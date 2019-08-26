@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -61,7 +62,7 @@ public class FundComparisonCalculatorService {
 
         BigDecimal virtualFundUnitsBought = ZERO;
         for (Transaction transaction : purchaseTransactions) {
-            Optional<FundValue> fundValueAtTime = fundValueProvider.getFundValueClosestToTime(comparisonFund, transaction.getCreatedAt());
+            Optional<FundValue> fundValueAtTime = fundValueProvider.getFundValueClosestToTime(comparisonFund, transaction.getDate().atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant());
             if (!fundValueAtTime.isPresent()) {
                 return 0;
             }
@@ -83,7 +84,7 @@ public class FundComparisonCalculatorService {
         List<Transaction> transactions = accountOverview.getTransactions();
         Transaction beginningTransaction = new Transaction(
             accountOverview.getBeginningBalance(),
-            accountOverview.getStartTime());
+            accountOverview.getStartTime().atZone(ZoneId.of("Europe/Tallinn")).toLocalDate());
 
         List<Transaction> purchaseTransactions = new ArrayList<>();
         purchaseTransactions.add(beginningTransaction);
@@ -100,12 +101,12 @@ public class FundComparisonCalculatorService {
     }
 
     private static Transaction negateTransactionAmount(Transaction transaction) {
-        return new Transaction(transaction.getAmount().negate(), transaction.getCreatedAt());
+        return new Transaction(transaction.getAmount().negate(), transaction.getDate());
     }
 
     private double calculateReturn(List<Transaction> purchaseTransactions, BigDecimal endingBalance, Instant endTime) {
         List<Transaction> negatedTransactions = negateTransactionAmounts(purchaseTransactions);
-        Transaction endingTransaction = new Transaction(endingBalance, endTime);
+        Transaction endingTransaction = new Transaction(endingBalance, endTime.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate());
 
         List<Transaction> internalTransactions = new ArrayList<>();
         internalTransactions.addAll(negatedTransactions);
@@ -143,6 +144,6 @@ public class FundComparisonCalculatorService {
     }
 
     private static org.decampo.xirr.Transaction xirrTransactionFromInternalTransaction(Transaction transaction) {
-        return new org.decampo.xirr.Transaction(transaction.getAmount().doubleValue(), Date.from(transaction.getCreatedAt()));
+        return new org.decampo.xirr.Transaction(transaction.getAmount().doubleValue(), transaction.getDate());
     }
 }

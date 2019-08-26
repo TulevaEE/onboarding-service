@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatementDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowValueDto;
+import ee.tuleva.onboarding.epis.fund.FundDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,7 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
     public AccountOverview getAccountOverview(Person person, Instant startTime, Integer pillar) {
         Instant endTime = Instant.now();
         CashFlowStatementDto cashFlowStatement = episService.getCashFlowStatement(person, startTime, endTime);
+        List<FundDto> funds = episService.getFunds();
         return transformCashFlowStatementToAccountOverview(cashFlowStatement, startTime, endTime, pillar);
     }
 
@@ -50,21 +52,21 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
 
     private BigDecimal convertBalance(Map<String, CashFlowValueDto> balance, Integer pillar) {
         return balance.values().stream()
-                .filter(cashFlowValueDto -> cashFlowValueDto.isMatchingPillar(pillar))
+//                .filter(cashFlowValueDto -> cashFlowValueDto.isMatchingPillar(pillar))
                 .map(cashFlowValueDto -> convertCurrencyToEur(cashFlowValueDto.getAmount(), cashFlowValueDto.getCurrency()))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private List<Transaction> convertTransactions(List<CashFlowValueDto> cashFlowValues, Integer pillar) {
         return cashFlowValues.stream()
-                .filter(cashFlowValueDto -> cashFlowValueDto.isMatchingPillar(pillar))
+//                .filter(cashFlowValueDto -> cashFlowValueDto.isMatchingPillar(pillar))
                 .map(this::convertTransaction)
                 .collect(toList());
     }
 
     private Transaction convertTransaction(CashFlowValueDto cashFlowValue) {
         BigDecimal amount = convertCurrencyToEur(cashFlowValue.getAmount().negate(), cashFlowValue.getCurrency());
-        return new Transaction(amount, cashFlowValue.getTime());
+        return new Transaction(amount, cashFlowValue.getDate());
     }
 
     private BigDecimal convertCurrencyToEur(BigDecimal amount, String currency) {

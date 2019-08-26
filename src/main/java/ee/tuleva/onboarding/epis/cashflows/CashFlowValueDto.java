@@ -7,22 +7,15 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class CashFlowValueDto {
-    private Instant time;
+    private String isin;
+    private LocalDate date;
     private BigDecimal amount;
     private String currency;
-    private Integer pillar;
-
-    public boolean isMatchingPillar(Integer inputPilllar){
-        if (pillar == null){
-            return true;
-        } else {
-            return pillar.equals(inputPilllar);
-        }
-    }
 }

@@ -21,6 +21,7 @@ import spock.lang.Specification
 
 import java.text.SimpleDateFormat
 import java.time.Instant
+import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
@@ -176,19 +177,19 @@ class EpisServiceSpec extends Specification {
     }
 
     private static CashFlowStatementDto getFakeCashFlowStatement() {
-        Instant randomTime = parseInstant("2001-01-01")
+        def randomTime = LocalDate.parse("2001-01-01")
         CashFlowStatementDto cashFlowStatementDto = CashFlowStatementDto.builder()
             .startBalance([
-                "1": CashFlowValueDto.builder().time(randomTime).amount(100.0).currency("EEK").pillar(2).build(),
-                "2": CashFlowValueDto.builder().time(randomTime).amount(115.0).currency("EUR").pillar(2).build(),
+                "1": CashFlowValueDto.builder().date(randomTime).amount(100.0).currency("EEK").build(),
+                "2": CashFlowValueDto.builder().date(randomTime).amount(115.0).currency("EUR").build(),
             ])
             .endBalance([
-                "1": CashFlowValueDto.builder().time(randomTime).amount(110.0).currency("EEK").pillar(2).build(),
-                "2": CashFlowValueDto.builder().time(randomTime).amount(125.0).currency("EUR").pillar(2).build(),
+                "1": CashFlowValueDto.builder().date(randomTime).amount(110.0).currency("EEK").build(),
+                "2": CashFlowValueDto.builder().date(randomTime).amount(125.0).currency("EUR").build(),
             ])
             .transactions([
-                CashFlowValueDto.builder().time(randomTime).amount(100.0).currency("EEK").pillar(2).build(),
-                CashFlowValueDto.builder().time(randomTime).amount(115.0).currency("EUR").pillar(2).build(),
+                CashFlowValueDto.builder().date(randomTime).amount(100.0).currency("EEK").build(),
+                CashFlowValueDto.builder().date(randomTime).amount(115.0).currency("EUR").build(),
             ]).build()
         return cashFlowStatementDto
     }

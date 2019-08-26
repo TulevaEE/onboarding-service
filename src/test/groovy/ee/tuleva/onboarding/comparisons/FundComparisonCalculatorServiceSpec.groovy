@@ -40,9 +40,9 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             fundComparisonCalculatorService.calculateComparison(person, startTime, 2)
         then:
             1 * accountOverviewProvider.getAccountOverview(_ as Person, _ as Instant, _ as Integer) >> new AccountOverview([
-                    new Transaction(100, startTime),
-                    new Transaction(100, startTime),
-            ], 0, 200, startTime, endTime, 2)
+                    new Transaction(100.0, startTime),
+                    new Transaction(100.0, startTime),
+            ], 0.0, 200.0, startTime, endTime, 2)
     }
 
     def "it successfully calculates a return of 0%" () {
@@ -51,9 +51,9 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             Instant endTime = parseInstant("2018-06-18")
             fakeNoReturnFundValues()
             accountOverviewProvider.getAccountOverview(_ as Person, _ as Instant, _ as Integer) >> new AccountOverview([
-                    new Transaction(100, startTime),
-                    new Transaction(100, startTime),
-            ], 0, 200, startTime, endTime, 2)
+                    new Transaction(100.0, startTime),
+                    new Transaction(100.0, startTime),
+            ], 0.0, 200.0, startTime, endTime, 2)
         when:
             FundComparison comparison = fundComparisonCalculatorService.calculateComparison(_ as Person, startTime, 2)
         then:
@@ -92,23 +92,23 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             Instant startTime = parseInstant("2010-01-01")
             Instant endTime = parseInstant("2018-07-18")
             accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
-                    new Transaction(30, parseInstant("2010-07-01")),
-                    new Transaction(30, parseInstant("2011-01-01")),
-                    new Transaction(30, parseInstant("2011-07-01")),
-                    new Transaction(30, parseInstant("2012-01-01")),
-                    new Transaction(30, parseInstant("2012-07-01")),
-                    new Transaction(30, parseInstant("2013-01-01")),
-                    new Transaction(30, parseInstant("2013-07-01")),
-                    new Transaction(30, parseInstant("2014-01-01")),
-                    new Transaction(30, parseInstant("2014-07-01")),
-                    new Transaction(30, parseInstant("2015-01-01")),
-                    new Transaction(30, parseInstant("2015-07-01")),
-                    new Transaction(30, parseInstant("2016-01-01")),
-                    new Transaction(30, parseInstant("2016-07-01")),
-                    new Transaction(30, parseInstant("2017-01-01")),
-                    new Transaction(30, parseInstant("2017-07-01")),
-                    new Transaction(30, parseInstant("2018-01-01")),
-            ], 30, 620, startTime, endTime, 2)
+                    new Transaction(30.0, parseInstant("2010-07-01")),
+                    new Transaction(30.0, parseInstant("2011-01-01")),
+                    new Transaction(30.0, parseInstant("2011-07-01")),
+                    new Transaction(30.0, parseInstant("2012-01-01")),
+                    new Transaction(30.0, parseInstant("2012-07-01")),
+                    new Transaction(30.0, parseInstant("2013-01-01")),
+                    new Transaction(30.0, parseInstant("2013-07-01")),
+                    new Transaction(30.0, parseInstant("2014-01-01")),
+                    new Transaction(30.0, parseInstant("2014-07-01")),
+                    new Transaction(30.0, parseInstant("2015-01-01")),
+                    new Transaction(30.0, parseInstant("2015-07-01")),
+                    new Transaction(30.0, parseInstant("2016-01-01")),
+                    new Transaction(30.0, parseInstant("2016-07-01")),
+                    new Transaction(30.0, parseInstant("2017-01-01")),
+                    new Transaction(30.0, parseInstant("2017-07-01")),
+                    new Transaction(30.0, parseInstant("2018-01-01")),
+            ], 30.0, 620.0, startTime, endTime, 2)
         when:
             FundComparison comparison = fundComparisonCalculatorService.calculateComparison(null, startTime, 2)
         then:
@@ -127,23 +127,23 @@ class FundComparisonCalculatorServiceSpec extends Specification {
                 ComparisonFund givenFund, Instant time -> Optional.of(new FundValue(time, 123.0, ComparisonFund.MARKET))
             }
             accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
-                    new Transaction(30, parseInstant("2010-07-01")),
-                    new Transaction(30, parseInstant("2011-01-01")),
-                    new Transaction(30, parseInstant("2011-07-01")),
-                    new Transaction(30, parseInstant("2012-01-01")),
-                    new Transaction(30, parseInstant("2012-07-01")),
-                    new Transaction(30, parseInstant("2013-01-01")),
-                    new Transaction(30, parseInstant("2013-07-01")),
-                    new Transaction(30, parseInstant("2014-01-01")),
-                    new Transaction(30, parseInstant("2014-07-01")),
-                    new Transaction(30, parseInstant("2015-01-01")),
-                    new Transaction(30, parseInstant("2015-07-01")),
-                    new Transaction(30, parseInstant("2016-01-01")),
-                    new Transaction(30, parseInstant("2016-07-01")),
-                    new Transaction(30, parseInstant("2017-01-01")),
-                    new Transaction(30, parseInstant("2017-07-01")),
-                    new Transaction(30, parseInstant("2018-01-01")),
-            ], 30, 123123, startTime, endTime, 2)
+                    new Transaction(30.0, parseInstant("2010-07-01")),
+                    new Transaction(30.0, parseInstant("2011-01-01")),
+                    new Transaction(30.0, parseInstant("2011-07-01")),
+                    new Transaction(30.0, parseInstant("2012-01-01")),
+                    new Transaction(30.0, parseInstant("2012-07-01")),
+                    new Transaction(30.0, parseInstant("2013-01-01")),
+                    new Transaction(30.0, parseInstant("2013-07-01")),
+                    new Transaction(30.0, parseInstant("2014-01-01")),
+                    new Transaction(30.0, parseInstant("2014-07-01")),
+                    new Transaction(30.0, parseInstant("2015-01-01")),
+                    new Transaction(30.0, parseInstant("2015-07-01")),
+                    new Transaction(30.0, parseInstant("2016-01-01")),
+                    new Transaction(30.0, parseInstant("2016-07-01")),
+                    new Transaction(30.0, parseInstant("2017-01-01")),
+                    new Transaction(30.0, parseInstant("2017-07-01")),
+                    new Transaction(30.0, parseInstant("2018-01-01")),
+            ], 30.0, 123123.0, startTime, endTime, 2)
         when:
             FundComparison comparison = fundComparisonCalculatorService.calculateComparison(null, startTime, 2)
         then:
@@ -157,23 +157,23 @@ class FundComparisonCalculatorServiceSpec extends Specification {
             Instant endTime = parseInstant("2018-07-16")
             fundValueProvider.getFundValueClosestToTime(_, _) >> Optional.empty()
             accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
-                    new Transaction(30, parseInstant("2010-07-01")),
-                    new Transaction(30, parseInstant("2011-01-01")),
-                    new Transaction(30, parseInstant("2011-07-01")),
-                    new Transaction(30, parseInstant("2012-01-01")),
-                    new Transaction(30, parseInstant("2012-07-01")),
-                    new Transaction(30, parseInstant("2013-01-01")),
-                    new Transaction(30, parseInstant("2013-07-01")),
-                    new Transaction(30, parseInstant("2014-01-01")),
-                    new Transaction(30, parseInstant("2014-07-01")),
-                    new Transaction(30, parseInstant("2015-01-01")),
-                    new Transaction(30, parseInstant("2015-07-01")),
-                    new Transaction(30, parseInstant("2016-01-01")),
-                    new Transaction(30, parseInstant("2016-07-01")),
-                    new Transaction(30, parseInstant("2017-01-01")),
-                    new Transaction(30, parseInstant("2017-07-01")),
-                    new Transaction(30, parseInstant("2018-01-01")),
-            ], 30, 123123, startTime, endTime, 2)
+                    new Transaction(30.0, parseInstant("2010-07-01")),
+                    new Transaction(30.0, parseInstant("2011-01-01")),
+                    new Transaction(30.0, parseInstant("2011-07-01")),
+                    new Transaction(30.0, parseInstant("2012-01-01")),
+                    new Transaction(30.0, parseInstant("2012-07-01")),
+                    new Transaction(30.0, parseInstant("2013-01-01")),
+                    new Transaction(30.0, parseInstant("2013-07-01")),
+                    new Transaction(30.0, parseInstant("2014-01-01")),
+                    new Transaction(30.0, parseInstant("2014-07-01")),
+                    new Transaction(30.0, parseInstant("2015-01-01")),
+                    new Transaction(30.0, parseInstant("2015-07-01")),
+                    new Transaction(30.0, parseInstant("2016-01-01")),
+                    new Transaction(30.0, parseInstant("2016-07-01")),
+                    new Transaction(30.0, parseInstant("2017-01-01")),
+                    new Transaction(30.0, parseInstant("2017-07-01")),
+                    new Transaction(30.0, parseInstant("2018-01-01")),
+            ], 30.0, 123123.0, startTime, endTime, 2)
         when:
             FundComparison comparison = fundComparisonCalculatorService.calculateComparison(null, startTime, 2)
         then:

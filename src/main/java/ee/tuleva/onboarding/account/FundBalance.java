@@ -19,4 +19,8 @@ public class FundBalance {
     private Integer pillar;
     private boolean activeContributions;
     private BigDecimal contributionSum;
+
+    public BigDecimal getProfit() {
+        return value != null && contributionSum != null ? value.subtract(contributionSum) : null;
+    }
 }

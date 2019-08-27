@@ -15,6 +15,7 @@ public class FundBalanceResponseDto {
     private Integer pillar;
     private boolean activeContributions;
     private BigDecimal contributionSum;
+    private BigDecimal profit;
 
     public static FundBalanceResponseDto from(FundBalance fundBalance, String language) {
         return FundBalanceResponseDto.builder()
@@ -24,6 +25,7 @@ public class FundBalanceResponseDto {
             .pillar(fundBalance.getPillar())
             .activeContributions(fundBalance.isActiveContributions())
             .contributionSum(fundBalance.getContributionSum())
+            .profit(fundBalance.getProfit())
             .build();
     }
 }

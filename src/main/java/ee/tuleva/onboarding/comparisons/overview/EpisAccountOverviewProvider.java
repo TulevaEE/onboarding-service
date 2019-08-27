@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.comparisons.overview;
 
+import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.cashflows.CashFlow;
-import ee.tuleva.onboarding.epis.fund.FundDto;
+import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
+import ee.tuleva.onboarding.fund.Fund;
+import ee.tuleva.onboarding.fund.FundRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -28,13 +29,14 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
 
     private static final BigDecimal EEK_TO_EUR_EXCHANGE_RATE = new BigDecimal("15.6466");
 
-    private final EpisService episService;
+    private final FundRepository fundRepository;
+    private final CashFlowService cashFlowService;
 
     @Override
     public AccountOverview getAccountOverview(Person person, Instant startTime, Integer pillar) {
         Instant endTime = Instant.now();
         CashFlowStatement cashFlowStatement =
-            episService.getCashFlowStatement(person, toLocalDate(startTime), toLocalDate(endTime));
+            cashFlowService.getCashFlowStatement(person, toLocalDate(startTime), toLocalDate(endTime));
         return transformCashFlowStatementToAccountOverview(cashFlowStatement, startTime, endTime, pillar);
     }
 
@@ -70,14 +72,13 @@ public class EpisAccountOverviewProvider implements AccountOverviewProvider {
 
     @NotNull
     private List<String> getAllIsinsBy(Integer pillar) {
-        return episService.getFunds().stream()
-            .filter(fund -> fund.getPillar() == pillar)
-            .map(FundDto::getIsin)
+        return fundRepository.findAllByPillar(pillar).stream()
+            .map(Fund::getIsin)
             .collect(toList());
     }
 
     private Transaction convertTransaction(CashFlow cashFlowValue) {
-        BigDecimal amount = convertCurrencyToEur(cashFlowValue.getAmount().negate(), cashFlowValue.getCurrency());
+        BigDecimal amount = convertCurrencyToEur(cashFlowValue.getAmount(), cashFlowValue.getCurrency());
         return new Transaction(amount, cashFlowValue.getDate());
     }
 

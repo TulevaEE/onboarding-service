@@ -14,11 +14,11 @@ import java.time.ZoneOffset
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 
-class EpisAccountOverviewProviderSpec extends Specification {
+class AccountOverviewProviderSpec extends Specification {
 
     FundRepository fundRepository
     CashFlowService cashFlowService
-    EpisAccountOverviewProvider accountOverviewProvider
+    AccountOverviewProvider accountOverviewProvider
 
     Person person = samplePerson()
     LocalDate startDate = LocalDate.parse("1998-01-01")
@@ -30,7 +30,7 @@ class EpisAccountOverviewProviderSpec extends Specification {
     def setup() {
         fundRepository = Mock(FundRepository)
         cashFlowService = Mock(CashFlowService)
-        accountOverviewProvider = new EpisAccountOverviewProvider(fundRepository, cashFlowService)
+        accountOverviewProvider = new AccountOverviewProvider(fundRepository, cashFlowService)
         fundRepository.findAllByPillar(pillar) >> [
             Fund.builder().isin("1").build(),
             Fund.builder().isin("2").build(),

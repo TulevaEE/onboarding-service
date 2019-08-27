@@ -18,7 +18,7 @@ public class AuditServiceMonitor {
         auditEventPublisher.publish(person.getPersonalCode(), AuditEventType.GET_ACCOUNT_STATEMENT);
     }
 
-    @Before("execution(* ee.tuleva.onboarding.comparisons.overview.EpisAccountOverviewProvider.getAccountOverview(..)) && args(person, ..)")
+    @Before("execution(* ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider.getAccountOverview(..)) && args(person, ..)")
     public void logCashFlowAccess(Person person) {
         auditEventPublisher.publish(person.getPersonalCode(), AuditEventType.GET_CASH_FLOWS);
     }

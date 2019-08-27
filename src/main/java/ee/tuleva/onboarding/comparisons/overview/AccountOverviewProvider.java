@@ -8,17 +8,16 @@ import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.MathContext;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 import static java.util.stream.Collectors.toList;
 
@@ -27,8 +26,6 @@ import static java.util.stream.Collectors.toList;
 @RequiredArgsConstructor
 public class AccountOverviewProvider {
 
-    private static final BigDecimal EEK_TO_EUR_EXCHANGE_RATE = new BigDecimal("15.6466");
-
     private final FundRepository fundRepository;
     private final CashFlowService cashFlowService;
 
@@ -36,14 +33,12 @@ public class AccountOverviewProvider {
         Instant endTime = Instant.now();
         CashFlowStatement cashFlowStatement =
             cashFlowService.getCashFlowStatement(person, toLocalDate(startTime), toLocalDate(endTime));
-        return transformCashFlowStatementToAccountOverview(cashFlowStatement, startTime, endTime, pillar);
-    }
 
-    private AccountOverview transformCashFlowStatementToAccountOverview(
-        CashFlowStatement cashFlowStatement, Instant startTime, Instant endTime, Integer pillar) {
-        BigDecimal beginningBalance = convertBalance(cashFlowStatement.getStartBalance(), pillar);
-        BigDecimal endingBalance = convertBalance(cashFlowStatement.getEndBalance(), pillar);
-        List<Transaction> transactions = convertTransactions(cashFlowStatement.getTransactions(), pillar);
+        Predicate<CashFlow> pillarFilter = createPillarFilter(pillar);
+
+        BigDecimal beginningBalance = convertBalance(cashFlowStatement.getStartBalance(), pillarFilter);
+        BigDecimal endingBalance = convertBalance(cashFlowStatement.getEndBalance(), pillarFilter);
+        List<Transaction> transactions = convertTransactions(cashFlowStatement.getTransactions(), pillarFilter);
 
         return AccountOverview.builder()
             .beginningBalance(beginningBalance)
@@ -55,44 +50,28 @@ public class AccountOverviewProvider {
             .build();
     }
 
-    private BigDecimal convertBalance(Map<String, CashFlow> balance, Integer pillar) {
+    private Predicate<CashFlow> createPillarFilter(Integer pillar) {
+        List<String> pillarIsins = fundRepository.findAllByPillar(pillar).stream()
+            .map(Fund::getIsin)
+            .collect(toList());
+        return cashFlow -> pillarIsins.contains(cashFlow.getIsin());
+    }
+
+    private BigDecimal convertBalance(Map<String, CashFlow> balance, Predicate<CashFlow> cashFlowFilter) {
         return balance.values().stream()
-            .filter(cashFlow -> getAllIsinsBy(pillar).contains(cashFlow.getIsin()))
-            .map(cashFlow -> convertCurrencyToEur(cashFlow.getAmount(), cashFlow.getCurrency()))
+            .filter(cashFlowFilter)
+            .map(CashFlow::getAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    private List<Transaction> convertTransactions(List<CashFlow> cashFlowValues, Integer pillar) {
-        return cashFlowValues.stream()
-            .filter(cashFlow -> getAllIsinsBy(pillar).contains(cashFlow.getIsin()))
-            .map(this::convertTransaction)
+    private List<Transaction> convertTransactions(List<CashFlow> cashFlows, Predicate<CashFlow> cashFlowFilter) {
+        return cashFlows.stream()
+            .filter(cashFlowFilter)
+            .map(cashFlow -> new Transaction(cashFlow.getAmount(), cashFlow.getDate()))
             .collect(toList());
     }
 
-    @NotNull
-    private List<String> getAllIsinsBy(Integer pillar) {
-        return fundRepository.findAllByPillar(pillar).stream()
-            .map(Fund::getIsin)
-            .collect(toList());
-    }
-
-    private Transaction convertTransaction(CashFlow cashFlowValue) {
-        BigDecimal amount = convertCurrencyToEur(cashFlowValue.getAmount(), cashFlowValue.getCurrency());
-        return new Transaction(amount, cashFlowValue.getDate());
-    }
-
-    private BigDecimal convertCurrencyToEur(BigDecimal amount, String currency) {
-        if ("EUR".equalsIgnoreCase(currency)) {
-            return amount;
-        } else if ("EEK".equalsIgnoreCase(currency)) {
-            return amount.divide(EEK_TO_EUR_EXCHANGE_RATE, MathContext.DECIMAL128);
-        } else {
-            log.error("Needed to convert currency other than EEK, statement will be invalid");
-            return amount;
-        }
-    }
-
-    private LocalDate toLocalDate(Instant startTime) {
-        return startTime == null ? null : LocalDateTime.ofInstant(startTime, ZoneOffset.UTC).toLocalDate();
+    private LocalDate toLocalDate(Instant instant) {
+        return instant == null ? null : LocalDateTime.ofInstant(instant, ZoneOffset.UTC).toLocalDate();
     }
 }

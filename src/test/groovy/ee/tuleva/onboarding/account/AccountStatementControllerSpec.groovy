@@ -46,6 +46,8 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$', hasSize(fundBalances.size())))
             .andExpect(status().isOk())
             .andExpect(jsonPath('$', hasSize(fundBalances.size())))
+            .andExpect(jsonPath('$[0].contributionSum', is(fundBalances[0].contributionSum.doubleValue())))
+            .andExpect(jsonPath('$[0].profit', is(fundBalances[0].profit.doubleValue())))
             .andExpect(jsonPath('$[0].fund.name', is(translation)))
             .andExpect(jsonPath('$', hasSize(fundBalances.size())))
         where:

@@ -29,11 +29,11 @@ public class AccountStatementController {
         @RequestHeader(value = "Accept-Language", defaultValue = "et") String language
     ) {
         List<FundBalance> fundBalances = accountStatementService.getAccountStatement(authenticatedPerson);
-        return convertToDto(fundBalances, language);
+        return convertToDtos(fundBalances, language);
     }
 
 
-    private List<FundBalanceResponseDto> convertToDto(List<FundBalance> fundBalances, String language) {
+    private List<FundBalanceResponseDto> convertToDtos(List<FundBalance> fundBalances, String language) {
         return fundBalances.stream()
             .map(fundBalance -> FundBalanceResponseDto.from(fundBalance, language))
             .collect(toList());

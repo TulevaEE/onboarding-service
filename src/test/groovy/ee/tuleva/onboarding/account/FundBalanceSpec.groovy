@@ -6,7 +6,7 @@ import spock.lang.Unroll
 class FundBalanceSpec extends Specification {
 
     @Unroll
-    def "calculates profit #value - #contributionSum = #expectedProfit"(BigDecimal contributionSum, BigDecimal value, BigDecimal expectedProfit) {
+    def "calculates profit #value - #contributionSum = #expectedProfit"() {
         given:
         def fundBalance = FundBalance.builder().contributionSum(contributionSum).value(value).build()
 

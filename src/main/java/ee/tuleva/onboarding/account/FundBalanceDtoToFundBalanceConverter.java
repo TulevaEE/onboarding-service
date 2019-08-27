@@ -24,7 +24,7 @@ public class FundBalanceDtoToFundBalanceConverter implements Converter<FundBalan
     @NonNull
     public FundBalance convert(FundBalanceDto fundBalanceDto, Person person) {
         FundBalance fundBalance = convert(fundBalanceDto);
-        fundBalance.setContributionSum(calculateContributionSum(person));
+        fundBalance.setContributionSum(calculateContributionSum(fundBalanceDto.getIsin(), person));
         return fundBalance;
     }
 
@@ -47,10 +47,11 @@ public class FundBalanceDtoToFundBalanceConverter implements Converter<FundBalan
             .build();
     }
 
-    private BigDecimal calculateContributionSum(Person person) {
+    private BigDecimal calculateContributionSum(String isin, Person person) {
         return cashFlowService.getCashFlowStatement(person)
             .getTransactions()
             .stream()
+            .filter(cashFlow -> isin.equalsIgnoreCase(cashFlow.getIsin()))
             .map(CashFlow::getAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     }

@@ -59,7 +59,7 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
 
     def "calculates the contribution sum if the person is specified"() {
         given:
-        def isin = "someIsin"
+        def isin = "1"
         def person = samplePerson()
         def fundBalanceDto = FundBalanceDto.builder()
             .isin(isin)
@@ -69,14 +69,15 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
             .pillar(3)
             .activeContributions(true)
             .build()
+        def cashFlow = cashFlowFixture()
 
         fundRepository.findByIsin(isin) >> Fund.builder().isin(isin).build()
-        cashFlowService.getCashFlowStatement(person) >> cashFlowFixture()
+        cashFlowService.getCashFlowStatement(person) >> cashFlow
 
         when:
         FundBalance fundBalance = converter.convert(fundBalanceDto, person)
 
         then:
-        fundBalance.contributionSum == -145.0
+        fundBalance.contributionSum == cashFlow.transactions.find { it.isin == isin }.amount
     }
 }

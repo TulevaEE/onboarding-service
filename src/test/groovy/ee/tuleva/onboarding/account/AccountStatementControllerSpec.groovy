@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.auth.principal.Person
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers
 
+import static ee.tuleva.onboarding.account.AccountStatementFixture.sampleConvertedFundBalanceWithActiveTulevaFund
 import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -20,13 +21,12 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
     }
 
     AccountStatementService accountStatementService = Mock(AccountStatementService)
-    AccountStatementController controller =
-        new AccountStatementController(accountStatementService)
+    AccountStatementController controller = new AccountStatementController(accountStatementService)
 
     def "/pension-account-statement endpoint works"() {
         given:
         List<FundBalance> fundBalances = []
-        1 * accountStatementService.getAccountStatement(_ as Person, true) >> fundBalances
+        1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
         expect:
         mockMvc.perform(get("/v1/pension-account-statement"))
             .andExpect(status().isOk())
@@ -34,9 +34,9 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
 
     def "/pension-account-statement endpoint accepts language header and responds with appropriate fund.name"() {
         given:
-        List<FundBalance> fundBalances = AccountStatementFixture.sampleConvertedFundBalanceWithActiveTulevaFund
+        List<FundBalance> fundBalances = sampleConvertedFundBalanceWithActiveTulevaFund
 
-        1 * accountStatementService.getAccountStatement(_ as Person, _) >> fundBalances
+        1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
 
         expect:
         mockMvc.perform(get("/v1/pension-account-statement")
@@ -50,7 +50,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$', hasSize(fundBalances.size())))
         where:
         language | translation
-        'null'     | "Tuleva maailma aktsiate pensionifond"
+        'null'   | "Tuleva maailma aktsiate pensionifond"
         "et"     | "Tuleva maailma aktsiate pensionifond"
         "en"     | "Tuleva world stock pensionfund"
 

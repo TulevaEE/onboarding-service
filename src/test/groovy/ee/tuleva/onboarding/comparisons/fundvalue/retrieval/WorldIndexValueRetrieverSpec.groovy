@@ -38,7 +38,7 @@ class WorldIndexValueRetrieverSpec extends Specification {
 "","","70%","24.1800","","0.25%","",""
 "","","30%","223.8900","","0.20%","",""
 "1-Jul-2018","24.18","223.89","8.1931","0.3617","279.09","",""
-"17-Jul-2018","24.05","224.01","8.1931","0.3617","278.07","",""
+"17-July-2018","24.05","224.01","8.1931","0.3617","278.07","",""
 """
         ClientHttpResponse response = createResponse(HttpStatus.OK, responseBody)
         List<FundValue> expectedValues = [

@@ -16,6 +16,8 @@ import spock.lang.Specification
 import javax.sql.DataSource
 import java.text.SimpleDateFormat
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 @SpringBootTest(classes = OnboardingServiceApplication)
 @ContextConfiguration
@@ -38,7 +40,7 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         when:
             fundValueRepository.saveAll(values)
         then:
-            JdbcTestUtils.countRowsInTable(jdbcTemplate, "comparison_fund_values") == values.size()
+            JdbcTestUtils.countRowsInTable(jdbcTemplate, "index_values") == values.size()
     }
 
     def "it can retrieve fund values by last time and fund"() {
@@ -78,13 +80,13 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     }
 
     private static List<FundValue> getFakeFundValues() {
-        Instant now = Instant.now()
-        Instant recent = Instant.ofEpochSecond(now.epochSecond - 100)
+        Instant today = LocalDate.now().atStartOfDay().atZone(ZoneId.systemDefault()).toInstant()
+        Instant yesterday = LocalDate.now().minusDays(1).atStartOfDay().atZone(ZoneId.systemDefault()).toInstant()
         return [
-            new FundValue(now, 100.0, WorldIndexValueRetriever.KEY),
-            new FundValue(recent, 10.0, WorldIndexValueRetriever.KEY),
-            new FundValue(now, 200.0, EPIFundValueRetriever.KEY),
-            new FundValue(recent, 20.0, EPIFundValueRetriever.KEY),
+            new FundValue(today, 100.0, WorldIndexValueRetriever.KEY),
+            new FundValue(yesterday, 10.0, WorldIndexValueRetriever.KEY),
+            new FundValue(today, 200.0, EPIFundValueRetriever.KEY),
+            new FundValue(yesterday, 20.0, EPIFundValueRetriever.KEY),
         ]
     }
 

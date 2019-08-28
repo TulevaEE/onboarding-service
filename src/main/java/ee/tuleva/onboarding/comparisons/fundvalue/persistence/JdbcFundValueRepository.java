@@ -27,28 +27,28 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
 
     private static final String FIND_LAST_VALUE_QUERY = "" +
             "SELECT * " +
-            "FROM comparison_fund_values " +
-            "WHERE fund=:fund " +
-            "ORDER BY time DESC NULLS LAST " +
+            "FROM index_values " +
+            "WHERE key=:fund " +
+            "ORDER BY date DESC NULLS LAST " +
             "LIMIT 1";
 
     private static final String FIND_CLOSEST_VALUE_QUERY = "" +
             "SELECT * " +
-            "FROM comparison_fund_values " +
-            "WHERE fund=:fund " +
-            "ORDER BY abs(extract(epoch from (time - :time))) ASC NULLS LAST " +
+            "FROM index_values " +
+            "WHERE key=:fund " +
+            "ORDER BY abs(extract(epoch from (date - :time))) ASC NULLS LAST " +
             "LIMIT 1";
 
     private static final String INSERT_VALUES_QUERY = "" +
-            "INSERT INTO comparison_fund_values (fund, time, value) " +
+            "INSERT INTO index_values (key, date, value) " +
             "VALUES (:fund, :time, :value)";
 
     private class FundValueRowMapper implements RowMapper<FundValue> {
         @Override
         public FundValue mapRow(ResultSet rs, int rowNum) throws SQLException {
             return FundValue.builder()
-                    .comparisonFund(rs.getString("fund"))
-                    .time(rs.getTimestamp("time").toInstant())
+                    .comparisonFund(rs.getString("key"))
+                    .time(rs.getTimestamp("date").toInstant())
                     .value(rs.getBigDecimal("value"))
                     .build();
         }

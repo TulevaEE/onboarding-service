@@ -126,10 +126,9 @@ class FundComparisonCalculatorServiceSpec extends Specification {
         given:
         Instant startTime = parseInstant("2010-01-01")
         Instant endTime = parseInstant("2018-07-16")
-        Map<String, BigDecimal> fundValues = getEpiFundValuesMap()
-        mockFundValues(EPIFundValueRetriever.KEY, fundValues)
+        mockFundValues(EPIFundValueRetriever.KEY, getEpiFundValuesMap())
         fundValueProvider.getLatestValue(WorldIndexValueRetriever.KEY, _) >> {
-            String givenFund, Instant time -> Optional.of(new FundValue(time, 123.0, WorldIndexValueRetriever.KEY))
+            String givenFund, LocalDate date -> Optional.of(new FundValue(null, 123.0, WorldIndexValueRetriever.KEY))
         }
         accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
             new Transaction(30.0, parseInstant("2010-07-01")),
@@ -211,17 +210,13 @@ class FundComparisonCalculatorServiceSpec extends Specification {
 
     private void mockFundValues(String fund, Map<String, BigDecimal> values) {
         fundValueProvider.getLatestValue(fund, _) >> {
-            String givenFund, Instant time ->
-                Optional.of(new FundValue(time, values[toLocalDate(time)], WorldIndexValueRetriever.KEY))
+            String givenFund, LocalDate date ->
+                Optional.of(new FundValue(null, values[date.toString()], WorldIndexValueRetriever.KEY))
         }
     }
 
     private static Instant parseInstant(String date) {
         return LocalDate.parse(date).atStartOfDay(ZoneOffset.UTC).toInstant()
-    }
-
-    private String toLocalDate(Instant time) {
-        time.atZone(ZoneOffset.UTC).toLocalDate().toString()
     }
 
     private void fakeNoReturnFundValues() {

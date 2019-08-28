@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static java.math.BigDecimal.ZERO;
+import static java.time.ZoneId.systemDefault;
 import static java.util.stream.Collectors.toList;
 
 @Service
@@ -43,7 +44,7 @@ public class RateOfReturnCalculator {
         for (Transaction transaction : purchaseTransactions) {
             Optional<FundValue> fundValueAtTime = fundValueProvider.getLatestValue(
                 comparisonFund,
-                transaction.getDate().atStartOfDay(ZoneOffset.UTC).toInstant()
+                transaction.getDate()
             );
             if (!fundValueAtTime.isPresent()) {
                 return 0;
@@ -52,7 +53,7 @@ public class RateOfReturnCalculator {
             BigDecimal currentlyBoughtVirtualFundUnits = transaction.getAmount().divide(fundPriceAtTime, MathContext.DECIMAL128);
             virtualFundUnitsBought = virtualFundUnitsBought.add(currentlyBoughtVirtualFundUnits);
         }
-        Optional<FundValue> finalVirtualFundValue = fundValueProvider.getLatestValue(comparisonFund, accountOverview.getEndTime());
+        Optional<FundValue> finalVirtualFundValue = fundValueProvider.getLatestValue(comparisonFund, accountOverview.getEndTime().atZone(systemDefault()).toLocalDate());
         if (!finalVirtualFundValue.isPresent()) {
             return 0;
         }

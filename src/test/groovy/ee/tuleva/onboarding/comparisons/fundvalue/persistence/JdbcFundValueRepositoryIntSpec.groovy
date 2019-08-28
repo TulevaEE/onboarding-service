@@ -18,6 +18,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 
+import static java.time.LocalDate.parse
+
 @SpringBootTest(classes = OnboardingServiceApplication)
 @ContextConfiguration
 @Transactional
@@ -75,9 +77,9 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         ]
         fundValueRepository.saveAll(values)
         when:
-        Optional<FundValue> epiValue = fundValueRepository.getLatestValue(EPIFundValueRetriever.KEY, parseInstant("1990-01-03"))
-        Optional<FundValue> marketValue = fundValueRepository.getLatestValue(WorldIndexValueRetriever.KEY, parseInstant("1990-01-06"))
-        Optional<FundValue> olderValue = fundValueRepository.getLatestValue(WorldIndexValueRetriever.KEY, parseInstant("1970-01-01"))
+        Optional<FundValue> epiValue = fundValueRepository.getLatestValue(EPIFundValueRetriever.KEY, parse("1990-01-03"))
+        Optional<FundValue> marketValue = fundValueRepository.getLatestValue(WorldIndexValueRetriever.KEY, parse("1990-01-06"))
+        Optional<FundValue> olderValue = fundValueRepository.getLatestValue(WorldIndexValueRetriever.KEY, parse("1970-01-01"))
         then:
         epiValue.isPresent()
         marketValue.isPresent()

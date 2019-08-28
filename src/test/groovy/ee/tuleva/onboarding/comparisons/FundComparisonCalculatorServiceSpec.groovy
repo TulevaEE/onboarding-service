@@ -128,7 +128,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
         Instant endTime = parseInstant("2018-07-16")
         Map<String, BigDecimal> fundValues = getEpiFundValuesMap()
         mockFundValues(EPIFundValueRetriever.KEY, fundValues)
-        fundValueProvider.getFundValueClosestToTime(WorldIndexValueRetriever.KEY, _) >> {
+        fundValueProvider.getLatestValue(WorldIndexValueRetriever.KEY, _) >> {
             String givenFund, Instant time -> Optional.of(new FundValue(time, 123.0, WorldIndexValueRetriever.KEY))
         }
         accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
@@ -160,7 +160,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
         given:
         Instant startTime = parseInstant("2010-01-01")
         Instant endTime = parseInstant("2018-07-16")
-        fundValueProvider.getFundValueClosestToTime(_, _) >> Optional.empty()
+        fundValueProvider.getLatestValue(_, _) >> Optional.empty()
         accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
             new Transaction(30.0, parseInstant("2010-07-01")),
             new Transaction(30.0, parseInstant("2011-01-01")),
@@ -210,7 +210,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
     }
 
     private void mockFundValues(String fund, Map<String, BigDecimal> values) {
-        fundValueProvider.getFundValueClosestToTime(fund, _) >> {
+        fundValueProvider.getLatestValue(fund, _) >> {
             String givenFund, Instant time ->
                 Optional.of(new FundValue(time, values[toLocalDate(time)], WorldIndexValueRetriever.KEY))
         }
@@ -226,7 +226,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
 
     private void fakeNoReturnFundValues() {
         Instant time = parseInstant("2018-06-17")
-        fundValueProvider.getFundValueClosestToTime(_, _) >>
+        fundValueProvider.getLatestValue(_, _) >>
             Optional.of(new FundValue(time, 1.0, WorldIndexValueRetriever.KEY))
     }
 }

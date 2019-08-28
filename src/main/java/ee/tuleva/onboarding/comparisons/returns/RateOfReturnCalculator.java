@@ -41,7 +41,7 @@ public class RateOfReturnCalculator {
 
         BigDecimal virtualFundUnitsBought = ZERO;
         for (Transaction transaction : purchaseTransactions) {
-            Optional<FundValue> fundValueAtTime = fundValueProvider.getFundValueClosestToTime(
+            Optional<FundValue> fundValueAtTime = fundValueProvider.getLatestValue(
                 comparisonFund,
                 transaction.getDate().atStartOfDay(ZoneOffset.UTC).toInstant()
             );
@@ -52,7 +52,7 @@ public class RateOfReturnCalculator {
             BigDecimal currentlyBoughtVirtualFundUnits = transaction.getAmount().divide(fundPriceAtTime, MathContext.DECIMAL128);
             virtualFundUnitsBought = virtualFundUnitsBought.add(currentlyBoughtVirtualFundUnits);
         }
-        Optional<FundValue> finalVirtualFundValue = fundValueProvider.getFundValueClosestToTime(comparisonFund, accountOverview.getEndTime());
+        Optional<FundValue> finalVirtualFundValue = fundValueProvider.getLatestValue(comparisonFund, accountOverview.getEndTime());
         if (!finalVirtualFundValue.isPresent()) {
             return 0;
         }

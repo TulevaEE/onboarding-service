@@ -4,5 +4,5 @@ import java.time.Instant;
 import java.util.Optional;
 
 public interface FundValueProvider {
-    Optional<FundValue> getFundValueClosestToTime(String comparisonFund, Instant time);
+    Optional<FundValue> getLatestValue(String comparisonFund, Instant time);
 }

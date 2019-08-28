@@ -82,7 +82,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     }
 
     @Override
-    public Optional<FundValue> getFundValueClosestToTime(String fund, Instant time) {
+    public Optional<FundValue> getLatestValue(String fund, Instant time) {
         List<FundValue> result = jdbcTemplate.query(
             FIND_LATEST_VALUE_QUERY,
                 new MapSqlParameterSource()

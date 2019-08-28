@@ -10,7 +10,6 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.jdbc.JdbcTestUtils
 import org.springframework.transaction.annotation.Transactional
-import spock.lang.Ignore
 import spock.lang.Specification
 
 import javax.sql.DataSource
@@ -76,9 +75,9 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         ]
         fundValueRepository.saveAll(values)
         when:
-        Optional<FundValue> epiValue = fundValueRepository.getFundValueClosestToTime(EPIFundValueRetriever.KEY, parseInstant("1990-01-03"))
-        Optional<FundValue> marketValue = fundValueRepository.getFundValueClosestToTime(WorldIndexValueRetriever.KEY, parseInstant("1990-01-06"))
-        Optional<FundValue> olderValue = fundValueRepository.getFundValueClosestToTime(WorldIndexValueRetriever.KEY, parseInstant("1970-01-01"))
+        Optional<FundValue> epiValue = fundValueRepository.getLatestValue(EPIFundValueRetriever.KEY, parseInstant("1990-01-03"))
+        Optional<FundValue> marketValue = fundValueRepository.getLatestValue(WorldIndexValueRetriever.KEY, parseInstant("1990-01-06"))
+        Optional<FundValue> olderValue = fundValueRepository.getLatestValue(WorldIndexValueRetriever.KEY, parseInstant("1970-01-01"))
         then:
         epiValue.isPresent()
         marketValue.isPresent()

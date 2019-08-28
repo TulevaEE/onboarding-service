@@ -128,7 +128,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
         Instant endTime = parseInstant("2018-07-16")
         mockFundValues(EPIFundValueRetriever.KEY, getEpiFundValuesMap())
         fundValueProvider.getLatestValue(WorldIndexValueRetriever.KEY, _) >> {
-            String givenFund, LocalDate date -> Optional.of(new FundValue(null, 123.0, WorldIndexValueRetriever.KEY))
+            String givenFund, LocalDate date -> Optional.of(new FundValue(givenFund, date, 123.0))
         }
         accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
             new Transaction(30.0, parseInstant("2010-07-01")),
@@ -211,7 +211,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
     private void mockFundValues(String fund, Map<String, BigDecimal> values) {
         fundValueProvider.getLatestValue(fund, _) >> {
             String givenFund, LocalDate date ->
-                Optional.of(new FundValue(null, values[date.toString()], WorldIndexValueRetriever.KEY))
+                Optional.of(new FundValue(WorldIndexValueRetriever.KEY, null, values[date.toString()]))
         }
     }
 
@@ -220,8 +220,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
     }
 
     private void fakeNoReturnFundValues() {
-        Instant time = parseInstant("2018-06-17")
         fundValueProvider.getLatestValue(_, _) >>
-            Optional.of(new FundValue(time, 1.0, WorldIndexValueRetriever.KEY))
+            Optional.of(new FundValue(WorldIndexValueRetriever.KEY, LocalDate.parse("2018-06-17"), 1.0))
     }
 }

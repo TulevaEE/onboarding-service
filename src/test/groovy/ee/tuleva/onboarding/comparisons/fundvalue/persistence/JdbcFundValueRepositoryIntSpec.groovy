@@ -13,10 +13,7 @@ import org.springframework.transaction.annotation.Transactional
 import spock.lang.Specification
 
 import javax.sql.DataSource
-import java.text.SimpleDateFormat
-import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneId
 
 import static java.time.LocalDate.parse
 
@@ -68,12 +65,12 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     def "it can find the value closest for a time for a fund"() {
         given:
         List<FundValue> values = [
-            new FundValue(parseInstant("1990-01-04"), 104.0, EPIFundValueRetriever.KEY),
-            new FundValue(parseInstant("1990-01-02"), 102.0, EPIFundValueRetriever.KEY),
-            new FundValue(parseInstant("1990-01-01"), 101.0, EPIFundValueRetriever.KEY),
-            new FundValue(parseInstant("1990-01-04"), 204.0, WorldIndexValueRetriever.KEY),
-            new FundValue(parseInstant("1990-01-02"), 202.0, WorldIndexValueRetriever.KEY),
-            new FundValue(parseInstant("1990-01-01"), 201.0, WorldIndexValueRetriever.KEY),
+            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-04"), 104.0),
+            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-02"), 102.0),
+            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-01"), 101.0),
+            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-04"), 204.0),
+            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-02"), 202.0),
+            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-01"), 201.0),
         ]
         fundValueRepository.saveAll(values)
         when:
@@ -89,22 +86,17 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     }
 
     private static List<FundValue> getFakeFundValues() {
-        Instant today = LocalDate.now().atStartOfDay().atZone(ZoneId.systemDefault()).toInstant()
-        Instant yesterday = LocalDate.now().minusDays(1).atStartOfDay().atZone(ZoneId.systemDefault()).toInstant()
+        def today = LocalDate.now()
+        def yesterday = LocalDate.now().minusDays(1)
         return [
-            new FundValue(today, 100.0, WorldIndexValueRetriever.KEY),
-            new FundValue(yesterday, 10.0, WorldIndexValueRetriever.KEY),
-            new FundValue(today, 200.0, EPIFundValueRetriever.KEY),
-            new FundValue(yesterday, 20.0, EPIFundValueRetriever.KEY),
+            new FundValue(WorldIndexValueRetriever.KEY, today, 100.0),
+            new FundValue(WorldIndexValueRetriever.KEY, yesterday, 10.0),
+            new FundValue(EPIFundValueRetriever.KEY, today, 200.0),
+            new FundValue(EPIFundValueRetriever.KEY, yesterday, 20.0),
         ]
     }
 
-
     private static boolean valuesEqual(FundValue one, FundValue two) {
-        return one.time == two.time && one.comparisonFund == two.comparisonFund && one.value == two.value
-    }
-
-    private static Instant parseInstant(String format) {
-        return new SimpleDateFormat("yyyy-MM-dd").parse(format).toInstant()
+        return one.date == two.date && one.comparisonFund == two.comparisonFund && one.value == two.value
     }
 }

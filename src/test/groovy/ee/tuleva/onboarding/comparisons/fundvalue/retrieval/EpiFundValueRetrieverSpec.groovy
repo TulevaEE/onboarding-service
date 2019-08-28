@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
-
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
@@ -11,8 +10,7 @@ import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
 import java.nio.charset.StandardCharsets
-import java.text.SimpleDateFormat
-import java.time.Instant
+import java.time.LocalDate
 
 class EpiFundValueRetrieverSpec extends Specification {
 
@@ -41,11 +39,11 @@ class EpiFundValueRetrieverSpec extends Specification {
 2013-01-08\tEPI\t101,200
 """)
             List<FundValue> expectedValues = [
-                    FundValue.builder().comparisonFund(EPIFundValueRetriever.KEY).value(100.200).time(parseInstant("2013-01-07")).build(),
-                    FundValue.builder().comparisonFund(EPIFundValueRetriever.KEY).value(101.200).time(parseInstant("2013-01-08")).build(),
+                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-07"), 100.200),
+                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-08"), 101.200),
             ]
         when:
-            List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(Instant.now(), Instant.now())
+            List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(LocalDate.now(), LocalDate.now())
         then:
             1 * restTemplate.execute(_, _, _, _, _) >> {
                 String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
@@ -56,12 +54,12 @@ class EpiFundValueRetrieverSpec extends Specification {
 
     def "it calls pensionikeskus with the correct dates"() {
         given:
-            Instant startTime = parseInstant("2018-02-03")
-            Instant endTime = parseInstant("2018-04-05")
+        def startTime = LocalDate.parse("2018-02-03")
+        def endTime = LocalDate.parse("2018-04-05")
         when:
-            epiFundValueRetriever.retrieveValuesForRange(startTime, endTime)
+        epiFundValueRetriever.retrieveValuesForRange(startTime, endTime)
         then:
-            1 * restTemplate.execute("https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/?date_from=03.02.2018&date_to=05.04.2018&download=xls", _, _, _, _)
+        1 * restTemplate.execute("https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/?date_from=03.02.2018&date_to=05.04.2018&download=xls", _, _, _, _)
     }
 
     def "when a row is misformed it is ignored"() {
@@ -74,10 +72,10 @@ broken
 2013-01-08\tEPI\tyou-and-me-123
 """)
             List<FundValue> expectedValues = [
-                    FundValue.builder().comparisonFund(EPIFundValueRetriever.KEY).value(100.200).time(parseInstant("2013-01-07")).build(),
+                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-07"), 100.200),
             ]
         when:
-            List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(Instant.now(), Instant.now())
+            List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(LocalDate.now(), LocalDate.now())
         then:
             1 * restTemplate.execute(_, _, _, _, _) >> {
                 String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
@@ -96,7 +94,7 @@ broken
                 handler.extractData(response)
         }
         when:
-        List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(Instant.now(), Instant.now())
+        List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(LocalDate.now(), LocalDate.now())
         then:
         values.empty
     }
@@ -105,7 +103,7 @@ broken
         given:
         ClientHttpResponse response = createResponse(HttpStatus.BAD_REQUEST, "")
         when:
-        List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(Instant.now(), Instant.now())
+        List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(LocalDate.now(), LocalDate.now())
         then:
         1 * restTemplate.execute(_, _, _, _, _) >> {
             String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
@@ -119,9 +117,5 @@ broken
         response.getStatusCode() >> status
         response.getBody() >> new ByteArrayInputStream(csvBody.getBytes(StandardCharsets.UTF_16))
         return response;
-    }
-
-    private static Instant parseInstant(String format) {
-        return new SimpleDateFormat("yyyy-MM-dd").parse(format).toInstant()
     }
 }

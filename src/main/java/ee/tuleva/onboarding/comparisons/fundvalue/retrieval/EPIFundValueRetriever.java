@@ -20,10 +20,10 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -48,20 +48,17 @@ public class EPIFundValueRetriever implements ComparisonIndexRetriever {
     }
 
     @Override
-    public List<FundValue> retrieveValuesForRange(Instant startDate, Instant endDate) {
+    public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
         String url = getDownloadUrlForRange(startDate, endDate);
         return restTemplate.execute(url, HttpMethod.GET, getRequestCallback(), getResponseExtractor());
     }
 
-    private String getDownloadUrlForRange(Instant startTime, Instant endTime) {
-        SimpleDateFormat format = new SimpleDateFormat("dd.MM.yyyy");
-        String startDate = format.format(Date.from(startTime));
-        String endDate = format.format(Date.from(endTime));
-
+    private String getDownloadUrlForRange(LocalDate startDate, LocalDate endDate) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
         return UriComponentsBuilder
             .fromHttpUrl(EPI_URL)
-            .queryParam("date_from", startDate)
-            .queryParam("date_to", endDate)
+            .queryParam("date_from", startDate.format(formatter))
+            .queryParam("date_to", endDate.format(formatter))
             .queryParam("download", "xls")
             .build()
             .toUriString();
@@ -101,10 +98,10 @@ public class EPIFundValueRetriever implements ComparisonIndexRetriever {
             return Optional.empty();
         }
 
-        Optional<Instant> time = parseTime(parts[0]);
+        Optional<LocalDate> date = parseDate(parts[0]);
         Optional<BigDecimal> value = parseAmount(parts[2]);
 
-        if (!time.isPresent() || !value.isPresent()) {
+        if (!date.isPresent() || !value.isPresent()) {
             return Optional.empty();
         }
 
@@ -112,19 +109,14 @@ public class EPIFundValueRetriever implements ComparisonIndexRetriever {
             return Optional.empty();
         }
 
-        return Optional.of(FundValue.builder()
-            .comparisonFund(KEY)
-            .time(time.get())
-            .value(value.get())
-            .build());
+        return Optional.of(new FundValue(KEY, date.get(), value.get()));
     }
 
-    private Optional<Instant> parseTime(String time) {
-        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+    private Optional<LocalDate> parseDate(String date) {
         try {
-            return Optional.of(format.parse(time).toInstant());
-        } catch (ParseException e) {
-            log.warn("Failed to parse time out of a line of epi fund values response");
+            return Optional.of(LocalDate.parse(date));
+        } catch (DateTimeParseException e) {
+            log.warn("Failed to parse date out of a line of epi fund values response");
             return Optional.empty();
         }
     }

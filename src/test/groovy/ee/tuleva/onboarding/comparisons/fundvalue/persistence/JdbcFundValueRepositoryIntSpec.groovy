@@ -80,7 +80,7 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         then:
         epiValue.isPresent()
         marketValue.isPresent()
-        olderValue.isEmpty()
+        !olderValue.isPresent()
         epiValue.get().getValue() == 102.0
         marketValue.get().getValue() == 204.0
     }

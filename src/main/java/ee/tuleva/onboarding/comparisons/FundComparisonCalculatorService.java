@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.comparisons;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.overview.Transaction;
@@ -41,8 +42,8 @@ public class FundComparisonCalculatorService {
 
     private FundComparison calculateForAccountOverview(AccountOverview accountOverview) {
         double actualRateOfReturn = getRateOfReturn(accountOverview);
-        double estonianAverageRateOfReturn = getRateOfReturn(accountOverview, ComparisonFund.EPI);
-        double marketAverageRateOfReturn = getRateOfReturn(accountOverview, ComparisonFund.MARKET);
+        double estonianAverageRateOfReturn = getRateOfReturn(accountOverview, EPIFundValueRetriever.KEY);
+        double marketAverageRateOfReturn = getRateOfReturn(accountOverview, WorldIndexValueRetriever.KEY);
 
         return FundComparison.builder()
             .actualReturnPercentage(actualRateOfReturn)
@@ -57,7 +58,7 @@ public class FundComparisonCalculatorService {
         return calculateReturn(purchaseTransactions, accountOverview.getEndingBalance(), accountOverview.getEndTime());
     }
 
-    private double getRateOfReturn(AccountOverview accountOverview, ComparisonFund comparisonFund) {
+    private double getRateOfReturn(AccountOverview accountOverview, String comparisonFund) {
         List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
         BigDecimal virtualFundUnitsBought = ZERO;

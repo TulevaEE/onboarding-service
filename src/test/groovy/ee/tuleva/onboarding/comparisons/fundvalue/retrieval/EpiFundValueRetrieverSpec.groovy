@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
-import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund
+
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
-import org.springframework.core.env.Environment
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.client.ClientHttpResponse
@@ -27,9 +26,9 @@ class EpiFundValueRetrieverSpec extends Specification {
 
     def "it is configured for the right fund"() {
         when:
-            ComparisonFund retrievalFund = epiFundValueRetriever.getRetrievalFund()
+            def retrievalFund = epiFundValueRetriever.getKey()
         then:
-            retrievalFund == ComparisonFund.EPI
+            retrievalFund == EPIFundValueRetriever.KEY
     }
 
     def "it successfully parses a valid epi fund value tsv for average epi values"() {
@@ -42,8 +41,8 @@ class EpiFundValueRetrieverSpec extends Specification {
 2013-01-08\tEPI\t101,200
 """)
             List<FundValue> expectedValues = [
-                    FundValue.builder().comparisonFund(ComparisonFund.EPI).value(100.200).time(parseInstant("2013-01-07")).build(),
-                    FundValue.builder().comparisonFund(ComparisonFund.EPI).value(101.200).time(parseInstant("2013-01-08")).build(),
+                    FundValue.builder().comparisonFund(EPIFundValueRetriever.KEY).value(100.200).time(parseInstant("2013-01-07")).build(),
+                    FundValue.builder().comparisonFund(EPIFundValueRetriever.KEY).value(101.200).time(parseInstant("2013-01-08")).build(),
             ]
         when:
             List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(Instant.now(), Instant.now())
@@ -75,7 +74,7 @@ broken
 2013-01-08\tEPI\tyou-and-me-123
 """)
             List<FundValue> expectedValues = [
-                    FundValue.builder().comparisonFund(ComparisonFund.EPI).value(100.200).time(parseInstant("2013-01-07")).build(),
+                    FundValue.builder().comparisonFund(EPIFundValueRetriever.KEY).value(100.200).time(parseInstant("2013-01-07")).build(),
             ]
         when:
             List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(Instant.now(), Instant.now())

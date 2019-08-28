@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundValueRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -26,15 +26,15 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class FundValueIndexingJob {
     private final FundValueRepository fundValueRepository;
-    private final List<FundValueRetriever> fundValueRetrievers;
+    private final List<ComparisonIndexRetriever> comparisonIndexRetrievers;
     private final Environment environment;
 
     private static final Instant START_TIME = parseInstant("2002-01-01");
 
     @Scheduled(cron = "0 0 14 * * ?", zone = "Europe/Tallinn") // every day at 2 o clock
     public void runIndexingJob() {
-        fundValueRetrievers.forEach(fundValueRetriever -> {
-            ComparisonFund fund = fundValueRetriever.getRetrievalFund();
+        comparisonIndexRetrievers.forEach(comparisonIndexRetriever -> {
+            String fund = comparisonIndexRetriever.getKey();
             log.info("Starting to update values for " + fund);
             Optional<FundValue> fundValue = fundValueRepository.findLastValueForFund(fund);
             if (fundValue.isPresent()) {
@@ -42,13 +42,13 @@ public class FundValueIndexingJob {
                 Instant startTime = lastUpdateTime.plus(1, ChronoUnit.DAYS);
                 if (!isToday(lastUpdateTime)) {
                     log.info("Last update for comparison fund " + fund + ": {}. Updating from {}", lastUpdateTime, startTime);
-                    loadAndPersistDataForStartTime(fundValueRetriever, startTime);
+                    loadAndPersistDataForStartTime(comparisonIndexRetriever, startTime);
                 } else {
                     log.info("Last update for comparison fund " + fund + ": {}. Not updating", lastUpdateTime);
                 }
             } else {
                 log.info("No info for comparison fund " + fund + " so downloading all data until today");
-                loadAndPersistDataForStartTime(fundValueRetriever, START_TIME);
+                loadAndPersistDataForStartTime(comparisonIndexRetriever, START_TIME);
             }
         });
     }
@@ -60,9 +60,9 @@ public class FundValueIndexingJob {
         }
     }
 
-    private void loadAndPersistDataForStartTime(FundValueRetriever fundValueRetriever, Instant startTime) {
+    private void loadAndPersistDataForStartTime(ComparisonIndexRetriever comparisonIndexRetriever, Instant startTime) {
         Instant endTime = Instant.now();
-        List<FundValue> valuesPulled = fundValueRetriever.retrieveValuesForRange(startTime, endTime);
+        List<FundValue> valuesPulled = comparisonIndexRetriever.retrieveValuesForRange(startTime, endTime);
         fundValueRepository.saveAll(valuesPulled);
         log.info("Successfully pulled and saved " + valuesPulled.size() + " fund values");
     }

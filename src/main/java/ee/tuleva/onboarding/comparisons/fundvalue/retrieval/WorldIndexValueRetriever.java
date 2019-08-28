@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,15 +31,16 @@ import java.util.stream.Stream;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class WorldIndexValueRetriever implements FundValueRetriever {
+public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
+    public static final String KEY = "MARKET";
 
     private final RestTemplate restTemplate;
 
     private static final String SOURCE_URL = "https://docs.google.com/spreadsheets/d/125aXusxnf-Mij-4D4W5Qnneb8H4chjebnIMpyrAfRkI/gviz/tq?tqx=out:csv&gid=619370394";
 
     @Override
-    public ComparisonFund getRetrievalFund() {
-        return ComparisonFund.MARKET;
+    public String getKey() {
+        return KEY;
     }
 
     @Override
@@ -94,7 +94,7 @@ public class WorldIndexValueRetriever implements FundValueRetriever {
         }
 
         return Optional.of(FundValue.builder()
-            .comparisonFund(ComparisonFund.MARKET)
+            .comparisonFund(KEY)
             .time(time.get())
             .value(value.get())
             .build());

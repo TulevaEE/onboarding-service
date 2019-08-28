@@ -10,12 +10,12 @@ import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.jdbc.JdbcTestUtils
 import org.springframework.transaction.annotation.Transactional
-import spock.lang.Ignore
 import spock.lang.Specification
 
 import javax.sql.DataSource
-import java.text.SimpleDateFormat
-import java.time.Instant
+import java.time.LocalDate
+
+import static java.time.LocalDate.parse
 
 @SpringBootTest(classes = OnboardingServiceApplication)
 @ContextConfiguration
@@ -38,7 +38,7 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         when:
             fundValueRepository.saveAll(values)
         then:
-            JdbcTestUtils.countRowsInTable(jdbcTemplate, "comparison_fund_values") == values.size()
+            JdbcTestUtils.countRowsInTable(jdbcTemplate, "index_values") == values.size()
     }
 
     def "it can retrieve fund values by last time and fund"() {
@@ -62,48 +62,41 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
             !value.isPresent()
     }
 
-    @Ignore // Because h2 does not support this syntax. It supports timestampdiff, which postgres does not support.
     def "it can find the value closest for a time for a fund"() {
         given:
-            List<FundValue> values = getFakeTimedFundValues()
-            fundValueRepository.saveAll(values)
+        List<FundValue> values = [
+            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-04"), 104.0),
+            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-02"), 102.0),
+            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-01"), 101.0),
+            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-04"), 204.0),
+            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-02"), 202.0),
+            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-01"), 201.0),
+        ]
+        fundValueRepository.saveAll(values)
         when:
-            Optional<FundValue> epiValue = fundValueRepository.getFundValueClosestToTime(EPIFundValueRetriever.KEY, parseInstant("1990-01-03"))
-            Optional<FundValue> marketValue = fundValueRepository.getFundValueClosestToTime(WorldIndexValueRetriever.KEY, parseInstant("1990-01-06"))
+        Optional<FundValue> epiValue = fundValueRepository.getLatestValue(EPIFundValueRetriever.KEY, parse("1990-01-03"))
+        Optional<FundValue> marketValue = fundValueRepository.getLatestValue(WorldIndexValueRetriever.KEY, parse("1990-01-06"))
+        Optional<FundValue> olderValue = fundValueRepository.getLatestValue(WorldIndexValueRetriever.KEY, parse("1970-01-01"))
         then:
-            epiValue.isPresent()
-            marketValue.isPresent()
-            valuesEqual(epiValue.get(), values[2])
-            valuesEqual(marketValue.get(), values[1])
+        epiValue.isPresent()
+        marketValue.isPresent()
+        !olderValue.isPresent()
+        epiValue.get().getValue() == 102.0
+        marketValue.get().getValue() == 204.0
     }
 
     private static List<FundValue> getFakeFundValues() {
-        Instant now = Instant.now()
-        Instant recent = Instant.ofEpochSecond(now.epochSecond - 100)
+        def today = LocalDate.now()
+        def yesterday = LocalDate.now().minusDays(1)
         return [
-            new FundValue(now, 100.0, WorldIndexValueRetriever.KEY),
-            new FundValue(recent, 10.0, WorldIndexValueRetriever.KEY),
-            new FundValue(now, 200.0, EPIFundValueRetriever.KEY),
-            new FundValue(recent, 20.0, EPIFundValueRetriever.KEY),
-        ]
-    }
-
-    private static List<FundValue> getFakeTimedFundValues() {
-        return [
-                new FundValue(parseInstant("1990-01-04"), 100.0, EPIFundValueRetriever.KEY),
-                new FundValue(parseInstant("1990-01-04"), 100.0, WorldIndexValueRetriever.KEY),
-                new FundValue(parseInstant("1990-01-02"), 100.0, EPIFundValueRetriever.KEY),
-                new FundValue(parseInstant("1990-01-02"), 100.0, WorldIndexValueRetriever.KEY),
-                new FundValue(parseInstant("1990-01-01"), 100.0, EPIFundValueRetriever.KEY),
-                new FundValue(parseInstant("1990-01-02"), 100.0, WorldIndexValueRetriever.KEY),
+            new FundValue(WorldIndexValueRetriever.KEY, today, 100.0),
+            new FundValue(WorldIndexValueRetriever.KEY, yesterday, 10.0),
+            new FundValue(EPIFundValueRetriever.KEY, today, 200.0),
+            new FundValue(EPIFundValueRetriever.KEY, yesterday, 20.0),
         ]
     }
 
     private static boolean valuesEqual(FundValue one, FundValue two) {
-        return one.time == two.time && one.comparisonFund == two.comparisonFund && one.value == two.value
-    }
-
-    private static Instant parseInstant(String format) {
-        return new SimpleDateFormat("yyyy-MM-dd").parse(format).toInstant()
+        return one.date == two.date && one.comparisonFund == two.comparisonFund && one.value == two.value
     }
 }

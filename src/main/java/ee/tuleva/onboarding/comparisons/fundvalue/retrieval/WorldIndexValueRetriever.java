@@ -19,8 +19,9 @@ import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.time.Instant;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -44,11 +45,11 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
     }
 
     @Override
-    public List<FundValue> retrieveValuesForRange(Instant startDate, Instant endDate) {
+    public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
         return restTemplate.execute(SOURCE_URL, HttpMethod.GET, getRequestCallback(), getResponseExtractor(startDate, endDate));
     }
 
-    private ResponseExtractor<List<FundValue>> getResponseExtractor(Instant startDate, Instant endDate) {
+    private ResponseExtractor<List<FundValue>> getResponseExtractor(LocalDate startDate, LocalDate endDate) {
         return response -> {
             if (response.getStatusCode() == HttpStatus.OK) {
                 InputStream body = response.getBody();
@@ -62,14 +63,14 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
         };
     }
 
-    private List<FundValue> parseLines(Stream<String> lines, Instant startDate, Instant endDate) {
+    private List<FundValue> parseLines(Stream<String> lines, LocalDate startDate, LocalDate endDate) {
         return lines
             .map(this::parseLine)
             .filter(Optional::isPresent)
             .map(Optional::get)
             .filter((FundValue value) -> {
-                Instant time = value.getTime();
-                return (startDate.isBefore(time) || startDate.equals(time)) && (endDate.isAfter(time) || endDate.equals(time));
+                LocalDate date = value.getDate();
+                return (startDate.isBefore(date) || startDate.equals(date)) && (endDate.isAfter(date) || endDate.equals(date));
             })
             .collect(Collectors.toList());
     }
@@ -86,26 +87,22 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
 
         log.debug("Parts({}): {}", parts.length, parts);
 
-        Optional<Instant> time = parseTime(parts[0]);
+        Optional<LocalDate> date = parseDate(parts[0]);
         Optional<BigDecimal> value = parseAmount(parts[5]);
 
-        if (!time.isPresent() || !value.isPresent()) {
+        if (!date.isPresent() || !value.isPresent()) {
             return Optional.empty();
         }
 
-        return Optional.of(FundValue.builder()
-            .comparisonFund(KEY)
-            .time(time.get())
-            .value(value.get())
-            .build());
+        return Optional.of(new FundValue(KEY, date.get(), value.get()));
     }
 
-    private Optional<Instant> parseTime(String time) {
-        SimpleDateFormat format = new SimpleDateFormat("dd-MMM-yyyy");
+    private Optional<LocalDate> parseDate(String date) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
         try {
-            return Optional.of(format.parse(time).toInstant());
-        } catch (ParseException e) {
-            log.warn("Failed to parse time");
+            return Optional.of(LocalDate.parse(date, formatter));
+        } catch (DateTimeParseException e) {
+            log.warn("Failed to parse date: {}", e.getMessage());
             return Optional.empty();
         }
     }

@@ -34,7 +34,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
             .from(LocalDate.parse(fromDate))
             .returns([Return.builder().key(key).type(type).value(value).build()])
             .build()
-        returnsService.getReturns(_ as Person, LocalDate.parse(fromDate)) >> returns
+        returnsService.get(_ as Person, LocalDate.parse(fromDate)) >> returns
 
         expect:
         mockMvc.perform(get("/v1/returns")

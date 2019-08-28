@@ -52,12 +52,12 @@ class ReturnsServiceSpec extends Specification {
         returnProvider2.getReturns(person, startTime, pillar) >> returns2
 
         when:
-        def returns = returnsService.getReturns(person, fromDate)
+        def theReturns = returnsService.get(person, fromDate)
 
         then:
-        returns == Returns.builder()
-            .from(fromDate)
-            .returns([return1, return2])
-            .build()
+        with(theReturns) {
+            from == fromDate
+            returns == [return1, return2]
+        }
     }
 }

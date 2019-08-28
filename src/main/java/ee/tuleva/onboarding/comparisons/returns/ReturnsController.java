@@ -24,6 +24,6 @@ public class ReturnsController {
     @GetMapping("/returns")
     public Returns getReturns(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson person,
                               @RequestParam @DateTimeFormat(iso = DATE) LocalDate from) {
-        return returnsService.getReturns(person, from);
+        return returnsService.get(person, from);
     }
 }

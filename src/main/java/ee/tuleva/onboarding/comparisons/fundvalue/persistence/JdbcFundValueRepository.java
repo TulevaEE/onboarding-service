@@ -32,11 +32,11 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
             "ORDER BY date DESC NULLS LAST " +
             "LIMIT 1";
 
-    private static final String FIND_CLOSEST_VALUE_QUERY = "" +
+    private static final String FIND_LATEST_VALUE_QUERY = "" +
             "SELECT * " +
             "FROM index_values " +
-            "WHERE key=:fund " +
-            "ORDER BY abs(extract(epoch from (date - :time))) ASC NULLS LAST " +
+            "WHERE key=:fund AND date <= :date " +
+            "ORDER BY date DESC " +
             "LIMIT 1";
 
     private static final String INSERT_VALUES_QUERY = "" +
@@ -84,10 +84,10 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     @Override
     public Optional<FundValue> getFundValueClosestToTime(String fund, Instant time) {
         List<FundValue> result = jdbcTemplate.query(
-                FIND_CLOSEST_VALUE_QUERY,
+            FIND_LATEST_VALUE_QUERY,
                 new MapSqlParameterSource()
                         .addValue("fund", fund, Types.VARCHAR)
-                        .addValue("time", Timestamp.from(time), Types.TIMESTAMP),
+                        .addValue("date", Timestamp.from(time), Types.TIMESTAMP),
                 new FundValueRowMapper()
         );
         return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));

@@ -64,19 +64,27 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
             !value.isPresent()
     }
 
-    @Ignore // Because h2 does not support this syntax. It supports timestampdiff, which postgres does not support.
     def "it can find the value closest for a time for a fund"() {
         given:
-            List<FundValue> values = getFakeTimedFundValues()
-            fundValueRepository.saveAll(values)
+        List<FundValue> values = [
+            new FundValue(parseInstant("1990-01-04"), 104.0, EPIFundValueRetriever.KEY),
+            new FundValue(parseInstant("1990-01-02"), 102.0, EPIFundValueRetriever.KEY),
+            new FundValue(parseInstant("1990-01-01"), 101.0, EPIFundValueRetriever.KEY),
+            new FundValue(parseInstant("1990-01-04"), 204.0, WorldIndexValueRetriever.KEY),
+            new FundValue(parseInstant("1990-01-02"), 202.0, WorldIndexValueRetriever.KEY),
+            new FundValue(parseInstant("1990-01-01"), 201.0, WorldIndexValueRetriever.KEY),
+        ]
+        fundValueRepository.saveAll(values)
         when:
-            Optional<FundValue> epiValue = fundValueRepository.getFundValueClosestToTime(EPIFundValueRetriever.KEY, parseInstant("1990-01-03"))
-            Optional<FundValue> marketValue = fundValueRepository.getFundValueClosestToTime(WorldIndexValueRetriever.KEY, parseInstant("1990-01-06"))
+        Optional<FundValue> epiValue = fundValueRepository.getFundValueClosestToTime(EPIFundValueRetriever.KEY, parseInstant("1990-01-03"))
+        Optional<FundValue> marketValue = fundValueRepository.getFundValueClosestToTime(WorldIndexValueRetriever.KEY, parseInstant("1990-01-06"))
+        Optional<FundValue> olderValue = fundValueRepository.getFundValueClosestToTime(WorldIndexValueRetriever.KEY, parseInstant("1970-01-01"))
         then:
-            epiValue.isPresent()
-            marketValue.isPresent()
-            valuesEqual(epiValue.get(), values[2])
-            valuesEqual(marketValue.get(), values[1])
+        epiValue.isPresent()
+        marketValue.isPresent()
+        olderValue.isEmpty()
+        epiValue.get().getValue() == 102.0
+        marketValue.get().getValue() == 204.0
     }
 
     private static List<FundValue> getFakeFundValues() {
@@ -90,16 +98,6 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         ]
     }
 
-    private static List<FundValue> getFakeTimedFundValues() {
-        return [
-                new FundValue(parseInstant("1990-01-04"), 100.0, EPIFundValueRetriever.KEY),
-                new FundValue(parseInstant("1990-01-04"), 100.0, WorldIndexValueRetriever.KEY),
-                new FundValue(parseInstant("1990-01-02"), 100.0, EPIFundValueRetriever.KEY),
-                new FundValue(parseInstant("1990-01-02"), 100.0, WorldIndexValueRetriever.KEY),
-                new FundValue(parseInstant("1990-01-01"), 100.0, EPIFundValueRetriever.KEY),
-                new FundValue(parseInstant("1990-01-02"), 100.0, WorldIndexValueRetriever.KEY),
-        ]
-    }
 
     private static boolean valuesEqual(FundValue one, FundValue two) {
         return one.time == two.time && one.comparisonFund == two.comparisonFund && one.value == two.value

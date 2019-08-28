@@ -98,7 +98,7 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
     }
 
     private Optional<LocalDate> parseDate(String date) {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MMM-yyyy");
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("d-MMM-yyyy");
         try {
             return Optional.of(LocalDate.parse(date, formatter));
         } catch (DateTimeParseException e) {

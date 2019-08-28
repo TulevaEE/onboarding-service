@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
-import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund
+
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
-import org.springframework.core.env.Environment
 import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.client.ClientHttpResponse
@@ -27,10 +26,10 @@ class WorldIndexValueRetrieverSpec extends Specification {
 
     def "it is configured for the right fund"() {
         when:
-        ComparisonFund retrievalFund = retriever.getRetrievalFund()
+        def retrievalFund = retriever.getKey()
 
         then:
-        retrievalFund == ComparisonFund.MARKET
+        retrievalFund == WorldIndexValueRetriever.KEY
     }
 
     def "it successfully parses a valid fund values"() {
@@ -43,8 +42,8 @@ class WorldIndexValueRetrieverSpec extends Specification {
 """
         ClientHttpResponse response = createResponse(HttpStatus.OK, responseBody)
         List<FundValue> expectedValues = [
-                FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(279.09).time(parseInstant("2018-07-18")).build(),
-                FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(278.07).time(parseInstant("2018-07-17")).build(),
+                FundValue.builder().comparisonFund(WorldIndexValueRetriever.KEY).value(279.09).time(parseInstant("2018-07-18")).build(),
+                FundValue.builder().comparisonFund(WorldIndexValueRetriever.KEY).value(278.07).time(parseInstant("2018-07-17")).build(),
         ]
 
         when:
@@ -72,8 +71,8 @@ class WorldIndexValueRetrieverSpec extends Specification {
 """
         ClientHttpResponse response = createResponse(HttpStatus.OK, responseBody)
         List<FundValue> expectedValues = [
-                FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(228.65).time(parseInstant("2018-07-17")).build(),
-                FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(227.74).time(parseInstant("2018-07-16")).build(),
+                FundValue.builder().comparisonFund(WorldIndexValueRetriever.KEY).value(228.65).time(parseInstant("2018-07-17")).build(),
+                FundValue.builder().comparisonFund(WorldIndexValueRetriever.KEY).value(227.74).time(parseInstant("2018-07-16")).build(),
         ]
 
         when:
@@ -98,8 +97,8 @@ broken
 "17-Jul-2018","24.05","224.01","8.1931","0.3617","278.07","",""
 """)
         List<FundValue> expectedValues = [
-            FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(279.09).time(parseInstant("2018-07-18")).build(),
-            FundValue.builder().comparisonFund(ComparisonFund.MARKET).value(278.07).time(parseInstant("2018-07-17")).build(),
+            FundValue.builder().comparisonFund(WorldIndexValueRetriever.KEY).value(279.09).time(parseInstant("2018-07-18")).build(),
+            FundValue.builder().comparisonFund(WorldIndexValueRetriever.KEY).value(278.07).time(parseInstant("2018-07-17")).build(),
         ]
 
         when:

@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.persistence
 
 import ee.tuleva.onboarding.OnboardingServiceApplication
-import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
@@ -45,8 +46,8 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
             List<FundValue> values = getFakeFundValues()
             fundValueRepository.saveAll(values)
         when:
-            Optional<FundValue> epiLatestValue = fundValueRepository.findLastValueForFund(ComparisonFund.EPI)
-            Optional<FundValue> marketLatestValue = fundValueRepository.findLastValueForFund(ComparisonFund.MARKET)
+            Optional<FundValue> epiLatestValue = fundValueRepository.findLastValueForFund(EPIFundValueRetriever.KEY)
+            Optional<FundValue> marketLatestValue = fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY)
         then:
             epiLatestValue.isPresent()
             valuesEqual(epiLatestValue.get(), values[2])
@@ -56,7 +57,7 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
 
     def "it handles missing fund values properly"() {
         when:
-            Optional<FundValue> value = fundValueRepository.findLastValueForFund(ComparisonFund.EPI)
+            Optional<FundValue> value = fundValueRepository.findLastValueForFund(EPIFundValueRetriever.KEY)
         then:
             !value.isPresent()
     }
@@ -67,8 +68,8 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
             List<FundValue> values = getFakeTimedFundValues()
             fundValueRepository.saveAll(values)
         when:
-            Optional<FundValue> epiValue = fundValueRepository.getFundValueClosestToTime(ComparisonFund.EPI, parseInstant("1990-01-03"))
-            Optional<FundValue> marketValue = fundValueRepository.getFundValueClosestToTime(ComparisonFund.MARKET, parseInstant("1990-01-06"))
+            Optional<FundValue> epiValue = fundValueRepository.getFundValueClosestToTime(EPIFundValueRetriever.KEY, parseInstant("1990-01-03"))
+            Optional<FundValue> marketValue = fundValueRepository.getFundValueClosestToTime(WorldIndexValueRetriever.KEY, parseInstant("1990-01-06"))
         then:
             epiValue.isPresent()
             marketValue.isPresent()
@@ -80,21 +81,21 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         Instant now = Instant.now()
         Instant recent = Instant.ofEpochSecond(now.epochSecond - 100)
         return [
-                new FundValue(now, 100, ComparisonFund.MARKET),
-                new FundValue(recent, 10, ComparisonFund.MARKET),
-                new FundValue(now, 200, ComparisonFund.EPI),
-                new FundValue(recent, 20, ComparisonFund.EPI),
+            new FundValue(now, 100.0, WorldIndexValueRetriever.KEY),
+            new FundValue(recent, 10.0, WorldIndexValueRetriever.KEY),
+            new FundValue(now, 200.0, EPIFundValueRetriever.KEY),
+            new FundValue(recent, 20.0, EPIFundValueRetriever.KEY),
         ]
     }
 
     private static List<FundValue> getFakeTimedFundValues() {
         return [
-                new FundValue(parseInstant("1990-01-04"), 100, ComparisonFund.EPI),
-                new FundValue(parseInstant("1990-01-04"), 100, ComparisonFund.MARKET),
-                new FundValue(parseInstant("1990-01-02"), 100, ComparisonFund.EPI),
-                new FundValue(parseInstant("1990-01-02"), 100, ComparisonFund.MARKET),
-                new FundValue(parseInstant("1990-01-01"), 100, ComparisonFund.EPI),
-                new FundValue(parseInstant("1990-01-02"), 100, ComparisonFund.MARKET),
+                new FundValue(parseInstant("1990-01-04"), 100.0, EPIFundValueRetriever.KEY),
+                new FundValue(parseInstant("1990-01-04"), 100.0, WorldIndexValueRetriever.KEY),
+                new FundValue(parseInstant("1990-01-02"), 100.0, EPIFundValueRetriever.KEY),
+                new FundValue(parseInstant("1990-01-02"), 100.0, WorldIndexValueRetriever.KEY),
+                new FundValue(parseInstant("1990-01-01"), 100.0, EPIFundValueRetriever.KEY),
+                new FundValue(parseInstant("1990-01-02"), 100.0, WorldIndexValueRetriever.KEY),
         ]
     }
 

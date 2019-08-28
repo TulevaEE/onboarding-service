@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.comparisons
 
 import ee.tuleva.onboarding.auth.principal.Person
-import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.overview.Transaction
@@ -123,9 +124,9 @@ class FundComparisonCalculatorServiceSpec extends Specification {
         Instant startTime = parseInstant("2010-01-01")
         Instant endTime = parseInstant("2018-07-16")
         Map<String, BigDecimal> fundValues = getEpiFundValuesMap()
-        mockFundValues(ComparisonFund.EPI, fundValues)
-        fundValueProvider.getFundValueClosestToTime(ComparisonFund.MARKET, _) >> {
-            ComparisonFund givenFund, Instant time -> Optional.of(new FundValue(time, 123.0, ComparisonFund.MARKET))
+        mockFundValues(EPIFundValueRetriever.KEY, fundValues)
+        fundValueProvider.getFundValueClosestToTime(WorldIndexValueRetriever.KEY, _) >> {
+            String givenFund, Instant time -> Optional.of(new FundValue(time, 123.0, WorldIndexValueRetriever.KEY))
         }
         accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
             new Transaction(30.0, parseInstant("2010-07-01")),
@@ -205,10 +206,10 @@ class FundComparisonCalculatorServiceSpec extends Specification {
         ]
     }
 
-    private void mockFundValues(ComparisonFund fund, Map<String, BigDecimal> values) {
+    private void mockFundValues(String fund, Map<String, BigDecimal> values) {
         fundValueProvider.getFundValueClosestToTime(fund, _) >> {
-            ComparisonFund givenFund, Instant time ->
-                Optional.of(new FundValue(time, values[toLocalDate(time)], ComparisonFund.MARKET))
+            String givenFund, Instant time ->
+                Optional.of(new FundValue(time, values[toLocalDate(time)], WorldIndexValueRetriever.KEY))
         }
     }
 
@@ -223,6 +224,6 @@ class FundComparisonCalculatorServiceSpec extends Specification {
     private void fakeNoReturnFundValues() {
         Instant time = parseInstant("2018-06-17")
         fundValueProvider.getFundValueClosestToTime(_, _) >>
-            Optional.of(new FundValue(time, 1.0, ComparisonFund.MARKET))
+            Optional.of(new FundValue(time, 1.0, WorldIndexValueRetriever.KEY))
     }
 }

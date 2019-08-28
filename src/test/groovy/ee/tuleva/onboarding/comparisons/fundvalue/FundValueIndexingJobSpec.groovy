@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.comparisons.fundvalue
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
 import org.springframework.core.env.Environment
 import spock.lang.Specification
 
@@ -11,13 +12,13 @@ import java.time.Instant
 class FundValueIndexingJobSpec extends Specification {
 
     FundValueRepository fundValueRepository
-    FundValueRetriever fundValueRetriever
+    ComparisonIndexRetriever fundValueRetriever
 
     FundValueIndexingJob fundValueIndexingJob
 
     void setup() {
         fundValueRepository = Mock(FundValueRepository)
-        fundValueRetriever = Mock(FundValueRetriever)
+        fundValueRetriever = Mock(ComparisonIndexRetriever)
         fundValueIndexingJob = new FundValueIndexingJob(
             fundValueRepository,
             Collections.singletonList(fundValueRetriever),
@@ -27,8 +28,8 @@ class FundValueIndexingJobSpec extends Specification {
 
     def "if no saved fund values found, downloads and saves from defined start time"() {
         given:
-            fundValueRetriever.getRetrievalFund() >> ComparisonFund.MARKET
-            fundValueRepository.findLastValueForFund(ComparisonFund.MARKET) >> Optional.empty()
+            fundValueRetriever.getKey() >> WorldIndexValueRetriever.KEY
+            fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY) >> Optional.empty()
         when:
             fundValueIndexingJob.runIndexingJob()
         then:
@@ -41,10 +42,10 @@ class FundValueIndexingJobSpec extends Specification {
 
     def "if saved fund values found, downloads from the next day after last fund value"() {
         given:
-            fundValueRetriever.getRetrievalFund() >> ComparisonFund.MARKET
+            fundValueRetriever.getKey() >> WorldIndexValueRetriever.KEY
             Instant lastFundValueTime = parseInstant("2018-05-01")
             Instant dayFromlastFundValueTime = parseInstant("2018-05-02")
-            fundValueRepository.findLastValueForFund(ComparisonFund.MARKET) >> Optional.of(new FundValue(lastFundValueTime, 120, ComparisonFund.MARKET))
+            fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY) >> Optional.of(new FundValue(lastFundValueTime, 120, WorldIndexValueRetriever.KEY))
         when:
             fundValueIndexingJob.runIndexingJob()
         then:
@@ -57,9 +58,9 @@ class FundValueIndexingJobSpec extends Specification {
 
     def "if last saved fund value was found today, does nothing"() {
         given:
-            fundValueRetriever.getRetrievalFund() >> ComparisonFund.MARKET
+            fundValueRetriever.getKey() >> WorldIndexValueRetriever.KEY
             Instant lastFundValueTime = Instant.now()
-            fundValueRepository.findLastValueForFund(ComparisonFund.MARKET) >> Optional.of(new FundValue(lastFundValueTime, 120, ComparisonFund.MARKET))
+            fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY) >> Optional.of(new FundValue(lastFundValueTime, 120, WorldIndexValueRetriever.KEY))
         when:
             fundValueIndexingJob.runIndexingJob()
         then:
@@ -69,8 +70,8 @@ class FundValueIndexingJobSpec extends Specification {
 
     private static List<FundValue> fakeFundValues() {
         return [
-                new FundValue(parseInstant("2017-01-01"), 100, ComparisonFund.MARKET),
-                new FundValue(parseInstant("2018-01-01"), 110, ComparisonFund.MARKET),
+            new FundValue(parseInstant("2017-01-01"), 100.0, WorldIndexValueRetriever.KEY),
+            new FundValue(parseInstant("2018-01-01"), 110.0, WorldIndexValueRetriever.KEY),
         ]
     }
 

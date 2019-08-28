@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,15 +35,16 @@ import static java.util.Collections.emptyList;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class EPIFundValueRetriever implements FundValueRetriever {
+public class EPIFundValueRetriever implements ComparisonIndexRetriever {
+    public static final String KEY = "EPI";
 
     private final RestTemplate restTemplate;
 
     private static final String EPI_URL = "https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/";
 
     @Override
-    public ComparisonFund getRetrievalFund() {
-        return ComparisonFund.EPI;
+    public String getKey() {
+        return KEY;
     }
 
     @Override
@@ -113,7 +113,7 @@ public class EPIFundValueRetriever implements FundValueRetriever {
         }
 
         return Optional.of(FundValue.builder()
-            .comparisonFund(ComparisonFund.EPI)
+            .comparisonFund(KEY)
             .time(time.get())
             .value(value.get())
             .build());

@@ -1,10 +1,8 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.persistence;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.ComparisonFund;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -49,7 +47,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         @Override
         public FundValue mapRow(ResultSet rs, int rowNum) throws SQLException {
             return FundValue.builder()
-                    .comparisonFund(ComparisonFund.valueOf(rs.getString("fund")))
+                    .comparisonFund(rs.getString("fund"))
                     .time(rs.getTimestamp("time").toInstant())
                     .value(rs.getBigDecimal("value"))
                     .build();
@@ -61,7 +59,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         List<Map<String, Object>> batchValues = fundValues
                 .stream()
                 .map(fundValue -> new MapSqlParameterSource()
-                        .addValue("fund", fundValue.getComparisonFund().toString(), Types.VARCHAR)
+                        .addValue("fund", fundValue.getComparisonFund(), Types.VARCHAR)
                         .addValue("time", Timestamp.from(fundValue.getTime()), Types.TIMESTAMP)
                         .addValue("value", fundValue.getValue(), Types.NUMERIC)
                         .getValues())
@@ -73,22 +71,22 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     }
 
     @Override
-    public Optional<FundValue> findLastValueForFund(ComparisonFund fund) {
+    public Optional<FundValue> findLastValueForFund(String fund) {
         List<FundValue> result = jdbcTemplate.query(
             FIND_LAST_VALUE_QUERY,
             new MapSqlParameterSource()
-                    .addValue("fund", fund.toString(), Types.VARCHAR),
+                    .addValue("fund", fund, Types.VARCHAR),
             new FundValueRowMapper()
         );
         return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
     }
 
     @Override
-    public Optional<FundValue> getFundValueClosestToTime(ComparisonFund fund, Instant time) {
+    public Optional<FundValue> getFundValueClosestToTime(String fund, Instant time) {
         List<FundValue> result = jdbcTemplate.query(
                 FIND_CLOSEST_VALUE_QUERY,
                 new MapSqlParameterSource()
-                        .addValue("fund", fund.toString(), Types.VARCHAR)
+                        .addValue("fund", fund, Types.VARCHAR)
                         .addValue("time", Timestamp.from(time), Types.TIMESTAMP),
                 new FundValueRowMapper()
         );

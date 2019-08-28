@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetri
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.overview.Transaction
+import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -19,16 +20,18 @@ class FundComparisonCalculatorServiceSpec extends Specification {
 
     AccountOverviewProvider accountOverviewProvider
     FundValueProvider fundValueProvider
+    RateOfReturnCalculator rateOfReturnCalculator
 
     FundComparisonCalculatorService fundComparisonCalculatorService
 
     void setup() {
         accountOverviewProvider = Mock(AccountOverviewProvider)
         fundValueProvider = Mock(FundValueProvider)
+        rateOfReturnCalculator = new RateOfReturnCalculator(fundValueProvider)
 
         fundComparisonCalculatorService = new FundComparisonCalculatorService(
             accountOverviewProvider,
-            fundValueProvider
+            rateOfReturnCalculator
         )
     }
 

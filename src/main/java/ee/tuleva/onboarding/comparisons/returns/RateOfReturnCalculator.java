@@ -65,13 +65,15 @@ public class RateOfReturnCalculator {
 
     private List<Transaction> getPurchaseTransactions(AccountOverview accountOverview) {
         List<Transaction> transactions = accountOverview.getTransactions();
-        Transaction beginningTransaction = new Transaction(
-            accountOverview.getBeginningBalance(),
-            accountOverview.getStartTime().atZone(ZoneOffset.UTC).toLocalDate()
-        );
-
         List<Transaction> purchaseTransactions = new ArrayList<>();
-        purchaseTransactions.add(beginningTransaction);
+
+        if (!accountOverview.getBeginningBalance().equals(ZERO)) {
+            Transaction beginningTransaction = new Transaction(
+                accountOverview.getBeginningBalance(),
+                accountOverview.getStartTime().atZone(ZoneOffset.UTC).toLocalDate()
+            );
+            purchaseTransactions.add(beginningTransaction);
+        }
         purchaseTransactions.addAll(transactions);
 
         return purchaseTransactions;

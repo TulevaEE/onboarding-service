@@ -176,7 +176,7 @@ class EpisServiceSpec extends Specification {
         given:
         def navDto = Mock(NavDto)
         1 * restTemplate.exchange(
-            "http://epis/v1/navs/EE666?date=2018-10-20", GET,
+            "http://epis/navs/EE666?date=2018-10-20", GET,
             { HttpEntity httpEntity -> doesHttpEntityContainToken(httpEntity, sampleToken) },
             NavDto.class) >> new ResponseEntity<NavDto>(navDto, OK)
         when:

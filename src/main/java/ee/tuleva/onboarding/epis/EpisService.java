@@ -119,7 +119,7 @@ public class EpisService {
     }
 
     public NavDto getNav(String isin, LocalDate date) {
-        String url = episServiceUrl + "/v1/navs/" + isin + "?date=" + date;
+        String url = episServiceUrl + "/navs/" + isin + "?date=" + date;
         return restTemplate.exchange(url, GET, getHeadersEntity(), NavDto.class).getBody();
     }
 

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.annotations.ApiIgnore;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 
@@ -25,8 +26,9 @@ public class ReturnsController {
 
     @GetMapping("/returns")
     public Returns getReturns(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson person,
-                              @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate from) {
+                              @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate from,
+                              @RequestParam(required = false, name = "key") List<String> keys) {
         LocalDate startDate = (from == null) ? DEFAULT_DATE : from;
-        return returnsService.get(person, startDate);
+        return returnsService.get(person, startDate, keys);
     }
 }

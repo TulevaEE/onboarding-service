@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.INDEX;
 import static java.util.Collections.singletonList;
@@ -20,6 +21,8 @@ import static java.util.Collections.singletonList;
 @RequiredArgsConstructor
 public class EPIReturnProvider implements ReturnProvider {
 
+    private static final String KEY = EPIFundValueRetriever.KEY;
+
     private final AccountOverviewProvider accountOverviewProvider;
 
     private final RateOfReturnCalculator rateOfReturnCalculator;
@@ -27,10 +30,10 @@ public class EPIReturnProvider implements ReturnProvider {
     @Override
     public Returns getReturns(Person person, Instant startTime, Integer pillar) {
         AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, startTime, pillar);
-        double rateOfReturn = rateOfReturnCalculator.getRateOfReturn(accountOverview, EPIFundValueRetriever.KEY);
+        double rateOfReturn = rateOfReturnCalculator.getRateOfReturn(accountOverview, KEY);
 
         Return theReturn = Return.builder()
-            .key(EPIFundValueRetriever.KEY)
+            .key(KEY)
             .type(INDEX)
             .value(rateOfReturn)
             .build();
@@ -39,6 +42,11 @@ public class EPIReturnProvider implements ReturnProvider {
             .from(startTime.atZone(ZoneOffset.UTC).toLocalDate()) // TODO: Get real start time
             .returns(singletonList(theReturn))
             .build();
+    }
+
+    @Override
+    public List<String> getKeys() {
+        return singletonList(KEY);
     }
 
 }

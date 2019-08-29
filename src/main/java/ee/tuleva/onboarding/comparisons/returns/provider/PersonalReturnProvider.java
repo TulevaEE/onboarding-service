@@ -11,15 +11,18 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.Arrays;
+import java.util.List;
 
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.PERSONAL;
 import static java.util.Collections.singletonList;
 
 @Service
 @RequiredArgsConstructor
-public class SecondPillarReturnProvider implements ReturnProvider {
+public class PersonalReturnProvider implements ReturnProvider {
 
-    public static final String KEY = "SECOND_PILLAR";
+    public static final String SECOND_PILLAR = "SECOND_PILLAR";
+    public static final String THIRD_PILLAR = "THIRD_PILLAR";
 
     private final AccountOverviewProvider accountOverviewProvider;
 
@@ -31,7 +34,7 @@ public class SecondPillarReturnProvider implements ReturnProvider {
         double rateOfReturn = rateOfReturnCalculator.getRateOfReturn(accountOverview);
 
         Return aReturn = Return.builder()
-            .key(KEY)
+            .key(getKey(pillar))
             .type(PERSONAL)
             .value(rateOfReturn)
             .build();
@@ -40,5 +43,19 @@ public class SecondPillarReturnProvider implements ReturnProvider {
             .from(startTime.atZone(ZoneOffset.UTC).toLocalDate()) // TODO: Get real start time
             .returns(singletonList(aReturn))
             .build();
+    }
+
+    @Override
+    public List<String> getKeys() {
+        return Arrays.asList(SECOND_PILLAR, THIRD_PILLAR);
+    }
+
+    private String getKey(Integer pillar) {
+        if (pillar == 2) {
+            return SECOND_PILLAR;
+        } else if (pillar == 3) {
+            return THIRD_PILLAR;
+        }
+        throw new IllegalArgumentException("Unknown pillar: " + pillar);
     }
 }

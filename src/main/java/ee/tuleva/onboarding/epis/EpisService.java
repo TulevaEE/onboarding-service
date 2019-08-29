@@ -5,11 +5,13 @@ import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.epis.fund.FundDto;
+import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -25,6 +27,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static java.util.Arrays.asList;
+import static org.springframework.http.HttpMethod.GET;
 
 @Service
 @Slf4j
@@ -50,7 +53,7 @@ public class EpisService {
             url, person.getFirstName(), person.getLastName());
 
         ResponseEntity<TransferExchangeDTO[]> response = restTemplate.exchange(
-            url, HttpMethod.GET, new HttpEntity(getHeaders()), TransferExchangeDTO[].class);
+            url, GET, getHeadersEntity(), TransferExchangeDTO[].class);
 
         return asList(response.getBody());
     }
@@ -65,7 +68,7 @@ public class EpisService {
             .toUriString();
 
         log.info("Getting cash flows from {}", url);
-        return restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(getHeaders()), CashFlowStatement.class).getBody();
+        return restTemplate.exchange(url, GET, getHeadersEntity(), CashFlowStatement.class).getBody();
     }
 
     @Caching(evict = {
@@ -84,25 +87,10 @@ public class EpisService {
         log.info("Getting contact details from {} for {} {}",
             url, person.getFirstName(), person.getLastName());
 
-        ResponseEntity<UserPreferences> response = restTemplate.exchange(
-            url, HttpMethod.GET, new HttpEntity(getHeaders()), UserPreferences.class);
+        ResponseEntity<UserPreferences> response =
+            restTemplate.exchange(url, GET, getHeadersEntity(), UserPreferences.class);
 
         return response.getBody();
-    }
-
-    private HttpHeaders getHeaders() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.add("authorization", "Bearer " + getToken());
-
-        return headers;
-    }
-
-    private String getToken() {
-        OAuth2AuthenticationDetails details =
-            (OAuth2AuthenticationDetails) SecurityContextHolder.getContext().getAuthentication().getDetails();
-
-        return details.getTokenValue();
     }
 
     @Cacheable(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode")
@@ -112,8 +100,8 @@ public class EpisService {
         log.info("Getting account statement from {} for {} {}",
             url, person.getFirstName(), person.getLastName());
 
-        ResponseEntity<FundBalanceDto[]> response = restTemplate.exchange(
-            url, HttpMethod.GET, new HttpEntity(getHeaders()), FundBalanceDto[].class);
+        ResponseEntity<FundBalanceDto[]> response =
+            restTemplate.exchange(url, GET, getHeadersEntity(), FundBalanceDto[].class);
 
         return asList(response.getBody());
     }
@@ -122,12 +110,17 @@ public class EpisService {
     public List<FundDto> getFunds() {
         String url = episServiceUrl + "/funds";
 
-        log.info("Getting funds from", url);
+        log.info("Getting funds from {}", url);
 
-        ResponseEntity<FundDto[]> response = restTemplate.exchange(
-            url, HttpMethod.GET, new HttpEntity(getHeaders()), FundDto[].class);
+        ResponseEntity<FundDto[]> response =
+            restTemplate.exchange(url, GET, getHeadersEntity(), FundDto[].class);
 
         return asList(response.getBody());
+    }
+
+    public NavDto getNav(String isin, LocalDate date) {
+        String url = episServiceUrl + "/v1/navs/" + isin + "?date=" + date;
+        return restTemplate.exchange(url, GET, getHeadersEntity(), NavDto.class).getBody();
     }
 
     public MandateResponseDTO sendMandate(MandateDto mandate) {
@@ -144,5 +137,25 @@ public class EpisService {
         log.info("Updating contact details for {}", contactDetails.getPersonalCode());
 
         return restTemplate.postForObject(url, new HttpEntity<>(contactDetails, getHeaders()), UserPreferences.class);
+    }
+
+    @NotNull
+    private HttpEntity getHeadersEntity() {
+        return new HttpEntity(getHeaders());
+    }
+
+    private HttpHeaders getHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.add("authorization", "Bearer " + getToken());
+
+        return headers;
+    }
+
+    private String getToken() {
+        OAuth2AuthenticationDetails details =
+            (OAuth2AuthenticationDetails) SecurityContextHolder.getContext().getAuthentication().getDetails();
+
+        return details.getTokenValue();
     }
 }

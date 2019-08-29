@@ -19,11 +19,14 @@ import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 @RequiredArgsConstructor
 public class ReturnsController {
 
+    static final LocalDate DEFAULT_DATE = LocalDate.parse("1900-01-01");
+
     private final ReturnsService returnsService;
 
     @GetMapping("/returns")
     public Returns getReturns(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson person,
-                              @RequestParam @DateTimeFormat(iso = DATE) LocalDate from) {
-        return returnsService.get(person, from);
+                              @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate from) {
+        LocalDate startDate = (from == null) ? DEFAULT_DATE : from;
+        return returnsService.get(person, startDate);
     }
 }

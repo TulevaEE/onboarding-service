@@ -80,6 +80,11 @@ epis:
   service:
     url: http://localhost:9005/v1
     bic: "LCDELV22XXX"
+    client:
+      id: epis-service
+      client-id: onboarding-service
+      client-secret: "OnboardingServiceSecret"
+      access-token-uri: http://localhost:9000/oauth/token
 
 membership-success:
   url: http://localhost:8000/membership-success/
@@ -170,6 +175,11 @@ epis:
   service:
     url: https://epis-service.tuleva.ee/v1
     bic: "LCDELV22XXX"
+    client:
+      id: epis-service
+      client-id: onboarding-service
+      client-secret: ${CLIENT_SECRET}
+      access-token-uri: ${ACCESS_TOKEN_URI}
 
 membership-success:
   url: https://tuleva.ee/membership-success/

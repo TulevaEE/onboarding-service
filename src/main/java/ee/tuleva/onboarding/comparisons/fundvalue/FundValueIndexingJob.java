@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -31,9 +30,9 @@ public class FundValueIndexingJob {
     private final FundNavRetrieverFactory fundNavRetrieverFactory;
     private List<ComparisonIndexRetriever> dynamicRetrievers = emptyList();
 
-    static final LocalDate EARLIEST_DATE = LocalDate.parse("2002-01-01");
+    static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
 
-    @Scheduled(cron = "0 0 14 * * ?", zone = "Europe/Tallinn") // every day at 2 o clock
+    @Scheduled(cron = "0 0 * * * *", zone = "Europe/Tallinn") // the top of every hour of every day
     public void runIndexingJob() {
         Stream.concat(staticRetrievers.stream(), dynamicRetrievers.stream()).forEach(retriever -> {
             String fund = retriever.getKey();

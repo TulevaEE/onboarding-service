@@ -20,15 +20,15 @@ import static org.springframework.format.annotation.DateTimeFormat.ISO.DATE;
 @RequiredArgsConstructor
 public class ReturnsController {
 
-    static final LocalDate DEFAULT_DATE = LocalDate.parse("1900-01-01");
+    static final LocalDate BEGINNING_OF_TIMES = LocalDate.parse("2003-01-07");
 
     private final ReturnsService returnsService;
 
     @GetMapping("/returns")
     public Returns getReturns(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson person,
                               @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate from,
-                              @RequestParam(required = false, name = "key") List<String> keys) {
-        LocalDate startDate = (from == null) ? DEFAULT_DATE : from;
+                              @RequestParam(required = false, name = "keys[]") List<String> keys) {
+        LocalDate startDate = (from == null) ? BEGINNING_OF_TIMES : from;
         return returnsService.get(person, startDate, keys);
     }
 }

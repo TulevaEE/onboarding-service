@@ -19,7 +19,7 @@ class PersonalReturnProviderSpec extends Specification {
 
     def returnProvider = new PersonalReturnProvider(accountOverviewProvider, rateOfReturnCalculator)
 
-    def "can assemble a Return object for personal 2nd pillar fund"() {
+    def "can assemble a Return object for your personal 2nd pillar fund"() {
         given:
         def person = samplePerson()
         def startTime = Instant.parse("2019-08-28T10:06:01Z")
@@ -42,7 +42,7 @@ class PersonalReturnProviderSpec extends Specification {
         }
     }
 
-    def "can assemble a Return object for personal 3rd pillar fund"() {
+    def "can assemble a Returns object for your personal 3rd pillar fund"() {
         given:
         def person = samplePerson()
         def startTime = Instant.parse("2019-08-28T10:06:01Z")

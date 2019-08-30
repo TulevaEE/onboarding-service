@@ -10,7 +10,9 @@ import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return
+import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.INDEX
+import static java.util.Arrays.asList
 import static java.util.Collections.singletonList
 
 class ReturnsServiceSpec extends Specification {
@@ -104,6 +106,45 @@ class ReturnsServiceSpec extends Specification {
         with(theReturns) {
             from == fromDate
             returns == [return1, return2]
+        }
+    }
+
+    def "can filter a single return from a return provider that provides many returns"() {
+        given:
+        def person = samplePerson()
+        def fromDate = LocalDate.parse("2019-08-28")
+        def startTime = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC)
+        def pillar = 2
+
+        def return1 = Return.builder()
+            .key("EE123")
+            .type(FUND)
+            .value(0.0123)
+            .build()
+
+        def return2 = Return.builder()
+            .key("EE234")
+            .type(FUND)
+            .value(0.0234)
+            .build()
+
+        def allReturns = Returns.builder()
+            .from(fromDate)
+            .returns(asList(return1, return2))
+            .build()
+
+        returnProvider1.getReturns(person, startTime, pillar) >> allReturns
+        returnProvider2.getReturns(person, startTime, pillar) >> []
+        returnProvider1.getKeys() >> [return1.key, return2.key]
+        returnProvider2.getKeys() >> []
+
+        when:
+        def theReturns = returnsService.get(person, fromDate, [return1.key])
+
+        then:
+        with(theReturns) {
+            from == fromDate
+            returns == [return1]
         }
     }
 }

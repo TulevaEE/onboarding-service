@@ -29,6 +29,7 @@ public class ReturnsService {
             .filter(returnProvider -> keys == null || !Collections.disjoint(keys, returnProvider.getKeys()))
             .map(returnProvider -> returnProvider.getReturns(person, fromTime, pillar).getReturns())
             .flatMap(List::stream)
+            .filter(aReturn -> keys == null || keys.contains(aReturn.getKey()))
             .collect(toList());
 
         return Returns.builder()

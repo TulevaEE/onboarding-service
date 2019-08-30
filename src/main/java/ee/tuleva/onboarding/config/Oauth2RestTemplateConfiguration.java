@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.config;
 
+import ee.tuleva.onboarding.error.RestResponseErrorHandler;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,7 +18,9 @@ public class Oauth2RestTemplateConfiguration {
     }
 
     @Bean
-    public OAuth2RestOperations oauth2RestTemplate(ClientCredentialsResourceDetails resourceDetails) {
-        return new OAuth2RestTemplate(resourceDetails);
+    public OAuth2RestOperations oauth2RestTemplate(ClientCredentialsResourceDetails resourceDetails, RestResponseErrorHandler errorHandler) {
+        OAuth2RestTemplate template = new OAuth2RestTemplate(resourceDetails);
+        template.setErrorHandler(errorHandler);
+        return template;
     }
 }

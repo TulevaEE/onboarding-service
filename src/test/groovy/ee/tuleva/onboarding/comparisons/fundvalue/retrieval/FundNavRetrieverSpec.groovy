@@ -32,7 +32,7 @@ class FundNavRetrieverSpec extends Specification {
         episService.getNav(isin, parse("2019-08-21")) >> new NavDto(isin, parse("2019-08-21"), 21.0)
         episService.getNav(isin, parse("2019-08-22")) >> new NavDto(isin, parse("2019-08-22"), 22.0)
         when:
-        def result = retriever.retrieveValuesForRange(startkDate, endDate)
+        def result = retriever.retrieveValuesForRange(startDate, endDate)
         then:
         result == [
             new FundValue(isin, parse("2019-08-19"), 19.0),

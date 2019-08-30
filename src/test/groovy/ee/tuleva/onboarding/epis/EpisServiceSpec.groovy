@@ -13,6 +13,7 @@ import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.oauth2.client.OAuth2RestOperations
 import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
@@ -29,7 +30,8 @@ import static org.springframework.http.HttpStatus.OK
 class EpisServiceSpec extends Specification {
 
     RestTemplate restTemplate = Mock(RestTemplate)
-    EpisService service = new EpisService(restTemplate)
+    OAuth2RestOperations clientCredentialsRestTemplate = Mock(OAuth2RestOperations)
+    EpisService service = new EpisService(restTemplate, clientCredentialsRestTemplate)
 
     String sampleToken = "123"
 
@@ -175,10 +177,8 @@ class EpisServiceSpec extends Specification {
     def "gets nav"() {
         given:
         def navDto = Mock(NavDto)
-        1 * restTemplate.exchange(
-            "http://epis/navs/EE666?date=2018-10-20", GET,
-            { HttpEntity httpEntity -> doesHttpEntityContainToken(httpEntity, sampleToken) },
-            NavDto.class) >> new ResponseEntity<NavDto>(navDto, OK)
+        1 * clientCredentialsRestTemplate.exchange("http://epis/navs/EE666?date=2018-10-20", GET, _, NavDto.class) >>
+            new ResponseEntity<NavDto>(navDto, OK);
         when:
         def result = service.getNav("EE666", LocalDate.parse("2018-10-20"))
         then:

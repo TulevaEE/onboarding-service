@@ -18,9 +18,10 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.http.*;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.OAuth2RestOperations;
 import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestOperations;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.LocalDate;
@@ -40,7 +41,8 @@ public class EpisService {
     private final String CASH_FLOW_STATEMENT_CACHE_NAME = "cashFlowStatement";
     private final String FUNDS_CACHE_NAME = "funds";
 
-    private final RestTemplate restTemplate;
+    private final RestOperations userTokenRestTemplate;
+    private final OAuth2RestOperations clientCredentialsRestTemplate;
 
     @Value("${epis.service.url}")
     String episServiceUrl;
@@ -52,7 +54,7 @@ public class EpisService {
         log.info("Getting exchanges from {} for {} {}",
             url, person.getFirstName(), person.getLastName());
 
-        ResponseEntity<TransferExchangeDTO[]> response = restTemplate.exchange(
+        ResponseEntity<TransferExchangeDTO[]> response = userTokenRestTemplate.exchange(
             url, GET, getHeadersEntity(), TransferExchangeDTO[].class);
 
         return asList(response.getBody());
@@ -68,7 +70,7 @@ public class EpisService {
             .toUriString();
 
         log.info("Getting cash flows from {}", url);
-        return restTemplate.exchange(url, GET, getHeadersEntity(), CashFlowStatement.class).getBody();
+        return userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), CashFlowStatement.class).getBody();
     }
 
     @Caching(evict = {
@@ -88,7 +90,7 @@ public class EpisService {
             url, person.getFirstName(), person.getLastName());
 
         ResponseEntity<UserPreferences> response =
-            restTemplate.exchange(url, GET, getHeadersEntity(), UserPreferences.class);
+            userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), UserPreferences.class);
 
         return response.getBody();
     }
@@ -101,7 +103,7 @@ public class EpisService {
             url, person.getFirstName(), person.getLastName());
 
         ResponseEntity<FundBalanceDto[]> response =
-            restTemplate.exchange(url, GET, getHeadersEntity(), FundBalanceDto[].class);
+            userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), FundBalanceDto[].class);
 
         return asList(response.getBody());
     }
@@ -113,20 +115,20 @@ public class EpisService {
         log.info("Getting funds from {}", url);
 
         ResponseEntity<FundDto[]> response =
-            restTemplate.exchange(url, GET, getHeadersEntity(), FundDto[].class);
+            userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), FundDto[].class);
 
         return asList(response.getBody());
     }
 
     public NavDto getNav(String isin, LocalDate date) {
         String url = episServiceUrl + "/navs/" + isin + "?date=" + date;
-        return restTemplate.exchange(url, GET, getHeadersEntity(), NavDto.class).getBody();
+        return clientCredentialsRestTemplate.exchange(url, GET, new HttpEntity<>(createJsonHeaders()), NavDto.class).getBody();
     }
 
     public MandateResponseDTO sendMandate(MandateDto mandate) {
         String url = episServiceUrl + "/mandates";
 
-        return restTemplate.postForObject(
+        return userTokenRestTemplate.postForObject(
             url, new HttpEntity<>(mandate, getHeaders()), MandateResponseDTO.class);
     }
 
@@ -136,7 +138,7 @@ public class EpisService {
 
         log.info("Updating contact details for {}", contactDetails.getPersonalCode());
 
-        return restTemplate.postForObject(url, new HttpEntity<>(contactDetails, getHeaders()), UserPreferences.class);
+        return userTokenRestTemplate.postForObject(url, new HttpEntity<>(contactDetails, getHeaders()), UserPreferences.class);
     }
 
     @NotNull
@@ -145,10 +147,15 @@ public class EpisService {
     }
 
     private HttpHeaders getHeaders() {
+        HttpHeaders headers = createJsonHeaders();
+        headers.add("authorization", "Bearer " + getToken());
+        return headers;
+    }
+
+    @NotNull
+    private HttpHeaders createJsonHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.add("authorization", "Bearer " + getToken());
-
         return headers;
     }
 

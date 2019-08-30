@@ -8,4 +8,5 @@ import java.util.Optional;
 public interface FundValueRepository {
     void saveAll(List<FundValue> fundValues);
     Optional<FundValue> findLastValueForFund(String fund);
+    List<String> findAllKeys();
 }

@@ -37,6 +37,9 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         "ORDER BY date DESC " +
         "LIMIT 1";
 
+    private static final String ALL_KEYS_QUERY =
+        "SELECT DISTINCT key FROM index_values ORDER BY key";
+
     private static final String INSERT_VALUES_QUERY = "" +
         "INSERT INTO index_values (key, date, value) " +
         "VALUES (:key, :date, :value)";
@@ -67,6 +70,11 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
             new FundValueRowMapper()
         );
         return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    }
+
+    @Override
+    public List<String> findAllKeys() {
+        return jdbcTemplate.queryForList(ALL_KEYS_QUERY, ImmutableMap.of(), String.class);
     }
 
     @Override

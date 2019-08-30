@@ -18,13 +18,13 @@ class MarketReturnProviderSpec extends Specification {
 
     def returnProvider = new MarketReturnProvider(accountOverviewProvider, rateOfReturnCalculator)
 
-    def "can assemble a Return object for world index"() {
+    def "can assemble a Returns object for the world index"() {
         given:
         def person = samplePerson()
         def startTime = Instant.parse("2019-08-28T10:06:01Z")
         def endTime = Instant.now()
         def pillar = 2
-        def overview = new AccountOverview([], 0.0, 0.0, startTime, endTime, 2)
+        def overview = new AccountOverview([], 0.0, 0.0, startTime, endTime, pillar)
         def expectedReturn = 0.00123.doubleValue()
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview

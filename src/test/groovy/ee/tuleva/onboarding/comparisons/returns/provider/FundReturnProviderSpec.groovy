@@ -1,25 +1,24 @@
 package ee.tuleva.onboarding.comparisons.returns.provider
 
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever
+
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator
-import ee.tuleva.onboarding.comparisons.returns.provider.EPIReturnProvider
 import spock.lang.Specification
 
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.INDEX
+import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND
 
-class EPIReturnProviderSpec extends Specification {
+class FundReturnProviderSpec extends Specification {
 
     def accountOverviewProvider = Mock(AccountOverviewProvider)
     def rateOfReturnCalculator = Mock(RateOfReturnCalculator)
 
-    def returnProvider = new EPIReturnProvider(accountOverviewProvider, rateOfReturnCalculator)
+    def returnProvider = new FundReturnProvider(accountOverviewProvider, rateOfReturnCalculator)
 
-    def "can assemble a Returns object for the EPI"() {
+    def "can assemble a Returns object for all funds"() {
         given:
         def person = samplePerson()
         def startTime = Instant.parse("2019-08-28T10:06:01Z")
@@ -29,16 +28,17 @@ class EPIReturnProviderSpec extends Specification {
         def expectedReturn = 0.00123.doubleValue()
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
-        rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY) >> expectedReturn
+        rateOfReturnCalculator.getRateOfReturn(overview, _ as String) >> expectedReturn
 
         when:
         def returns = returnProvider.getReturns(person, startTime, pillar)
 
         then:
         with(returns.returns[0]) {
-            key == EPIFundValueRetriever.KEY
-            type == INDEX
+            key == returnProvider.getKeys()[0]
+            type == FUND
             value == expectedReturn
         }
+        returns.returns.size() == returnProvider.getKeys().size()
     }
 }

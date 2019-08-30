@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundNavRetrieverFactory
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
 import org.springframework.core.env.Environment
 import spock.lang.Specification
@@ -9,22 +10,19 @@ import spock.lang.Specification
 import java.time.Instant
 import java.time.LocalDate
 
+import static java.util.Collections.singletonList
+
 class FundValueIndexingJobSpec extends Specification {
 
-    FundValueRepository fundValueRepository
-    ComparisonIndexRetriever fundValueRetriever
+    FundValueRepository fundValueRepository = Mock(FundValueRepository)
+    ComparisonIndexRetriever fundValueRetriever = Mock(ComparisonIndexRetriever)
+    FundNavRetrieverFactory fundNavRetrieverFactory = Mock(FundNavRetrieverFactory)
 
-    FundValueIndexingJob fundValueIndexingJob
-
-    void setup() {
-        fundValueRepository = Mock(FundValueRepository)
-        fundValueRetriever = Mock(ComparisonIndexRetriever)
-        fundValueIndexingJob = new FundValueIndexingJob(
-            fundValueRepository,
-            Collections.singletonList(fundValueRetriever),
-            Mock(Environment)
-        )
-    }
+    FundValueIndexingJob fundValueIndexingJob = new FundValueIndexingJob(
+        fundValueRepository,
+        singletonList(fundValueRetriever),
+        Mock(Environment),
+        fundNavRetrieverFactory)
 
     def "if no saved fund values found, downloads and saves from defined start time"() {
         given:

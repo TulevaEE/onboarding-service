@@ -85,6 +85,20 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         marketValue.get().getValue() == 204.0
     }
 
+    def "it provides all keys"() {
+        given:
+        fundValueRepository.saveAll([
+            new FundValue("FOO", parse("1990-01-04"), 1.0),
+            new FundValue("FOO", parse("1990-01-02"), 2.0),
+            new FundValue("BAR", parse("1990-01-04"), 3.0),
+            new FundValue("BAR", parse("1990-01-01"), 4.0),
+        ])
+        when:
+        def keys = fundValueRepository.findAllKeys()
+        then:
+        keys == ['BAR', 'FOO']
+    }
+
     private static List<FundValue> getFakeFundValues() {
         def today = LocalDate.now()
         def yesterday = LocalDate.now().minusDays(1)

@@ -10,7 +10,7 @@ import static ee.tuleva.onboarding.comparisons.returns.Returns.Return
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.INDEX
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.PERSONAL
-import static ee.tuleva.onboarding.comparisons.returns.ReturnsController.DEFAULT_DATE
+import static ee.tuleva.onboarding.comparisons.returns.ReturnsController.BEGINNING_OF_TIMES
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
@@ -56,16 +56,16 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def key = "EE123"
         def value = 1.0
         def returns = Returns.builder()
-            .from(DEFAULT_DATE)
+            .from(BEGINNING_OF_TIMES)
             .returns([Return.builder().key(key).type(type).value(value).build()])
             .build()
-        returnsService.get(_ as Person, DEFAULT_DATE, null) >> returns
+        returnsService.get(_ as Person, BEGINNING_OF_TIMES, null) >> returns
 
         expect:
         mockMvc.perform(get("/v1/returns"))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
-            .andExpect(jsonPath('$.from', is(DEFAULT_DATE.toString())))
+            .andExpect(jsonPath('$.from', is(BEGINNING_OF_TIMES.toString())))
             .andExpect(jsonPath('$.returns[0].type', is(type.toString())))
             .andExpect(jsonPath('$.returns[0].key', is(key)))
             .andExpect(jsonPath('$.returns[0].value', is(value.toDouble())))
@@ -91,9 +91,9 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         expect:
         mockMvc.perform(get("/v1/returns")
             .param("from", fromDate)
-            .param("key", key1)
-            .param("key", key2)
-            .param("key", key3))
+            .param("key[]", key1)
+            .param("key[]", key2)
+            .param("key[]", key3))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
             .andExpect(jsonPath('$.from', is(fromDate)))

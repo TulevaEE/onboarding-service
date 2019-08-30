@@ -2,21 +2,25 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.net.URLConnection;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
+@Service
 public class CPIValueRetriever implements ComparisonIndexRetriever {
     public static final String KEY = "CPI";
 

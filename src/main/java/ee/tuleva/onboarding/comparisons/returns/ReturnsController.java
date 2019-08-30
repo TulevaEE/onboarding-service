@@ -27,7 +27,7 @@ public class ReturnsController {
     @GetMapping("/returns")
     public Returns getReturns(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson person,
                               @RequestParam(required = false) @DateTimeFormat(iso = DATE) LocalDate from,
-                              @RequestParam(required = false, name = "key[]") List<String> keys) {
+                              @RequestParam(required = false, name = "keys[]") List<String> keys) {
         LocalDate startDate = (from == null) ? BEGINNING_OF_TIMES : from;
         return returnsService.get(person, startDate, keys);
     }

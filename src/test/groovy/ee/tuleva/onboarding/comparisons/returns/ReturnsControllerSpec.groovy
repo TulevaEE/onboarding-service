@@ -91,9 +91,9 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         expect:
         mockMvc.perform(get("/v1/returns")
             .param("from", fromDate)
-            .param("key[]", key1)
-            .param("key[]", key2)
-            .param("key[]", key3))
+            .param("keys[]", key1)
+            .param("keys[]", key2)
+            .param("keys[]", key3))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
             .andExpect(jsonPath('$.from', is(fromDate)))

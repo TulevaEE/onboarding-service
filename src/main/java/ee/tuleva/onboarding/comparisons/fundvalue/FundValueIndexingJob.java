@@ -14,9 +14,12 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+
+import static java.util.Collections.emptyList;
 
 @Slf4j
 @Service
@@ -26,7 +29,7 @@ public class FundValueIndexingJob {
     private final List<ComparisonIndexRetriever> staticRetrievers;
     private final Environment environment;
     private final FundNavRetrieverFactory fundNavRetrieverFactory;
-    private List<ComparisonIndexRetriever> dynamicRetrievers;
+    private List<ComparisonIndexRetriever> dynamicRetrievers = emptyList();
 
     static final LocalDate EARLIEST_DATE = LocalDate.parse("2002-01-01");
 

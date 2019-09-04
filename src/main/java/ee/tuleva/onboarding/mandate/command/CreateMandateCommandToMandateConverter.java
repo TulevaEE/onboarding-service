@@ -55,14 +55,13 @@ public class CreateMandateCommandToMandateConverter implements Converter<CreateM
         val sourceIsin = getIsin(createMandateCommand);
 
         if (sourceIsin == null) {
-            throw new IllegalArgumentException("Isin not found");
+            throw new IllegalArgumentException("Source isin not found: " + createMandateCommand);
         }
 
         val fund = fundRepository.findByIsin(sourceIsin);
 
         if (fund == null) {
-            throw new IllegalArgumentException(
-                "Provided fund isin not found in the database: " + createMandateCommand.getFutureContributionFundIsin());
+            throw new IllegalArgumentException("Provided fund isin not found in the database: " + sourceIsin);
         }
         return fund.getPillar();
     }

@@ -44,7 +44,7 @@ public class CPIValueRetriever implements ComparisonIndexRetriever {
         try {
             return downloadCPIValues();
         } catch (IOException e) {
-            throw new IllegalStateException("Could not get CPI values");
+            throw new IllegalStateException("Could not get CPI values", e);
         }
     }
 

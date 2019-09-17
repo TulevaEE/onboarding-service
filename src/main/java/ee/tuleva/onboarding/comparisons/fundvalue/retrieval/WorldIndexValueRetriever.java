@@ -15,7 +15,6 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
@@ -23,11 +22,13 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.toList;
 
 @Slf4j
 @Service
@@ -53,12 +54,12 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
         return response -> {
             if (response.getStatusCode() == HttpStatus.OK) {
                 InputStream body = response.getBody();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(body, StandardCharsets.UTF_8));
+                BufferedReader reader = new BufferedReader(new InputStreamReader(body, UTF_8));
                 Stream<String> lines = reader.lines().skip(3);
                 return parseLines(lines, startDate, endDate);
             } else {
                 log.warn("Failed to fetch World Index values");
-                return Collections.emptyList();
+                return emptyList();
             }
         };
     }
@@ -72,7 +73,7 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
                 LocalDate date = value.getDate();
                 return (startDate.isBefore(date) || startDate.equals(date)) && (endDate.isAfter(date) || endDate.equals(date));
             })
-            .collect(Collectors.toList());
+            .collect(toList());
     }
 
     private Optional<FundValue> parseLine(String line) {

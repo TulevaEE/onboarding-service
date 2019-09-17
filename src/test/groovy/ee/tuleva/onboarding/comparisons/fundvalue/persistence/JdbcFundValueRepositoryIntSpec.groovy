@@ -65,12 +65,12 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     def "it can find the value closest for a time for a fund"() {
         given:
         List<FundValue> values = [
-            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-04"), 104.0),
-            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-02"), 102.0),
-            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-01"), 101.0),
-            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-04"), 204.0),
-            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-02"), 202.0),
-            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-01"), 201.0),
+            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-04"), 104.12345),
+            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-02"), 102.12345),
+            new FundValue(EPIFundValueRetriever.KEY, parse("1990-01-01"), 101.12345),
+            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-04"), 204.12345),
+            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-02"), 202.12345),
+            new FundValue(WorldIndexValueRetriever.KEY, parse("1990-01-01"), 201.12345),
         ]
         fundValueRepository.saveAll(values)
         when:
@@ -81,17 +81,17 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         epiValue.isPresent()
         marketValue.isPresent()
         !olderValue.isPresent()
-        epiValue.get().getValue() == 102.0
-        marketValue.get().getValue() == 204.0
+        epiValue.get().getValue() == 102.12345
+        marketValue.get().getValue() == 204.12345
     }
 
     def "it provides all keys"() {
         given:
         fundValueRepository.saveAll([
-            new FundValue("FOO", parse("1990-01-04"), 1.0),
-            new FundValue("FOO", parse("1990-01-02"), 2.0),
-            new FundValue("BAR", parse("1990-01-04"), 3.0),
-            new FundValue("BAR", parse("1990-01-01"), 4.0),
+            new FundValue("FOO", parse("1990-01-04"), 1.12345),
+            new FundValue("FOO", parse("1990-01-02"), 2.12345),
+            new FundValue("BAR", parse("1990-01-04"), 3.12345),
+            new FundValue("BAR", parse("1990-01-01"), 4.12345),
         ])
         when:
         def keys = fundValueRepository.findAllKeys()
@@ -103,10 +103,10 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         def today = LocalDate.now()
         def yesterday = LocalDate.now().minusDays(1)
         return [
-            new FundValue(WorldIndexValueRetriever.KEY, today, 100.0),
-            new FundValue(WorldIndexValueRetriever.KEY, yesterday, 10.0),
-            new FundValue(EPIFundValueRetriever.KEY, today, 200.0),
-            new FundValue(EPIFundValueRetriever.KEY, yesterday, 20.0),
+            new FundValue(WorldIndexValueRetriever.KEY, today, 100.12345),
+            new FundValue(WorldIndexValueRetriever.KEY, yesterday, 10.12345),
+            new FundValue(EPIFundValueRetriever.KEY, today, 200.12345),
+            new FundValue(EPIFundValueRetriever.KEY, yesterday, 20.12345),
         ]
     }
 

@@ -26,11 +26,11 @@ import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static java.math.BigDecimal.ZERO;
 import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.toList;
 
 @Slf4j
 @Service
@@ -83,7 +83,7 @@ public class EPIFundValueRetriever implements ComparisonIndexRetriever {
             .map(this::parseLine)
             .filter(Optional::isPresent)
             .map(Optional::get)
-            .collect(Collectors.toList());
+            .collect(toList());
     }
 
     private Optional<FundValue> parseLine(String line) {

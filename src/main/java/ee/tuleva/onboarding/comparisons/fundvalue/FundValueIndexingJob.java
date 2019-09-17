@@ -32,7 +32,8 @@ public class FundValueIndexingJob {
 
     static final LocalDate EARLIEST_DATE = LocalDate.parse("2003-01-07");
 
-    @Scheduled(cron = "0 0 * * * *", zone = "Europe/Tallinn") // the top of every hour of every day
+//    @Scheduled(cron = "0 0 * * * *", zone = "Europe/Tallinn") // the top of every hour of every day
+    @Scheduled(cron = "0 0 22 * * ?", zone = "Europe/Tallinn") // every day at 10pm
     public void runIndexingJob() {
         Stream.concat(staticRetrievers.stream(), dynamicRetrievers.stream()).forEach(retriever -> {
             String fund = retriever.getKey();

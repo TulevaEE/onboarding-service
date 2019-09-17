@@ -33,14 +33,14 @@ class EpiFundValueRetrieverSpec extends Specification {
         given:
             ClientHttpResponse response = createResponse(HttpStatus.OK, """ignore\tthis\theader
 2013-01-07\tEPI-25\t100,001
-2013-01-07\tEPI\t100,200
+2013-01-07\tEPI\t100,23456
 2013-01-08\tEPI-50\t101,001
 2013-01-08\tEPI-25\t101,002
-2013-01-08\tEPI\t101,200
+2013-01-08\tEPI\t101,23456
 """)
             List<FundValue> expectedValues = [
-                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-07"), 100.200),
-                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-08"), 101.200),
+                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-07"), 100.23456),
+                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-08"), 101.23456),
             ]
         when:
             List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(LocalDate.now(), LocalDate.now())
@@ -66,13 +66,13 @@ class EpiFundValueRetrieverSpec extends Specification {
         given:
             ClientHttpResponse response = createResponse(HttpStatus.OK, """ignore\tthis\theader
 broken
-2013-01-07\tEPI\t100,200
+2013-01-07\tEPI\t100,23456
 2013-broken!\tEPI-50\t101,001
 2013-01-08\tEPI-20
 2013-01-08\tEPI\tyou-and-me-123
 """)
             List<FundValue> expectedValues = [
-                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-07"), 100.200),
+                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-07"), 100.23456),
             ]
         when:
             List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(LocalDate.now(), LocalDate.now())

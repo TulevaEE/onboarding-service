@@ -1,0 +1,2 @@
+ALTER TABLE index_values
+  ALTER COLUMN value TYPE NUMERIC(12, 5);

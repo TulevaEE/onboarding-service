@@ -9,9 +9,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.StreamSupport;
 
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.StreamSupport.stream;
 
 @Service
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class FundNavRetrieverFactory {
 
     public List<ComparisonIndexRetriever> createAll() {
         List<String> allKeys = fundValueRepository.findAllKeys();
-        return StreamSupport.stream(fundRepository.findAll().spliterator(), false)
+        return stream(fundRepository.findAll().spliterator(), false)
             .map(Fund::getIsin)
             .filter(allKeys::contains)
             .peek(isin -> log.info("Creating Fund NAV retriever for {}", isin))

@@ -33,7 +33,7 @@ public class UserController {
         Long userId = authenticatedPerson.getUserId();
         User user = userService.getById(userId);
         UserPreferences contactDetails = episService.getContactDetails(authenticatedPerson);
-        return UserResponse.fromUser(user, contactDetails);
+        return UserResponse.from(user, contactDetails);
     }
 
     @GetMapping("/me/principal")
@@ -58,10 +58,10 @@ public class UserController {
 
         if (cmd.getAddress() != null) {
             UserPreferences contactDetails = contactDetailsService.updateContactDetails(user, cmd.getAddress());
-            return UserResponse.fromUser(user, contactDetails);
+            return UserResponse.from(user, contactDetails);
         }
 
-        return UserResponse.fromUser(user);
+        return UserResponse.from(user);
     }
 
     @ApiOperation(value = "Create a new user")
@@ -75,6 +75,6 @@ public class UserController {
 
         User user = userService.createOrUpdateUser(cmd.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
 
-        return UserResponse.fromUser(user);
+        return UserResponse.from(user);
     }
 }

@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.epis.contact;
 import ee.tuleva.onboarding.user.address.Address;
 import lombok.*;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 import static ee.tuleva.onboarding.epis.contact.UserPreferences.ContactPreferenceType.E;
 import static ee.tuleva.onboarding.epis.contact.UserPreferences.LanguagePreferenceType.EST;
 
@@ -51,6 +54,23 @@ public class UserPreferences {
     private String phoneNumber;
 
     private String pensionAccountNumber;
+
+    private List<Distribution> thirdPillarDistribution;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Distribution {
+        private String activeThirdPillarFundIsin;
+        private BigDecimal percentage;
+    }
+
+    private String activeSecondPillarFundIsin;
+
+    private boolean isSecondPillarActive;
+
+    private boolean isThirdPillarActive;
 
     public Address getAddress() {
         return Address.builder()

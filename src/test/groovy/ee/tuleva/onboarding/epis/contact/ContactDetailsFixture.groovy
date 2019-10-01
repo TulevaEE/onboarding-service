@@ -21,6 +21,9 @@ class ContactDetailsFixture {
             .email("tuleva@tuleva.ee")
             .phoneNumber("+372546545")
             .pensionAccountNumber("993432432")
+            .thirdPillarDistribution([new Distribution("EE123", 1.0)])
+            .isSecondPillarActive(true)
+            .isThirdPillarActive(true)
             .build()
     }
 }

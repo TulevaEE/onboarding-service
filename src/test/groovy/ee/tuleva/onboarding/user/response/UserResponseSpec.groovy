@@ -20,7 +20,7 @@ class UserResponseSpec extends Specification {
     def contactDetails = new UserPreferences()
 
     when:
-    def userResponse = UserResponse.fromUser(user, contactDetails)
+    def userResponse = UserResponse.from(user, contactDetails)
 
     then:
     userResponse.firstName == responseFirstName
@@ -40,7 +40,7 @@ class UserResponseSpec extends Specification {
         def user = sampleUser().build()
 
         when:
-        def userResponse = UserResponse.fromUser(user)
+        def userResponse = UserResponse.from(user)
 
         then:
         userResponse.age > 0

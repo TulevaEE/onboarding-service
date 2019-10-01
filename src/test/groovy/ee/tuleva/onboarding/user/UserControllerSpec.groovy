@@ -48,6 +48,8 @@ class UserControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.address.districtCode', is(contactDetails.districtCode)))
             .andExpect(jsonPath('$.address.postalCode', is(contactDetails.postalIndex)))
             .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
+            .andExpect(jsonPath('$.secondPillarActive', is(contactDetails.secondPillarActive)))
+            .andExpect(jsonPath('$.thirdPillarActive', is(contactDetails.thirdPillarActive)))
     }
 
     def "/me endpoint works with a member"() {

@@ -25,16 +25,18 @@ public class UserResponse {
     private Integer memberNumber;
     private String pensionAccountNumber;
     private Address address;
+    private boolean isSecondPillarActive;
+    private boolean isThirdPillarActive;
 
     public int getAge() {
         return PersonalCode.getAge(personalCode);
     }
 
-    public static UserResponse fromUser(@NotNull User user) {
+    public static UserResponse from(@NotNull User user) {
         return responseBuilder(user).build();
     }
 
-    public static UserResponse fromUser(@NotNull User user, UserPreferences contactDetails) {
+    public static UserResponse from(@NotNull User user, @NotNull UserPreferences contactDetails) {
         return responseBuilder(user)
             .pensionAccountNumber(contactDetails.getPensionAccountNumber())
             .address(Address.builder()
@@ -43,6 +45,8 @@ public class UserResponse {
                 .postalCode(contactDetails.getPostalIndex())
                 .countryCode(contactDetails.getCountry())
                 .build())
+            .isSecondPillarActive(contactDetails.isSecondPillarActive())
+            .isThirdPillarActive(contactDetails.isThirdPillarActive())
             .build();
     }
 

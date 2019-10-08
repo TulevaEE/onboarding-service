@@ -9,6 +9,8 @@ import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand
 
 import java.time.Instant
 
+import static ee.tuleva.onboarding.mandate.Mandate.*
+
 class MandateFixture {
 
     public static futureContibutionFundIsin = "AE123232334"
@@ -69,8 +71,15 @@ class MandateFixture {
             "futureContributionFundIsin": futureContibutionFundIsin
         ];
 
+    static MandateBuilder emptyMandate() {
+        builder()
+            .futureContributionFundIsin("isin")
+            .fundTransferExchanges([])
+            .pillar(2)
+    }
+
     static Mandate sampleMandate() {
-        Mandate mandate = Mandate.builder()
+        Mandate mandate = builder()
             .fundTransferExchanges([
                 FundTransferExchange.builder()
                     .id(1234)
@@ -102,7 +111,7 @@ class MandateFixture {
     }
 
     static Mandate sampleMandateWithEmptyTransfer() {
-        Mandate mandate = Mandate.builder()
+        Mandate mandate = builder()
             .fundTransferExchanges([
                 FundTransferExchange.builder()
                     .id(1234)
@@ -140,7 +149,7 @@ class MandateFixture {
     }
 
     static Mandate sampleUnsignedMandate() {
-        Mandate mandate = Mandate.builder()
+        Mandate mandate = builder()
             .fundTransferExchanges([
                 FundTransferExchange.builder()
                     .id(1234)

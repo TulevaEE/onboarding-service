@@ -37,4 +37,10 @@ class UserFixture {
                 .member(null)
     }
 
+    static UserBuilder simpleUser() {
+        builder()
+            .personalCode("38501010002")
+            .email("erko@risthein.ee")
+    }
+
 }

@@ -99,6 +99,6 @@ class FundRepositorySpec extends Specification {
         Iterable<Fund> thirdPillarFunds = repository.findAllByPillar(3)
 
         then:
-        thirdPillarFunds.size() == 13
+        thirdPillarFunds.size() == 14 // TODO: bad assert, depends on the flyway migrations
     }
 }

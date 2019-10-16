@@ -11,6 +11,7 @@ import java.math.BigDecimal;
 public class FundBalanceResponseDto {
     private FundDto fund;
     private BigDecimal value;
+    private BigDecimal unavailableValue;
     private String currency;
     private Integer pillar;
     private boolean activeContributions;
@@ -21,6 +22,7 @@ public class FundBalanceResponseDto {
         return FundBalanceResponseDto.builder()
             .fund(new FundDto(fundBalance.getFund(), language))
             .value(fundBalance.getValue())
+            .unavailableValue(fundBalance.getUnavailableValue())
             .currency(fundBalance.getCurrency())
             .pillar(fundBalance.getPillar())
             .activeContributions(fundBalance.isActiveContributions())

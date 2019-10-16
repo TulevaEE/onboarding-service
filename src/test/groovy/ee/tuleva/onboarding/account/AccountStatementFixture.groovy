@@ -9,6 +9,7 @@ class AccountStatementFixture {
     public static List<FundBalance> sampleConvertedFundBalanceWithActiveTulevaFund = Lists.asList(
         FundBalance.builder()
             .value(100.0)
+            .unavailableValue(0.0)
             .activeContributions(true)
             .pillar(2)
             .contributionSum(90.0)
@@ -28,6 +29,7 @@ class AccountStatementFixture {
             ).build(),
         FundBalance.builder()
             .value(100.0)
+            .unavailableValue(0.0)
             .pillar(2)
             .contributionSum(90.0)
             .fund(
@@ -49,6 +51,7 @@ class AccountStatementFixture {
     public static List<FundBalance> sampleNonConvertedFundBalanceWithActiveNonTulevaFund = Lists.asList(
         FundBalance.builder()
             .value(100.0)
+            .unavailableValue(0.0)
             .activeContributions(true)
             .pillar(2)
             .contributionSum(90.0)
@@ -67,6 +70,7 @@ class AccountStatementFixture {
             ).build(),
         FundBalance.builder()
             .value(100.0)
+            .unavailableValue(0.0)
             .contributionSum(90.0)
             .pillar(2)
             .fund(
@@ -87,6 +91,7 @@ class AccountStatementFixture {
     public static List<FundBalance> sampleConvertedFundBalanceWithNonActiveTulevaFund = Lists.asList(
         FundBalance.builder()
             .value(0.0)
+            .unavailableValue(0.0)
             .pillar(2)
             .activeContributions(true)
             .contributionSum(0.0)
@@ -105,6 +110,7 @@ class AccountStatementFixture {
             ).build(),
         FundBalance.builder()
             .value(100.0)
+            .unavailableValue(0.0)
             .pillar(2)
             .contributionSum(90.0)
             .fund(

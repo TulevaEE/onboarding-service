@@ -42,6 +42,7 @@ public class FundBalanceDtoToFundBalanceConverter implements Converter<FundBalan
             .currency(fundBalanceDto.getCurrency())
             .pillar(fundBalanceDto.getPillar())
             .value(fundBalanceDto.getValue())
+            .unavailableValue(fundBalanceDto.getUnavailableValue())
             .units(fundBalanceDto.getUnits())
             .fund(fund)
             .build();

@@ -17,14 +17,7 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
     def "converts FundBalanceDtos to FundBalance instances"() {
         given:
         def isin = "someIsin"
-        def fundBalanceDto = FundBalanceDto.builder()
-            .isin(isin)
-            .value(123.0)
-            .units(345.0)
-            .currency("EUR")
-            .pillar(3)
-            .activeContributions(true)
-            .build()
+        def fundBalanceDto = sampleFundBalanceDto(isin)
 
         fundRepository.findByIsin(isin) >> Fund.builder().isin(isin).build()
 
@@ -34,6 +27,7 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
         then:
         fundBalance.fund.isin == fundBalanceDto.isin
         fundBalance.value == fundBalanceDto.value
+        fundBalance.unavailableValue == fundBalanceDto.unavailableValue
         fundBalance.units == fundBalanceDto.units
         fundBalance.currency == fundBalanceDto.currency
         fundBalance.pillar == fundBalanceDto.pillar
@@ -44,9 +38,7 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
     def "handles missing funds by throwing an exception"() {
         given:
         def isin = "someIsin"
-        def fundBalanceDto = FundBalanceDto.builder()
-            .isin(isin)
-            .build()
+        def fundBalanceDto = sampleFundBalanceDto(isin)
 
         fundRepository.findByIsin(isin) >> null
 
@@ -61,14 +53,8 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
         given:
         def isin = "1"
         def person = samplePerson()
-        def fundBalanceDto = FundBalanceDto.builder()
-            .isin(isin)
-            .value(123.0)
-            .units(345.0)
-            .currency("EUR")
-            .pillar(3)
-            .activeContributions(true)
-            .build()
+        def fundBalanceDto = sampleFundBalanceDto(isin)
+
         def cashFlow = cashFlowFixture()
 
         fundRepository.findByIsin(isin) >> Fund.builder().isin(isin).build()
@@ -79,5 +65,18 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
 
         then:
         fundBalance.contributionSum == cashFlow.transactions.find { it.isin == isin }.amount
+    }
+
+    private FundBalanceDto sampleFundBalanceDto(String isin) {
+        FundBalanceDto.builder()
+            .isin(isin)
+            .value(123.0)
+            .unavailableValue(234.0)
+            .units(345.0)
+            .nav(0.12345)
+            .currency("EUR")
+            .pillar(3)
+            .activeContributions(true)
+            .build()
     }
 }

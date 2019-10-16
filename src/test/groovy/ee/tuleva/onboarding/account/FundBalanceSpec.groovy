@@ -6,9 +6,13 @@ import spock.lang.Unroll
 class FundBalanceSpec extends Specification {
 
     @Unroll
-    def "calculates profit #value - #contributionSum = #expectedProfit"() {
+    def "calculates profit #value + #unavailableValue - #contributionSum = #expectedProfit"() {
         given:
-        def fundBalance = FundBalance.builder().contributionSum(contributionSum).value(value).build()
+        def fundBalance = FundBalance.builder()
+            .contributionSum(contributionSum)
+            .value(value)
+            .unavailableValue(unavailableValue)
+            .build()
 
         when:
         def profit = fundBalance.getProfit()
@@ -17,9 +21,14 @@ class FundBalanceSpec extends Specification {
         profit == expectedProfit
 
         where:
-        contributionSum | value | expectedProfit
-        100.0           | 110.0 | 10.0
-        null            | 110.0 | null
-        100.0           | null  | null
+        contributionSum | value | unavailableValue || expectedProfit
+        null            | null  | null             || null
+        null            | null  | 1.0              || null
+        null            | 110.0 | null             || null
+        null            | 110.0 | 1.0              || null
+        100.0           | null  | null             || null
+        100.0           | null  | 1.0              || null
+        100.0           | 110.0 | null             || 10.0
+        100.0           | 110.0 | 1.0              || 11.0
     }
 }

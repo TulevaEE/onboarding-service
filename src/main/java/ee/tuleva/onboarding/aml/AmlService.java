@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import ee.tuleva.onboarding.audit.AuditEventPublisher;
 import ee.tuleva.onboarding.audit.AuditEventType;
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -14,6 +15,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static java.util.stream.Collectors.toSet;
@@ -44,24 +46,51 @@ public class AmlService {
 
     private void addSkNameCheckIfMissing(User user, Person person) {
         if (!hasCheck(user, SK_NAME)) {
+            boolean success = personDataMatches(user, person.getFirstName(), person.getLastName(), person.getPersonalCode());
             AmlCheck check = AmlCheck.builder()
                 .user(user)
                 .type(SK_NAME)
-                .success(personDataMatches(user, person.getFirstName(), person.getLastName(), person.getPersonalCode()))
+                .success(success)
+                .metadata(metadata(user, person))
                 .build();
             addCheck(check);
         }
     }
 
+    private Map<String, Object> metadata(Person user, Person person) {
+        return ImmutableMap.of("user", wrap(user), "person", wrap(person));
+    }
+
+    private Person wrap(Person person) {
+        return new Person() {
+            @Override
+            public String getPersonalCode() {
+                return person.getPersonalCode();
+            }
+
+            @Override
+            public String getFirstName() {
+                return person.getFirstName();
+            }
+
+            @Override
+            public String getLastName() {
+                return person.getLastName();
+            }
+        };
+    }
+
     public void addPensionRegistryNameCheckIfMissing(User user, UserPreferences userPreferences) {
         if (!hasCheck(user, PENSION_REGISTRY_NAME)) {
+            boolean success = personDataMatches(user,
+                userPreferences.getFirstName(),
+                userPreferences.getLastName(),
+                userPreferences.getPersonalCode());
             AmlCheck check = AmlCheck.builder()
                 .user(user)
                 .type(PENSION_REGISTRY_NAME)
-                .success(personDataMatches(user,
-                    userPreferences.getFirstName(),
-                    userPreferences.getLastName(),
-                    userPreferences.getPersonalCode()))
+                .success(success)
+                .metadata(metadata(user, userPreferences))
                 .build();
             addCheck(check);
         }

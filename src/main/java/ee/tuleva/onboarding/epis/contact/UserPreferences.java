@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.epis.contact;
 
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.user.address.Address;
 import lombok.*;
 
@@ -15,7 +16,7 @@ import static ee.tuleva.onboarding.epis.contact.UserPreferences.LanguagePreferen
 @NoArgsConstructor
 @AllArgsConstructor
 // TODO: rename to ContactDetails
-public class UserPreferences {
+public class UserPreferences implements Person {
 
     public enum ContactPreferenceType {E, P} // E - email, P - postal
 

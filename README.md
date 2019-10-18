@@ -21,10 +21,6 @@ PostgreSQL
 
 Running locally with Docker: `docker-compose up -d`
 
-**Environment Variables**
-
-Ask your fellow engineers for the `QUOTAGUARDSTATIC_URL` environment variable.
-
 **Spring Profile**
 
 IMPORTANT: Set your Spring active profile to `dev` - this will also run DB schema/dev data migration

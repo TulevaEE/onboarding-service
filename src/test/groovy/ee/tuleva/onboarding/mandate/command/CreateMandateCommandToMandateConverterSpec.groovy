@@ -2,10 +2,11 @@ package ee.tuleva.onboarding.mandate.command
 
 import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.account.FundBalance
-import ee.tuleva.onboarding.auth.UserFixture
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
 import spock.lang.Specification
+
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
 class CreateMandateCommandToMandateConverterSpec extends Specification {
 
@@ -19,7 +20,7 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         def command = new CreateMandateCommand()
         command.setFutureContributionFundIsin("test")
         command.fundTransferExchanges = []
-        def user = UserFixture.sampleUser().build()
+        def user = sampleUser().build()
         when:
         def mandate = converter.convert(new CreateMandateCommandWithUser(command, user))
         then:
@@ -43,10 +44,10 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         fundTransfer.targetFundIsin = targetIsin
         command.fundTransferExchanges = [fundTransfer]
         def fund = Fund.builder().pillar(3).isin(sourceIsin).build()
-        def user = UserFixture.sampleUser().build()
+        def user = sampleUser().build()
         def fundBalance = FundBalance.builder()
             .pillar(3)
-            .units(500.0)
+            .units(500.1234)
             .fund(fund)
             .build()
         when:
@@ -58,7 +59,7 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         !mandate.fundTransferExchanges.isEmpty()
         mandate.fundTransferExchanges[0].sourceFundIsin == sourceIsin
         mandate.fundTransferExchanges[0].targetFundIsin == targetIsin
-        mandate.fundTransferExchanges[0].amount == 250.0
+        mandate.fundTransferExchanges[0].amount == 250.0617
         mandate.id == null
         1 * accountStatementService.getAccountStatement(user) >> [fundBalance]
         1 * fundRepository.findByIsin(sourceIsin) >> fund

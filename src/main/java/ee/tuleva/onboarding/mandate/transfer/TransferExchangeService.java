@@ -1,14 +1,15 @@
 package ee.tuleva.onboarding.mandate.transfer;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.fund.FundRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 @Slf4j
 @Service
@@ -36,7 +37,7 @@ public class TransferExchangeService {
                         )
                         .build()
                 )
-                .collect(Collectors.toList());
+                .collect(toList());
     }
 
 }

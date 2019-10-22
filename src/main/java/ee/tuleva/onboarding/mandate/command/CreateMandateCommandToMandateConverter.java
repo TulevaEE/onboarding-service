@@ -82,7 +82,7 @@ public class CreateMandateCommandToMandateConverter implements Converter<CreateM
             val statement = accountStatementService.getAccountStatement(mandate.getUser());
             val balance = getFundBalance(statement, exchange.getSourceFundIsin());
             val exchangeAmount = balance.getUnits().multiply(exchange.getAmount());
-            return exchangeAmount.setScale(3, RoundingMode.HALF_UP);
+            return exchangeAmount.setScale(4, RoundingMode.HALF_UP);
         } else {
             throw new IllegalStateException("Unknown pillar " + pillar);
         }

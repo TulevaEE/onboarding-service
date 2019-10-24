@@ -15,77 +15,111 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 @RestClientTest(PensionFundStatisticsService)
 class PensionFundStatisticsServiceSpec extends Specification {
 
-	@Autowired
-	private PensionFundStatisticsService service
+    @Autowired
+    private PensionFundStatisticsService service
 
-	@Autowired
-	private MockRestServiceServer server
+    @Autowired
+    private MockRestServiceServer server
 
-	private static final String statisticsEndpointUrl = "/endpointUrl"
+    private static final String secondPillarEndpoint = "/2ndPillarEndpoint"
+    private static final String thirdPillarEndpoint = "/3rdPillarEndpoint"
 
-	def setup() {
-		service.statisticsEndpoint = statisticsEndpointUrl
-	}
 
-	def "GetPensionFundStatistics works with empty response"() {
-		given:
-		server.expect(requestTo(statisticsEndpointUrl))
-				.andRespond(withSuccess(
-				'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-						'<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0"></RESPONSE>',
-				MediaType.APPLICATION_XML))
+    def setup() {
+        service.secondPillarEndpoint = secondPillarEndpoint
+        service.thirdPillarEndpoint = thirdPillarEndpoint
+    }
 
-		when:
-		def statistics = service.getPensionFundStatistics()
+    def "getPensionFundStatistics works with empty response"() {
+        given:
+        server.expect(requestTo(secondPillarEndpoint))
+            .andRespond(withSuccess(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0"></RESPONSE>',
+                MediaType.APPLICATION_XML))
 
-		then:
-		statistics == []
-	}
+        when:
+        def statistics = service.getPensionFundStatistics(secondPillarEndpoint)
 
-	def "GetPensionFundStatistics works with one pension fund statistic"() {
-		given:
-		server.expect(requestTo(statisticsEndpointUrl))
-				.andRespond(withSuccess(
-				'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
-						'<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0">' +
-							'<PENSION_FUND_STATISTICS ISIN="EE3600109435" VOLUME="27630899.99114" NAV="0.63337"/>' +
-						'</RESPONSE>',
-				MediaType.APPLICATION_XML))
+        then:
+        statistics == []
+    }
 
-		when:
-		def statistics = service.getPensionFundStatistics()
+    def "getPensionFundStatistics works with one pension fund statistic"() {
+        given:
+        server.expect(requestTo(secondPillarEndpoint))
+            .andRespond(withSuccess(
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+                    '<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0">' +
+                    '<PENSION_FUND_STATISTICS ISIN="EE3600109435" VOLUME="27630899.99114" NAV="0.63337"/>' +
+                    '</RESPONSE>',
+                MediaType.APPLICATION_XML))
 
-		then:
-		statistics != null
-		statistics.size() == 1
-		def fund = statistics.first()
-		fund.isin == "EE3600109435"
-		fund.nav == 0.63337
-		fund.volume == 27_630_899.99114
-	}
+        when:
+        def statistics = service.getPensionFundStatistics(secondPillarEndpoint)
 
-	def "GetPensionFundStatistics works with many fund statistics"() {
-		given:
-		def xmlResponse = readFile("/pensionFundStatistics.xml")
+        then:
+        statistics != null
+        statistics.size() == 1
+        with(statistics.first()) {
+            isin == "EE3600109435"
+            nav == 0.63337
+            volume == 27_630_899.99114
+        }
+    }
 
-		server.expect(requestTo(statisticsEndpointUrl))
-				.andRespond(withSuccess(xmlResponse, MediaType.APPLICATION_XML))
+    def "getPensionFundStatistics works with many fund statistics"() {
+        given:
+        def xmlResponse = readFile("/pensionFundStatistics.xml")
 
-		when:
-		def statistics = service.getPensionFundStatistics()
+        server.expect(requestTo(secondPillarEndpoint))
+            .andRespond(withSuccess(xmlResponse, MediaType.APPLICATION_XML))
 
-		then:
-		statistics != null
-		statistics.size() == 22
-		def fund = statistics.first()
-		fund.isin == "EE3600019717"
-		fund.nav == 0.91511
-		fund.volume == 59_899_459.39470
-	}
+        when:
+        def statistics = service.getPensionFundStatistics(secondPillarEndpoint)
 
-	private String readFile(String fileName) {
-		def resource = new ClassPathResource(fileName)
-		new String(Files.readAllBytes(resource.getFile().toPath()))
-	}
+        then:
+        statistics != null
+        statistics.size() == 22
+        with(statistics.first()) {
+            isin == "EE3600019717"
+            nav == 0.91511
+            volume == 59_899_459.39470
+        }
+    }
+
+    def "can get statistics for both 2nd and 3rd pillar"() {
+        given:
+        def secondPillarXmlResponse = readFile("/pensionFundStatistics.xml")
+        def thirdPillarXmlResponse = readFile("/pensionFundStatistics_3.xml")
+
+        server.expect(requestTo(secondPillarEndpoint))
+            .andRespond(withSuccess(secondPillarXmlResponse, MediaType.APPLICATION_XML))
+
+        server.expect(requestTo(thirdPillarEndpoint))
+            .andRespond(withSuccess(thirdPillarXmlResponse, MediaType.APPLICATION_XML))
+
+        when:
+        def statistics = service.getPensionFundStatistics()
+
+        then:
+        statistics != null
+        statistics.size() == 33
+        with(statistics.first()) {
+            isin == "EE3600019717"
+            nav == 0.91511
+            volume == 59_899_459.39470
+        }
+        with(statistics.last()) {
+            isin == "EE3600109484"
+            nav == 1.0956
+            volume == 187_496.89850
+        }
+    }
+
+    private String readFile(String fileName) {
+        def resource = new ClassPathResource(fileName)
+        new String(Files.readAllBytes(resource.getFile().toPath()))
+    }
 
 }

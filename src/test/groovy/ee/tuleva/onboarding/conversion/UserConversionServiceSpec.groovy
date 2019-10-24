@@ -9,14 +9,14 @@ import spock.lang.Specification
 
 import static ee.tuleva.onboarding.account.AccountStatementFixture.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.conversion.UserConversionService.*
 import static ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus.*
 
 class UserConversionServiceSpec extends Specification {
 
-    AccountStatementService accountStatementService = Mock(AccountStatementService)
-    TransferExchangeService transferExchangeService = Mock(TransferExchangeService)
-    UserConversionService service =
-            new UserConversionService(accountStatementService, transferExchangeService)
+    def accountStatementService = Mock(AccountStatementService)
+    def transferExchangeService = Mock(TransferExchangeService)
+    def service = new UserConversionService(accountStatementService, transferExchangeService)
 
     final String COVERING_ISN = "SOME ISIN"
 
@@ -27,9 +27,8 @@ class UserConversionServiceSpec extends Specification {
         1 * transferExchangeService.get(samplePerson) >> []
 
         when:
-        ConversionResponse conversionResponse = service.getConversion(
-                samplePerson
-        )
+        ConversionResponse conversionResponse = service.getConversion(samplePerson)
+
         then:
         conversionResponse.selectionComplete == selectionComplete
         conversionResponse.transfersComplete == transferComplete
@@ -49,9 +48,8 @@ class UserConversionServiceSpec extends Specification {
         1 * transferExchangeService.get(samplePerson) >> sampleTransfersApplicationListWithFullPendingTransferCoverage
 
         when:
-        ConversionResponse conversionResponse = service.getConversion(
-                samplePerson
-        )
+        ConversionResponse conversionResponse = service.getConversion(samplePerson)
+
         then:
         conversionResponse.selectionComplete == selectionComplete
         conversionResponse.transfersComplete == transferComplete
@@ -78,73 +76,52 @@ class UserConversionServiceSpec extends Specification {
         where:
         accountBalanceResponse                               | selectionComplete | transferComplete
         sampleNonConvertedFundBalanceWithActiveNonTulevaFund | false             | false
-
     }
 
     List<TransferExchange> sampleTransfersApplicationListWithFullPendingTransferCoverage = [
-            TransferExchange.builder()
-                    .status(FAILED)
-                    .build(),
-            TransferExchange.builder()
-                    .status(COMPLETE)
-                    .build(),
-            TransferExchange.builder()
-                    .status(PENDING)
-                    .amount(new BigDecimal(1.0))
-                    .targetFund(
-                    Fund.builder()
-                            .isin(COVERING_ISN)
-                            .fundManager(
-                            FundManager.builder()
-                                    .name(
-                                    UserConversionService.CONVERTED_FUND_MANAGER_NAME
-                            ).build()
+        TransferExchange.builder()
+            .status(FAILED)
+            .build(),
 
-                    )
-                            .build()
+        TransferExchange.builder()
+            .status(COMPLETE)
+            .build(),
 
-            )
-                    .sourceFund(
-                    Fund.builder().isin(
-                            sampleNonConvertedFundBalanceWithActiveNonTulevaFund
-                                    .first().getFund().getIsin()
-
-                    ).build()
-            )
+        TransferExchange.builder()
+            .status(PENDING)
+            .amount(new BigDecimal(1.0))
+            .targetFund(Fund.builder()
+                    .isin(COVERING_ISN)
+                    .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
                     .build()
+            )
+            .sourceFund(Fund.builder()
+                .isin(sampleNonConvertedFundBalanceWithActiveNonTulevaFund.first().getFund().getIsin())
+                .build()
+            )
+            .build()
     ]
 
     List<TransferExchange> sampleTransfersApplicationListWithPartialPendingTransferCoverage = [
-            TransferExchange.builder()
-                    .status(FAILED)
-                    .build(),
-            TransferExchange.builder()
-                    .status(COMPLETE)
-                    .build(),
-            TransferExchange.builder()
-                    .status(PENDING)
-                    .amount(0.5)
-                    .targetFund(
-                    Fund.builder()
-                            .isin(COVERING_ISN)
-                            .fundManager(
-                            FundManager.builder()
-                                    .name(
-                                    UserConversionService.CONVERTED_FUND_MANAGER_NAME
-                            ).build()
-
-                    )
-                            .build()
-
-            )
-                    .sourceFund(
-                    Fund.builder().isin(
-                            sampleNonConvertedFundBalanceWithActiveNonTulevaFund
-                                    .first().getFund().getIsin()
-
-                    ).build()
-            )
+        TransferExchange.builder()
+            .status(FAILED)
+            .build(),
+        TransferExchange.builder()
+            .status(COMPLETE)
+            .build(),
+        TransferExchange.builder()
+            .status(PENDING)
+            .amount(0.5)
+            .targetFund(Fund.builder()
+                    .isin(COVERING_ISN)
+                    .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
                     .build()
+            )
+            .sourceFund(Fund.builder()
+                .isin(sampleNonConvertedFundBalanceWithActiveNonTulevaFund.first().getFund().getIsin())
+                .build()
+            )
+            .build()
     ]
 
 }

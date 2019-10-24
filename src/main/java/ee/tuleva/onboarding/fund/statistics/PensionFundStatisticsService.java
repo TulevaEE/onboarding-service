@@ -18,46 +18,55 @@ import static java.util.Collections.emptyList;
 @Slf4j
 public class PensionFundStatisticsService {
 
-  @Value("${pensionikeskus.statistics.endpoint.url}")
-  private String statisticsEndpoint;
+    @Value("${pensionikeskus.statistics.2ndpillar.url}")
+    private String secondPillarEndpoint;
 
-  private final RestOperations restTemplate;
+    @Value("${pensionikeskus.statistics.3rdpillar.url}")
+    private String thirdPillarEndpoint;
 
-  private static final String PENSION_FUND_STATISTICS_CACHE = "pensionFundStatistics";
+    private final RestOperations restTemplate;
 
-  public PensionFundStatisticsService(RestTemplateBuilder restTemplateBuilder) {
-    restTemplate = restTemplateBuilder
-        .setConnectTimeout(ofSeconds(60))
-        .setReadTimeout(ofSeconds(60))
-        .additionalMessageConverters(new Jaxb2RootElementHttpMessageConverter())
-      .build();
-  }
+    private static final String PENSION_FUND_STATISTICS_CACHE = "pensionFundStatistics";
 
-  @Cacheable(value = PENSION_FUND_STATISTICS_CACHE, unless = "#result.isEmpty()")
-  public List<PensionFundStatistics> getCachedStatistics() {
-    return getPensionFundStatistics();
-  }
-
-  @CachePut(value = PENSION_FUND_STATISTICS_CACHE, unless = "#result.isEmpty()")
-  public List<PensionFundStatistics> refreshCachedStatistics() {
-    return getPensionFundStatistics();
-  }
-
-  List<PensionFundStatistics> getPensionFundStatistics() {
-    try {
-        PensionFundStatisticsResponse response = restTemplate.getForObject(statisticsEndpoint,
-            PensionFundStatisticsResponse.class);
-        List<PensionFundStatistics> result = response.getPensionFundStatistics();
-
-      if(result == null) {
-        log.info("Pension fund statistics is empty");
-        return emptyList();
-      }
-      return result;
-    } catch (Exception e) {
-      log.error("Error getting pension fund statistics");
-      return emptyList();
+    public PensionFundStatisticsService(RestTemplateBuilder restTemplateBuilder) {
+        restTemplate = restTemplateBuilder
+            .setConnectTimeout(ofSeconds(60))
+            .setReadTimeout(ofSeconds(60))
+            .additionalMessageConverters(new Jaxb2RootElementHttpMessageConverter())
+            .build();
     }
-  }
+
+    @Cacheable(value = PENSION_FUND_STATISTICS_CACHE, unless = "#result.isEmpty()")
+    public List<PensionFundStatistics> getCachedStatistics() {
+        return getPensionFundStatistics();
+    }
+
+    @CachePut(value = PENSION_FUND_STATISTICS_CACHE, unless = "#result.isEmpty()")
+    public List<PensionFundStatistics> refreshCachedStatistics() {
+        return getPensionFundStatistics();
+    }
+
+    List<PensionFundStatistics> getPensionFundStatistics() {
+        List<PensionFundStatistics> statistics = getPensionFundStatistics(secondPillarEndpoint);
+        statistics.addAll(getPensionFundStatistics(thirdPillarEndpoint));
+        return statistics;
+    }
+
+    List<PensionFundStatistics> getPensionFundStatistics(String endpoint) {
+        try {
+            PensionFundStatisticsResponse response = restTemplate.getForObject(endpoint,
+                PensionFundStatisticsResponse.class);
+            List<PensionFundStatistics> result = response.getPensionFundStatistics();
+
+            if (result == null) {
+                log.info("Pension fund statistics is empty");
+                return emptyList();
+            }
+            return result;
+        } catch (Exception e) {
+            log.error("Error getting pension fund statistics");
+            return emptyList();
+        }
+    }
 
 }

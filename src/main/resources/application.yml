@@ -94,8 +94,10 @@ frontend:
 
 pensionikeskus:
   statistics:
-    endpoint:
+    2ndpillar:
       url: https://public.pensionikeskus.ee/public/corporate/pensionFundStatistics.jsp
+    3rdpillar:
+      url: https://public.pensionikeskus.ee/public/corporate/pensionFundStatistics_3.jsp
 
 mailchimp:
   api:

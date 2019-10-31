@@ -27,4 +27,12 @@ public class FundBalance {
         BigDecimal unavailableValue = this.unavailableValue != null ? this.unavailableValue : ZERO;
         return value != null && contributionSum != null ? value.add(unavailableValue).subtract(contributionSum) : null;
     }
+
+    public String getIsin() {
+        return fund.getIsin();
+    }
+
+    public BigDecimal getTotalValue() {
+        return ZERO.add(value == null ? ZERO : value).add(unavailableValue == null ? ZERO : unavailableValue);
+    }
 }

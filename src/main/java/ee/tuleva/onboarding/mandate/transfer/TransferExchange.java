@@ -19,4 +19,10 @@ public class TransferExchange {
     private Fund sourceFund;
     private Fund targetFund;
 
+    public Integer getPillar() {
+        if (sourceFund.getPillar().equals(targetFund.getPillar())) {
+            return sourceFund.getPillar();
+        }
+        throw new IllegalStateException("Transfer between different pillar funds");
+    }
 }

@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.fund.manager.FundManager
 import ee.tuleva.onboarding.mandate.transfer.TransferExchange
 import ee.tuleva.onboarding.mandate.transfer.TransferExchangeService
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.account.AccountStatementFixture.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -18,109 +19,184 @@ class UserConversionServiceSpec extends Specification {
     def transferExchangeService = Mock(TransferExchangeService)
     def service = new UserConversionService(accountStatementService, transferExchangeService)
 
-    final String COVERING_ISN = "SOME ISIN"
-
-    def "GetConversion: Get conversion response for fund selection and transfer"() {
+    @Unroll
+    def "GetConversion: Get conversion response for 2nd pillar selection and transfer"() {
         given:
         1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-
-        1 * transferExchangeService.get(samplePerson) >> []
+        transferExchangeService.get(samplePerson) >> []
 
         when:
-        ConversionResponse conversionResponse = service.getConversion(samplePerson)
+        ConversionResponse response = service.getConversion(samplePerson)
 
         then:
-        conversionResponse.selectionComplete == selectionComplete
-        conversionResponse.transfersComplete == transferComplete
+        response.secondPillar.selectionComplete == secondPillarSelectionComplete
+        response.secondPillar.transfersComplete == secondPillarTransfersComplete
+        !response.thirdPillar.selectionComplete
+        response.thirdPillar.transfersComplete
 
         where:
-        accountBalanceResponse                               | selectionComplete | transferComplete
-        sampleConvertedFundBalanceWithActiveTulevaFund       | true              | true
-        sampleNonConvertedFundBalanceWithActiveNonTulevaFund | false             | false
-        sampleConvertedFundBalanceWithNonActiveTulevaFund    | false             | true
-
+        accountBalanceResponse             | secondPillarSelectionComplete | secondPillarTransfersComplete
+        activeTuleva2ndPillarFundBalance   | true                          | true
+        activeExternal2ndPillarFundBalance | false                         | false
+        inactiveTuleva2ndPillarFundBalance | false                         | true
     }
 
-    def "GetConversion: Get conversion response for fund transfer given pending mandates cover the lack"() {
+    @Unroll
+    def "GetConversion: Get conversion response for 3rd pillar selection and transfer"() {
         given:
         1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-
-        1 * transferExchangeService.get(samplePerson) >> sampleTransfersApplicationListWithFullPendingTransferCoverage
+        transferExchangeService.get(samplePerson) >> []
 
         when:
-        ConversionResponse conversionResponse = service.getConversion(samplePerson)
+        ConversionResponse response = service.getConversion(samplePerson)
 
         then:
-        conversionResponse.selectionComplete == selectionComplete
-        conversionResponse.transfersComplete == transferComplete
+        response.thirdPillar.selectionComplete == thirdPillarSelectionComplete
+        response.thirdPillar.transfersComplete == thirdPillarTransfersComplete
+        !response.secondPillar.selectionComplete
+        response.secondPillar.transfersComplete
 
         where:
-        accountBalanceResponse                               | selectionComplete | transferComplete
-        sampleConvertedFundBalanceWithActiveTulevaFund       | true              | true
-        sampleNonConvertedFundBalanceWithActiveNonTulevaFund | false             | true
-
+        accountBalanceResponse             | thirdPillarSelectionComplete | thirdPillarTransfersComplete
+        activeTuleva3rdPillarFundBalance   | true                         | true
+        activeExternal3rdPillarFundBalance | false                        | false
+        inactiveTuleva3rdPillarFundBalance | false                        | true
     }
 
-    def "GetConversion: Only full value pending transfer will be marked as covering the lack"() {
+    @Unroll
+    def "GetConversion: Get conversion response for 2nd pillar transfer given pending mandates cover the lack"() {
         given:
         1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-
-        1 * transferExchangeService.get(samplePerson) >> sampleTransfersApplicationListWithPartialPendingTransferCoverage
+        transferExchangeService.get(samplePerson) >> fullPending2ndPillarApplications
 
         when:
-        ConversionResponse conversionResponse = service.getConversion(samplePerson)
+        ConversionResponse response = service.getConversion(samplePerson)
+
         then:
-        conversionResponse.selectionComplete == selectionComplete
-        conversionResponse.transfersComplete == transferComplete
+        response.secondPillar.selectionComplete == secondPillarSelectionComplete
+        response.secondPillar.transfersComplete == secondPillarTransfersComplete
 
         where:
-        accountBalanceResponse                               | selectionComplete | transferComplete
-        sampleNonConvertedFundBalanceWithActiveNonTulevaFund | false             | false
+        accountBalanceResponse             | secondPillarSelectionComplete | secondPillarTransfersComplete
+        activeTuleva2ndPillarFundBalance   | true                          | true
+        activeExternal2ndPillarFundBalance | false                         | true
     }
 
-    List<TransferExchange> sampleTransfersApplicationListWithFullPendingTransferCoverage = [
-        TransferExchange.builder()
-            .status(FAILED)
-            .build(),
+    @Unroll
+    def "GetConversion 2nd pillar: only full value pending transfer will be marked as covering the lack"() {
+        given:
+        1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+        transferExchangeService.get(samplePerson) >> partialPending2ndPillarApplications
 
-        TransferExchange.builder()
-            .status(COMPLETE)
-            .build(),
+        when:
+        ConversionResponse response = service.getConversion(samplePerson)
 
+        then:
+        response.secondPillar.selectionComplete == secondPillarSelectionComplete
+        response.secondPillar.transfersComplete == secondPillarTransfersComplete
+
+        where:
+        accountBalanceResponse             | secondPillarSelectionComplete | secondPillarTransfersComplete
+        activeExternal2ndPillarFundBalance | false                         | false
+    }
+
+    @Unroll
+    def "GetConversion: Get conversion response for 3rd pillar transfer given pending mandates cover the lack"() {
+        given:
+        1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+        transferExchangeService.get(samplePerson) >> fullPending3rdPillarApplications
+
+        when:
+        ConversionResponse response = service.getConversion(samplePerson)
+
+        then:
+        response.thirdPillar.selectionComplete == thirdPillarSelectionComplete
+        response.thirdPillar.transfersComplete == thirdPillarTransfersComplete
+
+        where:
+        accountBalanceResponse             | thirdPillarSelectionComplete | thirdPillarTransfersComplete
+        activeTuleva3rdPillarFundBalance   | true                         | true
+        activeExternal3rdPillarFundBalance | false                        | true
+    }
+
+    @Unroll
+    def "GetConversion 3rd pillar: only full value pending transfer will be marked as covering the lack"() {
+        given:
+        1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+        transferExchangeService.get(samplePerson) >> partialPending3rdPillarApplications
+
+        when:
+        ConversionResponse response = service.getConversion(samplePerson)
+
+        then:
+        response.thirdPillar.selectionComplete == thirdPillarSelectionComplete
+        response.thirdPillar.transfersComplete == thirdPillarTransfersComplete
+
+        where:
+        accountBalanceResponse             | thirdPillarSelectionComplete | thirdPillarTransfersComplete
+        activeExternal3rdPillarFundBalance | false                        | false
+    }
+
+
+    List<TransferExchange> fullPending2ndPillarApplications = [
+        TransferExchange.builder().status(FAILED).build(),
+        TransferExchange.builder().status(COMPLETE).build(),
         TransferExchange.builder()
             .status(PENDING)
             .amount(new BigDecimal(1.0))
-            .targetFund(Fund.builder()
-                    .isin(COVERING_ISN)
-                    .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
-                    .build()
-            )
             .sourceFund(Fund.builder()
-                .isin(sampleNonConvertedFundBalanceWithActiveNonTulevaFund.first().getFund().getIsin())
+                .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
+                .pillar(2)
+                .build()
+            )
+            .targetFund(Fund.builder()
+                .isin("EE234")
+                .pillar(2)
+                .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
                 .build()
             )
             .build()
     ]
 
-    List<TransferExchange> sampleTransfersApplicationListWithPartialPendingTransferCoverage = [
-        TransferExchange.builder()
-            .status(FAILED)
-            .build(),
-        TransferExchange.builder()
-            .status(COMPLETE)
-            .build(),
+    List<TransferExchange> partialPending2ndPillarApplications = [
+        TransferExchange.builder().status(FAILED).build(),
+        TransferExchange.builder().status(COMPLETE).build(),
         TransferExchange.builder()
             .status(PENDING)
             .amount(0.5)
-            .targetFund(Fund.builder()
-                    .isin(COVERING_ISN)
-                    .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
-                    .build()
-            )
             .sourceFund(Fund.builder()
-                .isin(sampleNonConvertedFundBalanceWithActiveNonTulevaFund.first().getFund().getIsin())
+                .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
+                .pillar(2)
                 .build()
             )
+            .targetFund(Fund.builder()
+                .isin("EE123")
+                .pillar(2)
+                .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
+                .build()
+            )
+            .build()
+    ]
+
+    List<TransferExchange> fullPending3rdPillarApplications = [
+        TransferExchange.builder().status(FAILED).build(),
+        TransferExchange.builder().status(COMPLETE).build(),
+        TransferExchange.builder()
+            .status(PENDING)
+            .amount(100.0)
+            .sourceFund(activeExternal3rdPillarFundBalance[0].getFund())
+            .targetFund(activeExternal3rdPillarFundBalance[1].getFund())
+            .build()
+    ]
+
+    List<TransferExchange> partialPending3rdPillarApplications = [
+        TransferExchange.builder().status(FAILED).build(),
+        TransferExchange.builder().status(COMPLETE).build(),
+        TransferExchange.builder()
+            .status(PENDING)
+            .amount(50.0)
+            .sourceFund(activeExternal3rdPillarFundBalance[0].getFund())
+            .targetFund(activeExternal3rdPillarFundBalance[1].getFund())
             .build()
     ]
 

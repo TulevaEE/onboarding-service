@@ -6,7 +6,7 @@ import ee.tuleva.onboarding.fund.manager.FundManager
 
 class AccountStatementFixture {
 
-    public static List<FundBalance> sampleConvertedFundBalanceWithActiveTulevaFund = Lists.asList(
+    public static List<FundBalance> activeTuleva2ndPillarFundBalance = Lists.asList(
         FundBalance.builder()
             .value(100.0)
             .unavailableValue(0.0)
@@ -14,9 +14,9 @@ class AccountStatementFixture {
             .pillar(2)
             .contributionSum(90.0)
             .fund(
-                Fund.builder().
-                    isin("AE123232331").
-                    nameEstonian("Tuleva maailma aktsiate pensionifond")
+                Fund.builder()
+                    .isin("AE123232331")
+                    .nameEstonian("Tuleva maailma aktsiate pensionifond")
                     .nameEnglish("Tuleva world stock pensionfund")
                     .id(123)
                     .pillar(2)
@@ -34,8 +34,8 @@ class AccountStatementFixture {
             .contributionSum(90.0)
             .fund(
                 Fund.builder().
-                    isin("AE123232332").
-                    nameEstonian("Tuleva maailma võlakirjade pensionifond")
+                    isin("AE123232332")
+                    .nameEstonian("Tuleva maailma võlakirjade pensionifond")
                     .nameEnglish("Tuleva world bond pensionfund")
                     .id(124)
                     .pillar(2)
@@ -48,7 +48,7 @@ class AccountStatementFixture {
             ).build()
     )
 
-    public static List<FundBalance> sampleNonConvertedFundBalanceWithActiveNonTulevaFund = Lists.asList(
+    public static List<FundBalance> activeExternal2ndPillarFundBalance = Lists.asList(
         FundBalance.builder()
             .value(100.0)
             .unavailableValue(0.0)
@@ -61,6 +61,7 @@ class AccountStatementFixture {
                     .nameEstonian("LHV XL")
                     .nameEnglish("LHV XL")
                     .id(123)
+                    .pillar(2)
                     .fundManager(
                         FundManager.builder()
                             .id(123)
@@ -79,6 +80,7 @@ class AccountStatementFixture {
                     .nameEstonian("Tuleva maailma võlakirjade pensionifond")
                     .nameEnglish("Tuleva world bond pensionfund")
                     .id(124)
+                    .pillar(2)
                     .fundManager(
                         FundManager.builder()
                             .id(123)
@@ -88,7 +90,7 @@ class AccountStatementFixture {
             ).build()
     )
 
-    public static List<FundBalance> sampleConvertedFundBalanceWithNonActiveTulevaFund = Lists.asList(
+    public static List<FundBalance> inactiveTuleva2ndPillarFundBalance = Lists.asList(
         FundBalance.builder()
             .value(0.0)
             .unavailableValue(0.0)
@@ -100,6 +102,7 @@ class AccountStatementFixture {
                     .isin("AE1232322222")
                     .nameEstonian("LHV fund")
                     .nameEnglish("LHV fund")
+                    .pillar(2)
                     .id(123)
                     .fundManager(
                         FundManager.builder()
@@ -118,7 +121,115 @@ class AccountStatementFixture {
                     .isin("AE123232332")
                     .nameEstonian("Tuleva maailma võlakirjade pensionifond")
                     .nameEnglish("Tuleva world bond pensionfund")
+                    .pillar(2)
                     .id(124)
+                    .fundManager(
+                        FundManager.builder()
+                            .id(123)
+                            .name("Tuleva")
+                            .build()
+                    ).build()
+            ).build()
+    )
+
+    public static List<FundBalance> activeTuleva3rdPillarFundBalance = Lists.asList(
+        FundBalance.builder()
+            .value(100.0)
+            .unavailableValue(0.0)
+            .activeContributions(true)
+            .pillar(3)
+            .contributionSum(90.0)
+            .fund(
+                Fund.builder()
+                    .isin("EE645")
+                    .nameEstonian("Tuleva III Samba Pensionifond")
+                    .nameEnglish("Tuleva III Pillar Pension Fund")
+                    .id(123)
+                    .pillar(3)
+                    .fundManager(
+                        FundManager.builder()
+                            .id(123)
+                            .name("Tuleva")
+                            .build()
+                    ).build()
+            ).build()
+    )
+
+    public static List<FundBalance> activeExternal3rdPillarFundBalance = Lists.asList(
+        FundBalance.builder()
+            .value(100.0)
+            .unavailableValue(0.0)
+            .activeContributions(true)
+            .pillar(3)
+            .contributionSum(90.0)
+            .fund(
+                Fund.builder()
+                    .isin("EE7654")
+                    .nameEstonian("LHV Pensionifond Indeks Pluss")
+                    .nameEnglish("LHV Pension Fund Index Plus")
+                    .pillar(3)
+                    .id(123)
+                    .fundManager(
+                        FundManager.builder()
+                            .id(123)
+                            .name("LHV")
+                            .build()
+                    ).build()
+            ).build(),
+        FundBalance.builder()
+            .value(100.0)
+            .unavailableValue(0.0)
+            .contributionSum(90.0)
+            .pillar(3)
+            .fund(
+                Fund.builder()
+                    .isin("EE645")
+                    .nameEstonian("Tuleva III Samba Pensionifond")
+                    .nameEnglish("Tuleva III Pillar Pension Fund")
+                    .id(124)
+                    .pillar(3)
+                    .fundManager(
+                        FundManager.builder()
+                            .id(123)
+                            .name("Tuleva")
+                            .build()
+                    ).build()
+            ).build()
+    )
+
+    public static List<FundBalance> inactiveTuleva3rdPillarFundBalance = Lists.asList(
+        FundBalance.builder()
+            .value(0.0)
+            .unavailableValue(0.0)
+            .pillar(3)
+            .activeContributions(true)
+            .contributionSum(0.0)
+            .fund(
+                Fund.builder()
+                    .isin("AE1232322222")
+                    .nameEstonian("LHV fund")
+                    .nameEnglish("LHV fund")
+                    .id(123)
+                    .pillar(3)
+                    .fundManager(
+                        FundManager.builder()
+                            .id(123)
+                            .name("LHV")
+                            .build()
+                    ).build()
+            ).build(),
+        FundBalance.builder()
+            .value(100.0)
+            .unavailableValue(0.0)
+            .pillar(3)
+            .contributionSum(90.0)
+            .fund(
+                Fund.builder()
+                    .isin("EE645")
+                    .nameEstonian("Tuleva III Samba Pensionifond")
+                    .nameEnglish("Tuleva III Pillar Pension Fund")
+                    .id(124)
+                    .pillar(3)
                     .fundManager(
                         FundManager.builder()
                             .id(123)

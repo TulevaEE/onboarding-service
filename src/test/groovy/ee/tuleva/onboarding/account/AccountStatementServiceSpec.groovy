@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.account.AccountStatementFixture.sampleConvertedFundBalanceWithActiveTulevaFund
+import static ee.tuleva.onboarding.account.AccountStatementFixture.activeTuleva2ndPillarFundBalance
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 
 class AccountStatementServiceSpec extends Specification {
@@ -19,7 +19,7 @@ class AccountStatementServiceSpec extends Specification {
         given:
         def person = samplePerson()
         def fundBalanceDto = FundBalanceDto.builder().isin("someIsin").build()
-        def fundBalance = sampleConvertedFundBalanceWithActiveTulevaFund.first()
+        def fundBalance = activeTuleva2ndPillarFundBalance.first()
 
         episService.getAccountStatement(person) >> [fundBalanceDto]
         fundBalanceConverter.convert(fundBalanceDto, person) >> fundBalance

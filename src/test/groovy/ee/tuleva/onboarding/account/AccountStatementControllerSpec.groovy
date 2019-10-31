@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
 import org.springframework.test.web.servlet.MockMvc
 
-import static ee.tuleva.onboarding.account.AccountStatementFixture.sampleConvertedFundBalanceWithActiveTulevaFund
+import static ee.tuleva.onboarding.account.AccountStatementFixture.activeTuleva2ndPillarFundBalance
 import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -24,7 +24,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
 
     def "/pension-account-statement endpoint works"() {
         given:
-        List<FundBalance> fundBalances = sampleConvertedFundBalanceWithActiveTulevaFund
+        List<FundBalance> fundBalances = activeTuleva2ndPillarFundBalance
         1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
 
         expect:
@@ -46,7 +46,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
 
     def "/pension-account-statement endpoint accepts language header and responds with appropriate fund.name"() {
         given:
-        List<FundBalance> fundBalances = sampleConvertedFundBalanceWithActiveTulevaFund
+        List<FundBalance> fundBalances = activeTuleva2ndPillarFundBalance
         1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
 
         expect:

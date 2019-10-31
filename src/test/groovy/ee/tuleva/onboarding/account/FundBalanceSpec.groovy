@@ -31,4 +31,26 @@ class FundBalanceSpec extends Specification {
         100.0           | 110.0 | null             || 10.0
         100.0           | 110.0 | 1.0              || 11.0
     }
+
+    @Unroll
+    def "calculates total value #value + #unavailableValue = #expectedTotal"() {
+        given:
+        def fundBalance = FundBalance.builder()
+            .value(value)
+            .unavailableValue(unavailableValue)
+            .build()
+
+        when:
+        def totalValue = fundBalance.getTotalValue()
+
+        then:
+        totalValue == expectedTotal
+
+        where:
+        value | unavailableValue || expectedTotal
+        null  | null             || 0.0
+        null  | 1.0              || 1.0
+        1.0   | null             || 1.0
+        1.0   | 1.0              || 2.0
+    }
 }

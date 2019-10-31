@@ -1,15 +1,20 @@
 package ee.tuleva.onboarding.conversion;
 
 import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 
 @Builder
-@Getter
-@Setter
+@Data
 public class ConversionResponse {
 
-    boolean transfersComplete;
-    boolean selectionComplete;
+    private Conversion secondPillar;
+    private Conversion thirdPillar;
+
+    @Builder
+    @Data
+    public static class Conversion {
+        private boolean transfersComplete;
+        private boolean selectionComplete;
+    }
 
 }

@@ -44,8 +44,8 @@ public class UserConversionService {
 
     private boolean isSelectionComplete(List<FundBalance> fundBalances, Integer pillar) {
         return filter(fundBalances, pillar).findFirst().isPresent() &&
-            filter(fundBalances, pillar)
-                .filter(FundBalance::isActiveContributions)
+            filter(fundBalances, pillar).anyMatch(FundBalance::isActiveContributions) &&
+            filter(fundBalances, pillar).filter(FundBalance::isActiveContributions)
                 .allMatch(fundBalance ->
                     fundBalance.getFund()
                         .getFundManager()

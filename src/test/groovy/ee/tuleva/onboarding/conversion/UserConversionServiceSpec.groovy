@@ -39,6 +39,7 @@ class UserConversionServiceSpec extends Specification {
         activeTuleva2ndPillarFundBalance   | true                          | true
         activeExternal2ndPillarFundBalance | false                         | false
         inactiveTuleva2ndPillarFundBalance | false                         | true
+        []                                 | false                         | true
     }
 
     @Unroll
@@ -61,6 +62,7 @@ class UserConversionServiceSpec extends Specification {
         activeTuleva3rdPillarFundBalance   | true                         | true
         activeExternal3rdPillarFundBalance | false                        | false
         inactiveTuleva3rdPillarFundBalance | false                        | true
+        []                                 | false                        | true
     }
 
     @Unroll

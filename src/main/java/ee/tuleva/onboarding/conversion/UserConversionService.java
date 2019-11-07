@@ -26,6 +26,8 @@ public class UserConversionService {
     private final TransferExchangeService transferExchangeService;
 
     private static final String CONVERTED_FUND_MANAGER_NAME = "Tuleva";
+    public static final String EXIT_RESTRICTED_FUND = "EE3600109484";
+
 
     public ConversionResponse getConversion(Person person) {
         List<FundBalance> fundBalances = accountStatementService.getAccountStatement(person);
@@ -109,8 +111,9 @@ public class UserConversionService {
                 !fundBalance.getFund()
                     .getFundManager()
                     .getName()
-                    .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME) &&
-                    fundBalance.getValue().compareTo(BigDecimal.ZERO) > 0
+                    .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME)
+                    && fundBalance.getValue().compareTo(BigDecimal.ZERO) > 0
+                    && !EXIT_RESTRICTED_FUND.equals(fundBalance.getIsin())
             )
             .map(fundBalance -> fundBalance.getFund().getIsin())
             .collect(toList());

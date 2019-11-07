@@ -4,6 +4,8 @@ import com.google.common.collect.Lists
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
 
+import static ee.tuleva.onboarding.conversion.UserConversionService.EXIT_RESTRICTED_FUND
+
 class AccountStatementFixture {
 
     public static List<FundBalance> activeTuleva2ndPillarFundBalance = Lists.asList(
@@ -150,6 +152,26 @@ class AccountStatementFixture {
                         FundManager.builder()
                             .id(123)
                             .name("Tuleva")
+                            .build()
+                    ).build()
+            ).build(),
+        FundBalance.builder()
+            .value(200.0)
+            .unavailableValue(0.0)
+            .activeContributions(false)
+            .pillar(3)
+            .contributionSum(190.0)
+            .fund(
+                Fund.builder()
+                    .isin(EXIT_RESTRICTED_FUND)
+                    .nameEstonian("Swedbank Pensionifond V100 indeks (väljumine piiratud)")
+                    .nameEnglish("Swedbank V100 Index Pension Fund (exit restricted)")
+                    .id(323)
+                    .pillar(3)
+                    .fundManager(
+                        FundManager.builder()
+                            .id(345)
+                            .name("Swedbank")
                             .build()
                     ).build()
             ).build()

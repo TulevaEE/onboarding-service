@@ -95,7 +95,7 @@ class AuthControllerSpec extends BaseControllerSpec {
         MockHttpServletResponse response = mockMvc
                 .perform(post("/idLogin")
                 .header("X-Authorization", "Bearer secretz")
-                .header("ssl_client_verify", "NONE")).andReturn().response
+                .header("ssl-client-verify", "NONE")).andReturn().response
         then:
         response.status == HttpStatus.BAD_REQUEST.value()
         0 * idCardAuthService.checkCertificate(_)
@@ -106,8 +106,8 @@ class AuthControllerSpec extends BaseControllerSpec {
         MockHttpServletResponse response = mockMvc
                 .perform(post("/idLogin")
                 .header("X-Authorization", "Bearer secretz")
-                .header("ssl_client_verify", "SUCCESS")
-                .header("ssl_client_cert", "test_cert")).andReturn().response
+                .header("ssl-client-verify", "SUCCESS")
+                .header("ssl-client-cert", "test_cert")).andReturn().response
         then:
         response.status == HttpStatus.OK.value()
         1 * idCardAuthService.checkCertificate("test_cert")
@@ -118,8 +118,8 @@ class AuthControllerSpec extends BaseControllerSpec {
         MockHttpServletResponse response = mockMvc
                 .perform(get("/idLogin")
                 .header("X-Authorization", "Bearer secretz")
-                .header("ssl_client_verify", "SUCCESS")
-                .header("ssl_client_cert", "test_cert")).andReturn().response
+                .header("ssl-client-verify", "SUCCESS")
+                .header("ssl-client-cert", "test_cert")).andReturn().response
         then:
         response.status == HttpStatus.FOUND.value()
         1 * idCardAuthService.checkCertificate("test_cert")

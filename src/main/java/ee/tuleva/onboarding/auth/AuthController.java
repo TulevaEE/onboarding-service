@@ -13,15 +13,12 @@ import ee.tuleva.onboarding.auth.smartid.SmartIdSession;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringEscapeUtils;
-import org.apache.http.client.utils.URLEncodedUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.common.exceptions.UnauthorizedClientException;
-import org.springframework.security.web.util.TextEscapeUtils;
 import org.springframework.web.bind.annotation.*;
 import springfox.documentation.annotations.ApiIgnore;
 
@@ -29,7 +26,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import java.io.IOException;
 import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.util.Objects;
 
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
@@ -76,8 +72,8 @@ public class AuthController {
     @ApiOperation(value = "ID card login")
     @RequestMapping(method = {GET, POST}, value = "/idLogin")
     @ResponseBody
-    public IdCardLoginResponse idLogin(@RequestHeader(value = "ssl_client_verify") String clientCertificateVerification,
-                                       @RequestHeader(value = "ssl_client_cert") String clientCertificate,
+    public IdCardLoginResponse idLogin(@RequestHeader(value = "ssl-client-verify") String clientCertificateVerification,
+                                       @RequestHeader(value = "ssl-client-cert") String clientCertificate,
                                        @RequestHeader(value = "x-authorization") String crossAuthorizationToken,
                                        @ApiIgnore HttpServletResponse response,
                                        @ApiIgnore HttpMethod httpMethod) throws IOException {

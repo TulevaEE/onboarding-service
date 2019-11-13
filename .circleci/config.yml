@@ -56,7 +56,7 @@ jobs:
             sudo pip install awsebcli --upgrade
       - deploy:
           name: Deploy master to Production
-          command: eb deploy onboarding-service --label ${CIRCLE_SHA1} --timeout 20
+          command: eb deploy onboarding-service-3 --label ${CIRCLE_SHA1} --timeout 20
 
   notify:
     docker:

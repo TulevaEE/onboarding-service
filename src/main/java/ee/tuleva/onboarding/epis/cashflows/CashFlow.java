@@ -17,4 +17,9 @@ public class CashFlow {
     private LocalDate date;
     private BigDecimal amount;
     private String currency;
+    private Type type;
+
+    public enum Type {
+        CONTRIBUTION;
+    }
 }

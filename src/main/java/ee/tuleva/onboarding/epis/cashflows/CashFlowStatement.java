@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -13,8 +15,10 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 public class CashFlowStatement {
-    private Map<String, CashFlow> startBalance;
-    private Map<String, CashFlow> endBalance;
-
-    private List<CashFlow> transactions;
+    @Builder.Default
+    private Map<String, CashFlow> startBalance = new HashMap<>();
+    @Builder.Default
+    private Map<String, CashFlow> endBalance = new HashMap<>();
+    @Builder.Default
+    private List<CashFlow> transactions = new ArrayList<>();
 }

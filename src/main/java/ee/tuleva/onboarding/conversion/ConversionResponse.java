@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.conversion;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
+
 @Builder
 @Data
 public class ConversionResponse {
@@ -15,6 +17,7 @@ public class ConversionResponse {
     public static class Conversion {
         private boolean transfersComplete;
         private boolean selectionComplete;
+        private BigDecimal yearToDateContribution;
     }
 
 }

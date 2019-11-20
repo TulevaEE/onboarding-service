@@ -219,6 +219,29 @@ class AccountStatementFixture {
             ).build()
     )
 
+    public static List<FundBalance> activeTuleva3rdPillarFund = Lists.asList(
+        FundBalance.builder()
+            .value(0.0)
+            .unavailableValue(0.0)
+            .activeContributions(true)
+            .pillar(3)
+            .contributionSum(0.0)
+            .fund(
+                Fund.builder()
+                    .isin("EE645")
+                    .nameEstonian("Tuleva III Samba Pensionifond")
+                    .nameEnglish("Tuleva III Pillar Pension Fund")
+                    .id(123)
+                    .pillar(3)
+                    .fundManager(
+                        FundManager.builder()
+                            .id(123)
+                            .name("Tuleva")
+                            .build()
+                    ).build()
+            ).build()
+    )
+
     public static List<FundBalance> inactiveTuleva3rdPillarFundBalance = Lists.asList(
         FundBalance.builder()
             .value(0.0)

@@ -1,9 +1,13 @@
 package ee.tuleva.onboarding.conversion;
 
 import ee.tuleva.onboarding.account.AccountStatementService;
+import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.conversion.ConversionResponse.Conversion;
+import ee.tuleva.onboarding.epis.cashflows.CashFlow;
+import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
+import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.transfer.TransferExchange;
 import ee.tuleva.onboarding.mandate.transfer.TransferExchangeService;
 import lombok.RequiredArgsConstructor;
@@ -11,10 +15,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Stream;
 
 import static ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus.PENDING;
+import static java.math.BigDecimal.ROUND_HALF_UP;
+import static java.time.temporal.TemporalAdjusters.lastDayOfYear;
 import static java.util.stream.Collectors.toList;
 
 @Service
@@ -24,6 +32,9 @@ public class UserConversionService {
 
     private final AccountStatementService accountStatementService;
     private final TransferExchangeService transferExchangeService;
+    private final CashFlowService cashFlowService;
+    private final FundRepository fundRepository;
+    private final Clock clock;
 
     private static final String CONVERTED_FUND_MANAGER_NAME = "Tuleva";
     public static final String EXIT_RESTRICTED_FUND = "EE3600109484";
@@ -31,17 +42,33 @@ public class UserConversionService {
 
     public ConversionResponse getConversion(Person person) {
         List<FundBalance> fundBalances = accountStatementService.getAccountStatement(person);
+        CashFlowStatement cashFlowStatement = cashFlowService.getCashFlowStatement(person);
 
         return ConversionResponse.builder()
             .secondPillar(Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 2))
                 .transfersComplete(isTransfersComplete(fundBalances, 2, person))
+                .yearToDateContribution(contributionSum(cashFlowStatement, 2))
                 .build()
             ).thirdPillar(Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 3))
                 .transfersComplete(isTransfersComplete(fundBalances, 3, person))
+                .yearToDateContribution(contributionSum(cashFlowStatement, 3))
                 .build()
             ).build();
+    }
+
+    private BigDecimal contributionSum(CashFlowStatement cashFlowStatement, int pillar) {
+        return cashFlowStatement.getTransactions().stream()
+            .filter(cashFlow -> {
+                LocalDate lastDayOfLastYear = LocalDate.now(clock).minusYears(1).with(lastDayOfYear());
+                return cashFlow.getDate().isAfter(lastDayOfLastYear);
+            })
+            .filter(cashFlow -> CashFlow.Type.CONTRIBUTION == cashFlow.getType())
+            .filter(cashFlow -> fundRepository.findByIsin(cashFlow.getIsin()).getPillar() == pillar)
+            .map(CashFlow::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add)
+            .setScale(2, ROUND_HALF_UP);
     }
 
     private boolean isSelectionComplete(List<FundBalance> fundBalances, Integer pillar) {

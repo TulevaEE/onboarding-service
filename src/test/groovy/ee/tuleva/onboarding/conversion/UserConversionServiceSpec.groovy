@@ -185,8 +185,14 @@ class UserConversionServiceSpec extends Specification {
         ConversionResponse response = service.getConversion(samplePerson)
 
         then:
-        response.secondPillar.yearToDateContribution == 2.0
-        response.thirdPillar.yearToDateContribution == 3.0
+        with(response.secondPillar) {
+            yearToDateContribution == 2.0
+            paymentComplete == null
+        }
+        with(response.thirdPillar) {
+            yearToDateContribution == 3.0
+            paymentComplete
+        }
     }
 
 

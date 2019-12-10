@@ -20,8 +20,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Stream;
 
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION;
 import static ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus.PENDING;
 import static java.math.BigDecimal.ROUND_HALF_UP;
+import static java.math.BigDecimal.ZERO;
 import static java.time.temporal.TemporalAdjusters.lastDayOfYear;
 import static java.util.stream.Collectors.toList;
 
@@ -38,6 +40,7 @@ public class UserConversionService {
 
     private static final String CONVERTED_FUND_MANAGER_NAME = "Tuleva";
     public static final String EXIT_RESTRICTED_FUND = "EE3600109484";
+    private LocalDate THIRD_PILLAR_FUND_INCEPTION_DATE = LocalDate.of(2019, 10, 15);
 
 
     public ConversionResponse getConversion(Person person) {
@@ -54,21 +57,33 @@ public class UserConversionService {
                 .selectionComplete(isSelectionComplete(fundBalances, 3))
                 .transfersComplete(isTransfersComplete(fundBalances, 3, person))
                 .yearToDateContribution(contributionSum(cashFlowStatement, 3))
+                .paymentComplete(paymentComplete(cashFlowStatement))
                 .build()
             ).build();
     }
 
+    private boolean paymentComplete(CashFlowStatement cashFlowStatement) {
+        return cashFlowStatement.getTransactions().stream()
+            .filter(cashFlow -> cashFlow.getDate().isAfter(THIRD_PILLAR_FUND_INCEPTION_DATE))
+            .filter(cashFlow -> CONTRIBUTION == cashFlow.getType())
+            .filter(cashFlow -> fundRepository.findByIsin(cashFlow.getIsin()).getPillar() == 3)
+            .map(CashFlow::getAmount)
+            .reduce(ZERO, BigDecimal::add)
+            .compareTo(ZERO) > 0;
+    }
+
     private BigDecimal contributionSum(CashFlowStatement cashFlowStatement, int pillar) {
         return cashFlowStatement.getTransactions().stream()
-            .filter(cashFlow -> {
-                LocalDate lastDayOfLastYear = LocalDate.now(clock).minusYears(1).with(lastDayOfYear());
-                return cashFlow.getDate().isAfter(lastDayOfLastYear);
-            })
-            .filter(cashFlow -> CashFlow.Type.CONTRIBUTION == cashFlow.getType())
+            .filter(cashFlow -> cashFlow.getDate().isAfter(lastDayOfLastYear()))
+            .filter(cashFlow -> CONTRIBUTION == cashFlow.getType())
             .filter(cashFlow -> fundRepository.findByIsin(cashFlow.getIsin()).getPillar() == pillar)
             .map(CashFlow::getAmount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add)
+            .reduce(ZERO, BigDecimal::add)
             .setScale(2, ROUND_HALF_UP);
+    }
+
+    private LocalDate lastDayOfLastYear() {
+        return LocalDate.now(clock).minusYears(1).with(lastDayOfYear());
     }
 
     private boolean isSelectionComplete(List<FundBalance> fundBalances, Integer pillar) {
@@ -139,7 +154,7 @@ public class UserConversionService {
                     .getFundManager()
                     .getName()
                     .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME)
-                    && fundBalance.getValue().compareTo(BigDecimal.ZERO) > 0
+                    && fundBalance.getValue().compareTo(ZERO) > 0
                     && !EXIT_RESTRICTED_FUND.equals(fundBalance.getIsin())
             )
             .map(fundBalance -> fundBalance.getFund().getIsin())

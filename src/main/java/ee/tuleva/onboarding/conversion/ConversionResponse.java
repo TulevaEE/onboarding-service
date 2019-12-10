@@ -17,6 +17,7 @@ public class ConversionResponse {
     public static class Conversion {
         private boolean transfersComplete;
         private boolean selectionComplete;
+        private Boolean paymentComplete;
         private BigDecimal yearToDateContribution;
     }
 

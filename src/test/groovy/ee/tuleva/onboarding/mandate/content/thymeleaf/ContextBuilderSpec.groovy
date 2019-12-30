@@ -128,10 +128,9 @@ class ContextBuilderSpec extends Specification {
         userPreferences.country == dummyUserPreferences.country
         context.getVariable("addressLine1") == dummyUserPreferences.addressRow1
         context.getVariable("addressLine2") == dummyUserPreferences.addressRow2
-        context.getVariable("settlement") == dummyUserPreferences.addressRow2
         context.getVariable("countryCode") == dummyUserPreferences.country
         context.getVariable("postCode") == dummyUserPreferences.postalIndex
-        context.getVariable("districtCode") == dummyUserPreferences.districtCode
+        context.getVariable("districtName") == dummyUserPreferences.districtName
         context.getVariable("email") == dummyUserPreferences.email
     }
 

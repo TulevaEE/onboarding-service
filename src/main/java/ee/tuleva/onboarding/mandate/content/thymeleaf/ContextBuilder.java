@@ -82,10 +82,9 @@ public class ContextBuilder {
 
         ctx.setVariable("addressLine1", userPreferences.getAddressRow1());
         ctx.setVariable("addressLine2", userPreferences.getAddressRow2());
-        ctx.setVariable("settlement", userPreferences.getAddressRow2());
         ctx.setVariable("countryCode", userPreferences.getCountry());
         ctx.setVariable("postCode", userPreferences.getPostalIndex());
-        ctx.setVariable("districtCode", userPreferences.getDistrictCode());
+        ctx.setVariable("districtName", userPreferences.getDistrictName());
         if (ctx.getVariable("email") == null) {
             ctx.setVariable("email", userPreferences.getEmail());
         }

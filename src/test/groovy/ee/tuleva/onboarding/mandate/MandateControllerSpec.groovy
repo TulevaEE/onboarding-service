@@ -39,7 +39,7 @@ class MandateControllerSpec extends BaseControllerSpec {
                         .content(mapper.writeValueAsString(sampleCreateMandateCommand()))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath('$.futureContributionFundIsin', is(sampleMandate().futureContributionFundIsin.get())))
 
     }
@@ -54,7 +54,7 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .perform(put("/v1/mandates/1/signature/mobileId")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath('$.mobileIdChallengeCode', is("1234")))
     }
 
@@ -82,7 +82,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         mvc
                 .perform(get("/v1/mandates/1/signature/mobileId/status"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
     }
 
@@ -96,7 +96,7 @@ class MandateControllerSpec extends BaseControllerSpec {
                         .content(mapper.writeValueAsString(sampleStartIdCardSignCommand("clientCertificate")))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath('$.hash', is("asdfg")))
     }
 
@@ -112,7 +112,7 @@ class MandateControllerSpec extends BaseControllerSpec {
                         .content(mapper.writeValueAsString(sampleFinishIdCardSignCommand("signedHash")))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
     }
 

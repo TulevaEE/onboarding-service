@@ -51,7 +51,7 @@ public class AuthController {
     @RequestMapping(
             method = POST,
             value = "/authenticate",
-            consumes = MediaType.APPLICATION_JSON_UTF8_VALUE)
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<AuthenticateResponse> authenticate(@Valid @RequestBody AuthenticateCommand authenticateCommand) {
         if (authenticateCommand.getType() == AuthenticationType.MOBILE_ID) {
             MobileIDSession loginSession = mobileIdAuthService.startLogin(authenticateCommand.getValue());

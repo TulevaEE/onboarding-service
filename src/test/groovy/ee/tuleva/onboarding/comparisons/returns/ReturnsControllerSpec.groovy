@@ -43,7 +43,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         mockMvc.perform(get("/v1/returns")
             .param("from", fromDate))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.from', is(fromDate)))
             .andExpect(jsonPath('$.returns[0].type', is(type.toString())))
             .andExpect(jsonPath('$.returns[0].key', is(key)))
@@ -64,7 +64,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         expect:
         mockMvc.perform(get("/v1/returns"))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.from', is(BEGINNING_OF_TIMES.toString())))
             .andExpect(jsonPath('$.returns[0].type', is(type.toString())))
             .andExpect(jsonPath('$.returns[0].key', is(key)))
@@ -95,7 +95,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
             .param("keys[]", key2)
             .param("keys[]", key3))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.from', is(fromDate)))
 
             .andExpect(jsonPath('$.returns[0].type', is(PERSONAL.toString())))

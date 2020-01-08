@@ -11,7 +11,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.Map;
 
-import static org.jsoup.helper.StringUtil.isBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 
 @Service
 @Slf4j

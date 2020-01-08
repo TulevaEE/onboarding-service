@@ -29,7 +29,7 @@ class ThirdPillarStatisticsControllerSpec extends BaseControllerSpec {
             .content(mapper.writeValueAsString(statistics))
             .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.mandateId', is(statistics.mandateId.intValue())))
             .andExpect(jsonPath('$.recurringPayment', is(statistics.recurringPayment?.doubleValue())))
             .andExpect(jsonPath('$.singlePayment', is(statistics.singlePayment?.doubleValue())))

@@ -58,7 +58,7 @@ class FundControllerSpec extends BaseControllerSpec {
         expect:
         mockMvc
                 .perform(get("/v1/funds?fundManager.name=" + fundManagerName).header("Accept-Language", language))
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath('$', hasSize(funds.size())))
                 .andExpect(jsonPath('$[0].fundManager.name', is(fundManagerName)))

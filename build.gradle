@@ -55,7 +55,7 @@ dependencies {
 	implementation('org.springframework.boot:spring-boot-starter-json')
 	implementation('org.springframework.cloud:spring-cloud-starter-sleuth')
 	implementation('de.codecentric:spring-boot-admin-starter-client')
-	implementation('org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.1.4.RELEASE')
+	implementation('org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.2.4.RELEASE')
 
 	developmentOnly('org.springframework.boot:spring-boot-devtools')
 	runtimeOnly('org.postgresql:postgresql')

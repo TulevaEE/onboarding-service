@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user
 
+import ee.tuleva.onboarding.user.member.Member
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
@@ -68,4 +69,28 @@ class UserRepositorySpec extends Specification {
 		then:
 		thrown RuntimeException
 	}
+
+    def "will not find inactive members"() {
+        given:
+        def sampleUser = entityManager.persist(User.builder()
+            .personalCode("38501010002")
+            .email("erko@risthein.ee")
+            .build())
+
+        entityManager.persist(
+            Member.builder()
+                .user(sampleUser)
+                .memberNumber(234)
+                .active(false)
+                .build()
+        )
+
+        entityManager.flush()
+
+        when:
+        User user = repository.findById(sampleUser.id).get()
+
+        then:
+        !user.member.isPresent()
+    }
 }

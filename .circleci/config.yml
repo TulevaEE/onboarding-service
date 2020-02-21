@@ -53,6 +53,8 @@ jobs:
       - run:
           name: Upgrade awsebcli
           command: |
+            sudo apt update
+            sudo apt install -y python-pip python-dev
             sudo pip install awsebcli --upgrade
       - deploy:
           name: Deploy master to Production

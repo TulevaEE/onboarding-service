@@ -53,9 +53,7 @@ jobs:
       - run:
           name: Upgrade awsebcli
           command: |
-            sudo apt update
-            sudo apt install -y python-pip python-dev
-            sudo pip install awsebcli --upgrade
+            sudo pip3 install awsebcli --upgrade
       - deploy:
           name: Deploy master to Production
           command: eb deploy onboarding-service-3 --label ${CIRCLE_SHA1} --timeout 20

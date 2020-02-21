@@ -44,16 +44,9 @@ jobs:
       - image: meetfrank/circleci-node-awsebcli:latest
     steps:
       - checkout
-
-      # Restore the build folder from the build job
       - restore_cache:
           keys:
             - v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}
-
-      - run:
-          name: Upgrade awsebcli
-          command: |
-            sudo pip3 install awsebcli --upgrade
       - deploy:
           name: Deploy master to Production
           command: eb deploy onboarding-service-3 --label ${CIRCLE_SHA1} --timeout 20

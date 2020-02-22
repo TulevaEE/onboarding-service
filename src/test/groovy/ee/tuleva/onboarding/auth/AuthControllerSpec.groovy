@@ -29,7 +29,6 @@ class AuthControllerSpec extends BaseControllerSpec {
 
     def setup() {
         mockMvc = mockMvc(controller)
-        controller.idCardSecretToken = "Bearer secretz"
     }
 
     def "Authenticate: Initiate mobile id authentication (deprecated)"() {

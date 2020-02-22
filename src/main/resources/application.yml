@@ -163,10 +163,6 @@ digidoc:
   service:
     url: https://digidocservice.sk.ee/
 
-id-card:
-  secret:
-    token: ${ID_CARD_SECRET_HEADER_TOKEN}
-
 mandrill:
   key: ${MANDRILL_KEY}
 

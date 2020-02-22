@@ -41,9 +41,6 @@ public class AuthController {
     private final GenericSessionStore genericSessionStore;
     private final IdCardAuthService idCardAuthService;
 
-    @Value("${id-card.secret.token:Bearer ${random.uuid}}")
-    private String idCardSecretToken;
-
     @Value("${frontend.url}")
     private String frontendUrl;
 
@@ -74,12 +71,8 @@ public class AuthController {
     @ResponseBody
     public IdCardLoginResponse idLogin(@RequestHeader(value = "ssl-client-verify") String clientCertificateVerification,
                                        @RequestHeader(value = "ssl-client-cert") String clientCertificate,
-                                       @RequestHeader(value = "x-authorization") String crossAuthorizationToken,
                                        @ApiIgnore HttpServletResponse response,
                                        @ApiIgnore HttpMethod httpMethod) throws IOException {
-        if (!Objects.equals(crossAuthorizationToken, idCardSecretToken)) {
-            throw new UnauthorizedClientException("Invalid X-Authorization");
-        }
         if (!"SUCCESS".equals(clientCertificateVerification)) {
             throw new UnauthorizedClientException("Client certificate not verified");
         }

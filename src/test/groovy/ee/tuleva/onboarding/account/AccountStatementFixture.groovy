@@ -14,7 +14,8 @@ class AccountStatementFixture {
             .unavailableValue(0.0)
             .activeContributions(true)
             .pillar(2)
-            .contributionSum(90.0)
+            .contributions(90.0)
+            .subtractions(0.0)
             .fund(
                 Fund.builder()
                     .isin("AE123232331")
@@ -33,7 +34,8 @@ class AccountStatementFixture {
             .value(100.0)
             .unavailableValue(0.0)
             .pillar(2)
-            .contributionSum(90.0)
+            .contributions(90.0)
+            .subtractions(0.0)
             .fund(
                 Fund.builder().
                     isin("AE123232332")
@@ -56,7 +58,8 @@ class AccountStatementFixture {
             .unavailableValue(0.0)
             .activeContributions(true)
             .pillar(2)
-            .contributionSum(90.0)
+            .contributions(90.0)
+            .subtractions(0.0)
             .fund(
                 Fund.builder()
                     .isin("AE123232337")
@@ -74,7 +77,8 @@ class AccountStatementFixture {
         FundBalance.builder()
             .value(100.0)
             .unavailableValue(0.0)
-            .contributionSum(90.0)
+            .contributions(90.0)
+            .subtractions(0.0)
             .pillar(2)
             .fund(
                 Fund.builder()
@@ -98,7 +102,8 @@ class AccountStatementFixture {
             .unavailableValue(0.0)
             .pillar(2)
             .activeContributions(true)
-            .contributionSum(0.0)
+            .contributions(0.0)
+            .subtractions(0.0)
             .fund(
                 Fund.builder()
                     .isin("AE1232322222")
@@ -117,7 +122,8 @@ class AccountStatementFixture {
             .value(100.0)
             .unavailableValue(0.0)
             .pillar(2)
-            .contributionSum(90.0)
+            .contributions(90.0)
+            .subtractions(0.0)
             .fund(
                 Fund.builder()
                     .isin("AE123232332")
@@ -140,7 +146,8 @@ class AccountStatementFixture {
             .unavailableValue(0.0)
             .activeContributions(true)
             .pillar(3)
-            .contributionSum(90.0)
+            .contributions(90.0)
+            .subtractions(0.0)
             .fund(
                 Fund.builder()
                     .isin("EE645")
@@ -160,7 +167,8 @@ class AccountStatementFixture {
             .unavailableValue(0.0)
             .activeContributions(false)
             .pillar(3)
-            .contributionSum(190.0)
+            .contributions(190.0)
+            .subtractions(0.0)
             .fund(
                 Fund.builder()
                     .isin(EXIT_RESTRICTED_FUND)
@@ -183,7 +191,8 @@ class AccountStatementFixture {
             .unavailableValue(0.0)
             .activeContributions(true)
             .pillar(3)
-            .contributionSum(90.0)
+            .contributions(90.0)
+            .subtractions(0.0)
             .fund(
                 Fund.builder()
                     .isin("EE7654")
@@ -201,7 +210,8 @@ class AccountStatementFixture {
         FundBalance.builder()
             .value(100.0)
             .unavailableValue(0.0)
-            .contributionSum(90.0)
+            .contributions(90.0)
+            .subtractions(0.0)
             .pillar(3)
             .fund(
                 Fund.builder()
@@ -225,7 +235,8 @@ class AccountStatementFixture {
             .unavailableValue(0.0)
             .activeContributions(true)
             .pillar(3)
-            .contributionSum(0.0)
+            .contributions(0.0)
+            .subtractions(0.0)
             .fund(
                 Fund.builder()
                     .isin("EE645")
@@ -248,7 +259,8 @@ class AccountStatementFixture {
             .unavailableValue(0.0)
             .pillar(3)
             .activeContributions(true)
-            .contributionSum(0.0)
+            .contributions(0.0)
+            .subtractions(0.0)
             .fund(
                 Fund.builder()
                     .isin("AE1232322222")
@@ -267,7 +279,8 @@ class AccountStatementFixture {
             .value(100.0)
             .unavailableValue(0.0)
             .pillar(3)
-            .contributionSum(90.0)
+            .contributions(90.0)
+            .subtractions(0.0)
             .fund(
                 Fund.builder()
                     .isin("EE645")

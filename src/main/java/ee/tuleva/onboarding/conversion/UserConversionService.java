@@ -51,12 +51,12 @@ public class UserConversionService {
             .secondPillar(Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 2))
                 .transfersComplete(isTransfersComplete(fundBalances, 2, person))
-                .yearToDateContribution(contributionSum(cashFlowStatement, 2))
+                .yearToDateContribution(yearToDateContributionSum(cashFlowStatement, 2))
                 .build()
             ).thirdPillar(Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 3))
                 .transfersComplete(isTransfersComplete(fundBalances, 3, person))
-                .yearToDateContribution(contributionSum(cashFlowStatement, 3))
+                .yearToDateContribution(yearToDateContributionSum(cashFlowStatement, 3))
                 .paymentComplete(paymentComplete(cashFlowStatement))
                 .build()
             ).build();
@@ -72,7 +72,7 @@ public class UserConversionService {
             .compareTo(ZERO) > 0;
     }
 
-    private BigDecimal contributionSum(CashFlowStatement cashFlowStatement, int pillar) {
+    private BigDecimal yearToDateContributionSum(CashFlowStatement cashFlowStatement, int pillar) {
         return cashFlowStatement.getTransactions().stream()
             .filter(cashFlow -> cashFlow.getDate().isAfter(lastDayOfLastYear()))
             .filter(cashFlow -> CONTRIBUTION == cashFlow.getType())

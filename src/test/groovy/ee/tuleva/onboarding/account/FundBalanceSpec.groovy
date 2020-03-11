@@ -9,7 +9,8 @@ class FundBalanceSpec extends Specification {
     def "calculates profit #value + #unavailableValue - #contributionSum = #expectedProfit"() {
         given:
         def fundBalance = FundBalance.builder()
-            .contributionSum(contributionSum)
+            .contributions(contributionSum)
+            .subtractions(null)
             .value(value)
             .unavailableValue(unavailableValue)
             .build()
@@ -52,5 +53,28 @@ class FundBalanceSpec extends Specification {
         null  | 1.0              || 1.0
         1.0   | null             || 1.0
         1.0   | 1.0              || 2.0
+    }
+
+    @Unroll
+    def "calculates contributionsSum as #contributions + #subtractions = #expectedContributionSum"() {
+        given:
+        def fundBalance = FundBalance.builder()
+            .contributions(contributions)
+            .subtractions(subtractions)
+            .build()
+
+        when:
+        def contributionSum = fundBalance.getContributionSum()
+
+        then:
+        contributionSum == expectedContributionSum
+
+        where:
+        contributions | subtractions || expectedContributionSum
+        null          | null         || null
+        null          | -1.0         || -1.0
+        1.0           | null         || 1.0
+        2.0           | -1.0         || 1.0
+        1.0           | -2.0         || -1.0
     }
 }

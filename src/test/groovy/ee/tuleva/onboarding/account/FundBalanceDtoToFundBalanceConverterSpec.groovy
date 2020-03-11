@@ -32,6 +32,8 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
         fundBalance.currency == fundBalanceDto.currency
         fundBalance.pillar == fundBalanceDto.pillar
         fundBalance.activeContributions == fundBalanceDto.activeContributions
+        fundBalance.contributions == null
+        fundBalance.subtractions == null
         fundBalance.contributionSum == null
     }
 
@@ -64,7 +66,9 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
         FundBalance fundBalance = converter.convert(fundBalanceDto, person)
 
         then:
-        fundBalance.contributionSum == cashFlow.transactions.find { it.isin == isin }.amount
+        fundBalance.contributions == 0.0
+        fundBalance.subtractions == cashFlow.transactions.find { it.isin == isin }.amount
+        fundBalance.contributionSum == fundBalance.subtractions
     }
 
     private FundBalanceDto sampleFundBalanceDto(String isin) {

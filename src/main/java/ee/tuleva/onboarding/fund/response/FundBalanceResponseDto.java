@@ -17,6 +17,7 @@ public class FundBalanceResponseDto {
     private boolean activeContributions;
     private BigDecimal contributions;
     private BigDecimal subtractions;
+    @Deprecated
     private BigDecimal contributionSum;
     private BigDecimal profit;
 

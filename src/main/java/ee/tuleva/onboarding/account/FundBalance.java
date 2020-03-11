@@ -24,6 +24,7 @@ public class FundBalance {
     private BigDecimal contributions;
     private BigDecimal subtractions;
 
+    @Deprecated
     public BigDecimal getContributionSum() {
         return contributions != null || subtractions != null ?
             ZERO.add(contributions == null ? ZERO : contributions)

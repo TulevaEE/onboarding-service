@@ -12,6 +12,9 @@ import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.function.Predicate;
+
+import static java.math.BigDecimal.ZERO;
 
 @Component
 @Slf4j
@@ -24,7 +27,8 @@ public class FundBalanceDtoToFundBalanceConverter implements Converter<FundBalan
     @NonNull
     public FundBalance convert(FundBalanceDto fundBalanceDto, Person person) {
         FundBalance fundBalance = convert(fundBalanceDto);
-        fundBalance.setContributionSum(calculateContributionSum(fundBalanceDto.getIsin(), person));
+        fundBalance.setContributions(sumAmounts(fundBalance.getIsin(), person, amount -> amount.compareTo(ZERO) > 0));
+        fundBalance.setSubtractions(sumAmounts(fundBalance.getIsin(), person, amount -> amount.compareTo(ZERO) < 0));
         return fundBalance;
     }
 
@@ -48,12 +52,14 @@ public class FundBalanceDtoToFundBalanceConverter implements Converter<FundBalan
             .build();
     }
 
-    private BigDecimal calculateContributionSum(String isin, Person person) {
+    private BigDecimal sumAmounts(String isin, Person person, Predicate<BigDecimal> amountFilter) {
         return cashFlowService.getCashFlowStatement(person)
             .getTransactions()
             .stream()
             .filter(cashFlow -> isin.equalsIgnoreCase(cashFlow.getIsin()))
             .map(CashFlow::getAmount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            .filter(amountFilter)
+            .reduce(ZERO, BigDecimal::add);
     }
+
 }

@@ -34,6 +34,8 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$[0].unavailableValue', is(fundBalances[0].unavailableValue.doubleValue())))
             .andExpect(jsonPath('$[0].activeContributions', is(fundBalances[0].activeContributions)))
             .andExpect(jsonPath('$[0].currency', is(fundBalances[0].currency)))
+            .andExpect(jsonPath('$[0].contributions', is(fundBalances[0].contributions.doubleValue())))
+            .andExpect(jsonPath('$[0].subtractions', is(fundBalances[0].subtractions.doubleValue())))
             .andExpect(jsonPath('$[0].contributionSum', is(fundBalances[0].contributionSum.doubleValue())))
             .andExpect(jsonPath('$[0].profit', is(fundBalances[0].profit.doubleValue())))
             .andExpect(jsonPath('$[0].pillar', is(fundBalances[0].pillar)))

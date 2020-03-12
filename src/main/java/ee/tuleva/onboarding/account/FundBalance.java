@@ -21,11 +21,22 @@ public class FundBalance {
     private String currency;
     private Integer pillar;
     private boolean activeContributions;
-    private BigDecimal contributionSum;
+    private BigDecimal contributions;
+    private BigDecimal subtractions;
+
+    @Deprecated
+    public BigDecimal getContributionSum() {
+        return contributions != null || subtractions != null ?
+            ZERO.add(contributions == null ? ZERO : contributions)
+                .add(subtractions == null ? ZERO : subtractions) :
+            null;
+    }
 
     public BigDecimal getProfit() {
         BigDecimal unavailableValue = this.unavailableValue != null ? this.unavailableValue : ZERO;
-        return value != null && contributionSum != null ? value.add(unavailableValue).subtract(contributionSum) : null;
+        return value != null && getContributionSum() != null ?
+            value.add(unavailableValue).subtract(getContributionSum()) :
+            null;
     }
 
     public String getIsin() {
@@ -33,6 +44,8 @@ public class FundBalance {
     }
 
     public BigDecimal getTotalValue() {
-        return ZERO.add(value == null ? ZERO : value).add(unavailableValue == null ? ZERO : unavailableValue);
+        return ZERO
+            .add(value == null ? ZERO : value)
+            .add(unavailableValue == null ? ZERO : unavailableValue);
     }
 }

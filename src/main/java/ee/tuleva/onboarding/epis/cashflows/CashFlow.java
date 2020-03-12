@@ -20,6 +20,7 @@ public class CashFlow {
     private Type type;
 
     public enum Type {
-        CONTRIBUTION;
+        CONTRIBUTION,
+        OTHER
     }
 }

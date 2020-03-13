@@ -29,7 +29,6 @@ class AuthControllerSpec extends BaseControllerSpec {
 
     def setup() {
         mockMvc = mockMvc(controller)
-        controller.idCardSecretToken = "Bearer secretz"
     }
 
     def "Authenticate: Initiate mobile id authentication (deprecated)"() {
@@ -71,30 +70,10 @@ class AuthControllerSpec extends BaseControllerSpec {
         response.status == HttpStatus.OK.value()
     }
 
-    def "Authenticate: throw exception when X-Authorization header missing"() {
-        when:
-        MockHttpServletResponse response = mockMvc
-                .perform(post("/idLogin")).andReturn().response
-        then:
-        response.status == HttpStatus.BAD_REQUEST.value()
-        0 * idCardAuthService.checkCertificate(_)
-    }
-
-    def "Authenticate: throw exception when invalid X-Authorization header"() {
-        when:
-        MockHttpServletResponse response = mockMvc
-                .perform(post("/idLogin")
-                .header("X-Authorization", "Bearer noob")).andReturn().response
-        then:
-        response.status == HttpStatus.BAD_REQUEST.value()
-        0 * idCardAuthService.checkCertificate(_)
-    }
-
     def "Authenticate: throw exception when no cert sent"() {
         when:
         MockHttpServletResponse response = mockMvc
                 .perform(post("/idLogin")
-                .header("X-Authorization", "Bearer secretz")
                 .header("ssl-client-verify", "NONE")).andReturn().response
         then:
         response.status == HttpStatus.BAD_REQUEST.value()
@@ -105,7 +84,6 @@ class AuthControllerSpec extends BaseControllerSpec {
         when:
         MockHttpServletResponse response = mockMvc
                 .perform(post("/idLogin")
-                .header("X-Authorization", "Bearer secretz")
                 .header("ssl-client-verify", "SUCCESS")
                 .header("ssl-client-cert", "test_cert")).andReturn().response
         then:
@@ -117,7 +95,6 @@ class AuthControllerSpec extends BaseControllerSpec {
         when:
         MockHttpServletResponse response = mockMvc
                 .perform(get("/idLogin")
-                .header("X-Authorization", "Bearer secretz")
                 .header("ssl-client-verify", "SUCCESS")
                 .header("ssl-client-cert", "test_cert")).andReturn().response
         then:

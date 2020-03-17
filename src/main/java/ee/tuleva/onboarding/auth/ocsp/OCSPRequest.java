@@ -17,6 +17,8 @@ import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.util.Date;
 
 @Slf4j
 public class OCSPRequest {
@@ -28,6 +30,17 @@ public class OCSPRequest {
         this.ca = caToCheck;
         this.ocspServer = ocspServer;
         this.method = "POST";
+    }
+
+    public String checkCertificate(X509Certificate certificate){
+        if(hasCertificateExpired(certificate)){
+            return "CERTIFICATE_EXPIRED";
+        }
+        return checkSerialNumber(certificate.getSerialNumber());
+    }
+
+    private boolean hasCertificateExpired(X509Certificate certificate) {
+        return System.currentTimeMillis() > certificate.getNotAfter().getTime();
     }
 
     public String checkSerialNumber(BigInteger serialNumber) {
@@ -43,7 +56,7 @@ public class OCSPRequest {
             checkedResponse = validateOCSPResponse(response);
 
             log.info("OCSPResponse validated");
-        } catch (Exception e) {
+        } catch (OCSPException | IOException e) {
             log.warn("Couldn't validate serial number");
             throw new AuthenticationException(AuthenticationException.Code.UNABLE_TO_TEST_USER_CERTIFICATE, "Couldn't validate serial number", e);
         }
@@ -52,16 +65,16 @@ public class OCSPRequest {
     }
 
 
-    private OCSPResp getOCSPResponse (BigInteger serialNumber) throws Exception {
+    private OCSPResp getOCSPResponse (BigInteger serialNumber) throws IOException {
         OCSPReq request = generateOCSPRequest(serialNumber);
         OCSPResp response = sendPost(request.getEncoded());
         return response;
     }
 
 
-    private String validateOCSPResponse(OCSPResp response) throws Exception {
+    private String validateOCSPResponse(OCSPResp response) throws OCSPException {
 
-        String status = "UNKNOWN";
+        String status = "UNABLE_TO_TEST_USER_CERTIFICATE";
         switch (response.getStatus()) {
             case 0:
                 BasicOCSPResp ocspResponseData = (BasicOCSPResp) response.getResponseObject();
@@ -70,7 +83,7 @@ public class OCSPRequest {
                     if (response1.getCertStatus() == null) {
                         status = "GOOD";
                     } else if (response1.getCertStatus() instanceof RevokedStatus) {
-                        status = "REVOKED";
+                        status = "CERTIFICATE_REVOKED";
                     }
                     log.info("OCSP response code: {0}", status);
                 }
@@ -86,7 +99,7 @@ public class OCSPRequest {
     }
 
 
-    private OCSPReq generateOCSPRequest(BigInteger serial) throws Exception {
+    private OCSPReq generateOCSPRequest(BigInteger serial) {
 
         OCSPReq request = null;
         try {
@@ -106,7 +119,7 @@ public class OCSPRequest {
             ocspGen.addRequest(id);
 
             request = ocspGen.build();
-        } catch (CertificateException | OCSPException | OperatorCreationException e) {
+        } catch (CertificateException | OCSPException | OperatorCreationException | UnsupportedEncodingException e) {
             throw new AuthenticationException(AuthenticationException.Code.UNABLE_TO_TEST_USER_CERTIFICATE, "Uncaught error", e);
         }
 

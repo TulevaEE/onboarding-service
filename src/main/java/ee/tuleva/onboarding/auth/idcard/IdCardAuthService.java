@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.idcard;
 
 import com.codeborne.security.mobileid.CheckCertificateResponse;
 import com.codeborne.security.mobileid.MobileIDAuthenticator;
+import ee.tuleva.onboarding.auth.ocsp.OnlineCertificateStatusProtocolService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,7 @@ public class IdCardAuthService {
     private static final String AUTHENTICATION_POLICY_ID = "0.4.0.2042.1.2";
     private static final int POLICY_NO_1 = 0;
     private static final int POLICY_NO_2 = 1;
-    private final MobileIDAuthenticator authenticator;
+    private final OnlineCertificateStatusProtocolService authenticator;
     private final GenericSessionStore sessionStore;
 
     public IdCardSession checkCertificate(String certificate) {

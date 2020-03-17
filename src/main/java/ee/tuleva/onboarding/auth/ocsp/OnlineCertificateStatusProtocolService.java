@@ -12,11 +12,9 @@ import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
-import java.net.*;
-
+import java.net.URI;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
-import java.util.Optional;
 
 import static com.codeborne.security.AuthenticationException.Code.valueOf;
 

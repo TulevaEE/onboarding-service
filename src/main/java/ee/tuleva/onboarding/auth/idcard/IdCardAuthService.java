@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.auth.idcard;
 
 import com.codeborne.security.mobileid.CheckCertificateResponse;
-import com.codeborne.security.mobileid.MobileIDAuthenticator;
 import ee.tuleva.onboarding.auth.ocsp.OnlineCertificateStatusProtocolService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import lombok.AllArgsConstructor;

@@ -12,6 +12,7 @@ buildscript {
 	}
 	dependencies {
 		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+		classpath("com.diffplug.spotless:spotless-plugin-gradle:3.27.2")
 		classpath("gradle.plugin.com.gorylenko.gradle-git-properties:gradle-git-properties:2.0.0")
 	}
 }
@@ -22,6 +23,7 @@ apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
 apply plugin: 'jacoco'
 apply plugin: 'com.gorylenko.gradle-git-properties'
+apply plugin: 'com.diffplug.gradle.spotless'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
@@ -33,6 +35,13 @@ repositories {
 	}
 	maven {
 		url "https://jitpack.io"
+	}
+}
+
+spotless {
+	java {
+		removeUnusedImports()
+		googleJavaFormat()
 	}
 }
 

@@ -1,16 +1,15 @@
 package ee.tuleva.onboarding.notification.payment.validator;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import ee.tuleva.onboarding.notification.payment.IncomingPayment;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import javax.validation.ConstraintValidator;
+import javax.validation.ConstraintValidatorContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Component
 @Slf4j
@@ -30,8 +29,7 @@ public class MacCodeValidator implements ConstraintValidator<ValidMacCode, Incom
   }
 
   @Override
-  public void initialize(ValidMacCode constraintAnnotation) {
-  }
+  public void initialize(ValidMacCode constraintAnnotation) {}
 
   private static String sha512(String payload) {
     MessageDigest messageDigest = sha512MessageDigest();

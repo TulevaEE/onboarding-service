@@ -11,13 +11,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class BeforeTokenGrantedEventPublisher {
 
-    private final ApplicationEventPublisher applicationEventPublisher;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
-    public void publish(OAuth2Authentication authentication, GrantType grantType) {
-        log.info("Publishing BeforeTokenGrantedEvent. ");
-        BeforeTokenGrantedEvent beforeTokenGrantedEvent
-            = new BeforeTokenGrantedEvent(this, authentication, grantType);
-        applicationEventPublisher.publishEvent(beforeTokenGrantedEvent);
-    }
-
+  public void publish(OAuth2Authentication authentication, GrantType grantType) {
+    log.info("Publishing BeforeTokenGrantedEvent. ");
+    BeforeTokenGrantedEvent beforeTokenGrantedEvent =
+        new BeforeTokenGrantedEvent(this, authentication, grantType);
+    applicationEventPublisher.publishEvent(beforeTokenGrantedEvent);
+  }
 }

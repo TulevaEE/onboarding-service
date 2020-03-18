@@ -2,14 +2,12 @@ package ee.tuleva.onboarding.mandate;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
-import lombok.*;
-
+import java.math.BigDecimal;
 import javax.persistence.*;
-import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import java.math.BigDecimal;
+import lombok.*;
 
 @Data
 @Getter
@@ -21,25 +19,26 @@ import java.math.BigDecimal;
 @ToString(exclude = {"mandate"})
 public class FundTransferExchange {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @JsonView(MandateView.Default.class)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @JsonView(MandateView.Default.class)
+  private Long id;
 
-    @JsonIgnore
-    @ManyToOne
-    @JoinColumn(name = "mandate_id", nullable = false)
-    private Mandate mandate;
+  @JsonIgnore
+  @ManyToOne
+  @JoinColumn(name = "mandate_id", nullable = false)
+  private Mandate mandate;
 
-    @NotBlank
-    @JsonView(MandateView.Default.class)
-    private String sourceFundIsin;
-    @NotNull
-    @Min(0)
-    @JsonView(MandateView.Default.class)
-    private BigDecimal amount;
-    @NotNull
-    @JsonView(MandateView.Default.class)
-    private String targetFundIsin;
+  @NotBlank
+  @JsonView(MandateView.Default.class)
+  private String sourceFundIsin;
 
+  @NotNull
+  @Min(0)
+  @JsonView(MandateView.Default.class)
+  private BigDecimal amount;
+
+  @NotNull
+  @JsonView(MandateView.Default.class)
+  private String targetFundIsin;
 }

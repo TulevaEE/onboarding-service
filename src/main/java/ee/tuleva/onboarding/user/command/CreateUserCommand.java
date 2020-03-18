@@ -3,21 +3,17 @@ package ee.tuleva.onboarding.user.command;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
-import lombok.Data;
-import org.hibernate.validator.constraints.Email;
-
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
+import lombok.Data;
+import org.hibernate.validator.constraints.Email;
 
 @Data
 public class CreateUserCommand {
 
-  @NotNull
-  @Email
-  private String email;
+  @NotNull @Email private String email;
 
-  @ValidPersonalCode
-  private String personalCode;
+  @ValidPersonalCode private String personalCode;
 
   private String phoneNumber;
 
@@ -26,5 +22,4 @@ public class CreateUserCommand {
   public int getAge() {
     return PersonalCode.getAge(personalCode);
   }
-
 }

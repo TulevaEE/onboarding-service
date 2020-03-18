@@ -5,6 +5,9 @@ import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.io.IOException;
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,10 +18,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.annotations.ApiIgnore;
-
-import javax.servlet.http.HttpServletResponse;
-import javax.validation.Valid;
-import java.io.IOException;
 
 @RestController
 @RequiredArgsConstructor
@@ -37,9 +36,11 @@ public class PaymentController {
   private String membershipSuccessUrl;
 
   @PostMapping("/payments")
-  public void incomingPayment(@ModelAttribute @Valid IncomingPayment incomingPayment,
-                              @ApiIgnore HttpServletResponse response,
-                              @ApiIgnore Errors errors) throws IOException, ValidationErrorsException {
+  public void incomingPayment(
+      @ModelAttribute @Valid IncomingPayment incomingPayment,
+      @ApiIgnore HttpServletResponse response,
+      @ApiIgnore Errors errors)
+      throws IOException, ValidationErrorsException {
 
     log.info("Incoming payment: {}", incomingPayment);
 
@@ -59,11 +60,12 @@ public class PaymentController {
       User user = userService.registerAsMember(userId, payment.getCustomerName());
       emailService.sendMemberNumber(user);
     } else {
-      log.warn("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
+      log.warn(
+          "Invalid incoming payment. Status: {}, user is a member: {}",
+          payment.getStatus(),
+          isAMember);
     }
 
     response.sendRedirect(membershipSuccessUrl);
-
   }
-
 }

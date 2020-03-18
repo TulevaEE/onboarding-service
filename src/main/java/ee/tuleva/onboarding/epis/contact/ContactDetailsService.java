@@ -12,14 +12,13 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ContactDetailsService {
 
-    private final EpisService episService;
+  private final EpisService episService;
 
-    public UserPreferences updateContactDetails(User user, Address address) {
-        UserPreferences contactDetails = episService.getContactDetails(user);
-        contactDetails.setEmail(user.getEmail());
-        contactDetails.setPhoneNumber(user.getPhoneNumber());
-        contactDetails.setAddress(address);
-        return episService.updateContactDetails(user, contactDetails);
-    }
-
+  public UserPreferences updateContactDetails(User user, Address address) {
+    UserPreferences contactDetails = episService.getContactDetails(user);
+    contactDetails.setEmail(user.getEmail());
+    contactDetails.setPhoneNumber(user.getPhoneNumber());
+    contactDetails.setAddress(address);
+    return episService.updateContactDetails(user, contactDetails);
+  }
 }

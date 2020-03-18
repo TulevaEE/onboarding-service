@@ -10,21 +10,21 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 public class MobileIdConfiguration {
 
-	@Value("${digidoc.service.url}")
-	private String digidocServiceUrl;
+  @Value("${digidoc.service.url}")
+  private String digidocServiceUrl;
 
-	@Value("${truststore.path}")
-	private String trustStorePath;
+  @Value("${truststore.path}")
+  private String trustStorePath;
 
-	@Value("${mobile-id.service.name}")
-	private String serviceName;
+  @Value("${mobile-id.service.name}")
+  private String serviceName;
 
-	@Bean
-	MobileIDAuthenticator mobileIDAuthenticator() {
-		System.setProperty("javax.net.ssl.trustStore", trustStorePath);
-		log.info("Setting global ssl truststore to {}", this.trustStorePath);
-		log.info("setting digidoc service url to {} with name {}", this.digidocServiceUrl, this.serviceName);
-		return new MobileIDAuthenticator(digidocServiceUrl, serviceName);
-	}
-
+  @Bean
+  MobileIDAuthenticator mobileIDAuthenticator() {
+    System.setProperty("javax.net.ssl.trustStore", trustStorePath);
+    log.info("Setting global ssl truststore to {}", this.trustStorePath);
+    log.info(
+        "setting digidoc service url to {} with name {}", this.digidocServiceUrl, this.serviceName);
+    return new MobileIDAuthenticator(digidocServiceUrl, serviceName);
+  }
 }

@@ -2,14 +2,13 @@ package ee.tuleva.onboarding.aml;
 
 import ee.tuleva.onboarding.config.MapJsonConverter;
 import ee.tuleva.onboarding.user.User;
-import lombok.*;
-import org.springframework.data.annotation.CreatedDate;
-
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import javax.persistence.*;
+import javax.validation.constraints.NotNull;
+import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
 
 @Entity
 @Data
@@ -19,29 +18,27 @@ import java.util.Map;
 @ToString(exclude = {"user"})
 @EqualsAndHashCode
 public class AmlCheck {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @ManyToOne
-    private User user;
+  @ManyToOne private User user;
 
-    @Enumerated(value = EnumType.STRING)
-    @NotNull
-    private AmlCheckType type;
+  @Enumerated(value = EnumType.STRING)
+  @NotNull
+  private AmlCheckType type;
 
-    private boolean success;
+  private boolean success;
 
-    @NotNull
-    @Builder.Default
-    @Convert(converter = MapJsonConverter.class)
-    private Map<String, Object> metadata = new HashMap<>();
+  @NotNull
+  @Builder.Default
+  @Convert(converter = MapJsonConverter.class)
+  private Map<String, Object> metadata = new HashMap<>();
 
-    @CreatedDate
-    private Instant createdTime;
+  @CreatedDate private Instant createdTime;
 
-    @PrePersist
-    protected void onCreate() {
-        createdTime = Instant.now();
-    }
+  @PrePersist
+  protected void onCreate() {
+    createdTime = Instant.now();
+  }
 }

@@ -18,5 +18,4 @@ public class PensionFundStatisticsScheduledUpdate {
   public void refresh() {
     pensionFundStatisticsService.refreshCachedStatistics();
   }
-
 }

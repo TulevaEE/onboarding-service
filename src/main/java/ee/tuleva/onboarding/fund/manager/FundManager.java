@@ -1,12 +1,11 @@
 package ee.tuleva.onboarding.fund.manager;
 
+import javax.persistence.*;
+import javax.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import javax.persistence.*;
-import javax.validation.constraints.NotBlank;
 
 @Data
 @Builder
@@ -16,11 +15,9 @@ import javax.validation.constraints.NotBlank;
 @NoArgsConstructor
 public class FundManager {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @NotBlank
-    String name;
-
+  @NotBlank String name;
 }

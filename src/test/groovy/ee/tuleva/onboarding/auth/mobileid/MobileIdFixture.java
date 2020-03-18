@@ -4,9 +4,7 @@ import com.codeborne.security.mobileid.MobileIDSession;
 
 public class MobileIdFixture {
 
-    public static String samplePhoneNumber = "5532522";
-    public static MobileIDSession sampleMobileIdSession = new MobileIDSession(
-            123, "challenge", "Jordan", "Valdma", "38812121215", samplePhoneNumber
-    );
-
+  public static String samplePhoneNumber = "5532522";
+  public static MobileIDSession sampleMobileIdSession =
+      new MobileIDSession(123, "challenge", "Jordan", "Valdma", "38812121215", samplePhoneNumber);
 }

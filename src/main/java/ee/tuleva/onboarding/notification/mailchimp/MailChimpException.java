@@ -5,5 +5,4 @@ public class MailChimpException extends RuntimeException {
   public MailChimpException(Throwable cause) {
     super(cause);
   }
-
 }

@@ -1,17 +1,16 @@
 package ee.tuleva.onboarding.notification.mailchimp;
 
+import static org.jsoup.helper.StringUtil.isBlank;
+
 import com.ecwid.maleorang.MailchimpObject;
 import com.ecwid.maleorang.method.v3_0.lists.members.EditMemberMethod;
 import ee.tuleva.onboarding.user.User;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-
-import java.util.Map;
-
-import static org.jsoup.helper.StringUtil.isBlank;
 
 @Service
 @Slf4j
@@ -31,7 +30,8 @@ public class MailChimpService {
       return;
     }
 
-    EditMemberMethod.CreateOrUpdate method = new EditMemberMethod.CreateOrUpdate(listId, user.getEmail());
+    EditMemberMethod.CreateOrUpdate method =
+        new EditMemberMethod.CreateOrUpdate(listId, user.getEmail());
 
     method.status = "subscribed"; // TODO: maybe the user has manually unsubscribed?
     method.merge_fields = new MailchimpObject();
@@ -41,15 +41,14 @@ public class MailChimpService {
     mergeFields.put("LNAME", user.getLastName());
     mergeFields.put("ISIKUKOOD", user.getPersonalCode());
     mergeFields.put("TELEFON", user.getPhoneNumber());
-    if(user.getMember().isPresent()) {
+    if (user.getMember().isPresent()) {
       mergeFields.put("LIIKME_NR", user.getMemberOrThrow().getMemberNumber());
     }
 
     try {
       mailChimpClient.execute(method);
-    } catch(MailChimpException e) {
+    } catch (MailChimpException e) {
       log.error("Error updating user in Mailchimp", e);
     }
   }
-
 }

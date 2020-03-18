@@ -17,6 +17,10 @@ public class FundDto {
   private FundStatus status;
 
   public enum FundStatus {
-    ACTIVE, LIQUIDATED, SUSPENDED, CONTRIBUTIONS_FORBIDDEN, PAYOUTS_FORBIDDEN
+    ACTIVE,
+    LIQUIDATED,
+    SUSPENDED,
+    CONTRIBUTIONS_FORBIDDEN,
+    PAYOUTS_FORBIDDEN
   }
 }

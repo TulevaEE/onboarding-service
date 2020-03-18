@@ -15,5 +15,4 @@ public class MailChimpConfig {
   MailchimpClient mailchimpClient() {
     return new MailchimpClient(apiKey);
   }
-
 }

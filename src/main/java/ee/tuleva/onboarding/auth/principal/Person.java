@@ -2,10 +2,9 @@ package ee.tuleva.onboarding.auth.principal;
 
 public interface Person {
 
-    String getPersonalCode();
+  String getPersonalCode();
 
-    String getFirstName();
+  String getFirstName();
 
-    String getLastName();
-
+  String getLastName();
 }

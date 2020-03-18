@@ -1,16 +1,15 @@
 package ee.tuleva.onboarding.statistics;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import java.math.BigDecimal;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.validation.constraints.NotNull;
-import java.math.BigDecimal;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
@@ -19,14 +18,13 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class ThirdPillarStatistics {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @NotNull
-    private Long mandateId;
+  @NotNull private Long mandateId;
 
-    private BigDecimal singlePayment;
+  private BigDecimal singlePayment;
 
-    private BigDecimal recurringPayment;
+  private BigDecimal recurringPayment;
 }

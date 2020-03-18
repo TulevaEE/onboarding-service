@@ -7,6 +7,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Getter
 public class CreateMandateCommandWithUser {
-    private final CreateMandateCommand createMandateCommand;
-    private final User user;
+  private final CreateMandateCommand createMandateCommand;
+  private final User user;
 }

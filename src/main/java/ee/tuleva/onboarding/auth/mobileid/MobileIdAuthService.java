@@ -13,15 +13,19 @@ import org.springframework.transaction.annotation.Transactional;
 @AllArgsConstructor
 public class MobileIdAuthService {
 
-    private final MobileIDAuthenticator authenticator;
+  private final MobileIDAuthenticator authenticator;
 
-    public MobileIDSession startLogin(String phoneNumber) {
-        MobileIDSession mobileIDSession = authenticator.startLogin(phoneNumber);
-        log.info("Mobile ID authentication with challenge " + mobileIDSession.challenge + " sent to " + phoneNumber);
-        return mobileIDSession;
-    }
+  public MobileIDSession startLogin(String phoneNumber) {
+    MobileIDSession mobileIDSession = authenticator.startLogin(phoneNumber);
+    log.info(
+        "Mobile ID authentication with challenge "
+            + mobileIDSession.challenge
+            + " sent to "
+            + phoneNumber);
+    return mobileIDSession;
+  }
 
-    public boolean isLoginComplete(MobileIDSession mobileIDSession) {
-        return authenticator.isLoginComplete(mobileIDSession);
-    }
+  public boolean isLoginComplete(MobileIDSession mobileIDSession) {
+    return authenticator.isLoginComplete(mobileIDSession);
+  }
 }

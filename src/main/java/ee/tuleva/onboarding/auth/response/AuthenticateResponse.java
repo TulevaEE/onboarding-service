@@ -10,20 +10,17 @@ import lombok.Setter;
 @Setter
 @Builder
 public class AuthenticateResponse {
-    @Deprecated
-    String mobileIdChallengeCode;
-    String challengeCode;
+  @Deprecated String mobileIdChallengeCode;
+  String challengeCode;
 
-    public static AuthenticateResponse fromMobileIdSession(MobileIDSession mobileIDSession) {
-        return builder()
-                .mobileIdChallengeCode(mobileIDSession.challenge)
-                .challengeCode(mobileIDSession.challenge)
-                .build();
-    }
+  public static AuthenticateResponse fromMobileIdSession(MobileIDSession mobileIDSession) {
+    return builder()
+        .mobileIdChallengeCode(mobileIDSession.challenge)
+        .challengeCode(mobileIDSession.challenge)
+        .build();
+  }
 
-    public static AuthenticateResponse fromSmartIdSession(SmartIdSession smartIdSession) {
-        return builder()
-                .challengeCode(smartIdSession.verificationCode)
-                .build();
-    }
+  public static AuthenticateResponse fromSmartIdSession(SmartIdSession smartIdSession) {
+    return builder().challengeCode(smartIdSession.verificationCode).build();
+  }
 }

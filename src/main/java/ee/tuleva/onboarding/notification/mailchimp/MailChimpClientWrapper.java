@@ -4,12 +4,11 @@ import com.ecwid.maleorang.MailchimpClient;
 import com.ecwid.maleorang.MailchimpException;
 import com.ecwid.maleorang.MailchimpMethod;
 import com.ecwid.maleorang.MailchimpObject;
+import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-
-import java.io.IOException;
 
 @Service
 @Profile("production")
@@ -18,9 +17,7 @@ public class MailChimpClientWrapper {
 
   private final MailchimpClient mailChimpClient;
 
-  /**
-   * A non-final method wrapper, so it could be easily mocked in tests
-   */
+  /** A non-final method wrapper, so it could be easily mocked in tests */
   public <R extends MailchimpObject> R execute(MailchimpMethod<R> method) {
     try {
       return mailChimpClient.execute(method);
@@ -30,7 +27,7 @@ public class MailChimpClientWrapper {
   }
 
   @Service
-  @Profile({ "dev", "test" })
+  @Profile({"dev", "test"})
   @Slf4j
   public static class DevMailChimpClientWrapper extends MailChimpClientWrapper {
 
@@ -42,7 +39,5 @@ public class MailChimpClientWrapper {
     public DevMailChimpClientWrapper(MailchimpClient mailChimpClient) {
       super(mailChimpClient);
     }
-
   }
-
 }

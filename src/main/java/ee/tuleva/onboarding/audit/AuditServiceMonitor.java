@@ -11,15 +11,17 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AuditServiceMonitor {
 
-    private final AuditEventPublisher auditEventPublisher;
+  private final AuditEventPublisher auditEventPublisher;
 
-    @Before("execution(* ee.tuleva.onboarding.account.AccountStatementService.getAccountStatement(..)) && args(person)")
-    public void logServiceAccess(Person person) {
-        auditEventPublisher.publish(person.getPersonalCode(), AuditEventType.GET_ACCOUNT_STATEMENT);
-    }
+  @Before(
+      "execution(* ee.tuleva.onboarding.account.AccountStatementService.getAccountStatement(..)) && args(person)")
+  public void logServiceAccess(Person person) {
+    auditEventPublisher.publish(person.getPersonalCode(), AuditEventType.GET_ACCOUNT_STATEMENT);
+  }
 
-    @Before("execution(* ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider.getAccountOverview(..)) && args(person, ..)")
-    public void logCashFlowAccess(Person person) {
-        auditEventPublisher.publish(person.getPersonalCode(), AuditEventType.GET_CASH_FLOWS);
-    }
+  @Before(
+      "execution(* ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider.getAccountOverview(..)) && args(person, ..)")
+  public void logCashFlowAccess(Person person) {
+    auditEventPublisher.publish(person.getPersonalCode(), AuditEventType.GET_CASH_FLOWS);
+  }
 }

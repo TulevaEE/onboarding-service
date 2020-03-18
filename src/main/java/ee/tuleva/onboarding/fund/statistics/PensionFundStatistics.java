@@ -1,15 +1,14 @@
 package ee.tuleva.onboarding.fund.statistics;
 
+import java.io.Serializable;
+import java.math.BigDecimal;
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlAttribute;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import java.io.Serializable;
-import java.math.BigDecimal;
 
 @Data
 @Builder
@@ -30,7 +29,6 @@ public class PensionFundStatistics implements Serializable {
   private BigDecimal nav;
 
   public static PensionFundStatistics getNull() {
-      return new PensionFundStatistics();
-    }
-
+    return new PensionFundStatistics();
+  }
 }

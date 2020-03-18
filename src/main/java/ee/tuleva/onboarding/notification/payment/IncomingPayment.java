@@ -13,5 +13,4 @@ public class IncomingPayment {
 
   private String json;
   private String mac;
-
 }

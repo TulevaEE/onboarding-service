@@ -2,11 +2,10 @@ package ee.tuleva.onboarding.notification.payment;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategy.SnakeCaseStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import java.math.BigDecimal;
+import javax.validation.constraints.Min;
 import lombok.Data;
 import lombok.ToString;
-
-import javax.validation.constraints.Min;
-import java.math.BigDecimal;
 
 @Data
 @JsonNaming(SnakeCaseStrategy.class)
@@ -17,6 +16,7 @@ public class Payment {
 
   @Min(MIN_AMOUNT)
   private BigDecimal amount;
+
   private String currency;
   private String customerName;
   private String merchantData;
@@ -27,5 +27,4 @@ public class Payment {
   private String signature;
   private String status;
   private String transaction;
-
 }

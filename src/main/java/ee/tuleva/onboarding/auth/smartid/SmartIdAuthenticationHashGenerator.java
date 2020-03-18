@@ -6,7 +6,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class SmartIdAuthenticationHashGenerator {
 
-    public AuthenticationHash generateHash() {
-        return AuthenticationHash.generateRandomHash();
-    }
+  public AuthenticationHash generateHash() {
+    return AuthenticationHash.generateRandomHash();
+  }
 }

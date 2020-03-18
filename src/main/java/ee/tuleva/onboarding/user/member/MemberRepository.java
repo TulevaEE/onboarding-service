@@ -7,5 +7,4 @@ public interface MemberRepository extends CrudRepository<Member, Long> {
 
   @Query("select max(m.memberNumber) + 1 from Member m")
   Integer getNextMemberNumber();
-
 }

@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.error.converter;
 
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.stereotype.Component;
-
-import java.util.Map;
 
 @Component
 public class ErrorAttributesConverter implements Converter<Map<String, Object>, ErrorsResponse> {
@@ -23,5 +22,4 @@ public class ErrorAttributesConverter implements Converter<Map<String, Object>, 
   private String message(Map<String, Object> errorAttributes) {
     return (String) errorAttributes.get("message");
   }
-
 }

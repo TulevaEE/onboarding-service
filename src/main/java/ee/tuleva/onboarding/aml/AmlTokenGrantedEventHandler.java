@@ -14,14 +14,19 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AmlTokenGrantedEventHandler {
 
-    private final AmlService amlService;
-    private final UserService userService;
+  private final AmlService amlService;
+  private final UserService userService;
 
-    @EventListener
-    public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
-        Person person = (Person) event.getAuthentication().getPrincipal();
-        User user = userService.findByPersonalCode(person.getPersonalCode())
-            .orElseThrow(() -> new IllegalStateException("User not found with code " + person.getPersonalCode()));
-        amlService.checkUserAfterLogin(user, person);
-    }
+  @EventListener
+  public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
+    Person person = (Person) event.getAuthentication().getPrincipal();
+    User user =
+        userService
+            .findByPersonalCode(person.getPersonalCode())
+            .orElseThrow(
+                () ->
+                    new IllegalStateException(
+                        "User not found with code " + person.getPersonalCode()));
+    amlService.checkUserAfterLogin(user, person);
+  }
 }

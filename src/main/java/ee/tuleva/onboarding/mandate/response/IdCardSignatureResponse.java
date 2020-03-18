@@ -9,6 +9,5 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class IdCardSignatureResponse {
 
-    private final String hash;
-
+  private final String hash;
 }

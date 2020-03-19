@@ -25,7 +25,7 @@ public class OnboardingServiceApplication {
     validateFileEncoding();
   }
 
-  private static void validateFileEncoding() {
+  static void validateFileEncoding() {
     if (!System.getProperty("file.encoding", "").toLowerCase().equals("utf-8")) {
       log.error("Unsupported file encoding {}!", System.getProperty("file.encoding"));
     }

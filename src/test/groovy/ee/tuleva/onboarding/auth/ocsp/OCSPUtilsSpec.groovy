@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.auth.ocsp
 import ee.tuleva.onboarding.auth.exception.AuthenticationException
 import spock.lang.Specification
 
+import java.nio.charset.StandardCharsets
+
 class OCSPUtilsSpec extends Specification {
     OCSPUtils utils = new OCSPUtils();
 
@@ -65,6 +67,19 @@ class OCSPUtilsSpec extends Specification {
         response == originalCert
     }
 
+    def "Test if malformed X509Certificate generates exception "() {
+        given:
+
+        def originalCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
+        def certString = OCSPFixture.certToString(originalCert)
+        certString = new String(certString.getBytes(StandardCharsets.US_ASCII), StandardCharsets.UTF_16)
+        when:
+        utils.getX509Certificate(certString)
+
+        then:
+        thrown(AuthenticationException)
+    }
+
     def "Test if OCSPRequest is generated"() {
         given:
         def caCert = OCSPFixture.generateCertificate("CertAuth", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
@@ -75,6 +90,18 @@ class OCSPUtilsSpec extends Specification {
         then:
         response.getCertificate() == selfCert
         response.getOcspServer() == "http://issuer.ee/ocsp"
+    }
+
+    def "Test if certificate malformed upon OCSPRequest and generates exception"() {
+        given:
+        def caCert = OCSPFixture.generateCertificate("CertAuth", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
+        def selfCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
+        def caCertString = OCSPFixture.certToString(caCert);
+        caCertString = new String(caCertString.getBytes(StandardCharsets.US_ASCII), StandardCharsets.UTF_16)
+        when:
+        utils.generateOCSPRequest(selfCert, caCertString, "http://issuer.ee/ocsp")
+        then:
+        thrown(AuthenticationException)
     }
 
 }

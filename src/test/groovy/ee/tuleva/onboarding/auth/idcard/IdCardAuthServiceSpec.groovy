@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.auth.idcard
 
 import com.codeborne.security.mobileid.CheckCertificateResponse
-import ee.tuleva.onboarding.auth.ocsp.OnlineCertificateStatusProtocolService
+import ee.tuleva.onboarding.auth.ocsp.OCSPAuthService
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import spock.lang.Specification
 
@@ -9,7 +9,7 @@ import java.security.cert.X509Certificate
 
 class IdCardAuthServiceSpec extends Specification {
 
-    OnlineCertificateStatusProtocolService authenticator = Mock(OnlineCertificateStatusProtocolService)
+    OCSPAuthService authenticator = Mock(OCSPAuthService)
     GenericSessionStore sessionStore = Mock(GenericSessionStore)
     IdCardAuthService service = new IdCardAuthService(authenticator, sessionStore)
     static final ID_CARD_EXTENSION = "BEAwPjAyBgsrBgEEAYORIQEBAzAjMCEGCCsGAQUFBwIBFhVodHRwczovL3d3dy5zay5lZS9DUFMwCAYGBACPegEC"

@@ -8,7 +8,7 @@ class OCSPUtilsSpec extends Specification {
 
     def "Test if Issuer Certificate URI is correct"() {
         given:
-        def cert = OCSPFixture.generateCertificate("CN=Test, L=London, C=GB", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
+        def cert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
         def expectedResponse = new URI("http://issuer.ee/ca.crl")
 
         when:
@@ -20,7 +20,7 @@ class OCSPUtilsSpec extends Specification {
 
     def "Test error when Issuer Certificate URI is missing"() {
         given:
-        def cert = OCSPFixture.generateCertificate("CN=Test, L=London, C=GB", -1, "SHA1WITHRSA", null, "http://issuer.ee/ocsp")
+        def cert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", null, "http://issuer.ee/ocsp")
 
         when:
         utils.getIssuerCertificateURI(cert)
@@ -31,7 +31,7 @@ class OCSPUtilsSpec extends Specification {
 
     def "Test if Responder URI is correct"() {
         given:
-        def cert = OCSPFixture.generateCertificate("CN=Test, L=London, C=GB", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
+        def cert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
         def expectedResponse = new URI("http://issuer.ee/ocsp")
 
         when:
@@ -43,7 +43,7 @@ class OCSPUtilsSpec extends Specification {
 
     def "Test error when Responder URI is missing"() {
         given:
-        def cert = OCSPFixture.generateCertificate("CN=Test, L=London, C=GB", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", null)
+        def cert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", null)
 
         when:
         utils.getResponderURI(cert)
@@ -55,7 +55,7 @@ class OCSPUtilsSpec extends Specification {
 
     def "Test if X509Certificate is generated from PEM"() {
         given:
-        def originalCert = OCSPFixture.generateCertificate("CN=Test, L=London, C=GB", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
+        def originalCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
         def certString = OCSPFixture.certToString(originalCert)
 
         when:
@@ -67,8 +67,8 @@ class OCSPUtilsSpec extends Specification {
 
     def "Test if OCSPRequest is generated"() {
         given:
-        def caCert = OCSPFixture.generateCertificate("CN=TestCA, L=London, C=GB", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
-        def selfCert = OCSPFixture.generateCertificate("CN=SelfTest, L=London, C=GB", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
+        def caCert = OCSPFixture.generateCertificate("CertAuth", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
+        def selfCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
         def caCertString = OCSPFixture.certToString(caCert);
         when:
         def response = utils.generateOCSPRequest(selfCert, caCertString, "http://issuer.ee/ocsp")

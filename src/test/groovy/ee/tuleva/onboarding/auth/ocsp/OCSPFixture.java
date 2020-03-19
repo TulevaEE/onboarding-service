@@ -44,7 +44,7 @@ public class OCSPFixture {
     Date to = new Date(from.getTime() + days * 86400000l);
     CertificateValidity interval = new CertificateValidity(from, to);
     BigInteger sn = new BigInteger(64, new SecureRandom());
-    X500Name owner = new X500Name(dn);
+    X500Name owner = new X500Name(dn, "Unit", "Org", "EE");
 
     info.set(X509CertInfo.VALIDITY, interval);
     info.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(sn));

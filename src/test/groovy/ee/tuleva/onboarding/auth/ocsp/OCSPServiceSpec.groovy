@@ -12,7 +12,7 @@ class OCSPServiceSpec extends Specification {
     def "Test if certificate has expired"() {
         given:
         def ocspGen = new OCSPReqBuilder();
-        def expiredCert = OCSPFixture.generateCertificate("CN=Test, L=London, C=GB", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp");
+        def expiredCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp");
         def ocspRequest = new OCSPRequest(OCSPFixture.sampleExampleServer, expiredCert, ocspGen.build());
         def expectedResponse = OCSPResponseType.EXPIRED;
 

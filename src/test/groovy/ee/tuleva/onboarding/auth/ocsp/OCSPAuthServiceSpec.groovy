@@ -18,7 +18,7 @@ class OCSPAuthServiceSpec extends Specification {
         utils.getIssuerCertificateURI(validCert) >> new URI("http://issuer.ee/ca.crl")
         utils.getResponderURI(validCert) >> new URI("http://issuer.ee/ocsp")
         service.getIssuerCertificate(_) >> "caCert"
-        utils.generateOCSPRequest(_, _, _) >> new OCSPRequest("http://issuer.ee/ocsp", validCert, null);
+        utils.generateOCSPRequest(_, _, _) >> new OCSPRequest("http://issuer.ee/ocsp", validCert, null)
         service.checkCertificate(_) >> OCSPResponseType.GOOD
 
         def expectedResponse = new CheckCertificateResponse("Tiit", "Lepp", "37801145819")
@@ -36,13 +36,13 @@ class OCSPAuthServiceSpec extends Specification {
         given:
         def validCert = OCSPFixture.generateCertificate("Lepp,37801145819", 1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
         def certificateStr = OCSPFixture.certToString(validCert)
-        def ocspReq = new OCSPReqBuilder().build();
+        def ocspReq = new OCSPReqBuilder().build()
         utils.getX509Certificate(certificateStr) >> validCert
         utils.getIssuerCertificateURI(validCert) >> new URI("http://issuer.ee/ca.crl")
         utils.getResponderURI(validCert) >> new URI("http://issuer.ee/ocsp")
         service.getIssuerCertificate(_) >> "caCert"
 
-        utils.generateOCSPRequest(_, _, _) >> new OCSPRequest("http://issuer.ee/ocsp", validCert, ocspReq);
+        utils.generateOCSPRequest(_, _, _) >> new OCSPRequest("http://issuer.ee/ocsp", validCert, ocspReq)
         service.checkCertificate(_) >> OCSPResponseType.GOOD
 
         when:

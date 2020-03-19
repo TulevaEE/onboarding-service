@@ -8,7 +8,7 @@ import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 
 class OCSPUtilsSpec extends Specification {
-    OCSPUtils utils = new OCSPUtils();
+    OCSPUtils utils = new OCSPUtils()
 
     def "Test if Issuer Certificate URI is correct"() {
         given:
@@ -86,7 +86,7 @@ class OCSPUtilsSpec extends Specification {
         given:
         def caCert = OCSPFixture.generateCertificate("CertAuth", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
         def selfCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
-        def caCertString = OCSPFixture.certToString(caCert);
+        def caCertString = OCSPFixture.certToString(caCert)
         when:
         def response = utils.generateOCSPRequest(selfCert, caCertString, "http://issuer.ee/ocsp")
         then:

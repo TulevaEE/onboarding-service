@@ -15,13 +15,4 @@ class OnboardingServiceApplicationSpec extends Specification {
         context != null
     }
 
-    def "test"() {
-        given:
-        def app = Mock(OnboardingServiceApplication)
-        when:
-        app.validateFileEncoding()
-        then:
-        true == true
-    }
-
 }

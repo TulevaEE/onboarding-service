@@ -30,7 +30,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.converter.ByteArrayHttpMessageConverter;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -38,7 +37,7 @@ import org.springframework.web.client.RestTemplate;
 @Service
 @AllArgsConstructor
 public class OCSPService {
-  private final RestTemplate template;
+  private final RestTemplate restTemplate;
   public static final String BEGIN_CERT = "-----BEGIN CERTIFICATE-----";
   public static final String END_CERT = "-----END CERTIFICATE-----";
   public static final String LINE_SEPARATOR = System.getProperty("line.separator");
@@ -58,8 +57,7 @@ public class OCSPService {
   }
 
   public String getIssuerCertificate(String url) {
-    RestTemplate restTemplate = new RestTemplate();
-    restTemplate.getMessageConverters().add(new ByteArrayHttpMessageConverter());
+
     HttpHeaders headers = new HttpHeaders();
     headers.setAccept(Arrays.asList(MediaType.APPLICATION_OCTET_STREAM));
     HttpEntity<String> entity = new HttpEntity<String>(headers);
@@ -121,7 +119,7 @@ public class OCSPService {
     headers.set("Content-Length", "4096");
     HttpEntity<byte[]> entity = new HttpEntity<>(request.getOcspRequest().getEncoded(), headers);
     ResponseEntity<byte[]> result =
-        template.exchange(request.getOcspServer(), POST, entity, byte[].class);
+        restTemplate.exchange(request.getOcspServer(), POST, entity, byte[].class);
     return new OCSPResp(result.getBody());
   }
 }

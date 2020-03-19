@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.ocsp
 
 import com.codeborne.security.mobileid.CheckCertificateResponse
 import ee.tuleva.onboarding.auth.exception.AuthenticationException
+import org.bouncycastle.cert.ocsp.OCSPReqBuilder
 import spock.lang.Specification
 
 class OCSPAuthServiceSpec extends Specification {
@@ -35,11 +36,13 @@ class OCSPAuthServiceSpec extends Specification {
         given:
         def validCert = OCSPFixture.generateCertificate("Lepp,37801145819", 1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
         def certificateStr = OCSPFixture.certToString(validCert)
+        def ocspReq = new OCSPReqBuilder().build();
         utils.getX509Certificate(certificateStr) >> validCert
         utils.getIssuerCertificateURI(validCert) >> new URI("http://issuer.ee/ca.crl")
         utils.getResponderURI(validCert) >> new URI("http://issuer.ee/ocsp")
         service.getIssuerCertificate(_) >> "caCert"
-        utils.generateOCSPRequest(_, _, _) >> new OCSPRequest("http://issuer.ee/ocsp", validCert, null);
+
+        utils.generateOCSPRequest(_, _, _) >> new OCSPRequest("http://issuer.ee/ocsp", validCert, ocspReq);
         service.checkCertificate(_) >> OCSPResponseType.GOOD
 
         when:

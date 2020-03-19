@@ -87,7 +87,7 @@ public class OCSPService {
     }
   }
 
-  private OCSPResponseType validateOCSPResponse(OCSPResp response) throws OCSPException {
+  public OCSPResponseType validateOCSPResponse(OCSPResp response) throws OCSPException {
     OCSPResponseType status = UNKNOWN;
     switch (response.getStatus()) {
       case SUCCESSFUL:

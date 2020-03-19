@@ -1,7 +1,15 @@
 package ee.tuleva.onboarding.auth.ocsp
 
 import ee.tuleva.onboarding.auth.exception.AuthenticationException
+import org.bouncycastle.asn1.DEROctetString
+import org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers
+import org.bouncycastle.asn1.ocsp.OCSPResponse
+import org.bouncycastle.asn1.ocsp.OCSPResponseStatus
+import org.bouncycastle.asn1.ocsp.ResponseBytes
+import org.bouncycastle.cert.ocsp.OCSPException
 import org.bouncycastle.cert.ocsp.OCSPReqBuilder
+import org.bouncycastle.cert.ocsp.OCSPResp
+import org.bouncycastle.cert.ocsp.OCSPRespBuilder
 import org.springframework.http.HttpMethod
 import org.springframework.http.ResponseEntity
 import org.springframework.web.client.RestTemplate
@@ -55,5 +63,60 @@ class OCSPServiceSpec extends Specification {
         thrown(AuthenticationException)
     }
 
+    def "Test validate malformed OCSP response "() {
+        given:
+        def basicOCSPResp = new OCSPResp(new OCSPResponse(
+            new OCSPResponseStatus(OCSPRespBuilder.MALFORMED_REQUEST), null)).getEncoded();
+        def responseStatus = new OCSPResponseStatus(OCSPResponseStatus.MALFORMED_REQUEST);
+        def derBasicOCSPResp = new DEROctetString(basicOCSPResp);
+        def responseBytes = new ResponseBytes(OCSPObjectIdentifiers.id_pkix_ocsp_basic, derBasicOCSPResp);
+        def ocspResponse = new OCSPResponse(responseStatus, responseBytes);
+        when:
+        service.validateOCSPResponse(new OCSPResp(ocspResponse))
+        then:
+        thrown(AuthenticationException)
+    }
+
+    def "Test validate unauthorized OCSP response "() {
+        given:
+        def basicOCSPResp = new OCSPResp(new OCSPResponse(
+            new OCSPResponseStatus(OCSPRespBuilder.UNAUTHORIZED), null)).getEncoded();
+        def responseStatus = new OCSPResponseStatus(OCSPResponseStatus.UNAUTHORIZED);
+        def derBasicOCSPResp = new DEROctetString(basicOCSPResp);
+        def responseBytes = new ResponseBytes(OCSPObjectIdentifiers.id_pkix_ocsp_basic, derBasicOCSPResp);
+        def ocspResponse = new OCSPResponse(responseStatus, responseBytes);
+        when:
+        service.validateOCSPResponse(new OCSPResp(ocspResponse))
+        then:
+        thrown(AuthenticationException)
+    }
+
+    def "Test validate uncaught OCSP response "() {
+        given:
+        def basicOCSPResp = new OCSPResp(new OCSPResponse(
+            new OCSPResponseStatus(OCSPRespBuilder.INTERNAL_ERROR), null)).getEncoded();
+        def responseStatus = new OCSPResponseStatus(OCSPResponseStatus.INTERNAL_ERROR);
+        def derBasicOCSPResp = new DEROctetString(basicOCSPResp);
+        def responseBytes = new ResponseBytes(OCSPObjectIdentifiers.id_pkix_ocsp_basic, derBasicOCSPResp);
+        def ocspResponse = new OCSPResponse(responseStatus, responseBytes);
+        when:
+        service.validateOCSPResponse(new OCSPResp(ocspResponse))
+        then:
+        thrown(AuthenticationException)
+    }
+
+    def "Test validate OCSPException from OCSP response "() {
+        given:
+        def basicOCSPResp = new OCSPResp(new OCSPResponse(
+            new OCSPResponseStatus(OCSPRespBuilder.SUCCESSFUL), null)).getEncoded();
+        def responseStatus = new OCSPResponseStatus(OCSPResponseStatus.SUCCESSFUL);
+        def derBasicOCSPResp = new DEROctetString(basicOCSPResp);
+        def responseBytes = new ResponseBytes(OCSPObjectIdentifiers.id_pkix_ocsp_basic, derBasicOCSPResp);
+        def ocspResponse = new OCSPResponse(responseStatus, responseBytes);
+        when:
+        service.validateOCSPResponse(new OCSPResp(ocspResponse))
+        then:
+        thrown(OCSPException)
+    }
 
 }

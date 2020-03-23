@@ -45,7 +45,7 @@ public class OCSPAuthService {
   }
 
   @NotNull
-  CheckCertificateResponse getCreateCertificateResponse(X509Certificate cert) {
+  private CheckCertificateResponse getCreateCertificateResponse(X509Certificate cert) {
     X500Name x500name = null;
     try {
       x500name = new JcaX509CertificateHolder(cert).getSubject();

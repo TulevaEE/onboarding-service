@@ -21,6 +21,10 @@ import spock.lang.Specification
 
 import java.nio.file.Files
 
+import static ee.tuleva.onboarding.auth.ocsp.OCSPFixture.generateCertificate
+import static ee.tuleva.onboarding.auth.ocsp.OCSPFixture.sampleExampleServer
+import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.GOOD
+import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.REVOKED
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
@@ -33,43 +37,70 @@ class OCSPServiceSpec extends Specification {
     @Autowired
     private OCSPService service
 
-    private static final String ocsp2018Endpoint = "http://aia.sk.ee/esteid2018"
-
     def "Test if certificate has expired"() {
         given:
         def ocspGen = new OCSPReqBuilder()
-        def expiredCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
-        def ocspRequest = new OCSPRequest(OCSPFixture.sampleExampleServer, expiredCert, ocspGen.build())
-        def expectedResponse = OCSPResponseType.EXPIRED
-
+        def expiredCert = generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", sampleExampleServer)
+        def ocspRequest = new OCSPRequest(sampleExampleServer, expiredCert, ocspGen.build())
         when:
         def response = service.checkCertificate(ocspRequest)
 
         then:
-        response == expectedResponse
+        response == OCSPResponseType.EXPIRED
     }
 
     def "Test get certificate from URL"() {
         given:
         def responseBody = readFile("sampleCert.der.crt")
         def expectedResponse = readFile("sampleCert.pem.crt")
-        def certUrl = ocsp2018Endpoint
 
-        server.expect(requestTo(ocsp2018Endpoint))
+        server.expect(requestTo(sampleExampleServer))
             .andRespond(withSuccess(responseBody,
                 MediaType.APPLICATION_OCTET_STREAM))
         when:
-        def response = service.getIssuerCertificate(certUrl)
+        def response = service.getIssuerCertificate(sampleExampleServer)
         then:
         response == expectedResponse
     }
 
+    def "Test is valid certificate"() {
+        given:
+        def responseBody = readBytes("validCertificate")
+        def ocspGen = new OCSPReqBuilder()
+        def validCert = generateCertificate("Tiit,Lepp,37801145819", 10, "SHA1WITHRSA", "http://issuer.ee/ca.crl", sampleExampleServer)
+        def ocspRequest = new OCSPRequest(sampleExampleServer, validCert, ocspGen.build())
+
+        server.expect(requestTo(sampleExampleServer))
+            .andRespond(withSuccess(responseBody,
+                MediaType.APPLICATION_OCTET_STREAM))
+        when:
+        def response = service.checkCertificate(ocspRequest)
+        then:
+        response == GOOD
+    }
+
+    def "Test is revoked certificate"() {
+        given:
+        def responseBody = readBytes("revokedCertificate")
+        def ocspGen = new OCSPReqBuilder()
+        def revokedCert = generateCertificate("Tiit,Lepp,37801145819", 10, "SHA1WITHRSA", "http://issuer.ee/ca.crl", sampleExampleServer)
+        def ocspRequest = new OCSPRequest(sampleExampleServer, revokedCert, ocspGen.build())
+
+        server.expect(requestTo(sampleExampleServer))
+            .andRespond(withSuccess(responseBody,
+                MediaType.APPLICATION_OCTET_STREAM))
+        when:
+        def response = service.checkCertificate(ocspRequest)
+        then:
+        response == REVOKED
+    }
+
     def "Test resttemplate exception from OCSP response"() {
         given:
-        def expiredCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "https://c.sk.ee/EE-GovCA2018.der.crt", "http://aia.sk.ee/esteid2018")
+        def expiredCert = generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "https://c.sk.ee/EE-GovCA2018.der.crt", sampleExampleServer)
         def ocspReq = new OCSPReqBuilder().build()
-        def request = new OCSPRequest(ocsp2018Endpoint, expiredCert, ocspReq)
-        server.expect(requestTo(ocsp2018Endpoint))
+        def request = new OCSPRequest(sampleExampleServer, expiredCert, ocspReq)
+        server.expect(requestTo(sampleExampleServer))
             .andRespond(withServerError())
         when:
         service.checkCertificateStatus(request)
@@ -137,6 +168,12 @@ class OCSPServiceSpec extends Specification {
         def resource = new ClassPathResource(fileName)
         new String(Files.readAllBytes(resource.getFile().toPath()))
     }
+
+    private byte[] readBytes(String fileName) {
+        def resource = new ClassPathResource(fileName)
+        return Files.readAllBytes(resource.getFile().toPath())
+    }
+
 
 }
 

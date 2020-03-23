@@ -81,7 +81,7 @@ public class OCSPService {
     return pemCert;
   }
 
-  public OCSPResponseType checkCertificateStatus(OCSPRequest request) {
+  private OCSPResponseType checkCertificateStatus(OCSPRequest request) {
     try {
       log.info("Generating and sending OCSPRequest");
       OCSPResp response = getOCSPResponse(request);
@@ -92,7 +92,7 @@ public class OCSPService {
     }
   }
 
-  public OCSPResponseType validateOCSPResponse(OCSPResp response) throws OCSPException {
+  private OCSPResponseType validateOCSPResponse(OCSPResp response) throws OCSPException {
     OCSPResponseType status = UNKNOWN;
     switch (response.getStatus()) {
       case SUCCESSFUL:

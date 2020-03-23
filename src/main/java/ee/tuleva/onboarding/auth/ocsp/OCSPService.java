@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.EXPIRED;
 import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.GOOD;
 import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.REVOKED;
 import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.UNKNOWN;
+import static java.time.Duration.ofSeconds;
 import static org.bouncycastle.cert.ocsp.OCSPResp.MALFORMED_REQUEST;
 import static org.bouncycastle.cert.ocsp.OCSPResp.SUCCESSFUL;
 import static org.bouncycastle.cert.ocsp.OCSPResp.UNAUTHORIZED;
@@ -18,29 +19,35 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Base64;
-import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.cert.ocsp.BasicOCSPResp;
 import org.bouncycastle.cert.ocsp.OCSPException;
 import org.bouncycastle.cert.ocsp.OCSPResp;
 import org.bouncycastle.cert.ocsp.RevokedStatus;
 import org.bouncycastle.cert.ocsp.SingleResp;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestOperations;
 
 @Slf4j
 @Service
-@AllArgsConstructor
 public class OCSPService {
-  private final RestTemplate restTemplate;
   public static final String BEGIN_CERT = "-----BEGIN CERTIFICATE-----";
   public static final String END_CERT = "-----END CERTIFICATE-----";
   public static final String LINE_SEPARATOR = System.getProperty("line.separator");
+  private final RestOperations restTemplate;
+  private final Clock clock;
+
+  public OCSPService(RestTemplateBuilder restTemplateBuilder, Clock clock) {
+    restTemplate =
+        restTemplateBuilder.setConnectTimeout(ofSeconds(60)).setReadTimeout(ofSeconds(60)).build();
+    this.clock = clock;
+  }
 
   public OCSPResponseType checkCertificate(OCSPRequest request) {
     X509Certificate certificate = request.getCertificate();
@@ -51,7 +58,6 @@ public class OCSPService {
   }
 
   private boolean hasCertificateExpired(X509Certificate certificate) {
-    Clock clock = Clock.systemDefaultZone();
     Instant currentTime = clock.instant();
     return currentTime.isAfter(certificate.getNotAfter().toInstant());
   }

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.ocsp
 
 import ee.tuleva.onboarding.auth.exception.AuthenticationException
+import ee.tuleva.onboarding.config.ClockConfig
 import org.bouncycastle.asn1.DEROctetString
 import org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers
 import org.bouncycastle.asn1.ocsp.OCSPResponse
@@ -11,20 +12,29 @@ import org.bouncycastle.cert.ocsp.OCSPReqBuilder
 import org.bouncycastle.cert.ocsp.OCSPResp
 import org.bouncycastle.cert.ocsp.OCSPRespBuilder
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.test.web.client.TestRestTemplate
+import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
 import org.springframework.core.io.ClassPathResource
+import org.springframework.http.MediaType
+import org.springframework.test.context.ContextConfiguration
+import org.springframework.test.web.client.MockRestServiceServer
+import org.springframework.web.client.HttpServerErrorException
 import spock.lang.Specification
 
 import java.nio.file.Files
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
+
+@RestClientTest(OCSPService)
+@ContextConfiguration(classes = [ClockConfig.class, OCSPService.class])
 class OCSPServiceSpec extends Specification {
     @Autowired
-    TestRestTemplate restTemplate
+    private final MockRestServiceServer server
     @Autowired
-    OCSPService service;
+    private final OCSPService service
 
+    private static final String ocsp2018Endpoint = "http://aia.sk.ee/esteid2018"
 
     def "Test if certificate has expired"() {
         given:
@@ -44,8 +54,11 @@ class OCSPServiceSpec extends Specification {
         given:
         def responseBody = readFile("sampleCert.der.crt")
         def expectedResponse = readFile("sampleCert.pem.crt")
-        def certUrl = "https://c.sk.ee/EE-GovCA2018.der.crt"
+        def certUrl = ocsp2018Endpoint
 
+        server.expect(requestTo(ocsp2018Endpoint))
+            .andRespond(withSuccess(responseBody,
+                MediaType.APPLICATION_OCTET_STREAM))
         when:
         def response = service.getIssuerCertificate(certUrl)
         then:
@@ -56,11 +69,13 @@ class OCSPServiceSpec extends Specification {
         given:
         def expiredCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "https://c.sk.ee/EE-GovCA2018.der.crt", "http://aia.sk.ee/esteid2018")
         def ocspReq = new OCSPReqBuilder().build()
-        def request = new OCSPRequest("http://aia.sk.ee/esteid2018", expiredCert, ocspReq)
+        def request = new OCSPRequest(ocsp2018Endpoint, expiredCert, ocspReq)
+        server.expect(requestTo(ocsp2018Endpoint))
+            .andRespond(withServerError())
         when:
         service.checkCertificateStatus(request)
         then:
-        thrown(AuthenticationException)
+        thrown(HttpServerErrorException)
     }
 
     def "Test validate malformed OCSP response "() {
@@ -125,3 +140,4 @@ class OCSPServiceSpec extends Specification {
     }
 
 }
+

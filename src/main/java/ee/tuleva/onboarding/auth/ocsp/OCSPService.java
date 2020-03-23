@@ -99,7 +99,7 @@ public class OCSPService {
           } else if (ocspResponse.getCertStatus() instanceof RevokedStatus) {
             status = REVOKED;
           }
-          log.info("OCSP response code: {0}", status);
+          log.info("OCSP response code: {}", status);
         }
         break;
       case MALFORMED_REQUEST:

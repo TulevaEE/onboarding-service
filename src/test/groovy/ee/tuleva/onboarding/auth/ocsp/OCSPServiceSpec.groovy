@@ -10,16 +10,20 @@ import org.bouncycastle.cert.ocsp.OCSPException
 import org.bouncycastle.cert.ocsp.OCSPReqBuilder
 import org.bouncycastle.cert.ocsp.OCSPResp
 import org.bouncycastle.cert.ocsp.OCSPRespBuilder
-import org.springframework.http.HttpMethod
-import org.springframework.http.ResponseEntity
-import org.springframework.web.client.RestTemplate
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.web.client.TestRestTemplate
+import org.springframework.core.io.ClassPathResource
 import spock.lang.Specification
 
-import static org.springframework.http.HttpStatus.OK
+import java.nio.file.Files
 
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class OCSPServiceSpec extends Specification {
-    RestTemplate restTemplate = Mock(RestTemplate)
-    OCSPService service = new OCSPService(restTemplate)
+    @Autowired
+    TestRestTemplate restTemplate
+    @Autowired
+    OCSPService service;
 
 
     def "Test if certificate has expired"() {
@@ -38,13 +42,10 @@ class OCSPServiceSpec extends Specification {
 
     def "Test get certificate from URL"() {
         given:
-        def responseBody = OCSPFixture.sampleCertificateDER.getBytes()
-        def expectedResponse = OCSPFixture.getSampleCertificatePEM
+        def responseBody = readFile("sampleCert.der.crt")
+        def expectedResponse = readFile("sampleCert.pem.crt")
         def certUrl = "https://c.sk.ee/EE-GovCA2018.der.crt"
-        ResponseEntity<byte[]> result =
-            new ResponseEntity(responseBody, OK)
 
-        1 * restTemplate.exchange(certUrl, HttpMethod.GET, _, byte[].class) >> result
         when:
         def response = service.getIssuerCertificate(certUrl)
         then:
@@ -53,10 +54,9 @@ class OCSPServiceSpec extends Specification {
 
     def "Test resttemplate exception from OCSP response"() {
         given:
-        def expiredCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
+        def expiredCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "https://c.sk.ee/EE-GovCA2018.der.crt", "http://aia.sk.ee/esteid2018")
         def ocspReq = new OCSPReqBuilder().build()
-        def request = new OCSPRequest("http://issuer.ee/ocsp", expiredCert, ocspReq)
-        1 * restTemplate.exchange(_, HttpMethod.POST, _, byte[].class) >> { throw new IOException("General Exception") }
+        def request = new OCSPRequest("http://aia.sk.ee/esteid2018", expiredCert, ocspReq)
         when:
         service.checkCertificateStatus(request)
         then:
@@ -117,6 +117,11 @@ class OCSPServiceSpec extends Specification {
         service.validateOCSPResponse(new OCSPResp(ocspResponse))
         then:
         thrown(OCSPException)
+    }
+
+    private String readFile(String fileName) {
+        def resource = new ClassPathResource(fileName)
+        new String(Files.readAllBytes(resource.getFile().toPath()))
     }
 
 }

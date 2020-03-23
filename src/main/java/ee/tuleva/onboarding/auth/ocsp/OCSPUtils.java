@@ -59,10 +59,10 @@ public class OCSPUtils {
                 accessDescription ->
                     accessDescription.getAccessMethod().equals(AccessDescription.Ad_OCSP_Id))
             .findFirst()
-            .orElse(null);
-    if (result == null) {
-      throw new AuthenticationException(INVALID_INPUT, "Responder OCSP URI missing in certificate");
-    }
+            .orElseThrow(
+                () ->
+                    new AuthenticationException(
+                        INVALID_INPUT, "Responder OCSP URI missing in certificate"));
     GeneralName generalName = result.getAccessLocation();
     URIName uri = (URIName) generalName.getName();
     return uri.getURI();

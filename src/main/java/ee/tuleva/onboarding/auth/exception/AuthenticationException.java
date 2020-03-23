@@ -4,15 +4,14 @@ import lombok.Getter;
 
 public class AuthenticationException extends RuntimeException {
   public enum Code {
-    INVALID_INPUT("Sisendparameetrid mittekorrektsel kujul"),
-    USER_CERTIFICATE_MISSING("Kasutaja sertifikaat puudub"),
-    UNABLE_TO_TEST_USER_CERTIFICATE("Kasutaja sertifikaadi kehtivust ei ole võimalik kontrollida"),
-    REVOKED("Kasutaja sertifikaat ei kehti (OCSP vastus REVOKED)."),
-    UNKNOWN("Kasutaja sertifikaat on teadmata staatuses (OCSP vastus UNKNOWN)."),
-    EXPIRED("Kasutaja sertifikaat on aegunud"),
-    UNAUTHORIZED(
-        "Ligipääs antud meetodile antud parameetritega piiratud (Ligipääs ei ole teenuse pakkuja juures registreeritud)"),
-    INTERNAL_ERROR("Teenuse tehniline viga");
+    INVALID_INPUT("Input parameters are in a wrong format"),
+    USER_CERTIFICATE_MISSING("User certificate is missing"),
+    UNABLE_TO_TEST_USER_CERTIFICATE("Unable to test user certificate"),
+    REVOKED("User certificate is not valid (OCSP response REVOKED)."),
+    UNKNOWN("User certificate status is unknown (OCSP response UNKNOWN)."),
+    EXPIRED("User certificate is expired"),
+    UNAUTHORIZED("Unauthorized access (Perhaps a subscription to the service is required first)"),
+    INTERNAL_ERROR("Internal service error");
 
     private final String descriptionInEstonian;
 

@@ -29,9 +29,9 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 @ContextConfiguration(classes = [ClockConfig.class, OCSPService.class])
 class OCSPServiceSpec extends Specification {
     @Autowired
-    private final MockRestServiceServer server
+    private MockRestServiceServer server
     @Autowired
-    private final OCSPService service
+    private OCSPService service
 
     private static final String ocsp2018Endpoint = "http://aia.sk.ee/esteid2018"
 

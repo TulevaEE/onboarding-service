@@ -32,6 +32,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestOperations;
 
 @Slf4j
@@ -84,10 +85,8 @@ public class OCSPService {
     try {
       log.info("Generating and sending OCSPRequest");
       OCSPResp response = getOCSPResponse(request);
-
-      log.info("Validating OCSPResponse");
       return validateOCSPResponse(response);
-    } catch (OCSPException | IOException e) {
+    } catch (OCSPException | RestClientException | IOException e) {
       throw new AuthenticationException(
           UNABLE_TO_TEST_USER_CERTIFICATE, "Couldn't validate serial number", e);
     }

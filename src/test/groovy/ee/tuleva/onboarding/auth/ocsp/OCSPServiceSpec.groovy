@@ -17,7 +17,6 @@ import org.springframework.core.io.ClassPathResource
 import org.springframework.http.MediaType
 import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.web.client.MockRestServiceServer
-import org.springframework.web.client.HttpServerErrorException
 import spock.lang.Specification
 
 import java.nio.file.Files
@@ -75,7 +74,7 @@ class OCSPServiceSpec extends Specification {
         when:
         service.checkCertificateStatus(request)
         then:
-        thrown(HttpServerErrorException)
+        thrown(AuthenticationException)
     }
 
     def "Test validate malformed OCSP response "() {

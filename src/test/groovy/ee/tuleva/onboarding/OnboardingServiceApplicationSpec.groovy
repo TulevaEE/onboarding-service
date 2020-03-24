@@ -7,7 +7,6 @@ import spock.lang.Specification
 
 @SpringBootTest
 class OnboardingServiceApplicationSpec extends Specification {
-
     @Autowired
     WebApplicationContext context
 
@@ -15,4 +14,5 @@ class OnboardingServiceApplicationSpec extends Specification {
         expect:
         context != null
     }
+
 }

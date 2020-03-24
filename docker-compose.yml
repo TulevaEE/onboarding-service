@@ -1,9 +1,10 @@
 version: '2'
 services:
   database:
-    image: postgres
+    image: postgres:9.6.12
     ports:
       - "5432:5432"
     environment:
       - POSTGRES_USER=tuleva-onboarding
+      - POSTGRES_PASSWORD=tuleva-onboarding
       - POSTGRES_DB=tuleva-onboarding

@@ -69,7 +69,7 @@ public class AuthController {
     }
     MobileIDSession loginSession =
         mobileIdAuthService.startLogin(
-            authenticateCommand.getValue(), authenticateCommand.getSocialSecurityId());
+            authenticateCommand.getPhoneNumber(), authenticateCommand.getSocialSecurityId());
     genericSessionStore.save(loginSession);
     return new ResponseEntity<>(
         AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);

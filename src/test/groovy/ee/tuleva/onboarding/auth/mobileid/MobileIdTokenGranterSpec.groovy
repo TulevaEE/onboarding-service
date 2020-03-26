@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.auth.mobileid
 
-import com.codeborne.security.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
@@ -31,14 +30,14 @@ class MobileIdTokenGranterSpec extends Specification {
 
     def setup() {
         mobileIdTokenGranter = new MobileIdTokenGranter(
-                authorizationServerTokenServices,
-                clientDetailsService,
-                oAuth2RequestFactory,
-                mobileIdAuthService,
-                principalService,
-                sessionStore,
-                grantedAuthorityFactory,
-                applicationEventPublisher
+            authorizationServerTokenServices,
+            clientDetailsService,
+            oAuth2RequestFactory,
+            mobileIdAuthService,
+            principalService,
+            sessionStore,
+            grantedAuthorityFactory,
+            applicationEventPublisher
         )
     }
 
@@ -80,9 +79,9 @@ class MobileIdTokenGranterSpec extends Specification {
         1 * sessionStore.get(MobileIDSession) >> Optional.of(sampleMobileIdSession)
         1 * mobileIdAuthService.isLoginComplete(sampleMobileIdSession) >> true
         1 * principalService.getFrom({ Person person ->
-                    person.personalCode == sampleMobileIdSession.personalCode &&
-                    person.firstName == sampleMobileIdSession.firstName &&
-                    person.lastName == sampleMobileIdSession.lastName
+            person.personalCode == sampleMobileIdSession.personalCode &&
+                person.firstName == sampleMobileIdSession.firstName &&
+                person.lastName == sampleMobileIdSession.lastName
 
         }) >> AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
         ClientDetails sampleClientDetails = sampleClientDetails()

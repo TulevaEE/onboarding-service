@@ -18,6 +18,21 @@ public class MobileIdConfiguration {
   @Value("${truststore.path}")
   private String trustStorePath;
 
+  @Value("${smartid.relyingPartyUUID}")
+  private String relyingPartyUUID;
+
+  @Value("${smartid.relyingPartyName}")
+  private String relyingPartyName;
+
+  @Value("${mobile-id.hostUrl}")
+  private String hostUrl;
+
+  @Value("${mobile-id.pollingSleepTimeoutSeconds}")
+  private int pollingSleepTimeoutSeconds;
+
+  @Value("${mobile-id.longPollingTimeoutSeconds}")
+  private int longPollingTimeoutSeconds;
+
   @Value("${mobile-id.service.name}")
   private String serviceName;
 
@@ -32,13 +47,13 @@ public class MobileIdConfiguration {
 
   @Bean
   MidClient mobileIDClient() {
-    MidClient client =
-        MidClient.newBuilder()
-            .withHostUrl("https://tsp.demo.sk.ee/mid-api")
-            .withRelyingPartyUUID("00000000-0000-0000-0000-000000000000")
-            .withRelyingPartyName("DEMO")
-            .build();
-    return client;
+    return MidClient.newBuilder()
+        .withRelyingPartyName(relyingPartyName)
+        .withRelyingPartyUUID(relyingPartyUUID)
+        .withHostUrl(hostUrl)
+        .withLongPollingTimeoutSeconds(longPollingTimeoutSeconds)
+        .withPollingSleepTimeoutSeconds(pollingSleepTimeoutSeconds)
+        .build();
   }
 
   @Bean

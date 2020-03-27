@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.config;
 
 import com.codeborne.security.mobileid.MobileIDAuthenticator;
+import ee.sk.mid.MidAuthenticationResponseValidator;
+import ee.sk.mid.MidClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -10,21 +12,52 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 public class MobileIdConfiguration {
 
-	@Value("${digidoc.service.url}")
-	private String digidocServiceUrl;
+  @Value("${digidoc.service.url}")
+  private String digidocServiceUrl;
 
-	@Value("${truststore.path}")
-	private String trustStorePath;
+  @Value("${truststore.path}")
+  private String trustStorePath;
 
-	@Value("${mobile-id.service.name}")
-	private String serviceName;
+  @Value("${smartid.relyingPartyUUID}")
+  private String relyingPartyUUID;
 
-	@Bean
-	MobileIDAuthenticator mobileIDAuthenticator() {
-		System.setProperty("javax.net.ssl.trustStore", trustStorePath);
-		log.info("Setting global ssl truststore to {}", this.trustStorePath);
-		log.info("setting digidoc service url to {} with name {}", this.digidocServiceUrl, this.serviceName);
-		return new MobileIDAuthenticator(digidocServiceUrl, serviceName);
-	}
+  @Value("${smartid.relyingPartyName}")
+  private String relyingPartyName;
 
+  @Value("${mobile-id.hostUrl}")
+  private String hostUrl;
+
+  @Value("${mobile-id.pollingSleepTimeoutSeconds}")
+  private int pollingSleepTimeoutSeconds;
+
+  @Value("${mobile-id.longPollingTimeoutSeconds}")
+  private int longPollingTimeoutSeconds;
+
+  @Value("${mobile-id.service.name}")
+  private String serviceName;
+
+  @Bean
+  MobileIDAuthenticator mobileIDAuthenticator() {
+    System.setProperty("javax.net.ssl.trustStore", trustStorePath);
+    log.info("Setting global ssl truststore to {}", this.trustStorePath);
+    log.info(
+        "setting digidoc service url to {} with name {}", this.digidocServiceUrl, this.serviceName);
+    return new MobileIDAuthenticator(digidocServiceUrl, serviceName);
+  }
+
+  @Bean
+  MidClient mobileIDClient() {
+    return MidClient.newBuilder()
+        .withRelyingPartyName(relyingPartyName)
+        .withRelyingPartyUUID(relyingPartyUUID)
+        .withHostUrl(hostUrl)
+        .withLongPollingTimeoutSeconds(longPollingTimeoutSeconds)
+        .withPollingSleepTimeoutSeconds(pollingSleepTimeoutSeconds)
+        .build();
+  }
+
+  @Bean
+  MidAuthenticationResponseValidator mobileIDValidator() {
+    return new MidAuthenticationResponseValidator();
+  }
 }

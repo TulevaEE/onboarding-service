@@ -6,8 +6,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class AuthenticateCommand {
-  @Deprecated String phoneNumber;
-  String value;
-  String socialSecurityId;
+  String phoneNumber;
+  String personalCode;
   AuthenticationType type;
 }

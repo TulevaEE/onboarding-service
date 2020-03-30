@@ -8,7 +8,7 @@ import ee.sk.mid.rest.MidConnector
 import ee.sk.mid.rest.MidSessionStatusPoller
 import ee.sk.mid.rest.dao.MidSessionStatus
 import ee.sk.mid.rest.dao.response.MidAuthenticationResponse
-import ee.tuleva.onboarding.auth.exception.MidOperationException
+import ee.tuleva.onboarding.auth.exception.MobileIdException
 import spock.lang.Specification
 
 class MobileIdAuthServiceSpec extends Specification {
@@ -83,7 +83,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession)
         then:
-        thrown(MidOperationException)
+        thrown(MobileIdException)
     }
 
     def "IsLoginComplete: User has cancelled login operation"() {
@@ -96,7 +96,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession)
         then:
-        thrown(MidOperationException)
+        thrown(MobileIdException)
     }
 
     def "IsLoginComplete: User is not a MID client"() {
@@ -109,7 +109,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession)
         then:
-        thrown(MidOperationException)
+        thrown(MobileIdException)
     }
 
     def "IsLoginComplete: User did not type in PIN code before session timeout"() {
@@ -122,7 +122,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession)
         then:
-        thrown(MidOperationException)
+        thrown(MobileIdException)
     }
 
     def "IsLoginComplete: Unable to reach phone/SIM card"() {
@@ -135,7 +135,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession)
         then:
-        thrown(MidOperationException)
+        thrown(MobileIdException)
     }
 
     def "IsLoginComplete: Error communicating with the phone/SIM card"() {
@@ -148,7 +148,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession)
         then:
-        thrown(MidOperationException)
+        thrown(MobileIdException)
     }
 
     def "IsLoginComplete: Mobile-ID configuration invalid"() {
@@ -161,7 +161,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession)
         then:
-        thrown(MidOperationException)
+        thrown(MobileIdException)
     }
 
     def "IsLoginComplete: Integrator-side error with MID integration "() {
@@ -174,7 +174,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession)
         then:
-        thrown(MidOperationException)
+        thrown(MobileIdException)
     }
 
     def "IsLoginComplete: MID service returned internal error"() {
@@ -187,6 +187,6 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(MobileIdFixture.sampleMobileIdSession)
         then:
-        thrown(MidOperationException)
+        thrown(MobileIdException)
     }
 }

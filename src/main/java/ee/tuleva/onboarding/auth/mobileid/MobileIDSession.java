@@ -18,9 +18,6 @@ public class MobileIDSession implements Serializable {
 
   public MobileIDSession(
       String sessionId, String challenge, MidHashToSign authenticationHash, String phoneNumber) {
-    this.firstName = "";
-    this.lastName = "";
-    this.personalCode = "";
     this.challenge = challenge;
     this.sessionId = sessionId;
     this.phoneNumber = phoneNumber;

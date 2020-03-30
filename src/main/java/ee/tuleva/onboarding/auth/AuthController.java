@@ -56,20 +56,21 @@ public class AuthController {
     if (authenticateCommand.getType() == AuthenticationType.MOBILE_ID) {
       MobileIDSession loginSession =
           mobileIdAuthService.startLogin(
-              authenticateCommand.getValue(), authenticateCommand.getSocialSecurityId());
+              authenticateCommand.getPhoneNumber(), authenticateCommand.getPersonalCode());
       genericSessionStore.save(loginSession);
       return new ResponseEntity<>(
           AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);
 
     } else if (authenticateCommand.getType() == AuthenticationType.SMART_ID) {
-      SmartIdSession loginSession = smartIdAuthService.startLogin(authenticateCommand.getValue());
+      SmartIdSession loginSession =
+          smartIdAuthService.startLogin(authenticateCommand.getPersonalCode());
       genericSessionStore.save(loginSession);
       return new ResponseEntity<>(
           AuthenticateResponse.fromSmartIdSession(loginSession), HttpStatus.OK);
     }
     MobileIDSession loginSession =
         mobileIdAuthService.startLogin(
-            authenticateCommand.getPhoneNumber(), authenticateCommand.getSocialSecurityId());
+            authenticateCommand.getPhoneNumber(), authenticateCommand.getPersonalCode());
     genericSessionStore.save(loginSession);
     return new ResponseEntity<>(
         AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);

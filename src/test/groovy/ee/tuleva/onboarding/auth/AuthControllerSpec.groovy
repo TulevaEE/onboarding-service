@@ -105,23 +105,23 @@ class AuthControllerSpec extends BaseControllerSpec {
 
     private static sampleDeprecatedAuthenticateCommand() {
         [
-            phoneNumber     : MobileIdFixture.samplePhoneNumber,
-            socialSecurityId: MobileIdFixture.sampleIdCode
+            phoneNumber : MobileIdFixture.samplePhoneNumber,
+            personalCode: MobileIdFixture.sampleIdCode
         ]
     }
 
     private static sampleMobileIdAuthenticateCommand() {
         [
-            value           : MobileIdFixture.samplePhoneNumber,
-            socialSecurityId: MobileIdFixture.sampleIdCode,
-            type            : AuthenticationType.MOBILE_ID.toString()
+            phoneNumber : MobileIdFixture.samplePhoneNumber,
+            personalCode: MobileIdFixture.sampleIdCode,
+            type        : AuthenticationType.MOBILE_ID.toString()
         ]
     }
 
     private static sampleSmartIdAuthenticateCommand() {
         [
-            value: SmartIdFixture.identityCode,
-            type : AuthenticationType.SMART_ID.toString()
+            personalCode: SmartIdFixture.identityCode,
+            type        : AuthenticationType.SMART_ID.toString()
         ]
     }
 

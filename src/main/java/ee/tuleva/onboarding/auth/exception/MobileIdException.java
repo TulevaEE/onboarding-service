@@ -4,22 +4,15 @@ import java.util.List;
 
 public class MobileIdException extends RuntimeException {
 
-  private String message;
-
   public MobileIdException(String message) {
-    this.message = message;
+    super(message);
   }
 
   public MobileIdException(String message, Throwable cause) {
-    super(cause);
-    this.message = message + " Cause: " + cause.getMessage();
+    super(message + " Cause: " + cause.getMessage());
   }
 
   public MobileIdException(List<String> errors) {
-    this.message = "MID service returned validation errors: " + String.join(", ", errors);
-  }
-
-  public String getMessage() {
-    return message;
+    super("MID service returned validation errors: " + String.join(", ", errors));
   }
 }

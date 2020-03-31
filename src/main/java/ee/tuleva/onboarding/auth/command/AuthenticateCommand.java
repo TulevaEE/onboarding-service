@@ -6,7 +6,7 @@ import lombok.Setter;
 @Getter
 @Setter
 public class AuthenticateCommand {
-  String phoneNumber;
-  String personalCode;
-  AuthenticationType type;
+  private String phoneNumber;
+  private String personalCode;
+  private AuthenticationType type;
 }

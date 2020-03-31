@@ -37,7 +37,7 @@ public class MobileIdAuthService {
   private final MidClient client;
   private final MidAuthenticationResponseValidator validator;
 
-  public MobileIDSession startLogin(String phoneNumber, String socialSecurityId) {
+  public MobileIDSession startLogin(String phoneNumber, String personalCode) {
 
     MidAuthenticationHashToSign authenticationHash =
         MidAuthenticationHashToSign.generateRandomHashOfDefaultType();
@@ -45,7 +45,7 @@ public class MobileIdAuthService {
     String verificationCode = authenticationHash.calculateVerificationCode();
 
     MidAuthenticationRequest request =
-        getBuildMidAuthenticationRequest(phoneNumber, socialSecurityId, authenticationHash);
+        getBuildMidAuthenticationRequest(phoneNumber, personalCode, authenticationHash);
     MidConnector connector = client.getMobileIdConnector();
     MidAuthenticationResponse response = connector.authenticate(request);
 
@@ -120,10 +120,10 @@ public class MobileIdAuthService {
   }
 
   private MidAuthenticationRequest getBuildMidAuthenticationRequest(
-      String phoneNumber, String socialSecurityId, MidAuthenticationHashToSign authenticationHash) {
+      String phoneNumber, String personalCode, MidAuthenticationHashToSign authenticationHash) {
     return MidAuthenticationRequest.newBuilder()
         .withPhoneNumber(normalizePhoneNumber(phoneNumber))
-        .withNationalIdentityNumber(socialSecurityId)
+        .withNationalIdentityNumber(personalCode)
         .withHashToSign(authenticationHash)
         .withLanguage(MidLanguage.ENG)
         .withDisplayText("Log into self-service")

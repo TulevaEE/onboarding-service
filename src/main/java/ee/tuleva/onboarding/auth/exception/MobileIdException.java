@@ -9,7 +9,7 @@ public class MobileIdException extends RuntimeException {
   }
 
   public MobileIdException(String message, Throwable cause) {
-    super(message + " Cause: " + cause.getMessage());
+    super(message, cause);
   }
 
   public MobileIdException(List<String> errors) {

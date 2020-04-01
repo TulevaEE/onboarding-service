@@ -118,7 +118,7 @@ logging:
     ee:
       sk:
         smartid: DEBUG
-
+        mid: TRACE
 ---
 
 spring:

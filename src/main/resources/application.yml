@@ -118,7 +118,9 @@ logging:
     ee:
       sk:
         smartid: DEBUG
-        mid: TRACE
+        mid:
+          rest:
+            MidLoggingFilter: TRACE
 ---
 
 spring:

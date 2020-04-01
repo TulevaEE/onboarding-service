@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.config;
 import com.codeborne.security.mobileid.MobileIDAuthenticator;
 import ee.sk.mid.MidAuthenticationResponseValidator;
 import ee.sk.mid.MidClient;
+import ee.sk.mid.rest.MidConnector;
+import ee.sk.mid.rest.MidSessionStatusPoller;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -54,6 +56,16 @@ public class MobileIdConfiguration {
         .withLongPollingTimeoutSeconds(longPollingTimeoutSeconds)
         .withPollingSleepTimeoutSeconds(pollingSleepTimeoutSeconds)
         .build();
+  }
+
+  @Bean
+  MidConnector mobileIDConnector() {
+    return mobileIDClient().getMobileIdConnector();
+  }
+
+  @Bean
+  MidSessionStatusPoller mobileIDSessionStatusPoller() {
+    return mobileIDClient().getSessionStatusPoller();
   }
 
   @Bean

@@ -19,6 +19,7 @@ import ee.sk.mid.exception.MidSessionTimeoutException;
 import ee.sk.mid.exception.MidUnauthorizedException;
 import ee.sk.mid.exception.MidUserCancellationException;
 import ee.sk.mid.rest.MidConnector;
+import ee.sk.mid.rest.MidSessionStatusPoller;
 import ee.sk.mid.rest.dao.MidSessionStatus;
 import ee.sk.mid.rest.dao.request.MidAuthenticationRequest;
 import ee.sk.mid.rest.dao.response.MidAuthenticationResponse;
@@ -36,6 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class MobileIdAuthService {
   private final MidClient client;
   private final MidAuthenticationResponseValidator validator;
+  private final MidConnector connector;
+  private final MidSessionStatusPoller poller;
 
   public MobileIDSession startLogin(String phoneNumber, String personalCode) {
 
@@ -46,7 +49,6 @@ public class MobileIdAuthService {
 
     MidAuthenticationRequest request =
         getBuildMidAuthenticationRequest(phoneNumber, personalCode, authenticationHash);
-    MidConnector connector = client.getMobileIdConnector();
     MidAuthenticationResponse response = connector.authenticate(request);
 
     log.info(
@@ -61,9 +63,7 @@ public class MobileIdAuthService {
 
     try {
       MidSessionStatus sessionStatus =
-          client
-              .getSessionStatusPoller()
-              .fetchFinalAuthenticationSessionStatus(session.getSessionId());
+          poller.fetchFinalAuthenticationSessionStatus(session.getSessionId());
       MidAuthentication authentication =
           client.createMobileIdAuthentication(sessionStatus, session.getAuthenticationHash());
 

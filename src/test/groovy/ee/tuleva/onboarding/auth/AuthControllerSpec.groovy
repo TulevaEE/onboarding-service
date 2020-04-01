@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.auth
 
-import com.codeborne.security.mobileid.MobileIDSession
+
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.command.AuthenticationType
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService
+import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService
 import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
@@ -33,11 +34,11 @@ class AuthControllerSpec extends BaseControllerSpec {
 
     def "Authenticate: Initiate mobile id authentication (deprecated)"() {
         given:
-        1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber) >> MobileIdFixture.sampleMobileIdSession
+        1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
         1 * sessionStore.save(_ as MobileIDSession)
         when:
         MockHttpServletResponse response = mockMvc
-                .perform(post("/authenticate")
+            .perform(post("/authenticate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(sampleDeprecatedAuthenticateCommand()))).andReturn().response
         then:
@@ -46,11 +47,11 @@ class AuthControllerSpec extends BaseControllerSpec {
 
     def "Authenticate: Initiate mobile id authentication"() {
         given:
-        1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber) >> MobileIdFixture.sampleMobileIdSession
+        1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
         1 * sessionStore.save(_ as MobileIDSession)
         when:
         MockHttpServletResponse response = mockMvc
-                .perform(post("/authenticate")
+            .perform(post("/authenticate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(sampleMobileIdAuthenticateCommand()))).andReturn().response
         then:
@@ -63,7 +64,7 @@ class AuthControllerSpec extends BaseControllerSpec {
         1 * sessionStore.save(_ as SmartIdSession)
         when:
         MockHttpServletResponse response = mockMvc
-                .perform(post("/authenticate")
+            .perform(post("/authenticate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(mapper.writeValueAsString(sampleSmartIdAuthenticateCommand()))).andReturn().response
         then:
@@ -73,7 +74,7 @@ class AuthControllerSpec extends BaseControllerSpec {
     def "Authenticate: throw exception when no cert sent"() {
         when:
         MockHttpServletResponse response = mockMvc
-                .perform(post("/idLogin")
+            .perform(post("/idLogin")
                 .header("ssl-client-verify", "NONE")).andReturn().response
         then:
         response.status == HttpStatus.BAD_REQUEST.value()
@@ -83,7 +84,7 @@ class AuthControllerSpec extends BaseControllerSpec {
     def "Authenticate: check successfully verified id card certificate"() {
         when:
         MockHttpServletResponse response = mockMvc
-                .perform(post("/idLogin")
+            .perform(post("/idLogin")
                 .header("ssl-client-verify", "SUCCESS")
                 .header("ssl-client-cert", "test_cert")).andReturn().response
         then:
@@ -94,7 +95,7 @@ class AuthControllerSpec extends BaseControllerSpec {
     def "Authenticate: redirect successful id card login back to the app when using the GET method"() {
         when:
         MockHttpServletResponse response = mockMvc
-                .perform(get("/idLogin")
+            .perform(get("/idLogin")
                 .header("ssl-client-verify", "SUCCESS")
                 .header("ssl-client-cert", "test_cert")).andReturn().response
         then:
@@ -104,21 +105,23 @@ class AuthControllerSpec extends BaseControllerSpec {
 
     private static sampleDeprecatedAuthenticateCommand() {
         [
-                phoneNumber: MobileIdFixture.samplePhoneNumber
+            phoneNumber : MobileIdFixture.samplePhoneNumber,
+            personalCode: MobileIdFixture.sampleIdCode
         ]
     }
 
     private static sampleMobileIdAuthenticateCommand() {
         [
-                value: MobileIdFixture.samplePhoneNumber,
-                type : AuthenticationType.MOBILE_ID.toString()
+            phoneNumber : MobileIdFixture.samplePhoneNumber,
+            personalCode: MobileIdFixture.sampleIdCode,
+            type        : AuthenticationType.MOBILE_ID.toString()
         ]
     }
 
     private static sampleSmartIdAuthenticateCommand() {
         [
-                value: SmartIdFixture.identityCode,
-                type : AuthenticationType.SMART_ID.toString()
+            personalCode: SmartIdFixture.identityCode,
+            type        : AuthenticationType.SMART_ID.toString()
         ]
     }
 

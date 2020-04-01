@@ -156,6 +156,7 @@ ssl:
   keystore.password: ${SSL_KEYSTORE_PASSWORD}
 
 mobile-id:
+  hostUrl: "https://mid.sk.ee/mid-api"
   service:
     name: "Tuleva"
 

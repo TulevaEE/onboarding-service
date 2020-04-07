@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.config;
 
+import static org.digidoc4j.Configuration.Mode;
+
 import com.codeborne.security.mobileid.MobileIDAuthenticator;
 import ee.sk.mid.MidAuthenticationResponseValidator;
 import ee.sk.mid.MidClient;
@@ -38,6 +40,9 @@ public class MobileIdConfiguration {
   @Value("${mobile-id.service.name}")
   private String serviceName;
 
+  @Value("${mobile-id.sign.environment}")
+  private String configurationEnvironment;
+
   @Bean
   MobileIDAuthenticator mobileIDAuthenticator() {
     System.setProperty("javax.net.ssl.trustStore", trustStorePath);
@@ -61,6 +66,11 @@ public class MobileIdConfiguration {
   @Bean
   MidConnector mobileIDConnector() {
     return mobileIDClient().getMobileIdConnector();
+  }
+
+  @Bean
+  org.digidoc4j.Configuration mobileIdSignConfiguration() {
+    return new org.digidoc4j.Configuration(Mode.valueOf(configurationEnvironment));
   }
 
   @Bean

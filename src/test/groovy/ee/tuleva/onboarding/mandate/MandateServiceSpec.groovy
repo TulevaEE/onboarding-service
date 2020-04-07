@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.mandate
 
 import com.codeborne.security.mobileid.IdCardSignatureSession
-import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
 import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.aml.AmlService
@@ -17,6 +16,8 @@ import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
 import ee.tuleva.onboarding.mandate.signature.SignatureService
+import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureService
+import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
@@ -28,6 +29,7 @@ class MandateServiceSpec extends Specification {
 
     MandateRepository mandateRepository = Mock(MandateRepository)
     SignatureService signService = Mock(SignatureService)
+    MobileIdSignatureService mobileIdSignService = Mock(MobileIdSignatureService)
     FundRepository fundRepository = Mock()
     AccountStatementService accountStatementService = Mock()
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository)
@@ -38,7 +40,7 @@ class MandateServiceSpec extends Specification {
     EpisService episService = Mock(EpisService)
     AmlService amlService = Mock()
 
-    MandateService service = new MandateService(mandateRepository, signService,
+    MandateService service = new MandateService(mandateRepository, signService, mobileIdSignService,
         converter, emailService, mandateProcessor, mandateFileService, userService, episService, amlService)
 
     Long sampleMandateId = 1L
@@ -115,26 +117,25 @@ class MandateServiceSpec extends Specification {
         given:
         def user = sampleUser()
         1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
-        1 * signService.startSign(_ as List<SignatureFile>, user.personalCode, user.phoneNumber) >>
-            new MobileIdSignatureSession(1, "1234")
+        1 * mobileIdSignService.startSign(_ as List<SignatureFile>, user.personalCode, user.phoneNumber) >>
+            new MobileIdSignatureSession.Builder().withSessionID("1").withVerificationCode("1234").build()
 
         when:
         def session = service.mobileIdSign(sampleMandateId, user.id, user.phoneNumber)
 
         then:
-        session.sessCode == 1
-        session.challenge == "1234"
+        session.sessionID == "1"
+        session.verificationCode == "1234"
     }
 
     def "finalizeMobileIdSignature: get correct status if currently signing mandate"() {
         given:
         Mandate sampleMandate = sampleUnsignedMandate()
-
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-        1 * signService.getSignedFile(_) >> null
+        1 * mobileIdSignService.getSignedFile(_) >> null
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession.Builder().build())
 
         then:
         status == "OUTSTANDING_TRANSACTION"
@@ -146,11 +147,11 @@ class MandateServiceSpec extends Specification {
         byte[] sampleFile = "file".getBytes()
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-        1 * signService.getSignedFile(_) >> sampleFile
+        1 * mobileIdSignService.getSignedFile(_) >> sampleFile
         1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession.Builder().build())
 
         then:
         1 * mandateProcessor.start(sampleUser, sampleMandate)
@@ -166,7 +167,7 @@ class MandateServiceSpec extends Specification {
         0 * emailService.sendMandate(_, _, _)
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession.Builder().build())
 
         then:
         status == "OUTSTANDING_TRANSACTION"
@@ -183,7 +184,7 @@ class MandateServiceSpec extends Specification {
         1 * episService.clearCache(sampleUser)
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession.Builder().build())
 
         then:
         status == "SIGNATURE"
@@ -200,7 +201,7 @@ class MandateServiceSpec extends Specification {
         0 * emailService.sendMandate(_, _, _)
 
         when:
-        service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession.Builder().build())
 
         then:
         thrown InvalidMandateException

@@ -2,7 +2,10 @@ package ee.tuleva.onboarding.auth.mobileid;
 
 import ee.sk.mid.MidHashToSign;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
+import lombok.Setter;
 
 @Getter
 public class MobileIDSession implements Serializable {
@@ -15,6 +18,7 @@ public class MobileIDSession implements Serializable {
   private String sessionId;
   private String phoneNumber;
   private MidHashToSign authenticationHash;
+  @Setter private List<String> errors = new ArrayList<>();
 
   public MobileIDSession(
       String sessionId, String challenge, MidHashToSign authenticationHash, String phoneNumber) {

@@ -88,7 +88,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        thrown(MobileIdException)
+        thrown(IllegalStateException)
     }
 
     def "IsLoginComplete: User is not a MID client"() {
@@ -99,7 +99,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        thrown(MobileIdException)
+        thrown(IllegalStateException)
     }
 
     def "IsLoginComplete: User did not type in PIN code before session timeout"() {
@@ -110,7 +110,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        thrown(MobileIdException)
+        thrown(IllegalStateException)
     }
 
     def "IsLoginComplete: Unable to reach phone/SIM card"() {
@@ -121,7 +121,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        thrown(MobileIdException)
+        thrown(IllegalStateException)
     }
 
     def "IsLoginComplete: Error communicating with the phone/SIM card"() {
@@ -132,7 +132,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        thrown(MobileIdException)
+        thrown(IllegalStateException)
     }
 
     def "IsLoginComplete: Mobile-ID configuration invalid"() {
@@ -143,7 +143,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        thrown(MobileIdException)
+        thrown(IllegalStateException)
     }
 
     def "IsLoginComplete: Integrator-side error with MID integration "() {
@@ -154,7 +154,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        thrown(MobileIdException)
+        thrown(IllegalStateException)
     }
 
     def "IsLoginComplete: MID service returned internal error"() {

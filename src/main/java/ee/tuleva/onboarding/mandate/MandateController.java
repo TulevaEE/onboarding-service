@@ -6,7 +6,6 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
 import static org.springframework.web.bind.annotation.RequestMethod.PUT;
 
 import com.codeborne.security.mobileid.IdCardSignatureSession;
-import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.codeborne.security.mobileid.SignatureFile;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession;
@@ -22,6 +21,7 @@ import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.MandateSignatureStatusResponse;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
 import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
+import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import io.swagger.annotations.ApiOperation;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -85,7 +85,8 @@ public class MandateController {
             mandateId, authenticatedPerson.getUserId(), loginSession.getPhoneNumber());
     genericSessionStore.save(signatureSession);
 
-    return new MobileSignatureResponse(signatureSession.challenge, signatureSession.challenge);
+    return new MobileSignatureResponse(
+        signatureSession.getVerificationCode(), signatureSession.getVerificationCode());
   }
 
   @ApiOperation(value = "Is mandate successfully signed with mobile ID")

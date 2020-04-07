@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.mandate
 
 import com.codeborne.security.mobileid.IdCardSignatureSession
-import com.codeborne.security.mobileid.MobileIdSignatureSession
 import com.codeborne.security.mobileid.SignatureFile
 import ee.sk.mid.MidAuthenticationHashToSign
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.exception.IdSessionException
+import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
@@ -48,7 +48,8 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "mobile id signature start returns the mobile id challenge code"() {
         when:
         sessionStore.get(MobileIDSession) >> dummyMobileIdSessionWithPhone("555")
-        mandateService.mobileIdSign(1L, _, "555") >> new MobileIdSignatureSession(1, "1234")
+        def mobileIdSignatureSession = new MobileIdSignatureSession.Builder().withSessionID("1").withVerificationCode("1234").build()
+        mandateService.mobileIdSign(1L, _, "555") >> mobileIdSignatureSession
 
         then:
         mvc
@@ -75,7 +76,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "get mobile ID signature status returns the status code"() {
         when:
-        def session = new MobileIdSignatureSession(1, "1234")
+        def session = new MobileIdSignatureSession.Builder().withSessionID("1").withVerificationCode("1234").build()
         sessionStore.get(MobileIdSignatureSession) >> Optional.of(session)
         mandateService.finalizeMobileIdSignature(_ as Long, 1L, session) >> "SIGNATURE"
 

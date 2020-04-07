@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
+import static ee.sk.mid.MidLanguage.ENG;
+
 import ee.sk.mid.MidAuthentication;
 import ee.sk.mid.MidAuthenticationHashToSign;
 import ee.sk.mid.MidAuthenticationIdentity;
 import ee.sk.mid.MidAuthenticationResponseValidator;
 import ee.sk.mid.MidAuthenticationResult;
 import ee.sk.mid.MidClient;
-import ee.sk.mid.MidDisplayTextFormat;
-import ee.sk.mid.MidLanguage;
 import ee.sk.mid.exception.MidDeliveryException;
 import ee.sk.mid.exception.MidInternalErrorException;
 import ee.sk.mid.exception.MidInvalidUserConfigurationException;
@@ -24,6 +24,7 @@ import ee.sk.mid.rest.dao.MidSessionStatus;
 import ee.sk.mid.rest.dao.request.MidAuthenticationRequest;
 import ee.sk.mid.rest.dao.response.MidAuthenticationResponse;
 import ee.tuleva.onboarding.auth.exception.MobileIdException;
+import java.util.Collections;
 import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -59,7 +60,7 @@ public class MobileIdAuthService {
   }
 
   public boolean isLoginComplete(MobileIDSession session) {
-    MidAuthenticationResult authenticationResult;
+    MidAuthenticationResult authenticationResult = null;
 
     try {
       MidSessionStatus sessionStatus =
@@ -70,38 +71,48 @@ public class MobileIdAuthService {
       authenticationResult = validator.validate(authentication);
 
     } catch (MidUserCancellationException e) {
-      log.info("User cancelled operation from his/her phone.");
-      throw new MobileIdException("You cancelled operation from your phone.");
+      log.info("User cancelled operation from his/her phone.", e);
+      session.setErrors(Collections.singletonList("You cancelled operation from your phone."));
     } catch (MidNotMidClientException e) {
-      log.info("User is not a MID client or user's certificates are revoked");
-      throw new MobileIdException(
-          "You are not a Mobile-ID client or your Mobile-ID certificates are revoked. Please contact your mobile operator.");
+      log.info("User is not a MID client or user's certificates are revoked", e);
+      session.setErrors(
+          Collections.singletonList(
+              "You are not a Mobile-ID client or your Mobile-ID certificates are revoked. Please contact your mobile operator."));
     } catch (MidSessionTimeoutException e) {
-      log.info("User did not type in PIN code or communication error.");
-      throw new MobileIdException(
-          "You didn't type in PIN code into your phone or there was a communication error.");
+      log.info("User did not type in PIN code or communication error.", e);
+      session.setErrors(
+          Collections.singletonList(
+              "You didn't type in PIN code into your phone or there was a communication error."));
     } catch (MidPhoneNotAvailableException e) {
-      log.info("Unable to reach phone/SIM card. User needs to check if phone has coverage.");
-      throw new MobileIdException(
-          "Unable to reach your phone. Please make sure your phone has mobile coverage.");
+      log.info("Unable to reach phone/SIM card. User needs to check if phone has coverage.", e);
+      session.setErrors(
+          Collections.singletonList(
+              "Unable to reach your phone. Please make sure your phone has mobile coverage."));
     } catch (MidDeliveryException e) {
-      log.info("Error communicating with the phone/SIM card.");
-      throw new MobileIdException("Communication error. Unable to reach your phone.");
+      log.info("Error communicating with the phone/SIM card.", e);
+      session.setErrors(
+          Collections.singletonList("Communication error. Unable to reach your phone."));
     } catch (MidInvalidUserConfigurationException e) {
       log.info(
-          "Mobile-ID configuration on user's SIM card differs from what is configured on service provider side. User needs to contact his/her mobile operator.");
-      throw new MobileIdException(
-          "Mobile-ID configuration on your SIM card differs from what is configured on service provider's side. Please contact your mobile operator.");
+          "Mobile-ID configuration on user's SIM card differs from what is configured on service provider side. User needs to contact his/her mobile operator.",
+          e);
+      session.setErrors(
+          Collections.singletonList(
+              "Mobile-ID configuration on your SIM card differs from what is configured on service provider's side. Please contact your mobile operator."));
     } catch (MidSessionNotFoundException
         | MidMissingOrInvalidParameterException
         | MidUnauthorizedException e) {
-      log.error(
+      log.info(
           "Integrator-side error with MID integration (including insufficient input validation) or configuration",
           e);
-      throw new MobileIdException("Client side error with mobile-ID integration.", e);
+      session.setErrors(Collections.singletonList("Client side error with mobile-ID integration."));
     } catch (MidInternalErrorException e) {
       log.warn("MID service returned internal error that cannot be handled locally.");
       throw new MobileIdException("MID internal error", e);
+    }
+
+    if (!session.getErrors().isEmpty()) {
+      throw new IllegalStateException(String.join(",", session.getErrors()));
     }
 
     if (!authenticationResult.isValid()) {
@@ -125,9 +136,7 @@ public class MobileIdAuthService {
         .withPhoneNumber(normalizePhoneNumber(phoneNumber))
         .withNationalIdentityNumber(personalCode)
         .withHashToSign(authenticationHash)
-        .withLanguage(MidLanguage.ENG)
-        .withDisplayText("Log into self-service")
-        .withDisplayTextFormat(MidDisplayTextFormat.GSM7)
+        .withLanguage(ENG)
         .build();
   }
 

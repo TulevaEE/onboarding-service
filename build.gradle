@@ -73,6 +73,7 @@ dependencies {
 		exclude group: 'commons-logging', module: 'commons-logging'
 	}
 	implementation('ee.sk.smartid:smart-id-java-client:1.1')
+	implementation('org.digidoc4j:digidoc4j:3.0.0')
 
 	implementation('io.sentry:sentry-logback:1.7.16')
 	implementation('io.springfox:springfox-swagger2:2.6.1')

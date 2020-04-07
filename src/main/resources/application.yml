@@ -65,6 +65,8 @@ mobile-id:
   hostUrl: 'https://tsp.demo.sk.ee/mid-api'
   pollingSleepTimeoutSeconds: 2
   longPollingTimeoutSeconds: 60
+  sign:
+    environment: 'TEST'
   service:
     name: "Testimine"
 
@@ -159,6 +161,8 @@ ssl:
 
 mobile-id:
   hostUrl: "https://mid.sk.ee/mid-api"
+  sign:
+    environment: 'PROD'
   service:
     name: "Tuleva"
 

@@ -199,5 +199,6 @@ mailchimp:
 
 morningstar:
   host: ftp.morningstar.com
+  port: 21
   username: ${MORNINGSTAR_USERNAME}
   password: ${MORNINGSTAR_PASSWORD}

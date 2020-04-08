@@ -2,29 +2,83 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import org.mockftpserver.fake.FakeFtpServer
-import org.springframework.http.HttpMethod
-import org.springframework.http.HttpStatus
-import org.springframework.http.client.ClientHttpResponse
-import org.springframework.web.client.RequestCallback
-import org.springframework.web.client.ResponseExtractor
-import org.springframework.web.client.RestTemplate
+import org.mockftpserver.fake.UserAccount
+import org.mockftpserver.fake.filesystem.DirectoryEntry
+import org.mockftpserver.fake.filesystem.FileEntry
+import org.mockftpserver.fake.filesystem.UnixFakeFileSystem
+import org.mockftpserver.fake.filesystem.FileSystem
+
+import org.springframework.beans.factory.annotation.Value
+import org.springframework.core.io.ClassPathResource
+import org.springframework.test.context.ActiveProfiles
+import org.springframework.test.util.ReflectionTestUtils
+import spock.lang.Shared
 import spock.lang.Specification
 
-import java.nio.charset.StandardCharsets
-import java.time.LocalDate
+import java.nio.file.Files
 
 import static java.time.LocalDate.parse
 
 class GlobalIndexValueRetrieverSpec extends Specification {
+    @Shared
+    private FakeFtpServer fakeFtpServer
 
-    private FakeFtpServer fakeFtpServer;
-    WorldIndexValueRetriever retriever
+    @Shared
+    private GlobalStockIndexRetriever retriever
 
-    void setup() {
-        fakeFtpServer = new FakeFtpServer();
-        fakeFtpServer.addUserAccount()
-        restTemplate = Mock(RestTemplate)
-        retriever = new WorldIndexValueRetriever(restTemplate)
+//    @Value('${morningstar.username}')
+    @Shared
+    private String ftpUsername = "someUsername"
+
+//    @Value('${morningstar.password}')
+    @Shared
+    private String ftpPassword = "somePassword"
+
+    @Shared
+    private String ftpHost = "localhost"
+
+    private static final String PATH = "/Daily/DMRI/XI_MSTAR"
+
+    void setupSpec() {
+
+        fakeFtpServer = new FakeFtpServer()
+        fakeFtpServer.addUserAccount(new UserAccount(ftpUsername,ftpPassword, '/'))
+
+        FileSystem fileSystem = new UnixFakeFileSystem();
+        fileSystem.add(new DirectoryEntry(PATH))
+        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200326.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200326.zip'))
+        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200327.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200327.zip'))
+        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200330.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200330.zip'))
+        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200331.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200331.zip'))
+
+        fakeFtpServer.setFileSystem(fileSystem)
+        fakeFtpServer.setServerControlPort(0)
+        fakeFtpServer.start()
+
+        retriever = new GlobalStockIndexRetriever()
+        ReflectionTestUtils.setField(retriever, "ftpUsername", ftpUsername)
+        ReflectionTestUtils.setField(retriever, "ftpPassword", ftpPassword)
+        ReflectionTestUtils.setField(retriever, "ftpHost", ftpHost)
+        ReflectionTestUtils.setField(retriever, "ftpPort", fakeFtpServer.getServerControlPort())
+
+    }
+
+    void cleanupSpec() {
+        fakeFtpServer.stop();
+    }
+
+    private fakeFileEntry(path, resourceFile) {
+        FileEntry entry = new FileEntry(path)
+        print('File Entry');
+        print(resourceFile);
+        print(readFile(resourceFile));
+        entry.setContents(readFile(resourceFile))
+        return entry
+    }
+
+    private byte[] readFile(String fileName) {
+        def resource = new ClassPathResource(fileName)
+        return Files.readAllBytes(resource.getFile().toPath())
     }
 
     def "it is configured for the right fund"() {
@@ -32,108 +86,23 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         def retrievalFund = retriever.getKey()
 
         then:
-        retrievalFund == WorldIndexValueRetriever.KEY
+        retrievalFund == GlobalStockIndexRetriever.KEY
     }
 
-    def "it successfully parses a valid fund values"() {
+    def "it successfully parses ftp response"() {
         given:
-        String responseBody = """"Indeks Components ","ISIN","Share","Last price nav","date","expense ratio","",""
-"","","70%","24.1800","","0.25%","",""
-"","","30%","223.8900","","0.20%","",""
-"1-Jul-2018","24.18","223.89","8.1931","0.3617","279.09","",""
-"17-July-2018","24.05","224.01","8.1931","0.3617","278.07","",""
-"""
-        ClientHttpResponse response = createResponse(HttpStatus.OK, responseBody)
         List<FundValue> expectedValues = [
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-01"), 279.09),
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-17"), 278.07),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-26"), 2803.69952),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-27"), 2732.50162),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-28"), 2732.50162),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-29"), 2732.50162),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-30"), 2791.31415),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-31"), 2791.20446),
         ]
-
         when:
-        List<FundValue> values = retriever.retrieveValuesForRange(parse("2018-01-01"), parse("2019-01-01"))
+        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-26"), parse("2020-03-31"))
 
         then:
-        1 * restTemplate.execute(_, _, _, _, _) >> {
-            String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
-                handler.extractData(response)
-        }
         values == expectedValues
-    }
-
-    def "it filters out lines with incorrect dates"() {
-        given:
-        def startTime = parse("2018-07-16")
-        def endTime = parse("2018-07-17")
-        String responseBody = """"Indeks Components ","ISIN","Share","Last price nav","date","expense ratio","","","","","","","","","","","","","","","","","","","",""
-"","","70%","24.1800","","0.25%","","","","","","","","","","","","","","","","","","","",""
-"","","30%","223.8900","","0.20%","","","","","","","","","","","","","","","","","","","",""
-"18-Jul-2018","24.18","223.89","6.7372","0.2974","229.49","","","","","","","","","","","","","","","","","","","",""
-"17-Jul-2018","24.05","224.01","6.7372","0.2974","228.65","","","","","","","","","","","","","","","","","","","",""
-"16-Jul-2018","23.94","223.43","6.7372","0.2974","227.74","","","","","","","","","","","","","","","","","","","",""
-"13-Jul-2018","24.04","223.77","6.7372","0.2974","228.52","","","","","","","","","","","","","","","","","","","",""
-"""
-        ClientHttpResponse response = createResponse(HttpStatus.OK, responseBody)
-        List<FundValue> expectedValues = [
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-17"), 228.65),
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-16"), 227.74),
-        ]
-
-        when:
-        List<FundValue> values = retriever.retrieveValuesForRange(startTime, endTime)
-
-        then:
-        1 * restTemplate.execute(_, _, _, _, _) >> {
-            String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
-                handler.extractData(response)
-        }
-        values == expectedValues
-
-    }
-
-    def "when a row is misformed it is ignored"() {
-        given:
-        ClientHttpResponse response = createResponse(HttpStatus.OK, """i"Indeks Components ","ISIN","Share","Last price nav","date","expense ratio","",""
-broken
-"","","70%","24.1800","","0.25%","",""
-"","","30%","223.8900","","0.20%","",""
-"18-Jul-2018","24.18","223.89","8.1931","0.3617","279.09","",""
-"17-Jul-2018","24.05","224.01","8.1931","0.3617","278.07","",""
-""")
-        List<FundValue> expectedValues = [
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-18"), 279.09),
-            new FundValue(WorldIndexValueRetriever.KEY, parse("2018-07-17"), 278.07),
-        ]
-
-        when:
-        List<FundValue> values = retriever.retrieveValuesForRange(parse("2018-01-01"), parse("2019-01-01"))
-
-        then:
-        1 * restTemplate.execute(_, _, _, _, _) >> {
-            String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
-                handler.extractData(response)
-        }
-        values == expectedValues
-    }
-
-    def "when an invalid response is received, an empty list is returned"() {
-        given:
-        ClientHttpResponse response = createResponse(HttpStatus.BAD_REQUEST, "")
-
-        when:
-        List<FundValue> values = retriever.retrieveValuesForRange(LocalDate.now(), LocalDate.now())
-
-        then:
-        1 * restTemplate.execute(_, _, _, _, _) >> {
-            String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
-                handler.extractData(response)
-        }
-        values.empty
-    }
-
-    private ClientHttpResponse createResponse(HttpStatus status, String csvBody) {
-        ClientHttpResponse response = Mock(ClientHttpResponse)
-        response.getStatusCode() >> status
-        response.getBody() >> new ByteArrayInputStream(csvBody.getBytes(StandardCharsets.UTF_8))
-        return response;
     }
 }

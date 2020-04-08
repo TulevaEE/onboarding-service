@@ -19,21 +19,23 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
     public static final String KEY = "GLOBAL_STOCK_INDEX";
 
     @Value("${morningstar.username}")
-    String ftpUsername;
+    private String ftpUsername;
 
     @Value("${morningstar.password}")
-    String ftpPassword;
+    private String ftpPassword;
 
     @Value("${morningstar.host}")
-    String ftpHost;
+    private String ftpHost;
+
+    @Value("${morningstar.port}")
+    private int ftpPort;
 
     private static final String PATH = "/Daily/DMRI/XI_MSTAR/";
-    private static final String SEC_ID = "F00000VN9N";
+    private static final String secID = "F00000VN9N";
 
     @Override
     public String getKey() {
@@ -42,74 +44,146 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
 
     @Override
     public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-        ArrayList<FundValue> fundValues = new ArrayList<>();
-        FtpClient ftpClient = new FtpClient(ftpHost, ftpUsername, ftpPassword);
+        ArrayList<DailyRecord> records = new ArrayList<>();
 
+        FtpClient ftpClient = new FtpClient(ftpHost, ftpUsername, ftpPassword, ftpPort);
         try {
             ftpClient.open();
             Collection<String> fileNames = ftpClient.listFiles(GlobalStockIndexRetriever.PATH);
-
-            for(LocalDate date = startDate; date.isBefore(endDate); date = date.plusDays(1))
+            for(LocalDate date = startDate; date.isBefore(endDate) || date.isEqual(endDate); date = date.plusDays(1))
             {
                 String dateString = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 String fileName = fileNames.stream()
-                    .filter(string -> string.contains(dateString))
+                    .filter(string -> string.endsWith(dateString + ".zip"))
                     .findAny()
                     .orElse(null);
 
-                if(fileName != null) {
+                if(fileName == null) {
+                    continue;
+                }
+
+                try{
                     InputStream fileStream = ftpClient.downloadFileStream(GlobalStockIndexRetriever.PATH + fileName);
-                    Optional<DailyRecord> optionalRecord = findInZip(fileStream, GlobalStockIndexRetriever.SEC_ID);
-                    if(optionalRecord.isPresent()) {
-                        DailyRecord record = optionalRecord.get();
-                        fundValues.add(new FundValue(
-                            GlobalStockIndexRetriever.KEY,
-                            date,
-                            record.value
-                        ));
-                    }
+                    Optional<DailyRecord> optionalRecord = findInZip(fileStream, GlobalStockIndexRetriever.secID);
+                    optionalRecord.ifPresent(dailyRecord -> pushDailyRecord(records, dailyRecord));
                     fileStream.close();
+                    ftpClient.completePendingCommand();
+                } catch(IOException ignored) {
+
                 }
             }
-            ftpClient.close();
         } catch(IOException e) {
             log.error(e.getMessage());
+        } finally {
+            try {
+                ftpClient.close();
+            } catch(IOException ignored) {}
         }
+        return extractValuesFromRecords(records, startDate, endDate);
+    }
 
+    private List<FundValue> extractValuesFromRecords(List<DailyRecord> records, LocalDate startDate, LocalDate endDate) {
+        ArrayList<FundValue> fundValues = new ArrayList<>();
+
+        for(LocalDate date = startDate; date.isBefore(endDate) || date.isEqual(endDate); date = date.plusDays(1)) {
+            String monthID = date.format(DateTimeFormatter.ofPattern("yyyyMM"));
+            int dayOfMonth = date.getDayOfMonth();
+
+            DailyRecord record = records.stream()
+                .filter(r -> r.secID.equals(secID) && r.monthID.equals(monthID))
+                .findAny()
+                .orElse(null);
+
+            if(record == null)
+                continue;
+
+            String value = record.values.get(dayOfMonth - 1);
+            if(!value.isEmpty()) {
+                fundValues.add(new FundValue(GlobalStockIndexRetriever.KEY, date, new BigDecimal(value)));
+            }
+        }
         return fundValues;
     }
 
-    private Optional<DailyRecord> findInZip(InputStream stream, String secId) throws IOException {
-        ZipInputStream zipStream = new ZipInputStream(stream);
-
-        // Just get one file and we are done.
-        ZipEntry entry = zipStream.getNextEntry();
-
-        if(entry != null) {
-            return findInCSV(zipStream, secId);
+    private void pushDailyRecord(List<DailyRecord> records, DailyRecord record) {
+        int recordIdx = records.indexOf(record);
+        if(recordIdx != -1) {
+            records.get(recordIdx).update(record);
         } else {
-            return Optional.empty();
+            records.add(record);
         }
     }
 
-    private Optional<DailyRecord> findInCSV(InputStream stream, String secId) {
-        BufferedReader reader = new BufferedReader(new InputStreamReader(stream, UTF_8));
-        Stream<String> lines = reader.lines();
-        reader.close();
-        return lines.map(this::parseLine)
-            .filter((DailyRecord record) -> record.secID.equals(secId))
-            .findFirst();
+    private Optional<DailyRecord> findInZip(InputStream stream, String secId) throws IOException {
+        try(ZipInputStream zipStream = new ZipInputStream(stream)) {
+            // Just get one file and we are done.
+            ZipEntry entry = zipStream.getNextEntry();
+
+            if(entry != null) {
+                return findInCSV(zipStream, secId);
+            } else {
+                return Optional.empty();
+            }
+        }
+    }
+
+    private Optional<DailyRecord> findInCSV(InputStream stream, String secId) throws IOException {
+        try(BufferedReader reader = new BufferedReader(new InputStreamReader(stream, UTF_8))) {
+            Stream<String> lines = reader.lines();
+            return lines.map(this::parseLine)
+                .filter((DailyRecord record) -> record.secID.equals(secId))
+                .findFirst();
+        }
     }
 
     private DailyRecord parseLine(String line) {
-        String[] parts = line.split(",");
-
-        return new DailyRecord(parts[0], new BigDecimal(parts[parts.length - 1]));
+        String[] parts = line.split(",", -1);
+        int partLength = parts.length;
+        return new DailyRecord(parts[0], parts[1], Arrays.asList(parts).subList(2, partLength));
     }
 
-    @lombok.Value
     private static class DailyRecord {
-        String secID;
-        BigDecimal value;
+        @Getter private String secID;
+        @Getter private String monthID;
+        @Getter private ArrayList<String> values;
+
+        DailyRecord(String _secID, String _monthID, Collection<String> _values) {
+            secID = _secID;
+            monthID = _monthID;
+            values = new ArrayList<>(_values);
+        }
+
+        public void update(DailyRecord other) {
+            if(!other.equals(this)) return;
+
+            for(int i = 0; i < other.values.size(); i++) {
+                if(!other.values.get(i).isEmpty()) {
+                    values.set(i, other.values.get(i));
+                }
+            }
+        }
+
+        @Override
+        public boolean equals(Object o) {
+
+            // If the object is compared with itself then return true
+            if (o == this) {
+                return true;
+            }
+
+        /* Check if o is an instance of Complex or not
+          "null instanceof [type]" also returns false */
+            if (!(o instanceof DailyRecord)) {
+                return false;
+            }
+
+            // typecast o to Complex so that we can compare data members
+            DailyRecord d = (DailyRecord) o;
+
+            // Compare the data members and return accordingly
+            return d.secID.equals(GlobalStockIndexRetriever.secID)
+                && d.monthID.equals(monthID);
+        }
+
     }
 }

@@ -32,3 +32,9 @@ mailchimp:
     key: someKey
   list:
     id: someId
+
+morningstar:
+  host: localhost
+  port: 21
+  username: someUsername
+  password: somePassword

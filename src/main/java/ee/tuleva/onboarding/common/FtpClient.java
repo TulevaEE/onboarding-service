@@ -13,6 +13,7 @@ public class FtpClient {
     private final String server;
     private final String user;
     private final String password;
+    private final int port;
 
     private FTPClient ftp;
 
@@ -20,8 +21,7 @@ public class FtpClient {
         ftp = new FTPClient();
 
         ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(System.out)));
-
-        ftp.connect(server, 21);
+        ftp.connect(server, port);
         int reply = ftp.getReplyCode();
         if (!FTPReply.isPositiveCompletion(reply)) {
             ftp.disconnect();
@@ -49,5 +49,8 @@ public class FtpClient {
 
     public InputStream downloadFileStream(String source) throws IOException {
         return ftp.retrieveFileStream(source);
+    }
+    public boolean completePendingCommand() throws IOException {
+        return ftp.completePendingCommand();
     }
 }

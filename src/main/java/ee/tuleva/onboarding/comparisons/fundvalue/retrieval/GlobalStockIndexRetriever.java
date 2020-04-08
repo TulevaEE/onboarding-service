@@ -68,9 +68,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
                     optionalRecord.ifPresent(dailyRecord -> pushDailyRecord(records, dailyRecord));
                     fileStream.close();
                     ftpClient.completePendingCommand();
-                } catch(IOException ignored) {
-
-                }
+                } catch(IOException ignored) {}
             }
         } catch(IOException e) {
             log.error(e.getMessage());

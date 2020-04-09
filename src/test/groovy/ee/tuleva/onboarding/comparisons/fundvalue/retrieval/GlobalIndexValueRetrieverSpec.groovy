@@ -1,17 +1,26 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+import ee.tuleva.onboarding.config.MorningstarFTPConfiguration
+import ee.tuleva.onboarding.config.OAuthConfiguration
+import ee.tuleva.onboarding.config.SecurityConfiguration
+import ee.tuleva.onboarding.error.ErrorHandlingController
+import ee.tuleva.onboarding.error.converter.ErrorAttributesConverter
+import ee.tuleva.onboarding.error.converter.InputErrorsConverter
+import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
+import ee.tuleva.onboarding.ftp.FTPClientFactory
+import ee.tuleva.onboarding.ftp.FtpClient
 import org.mockftpserver.fake.FakeFtpServer
 import org.mockftpserver.fake.UserAccount
 import org.mockftpserver.fake.filesystem.DirectoryEntry
 import org.mockftpserver.fake.filesystem.FileEntry
 import org.mockftpserver.fake.filesystem.UnixFakeFileSystem
 import org.mockftpserver.fake.filesystem.FileSystem
-
-import org.springframework.beans.factory.annotation.Value
+import org.mockito.Mock
+import org.mockito.Mockito
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.context.annotation.Import
 import org.springframework.core.io.ClassPathResource
-import org.springframework.test.context.ActiveProfiles
-import org.springframework.test.util.ReflectionTestUtils
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -26,11 +35,9 @@ class GlobalIndexValueRetrieverSpec extends Specification {
     @Shared
     private GlobalStockIndexRetriever retriever
 
-//    @Value('${morningstar.username}')
     @Shared
     private String ftpUsername = "someUsername"
 
-//    @Value('${morningstar.password}')
     @Shared
     private String ftpPassword = "somePassword"
 
@@ -40,11 +47,10 @@ class GlobalIndexValueRetrieverSpec extends Specification {
     private static final String PATH = "/Daily/DMRI/XI_MSTAR"
 
     void setupSpec() {
-
         fakeFtpServer = new FakeFtpServer()
         fakeFtpServer.addUserAccount(new UserAccount(ftpUsername,ftpPassword, '/'))
 
-        FileSystem fileSystem = new UnixFakeFileSystem();
+        FileSystem fileSystem = new UnixFakeFileSystem()
         fileSystem.add(new DirectoryEntry(PATH))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200326.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200326.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200327.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200327.zip'))
@@ -55,23 +61,22 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         fakeFtpServer.setServerControlPort(0)
         fakeFtpServer.start()
 
-        retriever = new GlobalStockIndexRetriever()
-        ReflectionTestUtils.setField(retriever, "ftpUsername", ftpUsername)
-        ReflectionTestUtils.setField(retriever, "ftpPassword", ftpPassword)
-        ReflectionTestUtils.setField(retriever, "ftpHost", ftpHost)
-        ReflectionTestUtils.setField(retriever, "ftpPort", fakeFtpServer.getServerControlPort())
+        FTPClientFactory ftpClientFactory = Mock(FTPClientFactory)
 
+        ftpClientFactory.createClient() >> new FtpClient(ftpHost, ftpUsername, ftpPassword, fakeFtpServer.getServerControlPort())
+
+        retriever = new GlobalStockIndexRetriever(ftpClientFactory)
     }
 
     void cleanupSpec() {
-        fakeFtpServer.stop();
+        fakeFtpServer.stop()
     }
 
     private fakeFileEntry(path, resourceFile) {
         FileEntry entry = new FileEntry(path)
-        print('File Entry');
-        print(resourceFile);
-        print(readFile(resourceFile));
+        print('File Entry')
+        print(resourceFile)
+        print(readFile(resourceFile))
         entry.setContents(readFile(resourceFile))
         return entry
     }

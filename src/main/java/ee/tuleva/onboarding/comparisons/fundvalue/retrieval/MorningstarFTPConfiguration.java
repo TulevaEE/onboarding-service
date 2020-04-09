@@ -1,6 +1,5 @@
-package ee.tuleva.onboarding.config;
+package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
-import ee.tuleva.onboarding.ftp.FTPClientFactory;
 import ee.tuleva.onboarding.ftp.FtpClient;
 import lombok.extern.slf4j.*;
 import org.springframework.beans.factory.annotation.*;
@@ -19,7 +18,7 @@ public class MorningstarFTPConfiguration {
     private int ftpPort;
 
     @Bean
-    public FTPClientFactory morningstarFTPClientFactory() {
-        return new FTPClientFactory(ftpHost, ftpUsername, ftpPassword, ftpPort);
+    public FtpClient morningstarFTPClient() {
+        return new FtpClient(ftpHost, ftpUsername, ftpPassword, ftpPort);
     }
 }

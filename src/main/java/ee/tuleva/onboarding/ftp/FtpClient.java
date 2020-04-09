@@ -1,15 +1,11 @@
 package ee.tuleva.onboarding.ftp;
 
-
-import ee.tuleva.onboarding.log.LogInfoOutputStream;
 import lombok.RequiredArgsConstructor;
-import org.apache.commons.net.PrintCommandListener;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.List;
@@ -27,7 +23,6 @@ public class FtpClient {
     public void open() {
         try {
             ftp = new FTPClient();
-            ftp.addProtocolCommandListener(new PrintCommandListener(new PrintWriter(new LogInfoOutputStream())));
             ftp.connect(server, port);
             int reply = ftp.getReplyCode();
             if (!FTPReply.isPositiveCompletion(reply)) {

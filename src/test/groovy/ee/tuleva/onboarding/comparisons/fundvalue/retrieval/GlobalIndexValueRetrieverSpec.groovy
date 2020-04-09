@@ -1,14 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
-import ee.tuleva.onboarding.config.MorningstarFTPConfiguration
-import ee.tuleva.onboarding.config.OAuthConfiguration
-import ee.tuleva.onboarding.config.SecurityConfiguration
-import ee.tuleva.onboarding.error.ErrorHandlingController
-import ee.tuleva.onboarding.error.converter.ErrorAttributesConverter
-import ee.tuleva.onboarding.error.converter.InputErrorsConverter
-import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
-import ee.tuleva.onboarding.ftp.FTPClientFactory
 import ee.tuleva.onboarding.ftp.FtpClient
 import org.mockftpserver.fake.FakeFtpServer
 import org.mockftpserver.fake.UserAccount
@@ -16,10 +8,6 @@ import org.mockftpserver.fake.filesystem.DirectoryEntry
 import org.mockftpserver.fake.filesystem.FileEntry
 import org.mockftpserver.fake.filesystem.UnixFakeFileSystem
 import org.mockftpserver.fake.filesystem.FileSystem
-import org.mockito.Mock
-import org.mockito.Mockito
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.context.annotation.Import
 import org.springframework.core.io.ClassPathResource
 import spock.lang.Shared
 import spock.lang.Specification
@@ -61,11 +49,9 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         fakeFtpServer.setServerControlPort(0)
         fakeFtpServer.start()
 
-        FTPClientFactory ftpClientFactory = Mock(FTPClientFactory)
+        FtpClient ftpClient = new FtpClient(ftpHost, ftpUsername, ftpPassword, fakeFtpServer.getServerControlPort())
 
-        ftpClientFactory.createClient() >> new FtpClient(ftpHost, ftpUsername, ftpPassword, fakeFtpServer.getServerControlPort())
-
-        retriever = new GlobalStockIndexRetriever(ftpClientFactory)
+        retriever = new GlobalStockIndexRetriever(ftpClient)
     }
 
     void cleanupSpec() {

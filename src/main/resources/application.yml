@@ -121,13 +121,19 @@ logging:
         mid:
           rest:
             MidLoggingFilter: TRACE
+
+morningstar:
+  host: ${MORNINGSTAR_HOST:localhost}
+  port: 21
+  username: ${MORNINGSTAR_USERNAME:someUser}
+  password: ${MORNINGSTAR_USERNAME:somePassword}
+
 ---
 
 spring:
   profiles: dev, test
   flyway:
     locations: classpath:/db/migration, classpath:/db/dev
-
 ---
 
 spring:

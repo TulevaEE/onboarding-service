@@ -20,16 +20,13 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
     public static final String KEY = "GLOBAL_STOCK_INDEX";
     private static final String PATH = "/Daily/DMRI/XI_MSTAR/";
     private static final String SECURITY_ID = "F00000VN9N";
 
-    private final FTPClientFactory ftpClientFactory;
-
-    GlobalStockIndexRetriever(@Autowired FTPClientFactory ftpClientFactory) {
-        this.ftpClientFactory = ftpClientFactory;
-    }
+    private final FtpClient morningstarFTPClient;
 
     @Override
     public String getKey() {
@@ -39,10 +36,10 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
     @Override
     public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
         Map<String, DailyRecord> monthRecordMap = new HashMap<>();
-        FtpClient ftpClient = ftpClientFactory.createClient();
+
         try {
-            ftpClient.open();
-            Collection<String> fileNames = ftpClient.listFiles(GlobalStockIndexRetriever.PATH);
+            morningstarFTPClient.open();
+            Collection<String> fileNames = morningstarFTPClient.listFiles(GlobalStockIndexRetriever.PATH);
             for (LocalDate date = startDate; date.isBefore(endDate) || date.isEqual(endDate); date = date.plusDays(1)) {
                 String dateString = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 String fileName = fileNames.stream()
@@ -55,11 +52,11 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
                 }
 
                 try {
-                    InputStream fileStream = ftpClient.downloadFileStream(GlobalStockIndexRetriever.PATH + fileName);
+                    InputStream fileStream = morningstarFTPClient.downloadFileStream(GlobalStockIndexRetriever.PATH + fileName);
                     Optional<DailyRecord> optionalRecord = findInZip(fileStream, GlobalStockIndexRetriever.SECURITY_ID);
                     optionalRecord.ifPresent(dailyRecord -> pushDailyRecord(monthRecordMap, dailyRecord));
                     fileStream.close();
-                    ftpClient.completePendingCommand();
+                    morningstarFTPClient.completePendingCommand();
                 } catch (IOException e) {
                     log.error(e.getMessage(), e);
                 }
@@ -68,7 +65,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
             log.error(e.getMessage(), e);
         } finally {
             try {
-                ftpClient.close();
+                morningstarFTPClient.close();
             } catch (IOException ignored) {
             }
         }

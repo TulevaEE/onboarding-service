@@ -1,11 +1,9 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.*;
-import ee.tuleva.onboarding.ftp.FTPClientFactory;
 import ee.tuleva.onboarding.ftp.FtpClient;
 import lombok.*;
 import lombok.extern.slf4j.*;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.*;
 
 import java.io.*;

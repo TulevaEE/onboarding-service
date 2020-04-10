@@ -41,7 +41,6 @@ class GlobalIndexValueRetrieverSpec extends Specification {
 
         FileSystem fileSystem = new UnixFakeFileSystem()
         fileSystem.add(new DirectoryEntry(PATH))
-        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200324.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200324.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200325.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200325.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200326.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200326.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200327.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200327.zip'))

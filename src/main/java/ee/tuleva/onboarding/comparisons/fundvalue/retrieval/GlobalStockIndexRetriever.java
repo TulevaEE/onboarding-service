@@ -64,7 +64,8 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
         } finally {
             try {
                 morningstarFTPClient.close();
-            } catch (IOException ignored) {
+            } catch (IOException e) {
+                log.error(e.getMessage(), e);
             }
         }
         return extractValuesFromRecords(monthRecordMap, startDate, endDate);

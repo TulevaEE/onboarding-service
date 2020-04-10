@@ -6,7 +6,6 @@ import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,20 +19,15 @@ public class FtpClient {
 
     private FTPClient ftp;
 
-    public void open() {
-        try {
-            ftp = new FTPClient();
-            ftp.connect(server, port);
-            int reply = ftp.getReplyCode();
-            if (!FTPReply.isPositiveCompletion(reply)) {
-                ftp.disconnect();
-            }
-
-            ftp.login(user, password);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-
+    public void open() throws IOException {
+        ftp = new FTPClient();
+        ftp.connect(server, port);
+        int reply = ftp.getReplyCode();
+        if (!FTPReply.isPositiveCompletion(reply)) {
+            ftp.disconnect();
         }
+
+        ftp.login(user, password);
     }
 
     public void close() throws IOException {

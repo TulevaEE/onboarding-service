@@ -32,6 +32,9 @@ class GlobalIndexValueRetrieverSpec extends Specification {
     @Shared
     private String ftpHost = "localhost"
 
+    @Shared
+    private FtpClient ftpClient;
+
     private static final String PATH = "/Daily/DMRI/XI_MSTAR"
 
     void setupSpec() {
@@ -127,7 +130,7 @@ class GlobalIndexValueRetrieverSpec extends Specification {
             new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-31"), 2791.20446),
         ]
         when:
-        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-24"), parse("2020-03-31"))
+        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
 
         then:
         values == expectedValues

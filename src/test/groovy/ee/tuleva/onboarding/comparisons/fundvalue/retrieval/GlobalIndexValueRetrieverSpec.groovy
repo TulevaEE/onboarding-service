@@ -40,6 +40,8 @@ class GlobalIndexValueRetrieverSpec extends Specification {
 
         FileSystem fileSystem = new UnixFakeFileSystem()
         fileSystem.add(new DirectoryEntry(PATH))
+        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200324.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200324.zip'))
+        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200325.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200325.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200326.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200326.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200327.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200327.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200330.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200330.zip'))
@@ -80,7 +82,7 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         retrievalFund == GlobalStockIndexRetriever.KEY
     }
 
-    def "it successfully parses ftp response"() {
+    def "it successfully parses ftp files"() {
         given:
         List<FundValue> expectedValues = [
             new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-26"), 2803.69952),
@@ -92,6 +94,40 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         ]
         when:
         List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-26"), parse("2020-03-31"))
+
+        then:
+        values == expectedValues
+    }
+
+    def "it skips invalid ftp files"() {
+        given:
+        List<FundValue> expectedValues = [
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-26"), 2803.69952),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-27"), 2732.50162),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-28"), 2732.50162),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-29"), 2732.50162),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-30"), 2791.31415),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-31"), 2791.20446),
+        ]
+        when:
+        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-25"), parse("2020-03-31"))
+
+        then:
+        values == expectedValues
+    }
+
+    def "it should work with empty data files"() {
+        given:
+        List<FundValue> expectedValues = [
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-26"), 2803.69952),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-27"), 2732.50162),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-28"), 2732.50162),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-29"), 2732.50162),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-30"), 2791.31415),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-31"), 2791.20446),
+        ]
+        when:
+        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-24"), parse("2020-03-31"))
 
         then:
         values == expectedValues

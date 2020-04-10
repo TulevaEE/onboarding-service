@@ -32,8 +32,6 @@ class GlobalIndexValueRetrieverSpec extends Specification {
     @Shared
     private String ftpHost = "localhost"
 
-    @Shared
-    private FtpClient ftpClient;
 
     private static final String PATH = "/Daily/DMRI/XI_MSTAR"
 
@@ -134,5 +132,31 @@ class GlobalIndexValueRetrieverSpec extends Specification {
 
         then:
         values == expectedValues
+    }
+
+    def "it should handle ftp client open/close exception"() {
+        given:
+        FtpClient ftpClient = Mock(FtpClient)
+        GlobalStockIndexRetriever testRetriever = new GlobalStockIndexRetriever(ftpClient)
+        ftpClient.open() >> {throw new IOException('123')}
+        ftpClient.close() >> {throw new IOException('123')}
+        when:
+        testRetriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
+
+        then:
+        noExceptionThrown()
+    }
+
+    def "it should handle ftp client download exception"() {
+        given:
+        FtpClient ftpClient = Mock(FtpClient)
+        GlobalStockIndexRetriever testRetriever = new GlobalStockIndexRetriever(ftpClient)
+        ftpClient.listFiles(_ as String) >> {return ['DMRI_XI_MSTAR_USA_D_20200324.zip', 'DMRI_XI_MSTAR_USA_D_20200325.zip']}
+        ftpClient.downloadFileStream(_ as String) >> {throw new IOException('123')}
+        when:
+        testRetriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
+
+        then:
+        noExceptionThrown()
     }
 }

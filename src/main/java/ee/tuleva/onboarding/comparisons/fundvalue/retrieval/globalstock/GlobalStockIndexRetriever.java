@@ -1,18 +1,23 @@
-package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
+package ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.*;
-import ee.tuleva.onboarding.ftp.FtpClient;
-import lombok.*;
-import lombok.extern.slf4j.*;
-import org.springframework.stereotype.*;
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
-import java.io.*;
-import java.math.*;
-import java.time.*;
-import java.time.format.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.*;
-import java.util.zip.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -24,7 +29,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
     private static final String PATH = "/Daily/DMRI/XI_MSTAR/";
     private static final String SECURITY_ID = "F00000VN9N";
 
-    private final FtpClient morningstarFTPClient;
+    private final FtpClient morningstarFtpClient;
 
     @Override
     public String getKey() {
@@ -36,8 +41,8 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
         Map<String, DailyRecord> monthRecordMap = new HashMap<>();
 
         try {
-            morningstarFTPClient.open();
-            Collection<String> fileNames = morningstarFTPClient.listFiles(GlobalStockIndexRetriever.PATH);
+            morningstarFtpClient.open();
+            Collection<String> fileNames = morningstarFtpClient.listFiles(PATH);
             for (LocalDate date = startDate; date.isBefore(endDate) || date.isEqual(endDate); date = date.plusDays(1)) {
                 String dateString = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 String fileName = fileNames.stream()
@@ -50,11 +55,11 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
                 }
 
                 try {
-                    InputStream fileStream = morningstarFTPClient.downloadFileStream(GlobalStockIndexRetriever.PATH + fileName);
-                    Optional<DailyRecord> optionalRecord = findInZip(fileStream, GlobalStockIndexRetriever.SECURITY_ID);
+                    InputStream fileStream = morningstarFtpClient.downloadFileStream(PATH + fileName);
+                    Optional<DailyRecord> optionalRecord = findInZip(fileStream, SECURITY_ID);
                     optionalRecord.ifPresent(dailyRecord -> pushDailyRecord(monthRecordMap, dailyRecord));
                     fileStream.close();
-                    morningstarFTPClient.completePendingCommand();
+                    morningstarFtpClient.completePendingCommand();
                 } catch (IOException e) {
                     log.error(e.getMessage(), e);
                 }
@@ -63,7 +68,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
             log.error(e.getMessage(), e);
         } finally {
             try {
-                morningstarFTPClient.close();
+                morningstarFtpClient.close();
             } catch (IOException e) {
                 log.error(e.getMessage(), e);
             }
@@ -75,28 +80,28 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
         List<FundValue> fundValues = new ArrayList<>();
 
         for (LocalDate date = startDate; date.isBefore(endDate) || date.isEqual(endDate); date = date.plusDays(1)) {
-            String monthID = date.format(DateTimeFormatter.ofPattern("yyyyMM"));
+            String monthId = date.format(DateTimeFormatter.ofPattern("yyyyMM"));
             int dayOfMonth = date.getDayOfMonth();
 
-            DailyRecord record = monthRecords.get(monthID);
+            DailyRecord record = monthRecords.get(monthId);
 
             if (record == null)
                 continue;
 
             String value = record.values.get(dayOfMonth - 1);
             if (!value.isEmpty()) {
-                fundValues.add(new FundValue(GlobalStockIndexRetriever.KEY, date, new BigDecimal(value)));
+                fundValues.add(new FundValue(KEY, date, new BigDecimal(value)));
             }
         }
         return fundValues;
     }
 
-    private void pushDailyRecord(Map<String, DailyRecord> recordMap, DailyRecord record) {
-        DailyRecord oldRecord = recordMap.get(record.monthID);
-        if(oldRecord != null) {
+    private void pushDailyRecord(Map<String, DailyRecord> monthRecords, DailyRecord record) {
+        DailyRecord oldRecord = monthRecords.get(record.monthId);
+        if (oldRecord != null) {
             oldRecord.update(record);
         } else {
-            recordMap.put(record.monthID, record);
+            monthRecords.put(record.monthId, record);
         }
     }
 
@@ -115,9 +120,8 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
 
     private Optional<DailyRecord> findInCSV(InputStream stream, String securityId) throws IOException {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, UTF_8))) {
-            Stream<String> lines = reader.lines();
-            return lines.map(this::parseLine)
-                .filter((DailyRecord record) -> record.securityID.equals(securityId))
+            return reader.lines().map(this::parseLine)
+                .filter((DailyRecord record) -> record.securityId.equals(securityId))
                 .findFirst();
         }
     }
@@ -130,22 +134,22 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
 
     private static class DailyRecord {
         @Getter
-        private String securityID;
+        private String securityId;
         @Getter
-        private String monthID;
+        private String monthId;
         @Getter
         private List<String> values;
 
-        DailyRecord(String securityID, String monthID, Collection<String> _values) {
-            this.securityID = securityID;
-            this.monthID = monthID;
-            values = new ArrayList<>(_values);
+        DailyRecord(String securityId, String monthId, List<String> values) {
+            this.securityId = securityId;
+            this.monthId = monthId;
+            this.values = new ArrayList<>(values);
         }
 
         public void update(DailyRecord other) {
-            if(!other.securityID.equals(securityID)
-                || !other.monthID.equals(monthID))
+            if (!other.securityId.equals(securityId) || !other.monthId.equals(monthId)) {
                 return;
+            }
 
             for (int i = 0; i < other.values.size(); i++) {
                 if (!other.values.get(i).isEmpty()) {

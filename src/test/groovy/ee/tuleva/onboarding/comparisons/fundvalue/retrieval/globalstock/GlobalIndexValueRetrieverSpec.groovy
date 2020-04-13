@@ -1,19 +1,20 @@
-package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
+package ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
-import ee.tuleva.onboarding.ftp.FtpClient
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient
 import org.mockftpserver.fake.FakeFtpServer
 import org.mockftpserver.fake.UserAccount
 import org.mockftpserver.fake.filesystem.DirectoryEntry
 import org.mockftpserver.fake.filesystem.FileEntry
-import org.mockftpserver.fake.filesystem.UnixFakeFileSystem
 import org.mockftpserver.fake.filesystem.FileSystem
+import org.mockftpserver.fake.filesystem.UnixFakeFileSystem
 import org.springframework.core.io.ClassPathResource
 import spock.lang.Shared
 import spock.lang.Specification
 
 import java.nio.file.Files
 
+import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever.KEY
 import static java.time.LocalDate.parse
 
 class GlobalIndexValueRetrieverSpec extends Specification {
@@ -37,7 +38,7 @@ class GlobalIndexValueRetrieverSpec extends Specification {
 
     void setupSpec() {
         fakeFtpServer = new FakeFtpServer()
-        fakeFtpServer.addUserAccount(new UserAccount(ftpUsername,ftpPassword, '/'))
+        fakeFtpServer.addUserAccount(new UserAccount(ftpUsername, ftpPassword, '/'))
 
         FileSystem fileSystem = new UnixFakeFileSystem()
         fileSystem.add(new DirectoryEntry(PATH))
@@ -79,19 +80,20 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         def retrievalFund = retriever.getKey()
 
         then:
-        retrievalFund == GlobalStockIndexRetriever.KEY
+        retrievalFund == KEY
     }
 
     def "it successfully parses ftp files"() {
         given:
         List<FundValue> expectedValues = [
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-26"), 2803.69952),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-27"), 2732.50162),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-28"), 2732.50162),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-29"), 2732.50162),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-30"), 2791.31415),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-31"), 2791.20446),
+            new FundValue(KEY, parse("2020-03-26"), 2803.69952),
+            new FundValue(KEY, parse("2020-03-27"), 2732.50162),
+            new FundValue(KEY, parse("2020-03-28"), 2732.50162),
+            new FundValue(KEY, parse("2020-03-29"), 2732.50162),
+            new FundValue(KEY, parse("2020-03-30"), 2791.31415),
+            new FundValue(KEY, parse("2020-03-31"), 2791.20446),
         ]
+        
         when:
         List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-26"), parse("2020-03-31"))
 
@@ -102,13 +104,14 @@ class GlobalIndexValueRetrieverSpec extends Specification {
     def "it skips invalid ftp files"() {
         given:
         List<FundValue> expectedValues = [
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-26"), 2803.69952),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-27"), 2732.50162),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-28"), 2732.50162),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-29"), 2732.50162),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-30"), 2791.31415),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-31"), 2791.20446),
+            new FundValue(KEY, parse("2020-03-26"), 2803.69952),
+            new FundValue(KEY, parse("2020-03-27"), 2732.50162),
+            new FundValue(KEY, parse("2020-03-28"), 2732.50162),
+            new FundValue(KEY, parse("2020-03-29"), 2732.50162),
+            new FundValue(KEY, parse("2020-03-30"), 2791.31415),
+            new FundValue(KEY, parse("2020-03-31"), 2791.20446),
         ]
+
         when:
         List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-25"), parse("2020-03-31"))
 
@@ -119,13 +122,14 @@ class GlobalIndexValueRetrieverSpec extends Specification {
     def "it should work with empty data files"() {
         given:
         List<FundValue> expectedValues = [
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-26"), 2803.69952),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-27"), 2732.50162),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-28"), 2732.50162),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-29"), 2732.50162),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-30"), 2791.31415),
-            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-03-31"), 2791.20446),
+            new FundValue(KEY, parse("2020-03-26"), 2803.69952),
+            new FundValue(KEY, parse("2020-03-27"), 2732.50162),
+            new FundValue(KEY, parse("2020-03-28"), 2732.50162),
+            new FundValue(KEY, parse("2020-03-29"), 2732.50162),
+            new FundValue(KEY, parse("2020-03-30"), 2791.31415),
+            new FundValue(KEY, parse("2020-03-31"), 2791.20446),
         ]
+
         when:
         List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
 
@@ -136,11 +140,12 @@ class GlobalIndexValueRetrieverSpec extends Specification {
     def "it should handle ftp client open/close exception"() {
         given:
         FtpClient ftpClient = Mock(FtpClient)
-        GlobalStockIndexRetriever testRetriever = new GlobalStockIndexRetriever(ftpClient)
-        ftpClient.open() >> {throw new IOException('123')}
-        ftpClient.close() >> {throw new IOException('123')}
+        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(ftpClient)
+        ftpClient.open() >> { throw new IOException('123') }
+        ftpClient.close() >> { throw new IOException('123') }
+
         when:
-        testRetriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
+        retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
 
         then:
         noExceptionThrown()
@@ -149,11 +154,12 @@ class GlobalIndexValueRetrieverSpec extends Specification {
     def "it should handle ftp client download exception"() {
         given:
         FtpClient ftpClient = Mock(FtpClient)
-        GlobalStockIndexRetriever testRetriever = new GlobalStockIndexRetriever(ftpClient)
-        ftpClient.listFiles(_ as String) >> {return ['DMRI_XI_MSTAR_USA_D_20200324.zip', 'DMRI_XI_MSTAR_USA_D_20200325.zip']}
-        ftpClient.downloadFileStream(_ as String) >> {throw new IOException('123')}
+        GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(ftpClient)
+        ftpClient.listFiles(_ as String) >> { return ['DMRI_XI_MSTAR_USA_D_20200324.zip', 'DMRI_XI_MSTAR_USA_D_20200325.zip'] }
+        ftpClient.downloadFileStream(_ as String) >> { throw new IOException('123') }
+
         when:
-        testRetriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
+        retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
 
         then:
         noExceptionThrown()

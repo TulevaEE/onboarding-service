@@ -1,14 +1,16 @@
-package ee.tuleva.onboarding.ftp;
+package ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp;
 
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 @RequiredArgsConstructor
 public class FtpClient {
@@ -38,7 +40,7 @@ public class FtpClient {
         FTPFile[] files = ftp.listFiles(path);
         return Arrays.stream(files)
             .map(FTPFile::getName)
-            .collect(Collectors.toList());
+            .collect(toList());
     }
 
     public InputStream downloadFileStream(String source) throws IOException {

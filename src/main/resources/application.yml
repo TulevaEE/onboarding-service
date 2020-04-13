@@ -126,7 +126,7 @@ morningstar:
   host: ${MORNINGSTAR_HOST:localhost}
   port: 21
   username: ${MORNINGSTAR_USERNAME:someUser}
-  password: ${MORNINGSTAR_USERNAME:somePassword}
+  password: ${MORNINGSTAR_PASSWORD:somePassword}
 
 ---
 

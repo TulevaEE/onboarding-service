@@ -136,7 +136,7 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         ]
 
         when:
-        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
+        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-04-02"))
 
         then:
         values == expectedValues

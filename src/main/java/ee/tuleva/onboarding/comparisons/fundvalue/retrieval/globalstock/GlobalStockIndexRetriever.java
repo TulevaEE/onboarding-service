@@ -42,7 +42,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
 
         try {
             morningstarFtpClient.open();
-            Collection<String> fileNames = morningstarFtpClient.listFiles(PATH);
+            List<String> fileNames = morningstarFtpClient.listFiles(PATH);
             for (LocalDate date = startDate; date.isBefore(endDate) || date.isEqual(endDate); date = date.plusDays(1)) {
                 String dateString = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 String fileName = fileNames.stream()
@@ -60,8 +60,8 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
                     optionalRecord.ifPresent(dailyRecord -> pushDailyRecord(monthRecordMap, dailyRecord));
                     fileStream.close();
                     morningstarFtpClient.completePendingCommand();
-                } catch (IOException e) {
-                    log.error(e.getMessage(), e);
+                } catch (RuntimeException e) {
+                    log.error("Unable to parse file: " + fileName, e);
                 }
             }
         } catch (IOException e) {
@@ -127,9 +127,13 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
     }
 
     private DailyRecord parseLine(String line) {
-        String[] parts = line.split(",", -1);
-        int partLength = parts.length;
-        return new DailyRecord(parts[0], parts[1], Arrays.asList(parts).subList(2, partLength));
+        try {
+            log.debug("Parsing line: " + line);
+            String[] parts = line.split(",", -1);
+            return new DailyRecord(parts[0], parts[1], Arrays.asList(parts).subList(2, parts.length));
+        } catch(RuntimeException e) {
+            throw new RuntimeException("Unable to parse line: " + line, e);
+        }
     }
 
     private static class DailyRecord {

@@ -47,6 +47,10 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200327.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200327.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200330.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200330.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200331.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200331.zip'))
+        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200401.zip",
+            '/morningstar/DMRI_XI_MSTAR_USA_D_20200401.zip'))
+        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200402.zip",
+            '/morningstar/DMRI_XI_MSTAR_USA_D_20200402.zip'))
 
         fakeFtpServer.setFileSystem(fileSystem)
         fakeFtpServer.setServerControlPort(0)
@@ -92,10 +96,12 @@ class GlobalIndexValueRetrieverSpec extends Specification {
             new FundValue(KEY, parse("2020-03-29"), 2732.50162),
             new FundValue(KEY, parse("2020-03-30"), 2791.31415),
             new FundValue(KEY, parse("2020-03-31"), 2791.20446),
+            new FundValue(KEY, parse("2020-04-01"), 2698.83588),
+            new FundValue(KEY, parse("2020-04-02"), 2743.17354),
         ]
-        
+
         when:
-        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-26"), parse("2020-03-31"))
+        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-26"), parse("2020-04-02"))
 
         then:
         values == expectedValues
@@ -131,7 +137,7 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         ]
 
         when:
-        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
+        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-04-02"))
 
         then:
         values == expectedValues

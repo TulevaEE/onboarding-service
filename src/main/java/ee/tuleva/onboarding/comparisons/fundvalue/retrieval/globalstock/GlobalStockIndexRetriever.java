@@ -79,12 +79,12 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
                 }
             }
         } catch (IOException e) {
-            log.error(e.getMessage(), e);
+            log.error("Unable to retrieve values for range " + startDate + ", " + endDate, e);
         } finally {
             try {
                 morningstarFtpClient.close();
             } catch (IOException e) {
-                log.error(e.getMessage(), e);
+                log.error("Unable to close FTP connection", e);
             }
         }
         return extractValuesFromRecords(monthRecordMap, startDate, endDate);
@@ -151,11 +151,11 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
         try {
             log.trace("Parsing line: " + line);
             String[] parts = line.split(",", -1);
-            if(parts.length > 2)
+            if (parts.length > 2)
                 return new DailyRecord(parts[0], parts[1], Arrays.asList(parts).subList(2, parts.length));
             else
                 return DailyRecord.emptyRecord();
-        } catch(RuntimeException e) {
+        } catch (RuntimeException e) {
             throw new RuntimeException("Unable to parse line: " + line, e);
         }
     }
@@ -173,9 +173,11 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
             this.monthId = monthId;
             this.values = new ArrayList<>(values);
         }
+
         public static DailyRecord emptyRecord() {
             return new DailyRecord("", "", new ArrayList<>());
         }
+
         public void update(DailyRecord other) {
             if (!other.securityId.equals(securityId) || !other.monthId.equals(monthId)) {
                 return;

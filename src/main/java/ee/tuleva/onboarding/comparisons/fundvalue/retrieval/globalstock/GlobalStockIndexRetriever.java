@@ -133,7 +133,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
             if(parts.length > 2)
                 return new DailyRecord(parts[0], parts[1], Arrays.asList(parts).subList(2, parts.length));
             else
-                return new DailyRecord("", "", new ArrayList<>());
+                return DailyRecord.emptyRecord();
         } catch(RuntimeException e) {
             throw new RuntimeException("Unable to parse line: " + line, e);
         }
@@ -152,7 +152,9 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
             this.monthId = monthId;
             this.values = new ArrayList<>(values);
         }
-
+        public static DailyRecord emptyRecord() {
+            return new DailyRecord("", "", new ArrayList<>());
+        }
         public void update(DailyRecord other) {
             if (!other.securityId.equals(securityId) || !other.monthId.equals(monthId)) {
                 return;

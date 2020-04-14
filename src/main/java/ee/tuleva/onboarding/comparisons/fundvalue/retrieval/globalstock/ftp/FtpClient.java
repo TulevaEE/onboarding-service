@@ -27,6 +27,7 @@ public class FtpClient {
         int reply = ftp.getReplyCode();
         if (!FTPReply.isPositiveCompletion(reply)) {
             ftp.disconnect();
+            throw new IOException("Error connecting to FTP " + server + ":" + port + ". Reply code: " + reply);
         }
         ftp.login(user, password);
         ftp.setFileType(FTP.BINARY_FILE_TYPE);

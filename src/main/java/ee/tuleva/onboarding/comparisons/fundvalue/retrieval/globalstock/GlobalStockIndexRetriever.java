@@ -149,7 +149,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
 
     private DailyRecord parseLine(String line) {
         try {
-            log.debug("Parsing line: " + line);
+            log.trace("Parsing line: " + line);
             String[] parts = line.split(",", -1);
             if(parts.length > 2)
                 return new DailyRecord(parts[0], parts[1], Arrays.asList(parts).subList(2, parts.length));

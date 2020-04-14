@@ -39,13 +39,12 @@ class FundValueIndexingJobSpec extends Specification {
         given:
             fundValueRetriever.getKey() >> WorldIndexValueRetriever.KEY
             def lastFundValueTime = LocalDate.parse("2018-05-01")
-            def dayFromlastFundValueTime = LocalDate.parse(
-                "2018-05-02")
+            def dayFromLastFundValueTime = LocalDate.parse("2018-05-02")
             fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY) >> Optional.of(new FundValue(WorldIndexValueRetriever.KEY, lastFundValueTime, 120.0))
         when:
             fundValueIndexingJob.runIndexingJob()
         then:
-            1 * fundValueRetriever.retrieveValuesForRange(dayFromlastFundValueTime, LocalDate.now()) >> fakeFundValues()
+            1 * fundValueRetriever.retrieveValuesForRange(dayFromLastFundValueTime, LocalDate.now()) >> fakeFundValues()
             1 * fundValueRepository.saveAll(fakeFundValues())
     }
 

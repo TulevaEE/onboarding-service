@@ -15,15 +15,14 @@ import static java.util.stream.Collectors.toList;
 
 @RequiredArgsConstructor
 public class FtpClient {
+    private final FTPClient ftp;
     private final String server;
     private final String user;
     private final String password;
     private final int port;
 
-    private FTPClient ftp;
 
     public void open() throws IOException {
-        ftp = new FTPClient();
         ftp.connect(server, port);
         int reply = ftp.getReplyCode();
         if (!FTPReply.isPositiveCompletion(reply)) {

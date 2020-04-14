@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient
+import org.apache.commons.net.ftp.FTPClient
 import org.mockftpserver.fake.FakeFtpServer
 import org.mockftpserver.fake.UserAccount
 import org.mockftpserver.fake.filesystem.DirectoryEntry
@@ -56,7 +57,8 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         fakeFtpServer.setServerControlPort(0)
         fakeFtpServer.start()
 
-        FtpClient ftpClient = new FtpClient(ftpHost, ftpUsername, ftpPassword, fakeFtpServer.getServerControlPort())
+        FtpClient ftpClient = new FtpClient(new FTPClient(), ftpHost, ftpUsername, ftpPassword, fakeFtpServer
+            .getServerControlPort())
 
         retriever = new GlobalStockIndexRetriever(ftpClient)
     }

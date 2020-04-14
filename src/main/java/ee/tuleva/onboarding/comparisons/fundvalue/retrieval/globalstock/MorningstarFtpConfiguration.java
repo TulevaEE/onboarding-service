@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient;
-import lombok.extern.slf4j.*;
-import org.springframework.beans.factory.annotation.*;
-import org.springframework.context.annotation.*;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.net.ftp.FTPClient;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @Slf4j
@@ -19,6 +21,6 @@ public class MorningstarFtpConfiguration {
 
     @Bean
     public FtpClient morningstarFtpClient() {
-        return new FtpClient(ftpHost, ftpUsername, ftpPassword, ftpPort);
+        return new FtpClient(new FTPClient(), ftpHost, ftpUsername, ftpPassword, ftpPort);
     }
 }

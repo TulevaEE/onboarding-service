@@ -41,8 +41,17 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
         Map<String, DailyRecord> monthRecordMap = new HashMap<>();
 
         try {
+            log.debug("Opening connection to ftp server");
+
             morningstarFtpClient.open();
+
+            log.debug("Opened connection");
+            log.debug("Retrieving list of files in FTP path");
+
             List<String> fileNames = morningstarFtpClient.listFiles(PATH);
+
+            log.debug("Retrieved list of files: {}", fileNames);
+
             for (LocalDate date = startDate; date.isBefore(endDate) || date.isEqual(endDate); date = date.plusDays(1)) {
                 String dateString = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 String fileName = fileNames.stream()
@@ -55,11 +64,16 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
                 }
 
                 try {
+                    log.debug("Downloading " + PATH + fileName);
                     InputStream fileStream = morningstarFtpClient.downloadFileStream(PATH + fileName);
                     Optional<DailyRecord> optionalRecord = findInZip(fileStream, SECURITY_ID);
                     optionalRecord.ifPresent(dailyRecord -> pushDailyRecord(monthRecordMap, dailyRecord));
                     fileStream.close();
+                    log.debug("Downloaded " + PATH + fileName);
+
+                    log.debug("Waiting for pending commands");
                     morningstarFtpClient.completePendingCommand();
+                    log.debug("Finished all pending commands");
                 } catch (RuntimeException e) {
                     log.error("Unable to parse file: " + fileName, e);
                 }
@@ -77,6 +91,7 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
     }
 
     private List<FundValue> extractValuesFromRecords(Map<String, DailyRecord> monthRecords, LocalDate startDate, LocalDate endDate) {
+        log.debug("Extracting values from record dictionary");
         List<FundValue> fundValues = new ArrayList<>();
 
         for (LocalDate date = startDate; date.isBefore(endDate) || date.isEqual(endDate); date = date.plusDays(1)) {
@@ -93,10 +108,12 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
                 fundValues.add(new FundValue(KEY, date, new BigDecimal(value)));
             }
         }
+        log.debug("Extracted fund values: {}", fundValues);
         return fundValues;
     }
 
     private void pushDailyRecord(Map<String, DailyRecord> monthRecords, DailyRecord record) {
+        log.debug("Update daily record");
         DailyRecord oldRecord = monthRecords.get(record.monthId);
         if (oldRecord != null) {
             oldRecord.update(record);
@@ -106,8 +123,10 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
     }
 
     private Optional<DailyRecord> findInZip(InputStream stream, String securityId) throws IOException {
+        log.debug("Opening zip stream");
         try (ZipInputStream zipStream = new ZipInputStream(stream)) {
             // Just get one file and we are done.
+            log.debug("Get first zip entry");
             ZipEntry entry = zipStream.getNextEntry();
 
             if (entry != null) {
@@ -119,7 +138,9 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
     }
 
     private Optional<DailyRecord> findInCSV(InputStream stream, String securityId) throws IOException {
+        log.debug("Opening file entry");
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, UTF_8))) {
+            log.debug("Opened file entry");
             return reader.lines().map(this::parseLine)
                 .filter((DailyRecord record) -> record.securityId.equals(securityId))
                 .findFirst();

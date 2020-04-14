@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp;
 
 import lombok.RequiredArgsConstructor;
+import org.apache.commons.net.ftp.FTP;
 import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
@@ -28,8 +29,8 @@ public class FtpClient {
         if (!FTPReply.isPositiveCompletion(reply)) {
             ftp.disconnect();
         }
-
         ftp.login(user, password);
+        ftp.setFileType(FTP.BINARY_FILE_TYPE);
     }
 
     public void close() throws IOException {

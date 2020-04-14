@@ -67,9 +67,9 @@ class GlobalIndexValueRetrieverSpec extends Specification {
 
     private fakeFileEntry(path, resourceFile) {
         FileEntry entry = new FileEntry(path)
-        print('File Entry')
-        print(resourceFile)
-        print(readFile(resourceFile))
+//        print('File Entry')
+//        print(resourceFile)
+//        print(readFile(resourceFile))
         entry.setContents(readFile(resourceFile))
         return entry
     }
@@ -137,7 +137,7 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         ]
 
         when:
-        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-04-02"))
+        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
 
         then:
         values == expectedValues

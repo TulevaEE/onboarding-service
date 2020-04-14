@@ -130,7 +130,10 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
         try {
             log.debug("Parsing line: " + line);
             String[] parts = line.split(",", -1);
-            return new DailyRecord(parts[0], parts[1], Arrays.asList(parts).subList(2, parts.length));
+            if(parts.length > 2)
+                return new DailyRecord(parts[0], parts[1], Arrays.asList(parts).subList(2, parts.length));
+            else
+                return new DailyRecord("", "", new ArrayList<>());
         } catch(RuntimeException e) {
             throw new RuntimeException("Unable to parse line: " + line, e);
         }

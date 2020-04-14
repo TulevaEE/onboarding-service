@@ -67,9 +67,6 @@ class GlobalIndexValueRetrieverSpec extends Specification {
 
     private fakeFileEntry(path, resourceFile) {
         FileEntry entry = new FileEntry(path)
-//        print('File Entry')
-//        print(resourceFile)
-//        print(readFile(resourceFile))
         entry.setContents(readFile(resourceFile))
         return entry
     }

@@ -146,8 +146,8 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         given:
         FtpClient ftpClient = Mock(FtpClient)
         GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(ftpClient)
-        ftpClient.open() >> { throw new IOException('123') }
-        ftpClient.close() >> { throw new IOException('123') }
+        ftpClient.open() >> { throw new IOException("Test Exception") }
+        ftpClient.close() >> { throw new IOException("Test Exception") }
 
         when:
         retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))
@@ -161,7 +161,7 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         FtpClient ftpClient = Mock(FtpClient)
         GlobalStockIndexRetriever retriever = new GlobalStockIndexRetriever(ftpClient)
         ftpClient.listFiles(_ as String) >> { return ['DMRI_XI_MSTAR_USA_D_20200324.zip', 'DMRI_XI_MSTAR_USA_D_20200325.zip'] }
-        ftpClient.downloadFileStream(_ as String) >> { throw new IOException('123') }
+        ftpClient.downloadFileStream(_ as String) >> { throw new IOException('Test Exception') }
 
         when:
         retriever.retrieveValuesForRange(parse("2020-02-24"), parse("2020-03-31"))

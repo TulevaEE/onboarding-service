@@ -10,6 +10,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @Slf4j
 public class MorningstarFtpConfiguration {
+    private static final int TIMEOUT_MILLISECONDS = 60_000;
+
     @Value("${morningstar.username}")
     private String ftpUsername;
     @Value("${morningstar.password}")
@@ -21,6 +23,14 @@ public class MorningstarFtpConfiguration {
 
     @Bean
     public FtpClient morningstarFtpClient() {
-        return new FtpClient(new FTPClient(), ftpHost, ftpUsername, ftpPassword, ftpPort);
+        return new FtpClient(ftpClient(), ftpHost, ftpUsername, ftpPassword, ftpPort);
+    }
+
+    private FTPClient ftpClient() {
+        FTPClient ftpClient = new FTPClient();
+        ftpClient.setDefaultTimeout(TIMEOUT_MILLISECONDS);
+        ftpClient.setDataTimeout(TIMEOUT_MILLISECONDS);
+        ftpClient.setConnectTimeout(TIMEOUT_MILLISECONDS);
+        return ftpClient;
     }
 }

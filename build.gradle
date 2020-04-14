@@ -81,7 +81,7 @@ dependencies {
 	implementation('io.springfox:springfox-swagger-ui:2.6.1')
 
 	implementation('org.hibernate:hibernate-java8')
-	implementation('com.mandrillapp.wrapper.lutung:lutung:0.0.7')
+	implementation('com.mandrillapp.wrapper.lutung:lutung:0.0.8')
 
 	implementation('com.ecwid:maleorang:3.0-0.9.6')
 

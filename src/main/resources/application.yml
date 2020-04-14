@@ -121,6 +121,12 @@ logging:
         mid:
           rest:
             MidLoggingFilter: TRACE
+      tuleva:
+        onboarding:
+          comparisons:
+            fundvalue:
+              retrieval:
+                globalstock: DEBUG
 
 morningstar:
   host: ${MORNINGSTAR_HOST:localhost}

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.auth.mobileid
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
+import ee.tuleva.onboarding.auth.exception.MobileIdSessionNotFoundException
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException
@@ -64,14 +65,14 @@ class MobileIdTokenGranterSpec extends Specification {
         thrown AuthNotCompleteException
     }
 
-    def "GetAccessToken: Logging in with no mobile id session returns null"() {
+    def "GetAccessToken: Logging in with no mobile id session throws exception"() {
         given:
         1 * sessionStore.get(MobileIDSession) >> Optional.empty()
 
         when:
-        OAuth2AccessToken token = mobileIdTokenGranter.getAccessToken(sampleClientDetails(), Mock(TokenRequest))
+        mobileIdTokenGranter.getAccessToken(sampleClientDetails(), Mock(TokenRequest))
         then:
-        token == null
+        thrown MobileIdSessionNotFoundException
     }
 
     def "GetAccessToken: Logging in with user and grant access token"() {

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.idcard
 
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
+import ee.tuleva.onboarding.auth.exception.IdCardSessionNotFoundException
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import org.springframework.context.ApplicationEventPublisher
@@ -25,13 +26,13 @@ class IdCardTokenGranterSpec extends Specification {
 
     def setup() {
         tokenGranter = new IdCardTokenGranter(
-                authorizationServerTokenServices,
-                clientDetailsService,
-                oAuth2RequestFactory,
-                genericSessionStore,
-                principalService,
-                grantedAuthorityFactory,
-                applicationEventPublisher)
+            authorizationServerTokenServices,
+            clientDetailsService,
+            oAuth2RequestFactory,
+            genericSessionStore,
+            principalService,
+            grantedAuthorityFactory,
+            applicationEventPublisher)
     }
 
     def "GetAccessToken: Logging in with no client id fails"() {
@@ -41,14 +42,14 @@ class IdCardTokenGranterSpec extends Specification {
         thrown InvalidRequestException
     }
 
-    def "GetAccessToken: Logging in with no id card session returns null"() {
+    def "GetAccessToken: Logging in with no id card session returns exception"() {
         given:
         genericSessionStore.get(IdCardSession) >> Optional.empty()
 
         when:
         def token = tokenGranter.getAccessToken(clientDetails(), tokenRequest())
         then:
-        token == null
+        thrown IdCardSessionNotFoundException
     }
 
     def clientDetails() {

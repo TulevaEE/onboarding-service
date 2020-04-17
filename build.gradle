@@ -87,7 +87,7 @@ dependencies {
 
 	implementation('com.ecwid:maleorang:3.0-0.9.6')
 
-	implementation('com.sun.xml.ws:jaxws-rt:2.2.10')
+	implementation('com.sun.xml.ws:jaxws-rt:2.3.2-1')
 
 	implementation('ee.sk.mid:mid-rest-java-client:1.1')
 

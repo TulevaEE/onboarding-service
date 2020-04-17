@@ -47,6 +47,10 @@ spring:
           metadata:
             user.name: ${spring.security.user.name}
             user.password: ${spring.security.user.password}
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: always
 
 management:
   endpoints:

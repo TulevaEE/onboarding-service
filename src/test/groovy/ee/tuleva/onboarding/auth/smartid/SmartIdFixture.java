@@ -20,11 +20,11 @@ public class SmartIdFixture {
         identity.setGivenName(givenName);
         identity.setSurName(surName);
         result.setAuthenticationIdentity(identity);
-        sampleFinalSmartIdSession.setAuthenticationResult(result);
+        sampleFinalSmartIdSession.withAuthenticationResult(result);
 
         SmartIdAuthenticationResult result2 = new SmartIdAuthenticationResult();
         result2.setValid(false);
         result2.addError(SmartIdAuthenticationResult.Error.CERTIFICATE_EXPIRED);
-        sampleFinalSmartIdSessionWithErrors.setAuthenticationResult(result2);
+        sampleFinalSmartIdSessionWithErrors.withAuthenticationResult(result2);
     }
 }

@@ -54,6 +54,8 @@ dependencies {
 	implementation('org.springframework.boot:spring-boot-starter-aop')
 	implementation('org.springframework.boot:spring-boot-starter-json')
 	implementation('org.springframework.cloud:spring-cloud-starter-sleuth')
+	implementation('org.springframework.session:spring-session-jdbc')
+
 	implementation('de.codecentric:spring-boot-admin-starter-client')
 	implementation('org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.1.4.RELEASE')
 
@@ -81,7 +83,7 @@ dependencies {
 	implementation('io.springfox:springfox-swagger-ui:2.6.1')
 
 	implementation('org.hibernate:hibernate-java8')
-	implementation('com.mandrillapp.wrapper.lutung:lutung:0.0.7')
+	implementation('com.mandrillapp.wrapper.lutung:lutung:0.0.8')
 
 	implementation('com.ecwid:maleorang:3.0-0.9.6')
 

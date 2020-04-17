@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.auth.smartid
 
-import com.codeborne.security.mobileid.MobileIDSession
+
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
+import ee.tuleva.onboarding.auth.exception.SmartIdSessionNotFoundException
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException
@@ -11,12 +12,7 @@ import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.oauth2.common.OAuth2AccessToken
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
-import org.springframework.security.oauth2.provider.ClientDetails
-import org.springframework.security.oauth2.provider.ClientDetailsService
-import org.springframework.security.oauth2.provider.OAuth2Authentication
-import org.springframework.security.oauth2.provider.OAuth2Request
-import org.springframework.security.oauth2.provider.OAuth2RequestFactory
-import org.springframework.security.oauth2.provider.TokenRequest
+import org.springframework.security.oauth2.provider.*
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices
 import spock.lang.Specification
 
@@ -36,14 +32,14 @@ class SmartIdTokenGranterSpec extends Specification {
 
     def setup() {
         smartIdTokenGranter = new SmartIdTokenGranter(
-                authorizationServerTokenServices,
-                clientDetailsService,
-                oAuth2RequestFactory,
-                smartIdAuthService,
-                principalService,
-                sessionStore,
-                grantedAuthorityFactory,
-                applicationEventPublisher
+            authorizationServerTokenServices,
+            clientDetailsService,
+            oAuth2RequestFactory,
+            smartIdAuthService,
+            principalService,
+            sessionStore,
+            grantedAuthorityFactory,
+            applicationEventPublisher
         )
     }
 
@@ -70,14 +66,14 @@ class SmartIdTokenGranterSpec extends Specification {
         thrown AuthNotCompleteException
     }
 
-    def "GetAccessToken: Logging in with no smart id session returns null"() {
+    def "GetAccessToken: Logging in with no smart id session throws exception"() {
         given:
         1 * sessionStore.get(SmartIdSession) >> Optional.empty()
 
         when:
-        OAuth2AccessToken token = smartIdTokenGranter.getAccessToken(sampleClientDetails(), Mock(TokenRequest))
+        smartIdTokenGranter.getAccessToken(sampleClientDetails(), Mock(TokenRequest))
         then:
-        token == null
+        thrown SmartIdSessionNotFoundException
     }
 
     def "GetAccessToken: Logging in with user and grant access token"() {
@@ -86,8 +82,8 @@ class SmartIdTokenGranterSpec extends Specification {
         1 * smartIdAuthService.isLoginComplete(SmartIdFixture.sampleFinalSmartIdSession) >> true
         1 * principalService.getFrom({ Person person ->
             person.personalCode == SmartIdFixture.identityCode &&
-                    person.firstName == SmartIdFixture.givenName &&
-                    person.lastName == SmartIdFixture.surName
+                person.firstName == SmartIdFixture.givenName &&
+                person.lastName == SmartIdFixture.surName
 
         }) >> AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
         ClientDetails sampleClientDetails = sampleClientDetails()

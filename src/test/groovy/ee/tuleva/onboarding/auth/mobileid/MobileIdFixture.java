@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.mobileid;
 
 import ee.sk.mid.MidAuthenticationIdentity;
 import ee.sk.mid.MidAuthenticationResult;
+import ee.sk.mid.rest.dao.MidSessionStatus;
 
 public class MobileIdFixture {
 
@@ -13,6 +14,12 @@ public class MobileIdFixture {
   public static String sampleSessionId = "12345";
   public static MobileIDSession sampleMobileIdSession =
       new MobileIDSession(sampleSessionId, "challenge", null, samplePhoneNumber);
+
+  public static MidSessionStatus getSampleMidSessionComplete() {
+    MidSessionStatus status = new MidSessionStatus();
+    status.setState("COMPLETE");
+    return status;
+  }
 
   public static MidAuthenticationResult getSampleMidAuthResult(boolean isValid) {
     MidAuthenticationResult sampleAuthResult = new MidAuthenticationResult();

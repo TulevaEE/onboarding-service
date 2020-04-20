@@ -37,6 +37,12 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         "ORDER BY date DESC " +
         "LIMIT 1";
 
+    private static final String FIND_FUND_VALUE_QUERY = "" +
+        "SELECT * " +
+        "FROM index_values " +
+        "WHERE key=:key AND date = :date " +
+        "LIMIT 1";
+
     private static final String ALL_KEYS_QUERY =
         "SELECT DISTINCT key FROM index_values ORDER BY key";
 
@@ -44,11 +50,38 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         "INSERT INTO index_values (key, date, value) " +
         "VALUES (:key, :date, :value)";
 
+    private static final String UPDATE_VALUES_QUERY = "" +
+        "UPDATE index_values value=:value " +
+        "WHERE key=:key AND date=:date";
+
+
     private static class FundValueRowMapper implements RowMapper<FundValue> {
         @Override
         public FundValue mapRow(ResultSet rs, int rowNum) throws SQLException {
             return new FundValue(rs.getString("key"), rs.getDate("date").toLocalDate(), rs.getBigDecimal("value"));
         }
+    }
+
+    @Override
+    public void save(FundValue fundValue) {
+        Map<String, Object> values = ImmutableMap.of(
+            "key", fundValue.getComparisonFund(),
+            "date", fundValue.getDate(),
+            "value", fundValue.getValue()
+        );
+
+        jdbcTemplate.update(INSERT_VALUES_QUERY, values);
+    }
+
+    @Override
+    public void update(FundValue fundValue) {
+        Map<String, Object> values = ImmutableMap.of(
+            "key", fundValue.getComparisonFund(),
+            "date", fundValue.getDate(),
+            "value", fundValue.getValue()
+        );
+
+        jdbcTemplate.update(UPDATE_VALUES_QUERY, values);
     }
 
     @Override
@@ -67,6 +100,20 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         List<FundValue> result = jdbcTemplate.query(
             FIND_LAST_VALUE_QUERY,
             ImmutableMap.of("key", fund),
+            new FundValueRowMapper()
+        );
+        return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    }
+
+    @Override
+    public Optional<FundValue> findExistingValueForFund(FundValue fundValue) {
+        List<FundValue> result = jdbcTemplate.query(
+            FIND_FUND_VALUE_QUERY,
+            ImmutableMap.of(
+                "key", fundValue.getComparisonFund(),
+                "date", fundValue.getDate(),
+                "value", fundValue.getValue()
+            ),
             new FundValueRowMapper()
         );
         return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));

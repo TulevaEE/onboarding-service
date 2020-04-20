@@ -25,27 +25,33 @@ class FundValueIndexingJobSpec extends Specification {
         fundNavRetrieverFactory)
 
     def "if no saved fund values found, downloads and saves from defined start time"() {
+        List<FundValue> fundValues = fakeFundValues()
         given:
             fundValueRetriever.getKey() >> WorldIndexValueRetriever.KEY
             fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY) >> Optional.empty()
+            fundValueRepository.findExistingValueForFund(_ as FundValue) >> Optional.empty()
         when:
             fundValueIndexingJob.runIndexingJob()
         then:
             1 * fundValueRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, LocalDate.now()) >> fakeFundValues()
-            1 * fundValueRepository.saveAll(fakeFundValues())
+            1 * fundValueRepository.save(fundValues[0])
+            1 * fundValueRepository.save(fundValues[1])
     }
 
     def "if saved fund values found, downloads from the next day after last fund value"() {
+        List<FundValue> fundValues = fakeFundValues()
         given:
             fundValueRetriever.getKey() >> WorldIndexValueRetriever.KEY
             def lastFundValueTime = LocalDate.parse("2018-05-01")
             def dayFromLastFundValueTime = LocalDate.parse("2018-05-02")
             fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY) >> Optional.of(new FundValue(WorldIndexValueRetriever.KEY, lastFundValueTime, 120.0))
+            fundValueRepository.findExistingValueForFund(_ as FundValue) >> Optional.empty()
         when:
             fundValueIndexingJob.runIndexingJob()
         then:
             1 * fundValueRetriever.retrieveValuesForRange(dayFromLastFundValueTime, LocalDate.now()) >> fakeFundValues()
-            1 * fundValueRepository.saveAll(fakeFundValues())
+            1 * fundValueRepository.save(fundValues[0])
+            1 * fundValueRepository.save(fundValues[1])
     }
 
     def "if last saved fund value was found today, does nothing"() {

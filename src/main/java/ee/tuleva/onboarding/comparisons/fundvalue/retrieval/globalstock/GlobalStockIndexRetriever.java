@@ -152,16 +152,12 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
     }
 
     private MonthRecord parseLine(String line) {
-        try {
-            log.trace("Parsing line: " + line);
-            String[] parts = line.split(",", -1);
-            if (parts.length > 2)
-                return new MonthRecord(parts[0], parts[1], Arrays.asList(parts).subList(2, parts.length));
-            else
-                return MonthRecord.emptyRecord();
-        } catch (RuntimeException e) {
-            throw new RuntimeException("Unable to parse line: " + line, e);
-        }
+        log.trace("Parsing line: " + line);
+        String[] parts = line.split(",", -1);
+        if (parts.length > 2)
+            return new MonthRecord(parts[0], parts[1], Arrays.asList(parts).subList(2, parts.length));
+        else
+            return MonthRecord.emptyRecord();
     }
 
     private static class MonthRecord {
@@ -183,9 +179,6 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
         }
 
         public void update(MonthRecord other) {
-            if (!other.securityId.equals(securityId) || !other.monthId.equals(monthId)) {
-                return;
-            }
             int otherValuesSize = other.values.size();
             int valuesSize = values.size();
 

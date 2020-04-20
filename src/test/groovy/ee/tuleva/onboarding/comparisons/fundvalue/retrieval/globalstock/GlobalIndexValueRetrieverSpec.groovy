@@ -43,7 +43,8 @@ class GlobalIndexValueRetrieverSpec extends Specification {
 
         FileSystem fileSystem = new UnixFakeFileSystem()
         fileSystem.add(new DirectoryEntry(PATH))
-        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200325.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200325.zip'))
+        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200324.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200324_empty.zip'))
+        fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200325.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200325_invalid.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200326.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200326.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200327.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200327.zip'))
         fileSystem.add(fakeFileEntry(PATH + "/DMRI_XI_MSTAR_USA_D_20200330.zip", '/morningstar/DMRI_XI_MSTAR_USA_D_20200330.zip'))
@@ -118,7 +119,7 @@ class GlobalIndexValueRetrieverSpec extends Specification {
         ]
 
         when:
-        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-25"), parse("2020-03-31"))
+        List<FundValue> values = retriever.retrieveValuesForRange(parse("2020-03-24"), parse("2020-03-31"))
 
         then:
         values == expectedValues

@@ -70,7 +70,10 @@ public class FundValueIndexingJob {
     private void loadAndPersistDataForStartTime(ComparisonIndexRetriever comparisonIndexRetriever, LocalDate startDate) {
         LocalDate endDate = LocalDate.now();
         List<FundValue> valuesPulled = comparisonIndexRetriever.retrieveValuesForRange(startDate, endDate);
-        fundValueRepository.saveAll(valuesPulled);
+        valuesPulled.forEach(value -> {
+            if(!fundValueRepository.findExistingValueForFund(value).isPresent())
+                fundValueRepository.save(value);
+        });
         log.info("Successfully pulled and saved " + valuesPulled.size() + " fund values");
     }
 }

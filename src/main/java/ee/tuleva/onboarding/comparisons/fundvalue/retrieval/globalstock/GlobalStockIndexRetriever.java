@@ -15,6 +15,8 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeFormatterBuilder;
+import java.time.temporal.ChronoField;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -87,25 +89,27 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
                 log.error("Unable to close FTP connection", e);
             }
         }
-        return extractValuesFromRecords(monthRecordMap, startDate, endDate);
+        return extractValuesFromRecords(monthRecordMap);
     }
 
-    private List<FundValue> extractValuesFromRecords(Map<String, MonthRecord> monthRecords, LocalDate startDate, LocalDate endDate) {
+    private List<FundValue> extractValuesFromRecords(Map<String, MonthRecord> monthRecords) {
         log.debug("Extracting values from record dictionary");
         List<FundValue> fundValues = new ArrayList<>();
 
-        for (LocalDate date = startDate; date.isBefore(endDate) || date.isEqual(endDate); date = date.plusDays(1)) {
-            String monthId = date.format(DateTimeFormatter.ofPattern("yyyyMM"));
-            int dayOfMonth = date.getDayOfMonth();
+        for (MonthRecord record : monthRecords.values()) {
+            List<String> recordValues = record.getValues();
+            for(int day = 0; day < recordValues.size(); day ++) {
+                String dayValue = recordValues.get(day);
 
-            MonthRecord record = monthRecords.get(monthId);
+                if(dayValue != null && !dayValue.isEmpty()) {
+                    DateTimeFormatter formatter = new DateTimeFormatterBuilder()
+                        .appendPattern("yyyyMM")
+                        .parseDefaulting(ChronoField.DAY_OF_MONTH, day + 1)
+                        .toFormatter();
 
-            if (record == null)
-                continue;
-
-            String value = record.values.get(dayOfMonth - 1);
-            if (!value.isEmpty()) {
-                fundValues.add(new FundValue(KEY, date, new BigDecimal(value)));
+                    LocalDate date = LocalDate.parse(record.monthId, formatter);
+                    fundValues.add(new FundValue(KEY, date, new BigDecimal(dayValue)));
+                }
             }
         }
         log.debug("Extracted fund values: {}", fundValues);
@@ -182,9 +186,11 @@ public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
             if (!other.securityId.equals(securityId) || !other.monthId.equals(monthId)) {
                 return;
             }
+            int otherValuesSize = other.values.size();
+            int valuesSize = values.size();
 
-            for (int i = 0; i < other.values.size(); i++) {
-                if (!other.values.get(i).isEmpty()) {
+            for (int i = 0; i < otherValuesSize; i++) {
+                if (!other.values.get(i).isEmpty() && i < valuesSize) {
                     values.set(i, other.values.get(i));
                 }
             }

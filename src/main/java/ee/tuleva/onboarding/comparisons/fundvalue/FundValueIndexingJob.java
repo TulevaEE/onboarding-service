@@ -73,6 +73,8 @@ public class FundValueIndexingJob {
         valuesPulled.forEach(value -> {
             if(!fundValueRepository.findExistingValueForFund(value).isPresent())
                 fundValueRepository.save(value);
+            else
+                fundValueRepository.update(value);
         });
         log.info("Successfully pulled and saved " + valuesPulled.size() + " fund values");
     }

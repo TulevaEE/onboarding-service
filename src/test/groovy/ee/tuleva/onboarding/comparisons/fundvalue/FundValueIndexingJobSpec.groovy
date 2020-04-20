@@ -38,6 +38,20 @@ class FundValueIndexingJobSpec extends Specification {
             1 * fundValueRepository.save(fundValues[1])
     }
 
+    def "if saved fund values exist in downloaded funds, update existing one"() {
+        List<FundValue> fundValues = fakeFundValues()
+        given:
+        fundValueRetriever.getKey() >> WorldIndexValueRetriever.KEY
+        fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY) >> Optional.empty()
+        fundValueRepository.findExistingValueForFund(_ as FundValue) >> {value -> Optional.of(value)}
+        when:
+        fundValueIndexingJob.runIndexingJob()
+        then:
+        1 * fundValueRetriever.retrieveValuesForRange(FundValueIndexingJob.EARLIEST_DATE, LocalDate.now()) >> fakeFundValues()
+        1 * fundValueRepository.update(fundValues[0])
+        1 * fundValueRepository.update(fundValues[1])
+    }
+
     def "if saved fund values found, downloads from the next day after last fund value"() {
         List<FundValue> fundValues = fakeFundValues()
         given:

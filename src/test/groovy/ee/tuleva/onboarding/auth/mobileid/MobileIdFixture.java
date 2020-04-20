@@ -21,6 +21,18 @@ public class MobileIdFixture {
     return status;
   }
 
+  public static MidSessionStatus getSampleMidSessionIncomplete() {
+    MidSessionStatus status = new MidSessionStatus();
+    status.setState("RUNNING");
+    return status;
+  }
+
+  public static MidSessionStatus getSampleMidSessionOther() {
+    MidSessionStatus status = new MidSessionStatus();
+    status.setState("");
+    return status;
+  }
+
   public static MidAuthenticationResult getSampleMidAuthResult(boolean isValid) {
     MidAuthenticationResult sampleAuthResult = new MidAuthenticationResult();
     MidAuthenticationIdentity sampleAuthIdentity = new MidAuthenticationIdentity();

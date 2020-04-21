@@ -88,6 +88,16 @@ class MobileIdAuthServiceSpec extends Specification {
         isLoginComplete == false
     }
 
+    def "IsLoginComplete: Mobile ID sessionStatus is missing"() {
+        given:
+        1 * poller.fetchFinalAuthenticationSessionStatus(_) >> null
+        when:
+        boolean isLoginComplete = mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
+        then:
+        isLoginComplete == false
+    }
+
+
     def "IsLoginComplete: Mobile ID authentication response has some other response status"() {
         given:
         1 * poller.fetchFinalAuthenticationSessionStatus(_) >> getSampleMidSessionOther()

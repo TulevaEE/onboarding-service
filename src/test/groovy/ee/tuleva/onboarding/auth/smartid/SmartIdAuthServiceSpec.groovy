@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.auth.smartid
 
+
 import ee.sk.smartid.*
+import ee.sk.smartid.exception.UserAccountNotFoundException
+import ee.sk.smartid.exception.UserRefusedException
 import ee.sk.smartid.rest.SmartIdConnector
 import ee.sk.smartid.rest.dao.*
 import spock.lang.Specification
@@ -55,6 +58,24 @@ class SmartIdAuthServiceSpec extends Specification {
     def "IsLoginComplete: Login is not complete when result is not valid"() {
         given:
         1 * connector.getSessionStatus(sessionId) >> sessionStatus("COMPLETE", "DOCUMENT_UNUSABLE")
+        when:
+        smartIdAuthService.isLoginComplete(sampleSmartIdSession)
+        then:
+        thrown(IllegalStateException)
+    }
+
+    def "IsLoginComplete: Login is not complete when user account not found"() {
+        given:
+        1 * connector.getSessionStatus(sessionId) >> { throw new UserAccountNotFoundException() }
+        when:
+        smartIdAuthService.isLoginComplete(sampleSmartIdSession)
+        then:
+        thrown(IllegalStateException)
+    }
+
+    def "IsLoginComplete: Login is not complete when user refused authentication"() {
+        given:
+        1 * connector.getSessionStatus(sessionId) >> { throw new UserRefusedException() }
         when:
         smartIdAuthService.isLoginComplete(sampleSmartIdSession)
         then:

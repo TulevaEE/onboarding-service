@@ -64,10 +64,31 @@ public class MobileIdAuthService {
     try {
       MidSessionStatus sessionStatus =
           poller.fetchFinalAuthenticationSessionStatus(session.getSessionId());
-      MidAuthentication authentication =
-          client.createMobileIdAuthentication(sessionStatus, session.getAuthenticationHash());
 
-      authenticationResult = validator.validate(authentication);
+      if (sessionStatus == null || "RUNNING".equalsIgnoreCase(sessionStatus.getState())) {
+        return false;
+      }
+
+      if ("COMPLETE".equalsIgnoreCase(sessionStatus.getState())) {
+        MidAuthentication authentication =
+            client.createMobileIdAuthentication(sessionStatus, session.getAuthenticationHash());
+
+        authenticationResult = validator.validate(authentication);
+
+        if (!authenticationResult.isValid()) {
+          throw new MobileIdException(authenticationResult.getErrors());
+        }
+
+        MidAuthenticationIdentity authenticationIdentity =
+            authenticationResult.getAuthenticationIdentity();
+
+        session.updateSessionInfo(
+            authenticationIdentity.getGivenName(),
+            authenticationIdentity.getSurName(),
+            authenticationIdentity.getIdentityCode());
+
+        return authenticationResult.isValid();
+      }
 
     } catch (MidUserCancellationException e) {
       log.info("User cancelled operation from his/her phone.");
@@ -104,19 +125,7 @@ public class MobileIdAuthService {
       throw new MobileIdException("MID internal error", e);
     }
 
-    if (!authenticationResult.isValid()) {
-      throw new MobileIdException(authenticationResult.getErrors());
-    }
-
-    MidAuthenticationIdentity authenticationIdentity =
-        authenticationResult.getAuthenticationIdentity();
-
-    session.updateSessionInfo(
-        authenticationIdentity.getGivenName(),
-        authenticationIdentity.getSurName(),
-        authenticationIdentity.getIdentityCode());
-
-    return true;
+    return false;
   }
 
   private MidAuthenticationRequest getBuildMidAuthenticationRequest(

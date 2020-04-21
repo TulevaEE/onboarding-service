@@ -5,6 +5,7 @@ import ee.sk.smartid.rest.SmartIdConnector
 import ee.sk.smartid.rest.dao.*
 import spock.lang.Specification
 
+import static ee.sk.smartid.SmartIdAuthenticationResult.Error.INVALID_END_RESULT
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.*
 
 class SmartIdAuthServiceSpec extends Specification {
@@ -70,6 +71,16 @@ class SmartIdAuthServiceSpec extends Specification {
         isLoginComplete
     }
 
+    def "IsLoginComplete: Error with authentication result"() {
+        given:
+        1 * connector.getSessionStatus(sessionId) >> sessionStatus("COMPLETE", "OK", "signature")
+        1 * validator.validate(_) >> invalidAuthResult()
+        when:
+        smartIdAuthService.isLoginComplete(sampleFinalSmartIdSession)
+        then:
+        thrown(IllegalStateException)
+    }
+
     private SmartIdAuthenticationResult validAuthResult() {
         AuthenticationIdentity identity = new AuthenticationIdentity()
         identity.givenName = givenName
@@ -79,6 +90,18 @@ class SmartIdAuthServiceSpec extends Specification {
         result.valid = true
         result.authenticationIdentity = identity
 
+        return result
+    }
+
+    private SmartIdAuthenticationResult invalidAuthResult() {
+        AuthenticationIdentity identity = new AuthenticationIdentity()
+        identity.givenName = givenName
+        identity.surName = surName
+
+        def result = new SmartIdAuthenticationResult()
+        result.valid = false
+        result.authenticationIdentity = identity
+        result.addError(INVALID_END_RESULT)
         return result
     }
 

@@ -68,6 +68,7 @@ digidoc:
 mobile-id:
   hostUrl: 'https://tsp.demo.sk.ee/mid-api'
   pollingSleepTimeoutSeconds: 1
+  longPollingTimeoutSeconds: 1
   service:
     name: "Testimine"
 

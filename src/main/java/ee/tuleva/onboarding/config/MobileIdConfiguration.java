@@ -32,6 +32,9 @@ public class MobileIdConfiguration {
   @Value("${mobile-id.pollingSleepTimeoutSeconds}")
   private int pollingSleepTimeoutSeconds;
 
+  @Value("${mobile-id.longPollingTimeoutSeconds}")
+  private int longPollingTimeoutSeconds;
+
   @Value("${mobile-id.service.name}")
   private String serviceName;
 
@@ -50,6 +53,7 @@ public class MobileIdConfiguration {
         .withRelyingPartyName(relyingPartyName)
         .withRelyingPartyUUID(relyingPartyUUID)
         .withHostUrl(hostUrl)
+        .withLongPollingTimeoutSeconds(longPollingTimeoutSeconds)
         .withPollingSleepTimeoutSeconds(pollingSleepTimeoutSeconds)
         .build();
   }

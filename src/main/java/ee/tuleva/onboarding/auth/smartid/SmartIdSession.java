@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.smartid;
 
+import ee.sk.smartid.AuthenticationHash;
 import ee.sk.smartid.AuthenticationIdentity;
 import ee.sk.smartid.SmartIdAuthenticationResult;
 import lombok.Data;
@@ -17,13 +18,17 @@ public class SmartIdSession implements Serializable {
 
     private static final long serialVersionUID = 6407589354898164171L;
 
-    public final String verificationCode;
-    private boolean valid = false;
-    private List<String> errors = new ArrayList<>();
+    private final String verificationCode;
+    private final String sessionId;
+    private final String identityCode;
+    private final AuthenticationHash authenticationHash;
+    private boolean valid = false; // TODO: remove result from session
     private String givenName;
     private String surName;
-    private String identityCode;
     private String country;
+
+    // TODO: remove errors from session
+    private List<String> errors = new ArrayList<>();
 
     public void setAuthenticationResult(SmartIdAuthenticationResult result) {
         if (result.isValid()) {
@@ -31,7 +36,6 @@ public class SmartIdSession implements Serializable {
             AuthenticationIdentity identity = result.getAuthenticationIdentity();
             givenName = identity.getGivenName();
             surName = identity.getSurName();
-            identityCode = identity.getIdentityCode();
             country = identity.getCountry();
         } else {
             valid = false;

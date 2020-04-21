@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.config;
 import ee.sk.smartid.AuthenticationResponseValidator;
 import ee.sk.smartid.SmartIdClient;
 import ee.sk.smartid.exception.TechnicalErrorException;
+import ee.sk.smartid.rest.SmartIdConnector;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -19,8 +20,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Configuration
 @RequiredArgsConstructor
@@ -32,12 +32,14 @@ public class SmartIdClientConfiguration {
     @Bean
     @ConfigurationProperties(prefix = "smartid")
     public SmartIdClient smartIdClient() {
-        return new SmartIdClient();
+        SmartIdClient smartIdClient = new SmartIdClient();
+        smartIdClient.setSessionStatusResponseSocketOpenTime(TimeUnit.MILLISECONDS, 1L);
+        return smartIdClient;
     }
 
     @Bean
-    public Executor smartIdExecutor() {
-        return Executors.newFixedThreadPool(100);
+    public SmartIdConnector smartIdConnector() {
+        return smartIdClient().getSmartIdConnector();
     }
 
     @Bean

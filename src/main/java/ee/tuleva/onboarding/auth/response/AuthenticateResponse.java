@@ -21,6 +21,6 @@ public class AuthenticateResponse {
   }
 
   public static AuthenticateResponse fromSmartIdSession(SmartIdSession smartIdSession) {
-    return builder().challengeCode(smartIdSession.verificationCode).build();
+    return builder().challengeCode(smartIdSession.getVerificationCode()).build();
   }
 }

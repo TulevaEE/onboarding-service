@@ -20,6 +20,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Enumeration;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 @Configuration
@@ -35,6 +37,11 @@ public class SmartIdClientConfiguration {
         SmartIdClient smartIdClient = new SmartIdClient();
         smartIdClient.setSessionStatusResponseSocketOpenTime(TimeUnit.MILLISECONDS, 1L);
         return smartIdClient;
+    }
+
+    @Bean
+    public Executor smartIdExecutor() {
+        return Executors.newFixedThreadPool(100);
     }
 
     @Bean

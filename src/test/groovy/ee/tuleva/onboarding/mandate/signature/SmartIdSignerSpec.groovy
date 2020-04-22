@@ -94,7 +94,7 @@ class SmartIdSignerSpec extends Specification {
         signatureSession.container == container
     }
 
-    def "does nothing while certificate session is COMPLETE and siging session is still RUNNING"() {
+    def "does nothing while certificate session is COMPLETE and signing session is still RUNNING"() {
         given:
         def signatureSession = new SmartIdSignatureSession(certificateSessionId, personalCode, files)
         signatureSession.signingSessionId = signingSessionId

@@ -8,11 +8,11 @@ import spock.lang.Specification
 
 import static java.util.Collections.singletonList
 
-class SignatureServiceTest extends Specification {
+class SignatureServiceSpec extends Specification {
 
-    def signer = Mock(MobileIDAuthenticator)
     def smartIdSigner = Mock(SmartIdSigner)
-    def service = new SignatureService(signer, smartIdSigner)
+    def signer = Mock(MobileIDAuthenticator)
+    def service = new SignatureService(smartIdSigner, signer)
 
     def "startSign() works for mobile id"() {
         given:

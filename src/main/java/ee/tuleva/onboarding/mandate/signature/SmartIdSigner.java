@@ -10,14 +10,14 @@ import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.io.IOUtils;
-import org.digidoc4j.*;
+import org.digidoc4j.Container;
+import org.digidoc4j.DataToSign;
+import org.digidoc4j.Signature;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.security.MessageDigest;
 import java.security.cert.X509Certificate;
 import java.util.List;
 
@@ -30,9 +30,9 @@ public class SmartIdSigner {
     private final SmartIdClient smartIdClient;
     private final SmartIdConnector connector;
     private final GenericSessionStore sessionStore;
-    private final Configuration digiDocConfig;
+    private final DigiDocFacade digiDocFacade;
 
-    public SmartIdSignatureSession sign(List<SignatureFile> files, String personalCode) {
+    public SmartIdSignatureSession startSign(List<SignatureFile> files, String personalCode) {
         String certificateSessionId = certificateRequestBuilder(personalCode)
             .initiateCertificateChoice();
 
@@ -59,6 +59,43 @@ public class SmartIdSigner {
         return finalizeSignature(session, signingSessionStatus);
     }
 
+    @Nullable
+    private SessionStatus getSessionStatus(String sessionId) {
+        SessionStatus sessionStatus = connector.getSessionStatus(sessionId);
+        if (sessionStatus == null || "RUNNING".equalsIgnoreCase(sessionStatus.getState())) {
+            return null;
+        }
+        if (!"COMPLETE".equalsIgnoreCase(sessionStatus.getState())) {
+            throw new SmartIdException("Invalid Smart-ID session status: " + sessionStatus.getState());
+        }
+        return sessionStatus;
+    }
+
+    private void startSigningSession(SmartIdSignatureSession session, SessionStatus certificateSessionStatus) {
+        SmartIdCertificate smartIdCertificate = certificateRequestBuilder(session.getPersonalCode())
+            .createSmartIdCertificate(certificateSessionStatus);
+
+        X509Certificate certificate = smartIdCertificate.getCertificate();
+        Container container = digiDocFacade.buildContainer(session.getFiles());
+
+        DataToSign dataToSign = digiDocFacade.dataToSign(container, certificate);
+        byte[] digestToSign = digiDocFacade.digestToSign(dataToSign);
+
+        SignableHash signableHash = signableHash(digestToSign);
+        String documentNumber = smartIdCertificate.getDocumentNumber();
+
+        String signingSessionId = signatureRequestBuilder(signableHash, documentNumber)
+            .initiateSigning();
+
+        session.setChallengeCode(VerificationCodeCalculator.calculate(digestToSign));
+        session.setSigningSessionId(signingSessionId);
+        session.setDocumentNumber(documentNumber);
+        session.setDataToSign(dataToSign);
+        session.setSignableHash(signableHash);
+        session.setContainer(container);
+        sessionStore.save(session);
+    }
+
     @SneakyThrows
     private byte[] finalizeSignature(SmartIdSignatureSession session, SessionStatus signingSessionStatus) {
         SmartIdSignature smartIdSignature =
@@ -77,71 +114,12 @@ public class SmartIdSigner {
         return IOUtils.toByteArray(containerStream);
     }
 
-    @Nullable
-    private SessionStatus getSessionStatus(String sessionId) {
-        SessionStatus sessionStatus = connector.getSessionStatus(sessionId);
-        if (sessionStatus == null || "RUNNING".equalsIgnoreCase(sessionStatus.getState())) {
-            return null;
-        }
-        if (!"COMPLETE".equalsIgnoreCase(sessionStatus.getState())) {
-            throw new SmartIdException("Invalid Smart-ID session status: " + sessionStatus.getState());
-        }
-        return sessionStatus;
-    }
-
-    private void startSigningSession(SmartIdSignatureSession session, SessionStatus certificateSessionStatus) {
-        SmartIdCertificate smartIdCertificate = certificateRequestBuilder(session.getPersonalCode())
-            .createSmartIdCertificate(certificateSessionStatus);
-
-        X509Certificate certificate = smartIdCertificate.getCertificate();
-        Container container = buildContainer(session.getFiles());
-
-        DataToSign dataToSign = dataToSign(container, certificate);
-        byte[] digestToSign = digestToSign(dataToSign);
-
-        SignableHash signableHash = signableHash(digestToSign);
-        String documentNumber = smartIdCertificate.getDocumentNumber();
-
-        String signingSessionId = signatureRequestBuilder(signableHash, documentNumber)
-            .initiateSigning();
-
-        session.setChallengeCode(VerificationCodeCalculator.calculate(digestToSign));
-        session.setSigningSessionId(signingSessionId);
-        session.setDocumentNumber(documentNumber);
-        session.setDataToSign(dataToSign);
-        session.setSignableHash(signableHash);
-        session.setContainer(container);
-        sessionStore.save(session);
-    }
-
-    private DataToSign dataToSign(Container container, X509Certificate certificate) {
-        return SignatureBuilder
-            .aSignature(container)
-            .withSigningCertificate(certificate)
-            .withSignatureDigestAlgorithm(DigestAlgorithm.SHA256)
-            .buildDataToSign();
-    }
-
-    @SneakyThrows
-    private byte[] digestToSign(DataToSign dataToSign) {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        return digest.digest(dataToSign.getDataToSign());
-    }
-
     @NotNull
     private SignableHash signableHash(byte[] digestToSign) {
         SignableHash signableHash = new SignableHash();
         signableHash.setHash(digestToSign);
         signableHash.setHashType(SHA256);
         return signableHash;
-    }
-
-    private Container buildContainer(List<SignatureFile> files) {
-        ContainerBuilder builder = ContainerBuilder
-            .aContainer()
-            .withConfiguration(digiDocConfig);
-        files.forEach(file -> builder.withDataFile(new ByteArrayInputStream(file.content), file.name, file.mimeType));
-        return builder.build();
     }
 
     private CertificateRequestBuilder certificateRequestBuilder(String personalCode) {

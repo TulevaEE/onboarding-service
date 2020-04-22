@@ -56,7 +56,7 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
-            .andExpect(jsonPath('$.mobileIdChallengeCode', is("1234")))
+            .andExpect(jsonPath('$.challengeCode', is("1234")))
     }
 
     def "mobile id signature start fails when there's no mobile id session"() {

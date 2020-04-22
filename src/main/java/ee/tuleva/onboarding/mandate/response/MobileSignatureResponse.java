@@ -9,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MobileSignatureResponse {
 
-    @Deprecated
-    private final String mobileIdChallengeCode;
     private final String challengeCode;
 
 }

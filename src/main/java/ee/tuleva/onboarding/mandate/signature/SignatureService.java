@@ -13,19 +13,19 @@ import java.util.List;
 @AllArgsConstructor
 public class SignatureService {
 
-    private final MobileIDAuthenticator signer;
     private final SmartIdSigner smartIdSigner;
-
-    public MobileIdSignatureSession startSign(List<SignatureFile> files, String personalCode, String phone) {
-        return signer.startSign(files, personalCode, phone);
-    }
+    private final MobileIDAuthenticator signer;
 
     public SmartIdSignatureSession startSmartIdSign(List<SignatureFile> files, String personalCode) {
-        return smartIdSigner.sign(files, personalCode);
+        return smartIdSigner.startSign(files, personalCode);
     }
 
     public byte[] getSignedFile(SmartIdSignatureSession session) {
         return smartIdSigner.getSignedFile(session);
+    }
+
+    public MobileIdSignatureSession startSign(List<SignatureFile> files, String personalCode, String phone) {
+        return signer.startSign(files, personalCode, phone);
     }
 
     public byte[] getSignedFile(MobileIdSignatureSession session) {

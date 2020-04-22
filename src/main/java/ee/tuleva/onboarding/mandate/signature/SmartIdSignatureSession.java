@@ -11,11 +11,13 @@ import java.util.List;
 
 @Data
 public class SmartIdSignatureSession implements Serializable {
-    private String challengeCode;
+    private static final long serialVersionUID = -5454823973379414071L;
+
     private final String certificateSessionId;
-    private String signingSessionId;
     private final String personalCode;
     private final List<SignatureFile> files;
+    private String signingSessionId;
+    private String challengeCode;
     private String documentNumber;
     private DataToSign dataToSign;
     private SignableHash signableHash;

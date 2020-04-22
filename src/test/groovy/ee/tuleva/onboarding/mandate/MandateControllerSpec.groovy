@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.exception.IdSessionException
+import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
@@ -73,7 +74,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     }
 
-    def "get mobile ID signature status returns the status code"() {
+    def "get mobile ID signature status returns the status and challenge code"() {
         when:
         def session = new MobileIdSignatureSession(1, "1234")
         sessionStore.get(MobileIdSignatureSession) >> Optional.of(session)
@@ -85,6 +86,38 @@ class MandateControllerSpec extends BaseControllerSpec {
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
             .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
+            .andExpect(jsonPath('$.challengeCode', is("1234")))
+    }
+
+    def "smart id signature start returns null challenge code"() {
+        when:
+        def session = new SmartIdSignatureSession("certSessionId", "personalCode", [])
+        1 * mandateService.smartIdSign(1L, _) >> session
+        1* sessionStore.save(session)
+
+        then:
+        mvc
+            .perform(put("/v1/mandates/1/signature/smartId")
+                .contentType(MediaType.APPLICATION_JSON))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
+            .andExpect(jsonPath('$.challengeCode', is(null)))
+    }
+
+    def "get smart id signature status returns the status and challenge code"() {
+        when:
+        def session = new SmartIdSignatureSession("certSessionId", "personalCode", [])
+        session.challengeCode = "1234"
+        1 * sessionStore.get(SmartIdSignatureSession) >> Optional.of(session)
+        1 * mandateService.finalizeSmartIdSignature(_, 1L, session) >> "SIGNATURE"
+
+        then:
+        mvc
+            .perform(get("/v1/mandates/1/signature/smartId/status"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
+            .andExpect(jsonPath('$.challengeCode', is("1234")))
     }
 
     def "id card signature start returns the hash to be signed by the client"() {

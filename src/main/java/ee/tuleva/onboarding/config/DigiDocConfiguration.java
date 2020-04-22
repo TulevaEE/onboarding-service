@@ -14,7 +14,7 @@ public class DigiDocConfiguration {
     }
 
     @Bean
-    @Profile("dev")
+    @Profile("!production")
     public org.digidoc4j.Configuration digiDocConfigDev() {
         return new org.digidoc4j.Configuration(org.digidoc4j.Configuration.Mode.TEST);
     }

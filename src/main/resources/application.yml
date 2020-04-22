@@ -73,6 +73,7 @@ mobile-id:
 
 truststore:
   path: "test_keys/truststore.jks"
+  password: changeit
 
 mandate:
   email:

@@ -9,7 +9,7 @@ import lombok.Data;
 @AllArgsConstructor
 public class MobileSignatureStatusResponse {
 
-	private final String statusCode;
+    private final String statusCode;
     private final String challengeCode;
 
 }

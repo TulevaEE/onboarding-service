@@ -33,12 +33,11 @@ class SmartIdAuthServiceSpec extends Specification {
         1 * hashGenerator.generateHash() >> hash
         1 * connector.authenticate(_, _) >> authenticationSessionResponse(sessionId)
         when:
-        SmartIdSession session = smartIdAuthService.startLogin(identityCode)
+        SmartIdSession session = smartIdAuthService.startLogin(personalCode)
         then:
         session.verificationCode == hash.calculateVerificationCode()
         session.sessionId == sessionId
-        session.identityCode == identityCode
-        !session.valid
+        session.personalCode == personalCode
     }
 
     def "IsLoginComplete: Login is not complete when no result"() {
@@ -61,7 +60,7 @@ class SmartIdAuthServiceSpec extends Specification {
         when:
         smartIdAuthService.isLoginComplete(sampleSmartIdSession)
         then:
-        thrown(IllegalStateException)
+        thrown(SmartIdException)
     }
 
     def "IsLoginComplete: Login is not complete when user account not found"() {
@@ -70,7 +69,7 @@ class SmartIdAuthServiceSpec extends Specification {
         when:
         smartIdAuthService.isLoginComplete(sampleSmartIdSession)
         then:
-        thrown(IllegalStateException)
+        thrown(SmartIdException)
     }
 
     def "IsLoginComplete: Login is not complete when user refused authentication"() {
@@ -79,7 +78,7 @@ class SmartIdAuthServiceSpec extends Specification {
         when:
         smartIdAuthService.isLoginComplete(sampleSmartIdSession)
         then:
-        thrown(IllegalStateException)
+        thrown(SmartIdException)
     }
 
     def "IsLoginComplete: Fetch state of smart id login"() {
@@ -99,13 +98,13 @@ class SmartIdAuthServiceSpec extends Specification {
         when:
         smartIdAuthService.isLoginComplete(sampleFinalSmartIdSession)
         then:
-        thrown(IllegalStateException)
+        thrown(SmartIdException)
     }
 
     private SmartIdAuthenticationResult validAuthResult() {
         AuthenticationIdentity identity = new AuthenticationIdentity()
-        identity.givenName = givenName
-        identity.surName = surName
+        identity.givenName = firstName
+        identity.surName = lastName
 
         def result = new SmartIdAuthenticationResult()
         result.valid = true
@@ -116,8 +115,8 @@ class SmartIdAuthServiceSpec extends Specification {
 
     private SmartIdAuthenticationResult invalidAuthResult() {
         AuthenticationIdentity identity = new AuthenticationIdentity()
-        identity.givenName = givenName
-        identity.surName = surName
+        identity.givenName = firstName
+        identity.surName = lastName
 
         def result = new SmartIdAuthenticationResult()
         result.valid = false

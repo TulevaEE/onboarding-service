@@ -4,26 +4,21 @@ import ee.tuleva.onboarding.auth.BeforeTokenGrantedEventPublisher;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
-import ee.tuleva.onboarding.auth.exception.SmartIdSessionNotFoundException;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
-import org.springframework.security.oauth2.provider.ClientDetails;
-import org.springframework.security.oauth2.provider.ClientDetailsService;
-import org.springframework.security.oauth2.provider.OAuth2Authentication;
-import org.springframework.security.oauth2.provider.OAuth2Request;
-import org.springframework.security.oauth2.provider.OAuth2RequestFactory;
-import org.springframework.security.oauth2.provider.TokenRequest;
+import org.springframework.security.oauth2.provider.*;
 import org.springframework.security.oauth2.provider.token.AbstractTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
+
+import java.util.Optional;
 
 @Slf4j
 public class SmartIdTokenGranter extends AbstractTokenGranter {
@@ -84,17 +79,17 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
             new Person() {
               @Override
               public String getPersonalCode() {
-                return smartIdSession.getIdentityCode();
+                return smartIdSession.getPersonalCode();
               }
 
               @Override
               public String getFirstName() {
-                return smartIdSession.getGivenName();
+                return smartIdSession.getFirstName();
               }
 
               @Override
               public String getLastName() {
-                return smartIdSession.getSurName();
+                return smartIdSession.getLastName();
               }
             });
 

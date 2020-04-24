@@ -9,10 +9,10 @@ import org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConvert
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestOperations;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static java.time.Duration.ofSeconds;
-import static java.util.Collections.emptyList;
 
 @Service
 @Slf4j
@@ -60,12 +60,12 @@ public class PensionFundStatisticsService {
 
             if (result == null) {
                 log.info("Pension fund statistics is empty");
-                return emptyList();
+                return new ArrayList<>();
             }
             return result;
         } catch (Exception e) {
             log.error("Error getting pension fund statistics");
-            return emptyList();
+            return new ArrayList<>();
         }
     }
 

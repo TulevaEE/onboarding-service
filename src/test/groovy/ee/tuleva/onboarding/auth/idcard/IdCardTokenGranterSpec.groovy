@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.auth.idcard
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
-import ee.tuleva.onboarding.auth.exception.IdCardSessionNotFoundException
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.session.GenericSessionStore

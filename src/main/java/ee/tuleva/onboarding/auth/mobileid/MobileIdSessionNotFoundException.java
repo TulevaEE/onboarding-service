@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth.exception;
+package ee.tuleva.onboarding.auth.mobileid;
 
 public class MobileIdSessionNotFoundException extends RuntimeException {
   public MobileIdSessionNotFoundException() {

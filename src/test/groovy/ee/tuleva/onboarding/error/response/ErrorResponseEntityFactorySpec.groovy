@@ -22,6 +22,6 @@ class ErrorResponseEntityFactorySpec extends Specification {
 
         then:
         responseEntity.statusCode == BAD_REQUEST
-        responseEntity.body.errors == null
+        responseEntity.body.errors == []
     }
 }

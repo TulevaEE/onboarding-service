@@ -6,21 +6,21 @@ import ee.sk.smartid.SmartIdAuthenticationResult;
 
 public class SmartIdFixture {
 
-    public static final String identityCode = "10101010005";
-    public static final String givenName = "Aadu";
-    public static final String surName = "Kadakas";
+    public static final String personalCode = "38501010002";
+    public static final String firstName = "Aadu";
+    public static final String lastName = "Kadakas";
     public static final String sessionId = "sessionId123";
     private static final String verificationCode = "12345";
-    public static SmartIdSession sampleSmartIdSession = new SmartIdSession(verificationCode, sessionId, identityCode,
+    public static SmartIdSession sampleSmartIdSession = new SmartIdSession(verificationCode, sessionId, personalCode,
         AuthenticationHash.generateRandomHash());
-    public static SmartIdSession sampleFinalSmartIdSession = new SmartIdSession(verificationCode, sessionId, identityCode,
+    public static SmartIdSession sampleFinalSmartIdSession = new SmartIdSession(verificationCode, sessionId, personalCode,
         AuthenticationHash.generateRandomHash());
 
     static {
         AuthenticationIdentity identity = new AuthenticationIdentity();
-        identity.setIdentityCode(identityCode);
-        identity.setGivenName(givenName);
-        identity.setSurName(surName);
+        identity.setIdentityCode(personalCode);
+        identity.setGivenName(firstName);
+        identity.setSurName(lastName);
 
         SmartIdAuthenticationResult result = new SmartIdAuthenticationResult();
         result.setValid(true);

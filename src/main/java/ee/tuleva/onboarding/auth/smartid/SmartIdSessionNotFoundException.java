@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth.exception;
+package ee.tuleva.onboarding.auth.smartid;
 
 public class SmartIdSessionNotFoundException extends RuntimeException {
   public SmartIdSessionNotFoundException() {

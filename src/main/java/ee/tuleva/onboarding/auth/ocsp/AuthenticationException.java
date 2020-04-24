@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth.exception;
+package ee.tuleva.onboarding.auth.ocsp;
 
 import lombok.Getter;
 

@@ -4,7 +4,6 @@ package ee.tuleva.onboarding.auth.smartid
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
-import ee.tuleva.onboarding.auth.exception.SmartIdSessionNotFoundException
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException
@@ -81,9 +80,9 @@ class SmartIdTokenGranterSpec extends Specification {
         1 * sessionStore.get(SmartIdSession) >> Optional.of(SmartIdFixture.sampleFinalSmartIdSession)
         1 * smartIdAuthService.isLoginComplete(SmartIdFixture.sampleFinalSmartIdSession) >> true
         1 * principalService.getFrom({ Person person ->
-            person.personalCode == SmartIdFixture.identityCode &&
-                person.firstName == SmartIdFixture.givenName &&
-                person.lastName == SmartIdFixture.surName
+            person.personalCode == SmartIdFixture.personalCode &&
+                person.firstName == SmartIdFixture.firstName &&
+                person.lastName == SmartIdFixture.lastName
 
         }) >> AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
         ClientDetails sampleClientDetails = sampleClientDetails()

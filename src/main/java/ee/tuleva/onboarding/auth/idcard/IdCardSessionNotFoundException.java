@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth.exception;
+package ee.tuleva.onboarding.auth.idcard;
 
 public class IdCardSessionNotFoundException extends RuntimeException {
   public IdCardSessionNotFoundException() {

@@ -39,7 +39,7 @@ public class PaymentController {
   @PostMapping("/payments")
   public void incomingPayment(@ModelAttribute @Valid IncomingPayment incomingPayment,
                               @ApiIgnore HttpServletResponse response,
-                              @ApiIgnore Errors errors) throws IOException, ValidationErrorsException {
+                              @ApiIgnore Errors errors) throws IOException {
 
     log.info("Incoming payment: {}", incomingPayment);
 

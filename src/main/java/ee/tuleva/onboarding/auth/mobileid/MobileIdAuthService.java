@@ -1,34 +1,20 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
-import ee.sk.mid.MidAuthentication;
-import ee.sk.mid.MidAuthenticationHashToSign;
-import ee.sk.mid.MidAuthenticationIdentity;
-import ee.sk.mid.MidAuthenticationResponseValidator;
-import ee.sk.mid.MidAuthenticationResult;
-import ee.sk.mid.MidClient;
-import ee.sk.mid.MidDisplayTextFormat;
-import ee.sk.mid.MidLanguage;
-import ee.sk.mid.exception.MidDeliveryException;
-import ee.sk.mid.exception.MidInternalErrorException;
-import ee.sk.mid.exception.MidInvalidUserConfigurationException;
-import ee.sk.mid.exception.MidMissingOrInvalidParameterException;
-import ee.sk.mid.exception.MidNotMidClientException;
-import ee.sk.mid.exception.MidPhoneNotAvailableException;
-import ee.sk.mid.exception.MidSessionNotFoundException;
-import ee.sk.mid.exception.MidSessionTimeoutException;
-import ee.sk.mid.exception.MidUnauthorizedException;
-import ee.sk.mid.exception.MidUserCancellationException;
+import ee.sk.mid.*;
+import ee.sk.mid.exception.*;
 import ee.sk.mid.rest.MidConnector;
 import ee.sk.mid.rest.MidSessionStatusPoller;
 import ee.sk.mid.rest.dao.MidSessionStatus;
 import ee.sk.mid.rest.dao.request.MidAuthenticationRequest;
 import ee.sk.mid.rest.dao.response.MidAuthenticationResponse;
-import ee.tuleva.onboarding.auth.exception.MobileIdException;
-import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.stream.Stream;
+
+import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError;
 
 @Service
 @Slf4j
@@ -76,7 +62,7 @@ public class MobileIdAuthService {
         authenticationResult = validator.validate(authentication);
 
         if (!authenticationResult.isValid()) {
-          throw new MobileIdException(authenticationResult.getErrors());
+          throw MobileIdException.ofErrors(authenticationResult.getErrors());
         }
 
         MidAuthenticationIdentity authenticationIdentity =
@@ -91,38 +77,35 @@ public class MobileIdAuthService {
       }
 
     } catch (MidUserCancellationException e) {
-      log.info("User cancelled operation from his/her phone.");
-      throw new MobileIdException("You cancelled operation from your phone.");
+      throw new MobileIdException(ofSingleError("mobile.id.cancelled", "You cancelled operation from " +
+          "your phone."));
     } catch (MidNotMidClientException e) {
-      log.info("User is not a MID client or user's certificates are revoked");
-      throw new MobileIdException(
-          "You are not a Mobile-ID client or your Mobile-ID certificates are revoked. Please contact your mobile operator.");
+      throw new MobileIdException(ofSingleError("mobile.id.certificates.revoked",
+          "You are not a Mobile-ID client or your Mobile-ID certificates are revoked. Please contact your mobile " +
+              "operator."));
     } catch (MidSessionTimeoutException e) {
-      log.info("User did not type in PIN code or communication error.");
-      throw new MobileIdException(
-          "You didn't type in PIN code into your phone or there was a communication error.");
+      throw new MobileIdException(ofSingleError("mobile.id.timeout",
+          "You didn't type in PIN code into your phone or there was a communication error."));
     } catch (MidPhoneNotAvailableException e) {
-      log.info("Unable to reach phone/SIM card. User needs to check if phone has coverage.");
-      throw new MobileIdException(
-          "Unable to reach your phone. Please make sure your phone has mobile coverage.");
+      throw new MobileIdException(ofSingleError("mobile.id.no.signal",
+          "Unable to reach your phone. Please make sure your phone has mobile coverage."));
     } catch (MidDeliveryException e) {
-      log.info("Error communicating with the phone/SIM card.");
-      throw new MobileIdException("Communication error. Unable to reach your phone.");
+      throw new MobileIdException(ofSingleError("mobile.id.communication.error", "Communication error. Unable to " +
+          "reach your phone."));
     } catch (MidInvalidUserConfigurationException e) {
-      log.info(
-          "Mobile-ID configuration on user's SIM card differs from what is configured on service provider side. User needs to contact his/her mobile operator.");
-      throw new MobileIdException(
-          "Mobile-ID configuration on your SIM card differs from what is configured on service provider's side. Please contact your mobile operator.");
+      throw new MobileIdException(ofSingleError("mobile.id.configuration.error",
+          "Mobile-ID configuration on your SIM card differs from what is configured on service provider's side. " +
+              "Please contact your mobile operator."));
     } catch (MidSessionNotFoundException
         | MidMissingOrInvalidParameterException
         | MidUnauthorizedException e) {
       log.error(
           "Integrator-side error with MID integration (including insufficient input validation) or configuration",
           e);
-      throw new MobileIdException("Client side error with mobile-ID integration.", e);
+      throw new MobileIdException(ofSingleError("mobile.id.error", "Client side error with mobile-ID integration."));
     } catch (MidInternalErrorException e) {
-      log.warn("MID service returned internal error that cannot be handled locally.");
-      throw new MobileIdException("MID internal error", e);
+      log.warn("MID service returned internal error that cannot be handled locally.", e);
+      throw new MobileIdException(ofSingleError("mobile.id.internal.error", "MID internal error"));
     }
 
     return false;

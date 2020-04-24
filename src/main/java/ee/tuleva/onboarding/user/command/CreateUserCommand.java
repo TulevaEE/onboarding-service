@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import lombok.Data;
-import org.hibernate.validator.constraints.Email;
 
+import javax.validation.constraints.Email;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 

@@ -45,7 +45,7 @@ public class UserController {
     @PatchMapping("/me")
     public UserResponse patchMe(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                 @Valid @RequestBody UpdateUserCommand cmd,
-                                @ApiIgnore Errors errors) throws ValidationErrorsException {
+                                @ApiIgnore Errors errors) {
 
         if (errors != null && errors.hasErrors()) {
             throw new ValidationErrorsException(errors);
@@ -67,7 +67,7 @@ public class UserController {
     @ApiOperation(value = "Create a new user")
     @PostMapping("/users")
     public UserResponse createUser(@Valid @RequestBody CreateUserCommand cmd,
-                                   @ApiIgnore Errors errors) throws ValidationErrorsException {
+                                   @ApiIgnore Errors errors) {
 
         if (errors != null && errors.hasErrors()) {
             throw new ValidationErrorsException(errors);

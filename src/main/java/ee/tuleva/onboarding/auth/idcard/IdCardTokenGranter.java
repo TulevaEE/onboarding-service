@@ -4,7 +4,6 @@ import ee.tuleva.onboarding.auth.BeforeTokenGrantedEventPublisher;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
-import ee.tuleva.onboarding.auth.exception.IdCardSessionNotFoundException;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;

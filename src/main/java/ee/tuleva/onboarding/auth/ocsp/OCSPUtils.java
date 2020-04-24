@@ -1,17 +1,5 @@
 package ee.tuleva.onboarding.auth.ocsp;
 
-import static ee.tuleva.onboarding.auth.exception.AuthenticationException.Code.INVALID_INPUT;
-
-import ee.tuleva.onboarding.auth.exception.AuthenticationException;
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.List;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.bouncycastle.cert.ocsp.CertificateID;
 import org.bouncycastle.cert.ocsp.OCSPException;
@@ -22,11 +10,19 @@ import org.bouncycastle.operator.DigestCalculatorProvider;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.springframework.stereotype.Component;
-import sun.security.x509.AccessDescription;
-import sun.security.x509.AuthorityInfoAccessExtension;
-import sun.security.x509.GeneralName;
-import sun.security.x509.URIName;
-import sun.security.x509.X509CertImpl;
+import sun.security.x509.*;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.util.List;
+
+import static ee.tuleva.onboarding.auth.ocsp.AuthenticationException.Code.INVALID_INPUT;
 
 @Component
 public class OCSPUtils {

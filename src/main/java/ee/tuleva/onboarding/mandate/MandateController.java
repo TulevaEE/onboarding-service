@@ -1,10 +1,5 @@
 package ee.tuleva.onboarding.mandate;
 
-import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
-import static org.springframework.web.bind.annotation.RequestMethod.GET;
-import static org.springframework.web.bind.annotation.RequestMethod.POST;
-import static org.springframework.web.bind.annotation.RequestMethod.PUT;
-
 import com.codeborne.security.mobileid.IdCardSignatureSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.codeborne.security.mobileid.SignatureFile;
@@ -23,12 +18,6 @@ import ee.tuleva.onboarding.mandate.response.MandateSignatureStatusResponse;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
 import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
 import io.swagger.annotations.ApiOperation;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
-import javax.servlet.http.HttpServletResponse;
-import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
@@ -39,6 +28,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.annotations.ApiIgnore;
+
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+
+import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
+import static org.springframework.web.bind.annotation.RequestMethod.*;
 
 @Slf4j
 @RestController
@@ -60,8 +59,7 @@ public class MandateController {
   public Mandate create(
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody CreateMandateCommand createMandateCommand,
-      @ApiIgnore Errors errors)
-      throws ValidationErrorsException {
+      @ApiIgnore Errors errors) {
     if (errors.hasErrors()) {
       log.info("Create mandate command is not valid: {}", errors);
       throw new ValidationErrorsException(errors);

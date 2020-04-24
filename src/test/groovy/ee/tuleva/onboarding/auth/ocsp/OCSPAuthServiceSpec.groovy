@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.auth.ocsp
 
 import com.codeborne.security.mobileid.CheckCertificateResponse
-import ee.tuleva.onboarding.auth.exception.AuthenticationException
 import org.bouncycastle.cert.ocsp.OCSPReqBuilder
 import spock.lang.Specification
 

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.ocsp;
 
-import static ee.tuleva.onboarding.auth.exception.AuthenticationException.Code.UNABLE_TO_TEST_USER_CERTIFICATE;
+import static ee.tuleva.onboarding.auth.ocsp.AuthenticationException.Code.UNABLE_TO_TEST_USER_CERTIFICATE;
 import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.EXPIRED;
 import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.GOOD;
 import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.REVOKED;
@@ -11,8 +11,7 @@ import static org.bouncycastle.cert.ocsp.OCSPResp.SUCCESSFUL;
 import static org.bouncycastle.cert.ocsp.OCSPResp.UNAUTHORIZED;
 import static org.springframework.http.HttpMethod.POST;
 
-import ee.tuleva.onboarding.auth.exception.AuthenticationException;
-import ee.tuleva.onboarding.auth.exception.AuthenticationException.Code;
+import ee.tuleva.onboarding.auth.ocsp.AuthenticationException.Code;
 import java.io.IOException;
 import java.security.cert.X509Certificate;
 import java.time.Clock;

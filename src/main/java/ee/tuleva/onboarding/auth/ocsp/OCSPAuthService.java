@@ -1,15 +1,6 @@
 package ee.tuleva.onboarding.auth.ocsp;
 
-import static ee.tuleva.onboarding.auth.exception.AuthenticationException.Code.INVALID_INPUT;
-import static ee.tuleva.onboarding.auth.exception.AuthenticationException.Code.USER_CERTIFICATE_MISSING;
-import static ee.tuleva.onboarding.auth.exception.AuthenticationException.Code.valueOf;
-import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.GOOD;
-
 import com.codeborne.security.mobileid.CheckCertificateResponse;
-import ee.tuleva.onboarding.auth.exception.AuthenticationException;
-import java.net.URI;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.X509Certificate;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.asn1.x500.RDN;
@@ -19,6 +10,13 @@ import org.bouncycastle.asn1.x500.style.IETFUtils;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
+
+import java.net.URI;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.X509Certificate;
+
+import static ee.tuleva.onboarding.auth.ocsp.AuthenticationException.Code.*;
+import static ee.tuleva.onboarding.auth.ocsp.OCSPResponseType.GOOD;
 
 @Service
 @Slf4j

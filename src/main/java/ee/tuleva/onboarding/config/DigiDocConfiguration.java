@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.config;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
@@ -14,7 +15,7 @@ public class DigiDocConfiguration {
     }
 
     @Bean
-    @Profile("!production")
+    @ConditionalOnMissingBean(org.digidoc4j.Configuration.class)
     public org.digidoc4j.Configuration digiDocConfigDev() {
         return new org.digidoc4j.Configuration(org.digidoc4j.Configuration.Mode.TEST);
     }

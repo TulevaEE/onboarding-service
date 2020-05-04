@@ -120,6 +120,17 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         keys == ['BAR', 'FOO']
     }
 
+    def "it can save and update values"() {
+        given:
+        def oldValue = new FundValue("FOO_BAR", parse("2020-04-30"), 1.12345)
+        fundValueRepository.save(oldValue)
+        def newValue = new FundValue("FOO_BAR", parse("2020-04-30"), 2.12345)
+        when:
+        fundValueRepository.update(newValue)
+        then:
+        fundValueRepository.findLastValueForFund("FOO_BAR").get() == newValue
+    }
+
     private static List<FundValue> getFakeFundValues() {
         def today = LocalDate.now()
         def yesterday = LocalDate.now().minusDays(1)

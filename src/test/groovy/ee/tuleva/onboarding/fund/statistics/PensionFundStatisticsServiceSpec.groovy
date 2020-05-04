@@ -51,7 +51,9 @@ class PensionFundStatisticsServiceSpec extends Specification {
             .andRespond(withSuccess(
                 '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
                     '<RESPONSE xmlns="http://corporate.epis.ee/producer/" ERROR_CODE="0">' +
-                    '<PENSION_FUND_STATISTICS ISIN="EE3600109435" VOLUME="27630899.99114" NAV="0.63337"/>' +
+                    '<PENSION_FUND_STATISTICS ' +
+                    'ISIN="EE3600109435" VOLUME="27630899.99114" NAV="0.63337" ACTIVE_COUNT="3315"' +
+                    '/>' +
                     '</RESPONSE>',
                 MediaType.APPLICATION_XML))
 
@@ -65,6 +67,7 @@ class PensionFundStatisticsServiceSpec extends Specification {
             isin == "EE3600109435"
             nav == 0.63337
             volume == 27_630_899.99114
+            activeCount == 3315
         }
     }
 
@@ -85,6 +88,7 @@ class PensionFundStatisticsServiceSpec extends Specification {
             isin == "EE3600019717"
             nav == 0.91511
             volume == 59_899_459.39470
+            activeCount == 12_614
         }
     }
 
@@ -109,11 +113,13 @@ class PensionFundStatisticsServiceSpec extends Specification {
             isin == "EE3600019717"
             nav == 0.91511
             volume == 59_899_459.39470
+            activeCount == 12_614
         }
         with(statistics.last()) {
             isin == "EE3600109484"
             nav == 1.0956
             volume == 187_496.89850
+            activeCount == 0
         }
     }
 

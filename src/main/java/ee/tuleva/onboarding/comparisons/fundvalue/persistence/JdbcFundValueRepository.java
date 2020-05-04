@@ -51,7 +51,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         "VALUES (:key, :date, :value)";
 
     private static final String UPDATE_VALUES_QUERY = "" +
-        "UPDATE index_values value=:value " +
+        "UPDATE index_values SET value=:value " +
         "WHERE key=:key AND date=:date";
 
 

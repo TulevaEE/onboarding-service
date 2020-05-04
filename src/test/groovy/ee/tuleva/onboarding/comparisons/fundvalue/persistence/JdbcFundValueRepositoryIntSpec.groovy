@@ -41,6 +41,27 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
             JdbcTestUtils.countRowsInTable(jdbcTemplate, "index_values") == values.size()
     }
 
+    def "it can persist a fund values"() {
+        given:
+        Map<String, FundValue> values = getFakeFundValue()
+        when:
+        fundValueRepository.save(values["old"])
+        then:
+        JdbcTestUtils.countRowsInTable(jdbcTemplate, "index_values") == 1
+    }
+
+    def "it can update an existing fund with new one"() {
+        given:
+        Map<String, FundValue> values = getFakeFundValue()
+        fundValueRepository.save(values["old"])
+        when:
+        fundValueRepository.update(values["new"])
+        then:
+        JdbcTestUtils.countRowsInTable(jdbcTemplate, "index_values") == 1
+        FundValue value = fundValueRepository.findLastValueForFund(values["old"].comparisonFund).get()
+        valuesEqual(value, values["new"])
+    }
+
     def "it can retrieve fund values by last time and fund"() {
         given:
             List<FundValue> values = getFakeFundValues()
@@ -107,6 +128,14 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
             new FundValue(WorldIndexValueRetriever.KEY, yesterday, 10.12345),
             new FundValue(EPIFundValueRetriever.KEY, today, 200.12345),
             new FundValue(EPIFundValueRetriever.KEY, yesterday, 20.12345),
+        ]
+    }
+
+    private static Map<String, FundValue> getFakeFundValue() {
+        def today = LocalDate.now()
+        return [
+            "old": new FundValue(WorldIndexValueRetriever.KEY, today, 100.12345),
+            "new": new FundValue(WorldIndexValueRetriever.KEY, today, 121.12345)
         ]
     }
 

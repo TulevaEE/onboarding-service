@@ -1,20 +1,21 @@
-package ee.tuleva.onboarding.notification.email
+package ee.tuleva.onboarding.member.email
 
 import com.microtripit.mandrillapp.lutung.MandrillApi
 import com.microtripit.mandrillapp.lutung.controller.MandrillMessagesApi
-import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.config.EmailConfiguration
-import ee.tuleva.onboarding.user.User
+import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
-class EmailServiceSpec extends Specification {
+class MemberEmailServiceSpec extends Specification {
 
     EmailConfiguration emailConfiguration = Mock(EmailConfiguration)
+    MemberEmailContentService emailContentService = Mock(MemberEmailContentService)
     MandrillApi mandrillApi = Mock(MandrillApi)
     EmailService service = new EmailService(emailConfiguration, mandrillApi)
+    MemberEmailService memberService = new MemberEmailService(service, emailContentService)
 
     def setup() {
         emailConfiguration.from >> "tuleva@tuleva.ee"
@@ -22,18 +23,12 @@ class EmailServiceSpec extends Specification {
         emailConfiguration.mandrillKey >> Optional.of("")
     }
 
-    def "Send fake email"() {
+    def "send member number email"() {
         given:
-        User user = sampleUser().build()
-        when:
-        MandrillMessage message = service.newMandrillMessage(
-            service.getRecipients(user),
-            "subject",
-            "html",
-            ["test"],
-            null)
+        emailContentService.getMembershipEmailHtml(_) >> "html"
 
-        service.send(user, message)
+        when:
+        memberService.sendMemberNumber(sampleUser().email("erko@risthein.ee").build())
 
         then:
         1 * mandrillApi.messages() >> mockMandrillMessageApi()

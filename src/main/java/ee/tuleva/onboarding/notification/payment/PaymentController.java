@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.notification.payment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
-import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.member.email.MemberEmailService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -31,7 +31,7 @@ public class PaymentController {
   private final ObjectMapper mapper;
   private final UserService userService;
   private final SmartValidator validator;
-  private final EmailService emailService;
+  private final MemberEmailService emailService;
 
   @Value("${membership-success.url}")
   private String membershipSuccessUrl;

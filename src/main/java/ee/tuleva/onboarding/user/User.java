@@ -80,4 +80,15 @@ public class User implements Person, Serializable {
     protected void onUpdate() {
         updatedDate = Instant.now();
     }
+
+    public String getNameSuffix() {
+        String nameSuffix = getFirstName() + "_" + getLastName();
+        nameSuffix = nameSuffix.toLowerCase();
+        nameSuffix.replace("õ", "o");
+        nameSuffix.replace("ä", "a");
+        nameSuffix.replace("ö", "o");
+        nameSuffix.replace("ü", "u");
+        nameSuffix.replaceAll("[^a-zA-Z0-9_\\-\\.]", "_");
+        return nameSuffix;
+    }
 }

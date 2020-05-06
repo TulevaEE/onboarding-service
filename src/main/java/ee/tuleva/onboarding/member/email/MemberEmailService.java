@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.member.email;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import ee.tuleva.onboarding.member.event.MemberApplicationEvent;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
@@ -21,6 +24,12 @@ public class MemberEmailService {
                                MemberEmailContentService emailContentService) {
         this.emailService = emailService;
         this.emailContentService = emailContentService;
+    }
+
+    @Async
+    @EventListener
+    public void onMemberCreatedEvent(MemberApplicationEvent event) {
+        this.sendMemberNumber(event.getUser());
     }
 
     public void sendMemberNumber(User user) {

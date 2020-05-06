@@ -2,12 +2,13 @@ package ee.tuleva.onboarding.notification.payment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
-import ee.tuleva.onboarding.member.email.MemberEmailService;
+import ee.tuleva.onboarding.member.event.MemberApplicationEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.validation.Errors;
 import org.springframework.validation.SmartValidator;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -31,7 +32,7 @@ public class PaymentController {
   private final ObjectMapper mapper;
   private final UserService userService;
   private final SmartValidator validator;
-  private final MemberEmailService emailService;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Value("${membership-success.url}")
   private String membershipSuccessUrl;
@@ -57,7 +58,7 @@ public class PaymentController {
 
     if (isStatusCompleted && !isAMember) {
       User user = userService.registerAsMember(userId, payment.getCustomerName());
-      emailService.sendMemberNumber(user);
+      applicationEventPublisher.publishEvent(new MemberApplicationEvent("MEMBER_CREATED", user));
     } else {
       log.warn("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
     }

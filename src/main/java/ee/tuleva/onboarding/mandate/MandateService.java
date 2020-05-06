@@ -10,9 +10,8 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWithUser;
-import ee.tuleva.onboarding.mandate.email.MandateEmailService;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
-import ee.tuleva.onboarding.mandate.event.MandateApplicationEvent;
+import ee.tuleva.onboarding.mandate.listener.SecondPillarMandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
@@ -39,7 +38,6 @@ public class MandateService {
     private final MandateRepository mandateRepository;
     private final SignatureService signService;
     private final CreateMandateCommandToMandateConverter mandateConverter;
-    private final MandateEmailService emailService;
     private final MandateProcessorService mandateProcessor;
     private final MandateFileService mandateFileService;
     private final UserService userService;
@@ -205,13 +203,11 @@ public class MandateService {
     }
 
     private void notifyAboutSignedMandate(User user, Long mandateId, byte[] signedFile) {
-        applicationEventPublisher.publishEvent(new MandateApplicationEvent(
-            "SECOND_PILLAR_MANDATE_CREATED",
+        applicationEventPublisher.publishEvent(new SecondPillarMandateCreatedEvent(
             user,
             mandateId,
             signedFile
         ));
-//        emailService.sendSecondPillarMandate(user, mandateId, signedFile);
     }
 
     private void persistSignedFile(Mandate mandate, byte[] signedFile) {

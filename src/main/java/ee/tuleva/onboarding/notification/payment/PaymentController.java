@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.notification.payment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
-import ee.tuleva.onboarding.member.event.MemberApplicationEvent;
+import ee.tuleva.onboarding.member.listener.MemberCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -58,7 +58,7 @@ public class PaymentController {
 
     if (isStatusCompleted && !isAMember) {
       User user = userService.registerAsMember(userId, payment.getCustomerName());
-      applicationEventPublisher.publishEvent(new MemberApplicationEvent("MEMBER_CREATED", user));
+      applicationEventPublisher.publishEvent(new MemberCreatedEvent(user));
     } else {
       log.warn("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
     }

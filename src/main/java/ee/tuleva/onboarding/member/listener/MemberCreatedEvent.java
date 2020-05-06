@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.member.event;
+package ee.tuleva.onboarding.member.listener;
 
 import ee.tuleva.onboarding.user.User;
 import lombok.Getter;
@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public class MemberApplicationEvent {
-    private final String name;
+public class MemberCreatedEvent {
     private final User user;
 }

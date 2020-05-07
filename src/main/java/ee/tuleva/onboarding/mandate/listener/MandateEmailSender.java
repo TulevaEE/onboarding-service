@@ -20,7 +20,12 @@ public class MandateEmailSender {
     @Async
     @EventListener
     public void onThirdPillarMandateCreatedEvent(ThirdPillarMandateCreatedEvent event) {
-        emailService.sendThirdPillarMandate(event.getUser(), event.getMandateId(), event.getSignedFile());
+        emailService.sendThirdPillarMandate(
+            event.getUser(),
+            event.getMandateId(),
+            event.getSignedFile(),
+            event.getPensionAccountNumber()
+        );
     }
 
 }

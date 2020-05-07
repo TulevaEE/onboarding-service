@@ -36,10 +36,10 @@ public class MandateEmailService {
         emailService.send(user, message);
     }
 
-    public void sendThirdPillarMandate(User user, Long mandateId, byte[] file) {
+    public void sendThirdPillarMandate(User user, Long mandateId, byte[] file, String pensionAccountNumber) {
         MandrillMessage message = emailService.newMandrillMessage(
             emailService.getRecipients(user), getMandateEmailSubject(),
-            emailContentService.getThirdPillarHtml(), getMandateTags(),
+            emailContentService.getThirdPillarHtml(pensionAccountNumber), getMandateTags(),
             getMandateAttachements(file, user, mandateId));
 
         if(message == null) {

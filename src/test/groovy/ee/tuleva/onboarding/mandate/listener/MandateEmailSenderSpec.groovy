@@ -34,11 +34,11 @@ class MandateEmailSenderSpec extends Specification {
     def "send email when third pillar mandate event was received" () {
         given:
         User user = sampleUser().build()
-        ThirdPillarMandateCreatedEvent event = new ThirdPillarMandateCreatedEvent(user, 123, "123".bytes)
+        ThirdPillarMandateCreatedEvent event = new ThirdPillarMandateCreatedEvent(user, 123, "123".bytes, "123")
         when:
         publisher.publishEvent(event)
         TimeUnit.SECONDS.sleep(1)
         then:
-        1 * mandateEmailService.sendThirdPillarMandate(user, 123, _)
+        1 * mandateEmailService.sendThirdPillarMandate(user, 123, _, "123")
     }
 }

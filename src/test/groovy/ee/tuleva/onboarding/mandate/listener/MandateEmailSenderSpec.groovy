@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.mandate.listener
 
+import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.mandate.email.MandateEmailService
 import ee.tuleva.onboarding.user.User
 import org.spockframework.spring.SpringBean
@@ -18,6 +20,9 @@ class MandateEmailSenderSpec extends Specification {
     ApplicationEventPublisher publisher
 
     @SpringBean
+    EpisService episService = Mock(EpisService)
+
+    @SpringBean
     MandateEmailService mandateEmailService = Mock(MandateEmailService)
 
     def "send email when second pillar mandate event was received" () {
@@ -34,11 +39,16 @@ class MandateEmailSenderSpec extends Specification {
     def "send email when third pillar mandate event was received" () {
         given:
         User user = sampleUser().build()
-        ThirdPillarMandateCreatedEvent event = new ThirdPillarMandateCreatedEvent(user, 123, "123".bytes, "123")
+
+        UserPreferences contract = new UserPreferences()
+        contract.setPensionAccountNumber("testPensionNumber")
+
+        ThirdPillarMandateCreatedEvent event = new ThirdPillarMandateCreatedEvent(user, 123, "123".bytes)
+        1 * episService.getContactDetails(_) >> contract
         when:
         publisher.publishEvent(event)
         TimeUnit.SECONDS.sleep(1)
         then:
-        1 * mandateEmailService.sendThirdPillarMandate(user, 123, _, "123")
+        1 * mandateEmailService.sendThirdPillarMandate(user, 123, _, "testPensionNumber")
     }
 }

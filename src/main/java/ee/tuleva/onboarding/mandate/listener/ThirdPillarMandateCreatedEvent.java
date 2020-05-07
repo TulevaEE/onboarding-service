@@ -10,5 +10,4 @@ public class ThirdPillarMandateCreatedEvent extends MandateCreatedEvent {
     private final User user;
     private final Long mandateId;
     private final byte[] signedFile;
-    private final String pensionAccountNumber;
 }

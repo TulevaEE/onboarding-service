@@ -11,8 +11,7 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWithUser;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
-import ee.tuleva.onboarding.mandate.listener.SecondPillarMandateCreatedEvent;
-import ee.tuleva.onboarding.mandate.listener.ThirdPillarMandateCreatedEvent;
+import ee.tuleva.onboarding.mandate.listener.MandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
@@ -205,20 +204,15 @@ public class MandateService {
     }
 
     private void notifyAboutSignedMandate(User user, Long mandateId, byte[] signedFile, int pillar) {
-        if(pillar == 2) {
-            applicationEventPublisher.publishEvent(new SecondPillarMandateCreatedEvent(
-                user,
-                mandateId,
-                signedFile
-            ));
-        } else if(pillar == 3) {
-            UserPreferences userPreferences = episService.getContactDetails(user);
-            applicationEventPublisher.publishEvent(new ThirdPillarMandateCreatedEvent(
-                user,
-                mandateId,
-                signedFile,
-                userPreferences.getPensionAccountNumber()
-            ));
+        MandateCreatedEvent event = MandateCreatedEvent.newEvent(
+            user,
+            mandateId,
+            signedFile,
+            pillar
+        );
+
+        if(event != null) {
+            applicationEventPublisher.publishEvent(event);
         }
     }
 

@@ -9,6 +9,7 @@ import spock.lang.Specification
 
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -23,7 +24,8 @@ class AccountOverviewProviderSpec extends Specification {
     Person person = samplePerson()
     LocalDate startDate = LocalDate.parse("1998-01-01")
     Instant startTime = startDate.atStartOfDay().toInstant(ZoneOffset.UTC)
-    LocalDate endDate = LocalDate.now()
+    Instant endTime = Instant.now()
+    LocalDate endDate = LocalDateTime.ofInstant(endTime, ZoneOffset.UTC).toLocalDate()
     CashFlowStatement cashFlowStatement = cashFlowFixture()
     def pillar = 2
 

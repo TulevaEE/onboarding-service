@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConvert
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWithUser;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.listener.SecondPillarMandateCreatedEvent;
+import ee.tuleva.onboarding.mandate.listener.ThirdPillarMandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
@@ -173,7 +174,8 @@ public class MandateService {
             notifyAboutSignedMandate(user,
                 mandate.getId(),
                 mandate.getMandate()
-                    .orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file."))
+                    .orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file.")),
+                mandate.getPillar()
             );
 
             return SIGNATURE;
@@ -202,12 +204,22 @@ public class MandateService {
         }
     }
 
-    private void notifyAboutSignedMandate(User user, Long mandateId, byte[] signedFile) {
-        applicationEventPublisher.publishEvent(new SecondPillarMandateCreatedEvent(
-            user,
-            mandateId,
-            signedFile
-        ));
+    private void notifyAboutSignedMandate(User user, Long mandateId, byte[] signedFile, int pillar) {
+        if(pillar == 2) {
+            applicationEventPublisher.publishEvent(new SecondPillarMandateCreatedEvent(
+                user,
+                mandateId,
+                signedFile
+            ));
+        } else if(pillar == 3) {
+            UserPreferences userPreferences = episService.getContactDetails(user);
+            applicationEventPublisher.publishEvent(new ThirdPillarMandateCreatedEvent(
+                user,
+                mandateId,
+                signedFile,
+                userPreferences.getPensionAccountNumber()
+            ));
+        }
     }
 
     private void persistSignedFile(Mandate mandate, byte[] signedFile) {

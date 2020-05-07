@@ -24,9 +24,10 @@ public class MandateEmailContentService {
         return htmlContent;
     }
 
-    public String getThirdPillarHtml() {
+    public String getThirdPillarHtml(String pensionAccountNumber) {
         Context ctx = new Context();
         ctx.setLocale(localeResolver.resolveLocale(request));
+        ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
         String htmlContent = templateEngine.process("third_pillar_mandate", ctx);
         return htmlContent;
     }

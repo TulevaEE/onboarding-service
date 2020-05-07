@@ -21,9 +21,9 @@ class MandateEmailContentServiceSpec extends Specification {
     def "get third pillar mandate email html content"() {
         given:
         when:
-        String html = emailContentService.getThirdPillarHtml()
+        String html = emailContentService.getThirdPillarHtml("test_account_1")
         then:
         html.contains('tuleva@tuleva.ee')
+        html.contains('test_account_1')
     }
-
 }

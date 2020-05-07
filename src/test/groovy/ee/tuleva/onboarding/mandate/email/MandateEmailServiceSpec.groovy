@@ -39,7 +39,7 @@ class MandateEmailServiceSpec extends Specification {
         emailContentService.getThirdPillarHtml() >> "html"
 
         when:
-        mandateService.sendThirdPillarMandate(sampleUser().build(), 123, "file".bytes)
+        mandateService.sendThirdPillarMandate(sampleUser().build(), 123, "file".bytes, "123")
 
         then:
         1 * mandrillApi.messages() >> mockMandrillMessageApi()

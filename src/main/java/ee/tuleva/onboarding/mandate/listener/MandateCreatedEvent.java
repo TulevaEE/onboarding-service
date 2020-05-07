@@ -4,10 +4,6 @@ import ee.tuleva.onboarding.user.User;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-@RequiredArgsConstructor
-@Getter
-public class MandateCreatedEvent {
-    private final User user;
-    private final Long mandateId;
-    private final byte[] signedFile;
+public abstract class MandateCreatedEvent {
+
 }

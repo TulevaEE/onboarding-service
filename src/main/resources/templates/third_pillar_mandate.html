@@ -6,5 +6,12 @@
         <p th:text="#{mandate.email.info}"></p>
         <br>
         <p th:text="#{mandate.email.signature}"></p>
+        <p><span th:text="#{mandate.payment.accountName}"></span>: <b>Pensionikeskus AS</b> </p>
+        <p><span th:text="#{mandate.payment.accountNumber}"></span>: <b>EE362200221067235244</b> </p>
+        <p><span th:text="#{mandate.payment.details}"></span>: <b>30101119828</b></p>
+        <p>
+          <span th:text="#{mandate.payment.reference}"></span>:
+          <b th:text="${pensionAccountNumber}"></b>
+        </p>
     </body>
 </html>

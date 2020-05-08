@@ -9,23 +9,20 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
 
-@Slf4j
+@RequiredArgsConstructor
+@Getter
 public abstract class MandateCreatedEvent {
+    private final User user;
+    private final Long mandateId;
+    private final byte[] signedFile;
+
     public static MandateCreatedEvent newEvent(User user, Long mandateId, byte[] signedFile, int pillar) {
-        Map<Integer, Class<? extends MandateCreatedEvent>> eventTypes =
-            new HashMap<Integer, Class<? extends MandateCreatedEvent>>() {
-                {
-                    put(2, SecondPillarMandateCreatedEvent.class);
-                    put(3, ThirdPillarMandateCreatedEvent.class);
-                }
-            };
-        try{
-            return eventTypes.get(pillar).getConstructor(User.class, Long.class, byte[].class).newInstance(
-                user, mandateId, signedFile
-            );
-        } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
-            log.debug("Can't create event", e);
-            return null;
+        if(pillar == 2) {
+            return new SecondPillarMandateCreatedEvent(user, mandateId, signedFile);
+        } else if(pillar == 3){
+            return new ThirdPillarMandateCreatedEvent(user, mandateId, signedFile);
+        } else {
+            throw new IllegalArgumentException("Event for the pillar type is not available");
         }
     }
 }

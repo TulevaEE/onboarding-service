@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.config;
 
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
@@ -10,6 +11,7 @@ import java.util.concurrent.Executor;
 
 @EnableAsync
 @Configuration
+@ConditionalOnProperty(name = "async.enabled", havingValue = "true")
 public class AsyncConfiguration implements AsyncConfigurer {
 
     @Override

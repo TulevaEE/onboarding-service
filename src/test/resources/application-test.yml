@@ -41,3 +41,6 @@ morningstar:
   port: 21
   username: someUsername
   password: somePassword
+
+async:
+  enabled: false

@@ -31,7 +31,6 @@ class MandateEmailSenderSpec extends Specification {
         SecondPillarMandateCreatedEvent event = new SecondPillarMandateCreatedEvent(user, 123, "123".bytes)
         when:
         publisher.publishEvent(event)
-        TimeUnit.SECONDS.sleep(1)
         then:
         1 * mandateEmailService.sendSecondPillarMandate(user, 123, _)
     }
@@ -47,7 +46,6 @@ class MandateEmailSenderSpec extends Specification {
         1 * episService.getContactDetails(_) >> contract
         when:
         publisher.publishEvent(event)
-        TimeUnit.SECONDS.sleep(1)
         then:
         1 * mandateEmailService.sendThirdPillarMandate(user, 123, _, "testPensionNumber")
     }

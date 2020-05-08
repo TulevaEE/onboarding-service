@@ -65,12 +65,23 @@ public class MandateEmailService {
     private List<MandrillMessage.MessageContent> getMandateAttachements(byte[] file, User user, Long mandateId) {
         MandrillMessage.MessageContent attachement = new MandrillMessage.MessageContent();
 
-        attachement.setName(user.getNameSuffix() + "_avaldus_" + mandateId + ".bdoc");
+        attachement.setName(getNameSuffix(user) + "_avaldus_" + mandateId + ".bdoc");
         attachement.setType("application/bdoc");
         attachement.setContent(
             Base64.getEncoder().encodeToString(file)
         );
 
         return Arrays.asList(attachement);
+    }
+
+    private String getNameSuffix(User user) {
+        String nameSuffix = user.getFirstName() + "_" + user.getLastName();
+        nameSuffix = nameSuffix.toLowerCase();
+        nameSuffix.replace("õ", "o");
+        nameSuffix.replace("ä", "a");
+        nameSuffix.replace("ö", "o");
+        nameSuffix.replace("ü", "u");
+        nameSuffix.replaceAll("[^a-zA-Z0-9_\\-\\.]", "_");
+        return nameSuffix;
     }
 }

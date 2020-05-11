@@ -15,20 +15,18 @@ public class MandateEmailContentService {
 
     private final TemplateEngine templateEngine;
     private final LocaleResolver localeResolver;
-    private final HttpServletRequest request;
+    private final HttpServletRequest request; // TODO: remove dependency on HttpServletRequest
 
     public String getSecondPillarHtml() {
-        Context ctx = new Context();
-        ctx.setLocale(localeResolver.resolveLocale(request));
-        String htmlContent = templateEngine.process("second_pillar_mandate", ctx);
-        return htmlContent;
+        Context context = new Context();
+        context.setLocale(localeResolver.resolveLocale(request));
+        return templateEngine.process("second_pillar_mandate", context);
     }
 
     public String getThirdPillarHtml(String pensionAccountNumber) {
-        Context ctx = new Context();
-        ctx.setLocale(localeResolver.resolveLocale(request));
-        ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
-        String htmlContent = templateEngine.process("third_pillar_mandate", ctx);
-        return htmlContent;
+        Context context = new Context();
+        context.setLocale(localeResolver.resolveLocale(request));
+        context.setVariable("pensionAccountNumber", pensionAccountNumber);
+        return templateEngine.process("third_pillar_mandate", context);
     }
 }

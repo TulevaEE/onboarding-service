@@ -17,7 +17,9 @@ public class MandateEmailSender {
     @Async
     @EventListener
     public void onSecondPillarMandateCreatedEvent(SecondPillarMandateCreatedEvent event) {
-        emailService.sendSecondPillarMandate(event.getUser(), event.getMandateId(), event.getSignedFile());
+        emailService.sendSecondPillarMandate(
+            event.getUser(), event.getMandateId(), event.getSignedFile(), event.getLocale()
+        );
     }
 
     @Async
@@ -28,7 +30,8 @@ public class MandateEmailSender {
             event.getUser(),
             event.getMandateId(),
             event.getSignedFile(),
-            userPreferences.getPensionAccountNumber()
+            userPreferences.getPensionAccountNumber(),
+            event.getLocale()
         );
     }
 

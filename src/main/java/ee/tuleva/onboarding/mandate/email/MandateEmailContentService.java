@@ -7,6 +7,7 @@ import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
 import javax.servlet.http.HttpServletRequest;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
@@ -14,19 +15,17 @@ import javax.servlet.http.HttpServletRequest;
 public class MandateEmailContentService {
 
     private final TemplateEngine templateEngine;
-    private final LocaleResolver localeResolver;
-    private final HttpServletRequest request;
 
-    public String getSecondPillarHtml() {
+    public String getSecondPillarHtml(Locale locale) {
         Context ctx = new Context();
-        ctx.setLocale(localeResolver.resolveLocale(request));
+        ctx.setLocale(locale); //localeResolver.resolveLocale(request));
         String htmlContent = templateEngine.process("second_pillar_mandate", ctx);
         return htmlContent;
     }
 
-    public String getThirdPillarHtml(String pensionAccountNumber) {
+    public String getThirdPillarHtml(String pensionAccountNumber, Locale locale) {
         Context ctx = new Context();
-        ctx.setLocale(localeResolver.resolveLocale(request));
+        ctx.setLocale(locale); // localeResolver.resolveLocale(request));
         ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
         String htmlContent = templateEngine.process("third_pillar_mandate", ctx);
         return htmlContent;

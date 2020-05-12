@@ -20,11 +20,15 @@ import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.http.HttpRequest;
 import org.springframework.stereotype.Component;
+import org.springframework.web.servlet.LocaleResolver;
 
+import javax.servlet.http.HttpServletRequest;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Component
@@ -44,6 +48,8 @@ public class MandateService {
     private final EpisService episService;
     private final AmlService amlService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final HttpServletRequest request;
+    private final LocaleResolver localeResolver;
 
     public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
         validateCreateMandateCommand(createMandateCommand);
@@ -204,16 +210,15 @@ public class MandateService {
     }
 
     private void notifyAboutSignedMandate(User user, Long mandateId, byte[] signedFile, int pillar) {
+        Locale locale = localeResolver.resolveLocale(request);
         MandateCreatedEvent event = MandateCreatedEvent.newEvent(
             user,
             mandateId,
             signedFile,
-            pillar
+            pillar,
+            locale
         );
-
-        if(event != null) {
-            applicationEventPublisher.publishEvent(event);
-        }
+        applicationEventPublisher.publishEvent(event);
     }
 
     private void persistSignedFile(Mandate mandate, byte[] signedFile) {

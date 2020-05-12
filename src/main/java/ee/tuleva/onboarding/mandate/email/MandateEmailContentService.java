@@ -18,14 +18,14 @@ public class MandateEmailContentService {
 
     public String getSecondPillarHtml(Locale locale) {
         Context ctx = new Context();
-        ctx.setLocale(locale); //localeResolver.resolveLocale(request));
+        ctx.setLocale(locale);
         String htmlContent = templateEngine.process("second_pillar_mandate", ctx);
         return htmlContent;
     }
 
     public String getThirdPillarHtml(String pensionAccountNumber, Locale locale) {
         Context ctx = new Context();
-        ctx.setLocale(locale); // localeResolver.resolveLocale(request));
+        ctx.setLocale(locale);
         ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
         String htmlContent = templateEngine.process("third_pillar_mandate", ctx);
         return htmlContent;

@@ -18,19 +18,22 @@ import java.math.BigDecimal;
 @XmlAccessorType(XmlAccessType.FIELD)
 public class PensionFundStatistics implements Serializable {
 
-  private static final long serialVersionUID = 6065879655793615150L;
+    private static final long serialVersionUID = 6065879655793615150L;
 
-  @XmlAttribute(name = "ISIN")
-  private String isin;
+    @XmlAttribute(name = "ISIN")
+    private String isin;
 
-  @XmlAttribute(name = "VOLUME")
-  private BigDecimal volume;
+    @XmlAttribute(name = "VOLUME")
+    private BigDecimal volume;
 
-  @XmlAttribute(name = "NAV")
-  private BigDecimal nav;
+    @XmlAttribute(name = "NAV")
+    private BigDecimal nav;
 
-  public static PensionFundStatistics getNull() {
-      return new PensionFundStatistics();
+    @XmlAttribute(name = "ACTIVE_COUNT")
+    private Integer activeCount;
+
+    public static PensionFundStatistics getNull() {
+        return new PensionFundStatistics();
     }
 
 }

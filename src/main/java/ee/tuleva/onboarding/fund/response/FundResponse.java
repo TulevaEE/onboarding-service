@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.fund.response;
 
 import ee.tuleva.onboarding.fund.Fund;
+import ee.tuleva.onboarding.fund.Fund.FundStatus;
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import lombok.Data;
@@ -20,8 +21,8 @@ public class FundResponse {
     private BigDecimal volume;
     private Integer pillar;
     private BigDecimal ongoingChargesFigure;
-    private Fund.FundStatus status;
-
+    private FundStatus status;
+    private Integer peopleCount;
 
     public FundResponse(Fund fund, PensionFundStatistics pensionFundStatistics, String language) {
         this.fundManager = fund.getFundManager();
@@ -30,6 +31,7 @@ public class FundResponse {
         this.managementFeeRate = fund.getManagementFeeRate();
         this.nav = pensionFundStatistics.getNav();
         this.volume = pensionFundStatistics.getVolume();
+        this.peopleCount = pensionFundStatistics.getActiveCount();
         this.pillar = fund.getPillar();
         this.ongoingChargesFigure = fund.getOngoingChargesFigure();
         this.status = fund.getStatus();

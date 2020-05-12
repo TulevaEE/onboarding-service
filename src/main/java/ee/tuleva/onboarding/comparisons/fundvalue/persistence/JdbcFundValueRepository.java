@@ -14,7 +14,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
+
+import static java.util.stream.Collectors.toList;
 
 
 @Repository
@@ -26,21 +27,21 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     private static final String FIND_LAST_VALUE_QUERY = "" +
         "SELECT * " +
         "FROM index_values " +
-        "WHERE key=:key " +
+        "WHERE key = :key " +
         "ORDER BY date DESC NULLS LAST " +
         "LIMIT 1";
 
     private static final String FIND_LATEST_VALUE_QUERY = "" +
         "SELECT * " +
         "FROM index_values " +
-        "WHERE key=:key AND date <= :date " +
+        "WHERE key = :key AND date <= :date " +
         "ORDER BY date DESC " +
         "LIMIT 1";
 
     private static final String FIND_FUND_VALUE_QUERY = "" +
         "SELECT * " +
         "FROM index_values " +
-        "WHERE key=:key AND date = :date " +
+        "WHERE key = :key AND date = :date " +
         "LIMIT 1";
 
     private static final String ALL_KEYS_QUERY =
@@ -51,9 +52,8 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         "VALUES (:key, :date, :value)";
 
     private static final String UPDATE_VALUES_QUERY = "" +
-        "UPDATE index_values value=:value " +
-        "WHERE key=:key AND date=:date";
-
+        "UPDATE index_values SET value = :value " +
+        "WHERE key = :key AND date = :date";
 
     private static class FundValueRowMapper implements RowMapper<FundValue> {
         @Override
@@ -88,10 +88,10 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     public void saveAll(List<FundValue> fundValues) {
         List<Map<String, Object>> batchValues = fundValues.stream()
             .map(fundValue -> ImmutableMap.of(
-                "key", (Object)fundValue.getComparisonFund(),
+                "key", (Object) fundValue.getComparisonFund(),
                 "date", fundValue.getDate(),
                 "value", fundValue.getValue()))
-            .collect(Collectors.toList());
+            .collect(toList());
         jdbcTemplate.batchUpdate(INSERT_VALUES_QUERY, batchValues.toArray(new Map[fundValues.size()]));
     }
 

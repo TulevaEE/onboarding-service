@@ -1,0 +1,28 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+    <body>
+        <p th:text="#{mandate.email.greeting}"></p>
+        <p th:text="#{mandate.email.content}"></p>
+        <br>
+        <p th:text="#{mandate.payment.info}"></p>
+        <p>
+          <span th:text="#{mandate.payment.accountName}"></span>:
+          <strong>Pensionikeskus AS</strong>
+        </p>
+        <p>
+          <span th:text="#{mandate.payment.accountNumber}"></span>:
+          <strong>EE362200221067235244</strong>
+        </p>
+        <p>
+          <span th:text="#{mandate.payment.details}"></span>:
+          <strong>30101119828</strong>
+        </p>
+        <p>
+          <span th:text="#{mandate.payment.reference}"></span>:
+          <strong th:text="${pensionAccountNumber}"></strong>
+        </p>
+        <br>
+        <p th:text="#{mandate.email.info}"></p>
+        <p th:text="#{mandate.email.signature}"></p>
+    </body>
+</html>

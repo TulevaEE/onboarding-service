@@ -18,12 +18,16 @@ class FundServiceSpec extends Specification {
     def "can get funds with along statistics"() {
         given:
         String fundManagerName = "Tuleva"
-        Iterable<Fund> funds = sampleFunds().stream().filter({ f -> f.fundManager.name == fundManagerName }).collect(toList())
+        Iterable<Fund> funds = sampleFunds().stream()
+            .filter({ fund -> fund.fundManager.name == fundManagerName })
+            .collect(toList())
         fundRepository.findByFundManagerNameIgnoreCase(fundManagerName) >> funds
         def tulevaFund = funds.first()
-        def volume = 1_000_000
+        def volume = 1_000_000.0
         def nav = 1.64
-        pensionFundStatisticsService.getCachedStatistics() >> singletonList(new PensionFundStatistics(tulevaFund.isin, volume, nav))
+        def peopleCount = 123
+        pensionFundStatisticsService.getCachedStatistics() >>
+            [new PensionFundStatistics(tulevaFund.isin, volume, nav, peopleCount)]
 
         when:
         def response = service.getFunds(Optional.of(fundManagerName), "et")
@@ -34,13 +38,16 @@ class FundServiceSpec extends Specification {
         fund.isin == tulevaFund.isin
         fund.volume == volume
         fund.nav == nav
+        fund.peopleCount == peopleCount
     }
 
     def "can get funds with names in given language"() {
         given:
         String fundManagerName = "Tuleva"
 
-        Iterable<Fund> funds = sampleFunds().stream().filter({ f -> f.fundManager.name == fundManagerName }).collect(toList())
+        Iterable<Fund> funds = sampleFunds().stream()
+            .filter({ fund -> fund.fundManager.name == fundManagerName })
+            .collect(toList())
         fundRepository.findByFundManagerNameIgnoreCase(fundManagerName) >> funds
 
         def tulevaFund = funds.first()

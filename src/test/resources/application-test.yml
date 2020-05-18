@@ -1,6 +1,8 @@
 debug: true
 
 spring:
+  cache:
+    type: NONE
   datasource:
     username: sa
     password:
@@ -26,6 +28,7 @@ epis:
 
 logging.level:
   org.hibernate.type: TRACE
+  org.springframework.test.context.cache: DEBUG
 
 mailchimp:
   api:
@@ -38,3 +41,6 @@ morningstar:
   port: 21
   username: someUsername
   password: somePassword
+
+async:
+  enabled: false

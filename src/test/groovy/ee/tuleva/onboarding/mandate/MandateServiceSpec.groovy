@@ -15,11 +15,12 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
+import ee.tuleva.onboarding.mandate.listener.SecondPillarMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
 import ee.tuleva.onboarding.mandate.signature.SignatureService
-import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
+import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
@@ -31,15 +32,15 @@ class MandateServiceSpec extends Specification {
     FundRepository fundRepository = Mock()
     AccountStatementService accountStatementService = Mock()
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository)
-    EmailService emailService = Mock(EmailService)
     MandateProcessorService mandateProcessor = Mock(MandateProcessorService)
     MandateFileService mandateFileService = Mock(MandateFileService)
     UserService userService = Mock(UserService)
     EpisService episService = Mock(EpisService)
     AmlService amlService = Mock()
+    ApplicationEventPublisher eventPublisher = Mock(ApplicationEventPublisher)
 
-    MandateService service = new MandateService(mandateRepository, signService,
-        converter, emailService, mandateProcessor, mandateFileService, userService, episService, amlService)
+    MandateService service = new MandateService(mandateRepository, signService, converter,
+        mandateProcessor, mandateFileService, userService, episService, amlService, eventPublisher)
 
     Long sampleMandateId = 1L
     User sampleUser = sampleUser()
@@ -163,7 +164,7 @@ class MandateServiceSpec extends Specification {
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> false
-        0 * emailService.sendMandate(_, _, _)
+        0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
         def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
@@ -179,7 +180,6 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
-        1 * emailService.sendMandate(sampleUser, sampleMandate.id, _ as byte[])
         1 * episService.clearCache(sampleUser)
 
         when:
@@ -187,7 +187,11 @@ class MandateServiceSpec extends Specification {
 
         then:
         status == "SIGNATURE"
-
+        1 * eventPublisher.publishEvent({
+            SecondPillarMandateCreatedEvent event = it as SecondPillarMandateCreatedEvent
+            event.user == sampleUser
+            event.mandateId == sampleMandate.id
+        })
     }
 
     def "finalizeMobileIdSignature: throw exception if mandate is signed and processed and has errors"() {
@@ -197,7 +201,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
-        0 * emailService.sendMandate(_, _, _)
+        0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
         service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
@@ -230,7 +234,7 @@ class MandateServiceSpec extends Specification {
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * signService.getSignedFile(session, "signedHash") >> null
-        0 * emailService.sendMandate(_, _, _)
+        0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
         service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
@@ -247,7 +251,7 @@ class MandateServiceSpec extends Specification {
         1 * signService.getSignedFile(session, "signedHash") >> sampleFile
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
-        0 * emailService.sendMandate(_, _, _)
+        0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
         def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
@@ -264,7 +268,7 @@ class MandateServiceSpec extends Specification {
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> false
-        0 * emailService.sendMandate(_, _, _)
+        0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
         def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
@@ -281,7 +285,6 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleEmptyErrorsResponse
-        1 * emailService.sendMandate(sampleUser, sampleMandate.id, _ as byte[])
         1 * episService.clearCache(sampleUser)
 
         when:
@@ -289,6 +292,11 @@ class MandateServiceSpec extends Specification {
 
         then:
         status == "SIGNATURE"
+        1 * eventPublisher.publishEvent({
+            SecondPillarMandateCreatedEvent event = it as SecondPillarMandateCreatedEvent
+            event.user == sampleUser
+            event.mandateId == sampleMandate.id
+        })
     }
 
     def "finalizeIdCardSignature: throw exception if mandate is signed and processed and has errors"() {
@@ -299,7 +307,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
         1 * mandateProcessor.getErrors(sampleMandate) >> sampleErrorsResponse
-        0 * emailService.sendMandate(_, _, _)
+        0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
         service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")

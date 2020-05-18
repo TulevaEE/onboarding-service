@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.smartid;
 
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEventPublisher;
+import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
@@ -9,16 +9,20 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
-import org.springframework.security.oauth2.provider.*;
+import org.springframework.security.oauth2.provider.ClientDetails;
+import org.springframework.security.oauth2.provider.ClientDetailsService;
+import org.springframework.security.oauth2.provider.OAuth2Authentication;
+import org.springframework.security.oauth2.provider.OAuth2Request;
+import org.springframework.security.oauth2.provider.OAuth2RequestFactory;
+import org.springframework.security.oauth2.provider.TokenRequest;
 import org.springframework.security.oauth2.provider.token.AbstractTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
-
-import java.util.Optional;
 
 @Slf4j
 public class SmartIdTokenGranter extends AbstractTokenGranter {
@@ -28,7 +32,7 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
   private final PrincipalService principalService;
   private final GenericSessionStore genericSessionStore;
   private final GrantedAuthorityFactory grantedAuthorityFactory;
-  private BeforeTokenGrantedEventPublisher beforeTokenGrantedEventPublisher;
+  private final ApplicationEventPublisher eventPublisher;
 
   public SmartIdTokenGranter(
       AuthorizationServerTokenServices tokenServices,
@@ -50,8 +54,7 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
     this.principalService = principalService;
     this.genericSessionStore = genericSessionStore;
     this.grantedAuthorityFactory = grantedAuthorityFactory;
-    this.beforeTokenGrantedEventPublisher =
-        new BeforeTokenGrantedEventPublisher(applicationEventPublisher);
+    this.eventPublisher = applicationEventPublisher;
   }
 
   @Override
@@ -103,7 +106,7 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
     final OAuth2Authentication oAuth2Authentication =
         new OAuth2Authentication(oAuth2Request, userAuthentication);
 
-    beforeTokenGrantedEventPublisher.publish(oAuth2Authentication, GRANT_TYPE);
+    eventPublisher.publishEvent(new BeforeTokenGrantedEvent(this, oAuth2Authentication, GRANT_TYPE));
 
     return getTokenServices().createAccessToken(oAuth2Authentication);
   }

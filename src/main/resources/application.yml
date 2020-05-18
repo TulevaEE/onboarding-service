@@ -138,6 +138,8 @@ morningstar:
   username: ${MORNINGSTAR_USERNAME:someUser}
   password: ${MORNINGSTAR_PASSWORD:somePassword}
 
+async:
+  enabled: true
 ---
 
 spring:

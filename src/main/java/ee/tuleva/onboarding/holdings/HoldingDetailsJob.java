@@ -1,14 +1,10 @@
 package ee.tuleva.onboarding.holdings;
 
-import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient;
-import ee.tuleva.onboarding.holdings.persistence.HoldingDetailsRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
@@ -23,66 +19,63 @@ import javax.xml.stream.events.XMLEvent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.net.URL;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.zip.GZIPInputStream;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class HoldingDetailsJob {
     private static final String VAN_ID = "F00000VN9N";
-    private static final String PATH = "/Daily/DMRI/XI_MSTAR/";
+    private static final String PATH = "/Monthly/AllHoldings/XI_MSTAR/";
+
+    private final LocalDate initialDate = LocalDate.of(1970, 1, 1);
 
     private final HoldingDetailsRepository repository;
     private final FtpClient morningstarFtpClient;
 
     @Scheduled(cron = "0 0 0 * * *", zone = "Europe/Tallinn") // the top of every day
     public void runJob() {
-        downloadHoldingDetails();
-
+        HoldingDetail lastDetail = repository.findFirstByOrderByCreatedDateDesc();
+        if(lastDetail != null) {
+            downloadHoldingDetails(lastDetail.getCreatedDate());
+        } else {
+            downloadHoldingDetails(initialDate);
+        }
     }
-    private void downloadHoldingDetails() {
 
+    private LocalDate extractFileDate(String fileName) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+        int startIndex = fileName.lastIndexOf("_") + 1;
+        int endIndex = fileName.length() - 7;
+        String fileDateString = fileName.substring(startIndex, endIndex);
+        return LocalDate.parse(fileDateString, formatter);
+    }
+
+    private void downloadHoldingDetails(LocalDate from) {
         try{
             morningstarFtpClient.open();
             List<String> fileNames = morningstarFtpClient.listFiles(PATH);
 
             log.debug("Retrieved list of files: {}", fileNames);
-
-            for (LocalDate date = startDate; date.isBefore(endDate) || date.isEqual(endDate); date = date.plusDays(1)) {
-                String dateString = date.format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-                String fileName = fileNames.stream()
-                    .filter(string -> string.endsWith(dateString + ".zip"))
-                    .findAny()
-                    .orElse(null);
-
-                if (fileName == null) {
+            for(String fileName: fileNames) {
+                if(!fileName.endsWith(".xml.gz"))
                     continue;
-                }
 
-                try {
-                    log.debug("Downloading " + PATH + fileName);
+                LocalDate fileDate = extractFileDate(fileName);
+                if(fileDate.compareTo(from) > 0) {
                     InputStream fileStream = morningstarFtpClient.downloadFileStream(PATH + fileName);
-                    Optional<GlobalStockIndexRetriever.MonthRecord> optionalRecord = findInZip(fileStream, SECURITY_ID);
-                    optionalRecord.ifPresent(monthRecord -> updateMonthRecord(monthRecordMap, monthRecord));
-                    fileStream.close();
-                    log.debug("Downloaded " + PATH + fileName);
-
-                    log.debug("Waiting for pending commands");
+                    GZIPInputStream gzipStream = new GZIPInputStream(fileStream);
+                    new XmlHoldingDetailParser(gzipStream, VAN_ID, detail -> {
+                        detail.setCreatedDate(fileDate);
+                        persistHoldingDetail(detail);
+                    }).parse();
+                    gzipStream.close();
                     morningstarFtpClient.completePendingCommand();
-                    log.debug("Finished all pending commands");
-                } catch (RuntimeException e) {
-                    log.error("Unable to parse file: " + fileName, e);
                 }
             }
-            URL url = new URL(getDownloadUrlForVan());
-            InputStream stream = url.openStream();
-            new XmlHoldingDetailParser(stream, VAN_ID, this::persistHoldingDetail).parse();
         } catch(IOException e) {
             throw new UncheckedIOException(e);
         } catch(JAXBException | XMLStreamException e) {
@@ -105,7 +98,11 @@ public class HoldingDetailsJob {
 
         private boolean isInVehicle = false;
         private Unmarshaller unmarshaller;
-        XmlHoldingDetailParser(InputStream stream, String vehicleId, HoldingDetailListener listener) throws JAXBException {
+        XmlHoldingDetailParser(
+            InputStream stream,
+            String vehicleId,
+            HoldingDetailListener listener
+        ) throws JAXBException {
             this.stream = stream;
             this.vehicleId = vehicleId;
             this.listener = listener;
@@ -114,7 +111,7 @@ public class HoldingDetailsJob {
             unmarshaller = context.createUnmarshaller();
         }
 
-        private void processStartElement(XMLEventReader reader, StartElement e) throws JAXBException {
+        private boolean processStartElement(XMLEventReader reader, StartElement e) throws JAXBException {
             if(e.getName().equals(INVESTMENT_VEHICLE) &&
                 e.getAttributeByName(ID_ATTRIBUTE).getValue().equals(vehicleId)) {
                 isInVehicle = true;
@@ -122,26 +119,33 @@ public class HoldingDetailsJob {
                 HoldingDetail holdingDetailEntry =
                     unmarshaller.unmarshal(reader, HoldingDetail.class).getValue();
                 listener.onNewHoldingDetail(holdingDetailEntry);
+                return true;
             }
+            return false;
         }
 
-        private void processEndElement(XMLEventReader reader, EndElement e) {
+        private boolean processEndElement(XMLEventReader reader, EndElement e) {
             if(e.getName().equals(INVESTMENT_VEHICLE)) {
                 isInVehicle = false;
             }
+            return false;
         }
 
-        public void parse() throws XMLStreamException, JAXBException {
+        public void parse() throws XMLStreamException, JAXBException{
             XMLInputFactory xmlInputFactory = XMLInputFactory.newInstance();
             XMLEventReader xmlEventReader = xmlInputFactory.createXMLEventReader(stream);
             XMLEvent e = null;
 
             while((e = xmlEventReader.peek()) != null) {
+                boolean wasCursorChanged = false;
                 if(e.isStartElement()) {
-                    processStartElement(xmlEventReader, (StartElement) e);
+                    wasCursorChanged = processStartElement(xmlEventReader, (StartElement) e);
                 } else if(e.isEndElement()) {
-                    processEndElement(xmlEventReader, (EndElement) e);
+                    wasCursorChanged = processEndElement(xmlEventReader, (EndElement) e);
                 }
+
+                if(!wasCursorChanged)
+                    xmlEventReader.next();
             }
         }
     }

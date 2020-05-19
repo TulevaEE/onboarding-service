@@ -109,22 +109,7 @@ class HoldingDetailsJobSpec extends Specification {
 
         then:
         1 * repository.save({ it ->
-            it.id == detail.id
-            it.symbol == detail.symbol
-            it.country == detail.country
-            it.currency == detail.currency
-            it.securityName == detail.securityName
-            it.weighting == detail.weighting
-            it.firstBoughtDate == detail.firstBoughtDate
-            it.createdDate == detail.createdDate
-            it.styleBox == detail.styleBox
-            it.isin == detail.isin
-            it.region == detail.region
-            it.holdingYtdReturn == detail.holdingYtdReturn
-            it.sector == detail.sector
-            it.marketValue == detail.marketValue
-            it.shareChange == detail.shareChange
-            it.numberOfShare == detail.numberOfShare
+            it == detail
         })
     }
 

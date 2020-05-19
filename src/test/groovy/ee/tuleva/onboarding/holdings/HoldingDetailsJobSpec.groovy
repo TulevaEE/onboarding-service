@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.holdings
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient
+import ee.tuleva.onboarding.holdings.models.HoldingDetail
+import ee.tuleva.onboarding.holdings.models.Region
+import ee.tuleva.onboarding.holdings.models.Sector
 import org.apache.commons.net.ftp.FTPClient
 import org.mockftpserver.fake.FakeFtpServer
 import org.mockftpserver.fake.UserAccount
@@ -15,7 +18,7 @@ import spock.lang.Specification
 import java.nio.file.Files
 import java.time.LocalDate
 
-class HoldingDetailsJobSpec extends Specification{
+class HoldingDetailsJobSpec extends Specification {
     @Shared
     private FakeFtpServer fakeFtpServer
 
@@ -68,7 +71,7 @@ class HoldingDetailsJobSpec extends Specification{
         return Files.readAllBytes(resource.getFile().toPath())
     }
 
-    def "should be able to reuse ftp client" () {
+    def "should be able to reuse ftp client"() {
         given:
         ftpClient.close()
         repository.findFirstByOrderByCreatedDateDesc() >> null
@@ -83,12 +86,46 @@ class HoldingDetailsJobSpec extends Specification{
     def "should persist holding detail if no entry exist"() {
         given:
         repository.findFirstByOrderByCreatedDateDesc() >> null
+        HoldingDetail detail = HoldingDetail.builder()
+            .symbol("MSFT")
+            .country("USA")
+            .currency("USD")
+            .securityName("Microsoft Corp")
+            .weighting(2.76)
+            .numberOfShare(7628806000)
+            .shareChange(0)
+            .marketValue(1367158323260)
+            .sector(Sector.valueOf(11))
+            .holdingYtdReturn(11.02)
+            .region(Region.valueOf(1))
+            .isin("US5949181045")
+            .styleBox(3)
+            .firstBoughtDate(LocalDate.of(2014, 12, 31))
+            .createdDate(LocalDate.of(2020, 5, 6))
+            .build()
 
         when:
         job.runJob()
 
         then:
-        1 * repository.save(_ as HoldingDetail)
+        1 * repository.save({ it ->
+            it.id == detail.id
+            it.symbol == detail.symbol
+            it.country == detail.country
+            it.currency == detail.currency
+            it.securityName == detail.securityName
+            it.weighting == detail.weighting
+            it.firstBoughtDate == detail.firstBoughtDate
+            it.createdDate == detail.createdDate
+            it.styleBox == detail.styleBox
+            it.isin == detail.isin
+            it.region == detail.region
+            it.holdingYtdReturn == detail.holdingYtdReturn
+            it.sector == detail.sector
+            it.marketValue == detail.marketValue
+            it.shareChange == detail.shareChange
+            it.numberOfShare == detail.numberOfShare
+        })
     }
 
     def "should persist holding detail if last entry is not up to date"() {

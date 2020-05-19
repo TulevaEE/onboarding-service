@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.holdings;
+package ee.tuleva.onboarding.holdings.adapters;
 
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 import java.time.LocalDate;

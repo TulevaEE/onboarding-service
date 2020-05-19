@@ -1,5 +1,8 @@
-package ee.tuleva.onboarding.holdings;
+package ee.tuleva.onboarding.holdings.models;
 
+import ee.tuleva.onboarding.holdings.adapters.XmlDateAdapter;
+import ee.tuleva.onboarding.holdings.adapters.XmlRegionAdapter;
+import ee.tuleva.onboarding.holdings.adapters.XmlSectorAdapter;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -7,6 +10,8 @@ import lombok.NoArgsConstructor;
 import org.eclipse.persistence.oxm.annotations.XmlPath;
 
 import javax.persistence.Entity;
+import javax.persistence.EnumType;
+import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
@@ -14,7 +19,6 @@ import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
@@ -36,37 +40,21 @@ public class HoldingDetail{
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @XmlAttribute(name="_Id")
-    @NotNull
-    private String _id;
-
-    @XmlAttribute(name="_ExternalId")
-    @NotNull
-    private String _externalId;
-
     @XmlElement(name="Symbol")
     @NotNull
     private String symbol;
 
     @XmlPath("Country/@_Id")
     @NotNull
-    private String country_id;
-
-    @XmlElement(name="CUSIP")
-    @NotNull
-    private String cusip;
+    private String country;
 
     @XmlPath("Currency/@_Id")
     @NotNull
-    private String currency_id;
+    private String currency;
 
     @XmlElement(name="SecurityName")
     @NotNull
     private String securityName;
-
-    @XmlElement(name="LegalType")
-    @NotNull
-    private String legalType;
 
     @XmlElement(name="Weighting")
     @NotNull
@@ -84,17 +72,21 @@ public class HoldingDetail{
     @NotNull
     private Long marketValue;
 
+    @Enumerated(EnumType.ORDINAL)
     @XmlElement(name="Sector")
+    @XmlJavaTypeAdapter(XmlSectorAdapter.class)
     @NotNull
-    private Long sector;
+    private Sector sector;
 
     @XmlElement(name="HoldingYTDReturn")
     @NotNull
     private BigDecimal holdingYtdReturn;
 
+    @Enumerated(EnumType.ORDINAL)
     @XmlElement(name="Region")
+    @XmlJavaTypeAdapter(XmlRegionAdapter.class)
     @NotNull
-    private Long region;
+    private Region region;
 
     @XmlElement(name="ISIN")
     @NotNull
@@ -103,10 +95,6 @@ public class HoldingDetail{
     @XmlElement(name="StyleBox")
     @NotNull
     private Long styleBox;
-
-    @XmlElement(name="SEDOL")
-    @NotNull
-    private String sedol;
 
     @XmlElement(name="FirstBoughtDate")
     @XmlJavaTypeAdapter(XmlDateAdapter.class)

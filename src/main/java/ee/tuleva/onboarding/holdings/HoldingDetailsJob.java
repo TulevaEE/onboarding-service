@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.holdings;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient;
+import ee.tuleva.onboarding.holdings.models.HoldingDetail;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.holdings
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient
-import ee.tuleva.onboarding.holdings.models.HoldingDetail
-import ee.tuleva.onboarding.holdings.models.Region
-import ee.tuleva.onboarding.holdings.models.Sector
+import ee.tuleva.onboarding.holdings.persistence.HoldingDetail
+import ee.tuleva.onboarding.holdings.persistence.Region
+import ee.tuleva.onboarding.holdings.persistence.Sector
+import ee.tuleva.onboarding.holdings.persistence.HoldingDetailsRepository
 import org.apache.commons.net.ftp.FTPClient
 import org.mockftpserver.fake.FakeFtpServer
 import org.mockftpserver.fake.UserAccount

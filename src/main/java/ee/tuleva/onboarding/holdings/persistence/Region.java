@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.holdings.models;
+package ee.tuleva.onboarding.holdings.persistence;
 
 import java.util.HashMap;
 import java.util.Map;

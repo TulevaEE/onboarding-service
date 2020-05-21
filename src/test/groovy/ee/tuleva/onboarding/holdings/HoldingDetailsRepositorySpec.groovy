@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.holdings
 
-import ee.tuleva.onboarding.holdings.models.HoldingDetail
-import ee.tuleva.onboarding.holdings.models.Region
-import ee.tuleva.onboarding.holdings.models.Sector
+import ee.tuleva.onboarding.holdings.persistence.HoldingDetail
+import ee.tuleva.onboarding.holdings.persistence.Region
+import ee.tuleva.onboarding.holdings.persistence.Sector
+import ee.tuleva.onboarding.holdings.persistence.HoldingDetailsRepository
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
@@ -38,8 +39,7 @@ class HoldingDetailsRepositorySpec extends Specification{
         .firstBoughtDate(LocalDate.of(2014, 12, 31))
         .createdDate(testDate)
         .build()
-        entityManager.persist(holdingDetail)
-        entityManager.flush()
+        entityManager.persistAndFlush(holdingDetail)
 
         when:
         def persistDetail = repository.findFirstByOrderByCreatedDateDesc()

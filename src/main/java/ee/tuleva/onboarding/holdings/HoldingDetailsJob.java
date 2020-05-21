@@ -1,7 +1,11 @@
 package ee.tuleva.onboarding.holdings;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.ftp.FtpClient;
-import ee.tuleva.onboarding.holdings.models.HoldingDetail;
+import ee.tuleva.onboarding.holdings.converters.HoldingDetailConverter;
+import ee.tuleva.onboarding.holdings.persistence.HoldingDetail;
+import ee.tuleva.onboarding.holdings.persistence.HoldingDetailsRepository;
+import ee.tuleva.onboarding.holdings.xml.XmlHoldingDetail;
+import io.swagger.models.Xml;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -69,7 +73,8 @@ public class HoldingDetailsJob {
                 if(fileDate.compareTo(from) > 0) {
                     InputStream fileStream = morningstarFtpClient.downloadFileStream(PATH + fileName);
                     GZIPInputStream gzipStream = new GZIPInputStream(fileStream);
-                    new XmlHoldingDetailParser(gzipStream, VAN_ID, detail -> {
+                    new XmlHoldingDetailParser(gzipStream, VAN_ID, xmlDetail -> {
+                        HoldingDetail detail = new HoldingDetailConverter().convert(xmlDetail);
                         detail.setCreatedDate(fileDate);
                         persistHoldingDetail(detail);
                     }).parse();
@@ -91,7 +96,7 @@ public class HoldingDetailsJob {
     private static class XmlHoldingDetailParser {
         private final InputStream stream;
         private final String vehicleId;
-        private final HoldingDetailListener listener;
+        private final XmlHoldingDetailListener listener;
 
         private final QName INVESTMENT_VEHICLE = new QName("InvestmentVehicle");
         private final QName ID_ATTRIBUTE = new QName("_Id");
@@ -102,13 +107,13 @@ public class HoldingDetailsJob {
         XmlHoldingDetailParser(
             InputStream stream,
             String vehicleId,
-            HoldingDetailListener listener
+            XmlHoldingDetailListener listener
         ) throws JAXBException {
             this.stream = stream;
             this.vehicleId = vehicleId;
             this.listener = listener;
 
-            JAXBContext context = JAXBContext.newInstance(HoldingDetail.class);
+            JAXBContext context = JAXBContext.newInstance(XmlHoldingDetail.class);
             unmarshaller = context.createUnmarshaller();
         }
 
@@ -117,9 +122,9 @@ public class HoldingDetailsJob {
                 e.getAttributeByName(ID_ATTRIBUTE).getValue().equals(vehicleId)) {
                 isInVehicle = true;
             } else if(isInVehicle && e.getName().equals(HOLDING_DETAIL)) {
-                HoldingDetail holdingDetailEntry =
-                    unmarshaller.unmarshal(reader, HoldingDetail.class).getValue();
-                listener.onNewHoldingDetail(holdingDetailEntry);
+                XmlHoldingDetail holdingDetailEntry =
+                    unmarshaller.unmarshal(reader, XmlHoldingDetail.class).getValue();
+                listener.onNewXmlHoldingDetail(holdingDetailEntry);
                 return true;
             }
             return false;
@@ -151,7 +156,7 @@ public class HoldingDetailsJob {
         }
     }
 
-    private interface HoldingDetailListener {
-        void onNewHoldingDetail(HoldingDetail detail);
+    private interface XmlHoldingDetailListener {
+        void onNewXmlHoldingDetail(XmlHoldingDetail detail);
     }
 }

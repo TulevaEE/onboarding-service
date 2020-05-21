@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.holdings.adapters;
 
-import ee.tuleva.onboarding.holdings.models.Region;
+import ee.tuleva.onboarding.holdings.persistence.Region;
 
 import javax.xml.bind.annotation.adapters.XmlAdapter;
 

@@ -1,45 +1,31 @@
-package ee.tuleva.onboarding.holdings.models;
+package ee.tuleva.onboarding.holdings.xml;
 
 import ee.tuleva.onboarding.holdings.adapters.XmlDateAdapter;
 import ee.tuleva.onboarding.holdings.adapters.XmlRegionAdapter;
 import ee.tuleva.onboarding.holdings.adapters.XmlSectorAdapter;
+import ee.tuleva.onboarding.holdings.persistence.Region;
+import ee.tuleva.onboarding.holdings.persistence.Sector;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.eclipse.persistence.oxm.annotations.XmlPath;
-
-import javax.persistence.Entity;
-import javax.persistence.EnumType;
-import javax.persistence.Enumerated;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
-import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
 @Builder
-@Entity
-@Table(name = "holding_details")
 @AllArgsConstructor
 @NoArgsConstructor
 @XmlAccessorType(XmlAccessType.FIELD)
 @XmlRootElement(name="HoldingDetail")
-public class HoldingDetail{
-    @XmlTransient
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
+public class XmlHoldingDetail{
     @XmlElement(name="Symbol")
     @NotNull
     private String symbol;
@@ -72,7 +58,6 @@ public class HoldingDetail{
     @NotNull
     private Long marketValue;
 
-    @Enumerated(EnumType.ORDINAL)
     @XmlElement(name="Sector")
     @XmlJavaTypeAdapter(XmlSectorAdapter.class)
     @NotNull
@@ -82,7 +67,6 @@ public class HoldingDetail{
     @NotNull
     private BigDecimal holdingYtdReturn;
 
-    @Enumerated(EnumType.ORDINAL)
     @XmlElement(name="Region")
     @XmlJavaTypeAdapter(XmlRegionAdapter.class)
     @NotNull
@@ -99,7 +83,5 @@ public class HoldingDetail{
     @XmlElement(name="FirstBoughtDate")
     @XmlJavaTypeAdapter(XmlDateAdapter.class)
     private LocalDate firstBoughtDate;
-
-    @XmlTransient
-    private LocalDate createdDate;
 }
+

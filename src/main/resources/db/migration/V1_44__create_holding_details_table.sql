@@ -13,7 +13,6 @@ CREATE TABLE holding_details
     holding_ytd_return      DECIMAL(10, 5) DEFAULT 0,
     region                  VARCHAR(31) NOT NULL,
     isin                    VARCHAR(255) NOT NULL,
-    style_box               INTEGER DEFAULT 0,
     first_bought_date       DATE,
     created_date            DATE NOT NULL
 );

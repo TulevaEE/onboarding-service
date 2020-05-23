@@ -21,7 +21,6 @@ public class HoldingDetailConverter implements Converter<XmlHoldingDetail, Holdi
             .sector(source.getSector())
             .securityName(source.getSecurityName())
             .shareChange(source.getShareChange())
-            .styleBox(source.getStyleBox())
             .symbol(source.getSymbol())
             .weighting(source.getWeighting())
             .build();

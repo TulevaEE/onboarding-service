@@ -100,7 +100,6 @@ class HoldingDetailsJobSpec extends Specification {
             .holdingYtdReturn(11.02)
             .region(Region.valueOf(1))
             .isin("US5949181045")
-            .styleBox(3)
             .firstBoughtDate(LocalDate.of(2014, 12, 31))
             .createdDate(LocalDate.of(2020, 5, 6))
             .build()

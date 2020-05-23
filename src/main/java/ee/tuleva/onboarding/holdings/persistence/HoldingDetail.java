@@ -65,9 +65,6 @@ public class HoldingDetail{
     @NotNull
     private String isin;
 
-    @NotNull
-    private Long styleBox;
-
     private LocalDate firstBoughtDate;
 
     private LocalDate createdDate;

@@ -35,7 +35,6 @@ class HoldingDetailsRepositorySpec extends Specification{
         .holdingYtdReturn(11.02)
         .region(Region.AFRICA)
         .isin("US5949181045")
-        .styleBox(3)
         .firstBoughtDate(LocalDate.of(2014, 12, 31))
         .createdDate(testDate)
         .build()
@@ -57,7 +56,6 @@ class HoldingDetailsRepositorySpec extends Specification{
         persistDetail.holdingYtdReturn == holdingDetail.holdingYtdReturn
         persistDetail.region == holdingDetail.region
         persistDetail.isin == holdingDetail.isin
-        persistDetail.styleBox == holdingDetail.styleBox
         persistDetail.firstBoughtDate == holdingDetail.firstBoughtDate
         persistDetail.createdDate == testDate
     }

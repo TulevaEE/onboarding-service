@@ -76,10 +76,6 @@ public class XmlHoldingDetail{
     @NotNull
     private String isin;
 
-    @XmlElement(name="StyleBox")
-    @NotNull
-    private Long styleBox;
-
     @XmlElement(name="FirstBoughtDate")
     @XmlJavaTypeAdapter(XmlDateAdapter.class)
     private LocalDate firstBoughtDate;

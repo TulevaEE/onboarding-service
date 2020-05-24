@@ -186,11 +186,13 @@ class UserConversionServiceSpec extends Specification {
 
         then:
         with(response.secondPillar) {
-            yearToDateContribution == 2.0
+            contribution.yearToDate == 2.0
+            contribution.total == 102.0
             paymentComplete == null
         }
         with(response.thirdPillar) {
-            yearToDateContribution == 3.0
+            contribution.total == 103.0
+            contribution.yearToDate == 3.0
             paymentComplete
         }
     }

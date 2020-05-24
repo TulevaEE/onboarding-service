@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.conversion.ConversionResponse.Conversion;
 import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
+import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.transfer.TransferExchange;
 import ee.tuleva.onboarding.mandate.transfer.TransferExchangeService;
@@ -26,6 +27,7 @@ import static java.math.BigDecimal.ROUND_HALF_UP;
 import static java.math.BigDecimal.ZERO;
 import static java.time.temporal.TemporalAdjusters.lastDayOfYear;
 import static java.util.stream.Collectors.toList;
+import static ee.tuleva.onboarding.conversion.ConversionResponse.Contribution;
 
 @Service
 @Slf4j
@@ -51,12 +53,18 @@ public class UserConversionService {
             .secondPillar(Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 2))
                 .transfersComplete(isTransfersComplete(fundBalances, 2, person))
-                .yearToDateContribution(yearToDateContributionSum(cashFlowStatement, 2))
+                .contribution(Contribution.builder()
+                    .yearToDate(yearToDateContributionSum(cashFlowStatement, 2))
+                    .total(totalContribution(cashFlowStatement, 2))
+                    .build())
                 .build()
             ).thirdPillar(Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 3))
                 .transfersComplete(isTransfersComplete(fundBalances, 3, person))
-                .yearToDateContribution(yearToDateContributionSum(cashFlowStatement, 3))
+                .contribution(Contribution.builder()
+                    .yearToDate(yearToDateContributionSum(cashFlowStatement, 3))
+                    .total(totalContribution(cashFlowStatement, 3))
+                    .build())
                 .paymentComplete(paymentComplete(cashFlowStatement))
                 .build()
             ).build();
@@ -77,6 +85,18 @@ public class UserConversionService {
             .filter(cashFlow -> cashFlow.getDate().isAfter(lastDayOfLastYear()))
             .filter(cashFlow -> CONTRIBUTION == cashFlow.getType())
             .filter(cashFlow -> fundRepository.findByIsin(cashFlow.getIsin()).getPillar() == pillar)
+            .map(CashFlow::getAmount)
+            .reduce(ZERO, BigDecimal::add)
+            .setScale(2, ROUND_HALF_UP);
+    }
+
+    private BigDecimal totalContribution(CashFlowStatement cashFlowStatement, int pillar) {
+        return cashFlowStatement.getTransactions().stream()
+            .filter(cashFlow -> CONTRIBUTION == cashFlow.getType())
+            .filter(cashFlow -> {
+                Fund fund = fundRepository.findByIsin(cashFlow.getIsin());
+                return fund != null && fund.getPillar() == pillar;
+            })
             .map(CashFlow::getAmount)
             .reduce(ZERO, BigDecimal::add)
             .setScale(2, ROUND_HALF_UP);

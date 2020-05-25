@@ -35,9 +35,6 @@ public class MobileIdConfiguration {
   @Value("${mobile-id.pollingSleepTimeoutSeconds}")
   private int pollingSleepTimeoutSeconds;
 
-  @Value("${mobile-id.longPollingTimeoutSeconds}")
-  private int longPollingTimeoutSeconds;
-
   @Value("${mobile-id.service.name}")
   private String serviceName;
 
@@ -47,7 +44,8 @@ public class MobileIdConfiguration {
     System.setProperty("javax.net.ssl.trustStore", trustStorePath);
     System.setProperty("javax.net.ssl.trustStorePassword", trustStorePassword);
     log.info("Setting global ssl truststore to {}", this.trustStorePath);
-    log.info("Setting digidoc service url to {} with name {}", this.digidocServiceUrl, this.serviceName);
+    log.info(
+        "Setting digidoc service url to {} with name {}", this.digidocServiceUrl, this.serviceName);
 
     return new MobileIDAuthenticator(digidocServiceUrl, serviceName);
   }
@@ -58,7 +56,6 @@ public class MobileIdConfiguration {
         .withRelyingPartyName(relyingPartyName)
         .withRelyingPartyUUID(relyingPartyUUID)
         .withHostUrl(hostUrl)
-        .withLongPollingTimeoutSeconds(longPollingTimeoutSeconds)
         .withPollingSleepTimeoutSeconds(pollingSleepTimeoutSeconds)
         .build();
   }

@@ -1,67 +1,110 @@
 package ee.tuleva.onboarding.auth.ocsp;
 
-import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
-import org.bouncycastle.cert.ocsp.CertificateID;
-import org.bouncycastle.cert.ocsp.OCSPException;
-import org.bouncycastle.cert.ocsp.OCSPReq;
-import org.bouncycastle.cert.ocsp.OCSPReqBuilder;
-import org.bouncycastle.operator.DigestCalculator;
-import org.bouncycastle.operator.DigestCalculatorProvider;
-import org.bouncycastle.operator.OperatorCreationException;
-import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
-import org.springframework.stereotype.Component;
-import sun.security.x509.*;
+import static ee.tuleva.onboarding.auth.ocsp.AuthenticationException.Code.INVALID_INPUT;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.List;
-
-import static ee.tuleva.onboarding.auth.ocsp.AuthenticationException.Code.INVALID_INPUT;
+import java.util.NoSuchElementException;
+import java.util.Vector;
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1OctetString;
+import org.bouncycastle.asn1.ASN1Primitive;
+import org.bouncycastle.asn1.DERIA5String;
+import org.bouncycastle.asn1.x509.AccessDescription;
+import org.bouncycastle.asn1.x509.AuthorityInformationAccess;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder;
+import org.bouncycastle.cert.ocsp.CertificateID;
+import org.bouncycastle.cert.ocsp.OCSPException;
+import org.bouncycastle.cert.ocsp.OCSPReq;
+import org.bouncycastle.cert.ocsp.OCSPReqBuilder;
+import org.bouncycastle.jce.provider.AnnotatedException;
+import org.bouncycastle.operator.DigestCalculator;
+import org.bouncycastle.operator.DigestCalculatorProvider;
+import org.bouncycastle.operator.OperatorCreationException;
+import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
+import org.springframework.stereotype.Component;
 
 @Component
 public class OCSPUtils {
+  private static final String AUTH_INFO_ACCESS = Extension.authorityInfoAccess.getId();
 
   public URI getIssuerCertificateURI(X509Certificate certificate) {
-    AuthorityInfoAccessExtension extension =
-        ((X509CertImpl) certificate).getAuthorityInfoAccessExtension();
-    List<AccessDescription> accessDescriptions = extension.getAccessDescriptions();
-    AccessDescription result =
-        accessDescriptions.stream()
-            .filter(
-                accessDescription ->
-                    accessDescription.getAccessMethod().equals(AccessDescription.Ad_CAISSUERS_Id))
-            .findFirst()
-            .orElseThrow(
-                () -> new AuthenticationException(INVALID_INPUT, "Issuer missing in certificate"));
-
-    GeneralName generalName = result.getAccessLocation();
-    URIName uri = (URIName) generalName.getName();
-    return uri.getURI();
+    AuthorityInformationAccess authInfoAcc = null;
+    try {
+      ASN1Primitive auth_info_acc = getExtensionValue(certificate, AUTH_INFO_ACCESS);
+      if (auth_info_acc != null) {
+        authInfoAcc = AuthorityInformationAccess.getInstance(auth_info_acc);
+      }
+      Vector<String> ocspUrls = findUrls(authInfoAcc, AccessDescription.id_ad_caIssuers);
+      return new URI(ocspUrls.firstElement());
+    } catch (AnnotatedException | URISyntaxException | NoSuchElementException e) {
+      throw new AuthenticationException(INVALID_INPUT, "Unable to read certificate", e);
+    }
   }
 
   public URI getResponderURI(X509Certificate certificate) {
-    AuthorityInfoAccessExtension extension =
-        ((X509CertImpl) certificate).getAuthorityInfoAccessExtension();
-    List<AccessDescription> accessDescriptions = extension.getAccessDescriptions();
-    AccessDescription result =
-        accessDescriptions.stream()
-            .filter(
-                accessDescription ->
-                    accessDescription.getAccessMethod().equals(AccessDescription.Ad_OCSP_Id))
-            .findFirst()
-            .orElseThrow(
-                () ->
-                    new AuthenticationException(
-                        INVALID_INPUT, "Responder OCSP URI missing in certificate"));
-    GeneralName generalName = result.getAccessLocation();
-    URIName uri = (URIName) generalName.getName();
-    return uri.getURI();
+    AuthorityInformationAccess authInfoAcc = null;
+    try {
+      ASN1Primitive auth_info_acc = getExtensionValue(certificate, AUTH_INFO_ACCESS);
+      if (auth_info_acc != null) {
+        authInfoAcc = AuthorityInformationAccess.getInstance(auth_info_acc);
+      }
+      Vector<String> ocspUrls = findUrls(authInfoAcc, AccessDescription.id_ad_ocsp);
+      return new URI(ocspUrls.firstElement());
+    } catch (AnnotatedException | URISyntaxException | NoSuchElementException e) {
+      throw new AuthenticationException(INVALID_INPUT, "Unable to read certificate", e);
+    }
+  }
+
+  protected static ASN1Primitive getExtensionValue(java.security.cert.X509Extension ext, String oid)
+      throws AnnotatedException {
+    byte[] bytes = ext.getExtensionValue(oid);
+    if (bytes == null) {
+      return null;
+    }
+
+    return getObject(oid, bytes);
+  }
+
+  private static ASN1Primitive getObject(String oid, byte[] ext) throws AnnotatedException {
+    try {
+      ASN1InputStream aIn = new ASN1InputStream(ext);
+      ASN1OctetString octs = (ASN1OctetString) aIn.readObject();
+
+      aIn = new ASN1InputStream(octs.getOctets());
+      return aIn.readObject();
+    } catch (Exception e) {
+      throw new AnnotatedException("exception processing extension " + oid, e);
+    }
+  }
+
+  protected Vector<String> findUrls(
+      AuthorityInformationAccess authInfoAccess, ASN1Primitive accessDescription) {
+    Vector<String> urls = new Vector();
+
+    if (authInfoAccess != null) {
+      AccessDescription[] ads = authInfoAccess.getAccessDescriptions();
+      for (int i = 0; i < ads.length; i++) {
+        if (ads[i].getAccessMethod().equals(accessDescription)) {
+          GeneralName name = ads[i].getAccessLocation();
+          if (name.getTagNo() == GeneralName.uniformResourceIdentifier) {
+            String url = ((DERIA5String) name.getName()).getString();
+            urls.add(url);
+          }
+        }
+      }
+    }
+
+    return urls;
   }
 
   public X509Certificate getX509Certificate(String certificate) {

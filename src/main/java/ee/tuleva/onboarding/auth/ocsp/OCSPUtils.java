@@ -6,12 +6,11 @@ import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
-import java.util.NoSuchElementException;
+import java.security.cert.X509Extension;
 import java.util.Vector;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1OctetString;
@@ -26,7 +25,6 @@ import org.bouncycastle.cert.ocsp.CertificateID;
 import org.bouncycastle.cert.ocsp.OCSPException;
 import org.bouncycastle.cert.ocsp.OCSPReq;
 import org.bouncycastle.cert.ocsp.OCSPReqBuilder;
-import org.bouncycastle.jce.provider.AnnotatedException;
 import org.bouncycastle.operator.DigestCalculator;
 import org.bouncycastle.operator.DigestCalculatorProvider;
 import org.bouncycastle.operator.OperatorCreationException;
@@ -56,31 +54,22 @@ public class OCSPUtils {
       Vector<String> urls =
           findUrlsFromAccessDescriptions(authorityInformationAccess, accessDescriptionToFind);
       return new URI(urls.firstElement());
-    } catch (AnnotatedException | URISyntaxException | NoSuchElementException e) {
+    } catch (Exception e) {
       throw new AuthenticationException(INVALID_INPUT, "Unable to read certificate", e);
     }
   }
 
-  private static ASN1Primitive getExtensionValue(java.security.cert.X509Extension ext, String oid)
-      throws AnnotatedException {
+  private static ASN1Primitive getExtensionValue(X509Extension ext, String oid) throws Exception {
     byte[] bytes = ext.getExtensionValue(oid);
     if (bytes == null) {
       return null;
     }
 
-    return getObject(oid, bytes);
-  }
+    ASN1InputStream aIn = new ASN1InputStream(bytes);
+    ASN1OctetString octs = (ASN1OctetString) aIn.readObject();
 
-  private static ASN1Primitive getObject(String oid, byte[] ext) throws AnnotatedException {
-    try {
-      ASN1InputStream aIn = new ASN1InputStream(ext);
-      ASN1OctetString octs = (ASN1OctetString) aIn.readObject();
-
-      aIn = new ASN1InputStream(octs.getOctets());
-      return aIn.readObject();
-    } catch (Exception e) {
-      throw new AnnotatedException("exception processing extension " + oid, e);
-    }
+    aIn = new ASN1InputStream(octs.getOctets());
+    return aIn.readObject();
   }
 
   private Vector<String> findUrlsFromAccessDescriptions(

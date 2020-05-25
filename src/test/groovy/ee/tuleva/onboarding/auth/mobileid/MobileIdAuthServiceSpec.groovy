@@ -7,7 +7,6 @@ import ee.sk.mid.exception.*
 import ee.sk.mid.rest.MidConnector
 import ee.sk.mid.rest.MidSessionStatusPoller
 import ee.sk.mid.rest.dao.response.MidAuthenticationResponse
-import ee.tuleva.onboarding.auth.exception.MobileIdException
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.*

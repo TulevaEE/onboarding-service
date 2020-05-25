@@ -20,6 +20,9 @@ public class MobileIdConfiguration {
   @Value("${truststore.path}")
   private String trustStorePath;
 
+  @Value("${truststore.password}")
+  private String trustStorePassword;
+
   @Value("${smartid.relyingPartyUUID}")
   private String relyingPartyUUID;
 
@@ -40,10 +43,12 @@ public class MobileIdConfiguration {
 
   @Bean
   MobileIDAuthenticator mobileIDAuthenticator() {
+    // TODO: move global system properties somewhere else
     System.setProperty("javax.net.ssl.trustStore", trustStorePath);
+    System.setProperty("javax.net.ssl.trustStorePassword", trustStorePassword);
     log.info("Setting global ssl truststore to {}", this.trustStorePath);
-    log.info(
-        "setting digidoc service url to {} with name {}", this.digidocServiceUrl, this.serviceName);
+    log.info("Setting digidoc service url to {} with name {}", this.digidocServiceUrl, this.serviceName);
+
     return new MobileIDAuthenticator(digidocServiceUrl, serviceName);
   }
 

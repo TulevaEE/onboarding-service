@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.ocsp
 
-import ee.tuleva.onboarding.auth.exception.AuthenticationException
+
 import spock.lang.Specification
 
 import java.nio.charset.StandardCharsets

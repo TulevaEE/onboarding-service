@@ -1,6 +1,4 @@
-package ee.tuleva.onboarding.notification.email
-
-
+package ee.tuleva.onboarding.member.email
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import spock.lang.Specification
@@ -8,18 +6,10 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
 @SpringBootTest
-class EmailContentServiceSpec extends Specification {
+class MemberEmailContentServiceSpec extends Specification {
 
     @Autowired
-    EmailContentService emailContentService
-
-    def "get mandate email html content"() {
-        given:
-        when:
-        String html = emailContentService.getMandateEmailHtml()
-        then:
-        html.contains('tuleva@tuleva.ee')
-    }
+    MemberEmailContentService emailContentService
 
     def "get membership email html content"() {
         given:

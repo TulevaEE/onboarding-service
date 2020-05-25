@@ -60,7 +60,7 @@ class AuthControllerSpec extends BaseControllerSpec {
 
     def "Authenticate: Initiate smart id authentication"() {
         given:
-        1 * smartIdAuthService.startLogin(SmartIdFixture.identityCode) >> SmartIdFixture.sampleSmartIdSession
+        1 * smartIdAuthService.startLogin(SmartIdFixture.personalCode) >> SmartIdFixture.sampleSmartIdSession
         1 * sessionStore.save(_ as SmartIdSession)
         when:
         MockHttpServletResponse response = mockMvc
@@ -120,7 +120,7 @@ class AuthControllerSpec extends BaseControllerSpec {
 
     private static sampleSmartIdAuthenticateCommand() {
         [
-            personalCode: SmartIdFixture.identityCode,
+            personalCode: SmartIdFixture.personalCode,
             type        : AuthenticationType.SMART_ID.toString()
         ]
     }

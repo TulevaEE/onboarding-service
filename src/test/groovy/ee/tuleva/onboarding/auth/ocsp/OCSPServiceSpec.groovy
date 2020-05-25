@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.ocsp
 
-import ee.tuleva.onboarding.auth.exception.AuthenticationException
+
 import ee.tuleva.onboarding.config.ClockConfig
 import org.bouncycastle.asn1.DEROctetString
 import org.bouncycastle.asn1.ocsp.OCSPObjectIdentifiers

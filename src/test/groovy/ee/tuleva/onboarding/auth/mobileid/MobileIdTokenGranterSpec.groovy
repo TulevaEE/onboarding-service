@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.auth.mobileid
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
-import ee.tuleva.onboarding.auth.exception.MobileIdSessionNotFoundException
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException

@@ -11,14 +11,15 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWithUser;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
+import ee.tuleva.onboarding.mandate.listener.MandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
-import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -37,12 +38,12 @@ public class MandateService {
     private final MandateRepository mandateRepository;
     private final SignatureService signService;
     private final CreateMandateCommandToMandateConverter mandateConverter;
-    private final EmailService emailService;
     private final MandateProcessorService mandateProcessor;
     private final MandateFileService mandateFileService;
     private final UserService userService;
     private final EpisService episService;
     private final AmlService amlService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
         validateCreateMandateCommand(createMandateCommand);
@@ -172,7 +173,8 @@ public class MandateService {
             notifyAboutSignedMandate(user,
                 mandate.getId(),
                 mandate.getMandate()
-                    .orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file."))
+                    .orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file.")),
+                mandate.getPillar()
             );
 
             return SIGNATURE;
@@ -201,8 +203,17 @@ public class MandateService {
         }
     }
 
-    private void notifyAboutSignedMandate(User user, Long mandateId, byte[] signedFile) {
-        emailService.sendMandate(user, mandateId, signedFile);
+    private void notifyAboutSignedMandate(User user, Long mandateId, byte[] signedFile, int pillar) {
+        MandateCreatedEvent event = MandateCreatedEvent.newEvent(
+            user,
+            mandateId,
+            signedFile,
+            pillar
+        );
+
+        if(event != null) {
+            applicationEventPublisher.publishEvent(event);
+        }
     }
 
     private void persistSignedFile(Mandate mandate, byte[] signedFile) {

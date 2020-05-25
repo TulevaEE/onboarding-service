@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.notification.email;
+package ee.tuleva.onboarding.member.email;
 
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.member.Member;
@@ -16,23 +16,15 @@ import java.time.format.DateTimeFormatter;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class EmailContentService {
-
+public class MemberEmailContentService {
     private final TemplateEngine templateEngine;
     private final LocaleResolver localeResolver;
     private final HttpServletRequest request;
 
-    public String getMandateEmailHtml() {
-        Context ctx = new Context();
-        ctx.setLocale(localeResolver.resolveLocale(request));
-        String htmlContent = templateEngine.process("mandate", ctx);
-        return htmlContent;
-    }
-
     public String getMembershipEmailHtml(User user) {
         DateTimeFormatter formatter =
-                DateTimeFormatter.ISO_LOCAL_DATE
-                        .withZone(ZoneId.of("Europe/Tallinn"));
+            DateTimeFormatter.ISO_LOCAL_DATE
+                .withZone(ZoneId.of("Europe/Tallinn"));
         Member member = user.getMemberOrThrow();
         String memberDate = formatter.format(member.getCreatedDate());
 
@@ -46,5 +38,4 @@ public class EmailContentService {
         String htmlContent = templateEngine.process("membership", ctx);
         return htmlContent;
     }
-
 }

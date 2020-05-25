@@ -1,10 +1,5 @@
 package ee.tuleva.onboarding.mandate;
 
-import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
-import static org.springframework.web.bind.annotation.RequestMethod.GET;
-import static org.springframework.web.bind.annotation.RequestMethod.POST;
-import static org.springframework.web.bind.annotation.RequestMethod.PUT;
-
 import com.codeborne.security.mobileid.IdCardSignatureSession;
 import com.codeborne.security.mobileid.MobileIdSignatureSession;
 import com.codeborne.security.mobileid.SignatureFile;
@@ -18,17 +13,9 @@ import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
-import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
-import ee.tuleva.onboarding.mandate.response.MandateSignatureStatusResponse;
-import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
+import ee.tuleva.onboarding.mandate.response.*;
 import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
 import io.swagger.annotations.ApiOperation;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
-import javax.servlet.http.HttpServletResponse;
-import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
@@ -40,6 +27,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.annotations.ApiIgnore;
 
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+
+import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
+import static org.springframework.web.bind.annotation.RequestMethod.*;
+
 @Slf4j
 @RestController
 @RequestMapping("/v1" + MANDATES_URI)
@@ -50,7 +47,7 @@ public class MandateController {
 
   private final MandateRepository mandateRepository;
   private final MandateService mandateService;
-  private final GenericSessionStore genericSessionStore;
+  private final GenericSessionStore sessionStore;
   private final SignatureFileArchiver signatureFileArchiver;
   private final MandateFileService mandateFileService;
 
@@ -60,8 +57,7 @@ public class MandateController {
   public Mandate create(
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody CreateMandateCommand createMandateCommand,
-      @ApiIgnore Errors errors)
-      throws ValidationErrorsException {
+      @ApiIgnore Errors errors) {
     if (errors.hasErrors()) {
       log.info("Create mandate command is not valid: {}", errors);
       throw new ValidationErrorsException(errors);
@@ -77,25 +73,25 @@ public class MandateController {
       @PathVariable("id") Long mandateId,
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
-    Optional<MobileIDSession> session = genericSessionStore.get(MobileIDSession.class);
+    Optional<MobileIDSession> session = sessionStore.get(MobileIDSession.class);
     MobileIDSession loginSession = session.orElseThrow(IdSessionException::mobileSessionNotFound);
 
     MobileIdSignatureSession signatureSession =
         mandateService.mobileIdSign(
             mandateId, authenticatedPerson.getUserId(), loginSession.getPhoneNumber());
-    genericSessionStore.save(signatureSession);
+    sessionStore.save(signatureSession);
 
-    return new MobileSignatureResponse(signatureSession.challenge, signatureSession.challenge);
+    return new MobileSignatureResponse(signatureSession.challenge);
   }
 
   @ApiOperation(value = "Is mandate successfully signed with mobile ID")
   @RequestMapping(method = GET, value = "/{id}/signature/mobileId/status")
-  public MandateSignatureStatusResponse getMobileIdSignatureStatus(
+  public MobileSignatureStatusResponse getMobileIdSignatureStatus(
       @PathVariable("id") Long mandateId,
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
     Optional<MobileIdSignatureSession> signatureSession =
-        genericSessionStore.get(MobileIdSignatureSession.class);
+        sessionStore.get(MobileIdSignatureSession.class);
     MobileIdSignatureSession session =
         signatureSession.orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
 
@@ -103,7 +99,7 @@ public class MandateController {
         mandateService.finalizeMobileIdSignature(
             authenticatedPerson.getUserId(), mandateId, session);
 
-    return new MandateSignatureStatusResponse(statusCode);
+    return new MobileSignatureStatusResponse(statusCode, session.challenge);
   }
 
   @ApiOperation(value = "Start signing mandate with Smart ID")
@@ -113,20 +109,19 @@ public class MandateController {
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     SmartIdSignatureSession signatureSession =
         mandateService.smartIdSign(mandateId, authenticatedPerson.getUserId());
-    genericSessionStore.save(signatureSession);
+    sessionStore.save(signatureSession);
 
-    return new MobileSignatureResponse(
-        signatureSession.getChallengeCode(), signatureSession.getChallengeCode());
+    return new MobileSignatureResponse(signatureSession.getChallengeCode());
   }
 
   @ApiOperation(value = "Is mandate successfully signed with Smart ID")
   @RequestMapping(method = GET, value = "/{id}/signature/smartId/status")
-  public MandateSignatureStatusResponse getSmartIdSignatureStatus(
+  public MobileSignatureStatusResponse getSmartIdSignatureStatus(
       @PathVariable("id") Long mandateId,
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
     Optional<SmartIdSignatureSession> signatureSession =
-        genericSessionStore.get(SmartIdSignatureSession.class);
+        sessionStore.get(SmartIdSignatureSession.class);
     SmartIdSignatureSession session =
         signatureSession.orElseThrow(IdSessionException::smartIdSignatureSessionNotFound);
 
@@ -134,7 +129,7 @@ public class MandateController {
         mandateService.finalizeSmartIdSignature(
             authenticatedPerson.getUserId(), mandateId, session);
 
-    return new MandateSignatureStatusResponse(statusCode);
+    return new MobileSignatureStatusResponse(statusCode, session.getChallengeCode());
   }
 
   @ApiOperation(value = "Start signing mandate with ID card")
@@ -148,20 +143,20 @@ public class MandateController {
         mandateService.idCardSign(
             mandateId, authenticatedPerson.getUserId(), signCommand.getClientCertificate());
 
-    genericSessionStore.save(signatureSession);
+    sessionStore.save(signatureSession);
 
     return new IdCardSignatureResponse(signatureSession.hash);
   }
 
   @ApiOperation(value = "Is mandate successfully signed with ID card")
   @RequestMapping(method = PUT, value = "/{id}/signature/idCard/status")
-  public MandateSignatureStatusResponse getIdCardSignatureStatus(
+  public IdCardSignatureStatusResponse getIdCardSignatureStatus(
       @PathVariable("id") Long mandateId,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
     Optional<IdCardSignatureSession> signatureSession =
-        genericSessionStore.get(IdCardSignatureSession.class);
+        sessionStore.get(IdCardSignatureSession.class);
     IdCardSignatureSession session =
         signatureSession.orElseThrow(IdSessionException::cardSignatureSessionNotFound);
 
@@ -169,7 +164,7 @@ public class MandateController {
         mandateService.finalizeIdCardSignature(
             authenticatedPerson.getUserId(), mandateId, session, signCommand.getSignedHash());
 
-    return new MandateSignatureStatusResponse(statusCode);
+    return new IdCardSignatureStatusResponse(statusCode);
   }
 
   @ApiOperation(value = "Get mandate file")

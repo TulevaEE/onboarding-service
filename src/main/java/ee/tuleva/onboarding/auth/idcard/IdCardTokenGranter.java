@@ -1,10 +1,9 @@
 package ee.tuleva.onboarding.auth.idcard;
 
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEventPublisher;
+import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
-import ee.tuleva.onboarding.auth.exception.IdCardSessionNotFoundException;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
@@ -29,7 +28,7 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
   private final GenericSessionStore sessionStore;
   private final PrincipalService principalService;
   private final GrantedAuthorityFactory grantedAuthorityFactory;
-  private BeforeTokenGrantedEventPublisher beforeTokenGrantedEventPublisher;
+  private final ApplicationEventPublisher eventPublisher;
 
   private static final GrantType GRANT_TYPE = GrantType.ID_CARD;
 
@@ -45,8 +44,7 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
     this.sessionStore = genericSessionStore;
     this.principalService = principalService;
     this.grantedAuthorityFactory = grantedAuthorityFactory;
-    this.beforeTokenGrantedEventPublisher =
-        new BeforeTokenGrantedEventPublisher(applicationEventPublisher);
+    this.eventPublisher = applicationEventPublisher;
   }
 
   @Override
@@ -90,7 +88,7 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
     OAuth2Authentication oAuth2Authentication =
         new OAuth2Authentication(oAuth2Request, userAuthentication);
 
-    beforeTokenGrantedEventPublisher.publish(oAuth2Authentication, GRANT_TYPE);
+      eventPublisher.publishEvent(new BeforeTokenGrantedEvent(this, oAuth2Authentication, GRANT_TYPE));
 
     return getTokenServices().createAccessToken(oAuth2Authentication);
   }

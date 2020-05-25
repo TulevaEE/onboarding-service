@@ -2,42 +2,38 @@ package ee.tuleva.onboarding.notification.email
 
 import com.microtripit.mandrillapp.lutung.MandrillApi
 import com.microtripit.mandrillapp.lutung.controller.MandrillMessagesApi
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.config.EmailConfiguration
+import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
 class EmailServiceSpec extends Specification {
 
-    EmailConfiguration mandateEmailConfiguration = Mock(EmailConfiguration)
-    EmailContentService emailContentService = Mock(EmailContentService)
+    EmailConfiguration emailConfiguration = Mock(EmailConfiguration)
     MandrillApi mandrillApi = Mock(MandrillApi)
-    EmailService service = new EmailService(mandateEmailConfiguration, emailContentService, mandrillApi)
+    EmailService service = new EmailService(emailConfiguration, mandrillApi)
 
     def setup() {
-        mandateEmailConfiguration.from >> "tuleva@tuleva.ee"
-        mandateEmailConfiguration.bcc >> "avaldused@tuleva.ee"
-        mandateEmailConfiguration.mandrillKey >> Optional.of("")
+        emailConfiguration.from >> "tuleva@tuleva.ee"
+        emailConfiguration.bcc >> "avaldused@tuleva.ee"
+        emailConfiguration.mandrillKey >> Optional.of("")
     }
 
-    def "Send mandate email"() {
+    def "Send fake email"() {
         given:
-        emailContentService.getMandateEmailHtml() >> "html"
-
+        User user = sampleUser().build()
         when:
-        service.sendMandate(sampleUser().build(), 123, "file".bytes)
+        MandrillMessage message = service.newMandrillMessage(
+            service.getRecipients(user),
+            "subject",
+            "html",
+            ["test"],
+            null)
 
-        then:
-        1 * mandrillApi.messages() >> mockMandrillMessageApi()
-    }
-
-    def "send member number email"() {
-        given:
-        emailContentService.getMembershipEmailHtml(_) >> "html"
-
-        when:
-        service.sendMemberNumber(sampleUser().email("erko@risthein.ee").build())
+        service.send(user, message)
 
         then:
         1 * mandrillApi.messages() >> mockMandrillMessageApi()

@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.auth.smartid;
 
 import ee.sk.smartid.*;
-import ee.sk.smartid.exception.UserAccountNotFoundException;
-import ee.sk.smartid.exception.UserRefusedException;
+import ee.sk.smartid.exception.*;
 import ee.sk.smartid.rest.SmartIdConnector;
 import ee.sk.smartid.rest.dao.NationalIdentity;
 import ee.sk.smartid.rest.dao.SessionStatus;
@@ -10,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
+import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError;
 
 @Service
 @RequiredArgsConstructor
@@ -21,12 +20,17 @@ public class SmartIdAuthService {
     private final AuthenticationResponseValidator authenticationResponseValidator;
     private final SmartIdConnector connector;
 
-    public SmartIdSession startLogin(String nationalIdentityCode) {
-        AuthenticationHash authenticationHash = hashGenerator.generateHash();
-        String verificationCode = authenticationHash.calculateVerificationCode();
-        String sessionId = builder(nationalIdentityCode, authenticationHash).initiateAuthentication();
+    public SmartIdSession startLogin(String personalCode) {
+        try {
+            AuthenticationHash authenticationHash = hashGenerator.generateHash();
+            String verificationCode = authenticationHash.calculateVerificationCode();
+            String sessionId = builder(personalCode, authenticationHash).initiateAuthentication();
 
-        return new SmartIdSession(verificationCode, sessionId, nationalIdentityCode, authenticationHash);
+            return new SmartIdSession(verificationCode, sessionId, personalCode, authenticationHash);
+        } catch(UserAccountNotFoundException e) {
+            log.info("Smart ID User account not found: " + personalCode, e);
+            throw new SmartIdException(ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
+        }
     }
 
     public boolean isLoginComplete(SmartIdSession smartIdSession) {
@@ -39,27 +43,24 @@ public class SmartIdAuthService {
 
             if ("COMPLETE".equalsIgnoreCase(sessionStatus.getState())) {
                 SmartIdAuthenticationResponse authenticationResponse =
-                    builder(smartIdSession.getIdentityCode(), smartIdSession.getAuthenticationHash())
+                    builder(smartIdSession.getPersonalCode(), smartIdSession.getAuthenticationHash())
                         .createSmartIdAuthenticationResponse(sessionStatus);
                 SmartIdAuthenticationResult authenticationResult = getAuthenticationResult(authenticationResponse);
                 smartIdSession.setAuthenticationResult(authenticationResult);
+                return authenticationResult.isValid();
             }
         } catch (UserAccountNotFoundException e) {
-            log.info("User account not found", e);
-            smartIdSession.setErrors(Collections.singletonList("User account not found"));
+            log.info("Smart ID User account not found: " + smartIdSession.getPersonalCode(), e);
+            throw new SmartIdException(ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
         } catch (UserRefusedException e) {
-            log.info("User refused", e);
-            smartIdSession.setErrors(Collections.singletonList("User refused"));
+            throw new SmartIdException(ofSingleError("smart.id.user.refused", "Smart ID User refused"));
         } catch (Exception e) {
-            log.error("Technical error", e);
-            smartIdSession.setErrors(Collections.singletonList("Smart ID technical error"));
+            log.error("Smart ID technical error", e);
+            throw new SmartIdException(ofSingleError("smart.id.technical.error", "Smart ID technical error"));
         } finally {
-            log.info("Authentication ended");
+            log.info("Smart ID authentication ended");
         }
-        if (!smartIdSession.getErrors().isEmpty()) {
-            throw new IllegalStateException(String.join(",", smartIdSession.getErrors()));
-        }
-        return smartIdSession.isValid();
+        throw new IllegalStateException("Cannot complete Smart ID login");
     }
 
     private AuthenticationRequestBuilder builder(String nationalIdentityCode, AuthenticationHash authenticationHash) {
@@ -72,9 +73,10 @@ public class SmartIdAuthService {
 
     private SmartIdAuthenticationResult getAuthenticationResult(SmartIdAuthenticationResponse authenticationResponse) {
         SmartIdAuthenticationResult result = authenticationResponseValidator.validate(authenticationResponse);
-        log.info("Response is valid {}", result.isValid());
-        if (!result.getErrors().isEmpty()) {
+        log.info("Smart ID authentication response is valid {}", result.isValid());
+        if (!result.isValid()) {
             result.getErrors().forEach(log::error);
+            throw SmartIdException.ofErrors(result.getErrors());
         }
         return result;
     }

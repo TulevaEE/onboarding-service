@@ -7,8 +7,9 @@ import lombok.Data;
 @Data
 @Builder
 @AllArgsConstructor
-public class MandateSignatureStatusResponse {
+public class MobileSignatureStatusResponse {
 
-	private String statusCode;
+    private final String statusCode;
+    private final String challengeCode;
 
 }

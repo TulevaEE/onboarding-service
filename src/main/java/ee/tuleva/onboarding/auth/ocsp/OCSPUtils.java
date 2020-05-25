@@ -38,34 +38,30 @@ public class OCSPUtils {
   private static final String AUTH_INFO_ACCESS = Extension.authorityInfoAccess.getId();
 
   public URI getIssuerCertificateURI(X509Certificate certificate) {
-    AuthorityInformationAccess authInfoAcc = null;
-    try {
-      ASN1Primitive auth_info_acc = getExtensionValue(certificate, AUTH_INFO_ACCESS);
-      if (auth_info_acc != null) {
-        authInfoAcc = AuthorityInformationAccess.getInstance(auth_info_acc);
-      }
-      Vector<String> ocspUrls = findUrls(authInfoAcc, AccessDescription.id_ad_caIssuers);
-      return new URI(ocspUrls.firstElement());
-    } catch (AnnotatedException | URISyntaxException | NoSuchElementException e) {
-      throw new AuthenticationException(INVALID_INPUT, "Unable to read certificate", e);
-    }
+    return getURIFromCertificate(certificate, AccessDescription.id_ad_caIssuers);
   }
 
   public URI getResponderURI(X509Certificate certificate) {
-    AuthorityInformationAccess authInfoAcc = null;
+    return getURIFromCertificate(certificate, AccessDescription.id_ad_ocsp);
+  }
+
+  private URI getURIFromCertificate(
+      X509Certificate certificate, ASN1Primitive accessDescriptionToFind) {
+    AuthorityInformationAccess authorityInformationAccess = null;
     try {
-      ASN1Primitive auth_info_acc = getExtensionValue(certificate, AUTH_INFO_ACCESS);
-      if (auth_info_acc != null) {
-        authInfoAcc = AuthorityInformationAccess.getInstance(auth_info_acc);
+      ASN1Primitive extensionValue = getExtensionValue(certificate, AUTH_INFO_ACCESS);
+      if (extensionValue != null) {
+        authorityInformationAccess = AuthorityInformationAccess.getInstance(extensionValue);
       }
-      Vector<String> ocspUrls = findUrls(authInfoAcc, AccessDescription.id_ad_ocsp);
-      return new URI(ocspUrls.firstElement());
+      Vector<String> urls =
+          findUrlsFromAccessDescriptions(authorityInformationAccess, accessDescriptionToFind);
+      return new URI(urls.firstElement());
     } catch (AnnotatedException | URISyntaxException | NoSuchElementException e) {
       throw new AuthenticationException(INVALID_INPUT, "Unable to read certificate", e);
     }
   }
 
-  protected static ASN1Primitive getExtensionValue(java.security.cert.X509Extension ext, String oid)
+  private static ASN1Primitive getExtensionValue(java.security.cert.X509Extension ext, String oid)
       throws AnnotatedException {
     byte[] bytes = ext.getExtensionValue(oid);
     if (bytes == null) {
@@ -87,7 +83,7 @@ public class OCSPUtils {
     }
   }
 
-  protected Vector<String> findUrls(
+  private Vector<String> findUrlsFromAccessDescriptions(
       AuthorityInformationAccess authInfoAccess, ASN1Primitive accessDescription) {
     Vector<String> urls = new Vector();
 

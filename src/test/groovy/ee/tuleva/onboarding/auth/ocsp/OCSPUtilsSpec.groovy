@@ -56,6 +56,28 @@ class OCSPUtilsSpec extends Specification {
         thrown(AuthenticationException)
     }
 
+    def "Test error when both URIs are missing (getResponderURI)"() {
+        given:
+        def cert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", null, null)
+
+        when:
+        utils.getResponderURI(cert)
+
+        then:
+        thrown(AuthenticationException)
+    }
+
+    def "Test error when both URIs are missing (getIssuerCertificateURI)"() {
+        given:
+        def cert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", null, null)
+
+        when:
+        utils.getIssuerCertificateURI(cert)
+
+        then:
+        thrown(AuthenticationException)
+    }
+
 
     def "Test if X509Certificate is generated from PEM"() {
         given:

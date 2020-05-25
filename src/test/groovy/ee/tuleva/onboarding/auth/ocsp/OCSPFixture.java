@@ -100,7 +100,10 @@ public class OCSPFixture {
                 new GeneralName(GeneralName.uniformResourceIdentifier, new DERIA5String(urlOCSP)));
         aia_ASN.add(ocsp);
       }
-      certGen.addExtension(Extension.authorityInfoAccess, false, new DERSequence(aia_ASN));
+
+      if (urlOCSP != null || urlCA != null) {
+        certGen.addExtension(Extension.authorityInfoAccess, false, new DERSequence(aia_ASN));
+      }
 
       return new JcaX509CertificateConverter()
           .setProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider())

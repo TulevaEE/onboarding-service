@@ -28,7 +28,7 @@ class MemberEmailServiceSpec extends Specification {
         emailContentService.getMembershipEmailHtml(_) >> "html"
 
         when:
-        memberService.sendMemberNumber(sampleUser().email("erko@risthein.ee").build())
+        memberService.sendMemberNumber(sampleUser().email("erko@risthein.ee").build(), Locale.ENGLISH)
 
         then:
         1 * mandrillApi.messages() >> mockMandrillMessageApi()

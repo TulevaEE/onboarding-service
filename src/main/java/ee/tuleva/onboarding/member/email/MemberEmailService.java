@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @Slf4j
@@ -17,11 +18,11 @@ public class MemberEmailService {
     private final EmailService emailService;
     private final MemberEmailContentService emailContentService;
 
-    public void sendMemberNumber(User user) {
+    public void sendMemberNumber(User user, Locale locale) {
         log.info("Sending member number email to user: {}", user);
         MandrillMessage message = emailService.newMandrillMessage(
             emailService.getRecipients(user), getMemberNumberEmailSubject(),
-            emailContentService.getMembershipEmailHtml(user),
+            emailContentService.getMembershipEmailHtml(user, locale),
             getMemberNumberTags(), null);
 
         if(message == null) {

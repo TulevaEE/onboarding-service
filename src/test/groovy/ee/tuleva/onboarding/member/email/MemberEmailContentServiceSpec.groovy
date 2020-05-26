@@ -15,7 +15,7 @@ class MemberEmailContentServiceSpec extends Specification {
         given:
         def user = sampleUser().build()
         when:
-        String html = emailContentService.getMembershipEmailHtml(user)
+        String html = emailContentService.getMembershipEmailHtml(user, Locale.ENGLISH)
         then:
         html.contains(user.firstName)
         html.contains(user.lastName)

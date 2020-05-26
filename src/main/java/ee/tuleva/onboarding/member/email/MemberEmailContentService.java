@@ -12,16 +12,15 @@ import org.thymeleaf.context.Context;
 import javax.servlet.http.HttpServletRequest;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MemberEmailContentService {
     private final TemplateEngine templateEngine;
-    private final LocaleResolver localeResolver;
-    private final HttpServletRequest request;
 
-    public String getMembershipEmailHtml(User user) {
+    public String getMembershipEmailHtml(User user, Locale locale) {
         DateTimeFormatter formatter =
             DateTimeFormatter.ISO_LOCAL_DATE
                 .withZone(ZoneId.of("Europe/Tallinn"));
@@ -33,7 +32,7 @@ public class MemberEmailContentService {
         ctx.setVariable("firstName", user.getFirstName());
         ctx.setVariable("lastName", user.getLastName());
         ctx.setVariable("memberDate", memberDate);
-        ctx.setLocale(localeResolver.resolveLocale(request));
+        ctx.setLocale(locale);
 
         String htmlContent = templateEngine.process("membership", ctx);
         return htmlContent;

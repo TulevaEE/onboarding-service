@@ -6,6 +6,9 @@ import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.MediaType
 import org.springframework.validation.SmartValidator
+import org.springframework.web.servlet.LocaleResolver
+
+import javax.servlet.http.HttpServletRequest
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -17,7 +20,9 @@ class PaymentControllerSpec extends BaseControllerSpec {
     def userService = Mock(UserService)
     def validator = Mock(SmartValidator)
     def eventPublisher = Mock(ApplicationEventPublisher)
-    def controller = new PaymentController(mapper, userService, validator, eventPublisher)
+    def localeResolver = Mock(LocaleResolver)
+    def request = Mock(HttpServletRequest)
+    def controller = new PaymentController(mapper, userService, validator, eventPublisher, localeResolver, request)
 
     def mvc = mockMvc(controller)
 
@@ -28,8 +33,6 @@ class PaymentControllerSpec extends BaseControllerSpec {
     }
 
     def "incoming payment is correctly mapped to DTO, mac is validated and a member is created in the database with the correct name"() {
-        MemberCreatedEvent firedEvent
-
         given:
         def json = [
             "amount": "125.0",
@@ -47,6 +50,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
         def sampleUser = sampleUser().build()
 
         when:
+        localeResolver.resolveLocale(request) >> Locale.ENGLISH
         def perform = mvc.perform(post("/notifications/payments")
             .contentType(MediaType.APPLICATION_JSON)
             .param("json", mapper.writeValueAsString(json))
@@ -58,7 +62,10 @@ class PaymentControllerSpec extends BaseControllerSpec {
             .andExpect(redirectedUrl(membershipSuccessUrl))
         1 * validator.validate(*_)
         1 * userService.registerAsMember(1L, json.customer_name) >> sampleUser
-        1 * eventPublisher.publishEvent({it.user == sampleUser})
+        1 * eventPublisher.publishEvent({
+            it.user == sampleUser
+            it.locale == Locale.ENGLISH
+        })
     }
 
     def "validates mac for incoming payment"() {

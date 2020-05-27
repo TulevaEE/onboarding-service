@@ -41,14 +41,17 @@ public class HoldingDetailsJob {
     private final HoldingDetailsRepository repository;
     private final FtpClient morningstarFtpClient;
 
-    @Scheduled(cron = "0 0 0 * * *", zone = "Europe/Tallinn") // the top of every day
+    @Scheduled(cron = "0 0 * * * *", zone = "Europe/Tallinn")
     public void runJob() {
+        log.info("Going to start holding detail job");
         HoldingDetail lastDetail = repository.findFirstByOrderByCreatedDateDesc();
+        LocalDate lastDate = initialDate;
         if(lastDetail != null) {
-            downloadHoldingDetails(lastDetail.getCreatedDate());
-        } else {
-            downloadHoldingDetails(initialDate);
+            lastDate = lastDetail.getCreatedDate();
         }
+
+        log.info("Get data from last date: " + lastDate);
+        downloadHoldingDetails(lastDate);
     }
 
     private LocalDate extractFileDate(String fileName) {
@@ -64,16 +67,20 @@ public class HoldingDetailsJob {
             morningstarFtpClient.open();
             List<String> fileNames = morningstarFtpClient.listFiles(PATH);
 
-            log.debug("Retrieved list of files: {}", fileNames);
+            log.info("Retrieved list of files: {}", fileNames);
             for(String fileName: fileNames) {
                 if(!fileName.endsWith(".xml.gz"))
                     continue;
 
                 LocalDate fileDate = extractFileDate(fileName);
+                log.info("Retrieved a file with date: " + fileDate.toString());
+
                 if(fileDate.compareTo(from) > 0) {
+                    log.info("Parsing file");
                     InputStream fileStream = morningstarFtpClient.downloadFileStream(PATH + fileName);
                     GZIPInputStream gzipStream = new GZIPInputStream(fileStream);
                     new XmlHoldingDetailParser(gzipStream, VAN_ID, xmlDetail -> {
+                        log.info("Parsed entry with security name: " + xmlDetail.getSecurityName());
                         HoldingDetail detail = new HoldingDetailConverter().convert(xmlDetail);
                         detail.setCreatedDate(fileDate);
                         persistHoldingDetail(detail);

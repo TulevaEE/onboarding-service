@@ -27,15 +27,12 @@ import java.time.LocalDate;
 @XmlRootElement(name="HoldingDetail")
 public class XmlHoldingDetail{
     @XmlElement(name="Symbol")
-    @NotNull
     private String symbol;
 
     @XmlPath("Country/@_Id")
-    @NotNull
     private String country;
 
     @XmlPath("Currency/@_Id")
-    @NotNull
     private String currency;
 
     @XmlElement(name="SecurityName")
@@ -43,37 +40,29 @@ public class XmlHoldingDetail{
     private String securityName;
 
     @XmlElement(name="Weighting")
-    @NotNull
     private BigDecimal weighting;
 
     @XmlElement(name="NumberOfShare")
-    @NotNull
     private Long numberOfShare;
 
     @XmlElement(name="ShareChange")
-    @NotNull
     private Long shareChange;
 
     @XmlElement(name="MarketValue")
-    @NotNull
     private Long marketValue;
 
     @XmlElement(name="Sector")
     @XmlJavaTypeAdapter(XmlSectorAdapter.class)
-    @NotNull
     private Sector sector;
 
     @XmlElement(name="HoldingYTDReturn")
-    @NotNull
     private BigDecimal holdingYtdReturn;
 
     @XmlElement(name="Region")
     @XmlJavaTypeAdapter(XmlRegionAdapter.class)
-    @NotNull
     private Region region;
 
     @XmlElement(name="ISIN")
-    @NotNull
     private String isin;
 
     @XmlElement(name="FirstBoughtDate")

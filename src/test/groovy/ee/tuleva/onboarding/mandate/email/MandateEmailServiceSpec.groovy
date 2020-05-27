@@ -25,10 +25,10 @@ class MandateEmailServiceSpec extends Specification {
 
     def "Send second pillar mandate email"() {
         given:
-        emailContentService.getSecondPillarHtml() >> "html"
+        emailContentService.getSecondPillarHtml(Locale.ENGLISH) >> "html"
 
         when:
-        mandateService.sendSecondPillarMandate(sampleUser().build(), 123, "file".bytes)
+        mandateService.sendSecondPillarMandate(sampleUser().build(), 123, "file".bytes, Locale.ENGLISH)
 
         then:
         1 * mandrillApi.messages() >> mockMandrillMessageApi()
@@ -36,10 +36,12 @@ class MandateEmailServiceSpec extends Specification {
 
     def "Send third pillar mandate email"() {
         given:
-        emailContentService.getThirdPillarHtml() >> "html"
+        emailContentService.getThirdPillarHtml("123", Locale.ENGLISH) >> "html"
 
         when:
-        mandateService.sendThirdPillarMandate(sampleUser().build(), 123, "file".bytes, "123")
+        mandateService.sendThirdPillarMandate(
+            sampleUser().build(), 123, "file".bytes, "123", Locale.ENGLISH
+        )
 
         then:
         1 * mandrillApi.messages() >> mockMandrillMessageApi()

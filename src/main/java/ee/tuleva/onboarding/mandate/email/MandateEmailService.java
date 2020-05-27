@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.Locale;
 
 @Service
 @Slf4j
@@ -18,10 +19,10 @@ public class MandateEmailService {
     private final EmailService emailService;
     private final MandateEmailContentService emailContentService;
 
-    public void sendSecondPillarMandate(User user, Long mandateId, byte[] file) {
+    public void sendSecondPillarMandate(User user, Long mandateId, byte[] file, Locale locale) {
         MandrillMessage message = emailService.newMandrillMessage(
             emailService.getRecipients(user), getMandateEmailSubject(),
-            emailContentService.getSecondPillarHtml(), getMandateTags(),
+            emailContentService.getSecondPillarHtml(locale), getMandateTags(),
             getMandateAttachements(file, user, mandateId));
 
         if(message == null) {
@@ -36,10 +37,12 @@ public class MandateEmailService {
         emailService.send(user, message);
     }
 
-    public void sendThirdPillarMandate(User user, Long mandateId, byte[] file, String pensionAccountNumber) {
+    public void sendThirdPillarMandate(
+        User user, Long mandateId, byte[] file, String pensionAccountNumber, Locale locale
+    ) {
         MandrillMessage message = emailService.newMandrillMessage(
             emailService.getRecipients(user), getMandateEmailSubject(),
-            emailContentService.getThirdPillarHtml(pensionAccountNumber), getMandateTags(),
+            emailContentService.getThirdPillarHtml(pensionAccountNumber, locale), getMandateTags(),
             getMandateAttachements(file, user, mandateId));
 
         if(message == null) {

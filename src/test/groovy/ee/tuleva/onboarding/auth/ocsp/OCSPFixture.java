@@ -1,84 +1,118 @@
 package ee.tuleva.onboarding.auth.ocsp;
 
-import java.io.IOException;
 import java.io.StringWriter;
 import java.math.BigInteger;
-import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import javax.xml.bind.DatatypeConverter;
-import sun.security.x509.AccessDescription;
-import sun.security.x509.AlgorithmId;
-import sun.security.x509.AuthorityInfoAccessExtension;
-import sun.security.x509.CertificateAlgorithmId;
-import sun.security.x509.CertificateExtensions;
-import sun.security.x509.CertificateSerialNumber;
-import sun.security.x509.CertificateValidity;
-import sun.security.x509.CertificateVersion;
-import sun.security.x509.CertificateX509Key;
-import sun.security.x509.GeneralName;
-import sun.security.x509.URIName;
-import sun.security.x509.X500Name;
-import sun.security.x509.X509CertImpl;
-import sun.security.x509.X509CertInfo;
+import org.bouncycastle.asn1.ASN1EncodableVector;
+import org.bouncycastle.asn1.DERIA5String;
+import org.bouncycastle.asn1.DERSequence;
+import org.bouncycastle.asn1.DERUTF8String;
+import org.bouncycastle.asn1.x500.AttributeTypeAndValue;
+import org.bouncycastle.asn1.x500.RDN;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x509.AccessDescription;
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.util.PrivateKeyFactory;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
+import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
+import org.bouncycastle.operator.bc.BcRSAContentSignerBuilder;
 
 public class OCSPFixture {
   public static String sampleExampleServer = "http://aia.sk.ee/esteid2015";
   private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(OCSPFixture.class);
 
   public static X509Certificate generateCertificate(
-      String dn, int days, String algorithm, String urlCA, String urlOCSP)
-      throws GeneralSecurityException, IOException {
-    KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-    kpg.initialize(2048);
-    KeyPair pair = kpg.generateKeyPair();
-    PrivateKey privkey = pair.getPrivate();
-    X509CertInfo info = new X509CertInfo();
-    Date from = new Date();
-    Date to = new Date(from.getTime() + days * 86400000l);
-    CertificateValidity interval = new CertificateValidity(from, to);
-    BigInteger sn = new BigInteger(64, new SecureRandom());
-    X500Name owner = new X500Name(dn, "Unit", "Org", "EE");
+      String dn, int days, String algorithm, String urlCA, String urlOCSP) throws Exception {
 
-    info.set(X509CertInfo.VALIDITY, interval);
-    info.set(X509CertInfo.SERIAL_NUMBER, new CertificateSerialNumber(sn));
-    info.set(X509CertInfo.SUBJECT, owner);
-    info.set(X509CertInfo.ISSUER, owner);
-    info.set(X509CertInfo.KEY, new CertificateX509Key(pair.getPublic()));
-    info.set(X509CertInfo.VERSION, new CertificateVersion(CertificateVersion.V3));
-    AlgorithmId algo = new AlgorithmId(AlgorithmId.md5WithRSAEncryption_oid);
-    info.set(X509CertInfo.ALGORITHM_ID, new CertificateAlgorithmId(algo));
+    try {
+      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+      keyPairGenerator.initialize(2048);
+      KeyPair keyPair = keyPairGenerator.generateKeyPair();
+      PublicKey publicKey = keyPair.getPublic();
+      PrivateKey privateKey = keyPair.getPrivate();
 
-    CertificateExtensions exts = new CertificateExtensions();
-    List accDescr = new ArrayList<>();
-    if (urlCA != null) {
-      accDescr.add(
-          new AccessDescription(
-              AccessDescription.Ad_CAISSUERS_Id, new GeneralName(new URIName(urlCA))));
+      BigInteger serialNumber = new BigInteger(64, new SecureRandom());
+
+      X500Name subjectDN = new X500Name("O=Org,CN=original,L=Tallinn,C=EE,OU=Unit");
+
+      RDN[] rdns = subjectDN.getRDNs();
+      for (int i = 0; i < rdns.length; i++) {
+        AttributeTypeAndValue[] atts = rdns[i].getTypesAndValues();
+        for (int j = 0; j < atts.length; j++) {
+          if (atts[j].getType().equals(BCStyle.CN)) {
+            atts[j] = new AttributeTypeAndValue(BCStyle.CN, new DERUTF8String(dn));
+            rdns[i] = new RDN(atts);
+          }
+        }
+      }
+
+      subjectDN = new X500Name(rdns);
+
+      Date from = new Date();
+      Date to = new Date(from.getTime() + days * 86400000l);
+
+      SubjectPublicKeyInfo subPubKeyInfo = SubjectPublicKeyInfo.getInstance(publicKey.getEncoded());
+
+      AlgorithmIdentifier sigAlgId =
+          new DefaultSignatureAlgorithmIdentifierFinder().find(algorithm);
+      AlgorithmIdentifier digAlgId = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
+      AsymmetricKeyParameter privateKeyAsymKeyParam =
+          PrivateKeyFactory.createKey(privateKey.getEncoded());
+
+      ContentSigner sigGen =
+          new BcRSAContentSignerBuilder(sigAlgId, digAlgId).build(privateKeyAsymKeyParam);
+
+      X509v3CertificateBuilder certGen =
+          new X509v3CertificateBuilder(subjectDN, serialNumber, from, to, subjectDN, subPubKeyInfo);
+      ASN1EncodableVector aia_ASN = new ASN1EncodableVector();
+
+      if (urlCA != null) {
+        AccessDescription caIssuers =
+            new AccessDescription(
+                AccessDescription.id_ad_caIssuers,
+                new GeneralName(GeneralName.uniformResourceIdentifier, new DERIA5String(urlCA)));
+
+        aia_ASN.add(caIssuers);
+      }
+
+      if (urlOCSP != null) {
+        AccessDescription ocsp =
+            new AccessDescription(
+                AccessDescription.id_ad_ocsp,
+                new GeneralName(GeneralName.uniformResourceIdentifier, new DERIA5String(urlOCSP)));
+        aia_ASN.add(ocsp);
+      }
+
+      if (urlOCSP != null || urlCA != null) {
+        certGen.addExtension(Extension.authorityInfoAccess, false, new DERSequence(aia_ASN));
+      }
+
+      return new JcaX509CertificateConverter()
+          .setProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider())
+          .getCertificate(certGen.build(sigGen));
+
+    } catch (CertificateException ce) {
+      throw ce;
+    } catch (Exception e) {
+      throw new CertificateException(e);
     }
-    if (urlOCSP != null) {
-      accDescr.add(
-          new AccessDescription(
-              AccessDescription.Ad_OCSP_Id, new GeneralName(new URIName(urlOCSP))));
-    }
-
-    exts.set(AuthorityInfoAccessExtension.NAME, new AuthorityInfoAccessExtension(accDescr));
-    info.set(X509CertInfo.EXTENSIONS, exts);
-    X509CertImpl cert = new X509CertImpl(info);
-    cert.sign(privkey, algorithm);
-
-    algo = (AlgorithmId) cert.get(X509CertImpl.SIG_ALG);
-    info.set(CertificateAlgorithmId.NAME + "." + CertificateAlgorithmId.ALGORITHM, algo);
-    cert = new X509CertImpl(info);
-    cert.sign(privkey, algorithm);
-    return cert;
   }
 
   public static String certToString(X509Certificate cert) {

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.fund;
 
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import lombok.*;
+import org.hibernate.annotations.Where;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotBlank;
@@ -17,6 +18,7 @@ import static javax.persistence.EnumType.STRING;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
+@Where(clause = "status = 'ACTIVE'")
 public class Fund {
 
     public enum FundStatus {

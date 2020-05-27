@@ -7,6 +7,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
+import static ee.tuleva.onboarding.fund.Fund.FundStatus.LIQUIDATED
+import static java.util.stream.Collectors.toList
 import static java.util.stream.StreamSupport.stream
 
 @DataJpaTest
@@ -29,7 +31,7 @@ class FundRepositorySpec extends Specification {
             .nameEstonian("Tuleva Maailma Aktsiate Pensionifond")
             .nameEnglish("Tuleva Maailma Aktsiate Pensionifond")
             .pillar(2)
-            .equityShare(0)
+            .equityShare(0.0)
             .managementFeeRate(new BigDecimal("0.0034"))
             .ongoingChargesFigure(new BigDecimal("0.005"))
             .status(ACTIVE)
@@ -68,7 +70,7 @@ class FundRepositorySpec extends Specification {
             .nameEstonian("Tuleva Maailma Aktsiate Pensionifond")
             .nameEnglish("Tuleva Maailma Aktsiate Pensionifond")
             .pillar(2)
-            .equityShare(0)
+            .equityShare(0.0)
             .managementFeeRate(new BigDecimal("0.0034"))
             .ongoingChargesFigure(new BigDecimal("0.005"))
             .status(ACTIVE)
@@ -100,5 +102,47 @@ class FundRepositorySpec extends Specification {
 
         then:
         thirdPillarFunds.size() == 14 // TODO: bad assert, depends on the flyway migrations
+    }
+
+    def "ignores inactive funds"() {
+        given:
+        def fundManager = FundManager.builder()
+            .id(1)
+            .name("Tuleva")
+            .build()
+        def activeFund = Fund.builder()
+            .isin("EE000000000")
+            .nameEstonian("Tuleva Maailma Aktsiate Pensionifond")
+            .nameEnglish("Tuleva Maailma Aktsiate Pensionifond")
+            .pillar(2)
+            .equityShare(0.0)
+            .managementFeeRate(new BigDecimal("0.0034"))
+            .ongoingChargesFigure(new BigDecimal("0.005"))
+            .status(ACTIVE)
+            .fundManager(fundManager)
+            .build()
+        def inactiveFund = Fund.builder()
+            .isin("EE000000002")
+            .nameEstonian("Vana Fond")
+            .nameEnglish("Some Old Fund")
+            .pillar(2)
+            .equityShare(0.0)
+            .managementFeeRate(new BigDecimal("0.0123"))
+            .ongoingChargesFigure(new BigDecimal("0.0123"))
+            .status(LIQUIDATED)
+            .fundManager(fundManager)
+            .build()
+        entityManager.persist(activeFund)
+        entityManager.persist(inactiveFund)
+        entityManager.flush()
+
+        when:
+        Iterable<Fund> funds = repository.findByFundManagerNameIgnoreCase("Tuleva")
+        List<Fund> inactiveFunds = stream(funds.spliterator(), false)
+            .filter({ fund -> fund.status != ACTIVE })
+            .collect(toList())
+
+        then:
+        inactiveFunds == []
     }
 }

@@ -41,14 +41,17 @@ public class HoldingDetailsJob {
     private final HoldingDetailsRepository repository;
     private final FtpClient morningstarFtpClient;
 
-    @Scheduled(cron = "0 0 0 * * *", zone = "Europe/Tallinn") // the top of every day
+    @Scheduled(cron = "0 0 * * * *", zone = "Europe/Tallinn")
     public void runJob() {
+        log.debug("Going to start holding detail job");
         HoldingDetail lastDetail = repository.findFirstByOrderByCreatedDateDesc();
+        LocalDate lastDate = initialDate;
         if(lastDetail != null) {
-            downloadHoldingDetails(lastDetail.getCreatedDate());
-        } else {
-            downloadHoldingDetails(initialDate);
+            lastDate = lastDetail.getCreatedDate();
         }
+
+        log.debug("Get data from last date: " + lastDate);
+        downloadHoldingDetails(lastDate);
     }
 
     private LocalDate extractFileDate(String fileName) {
@@ -70,7 +73,10 @@ public class HoldingDetailsJob {
                     continue;
 
                 LocalDate fileDate = extractFileDate(fileName);
+                log.debug("Retrieved a file with date: " + fileDate.toString());
+
                 if(fileDate.compareTo(from) > 0) {
+                    log.debug("Parsing file");
                     InputStream fileStream = morningstarFtpClient.downloadFileStream(PATH + fileName);
                     GZIPInputStream gzipStream = new GZIPInputStream(fileStream);
                     new XmlHoldingDetailParser(gzipStream, VAN_ID, xmlDetail -> {

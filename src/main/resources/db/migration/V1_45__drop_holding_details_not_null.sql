@@ -1,0 +1,6 @@
+ALTER TABLE holding_details ALTER COLUMN symbol DROP NOT NULL;
+ALTER TABLE holding_details ALTER COLUMN country DROP NOT NULL;
+ALTER TABLE holding_details ALTER COLUMN currency DROP NOT NULL;
+ALTER TABLE holding_details ALTER COLUMN sector DROP NOT NULL;
+ALTER TABLE holding_details ALTER COLUMN region DROP NOT NULL;
+ALTER TABLE holding_details ALTER COLUMN isin DROP NOT NULL;

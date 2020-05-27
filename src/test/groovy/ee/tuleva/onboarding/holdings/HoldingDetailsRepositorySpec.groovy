@@ -67,4 +67,21 @@ class HoldingDetailsRepositorySpec extends Specification{
         then:
         persistDetail == null
     }
+
+    def "should be able to save with null fields"() {
+        given:
+        def testDate = LocalDate.of(2014, 12, 31)
+        def holdingDetail = HoldingDetail.builder()
+            .securityName("Microsoft Corp")
+            .createdDate(testDate)
+            .build()
+        entityManager.persistAndFlush(holdingDetail)
+
+        when:
+        def persistDetail = repository.findFirstByOrderByCreatedDateDesc()
+        then:
+        persistDetail.id != null
+        persistDetail.securityName == holdingDetail.securityName
+        persistDetail.createdDate == testDate
+    }
 }

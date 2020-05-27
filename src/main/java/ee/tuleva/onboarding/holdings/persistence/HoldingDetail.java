@@ -27,45 +27,35 @@ public class HoldingDetail{
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotNull
     private String symbol;
 
-    @NotNull
     private String country;
 
-    @NotNull
     private String currency;
 
     @NotNull
     private String securityName;
 
-    @NotNull
     private BigDecimal weighting;
 
-    @NotNull
     private Long numberOfShare;
 
-    @NotNull
     private Long shareChange;
 
-    @NotNull
     private Long marketValue;
 
     @Enumerated(EnumType.STRING)
-    @NotNull
     private Sector sector;
 
-    @NotNull
     private BigDecimal holdingYtdReturn;
 
     @Enumerated(EnumType.STRING)
-    @NotNull
     private Region region;
 
-    @NotNull
     private String isin;
 
     private LocalDate firstBoughtDate;
 
+    @NotNull
     private LocalDate createdDate;
 }

@@ -47,7 +47,10 @@ class HoldingDetailsJobSpec extends Specification {
 
         FileSystem fileSystem = new UnixFakeFileSystem()
         fileSystem.add(new DirectoryEntry(PATH))
-        fileSystem.add(fakeFileEntry(PATH + "/AllHoldings25_XI_MSTAR_USA_M_20200506.xml.gz", '/morningstar/investment_minimal.xml.gz'))
+        fileSystem.add(fakeFileEntry(
+            PATH + "/AllHoldings25_XI_MSTAR_USA_M_20200506.xml.gz",
+            '/morningstar/investment_minimal.xml.gz'
+        ))
 
         fakeFtpServer.setFileSystem(fileSystem)
         fakeFtpServer.setServerControlPort(0)

@@ -28,11 +28,13 @@ class MandateEmailSenderSpec extends Specification {
     def "send email when second pillar mandate event was received" () {
         given:
         User user = sampleUser().build()
-        SecondPillarMandateCreatedEvent event = new SecondPillarMandateCreatedEvent(user, 123, "123".bytes)
+        SecondPillarMandateCreatedEvent event = new SecondPillarMandateCreatedEvent(
+            user, 123, "123".bytes, Locale.ENGLISH
+        )
         when:
         publisher.publishEvent(event)
         then:
-        1 * mandateEmailService.sendSecondPillarMandate(user, 123, _)
+        1 * mandateEmailService.sendSecondPillarMandate(user, 123, _, Locale.ENGLISH)
     }
 
     def "send email when third pillar mandate event was received" () {
@@ -42,11 +44,13 @@ class MandateEmailSenderSpec extends Specification {
         UserPreferences contract = new UserPreferences()
         contract.setPensionAccountNumber("testPensionNumber")
 
-        ThirdPillarMandateCreatedEvent event = new ThirdPillarMandateCreatedEvent(user, 123, "123".bytes)
+        ThirdPillarMandateCreatedEvent event = new ThirdPillarMandateCreatedEvent(
+            user, 123, "123".bytes, Locale.ENGLISH
+        )
         1 * episService.getContactDetails(_) >> contract
         when:
         publisher.publishEvent(event)
         then:
-        1 * mandateEmailService.sendThirdPillarMandate(user, 123, _, "testPensionNumber")
+        1 * mandateEmailService.sendThirdPillarMandate(user, 123, _, "testPensionNumber", Locale.ENGLISH)
     }
 }

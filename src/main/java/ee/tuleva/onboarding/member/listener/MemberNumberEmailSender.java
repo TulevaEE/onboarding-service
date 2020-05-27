@@ -14,6 +14,6 @@ public class MemberNumberEmailSender {
     @Async
     @EventListener
     public void onMemberCreatedEvent(MemberCreatedEvent event) {
-        emailService.sendMemberNumber(event.getUser());
+        emailService.sendMemberNumber(event.getUser(), event.getLocale());
     }
 }

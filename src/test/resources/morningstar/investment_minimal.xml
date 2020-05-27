@@ -1,0 +1,79 @@
+<Package>
+    <PackageHeader>
+        <PackageName>AllHoldings</PackageName>
+        <Universe>XI</Universe>
+        <AsOfDate>2020-05-06</AsOfDate>
+        <Version>2.5</Version>
+    </PackageHeader>
+    <PackageBody>
+        <InvestmentVehicle _Id="F00000VN9N">
+            <FundShareClass _Id="F00000VN9N">
+                <Operation>
+                    <ShareClassBasics>
+                        <Name>Morningstar Gbl Mkts NR EUR</Name>
+                        <LegalType _Id="XI">XI</LegalType>
+                        <Ticker>MSGMEURN</Ticker>
+                    </ShareClassBasics>
+                </Operation>
+            </FundShareClass>
+            <PortfolioList>
+                <Portfolio _CurrencyId="USD" _ExternalId="CUMRSTGLMKUSDFF--P-RGL---">
+                    <PortfolioSummary>
+                        <Date>2020-04-30</Date>
+                        <HoldingAggregate _SalePosition="L">
+                            <NumberOfHolding>7330</NumberOfHolding>
+                            <NumberOfStockHolding>7318</NumberOfStockHolding>
+                            <NumberOfBondHolding>0</NumberOfBondHolding>
+                            <TotalMarketValue>49464607763035</TotalMarketValue>
+                        </HoldingAggregate>
+                    </PortfolioSummary>
+                    <PortfolioBreakdown _SalePosition="L">
+                        <AssetAllocation>
+                            <BreakdownValue Type="1">55.67</BreakdownValue>
+                            <BreakdownValue Type="2">44.29</BreakdownValue>
+                            <BreakdownValue Type="3">0.00</BreakdownValue>
+                            <BreakdownValue Type="4">0.00</BreakdownValue>
+                            <BreakdownValue Type="5">0.00</BreakdownValue>
+                            <BreakdownValue Type="6">0.00</BreakdownValue>
+                            <BreakdownValue Type="7">0.00</BreakdownValue>
+                            <BreakdownValue Type="8">0.05</BreakdownValue>
+                        </AssetAllocation>
+                    </PortfolioBreakdown>
+                    <PortfolioBreakdown _SalePosition="N">
+                        <AssetAllocation>
+                            <BreakdownValue Type="1">55.67</BreakdownValue>
+                            <BreakdownValue Type="2">44.29</BreakdownValue>
+                            <BreakdownValue Type="3">0.00</BreakdownValue>
+                            <BreakdownValue Type="4">0.00</BreakdownValue>
+                            <BreakdownValue Type="5">0.00</BreakdownValue>
+                            <BreakdownValue Type="6">0.00</BreakdownValue>
+                            <BreakdownValue Type="7">0.00</BreakdownValue>
+                            <BreakdownValue Type="8">0.05</BreakdownValue>
+                        </AssetAllocation>
+                    </PortfolioBreakdown>
+                    <Holding>
+                        <HoldingDetail _ExternalId="594918104" _Id="E0USA00A05">
+                            <Symbol>MSFT</Symbol>
+                            <Country _Id="USA">United States</Country>
+                            <CUSIP>594918104</CUSIP>
+                            <Currency _Id="USD">US Dollar</Currency>
+                            <SecurityName>Microsoft Corp</SecurityName>
+                            <LegalType>E</LegalType>
+                            <Weighting>2.76</Weighting>
+                            <NumberOfShare>7628806000</NumberOfShare>
+                            <ShareChange>0</ShareChange>
+                            <MarketValue>1367158323260</MarketValue>
+                            <Sector>11</Sector>
+                            <HoldingYTDReturn>11.02</HoldingYTDReturn>
+                            <Region>1</Region>
+                            <ISIN>US5949181045</ISIN>
+                            <StyleBox>3</StyleBox>
+                            <SEDOL>2588173</SEDOL>
+                            <FirstBoughtDate>2014-12-31</FirstBoughtDate>
+                        </HoldingDetail>
+                    </Holding>
+                </Portfolio>
+            </PortfolioList>
+        </InvestmentVehicle>
+    </PackageBody>
+</Package>

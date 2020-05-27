@@ -21,7 +21,10 @@ import ee.tuleva.onboarding.mandate.signature.SignatureService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.web.servlet.LocaleResolver
 import spock.lang.Specification
+
+import javax.servlet.http.HttpServletRequest
 
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 
@@ -38,9 +41,11 @@ class MandateServiceSpec extends Specification {
     EpisService episService = Mock(EpisService)
     AmlService amlService = Mock()
     ApplicationEventPublisher eventPublisher = Mock(ApplicationEventPublisher)
+    HttpServletRequest request = Mock(HttpServletRequest)
+    LocaleResolver localeResolver = Mock(LocaleResolver)
 
-    MandateService service = new MandateService(mandateRepository, signService, converter,
-        mandateProcessor, mandateFileService, userService, episService, amlService, eventPublisher)
+    MandateService service = new MandateService(mandateRepository, signService, converter, mandateProcessor,
+        mandateFileService, userService, episService, amlService, eventPublisher, request, localeResolver)
 
     Long sampleMandateId = 1L
     User sampleUser = sampleUser()

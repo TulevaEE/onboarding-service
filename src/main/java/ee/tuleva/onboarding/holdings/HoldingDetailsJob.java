@@ -43,14 +43,14 @@ public class HoldingDetailsJob {
 
     @Scheduled(cron = "0 0 * * * *", zone = "Europe/Tallinn")
     public void runJob() {
-        log.debug("Going to start holding detail job");
+        log.info("Going to start holding detail job");
         HoldingDetail lastDetail = repository.findFirstByOrderByCreatedDateDesc();
         LocalDate lastDate = initialDate;
         if(lastDetail != null) {
             lastDate = lastDetail.getCreatedDate();
         }
 
-        log.debug("Get data from last date: " + lastDate);
+        log.info("Get data from last date: " + lastDate);
         downloadHoldingDetails(lastDate);
     }
 
@@ -67,19 +67,20 @@ public class HoldingDetailsJob {
             morningstarFtpClient.open();
             List<String> fileNames = morningstarFtpClient.listFiles(PATH);
 
-            log.debug("Retrieved list of files: {}", fileNames);
+            log.info("Retrieved list of files: {}", fileNames);
             for(String fileName: fileNames) {
                 if(!fileName.endsWith(".xml.gz"))
                     continue;
 
                 LocalDate fileDate = extractFileDate(fileName);
-                log.debug("Retrieved a file with date: " + fileDate.toString());
+                log.info("Retrieved a file with date: " + fileDate.toString());
 
                 if(fileDate.compareTo(from) > 0) {
-                    log.debug("Parsing file");
+                    log.info("Parsing file");
                     InputStream fileStream = morningstarFtpClient.downloadFileStream(PATH + fileName);
                     GZIPInputStream gzipStream = new GZIPInputStream(fileStream);
                     new XmlHoldingDetailParser(gzipStream, VAN_ID, xmlDetail -> {
+                        log.info("Parsed entry with security name: " + xmlDetail.getSecurityName());
                         HoldingDetail detail = new HoldingDetailConverter().convert(xmlDetail);
                         detail.setCreatedDate(fileDate);
                         persistHoldingDetail(detail);

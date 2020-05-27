@@ -11,7 +11,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.cert.X509Extension;
-import java.util.Vector;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
@@ -51,42 +53,46 @@ public class OCSPUtils {
       if (extensionValue != null) {
         authorityInformationAccess = AuthorityInformationAccess.getInstance(extensionValue);
       }
-      Vector<String> urls =
+      List<String> urls =
           findUrlsFromAccessDescriptions(authorityInformationAccess, accessDescriptionToFind);
-      return new URI(urls.firstElement());
+      return new URI(urls.get(0));
     } catch (Exception e) {
       throw new AuthenticationException(INVALID_INPUT, "Unable to read certificate", e);
     }
   }
 
-  private static ASN1Primitive getExtensionValue(X509Extension ext, String oid) throws Exception {
-    byte[] bytes = ext.getExtensionValue(oid);
-    if (bytes == null) {
+  private static ASN1Primitive getExtensionValue(X509Extension x509Extension, String extensionId)
+      throws Exception {
+    byte[] extensionValueBytes = x509Extension.getExtensionValue(extensionId);
+    if (extensionValueBytes == null) {
       return null;
     }
 
-    ASN1InputStream aIn = new ASN1InputStream(bytes);
-    ASN1OctetString octs = (ASN1OctetString) aIn.readObject();
+    ASN1InputStream extensionValueInputStream = new ASN1InputStream(extensionValueBytes);
+    ASN1OctetString extensionValueOctetString =
+        (ASN1OctetString) extensionValueInputStream.readObject();
 
-    aIn = new ASN1InputStream(octs.getOctets());
-    return aIn.readObject();
+    extensionValueInputStream = new ASN1InputStream(extensionValueOctetString.getOctets());
+    return extensionValueInputStream.readObject();
   }
 
-  private Vector<String> findUrlsFromAccessDescriptions(
-      AuthorityInformationAccess authInfoAccess, ASN1Primitive accessDescription) {
-    Vector<String> urls = new Vector();
+  private List<String> findUrlsFromAccessDescriptions(
+      AuthorityInformationAccess authInfoAccess, ASN1Primitive accessDescriptionToFind) {
+    List<String> urls = new ArrayList<>();
 
     if (authInfoAccess != null) {
-      AccessDescription[] ads = authInfoAccess.getAccessDescriptions();
-      for (int i = 0; i < ads.length; i++) {
-        if (ads[i].getAccessMethod().equals(accessDescription)) {
-          GeneralName name = ads[i].getAccessLocation();
-          if (name.getTagNo() == GeneralName.uniformResourceIdentifier) {
-            String url = ((DERIA5String) name.getName()).getString();
-            urls.add(url);
-          }
-        }
-      }
+      List<AccessDescription> accessDescriptions =
+          new ArrayList<>(Arrays.asList(authInfoAccess.getAccessDescriptions()));
+      accessDescriptions.forEach(
+          accessDescription -> {
+            if (accessDescription.getAccessMethod().equals(accessDescriptionToFind)) {
+              GeneralName name = accessDescription.getAccessLocation();
+              if (name.getTagNo() == GeneralName.uniformResourceIdentifier) {
+                String url = ((DERIA5String) name.getName()).getString();
+                urls.add(url);
+              }
+            }
+          });
     }
 
     return urls;

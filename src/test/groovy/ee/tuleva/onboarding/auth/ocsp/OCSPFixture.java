@@ -42,11 +42,11 @@ public class OCSPFixture {
       String dn, int days, String algorithm, String urlCA, String urlOCSP) throws Exception {
 
     try {
-      KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
-      kpg.initialize(2048);
-      KeyPair keyPair = kpg.generateKeyPair();
-      PublicKey RSAPubKey = keyPair.getPublic();
-      PrivateKey RSAPrivateKey = keyPair.getPrivate();
+      KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA");
+      keyPairGenerator.initialize(2048);
+      KeyPair keyPair = keyPairGenerator.generateKeyPair();
+      PublicKey publicKey = keyPair.getPublic();
+      PrivateKey privateKey = keyPair.getPrivate();
 
       BigInteger serialNumber = new BigInteger(64, new SecureRandom());
 
@@ -68,14 +68,13 @@ public class OCSPFixture {
       Date from = new Date();
       Date to = new Date(from.getTime() + days * 86400000l);
 
-      SubjectPublicKeyInfo subPubKeyInfo =
-          SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded());
+      SubjectPublicKeyInfo subPubKeyInfo = SubjectPublicKeyInfo.getInstance(publicKey.getEncoded());
 
       AlgorithmIdentifier sigAlgId =
           new DefaultSignatureAlgorithmIdentifierFinder().find(algorithm);
       AlgorithmIdentifier digAlgId = new DefaultDigestAlgorithmIdentifierFinder().find(sigAlgId);
       AsymmetricKeyParameter privateKeyAsymKeyParam =
-          PrivateKeyFactory.createKey(keyPair.getPrivate().getEncoded());
+          PrivateKeyFactory.createKey(privateKey.getEncoded());
 
       ContentSigner sigGen =
           new BcRSAContentSignerBuilder(sigAlgId, digAlgId).build(privateKeyAsymKeyParam);

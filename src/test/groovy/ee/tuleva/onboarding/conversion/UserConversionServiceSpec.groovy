@@ -22,6 +22,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.conversion.UserConversionService.CONVERTED_FUND_MANAGER_NAME
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION
 import static ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus.*
 
 class UserConversionServiceSpec extends Specification {
@@ -30,7 +31,7 @@ class UserConversionServiceSpec extends Specification {
     def transferExchangeService = Mock(TransferExchangeService)
     def cashFlowService = Mock(CashFlowService)
     def fundRepository = Mock(FundRepository)
-    def clock = Clock.fixed(Instant.parse("2019-11-20T10:06:01Z"), ZoneOffset.UTC)
+    def clock = Clock.fixed(Instant.parse("2019-12-30T10:06:01Z"), ZoneOffset.UTC)
 
     def service = new UserConversionService(accountStatementService, transferExchangeService, cashFlowService,
         fundRepository, clock)
@@ -162,7 +163,7 @@ class UserConversionServiceSpec extends Specification {
         activeExternal3rdPillarFundBalance | false                        | false
     }
 
-    def "calculates year-to-date contribution sums"() {
+    def "calculates contribution and subtraction sums"() {
         given:
         1 * accountStatementService.getAccountStatement(samplePerson) >> []
         transferExchangeService.get(samplePerson) >> []
@@ -174,12 +175,16 @@ class UserConversionServiceSpec extends Specification {
                 new CashFlow("EE123", LocalDate.parse("2018-12-31"), 100.0, "EUR", CONTRIBUTION_CASH),
                 new CashFlow("EE123", LocalDate.parse("2019-01-01"), 1.0, "EUR", CONTRIBUTION_CASH),
                 new CashFlow("EE123", LocalDate.parse("2019-11-20"), 1.0, "EUR", CONTRIBUTION_CASH),
+                new CashFlow("EE123", LocalDate.parse("2019-12-20"), 1.0, "EUR", SUBTRACTION),
+                new CashFlow("EE123", LocalDate.parse("2019-12-21"), 1.0, "EUR", SUBTRACTION),
 
                 new CashFlow("EE234", LocalDate.parse("2018-12-31"), 100.0, "EUR", CONTRIBUTION_CASH),
                 new CashFlow("EE234", LocalDate.parse("2019-01-01"), 1.0, "EUR", CONTRIBUTION_CASH),
                 new CashFlow("EE234", LocalDate.parse("2019-01-02"), 1.0, "EUR", CONTRIBUTION_CASH),
                 new CashFlow("EE234", LocalDate.parse("2019-11-20"), 1.0, "EUR", CONTRIBUTION_CASH),
                 new CashFlow("EE234", LocalDate.parse("2019-12-20"), 20.0, "EUR", CONTRIBUTION),
+                new CashFlow("EE234", LocalDate.parse("2019-12-20"), 1.0, "EUR", SUBTRACTION),
+                new CashFlow("EE234", LocalDate.parse("2019-12-21"), 1.0, "EUR", SUBTRACTION),
             ])
             .build()
 
@@ -190,11 +195,15 @@ class UserConversionServiceSpec extends Specification {
         with(response.secondPillar) {
             contribution.yearToDate == 2.0
             contribution.total == 102.0
+            subtraction.yearToDate == 2.0
+            subtraction.total == 2.0
             paymentComplete == null
         }
         with(response.thirdPillar) {
             contribution.total == 123.0
             contribution.yearToDate == 3.0
+            subtraction.yearToDate == 2.0
+            subtraction.total == 2.0
             paymentComplete
         }
     }

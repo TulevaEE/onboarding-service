@@ -18,12 +18,14 @@ public class ConversionResponse {
         private boolean transfersComplete;
         private boolean selectionComplete;
         private Boolean paymentComplete;
-        private Contribution contribution;
+        private Amount contribution;
+        private Amount subtraction;
+
     }
 
     @Builder
     @Data
-    public static class Contribution {
+    public static class Amount {
         private BigDecimal total;
         private BigDecimal yearToDate;
     }

@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.conversion.ConversionResponse.Amount;
 import ee.tuleva.onboarding.conversion.ConversionResponse.Conversion;
 import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
@@ -22,7 +23,6 @@ import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static ee.tuleva.onboarding.conversion.ConversionResponse.Contribution;
 import static ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus.PENDING;
 import static java.math.BigDecimal.ROUND_HALF_UP;
 import static java.math.BigDecimal.ZERO;
@@ -52,19 +52,27 @@ public class UserConversionService {
             .secondPillar(Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 2))
                 .transfersComplete(isTransfersComplete(fundBalances, 2, person))
-                .contribution(Contribution.builder()
+                .contribution(Amount.builder()
                     .yearToDate(yearToDateCashContributionSum(cashFlowStatement, 2))
                     .total(totalContributionSum(cashFlowStatement, 2))
-                    .build())
-                .build()
+                    .build()
+                ).subtraction(Amount.builder()
+                    .yearToDate(yearToDateSubtractionSum(cashFlowStatement, 2))
+                    .total(totalSubtractionSum(cashFlowStatement, 2))
+                    .build()
+                ).build()
             ).thirdPillar(Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 3))
                 .transfersComplete(isTransfersComplete(fundBalances, 3, person))
-                .contribution(Contribution.builder()
+                .contribution(Amount.builder()
                     .yearToDate(yearToDateCashContributionSum(cashFlowStatement, 3))
                     .total(totalContributionSum(cashFlowStatement, 3))
-                    .build())
-                .paymentComplete(paymentComplete(cashFlowStatement))
+                    .build()
+                ).subtraction(Amount.builder()
+                    .yearToDate(yearToDateSubtractionSum(cashFlowStatement, 3))
+                    .total(totalSubtractionSum(cashFlowStatement, 3))
+                    .build()
+                ).paymentComplete(paymentComplete(cashFlowStatement))
                 .build()
             ).build();
     }
@@ -82,7 +90,7 @@ public class UserConversionService {
     private BigDecimal yearToDateCashContributionSum(CashFlowStatement cashFlowStatement, int pillar) {
         return sum(cashFlowStatement, pillar,
             cashFlow -> cashFlow.isCashContribution()
-                && cashFlow.getDate().isAfter(lastDayOfLastYear())
+                && cashFlow.isAfter(lastDayOfLastYear())
         );
     }
 
@@ -90,12 +98,23 @@ public class UserConversionService {
         return sum(cashFlowStatement, pillar, CashFlow::isContribution);
     }
 
+    private BigDecimal yearToDateSubtractionSum(CashFlowStatement cashFlowStatement, int pillar) {
+        return sum(cashFlowStatement, pillar,
+            cashFlow -> cashFlow.isSubtraction()
+                && cashFlow.isAfter(lastDayOfLastYear())
+        );
+    }
+
+    private BigDecimal totalSubtractionSum(CashFlowStatement cashFlowStatement, int pillar) {
+        return sum(cashFlowStatement, pillar, CashFlow::isSubtraction);
+    }
+
     private BigDecimal sum(CashFlowStatement cashFlowStatement, int pillar, Predicate<CashFlow> filterBy) {
         return cashFlowStatement.getTransactions().stream()
             .filter(filterBy)
             .filter(cashFlow -> {
-                Fund fund = fundRepository.findByIsin(cashFlow.getIsin());
-                if(fund == null) {
+                Fund fund = fundRepository.findByIsin(cashFlow.getIsin()); // TODO: O(n) queries
+                if (fund == null) {
                     log.error("We didn't find the fund source: " + cashFlow.getIsin());
                     return false;
                 } else {

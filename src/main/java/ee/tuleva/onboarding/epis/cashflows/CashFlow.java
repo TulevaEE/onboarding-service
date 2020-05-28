@@ -8,8 +8,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*;
 
 @Data
 @Builder
@@ -28,6 +27,14 @@ public class CashFlow {
 
     public boolean isCashContribution() {
         return type == CONTRIBUTION_CASH;
+    }
+
+    public boolean isSubtraction() {
+        return type == SUBTRACTION;
+    }
+
+    public boolean isAfter(LocalDate other) {
+        return date.isAfter(other);
     }
 
     public enum Type {

@@ -21,6 +21,7 @@ import static ee.tuleva.onboarding.account.AccountStatementFixture.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.conversion.UserConversionService.CONVERTED_FUND_MANAGER_NAME
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH
 import static ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus.*
 
 class UserConversionServiceSpec extends Specification {
@@ -170,14 +171,15 @@ class UserConversionServiceSpec extends Specification {
 
         cashFlowService.getCashFlowStatement(samplePerson) >> CashFlowStatement.builder()
             .transactions([
-                new CashFlow("EE123", LocalDate.parse("2018-12-31"), 100.0, "EUR", CONTRIBUTION),
-                new CashFlow("EE123", LocalDate.parse("2019-01-01"), 1.0, "EUR", CONTRIBUTION),
-                new CashFlow("EE123", LocalDate.parse("2019-11-20"), 1.0, "EUR", CONTRIBUTION),
+                new CashFlow("EE123", LocalDate.parse("2018-12-31"), 100.0, "EUR", CONTRIBUTION_CASH),
+                new CashFlow("EE123", LocalDate.parse("2019-01-01"), 1.0, "EUR", CONTRIBUTION_CASH),
+                new CashFlow("EE123", LocalDate.parse("2019-11-20"), 1.0, "EUR", CONTRIBUTION_CASH),
 
-                new CashFlow("EE234", LocalDate.parse("2018-12-31"), 100.0, "EUR", CONTRIBUTION),
-                new CashFlow("EE234", LocalDate.parse("2019-01-01"), 1.0, "EUR", CONTRIBUTION),
-                new CashFlow("EE234", LocalDate.parse("2019-01-02"), 1.0, "EUR", CONTRIBUTION),
-                new CashFlow("EE234", LocalDate.parse("2019-11-20"), 1.0, "EUR", CONTRIBUTION),
+                new CashFlow("EE234", LocalDate.parse("2018-12-31"), 100.0, "EUR", CONTRIBUTION_CASH),
+                new CashFlow("EE234", LocalDate.parse("2019-01-01"), 1.0, "EUR", CONTRIBUTION_CASH),
+                new CashFlow("EE234", LocalDate.parse("2019-01-02"), 1.0, "EUR", CONTRIBUTION_CASH),
+                new CashFlow("EE234", LocalDate.parse("2019-11-20"), 1.0, "EUR", CONTRIBUTION_CASH),
+                new CashFlow("EE234", LocalDate.parse("2019-12-20"), 20.0, "EUR", CONTRIBUTION),
             ])
             .build()
 
@@ -191,7 +193,7 @@ class UserConversionServiceSpec extends Specification {
             paymentComplete == null
         }
         with(response.thirdPillar) {
-            contribution.total == 103.0
+            contribution.total == 123.0
             contribution.yearToDate == 3.0
             paymentComplete
         }

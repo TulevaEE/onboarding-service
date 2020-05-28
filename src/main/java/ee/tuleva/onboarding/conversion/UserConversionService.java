@@ -22,13 +22,12 @@ import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION;
+import static ee.tuleva.onboarding.conversion.ConversionResponse.Contribution;
 import static ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus.PENDING;
 import static java.math.BigDecimal.ROUND_HALF_UP;
 import static java.math.BigDecimal.ZERO;
 import static java.time.temporal.TemporalAdjusters.lastDayOfYear;
 import static java.util.stream.Collectors.toList;
-import static ee.tuleva.onboarding.conversion.ConversionResponse.Contribution;
 
 @Service
 @Slf4j
@@ -45,7 +44,6 @@ public class UserConversionService {
     public static final String EXIT_RESTRICTED_FUND = "EE3600109484";
     private LocalDate THIRD_PILLAR_FUND_INCEPTION_DATE = LocalDate.of(2019, 10, 15);
 
-
     public ConversionResponse getConversion(Person person) {
         List<FundBalance> fundBalances = accountStatementService.getAccountStatement(person);
         CashFlowStatement cashFlowStatement = cashFlowService.getCashFlowStatement(person);
@@ -55,7 +53,7 @@ public class UserConversionService {
                 .selectionComplete(isSelectionComplete(fundBalances, 2))
                 .transfersComplete(isTransfersComplete(fundBalances, 2, person))
                 .contribution(Contribution.builder()
-                    .yearToDate(yearToDateContributionSum(cashFlowStatement, 2))
+                    .yearToDate(yearToDateCashContributionSum(cashFlowStatement, 2))
                     .total(totalContributionSum(cashFlowStatement, 2))
                     .build())
                 .build()
@@ -63,7 +61,7 @@ public class UserConversionService {
                 .selectionComplete(isSelectionComplete(fundBalances, 3))
                 .transfersComplete(isTransfersComplete(fundBalances, 3, person))
                 .contribution(Contribution.builder()
-                    .yearToDate(yearToDateContributionSum(cashFlowStatement, 3))
+                    .yearToDate(yearToDateCashContributionSum(cashFlowStatement, 3))
                     .total(totalContributionSum(cashFlowStatement, 3))
                     .build())
                 .paymentComplete(paymentComplete(cashFlowStatement))
@@ -74,17 +72,27 @@ public class UserConversionService {
     private boolean paymentComplete(CashFlowStatement cashFlowStatement) {
         return cashFlowStatement.getTransactions().stream()
             .filter(cashFlow -> cashFlow.getDate().isAfter(THIRD_PILLAR_FUND_INCEPTION_DATE))
-            .filter(cashFlow -> CONTRIBUTION == cashFlow.getType())
+            .filter(CashFlow::isCashContribution)
             .filter(cashFlow -> fundRepository.findByIsin(cashFlow.getIsin()).getPillar() == 3)
             .map(CashFlow::getAmount)
             .reduce(ZERO, BigDecimal::add)
             .compareTo(ZERO) > 0;
     }
 
-    private BigDecimal contributionSum(CashFlowStatement cashFlowStatement, int pillar, Predicate<CashFlow> filterBy) {
+    private BigDecimal yearToDateCashContributionSum(CashFlowStatement cashFlowStatement, int pillar) {
+        return sum(cashFlowStatement, pillar,
+            cashFlow -> cashFlow.isCashContribution()
+                && cashFlow.getDate().isAfter(lastDayOfLastYear())
+        );
+    }
+
+    private BigDecimal totalContributionSum(CashFlowStatement cashFlowStatement, int pillar) {
+        return sum(cashFlowStatement, pillar, CashFlow::isContribution);
+    }
+
+    private BigDecimal sum(CashFlowStatement cashFlowStatement, int pillar, Predicate<CashFlow> filterBy) {
         return cashFlowStatement.getTransactions().stream()
             .filter(filterBy)
-            .filter(cashFlow -> CONTRIBUTION == cashFlow.getType())
             .filter(cashFlow -> {
                 Fund fund = fundRepository.findByIsin(cashFlow.getIsin());
                 if(fund == null) {
@@ -97,14 +105,6 @@ public class UserConversionService {
             .map(CashFlow::getAmount)
             .reduce(ZERO, BigDecimal::add)
             .setScale(2, ROUND_HALF_UP);
-    }
-
-    private BigDecimal yearToDateContributionSum(CashFlowStatement cashFlowStatement, int pillar) {
-        return contributionSum(cashFlowStatement, pillar, cashFlow -> cashFlow.getDate().isAfter(lastDayOfLastYear()));
-    }
-
-    private BigDecimal totalContributionSum(CashFlowStatement cashFlowStatement, int pillar) {
-        return contributionSum(cashFlowStatement, pillar, cashFlow -> true);
     }
 
     private LocalDate lastDayOfLastYear() {

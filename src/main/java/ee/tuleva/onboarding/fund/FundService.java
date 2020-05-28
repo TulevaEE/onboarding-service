@@ -37,7 +37,7 @@ public class FundService {
 
   private Iterable<Fund> fundsBy(Optional<String> fundManagerName) {
     return fundManagerName
-      .map(fundRepository::findByFundManagerNameIgnoreCase)
+      .map(fundRepository::findAllByFundManagerNameIgnoreCase)
       .orElse(fundRepository.findAll());
   }
 

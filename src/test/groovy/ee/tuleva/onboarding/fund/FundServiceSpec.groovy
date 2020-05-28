@@ -21,7 +21,7 @@ class FundServiceSpec extends Specification {
         Iterable<Fund> funds = sampleFunds().stream()
             .filter({ fund -> fund.fundManager.name == fundManagerName })
             .collect(toList())
-        fundRepository.findByFundManagerNameIgnoreCase(fundManagerName) >> funds
+        fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
         def tulevaFund = funds.first()
         def volume = 1_000_000.0
         def nav = 1.64
@@ -48,7 +48,7 @@ class FundServiceSpec extends Specification {
         Iterable<Fund> funds = sampleFunds().stream()
             .filter({ fund -> fund.fundManager.name == fundManagerName })
             .collect(toList())
-        fundRepository.findByFundManagerNameIgnoreCase(fundManagerName) >> funds
+        fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
 
         def tulevaFund = funds.first()
         pensionFundStatisticsService.getCachedStatistics() >> singletonList(PensionFundStatistics.getNull())

@@ -41,7 +41,7 @@ class FundRepositorySpec extends Specification {
         entityManager.flush()
 
         when:
-        Iterable<Fund> funds = repository.findByFundManagerNameIgnoreCase("Tuleva")
+        Iterable<Fund> funds = repository.findAllByFundManagerNameIgnoreCase("Tuleva")
         Fund persistedFund = stream(funds.spliterator(), false)
             .filter({ f -> f.isin == fund.isin })
             .findFirst()
@@ -137,12 +137,39 @@ class FundRepositorySpec extends Specification {
         entityManager.flush()
 
         when:
-        Iterable<Fund> funds = repository.findByFundManagerNameIgnoreCase("Tuleva")
+        Iterable<Fund> funds = repository.findAll()
         List<Fund> inactiveFunds = stream(funds.spliterator(), false)
             .filter({ fund -> fund.status != ACTIVE })
             .collect(toList())
 
         then:
         inactiveFunds == []
+    }
+
+    def "can find inactive funds by isin"() {
+        given:
+        def fundManager = FundManager.builder()
+            .id(1)
+            .name("Tuleva")
+            .build()
+        def inactiveFund = Fund.builder()
+            .isin("EE000000002")
+            .nameEstonian("Vana Fond")
+            .nameEnglish("Some Old Fund")
+            .pillar(2)
+            .equityShare(0.0)
+            .managementFeeRate(new BigDecimal("0.0123"))
+            .ongoingChargesFigure(new BigDecimal("0.0123"))
+            .status(LIQUIDATED)
+            .fundManager(fundManager)
+            .build()
+        entityManager.persist(inactiveFund)
+        entityManager.flush()
+
+        when:
+        Fund fund = repository.findByIsin(inactiveFund.isin)
+
+        then:
+        fund.isin == inactiveFund.isin
     }
 }

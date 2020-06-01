@@ -22,7 +22,6 @@ public class MandateEmailSender {
         );
     }
 
-    @Async
     @EventListener
     public void onThirdPillarMandateCreatedEvent(ThirdPillarMandateCreatedEvent event) {
         UserPreferences userPreferences = episService.getContactDetails(event.getUser());

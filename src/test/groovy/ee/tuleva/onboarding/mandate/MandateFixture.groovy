@@ -184,6 +184,7 @@ class MandateFixture {
                 isin(futureContibutionFundIsin)
                 .nameEstonian("Tuleva maailma aktsiate pensionifond")
                 .nameEnglish("Tuleva World Stock Fund")
+                .shortName("TUK75")
                 .id(123)
                 .fundManager(
                     FundManager.builder()
@@ -195,6 +196,7 @@ class MandateFixture {
             Fund.builder().isin("EE3600019775")
                 .nameEstonian("SEB fond")
                 .nameEnglish("SEB fund")
+                .shortName("SEB123")
                 .fundManager(
                     FundManager.builder()
                         .id(124)
@@ -205,6 +207,7 @@ class MandateFixture {
             Fund.builder().isin("EE3600019776")
                 .nameEstonian("LHV XL")
                 .nameEnglish("LHV XL eng")
+                .shortName("LXK75")
                 .fundManager(
                     FundManager.builder()
                         .id(125)
@@ -215,6 +218,7 @@ class MandateFixture {
             Fund.builder().isin("EE3600019777")
                 .nameEstonian("Swedbänk fond")
                 .nameEnglish("Swedbank fund")
+                .shortName("SWE123")
                 .fundManager(
                     FundManager.builder()
                         .id(126)
@@ -225,6 +229,7 @@ class MandateFixture {
             Fund.builder().isin("AE123232331")
                 .nameEstonian("Nordea fond")
                 .nameEnglish("Nordea fund")
+                .shortName("ND123")
                 .fundManager(
                     FundManager.builder()
                         .id(127)
@@ -235,6 +240,7 @@ class MandateFixture {
             Fund.builder().isin("AE123232337")
                 .nameEstonian("LHV S")
                 .nameEnglish("LHV S eng")
+                .shortName("LXK00")
                 .fundManager(
                     FundManager.builder()
                         .id(125)

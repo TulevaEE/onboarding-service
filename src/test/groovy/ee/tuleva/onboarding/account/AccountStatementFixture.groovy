@@ -21,6 +21,7 @@ class AccountStatementFixture {
                     .isin("AE123232331")
                     .nameEstonian("Tuleva maailma aktsiate pensionifond")
                     .nameEnglish("Tuleva world stock pensionfund")
+                    .shortName("TUK75")
                     .id(123)
                     .pillar(2)
                     .fundManager(
@@ -41,6 +42,7 @@ class AccountStatementFixture {
                     isin("AE123232332")
                     .nameEstonian("Tuleva maailma võlakirjade pensionifond")
                     .nameEnglish("Tuleva world bond pensionfund")
+                    .shortName("TUK00")
                     .id(124)
                     .pillar(2)
                     .fundManager(
@@ -65,6 +67,7 @@ class AccountStatementFixture {
                     .isin("AE123232337")
                     .nameEstonian("LHV XL")
                     .nameEnglish("LHV XL")
+                    .shortName("LXK75")
                     .id(123)
                     .pillar(2)
                     .fundManager(
@@ -85,6 +88,7 @@ class AccountStatementFixture {
                     .isin("AE123232332")
                     .nameEstonian("Tuleva maailma võlakirjade pensionifond")
                     .nameEnglish("Tuleva world bond pensionfund")
+                    .shortName("TUK00")
                     .id(124)
                     .pillar(2)
                     .fundManager(
@@ -109,6 +113,7 @@ class AccountStatementFixture {
                     .isin("AE1232322222")
                     .nameEstonian("LHV fund")
                     .nameEnglish("LHV fund")
+                    .shortName("LXK00")
                     .pillar(2)
                     .id(123)
                     .fundManager(
@@ -129,6 +134,7 @@ class AccountStatementFixture {
                     .isin("AE123232332")
                     .nameEstonian("Tuleva maailma võlakirjade pensionifond")
                     .nameEnglish("Tuleva world bond pensionfund")
+                    .shortName("TUK00")
                     .pillar(2)
                     .id(124)
                     .fundManager(
@@ -153,6 +159,7 @@ class AccountStatementFixture {
                     .isin("EE645")
                     .nameEstonian("Tuleva III Samba Pensionifond")
                     .nameEnglish("Tuleva III Pillar Pension Fund")
+                    .shortName("TUV100")
                     .id(123)
                     .pillar(3)
                     .fundManager(
@@ -174,6 +181,7 @@ class AccountStatementFixture {
                     .isin(EXIT_RESTRICTED_FUND)
                     .nameEstonian("Swedbank Pensionifond V100 indeks (väljumine piiratud)")
                     .nameEnglish("Swedbank V100 Index Pension Fund (exit restricted)")
+                    .shortName("SWV100")
                     .id(323)
                     .pillar(3)
                     .fundManager(
@@ -198,6 +206,7 @@ class AccountStatementFixture {
                     .isin("EE7654")
                     .nameEstonian("LHV Pensionifond Indeks Pluss")
                     .nameEnglish("LHV Pension Fund Index Plus")
+                    .shortName("LIT100")
                     .pillar(3)
                     .id(123)
                     .fundManager(
@@ -218,6 +227,7 @@ class AccountStatementFixture {
                     .isin("EE645")
                     .nameEstonian("Tuleva III Samba Pensionifond")
                     .nameEnglish("Tuleva III Pillar Pension Fund")
+                    .shortName("TUV100")
                     .id(124)
                     .pillar(3)
                     .fundManager(
@@ -242,6 +252,7 @@ class AccountStatementFixture {
                     .isin("EE645")
                     .nameEstonian("Tuleva III Samba Pensionifond")
                     .nameEnglish("Tuleva III Pillar Pension Fund")
+                    .shortName("TUV100")
                     .id(123)
                     .pillar(3)
                     .fundManager(
@@ -266,6 +277,7 @@ class AccountStatementFixture {
                     .isin("AE1232322222")
                     .nameEstonian("LHV fund")
                     .nameEnglish("LHV fund")
+                    .shortName("LXK00")
                     .id(123)
                     .pillar(3)
                     .fundManager(
@@ -286,6 +298,7 @@ class AccountStatementFixture {
                     .isin("EE645")
                     .nameEstonian("Tuleva III Samba Pensionifond")
                     .nameEnglish("Tuleva III Pillar Pension Fund")
+                    .shortName("TUV100")
                     .id(124)
                     .pillar(3)
                     .fundManager(

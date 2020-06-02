@@ -19,14 +19,6 @@ import static javax.persistence.EnumType.STRING;
 @Getter
 public class Fund {
 
-    public enum FundStatus {
-        ACTIVE, // Aktiivne
-        LIQUIDATED, // Likvideeritud
-        SUSPENDED, // Peatatud
-        CONTRIBUTIONS_FORBIDDEN, // Sissemaksed keelatud
-        PAYOUTS_FORBIDDEN // Väljamaksed keelatud
-    }
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -43,9 +35,8 @@ public class Fund {
     @NotBlank
     private String nameEnglish;
 
-    public String getName(String language) {
-        return "en".equalsIgnoreCase(language) ? nameEnglish : nameEstonian;
-    }
+    @NotNull
+    private String shortName;
 
     @NotNull
     private Integer pillar;
@@ -62,4 +53,18 @@ public class Fund {
     @NotNull
     @Enumerated(STRING)
     private FundStatus status;
+
+    public enum FundStatus {
+        ACTIVE, // Aktiivne
+        LIQUIDATED, // Likvideeritud
+        SUSPENDED, // Peatatud
+        CONTRIBUTIONS_FORBIDDEN, // Sissemaksed keelatud
+        PAYOUTS_FORBIDDEN // Väljamaksed keelatud
+    }
+
+    public String getName(String language) {
+        return "en".equalsIgnoreCase(language) ? nameEnglish : nameEstonian;
+    }
+
 }
+

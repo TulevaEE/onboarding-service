@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.fund.response;
 
 import ee.tuleva.onboarding.fund.Fund;
+import ee.tuleva.onboarding.fund.Fund.FundStatus;
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import lombok.Data;
 
@@ -14,7 +15,7 @@ public class FundDto {
     private BigDecimal managementFeeRate;
     private Integer pillar;
     private BigDecimal ongoingChargesFigure;
-    private Fund.FundStatus status;
+    private FundStatus status;
 
     public FundDto(Fund fund, String language) {
         this.fundManager = fund.getFundManager();

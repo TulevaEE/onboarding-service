@@ -23,6 +23,7 @@ public class FundResponse {
     private BigDecimal ongoingChargesFigure;
     private FundStatus status;
     private Integer peopleCount;
+    private String shortName;
 
     public FundResponse(Fund fund, PensionFundStatistics pensionFundStatistics, String language) {
         this.fundManager = fund.getFundManager();
@@ -35,5 +36,6 @@ public class FundResponse {
         this.pillar = fund.getPillar();
         this.ongoingChargesFigure = fund.getOngoingChargesFigure();
         this.status = fund.getStatus();
+        this.shortName = fund.getShortName();
     }
 }

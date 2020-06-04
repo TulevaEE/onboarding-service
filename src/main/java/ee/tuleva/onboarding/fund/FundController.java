@@ -22,12 +22,11 @@ public class FundController {
 
     @ApiOperation(value = "Get info about available funds")
     @RequestMapping(method = GET, value = "/funds")
-    public List<FundResponse> get(@RequestParam("fundManager.name") Optional<String> fundManagerName,
-                                  @RequestHeader(value = "Accept-Language", defaultValue = "et") String language
+    public List<FundResponse> get(
+        @RequestParam("fundManager.name") Optional<String> fundManagerName,
+        @RequestHeader(value = "Accept-Language", defaultValue = "et") String language
     ) {
-
-        List<FundResponse> funds = fundService.getFunds(fundManagerName, language == null ? "et" : language.toLowerCase());
-        return funds;
+        return fundService.getFunds(fundManagerName, language == null ? "et" : language.toLowerCase());
     }
 
 }

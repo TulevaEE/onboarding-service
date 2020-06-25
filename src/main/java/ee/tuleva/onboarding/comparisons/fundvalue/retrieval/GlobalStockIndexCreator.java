@@ -2,23 +2,27 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.*;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 import static java.util.stream.Collectors.toList;
 
 @Slf4j
 @Service
-public class GlobalStockIndexCreator implements ComparisonIndexRetriever  {
+public class GlobalStockIndexCreator implements ComparisonIndexRetriever {
     public static final String KEY = "NEW_GLOBAL_STOCK_INDEX";
 
-    //private NamedParameterJdbcTemplate jdbcTemplate;
+    NamedParameterJdbcTemplate jdbcTemplate;
 
     private static final String SQL = "" +
         "SELECT * " +
@@ -28,68 +32,16 @@ public class GlobalStockIndexCreator implements ComparisonIndexRetriever  {
         "(SELECT * FROM index_values WHERE key='GLOBAL_STOCK_INDEX' and date >='2020-01-01' LIMIT 4) " +
         ") values ORDER BY values.date ASC";
 
-    //added own postgres connection
-    private final String url = "jdbc:postgresql://localhost/tuleva"; //create own local database
-    private final String user = ""; //add own username
-    private final String password = ""; //add own password
+    private static final class FundValueRowMapper implements RowMapper<FundValue> {
+        @Override
+        public FundValue mapRow(ResultSet rs, int rowNum) throws SQLException {
+            return new FundValue(rs.getString("key"), rs.getDate("date").toLocalDate(), rs.getBigDecimal("value"));
+        }
+    }
 
     @Override
     public String getKey() {
         return KEY;
-    }
-
-    public Connection connect() {
-        Connection conn = null;
-        try {
-            conn = DriverManager.getConnection(url, user, password);
-            System.out.println("Connected to the PostgreSQL server successfully.");
-        } catch (SQLException e) {
-            System.out.println(e.getMessage());
-        }
-
-        return conn;
-    }
-
-    public List<FundValue> getStockInfo() throws IOException {
-        List<FundValue> stockValues = new ArrayList<>();
-
-        try (Connection conn = connect();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(SQL)) {
-            // display query information
-            while (rs.next()) {
-                String queryDate = rs.getString("date");
-                String queryValue = rs.getString("value");
-
-                LocalDate date = LocalDate.parse(queryDate);
-                LocalDate changeDate = LocalDate.of(2019, 12, 31);
-
-                if (date.isAfter(changeDate)) {
-                    Double convertedNumber = Double.parseDouble(queryValue);
-                    convertedNumber = convertedNumber / 13.3883094;
-                    BigDecimal stockValue = new BigDecimal(convertedNumber);
-                    stockValues.add(new FundValue(KEY, date, stockValue));
-                }
-                else {
-                    BigDecimal stockValue = new BigDecimal(queryValue);
-                    stockValues.add(new FundValue(KEY, date, stockValue));
-                }
-
-            }
-
-        } catch (SQLException ex) {
-            System.out.println(ex.getMessage());
-        }
-
-        return stockValues;
-    }
-
-    private List<FundValue> getStockValues() {
-        try {
-            return getStockInfo();
-        } catch (IOException e) {
-            throw new IllegalStateException("Could not get Global Stock Index values", e);
-        }
     }
 
     @Override
@@ -101,13 +53,43 @@ public class GlobalStockIndexCreator implements ComparisonIndexRetriever  {
         }).collect(toList());
     }
 
-    public static void main(String[] args) {
-        GlobalStockIndexCreator app = new GlobalStockIndexCreator();
+    private List<FundValue> getStockValues() {
+        try {
+            return createStockList();
+        } catch (IOException e) {
+            throw new IllegalStateException("Could not get Global Stock Index values", e);
+        }
+    }
 
-        //create own values for input
-        LocalDate begin = LocalDate.parse("2019-12-26");
-        LocalDate end = LocalDate.parse("2020-01-04");
 
-        System.out.println(app.retrieveValuesForRange(begin, end));
+    private List<FundValue> createStockList() throws IOException {
+        List<FundValue> stockValues = new ArrayList<>();
+        List<FundValue> jdbcValues = getValueFromRepository();
+
+        for (int i = 0; i < jdbcValues.size(); i++) {
+            FundValue fundvalue = jdbcValues.get(i);
+
+            LocalDate date = fundvalue.getDate();
+            LocalDate changeDate = LocalDate.of(2019, 12, 31);
+            BigDecimal value = fundvalue.getValue();
+
+            if (date.isAfter(changeDate)) {
+                Double convertedNumber = value.doubleValue();
+                convertedNumber = convertedNumber / 13.3883094;
+                BigDecimal stockValue = new BigDecimal(convertedNumber);
+                stockValues.add(new FundValue(KEY, date, stockValue));
+            } else {
+                BigDecimal stockValue = value;
+                stockValues.add(new FundValue(KEY, date, stockValue));
+            }
+        }
+
+        return stockValues;
+    }
+
+
+    private List<FundValue> getValueFromRepository() {
+        List<FundValue> stockValues = jdbcTemplate.query(SQL, new FundValueRowMapper());
+        return stockValues;
     }
 }

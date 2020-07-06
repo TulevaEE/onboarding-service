@@ -17,8 +17,8 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class GlobalStockValueRetriever implements ComparisonIndexRetriever {
-    public static final String KEY = "NEW_GLOBAL_STOCK_INDEX";
+public class UnionStockIndexRetriever implements ComparisonIndexRetriever {
+    public static final String KEY = "UNION_STOCK_INDEX";
 
     private final FundValueRepository fundValueRepository;
 

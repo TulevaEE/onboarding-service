@@ -5,11 +5,11 @@ import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepositor
 import spock.lang.Specification
 import java.time.LocalDate
 
-class GlobalStockValueRetrieverSpec extends Specification {
+class UnionStockIndexRetrieverSpec extends Specification {
 
-    def key = GlobalStockValueRetriever.KEY
+    def key = UnionStockIndexRetriever.KEY
     def fundValueRepository = Mock(FundValueRepository)
-    def retriever = new GlobalStockValueRetriever(fundValueRepository)
+    def retriever = new UnionStockIndexRetriever(fundValueRepository)
 
     void setup() {
     }
@@ -30,7 +30,7 @@ class GlobalStockValueRetrieverSpec extends Specification {
     def "retrieve value for date after 2020"() {
         given:
         def date = LocalDate.of(2020, 01, 02)
-        def fundValue = new FundValue(key, date, GlobalStockValueRetriever.MULTIPLIER)
+        def fundValue = new FundValue(key, date, UnionStockIndexRetriever.MULTIPLIER)
         fundValueRepository.getGlobalStockValues() >> [fundValue]
 
         when:

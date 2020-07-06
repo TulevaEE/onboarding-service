@@ -55,6 +55,14 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         "UPDATE index_values SET value = :value " +
         "WHERE key = :key AND date = :date";
 
+    private static final String SELECT_GLOBAL_STOCK_VALUES_QUERY = "" +
+        "SELECT * " +
+        "FROM ( " +
+        "(SELECT * FROM index_values WHERE key='MARKET' and date <= '2019-12-31' ORDER BY date DESC) " +
+        "UNION " +
+        "(SELECT * FROM index_values WHERE key='GLOBAL_STOCK_INDEX' and date >='2020-01-01') " +
+        ") values ORDER BY values.date ASC";
+
     private static class FundValueRowMapper implements RowMapper<FundValue> {
         @Override
         public FundValue mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -132,5 +140,10 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
             new FundValueRowMapper()
         );
         return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    }
+
+    @Override
+    public List<FundValue> getGlobalStockValues() {
+        return jdbcTemplate.query(SELECT_GLOBAL_STOCK_VALUES_QUERY, new FundValueRowMapper());
     }
 }

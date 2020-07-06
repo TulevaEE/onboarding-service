@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.OnboardingServiceApplication
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
@@ -108,6 +109,21 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         fundValueRepository.update(newValue)
         then:
         fundValueRepository.findLastValueForFund("FOO_BAR").get() == newValue
+    }
+
+    def "it can select global stock values from two tables"() {
+        given:
+        List<FundValue> values = [
+            new FundValue(WorldIndexValueRetriever.KEY, parse("2019-12-30"), 123.45000),
+            new FundValue(WorldIndexValueRetriever.KEY, parse("2019-12-31"), 124.45000),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-01-01"), 125.45000),
+            new FundValue(GlobalStockIndexRetriever.KEY, parse("2020-01-02"), 126.45000)
+        ]
+        fundValueRepository.saveAll(values)
+        when:
+        def result = fundValueRepository.getGlobalStockValues()
+        then:
+        result.containsAll(values)
     }
 
     private static List<FundValue> getFakeFundValues() {

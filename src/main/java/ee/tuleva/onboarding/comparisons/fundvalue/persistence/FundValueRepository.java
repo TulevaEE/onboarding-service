@@ -12,4 +12,5 @@ public interface FundValueRepository {
     Optional<FundValue> findExistingValueForFund(FundValue fundValue);
     Optional<FundValue> findLastValueForFund(String fund);
     List<String> findAllKeys();
+    List<FundValue> getGlobalStockValues();
 }

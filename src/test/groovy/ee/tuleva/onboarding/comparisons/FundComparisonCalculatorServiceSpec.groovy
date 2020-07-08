@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.overview.Transaction
@@ -127,7 +127,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
         Instant startTime = parseInstant("2010-01-01")
         Instant endTime = parseInstant("2018-07-16")
         mockFundValues(EPIFundValueRetriever.KEY, getEpiFundValuesMap())
-        fundValueProvider.getLatestValue(WorldIndexValueRetriever.KEY, _) >> {
+        fundValueProvider.getLatestValue(UnionStockIndexRetriever.KEY, _) >> {
             String givenFund, LocalDate date -> Optional.of(new FundValue(givenFund, date, 123.0))
         }
         accountOverviewProvider.getAccountOverview(_, _, _) >> new AccountOverview([
@@ -211,7 +211,7 @@ class FundComparisonCalculatorServiceSpec extends Specification {
     private void mockFundValues(String fund, Map<String, BigDecimal> values) {
         fundValueProvider.getLatestValue(fund, _) >> {
             String givenFund, LocalDate date ->
-                Optional.of(new FundValue(WorldIndexValueRetriever.KEY, null, values[date.toString()]))
+                Optional.of(new FundValue(UnionStockIndexRetriever.KEY, null, values[date.toString()]))
         }
     }
 
@@ -221,6 +221,6 @@ class FundComparisonCalculatorServiceSpec extends Specification {
 
     private void fakeNoReturnFundValues() {
         fundValueProvider.getLatestValue(_, _) >>
-            Optional.of(new FundValue(WorldIndexValueRetriever.KEY, LocalDate.parse("2018-06-17"), 1.0))
+            Optional.of(new FundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2018-06-17"), 1.0))
     }
 }

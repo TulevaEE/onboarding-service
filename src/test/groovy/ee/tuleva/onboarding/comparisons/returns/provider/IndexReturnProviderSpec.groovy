@@ -20,7 +20,7 @@ class IndexReturnProviderSpec extends Specification {
 
     def returnProvider = new IndexReturnProvider(accountOverviewProvider, rateOfReturnCalculator)
 
-    def "can assemble a Returns object for EPI, MARKET and CPI"() {
+    def "can assemble a Returns object for EPI, UNION STOCK INDEX and CPI"() {
         given:
         def person = samplePerson()
         def startTime = Instant.parse("2019-08-28T10:06:01Z")

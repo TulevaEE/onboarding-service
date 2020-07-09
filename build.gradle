@@ -76,7 +76,7 @@ dependencies {
 	implementation('com.github.ErkoRisthein:mobileid:1.9') {
 		exclude group: 'commons-logging', module: 'commons-logging'
 	}
-	implementation('ee.sk.smartid:smart-id-java-client:1.5')
+	implementation('ee.sk.smartid:smart-id-java-client:1.6')
 	implementation('org.digidoc4j:digidoc4j:4.0.0') {
 		exclude group: 'commons-logging', module: 'commons-logging'
 	}

@@ -24,7 +24,7 @@ class UnionStockIndexRetrieverSpec extends Specification {
         retrievalFund == UnionStockIndexRetriever.KEY
     }
 
-    def "it should work with empty data files"() {
+    def "it should work with missing index values"() {
         given:
         List<FundValue> values = [
             new FundValue(key, LocalDate.of(2020, 03, 26), UnionStockIndexRetriever.MULTIPLIER),

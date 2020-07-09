@@ -27,7 +27,7 @@ public class IndexReturnProvider implements ReturnProvider {
 
     private static final String EPI = EPIFundValueRetriever.KEY;
 
-    private static final String MARKET = UnionStockIndexRetriever.KEY;
+    private static final String UNION_STOCK_INDEX = UnionStockIndexRetriever.KEY;
 
     private static final String CPI = CPIValueRetriever.KEY;
 
@@ -56,7 +56,7 @@ public class IndexReturnProvider implements ReturnProvider {
 
     @Override
     public List<String> getKeys() {
-        return Arrays.asList(EPI, MARKET, CPI);
+        return Arrays.asList(EPI, UNION_STOCK_INDEX, CPI);
     }
 
 }

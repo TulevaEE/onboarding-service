@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.comparisons.returns.provider
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CPIValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator
@@ -20,7 +20,7 @@ class IndexReturnProviderSpec extends Specification {
 
     def returnProvider = new IndexReturnProvider(accountOverviewProvider, rateOfReturnCalculator)
 
-    def "can assemble a Returns object for EPI, MARKET and CPI"() {
+    def "can assemble a Returns object for EPI, UNION STOCK INDEX and CPI"() {
         given:
         def person = samplePerson()
         def startTime = Instant.parse("2019-08-28T10:06:01Z")
@@ -31,7 +31,7 @@ class IndexReturnProviderSpec extends Specification {
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
         rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY) >> expectedReturn
-        rateOfReturnCalculator.getRateOfReturn(overview, WorldIndexValueRetriever.KEY) >> expectedReturn
+        rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY) >> expectedReturn
         rateOfReturnCalculator.getRateOfReturn(overview, CPIValueRetriever.KEY) >> expectedReturn
 
         when:
@@ -44,7 +44,7 @@ class IndexReturnProviderSpec extends Specification {
             value == expectedReturn
         }
         with(returns.returns[1]) {
-            key == WorldIndexValueRetriever.KEY
+            key == UnionStockIndexRetriever.KEY
             type == INDEX
             value == expectedReturn
         }

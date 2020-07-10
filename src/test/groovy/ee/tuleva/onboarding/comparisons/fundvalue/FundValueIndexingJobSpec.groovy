@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.ComparisonIndexRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.FundNavRetrieverFactory
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import org.springframework.core.env.Environment
 import spock.lang.Specification
 
@@ -27,8 +27,8 @@ class FundValueIndexingJobSpec extends Specification {
     def "if no saved fund values found, downloads and saves from defined start time"() {
         List<FundValue> fundValues = fakeFundValues()
         given:
-            fundValueRetriever.getKey() >> WorldIndexValueRetriever.KEY
-            fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY) >> Optional.empty()
+            fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
+            fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.empty()
             fundValueRepository.findExistingValueForFund(_ as FundValue) >> Optional.empty()
         when:
             fundValueIndexingJob.runIndexingJob()
@@ -41,8 +41,8 @@ class FundValueIndexingJobSpec extends Specification {
     def "if saved fund values exist in downloaded funds, update existing one"() {
         List<FundValue> fundValues = fakeFundValues()
         given:
-        fundValueRetriever.getKey() >> WorldIndexValueRetriever.KEY
-        fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY) >> Optional.empty()
+        fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
+        fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.empty()
         fundValueRepository.findExistingValueForFund(_ as FundValue) >> {value -> Optional.of(value)}
         when:
         fundValueIndexingJob.runIndexingJob()
@@ -55,10 +55,10 @@ class FundValueIndexingJobSpec extends Specification {
     def "if saved fund values found, downloads from the next day after last fund value"() {
         List<FundValue> fundValues = fakeFundValues()
         given:
-            fundValueRetriever.getKey() >> WorldIndexValueRetriever.KEY
+            fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
             def lastFundValueTime = LocalDate.parse("2018-05-01")
             def dayFromLastFundValueTime = LocalDate.parse("2018-05-02")
-            fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY) >> Optional.of(new FundValue(WorldIndexValueRetriever.KEY, lastFundValueTime, 120.0))
+            fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.of(new FundValue(UnionStockIndexRetriever.KEY, lastFundValueTime, 120.0))
             fundValueRepository.findExistingValueForFund(_ as FundValue) >> Optional.empty()
         when:
             fundValueIndexingJob.runIndexingJob()
@@ -70,9 +70,9 @@ class FundValueIndexingJobSpec extends Specification {
 
     def "if last saved fund value was found today, does nothing"() {
         given:
-            fundValueRetriever.getKey() >> WorldIndexValueRetriever.KEY
+            fundValueRetriever.getKey() >> UnionStockIndexRetriever.KEY
             def lastValueDate = LocalDate.now()
-            fundValueRepository.findLastValueForFund(WorldIndexValueRetriever.KEY) >> Optional.of(new FundValue(WorldIndexValueRetriever.KEY, lastValueDate, 120.0))
+            fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY) >> Optional.of(new FundValue(UnionStockIndexRetriever.KEY, lastValueDate, 120.0))
         when:
             fundValueIndexingJob.runIndexingJob()
         then:
@@ -82,8 +82,8 @@ class FundValueIndexingJobSpec extends Specification {
 
     private static List<FundValue> fakeFundValues() {
         return [
-            new FundValue(WorldIndexValueRetriever.KEY, LocalDate.parse("2017-01-01"), 100.0),
-            new FundValue(WorldIndexValueRetriever.KEY, LocalDate.parse("2018-01-01"), 110.0),
+            new FundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2017-01-01"), 100.0),
+            new FundValue(UnionStockIndexRetriever.KEY, LocalDate.parse("2018-01-01"), 110.0),
         ]
     }
 }

@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.comparisons.returns.provider;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CPIValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator;
@@ -27,7 +27,7 @@ public class IndexReturnProvider implements ReturnProvider {
 
     private static final String EPI = EPIFundValueRetriever.KEY;
 
-    private static final String MARKET = WorldIndexValueRetriever.KEY;
+    private static final String UNION_STOCK_INDEX = UnionStockIndexRetriever.KEY;
 
     private static final String CPI = CPIValueRetriever.KEY;
 
@@ -56,7 +56,7 @@ public class IndexReturnProvider implements ReturnProvider {
 
     @Override
     public List<String> getKeys() {
-        return Arrays.asList(EPI, MARKET, CPI);
+        return Arrays.asList(EPI, UNION_STOCK_INDEX, CPI);
     }
 
 }

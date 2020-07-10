@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.comparisons.returns
 
+import com.sun.xml.bind.v2.schemagen.xmlschema.Union
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnProvider
 import spock.lang.Specification
 
@@ -29,7 +30,7 @@ class ReturnsServiceSpec extends Specification {
         def pillar = 2
 
         def return1 = Return.builder()
-            .key(WorldIndexValueRetriever.KEY)
+            .key(UnionStockIndexRetriever.KEY)
             .type(INDEX)
             .value(0.0123)
             .build()
@@ -73,7 +74,7 @@ class ReturnsServiceSpec extends Specification {
         def pillar = 2
 
         def return1 = Return.builder()
-            .key(WorldIndexValueRetriever.KEY)
+            .key(UnionStockIndexRetriever.KEY)
             .type(INDEX)
             .value(0.0123)
             .build()

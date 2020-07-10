@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.comparisons;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator;
@@ -25,7 +25,7 @@ public class FundComparisonCalculatorService {
 
         double actualRateOfReturn = rateOfReturnCalculator.getRateOfReturn(overview);
         double estonianAverageRateOfReturn = rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY);
-        double marketAverageRateOfReturn = rateOfReturnCalculator.getRateOfReturn(overview, WorldIndexValueRetriever.KEY);
+        double marketAverageRateOfReturn = rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY);
 
         return FundComparison.builder()
             .actualReturnPercentage(actualRateOfReturn)

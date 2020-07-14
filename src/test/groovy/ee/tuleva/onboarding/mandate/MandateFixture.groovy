@@ -180,8 +180,8 @@ class MandateFixture {
 
     static List<Fund> sampleFunds() {
         return Arrays.asList(
-            Fund.builder().
-                isin(futureContibutionFundIsin)
+            Fund.builder()
+                .isin(futureContibutionFundIsin)
                 .nameEstonian("Tuleva maailma aktsiate pensionifond")
                 .nameEnglish("Tuleva World Stock Fund")
                 .shortName("TUK75")
@@ -193,7 +193,21 @@ class MandateFixture {
                         .build()
                 )
                 .build(),
-            Fund.builder().isin("EE3600019775")
+            Fund.builder()
+                .isin("EE3600109443")
+                .nameEstonian("Tuleva maailma võlakirjade pensionifond")
+                .nameEnglish("Tuleva World Bonds Pension Fund")
+                .shortName("TUK00")
+                .id(234)
+                .fundManager(
+                    FundManager.builder()
+                        .id(123)
+                        .name("Tuleva")
+                        .build()
+                )
+                .build(),
+            Fund.builder()
+                .isin("EE3600019775")
                 .nameEstonian("SEB fond")
                 .nameEnglish("SEB fund")
                 .shortName("SEB123")
@@ -204,7 +218,8 @@ class MandateFixture {
                         .build()
                 )
                 .build(),
-            Fund.builder().isin("EE3600019776")
+            Fund.builder()
+                .isin("EE3600019776")
                 .nameEstonian("LHV XL")
                 .nameEnglish("LHV XL eng")
                 .shortName("LXK75")
@@ -215,7 +230,8 @@ class MandateFixture {
                         .build()
                 )
                 .build(),
-            Fund.builder().isin("EE3600019777")
+            Fund.builder()
+                .isin("EE3600019777")
                 .nameEstonian("Swedbänk fond")
                 .nameEnglish("Swedbank fund")
                 .shortName("SWE123")
@@ -226,7 +242,8 @@ class MandateFixture {
                         .build()
                 )
                 .build(),
-            Fund.builder().isin("AE123232331")
+            Fund.builder()
+                .isin("AE123232331")
                 .nameEstonian("Nordea fond")
                 .nameEnglish("Nordea fund")
                 .shortName("ND123")
@@ -237,7 +254,8 @@ class MandateFixture {
                         .build()
                 )
                 .build(),
-            Fund.builder().isin("AE123232337")
+            Fund.builder()
+                .isin("AE123232337")
                 .nameEstonian("LHV S")
                 .nameEnglish("LHV S eng")
                 .shortName("LXK00")

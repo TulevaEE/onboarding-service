@@ -17,7 +17,7 @@ import static javax.persistence.EnumType.STRING;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-public class Fund {
+public class Fund implements Comparable<Fund> {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -64,6 +64,11 @@ public class Fund {
 
     public String getName(String language) {
         return "en".equalsIgnoreCase(language) ? nameEnglish : nameEstonian;
+    }
+
+    @Override
+    public int compareTo(Fund other) {
+        return nameEstonian.compareTo(other.nameEstonian);
     }
 
 }

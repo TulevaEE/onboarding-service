@@ -24,11 +24,12 @@ public class FundService {
 
   public List<FundResponse> getFunds(Optional<String> fundManagerName, String language) {
      return stream(fundsBy(fundManagerName).spliterator(), false)
-       .map(fund -> new FundResponse(fund, statistics(fund), language))
+       .sorted()
+       .map(fund -> new FundResponse(fund, getStatistics(fund), language))
        .collect(toList());
   }
 
-  private PensionFundStatistics statistics(Fund fund) {
+  private PensionFundStatistics getStatistics(Fund fund) {
     return pensionFundStatisticsService.getCachedStatistics().stream()
       .filter(statistic -> Objects.equals(statistic.getIsin(), fund.getIsin()))
       .findFirst()

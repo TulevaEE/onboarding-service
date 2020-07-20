@@ -12,6 +12,14 @@ public class ConversionResponse {
     private Conversion secondPillar;
     private Conversion thirdPillar;
 
+    public boolean isSecondPillarFullyConverted() {
+        return secondPillar.isFullyConverted();
+    }
+
+    public boolean isThirdPillarFullyConverted() {
+        return thirdPillar.isFullyConverted();
+    }
+
     @Builder
     @Data
     public static class Conversion {
@@ -21,6 +29,9 @@ public class ConversionResponse {
         private Amount contribution;
         private Amount subtraction;
 
+        public boolean isFullyConverted() {
+            return transfersComplete && selectionComplete;
+        }
     }
 
     @Builder

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.email;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
@@ -19,13 +20,13 @@ public class MandateEmailService {
     private final EmailService emailService;
     private final MandateEmailContentService emailContentService;
 
-    public void sendSecondPillarMandate(User user, Long mandateId, byte[] file, Locale locale) {
+    public void sendSecondPillarMandate(User user, Long mandateId, byte[] file, ConversionResponse conversion, Locale locale) {
         MandrillMessage message = emailService.newMandrillMessage(
             emailService.getRecipients(user), getMandateEmailSubject(),
-            emailContentService.getSecondPillarHtml(locale), getMandateTags(),
+            emailContentService.getSecondPillarHtml(conversion.isThirdPillarFullyConverted(), locale), getMandateTags(),
             getMandateAttachements(file, user, mandateId));
 
-        if(message == null) {
+        if (message == null) {
             log.warn(
                 "Failed to create mandrill message, not sending mandate email for user {} and second pillar mandate {}.",
                 user.getId(),
@@ -38,14 +39,13 @@ public class MandateEmailService {
     }
 
     public void sendThirdPillarMandate(
-        User user, Long mandateId, byte[] file, String pensionAccountNumber, Locale locale
-    ) {
+        User user, Long mandateId, byte[] file, String pensionAccountNumber, ConversionResponse conversion, Locale locale) {
         MandrillMessage message = emailService.newMandrillMessage(
             emailService.getRecipients(user), getMandateEmailSubject(),
-            emailContentService.getThirdPillarHtml(pensionAccountNumber, locale), getMandateTags(),
+            emailContentService.getThirdPillarHtml(pensionAccountNumber, conversion.isSecondPillarFullyConverted(), locale), getMandateTags(),
             getMandateAttachements(file, user, mandateId));
 
-        if(message == null) {
+        if (message == null) {
             log.warn(
                 "Failed to create mandrill message, not sending mandate email for user {} and third pillar mandate {}.",
                 user.getId(),

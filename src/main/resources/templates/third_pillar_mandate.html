@@ -22,6 +22,7 @@
           <strong th:text="${pensionAccountNumber}"></strong>
         </p>
         <br>
+        <p th:if="${!isSecondPillarFullyConverted}" th:text="#{mandate.email.suggestSecondPillar}"></p>
         <p th:text="#{mandate.email.info}"></p>
         <p th:text="#{mandate.email.signature}"></p>
     </body>

@@ -1,12 +1,11 @@
 package ee.tuleva.onboarding.mandate.email;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.LocaleResolver;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.Locale;
 
 @Service
@@ -16,18 +15,18 @@ public class MandateEmailContentService {
 
     private final TemplateEngine templateEngine;
 
-    public String getSecondPillarHtml(Locale locale) {
+    public String getSecondPillarHtml(boolean isFullyConverted, Locale locale) {
         Context ctx = new Context();
         ctx.setLocale(locale);
-        String htmlContent = templateEngine.process("second_pillar_mandate", ctx);
-        return htmlContent;
+        ctx.setVariable("isThirdPillarFullyConverted", isFullyConverted);
+        return templateEngine.process("second_pillar_mandate", ctx);
     }
 
-    public String getThirdPillarHtml(String pensionAccountNumber, Locale locale) {
+    public String getThirdPillarHtml(String pensionAccountNumber, boolean isFullyConverted, Locale locale) {
         Context ctx = new Context();
         ctx.setLocale(locale);
         ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
-        String htmlContent = templateEngine.process("third_pillar_mandate", ctx);
-        return htmlContent;
+        ctx.setVariable("isSecondPillarFullyConverted", isFullyConverted);
+        return templateEngine.process("third_pillar_mandate", ctx);
     }
 }

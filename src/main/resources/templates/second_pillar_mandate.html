@@ -3,6 +3,7 @@
     <body>
         <p th:text="#{mandate.email.greeting}"></p>
         <p th:text="#{mandate.email.content}"></p>
+        <p th:if="${!isThirdPillarFullyConverted}" th:text="#{mandate.email.suggestThirdPillar}"></p>
         <p th:text="#{mandate.email.info}"></p>
         <br>
         <p th:text="#{mandate.email.signature}"></p>

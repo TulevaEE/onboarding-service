@@ -4,6 +4,7 @@ import com.microtripit.mandrillapp.lutung.MandrillApi
 import com.microtripit.mandrillapp.lutung.controller.MandrillMessagesApi
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.config.EmailConfiguration
+import ee.tuleva.onboarding.conversion.ConversionResponseFixture
 import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
 
@@ -25,10 +26,12 @@ class MandateEmailServiceSpec extends Specification {
 
     def "Send second pillar mandate email"() {
         given:
-        emailContentService.getSecondPillarHtml(Locale.ENGLISH) >> "html"
+        def isFullyConverted = false
+        def conversion = ConversionResponseFixture.notFullyConverted()
+        emailContentService.getSecondPillarHtml(isFullyConverted, Locale.ENGLISH) >> "html"
 
         when:
-        mandateService.sendSecondPillarMandate(sampleUser().build(), 123, "file".bytes, Locale.ENGLISH)
+        mandateService.sendSecondPillarMandate(sampleUser().build(), 123, "file".bytes, conversion, Locale.ENGLISH)
 
         then:
         1 * mandrillApi.messages() >> mockMandrillMessageApi()
@@ -36,11 +39,13 @@ class MandateEmailServiceSpec extends Specification {
 
     def "Send third pillar mandate email"() {
         given:
-        emailContentService.getThirdPillarHtml("123", Locale.ENGLISH) >> "html"
+        def isFullyConverted = false
+        def conversion = ConversionResponseFixture.notFullyConverted()
+        emailContentService.getThirdPillarHtml("123", isFullyConverted, Locale.ENGLISH) >> "html"
 
         when:
         mandateService.sendThirdPillarMandate(
-            sampleUser().build(), 123, "file".bytes, "123", Locale.ENGLISH
+            sampleUser().build(), 123, "file".bytes, "123", conversion, Locale.ENGLISH
         )
 
         then:

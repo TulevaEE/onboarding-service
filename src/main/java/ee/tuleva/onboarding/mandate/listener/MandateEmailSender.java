@@ -21,11 +21,13 @@ public class MandateEmailSender {
     @EventListener
     public void onSecondPillarMandateCreatedEvent(SecondPillarMandateCreatedEvent event) {
         ConversionResponse conversion = conversionService.getConversion(event.getUser());
+        UserPreferences userPreferences = episService.getContactDetails(event.getUser());
         emailService.sendSecondPillarMandate(
             event.getUser(),
             event.getMandateId(),
             event.getSignedFile(),
             conversion,
+            userPreferences,
             event.getLocale()
         );
     }
@@ -38,8 +40,8 @@ public class MandateEmailSender {
             event.getUser(),
             event.getMandateId(),
             event.getSignedFile(),
-            userPreferences.getPensionAccountNumber(),
             conversion,
+            userPreferences,
             event.getLocale()
         );
     }

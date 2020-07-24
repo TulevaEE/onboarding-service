@@ -32,9 +32,12 @@ class MandateEmailSenderSpec extends Specification {
         given:
         User user = sampleUser().build()
 
+        UserPreferences contract = new UserPreferences()
+
         SecondPillarMandateCreatedEvent event = new SecondPillarMandateCreatedEvent(
             user, 123, "123".bytes, Locale.ENGLISH
         )
+        1 * episService.getContactDetails(_) >> contract
 
         def conversion = ConversionResponseFixture.notFullyConverted()
         1 * userConversionService.getConversion(event.getUser()) >> conversion
@@ -43,7 +46,7 @@ class MandateEmailSenderSpec extends Specification {
         publisher.publishEvent(event)
 
         then:
-        1 * mandateEmailService.sendSecondPillarMandate(user, 123, _, conversion, Locale.ENGLISH)
+        1 * mandateEmailService.sendSecondPillarMandate(user, 123, _, conversion, contract, Locale.ENGLISH)
     }
 
     def "send email when third pillar mandate event was received" () {
@@ -51,7 +54,6 @@ class MandateEmailSenderSpec extends Specification {
         User user = sampleUser().build()
 
         UserPreferences contract = new UserPreferences()
-        contract.setPensionAccountNumber("testPensionNumber")
 
         ThirdPillarMandateCreatedEvent event = new ThirdPillarMandateCreatedEvent(
             user, 123, "123".bytes, Locale.ENGLISH
@@ -64,6 +66,6 @@ class MandateEmailSenderSpec extends Specification {
         when:
         publisher.publishEvent(event)
         then:
-        1 * mandateEmailService.sendThirdPillarMandate(user, 123, _, "testPensionNumber", conversion, Locale.ENGLISH)
+        1 * mandateEmailService.sendThirdPillarMandate(user, 123, _, conversion, contract, Locale.ENGLISH)
     }
 }

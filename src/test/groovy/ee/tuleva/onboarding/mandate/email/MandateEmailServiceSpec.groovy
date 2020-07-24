@@ -5,6 +5,7 @@ import com.microtripit.mandrillapp.lutung.controller.MandrillMessagesApi
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.config.EmailConfiguration
 import ee.tuleva.onboarding.conversion.ConversionResponseFixture
+import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
 
@@ -26,12 +27,16 @@ class MandateEmailServiceSpec extends Specification {
 
     def "Send second pillar mandate email"() {
         given:
+        def user = sampleUser().build()
         def isFullyConverted = false
+        def isThirdPillarActive = false
         def conversion = ConversionResponseFixture.notFullyConverted()
-        emailContentService.getSecondPillarHtml(isFullyConverted, Locale.ENGLISH) >> "html"
+        UserPreferences userPreferences = new UserPreferences()
+        emailContentService.getSecondPillarHtml(user, isFullyConverted, isThirdPillarActive, Locale.ENGLISH) >> "html"
 
         when:
-        mandateService.sendSecondPillarMandate(sampleUser().build(), 123, "file".bytes, conversion, Locale.ENGLISH)
+        mandateService.sendSecondPillarMandate(
+            sampleUser().build(), 123, "file".bytes, conversion, userPreferences, Locale.ENGLISH)
 
         then:
         1 * mandrillApi.messages() >> mockMandrillMessageApi()
@@ -39,14 +44,17 @@ class MandateEmailServiceSpec extends Specification {
 
     def "Send third pillar mandate email"() {
         given:
+        def user = sampleUser().build()
         def isFullyConverted = false
+        def isSecondPillarActive = false
         def conversion = ConversionResponseFixture.notFullyConverted()
-        emailContentService.getThirdPillarHtml("123", isFullyConverted, Locale.ENGLISH) >> "html"
+        UserPreferences userPreferences = new UserPreferences()
+        emailContentService.getThirdPillarHtml(
+            user, "123", isFullyConverted, isSecondPillarActive, Locale.ENGLISH) >> "html"
 
         when:
         mandateService.sendThirdPillarMandate(
-            sampleUser().build(), 123, "file".bytes, "123", conversion, Locale.ENGLISH
-        )
+            sampleUser().build(), 123, "file".bytes, conversion, userPreferences, Locale.ENGLISH)
 
         then:
         1 * mandrillApi.messages() >> mockMandrillMessageApi()

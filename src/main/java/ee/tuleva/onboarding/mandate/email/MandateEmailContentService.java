@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.mandate.email;
 
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.member.Member;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,18 +17,25 @@ public class MandateEmailContentService {
 
     private final TemplateEngine templateEngine;
 
-    public String getSecondPillarHtml(boolean isFullyConverted, Locale locale) {
+    public String getSecondPillarHtml(User user, boolean isFullyConverted, boolean isThirdPillarActive, Locale locale) {
         Context ctx = new Context();
         ctx.setLocale(locale);
+        ctx.setVariable("firstName", user.getFirstName());
+        ctx.setVariable("isMember", user.isMember());
+        ctx.setVariable("isThirdPillarActive", isThirdPillarActive);
         ctx.setVariable("isThirdPillarFullyConverted", isFullyConverted);
         return templateEngine.process("second_pillar_mandate", ctx);
     }
 
-    public String getThirdPillarHtml(String pensionAccountNumber, boolean isFullyConverted, Locale locale) {
+    public String getThirdPillarHtml(User user, String pensionAccountNumber, boolean isFullyConverted,
+                                     boolean isSecondPillarActive, Locale locale) {
         Context ctx = new Context();
         ctx.setLocale(locale);
-        ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
+        ctx.setVariable("firstName", user.getFirstName());
+        ctx.setVariable("isMember", user.isMember());
+        ctx.setVariable("isSecondPillarActive", isSecondPillarActive);
         ctx.setVariable("isSecondPillarFullyConverted", isFullyConverted);
+        ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
         return templateEngine.process("third_pillar_mandate", ctx);
     }
 }

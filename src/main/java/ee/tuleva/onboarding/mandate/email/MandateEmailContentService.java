@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.mandate.email;
+
+import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.servlet.LocaleResolver;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
-import javax.servlet.http.HttpServletRequest;
 import java.util.Locale;
 
 @Service
@@ -16,18 +16,25 @@ public class MandateEmailContentService {
 
     private final TemplateEngine templateEngine;
 
-    public String getSecondPillarHtml(Locale locale) {
+    public String getSecondPillarHtml(User user, boolean isFullyConverted, boolean isThirdPillarActive, Locale locale) {
         Context ctx = new Context();
         ctx.setLocale(locale);
-        String htmlContent = templateEngine.process("second_pillar_mandate", ctx);
-        return htmlContent;
+        ctx.setVariable("firstName", user.getFirstName());
+        ctx.setVariable("isMember", user.isMember());
+        ctx.setVariable("isThirdPillarActive", isThirdPillarActive);
+        ctx.setVariable("isThirdPillarFullyConverted", isFullyConverted);
+        return templateEngine.process("second_pillar_mandate", ctx);
     }
 
-    public String getThirdPillarHtml(String pensionAccountNumber, Locale locale) {
+    public String getThirdPillarHtml(User user, String pensionAccountNumber, boolean isFullyConverted,
+                                     boolean isSecondPillarActive, Locale locale) {
         Context ctx = new Context();
         ctx.setLocale(locale);
+        ctx.setVariable("firstName", user.getFirstName());
+        ctx.setVariable("isMember", user.isMember());
+        ctx.setVariable("isSecondPillarActive", isSecondPillarActive);
+        ctx.setVariable("isSecondPillarFullyConverted", isFullyConverted);
         ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
-        String htmlContent = templateEngine.process("third_pillar_mandate", ctx);
-        return htmlContent;
+        return templateEngine.process("third_pillar_mandate", ctx);
     }
 }

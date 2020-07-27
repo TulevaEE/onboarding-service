@@ -21,7 +21,7 @@
         </p>
         <br>
         <p th:if="${!isSecondPillarActive && !isMember}" th:text="#{mandate.email.suggestMembership}"></p>
-        <p th:if="${isSecondPillarActive && !isSecondPillarFullyConverted && !isMember}" th:text="#{mandate.email.suggestSecondPillar}"></p>
+        <p th:if="${isSecondPillarActive && !isSecondPillarFullyConverted && !isMember}" th:utext="#{mandate.email.suggestSecondPillar}"></p>
         <p th:if="${isSecondPillarFullyConverted && !isMember}" th:text="#{mandate.email.suggestMembership}"></p>
 
         <p th:text="#{mandate.email.mandate}"></p>

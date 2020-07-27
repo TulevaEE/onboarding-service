@@ -27,6 +27,7 @@ epis:
     bic: "ECSDEE20"
 
 logging.level:
+  ee.tuleva: DEBUG
   org.hibernate.type: TRACE
   org.springframework.test.context.cache: DEBUG
 

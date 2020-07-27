@@ -4,12 +4,12 @@ import com.microtripit.mandrillapp.lutung.MandrillApi
 import com.microtripit.mandrillapp.lutung.controller.MandrillMessagesApi
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.config.EmailConfiguration
-import ee.tuleva.onboarding.conversion.ConversionResponseFixture
 import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
 
 class MandateEmailServiceSpec extends Specification {
 
@@ -30,7 +30,7 @@ class MandateEmailServiceSpec extends Specification {
         def user = sampleUser().build()
         def isFullyConverted = false
         def isThirdPillarActive = false
-        def conversion = ConversionResponseFixture.notFullyConverted()
+        def conversion = notFullyConverted()
         UserPreferences userPreferences = new UserPreferences()
         emailContentService.getSecondPillarHtml(user, isFullyConverted, isThirdPillarActive, Locale.ENGLISH) >> "html"
 
@@ -47,7 +47,7 @@ class MandateEmailServiceSpec extends Specification {
         def user = sampleUser().build()
         def isFullyConverted = false
         def isSecondPillarActive = false
-        def conversion = ConversionResponseFixture.notFullyConverted()
+        def conversion = notFullyConverted()
         UserPreferences userPreferences = new UserPreferences()
         emailContentService.getThirdPillarHtml(
             user, "123", isFullyConverted, isSecondPillarActive, Locale.ENGLISH) >> "html"

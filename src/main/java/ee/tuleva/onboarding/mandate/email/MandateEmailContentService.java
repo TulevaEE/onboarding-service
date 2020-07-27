@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.mandate.email;
 
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.member.Member;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

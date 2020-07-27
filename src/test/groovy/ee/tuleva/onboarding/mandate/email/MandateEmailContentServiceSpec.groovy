@@ -108,7 +108,7 @@ class MandateEmailContentServiceSpec extends Specification {
 
         then:
         html.contains('You are now saving for your pension alongside me and other Tuleva members.')
-        html.contains('Bring your second pillar to Tuleva.')
+        html.contains('Also, make sure your second pillar is in a fund with low fees.')
         html.contains('test_account_1')
     }
 

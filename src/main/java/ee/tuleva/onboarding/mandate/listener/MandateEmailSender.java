@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.mandate.email.MandateEmailService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -17,7 +16,6 @@ public class MandateEmailSender {
     private final EpisService episService;
     private final UserConversionService conversionService;
 
-    @Async
     @EventListener
     public void onSecondPillarMandateCreatedEvent(SecondPillarMandateCreatedEvent event) {
         ConversionResponse conversion = conversionService.getConversion(event.getUser());

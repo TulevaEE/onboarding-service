@@ -77,7 +77,7 @@ dependencies {
 		exclude group: 'commons-logging', module: 'commons-logging'
 	}
 	implementation('ee.sk.smartid:smart-id-java-client:1.6')
-	implementation('org.digidoc4j:digidoc4j:4.0.0') {
+	implementation('org.digidoc4j:digidoc4j:4.0.1') {
 		exclude group: 'commons-logging', module: 'commons-logging'
 	}
 

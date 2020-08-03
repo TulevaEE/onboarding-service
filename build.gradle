@@ -90,7 +90,7 @@ dependencies {
 
 	implementation('com.sun.xml.ws:jaxws-rt:2.3.2-1')
 
-	implementation('ee.sk.mid:mid-rest-java-client:1.1')
+	implementation('ee.sk.mid:mid-rest-java-client:1.2')
 
 	testImplementation("com.h2database:h2")
 	testImplementation("org.springframework.boot:spring-boot-starter-test") {

@@ -88,8 +88,6 @@ dependencies {
 	implementation('org.hibernate:hibernate-java8')
 	implementation('com.mandrillapp.wrapper.lutung:lutung:0.0.8')
 
-	implementation('com.ecwid:maleorang:3.0-0.9.6')
-
 	implementation('com.sun.xml.ws:jaxws-rt:2.3.2-1')
 
 	implementation('ee.sk.mid:mid-rest-java-client:1.1')

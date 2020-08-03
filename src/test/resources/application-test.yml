@@ -31,12 +31,6 @@ logging.level:
   org.hibernate.type: TRACE
   org.springframework.test.context.cache: DEBUG
 
-mailchimp:
-  api:
-    key: someKey
-  list:
-    id: someId
-
 morningstar:
   host: localhost
   port: 21

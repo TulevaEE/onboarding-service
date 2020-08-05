@@ -1,8 +1,5 @@
 package ee.tuleva.onboarding.mandate
 
-import com.codeborne.security.mobileid.IdCardSignatureSession
-import com.codeborne.security.mobileid.MobileIdSignatureSession
-import com.codeborne.security.mobileid.SignatureFile
 import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.aml.AmlService
 import ee.tuleva.onboarding.epis.EpisService
@@ -17,6 +14,9 @@ import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.listener.SecondPillarMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
+import ee.tuleva.onboarding.mandate.signature.IdCardSignatureSession
+import ee.tuleva.onboarding.mandate.signature.MobileIdSignatureSession
+import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.SignatureService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService

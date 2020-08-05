@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.mandate
 
-import com.codeborne.security.mobileid.IdCardSignatureSession
-import com.codeborne.security.mobileid.MobileIdSignatureSession
-import com.codeborne.security.mobileid.SignatureFile
 import ee.sk.mid.MidAuthenticationHashToSign
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.exception.IdSessionException
+import ee.tuleva.onboarding.mandate.signature.IdCardSignatureSession
+import ee.tuleva.onboarding.mandate.signature.MobileIdSignatureSession
+import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc

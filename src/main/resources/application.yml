@@ -61,10 +61,6 @@ management:
 ssl:
   trustAllHTTPSHosts: true
 
-digidoc:
-  service:
-    url: https://tsp.demo.sk.ee/
-
 mobile-id:
   hostUrl: 'https://tsp.demo.sk.ee/mid-api'
   pollingSleepTimeoutSeconds: 1
@@ -176,10 +172,6 @@ mobile-id:
 
 truststore:
   path: "/home/webapp/truststore.jks"
-
-digidoc:
-  service:
-    url: https://digidocservice.sk.ee/
 
 mandrill:
   key: ${MANDRILL_KEY}

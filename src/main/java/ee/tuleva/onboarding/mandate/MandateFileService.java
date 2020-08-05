@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.mandate;
 
-import com.codeborne.security.mobileid.SignatureFile;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
+import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate.signature;
 
-import com.codeborne.security.mobileid.SignatureFile;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.digidoc4j.*;
@@ -35,7 +34,8 @@ public class DigiDocFacade {
         ContainerBuilder builder = ContainerBuilder
             .aContainer()
             .withConfiguration(digiDocConfig);
-        files.forEach(file -> builder.withDataFile(new ByteArrayInputStream(file.content), file.name, file.mimeType));
+        files.forEach(file -> builder.withDataFile(new ByteArrayInputStream(file.getContent()), file.getName(),
+            file.getMimeType()));
         return builder.build();
     }
 

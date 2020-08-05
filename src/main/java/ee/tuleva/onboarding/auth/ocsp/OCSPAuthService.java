@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.auth.ocsp;
 
-import com.codeborne.security.mobileid.CheckCertificateResponse;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.asn1.x500.RDN;
@@ -44,7 +43,7 @@ public class OCSPAuthService {
 
   @NotNull
   private CheckCertificateResponse getCreateCertificateResponse(X509Certificate cert) {
-    X500Name x500name = null;
+    X500Name x500name;
     try {
       x500name = new JcaX509CertificateHolder(cert).getSubject();
     } catch (CertificateEncodingException e) {

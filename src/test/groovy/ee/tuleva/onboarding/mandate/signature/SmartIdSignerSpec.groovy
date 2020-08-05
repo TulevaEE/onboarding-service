@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate.signature
 
-import com.codeborne.security.mobileid.SignatureFile
 import ee.sk.smartid.*
 import ee.sk.smartid.rest.SmartIdConnector
 import ee.sk.smartid.rest.dao.SessionStatus

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate
 
-import com.codeborne.security.mobileid.SignatureFile
+import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import spock.lang.Specification
 
 

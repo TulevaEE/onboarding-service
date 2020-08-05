@@ -1,8 +1,5 @@
 package ee.tuleva.onboarding.mandate;
 
-import com.codeborne.security.mobileid.IdCardSignatureSession;
-import com.codeborne.security.mobileid.MobileIdSignatureSession;
-import com.codeborne.security.mobileid.SignatureFile;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -13,7 +10,13 @@ import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
-import ee.tuleva.onboarding.mandate.response.*;
+import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
+import ee.tuleva.onboarding.mandate.response.IdCardSignatureStatusResponse;
+import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
+import ee.tuleva.onboarding.mandate.response.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.mandate.signature.IdCardSignatureSession;
+import ee.tuleva.onboarding.mandate.signature.MobileIdSignatureSession;
+import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -81,7 +84,7 @@ public class MandateController {
             mandateId, authenticatedPerson.getUserId(), loginSession.getPhoneNumber());
     sessionStore.save(signatureSession);
 
-    return new MobileSignatureResponse(signatureSession.challenge);
+    return new MobileSignatureResponse(signatureSession.getChallenge());
   }
 
   @ApiOperation(value = "Is mandate successfully signed with mobile ID")
@@ -99,7 +102,7 @@ public class MandateController {
         mandateService.finalizeMobileIdSignature(
             authenticatedPerson.getUserId(), mandateId, session);
 
-    return new MobileSignatureStatusResponse(statusCode, session.challenge);
+    return new MobileSignatureStatusResponse(statusCode, session.getChallenge());
   }
 
   @ApiOperation(value = "Start signing mandate with Smart ID")
@@ -145,7 +148,7 @@ public class MandateController {
 
     sessionStore.save(signatureSession);
 
-    return new IdCardSignatureResponse(signatureSession.hash);
+    return new IdCardSignatureResponse(signatureSession.getHash());
   }
 
   @ApiOperation(value = "Is mandate successfully signed with ID card")

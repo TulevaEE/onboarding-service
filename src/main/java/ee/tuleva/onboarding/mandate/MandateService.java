@@ -1,8 +1,5 @@
 package ee.tuleva.onboarding.mandate;
 
-import com.codeborne.security.mobileid.IdCardSignatureSession;
-import com.codeborne.security.mobileid.MobileIdSignatureSession;
-import com.codeborne.security.mobileid.SignatureFile;
 import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
@@ -13,15 +10,13 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWithUser;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.listener.MandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
-import ee.tuleva.onboarding.mandate.signature.SignatureService;
-import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession;
-import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.mandate.signature.*;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.LocaleResolver;
 
 import javax.servlet.http.HttpServletRequest;

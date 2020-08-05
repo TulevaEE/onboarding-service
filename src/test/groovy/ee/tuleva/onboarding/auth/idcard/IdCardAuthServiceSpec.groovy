@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.idcard
 
-import com.codeborne.security.mobileid.CheckCertificateResponse
+import ee.tuleva.onboarding.auth.ocsp.CheckCertificateResponse
 import ee.tuleva.onboarding.auth.ocsp.OCSPAuthService
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import spock.lang.Specification

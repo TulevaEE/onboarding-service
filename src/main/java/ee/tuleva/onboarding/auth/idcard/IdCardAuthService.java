@@ -1,21 +1,22 @@
 package ee.tuleva.onboarding.auth.idcard;
 
-import static org.apache.commons.io.IOUtils.toInputStream;
-import static org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils.parseExtensionValue;
-
-import com.codeborne.security.mobileid.CheckCertificateResponse;
+import ee.tuleva.onboarding.auth.ocsp.CheckCertificateResponse;
 import ee.tuleva.onboarding.auth.ocsp.OCSPAuthService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
-import java.io.IOException;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.Objects;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.bouncycastle.asn1.DLSequence;
 import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
+import java.util.Objects;
+
+import static org.apache.commons.io.IOUtils.toInputStream;
+import static org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils.parseExtensionValue;
 
 @Service
 @Slf4j
@@ -34,9 +35,9 @@ public class IdCardAuthService {
     CheckCertificateResponse response = authenticator.checkCertificate(certificate);
     IdCardSession session =
         IdCardSession.builder()
-            .firstName(response.firstName)
-            .lastName(response.lastName)
-            .personalCode(response.personalCode)
+            .firstName(response.getFirstName())
+            .lastName(response.getLastName())
+            .personalCode(response.getPersonalCode())
             .documentType(getDocumentTypeFromCertificate(certificate))
             .build();
     sessionStore.save(session);

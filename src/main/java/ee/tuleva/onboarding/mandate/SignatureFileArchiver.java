@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.mandate;
 
-import com.codeborne.security.mobileid.SignatureFile;
+import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -13,28 +14,23 @@ import java.util.zip.ZipOutputStream;
 public class SignatureFileArchiver {
 
     public void writeSignatureFilesToZipOutputStream(List<SignatureFile> files, OutputStream outputStream) {
-
-        ZipOutputStream out = new ZipOutputStream(outputStream);
-
-        files.forEach( file -> {
-            writeZipEntry(file, out);
-        });
-
         try {
+            ZipOutputStream out = new ZipOutputStream(outputStream);
+            files.forEach(file -> writeZipEntry(file, out));
             out.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new UncheckedIOException(e);
         }
     }
 
     private void writeZipEntry(SignatureFile file, ZipOutputStream out) {
-        ZipEntry e = new ZipEntry(file.name);
         try {
-            out.putNextEntry(e);
-            out.write(file.content, 0, file.content.length);
+            ZipEntry entry = new ZipEntry(file.getName());
+            out.putNextEntry(entry);
+            out.write(file.getContent(), 0, file.getContent().length);
             out.closeEntry();
-        } catch (IOException e1) {
-            e1.printStackTrace();
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
         }
     }
 

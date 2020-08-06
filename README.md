@@ -4,7 +4,7 @@
 [![codecov](https://codecov.io/gh/TulevaEE/onboarding-service/branch/master/graph/badge.svg)](https://codecov.io/gh/TulevaEE/onboarding-service)
 
 ## Prerequisites
- 
+
 - JDK 8
 - Groovy
 - Git
@@ -85,6 +85,13 @@ then you can mock `TransferExchangeService.java`, which calls epis-service.
 Make sure you are running against the right backend environment (dev or prod).
 - If you do `npm run develop` your `package.json` must proxy to `http://localhost:9000`
 - If you do `npm run develop-production` your `package.json` must proxy to `https://onboarding-service.tuleva.ee`
+
+### Known Issues
+
+- Digital signing does not work in the dev environment. Use the production
+ configuration to test it locally. See `DigiDocConfiguration.digiDocConfigDev()` and
+  `mobile-id.hostUrl`, `smartid.relyingPartyUUID`, `smartid.relyingPartyName` config
+   values in `application.yml` and change them to production values. Use VPN for testing.
 
 ### References
 

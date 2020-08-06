@@ -2,29 +2,22 @@ package ee.tuleva.onboarding.mandate.signature;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
+import org.digidoc4j.Container;
+import org.digidoc4j.DataToSign;
 
 import java.io.Serializable;
 
-import static java.lang.Integer.parseInt;
-
 @Getter
 @RequiredArgsConstructor
+@ToString
 public class MobileIdSignatureSession implements Serializable {
 
-	private static final long serialVersionUID = -7443368341567864757L;
+    private static final long serialVersionUID = -7443368341567864757L;
 
-	private final int sessCode;
-
-	private final String challenge;
-
-	@Override
-	public String toString() {
-		return sessCode + ":::" + challenge;
-	}
-
-	public static MobileIdSignatureSession fromString(String serializedMobileIdSignatureSession) {
-		String[] tokens = serializedMobileIdSignatureSession.split(":::");
-		return new MobileIdSignatureSession(parseInt(tokens[0]), tokens[1]);
-	}
+    private final String sessionId;
+    private final String verificationCode;
+    private final DataToSign dataToSign;
+    private final Container container;
 
 }

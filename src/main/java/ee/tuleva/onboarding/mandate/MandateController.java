@@ -84,7 +84,7 @@ public class MandateController {
             mandateId, authenticatedPerson.getUserId(), loginSession.getPhoneNumber());
     sessionStore.save(signatureSession);
 
-    return new MobileSignatureResponse(signatureSession.getChallenge());
+    return new MobileSignatureResponse(signatureSession.getVerificationCode());
   }
 
   @ApiOperation(value = "Is mandate successfully signed with mobile ID")
@@ -102,7 +102,7 @@ public class MandateController {
         mandateService.finalizeMobileIdSignature(
             authenticatedPerson.getUserId(), mandateId, session);
 
-    return new MobileSignatureStatusResponse(statusCode, session.getChallenge());
+    return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
   }
 
   @ApiOperation(value = "Start signing mandate with Smart ID")

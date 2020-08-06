@@ -1,28 +1,24 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
 import ee.sk.mid.MidHashToSign;
-import java.io.Serializable;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+import java.io.Serializable;
 
 @Getter
+@RequiredArgsConstructor
 public class MobileIDSession implements Serializable {
+
   private static final long serialVersionUID = -7501351267187058440L;
 
-  private String firstName;
-  private String lastName;
-  private String personalCode;
-  private String challenge;
-  private String sessionId;
-  private String phoneNumber;
-  private MidHashToSign authenticationHash;
-
-  public MobileIDSession(
-      String sessionId, String challenge, MidHashToSign authenticationHash, String phoneNumber) {
-    this.challenge = challenge;
-    this.sessionId = sessionId;
-    this.phoneNumber = phoneNumber;
-    this.authenticationHash = authenticationHash;
-  }
+    private final String sessionId;
+    private final String challenge;
+    private final MidHashToSign authenticationHash;
+    private final String phoneNumber;
+    private String firstName;
+    private String lastName;
+    private String personalCode;
 
   public String getFullName() {
     return firstName + "\u00A0" + lastName;

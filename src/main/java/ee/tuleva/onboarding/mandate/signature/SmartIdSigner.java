@@ -8,15 +8,12 @@ import ee.sk.smartid.rest.dao.SessionStatus;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import org.apache.commons.io.IOUtils;
 import org.digidoc4j.Container;
 import org.digidoc4j.DataToSign;
-import org.digidoc4j.Signature;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
-import java.io.InputStream;
 import java.security.cert.X509Certificate;
 import java.util.List;
 
@@ -75,7 +72,8 @@ public class SmartIdSigner {
             .createSmartIdCertificate(certificateSessionStatus);
 
         X509Certificate certificate = smartIdCertificate.getCertificate();
-        Container container = digiDocFacade.buildContainer(session.getFiles());
+        List<SignatureFile> files = session.getFiles();
+        Container container = digiDocFacade.buildContainer(files);
 
         DataToSign dataToSign = digiDocFacade.dataToSign(container, certificate);
         byte[] digestToSign = digiDocFacade.digestToSign(dataToSign);
@@ -101,16 +99,8 @@ public class SmartIdSigner {
             signatureRequestBuilder(session.getSignableHash(), session.getDocumentNumber())
                 .createSmartIdSignature(signingSessionStatus);
 
-        byte[] signatureValue = smartIdSignature.getValue();
-
-        DataToSign dataToSign = session.getDataToSign();
-        Signature signature = dataToSign.finalize(signatureValue);
-
-        Container container = session.getContainer();
-        container.addSignature(signature);
-
-        InputStream containerStream = container.saveAsStream();
-        return IOUtils.toByteArray(containerStream);
+        return digiDocFacade.addSignatureToContainer(smartIdSignature.getValue(), session.getDataToSign(),
+            session.getContainer());
     }
 
     @NotNull

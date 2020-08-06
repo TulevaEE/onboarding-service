@@ -11,6 +11,7 @@ import java.util.List;
 public class SignatureService {
 
     private final SmartIdSigner smartIdSigner;
+    private final MobileIdSigner mobileIdSigner;
 //    private final MobileIDAuthenticator signer;
 
     public SmartIdSignatureSession startSmartIdSign(List<SignatureFile> files, String personalCode) {
@@ -21,14 +22,12 @@ public class SignatureService {
         return smartIdSigner.getSignedFile(session);
     }
 
-    public MobileIdSignatureSession startSign(List<SignatureFile> files, String personalCode, String phone) {
-        throw new NotImplementedException("TODO");
-//        return signer.startSign(files, personalCode, phone);
+    public MobileIdSignatureSession startSign(List<SignatureFile> files, String personalCode, String phoneNumber) {
+        return mobileIdSigner.startSign(files, personalCode, phoneNumber);
     }
 
     public byte[] getSignedFile(MobileIdSignatureSession session) {
-        throw new NotImplementedException("TODO");
-//        return signer.getSignedFile(session);
+        return mobileIdSigner.getSignedFile(session);
     }
 
     public IdCardSignatureSession startSign(List<SignatureFile> files, String signingCertificate) {

@@ -5,10 +5,10 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.exception.IdSessionException
-import ee.tuleva.onboarding.mandate.signature.IdCardSignatureSession
-import ee.tuleva.onboarding.mandate.signature.MobileIdSignatureSession
+import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
+import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
-import ee.tuleva.onboarding.mandate.signature.SmartIdSignatureSession
+import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult

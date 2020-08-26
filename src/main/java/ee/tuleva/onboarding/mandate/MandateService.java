@@ -11,6 +11,9 @@ import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.listener.MandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.*;
+import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
+import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
+import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
@@ -99,7 +102,7 @@ public class MandateService {
     public MobileIdSignatureSession mobileIdSign(Long mandateId, Long userId, String phoneNumber) {
         User user = userService.getById(userId);
         List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
-        return signService.startSign(files, user.getPersonalCode(), phoneNumber);
+        return signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber);
     }
 
     public SmartIdSignatureSession smartIdSign(Long mandateId, Long userId) {
@@ -134,7 +137,7 @@ public class MandateService {
 
     public IdCardSignatureSession idCardSign(Long mandateId, Long userId, String signingCertificate) {
         List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
-        return signService.startSign(files, signingCertificate);
+        return signService.startIdCardSign(files, signingCertificate);
     }
 
     public String finalizeMobileIdSignature(Long userId, Long mandateId, MobileIdSignatureSession session) {

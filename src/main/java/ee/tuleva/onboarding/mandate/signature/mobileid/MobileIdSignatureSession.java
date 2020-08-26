@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.signature;
+package ee.tuleva.onboarding.mandate.signature.mobileid;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

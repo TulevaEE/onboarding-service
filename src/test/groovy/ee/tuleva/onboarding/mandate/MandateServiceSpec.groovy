@@ -14,8 +14,8 @@ import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.listener.SecondPillarMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
-import ee.tuleva.onboarding.mandate.signature.IdCardSignatureSession
-import ee.tuleva.onboarding.mandate.signature.MobileIdSignatureSession
+import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
+import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.SignatureService
 import ee.tuleva.onboarding.user.User
@@ -121,7 +121,7 @@ class MandateServiceSpec extends Specification {
         given:
         def user = sampleUser()
         1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
-        1 * signService.startSign(_ as List<SignatureFile>, user.personalCode, user.phoneNumber) >>
+        1 * signService.startMobileIdSign(_ as List<SignatureFile>, user.personalCode, user.phoneNumber) >>
             new MobileIdSignatureSession(1, "1234")
 
         when:
@@ -220,7 +220,7 @@ class MandateServiceSpec extends Specification {
         given:
         def user = sampleUser()
         1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
-        1 * signService.startSign(_ as List<SignatureFile>, "signingCertificate") >>
+        1 * signService.startIdCardSign(_ as List<SignatureFile>, "signingCertificate") >>
             new IdCardSignatureSession(1, "sigId", "hash")
 
         when:

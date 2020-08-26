@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.signature;
+package ee.tuleva.onboarding.mandate.signature.smartid;
 
 import ee.sk.smartid.*;
 import ee.sk.smartid.exception.SmartIdException;
@@ -6,6 +6,8 @@ import ee.sk.smartid.rest.SmartIdConnector;
 import ee.sk.smartid.rest.dao.NationalIdentity;
 import ee.sk.smartid.rest.dao.SessionStatus;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import ee.tuleva.onboarding.mandate.signature.DigiDocFacade;
+import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.digidoc4j.Container;

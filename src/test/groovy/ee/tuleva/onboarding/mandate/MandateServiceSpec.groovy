@@ -14,10 +14,10 @@ import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.listener.SecondPillarMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
-import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
-import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.SignatureService
+import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
+import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
@@ -120,27 +120,29 @@ class MandateServiceSpec extends Specification {
     def "mobile id signing works"() {
         given:
         def user = sampleUser()
+        def signatureSession = MobileIdSignatureSession.builder().build()
+
         1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
         1 * signService.startMobileIdSign(_ as List<SignatureFile>, user.personalCode, user.phoneNumber) >>
-            new MobileIdSignatureSession(1, "1234")
+            signatureSession
 
         when:
         def session = service.mobileIdSign(sampleMandateId, user.id, user.phoneNumber)
 
         then:
-        session.sessCode == 1
-        session.challenge == "1234"
+        session == signatureSession
     }
 
     def "finalizeMobileIdSignature: get correct status if currently signing mandate"() {
         given:
         Mandate sampleMandate = sampleUnsignedMandate()
+        def signatureSession = MobileIdSignatureSession.builder().build()
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * signService.getSignedFile(_) >> null
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession)
 
         then:
         status == "OUTSTANDING_TRANSACTION"
@@ -150,13 +152,14 @@ class MandateServiceSpec extends Specification {
         given:
         Mandate sampleMandate = sampleUnsignedMandate()
         byte[] sampleFile = "file".getBytes()
+        def signatureSession = MobileIdSignatureSession.builder().build()
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * signService.getSignedFile(_) >> sampleFile
         1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession)
 
         then:
         1 * mandateProcessor.start(sampleUser, sampleMandate)
@@ -166,13 +169,14 @@ class MandateServiceSpec extends Specification {
     def "finalizeMobileIdSignature: get correct status if mandate is signed and being processed"() {
         given:
         Mandate sampleMandate = sampleMandate()
+        def signatureSession = MobileIdSignatureSession.builder().build()
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> false
         0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession)
 
         then:
         status == "OUTSTANDING_TRANSACTION"
@@ -181,6 +185,7 @@ class MandateServiceSpec extends Specification {
     def "finalizeMobileIdSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
         given:
         Mandate sampleMandate = sampleMandate()
+        def signatureSession = MobileIdSignatureSession.builder().build()
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
@@ -188,7 +193,7 @@ class MandateServiceSpec extends Specification {
         1 * episService.clearCache(sampleUser)
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession)
 
         then:
         status == "SIGNATURE"
@@ -202,6 +207,7 @@ class MandateServiceSpec extends Specification {
     def "finalizeMobileIdSignature: throw exception if mandate is signed and processed and has errors"() {
         given:
         Mandate sampleMandate = sampleMandate()
+        def signatureSession = MobileIdSignatureSession.builder().build()
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
@@ -209,7 +215,7 @@ class MandateServiceSpec extends Specification {
         0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
-        service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, new MobileIdSignatureSession(0, null))
+        service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession)
 
         then:
         thrown InvalidMandateException
@@ -219,30 +225,30 @@ class MandateServiceSpec extends Specification {
     def "id card signing works"() {
         given:
         def user = sampleUser()
+        def signatureSession = IdCardSignatureSession.builder().build()
+
         1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
         1 * signService.startIdCardSign(_ as List<SignatureFile>, "signingCertificate") >>
-            new IdCardSignatureSession(1, "sigId", "hash")
+           signatureSession
 
         when:
         def session = service.idCardSign(sampleMandateId, user.id, "signingCertificate")
 
         then:
-        session.sessCode == 1
-        session.signatureId == "sigId"
-        session.hash == "hash"
+        session == signatureSession
     }
 
     def "finalizeIdCardSignature: throws exception when no signed file exist"() {
         given:
         Mandate sampleMandate = sampleUnsignedMandate()
-        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
+        def signatureSession = IdCardSignatureSession.builder().build()
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
-        1 * signService.getSignedFile(session, "signedHash") >> null
+        1 * signService.getSignedFile(signatureSession, "signedHash") >> null
         0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
-        service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
+        service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash")
 
         then:
         thrown(IllegalStateException)
@@ -251,15 +257,15 @@ class MandateServiceSpec extends Specification {
     def "finalizeIdCardSignature: get correct status if currently signed a mandate and start processing"() {
         given:
         Mandate sampleMandate = sampleUnsignedMandate()
-        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
+        def signatureSession = IdCardSignatureSession.builder().build()
         byte[] sampleFile = "file".getBytes()
-        1 * signService.getSignedFile(session, "signedHash") >> sampleFile
+        1 * signService.getSignedFile(signatureSession, "signedHash") >> sampleFile
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
         0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
-        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
+        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash")
 
         then:
         1 * mandateProcessor.start(sampleUser, sampleMandate)
@@ -269,14 +275,14 @@ class MandateServiceSpec extends Specification {
     def "finalizeIdCardSignature: get correct status if mandate is signed and being processed"() {
         given:
         Mandate sampleMandate = sampleMandate()
-        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
+        def signatureSession = IdCardSignatureSession.builder().build()
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> false
         0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
-        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
+        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash")
 
         then:
         status == "OUTSTANDING_TRANSACTION"
@@ -285,7 +291,7 @@ class MandateServiceSpec extends Specification {
     def "finalizeIdCardSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
         given:
         Mandate sampleMandate = sampleMandate()
-        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
+        def signatureSession = IdCardSignatureSession.builder().build()
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
@@ -293,7 +299,7 @@ class MandateServiceSpec extends Specification {
         1 * episService.clearCache(sampleUser)
 
         when:
-        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
+        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash")
 
         then:
         status == "SIGNATURE"
@@ -307,7 +313,7 @@ class MandateServiceSpec extends Specification {
     def "finalizeIdCardSignature: throw exception if mandate is signed and processed and has errors"() {
         given:
         Mandate sampleMandate = sampleMandate()
-        IdCardSignatureSession session = new IdCardSignatureSession(1, "sigId", "hash")
+        def signatureSession = IdCardSignatureSession.builder().build()
 
         1 * mandateRepository.findByIdAndUserId(sampleMandate.id, sampleUser.id) >> sampleMandate
         1 * mandateProcessor.isFinished(sampleMandate) >> true
@@ -315,7 +321,7 @@ class MandateServiceSpec extends Specification {
         0 * eventPublisher.publishEvent(_ as SecondPillarMandateCreatedEvent)
 
         when:
-        service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, session, "signedHash")
+        service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash")
 
         then:
         thrown InvalidMandateException

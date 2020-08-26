@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.mandate.signature.DigiDocFacade
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSigner
-import org.apache.commons.io.IOUtils
 import org.digidoc4j.Container
 import org.digidoc4j.DataToSign
 import spock.lang.Specification
@@ -118,14 +117,15 @@ class SmartIdSignerSpec extends Specification {
         signatureSession.dataToSign = dataToSign
         signatureSession.container = container
         def completeSession = new SessionStatus(state: "COMPLETE")
-        1 * connector.getSessionStatus(certificateSessionId) >> completeSession
-        1 * connector.getSessionStatus(signingSessionId) >> completeSession
-        1 * sigBuilder.createSmartIdSignature(*_) >> new SmartIdSignature(
+        def signature = new SmartIdSignature(
             valueInBase64: "IA==",
             algorithmName: "SHA256",
             documentNumber: documentNumber
         )
-        container.saveAsStream() >> IOUtils.toInputStream("lol", "UTF-8");
+        1 * connector.getSessionStatus(certificateSessionId) >> completeSession
+        1 * connector.getSessionStatus(signingSessionId) >> completeSession
+        1 * sigBuilder.createSmartIdSignature(*_) >> signature
+        1 * digiDocFacade.addSignatureToContainer(signature.value, dataToSign, container) >> "lol".bytes
 
         when:
         def file = signer.getSignedFile(signatureSession)

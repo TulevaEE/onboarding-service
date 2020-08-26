@@ -30,7 +30,7 @@ class IdCardSignerSpec extends Specification {
         def container = new AsicEContainer()
         def dataToSign = new DataToSign(new byte[0], null)
         def digest = "hello"
-        def digestToSign = digest.getBytes()
+        def digestToSign = digest.bytes
 
         ocspUtils.getX509Certificate(signingCertificate) >> certificate
         digiDocFacade.buildContainer(files) >> container

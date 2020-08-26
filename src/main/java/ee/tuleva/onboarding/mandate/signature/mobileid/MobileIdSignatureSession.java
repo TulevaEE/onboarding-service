@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.signature.mobileid;
 
+import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
@@ -11,6 +12,7 @@ import java.io.Serializable;
 @Getter
 @RequiredArgsConstructor
 @ToString
+@Builder
 public class MobileIdSignatureSession implements Serializable {
 
     private static final long serialVersionUID = -7443368341567864757L;

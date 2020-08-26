@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.signature.idcard;
 
+import lombok.Builder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.ToString;
@@ -11,6 +12,7 @@ import java.io.Serializable;
 @Getter
 @RequiredArgsConstructor
 @ToString
+@Builder
 public class IdCardSignatureSession implements Serializable {
 
     private static final long serialVersionUID = 8149193185518071327L;

@@ -25,7 +25,6 @@ public class IdCardSigner {
 
         DataToSign dataToSign = digiDocFacade.dataToSign(container, certificate);
         byte[] digestToSign = digiDocFacade.digestToSign(dataToSign);
-
         String hash = Base64.encodeBase64String(digestToSign);
 
         return new IdCardSignatureSession(hash, dataToSign, container);

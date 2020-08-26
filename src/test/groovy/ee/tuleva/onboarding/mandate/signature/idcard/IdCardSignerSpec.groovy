@@ -1,10 +1,9 @@
 package ee.tuleva.onboarding.mandate.signature.idcard
 
-
 import ee.tuleva.onboarding.auth.ocsp.OCSPUtils
 import ee.tuleva.onboarding.mandate.signature.DigiDocFacade
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
-import org.apache.commons.codec.binary.Base64
+import org.bouncycastle.util.encoders.Hex
 import org.digidoc4j.DataToSign
 import org.digidoc4j.impl.asic.asice.AsicEContainer
 import spock.lang.Specification
@@ -29,10 +28,10 @@ class IdCardSignerSpec extends Specification {
         def certificate = new X509CertImpl()
         def container = new AsicEContainer()
         def dataToSign = new DataToSign(new byte[0], null)
-        def digest = "hello"
-        def digestToSign = digest.bytes
+        def hashToSign = "hello"
+        def digestToSign = hashToSign.bytes
 
-        ocspUtils.getX509Certificate(signingCertificate) >> certificate
+        ocspUtils.decodeX09Certificate(signingCertificate) >> certificate
         digiDocFacade.buildContainer(files) >> container
         digiDocFacade.dataToSign(container, certificate) >> dataToSign
         digiDocFacade.digestToSign(dataToSign) >> digestToSign
@@ -41,7 +40,7 @@ class IdCardSignerSpec extends Specification {
         def signatureSession = idCardSigner.startSign(files, signingCertificate)
 
         then:
-        new String(Base64.decodeBase64(signatureSession.hash)) == digest
+        new String(Hex.decode(signatureSession.hashToSignInHex)) == hashToSign
         signatureSession.container == container
         signatureSession.dataToSign == dataToSign
     }

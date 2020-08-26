@@ -17,7 +17,7 @@ public class IdCardSignatureSession implements Serializable {
 
     private static final long serialVersionUID = 8149193185518071327L;
 
-    private final String hash;
+    private final String hashToSignInHex;
     private final DataToSign dataToSign;
     private final Container container;
 

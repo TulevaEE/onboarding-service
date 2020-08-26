@@ -122,7 +122,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "id card signature start returns the hash to be signed by the client"() {
         when:
-        mandateService.idCardSign(1L, _, "clientCertificate") >> IdCardSignatureSession.builder().hash("asdfg").build()
+        mandateService.idCardSign(1L, _, "clientCertificate") >> IdCardSignatureSession.builder().hashToSignInHex("asdfg").build()
 
         then:
         mvc

@@ -148,7 +148,7 @@ public class MandateController {
 
     sessionStore.save(signatureSession);
 
-    return new IdCardSignatureResponse(signatureSession.getHash());
+    return new IdCardSignatureResponse(signatureSession.getHashToSignInHex());
   }
 
   @ApiOperation(value = "Is mandate successfully signed with ID card")

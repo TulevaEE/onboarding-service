@@ -49,7 +49,7 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "mobile id signature start returns the mobile id challenge code"() {
         when:
         sessionStore.get(MobileIDSession) >> dummyMobileIdSessionWithPhone("555")
-        mandateService.mobileIdSign(1L, _, "555") >> new MobileIdSignatureSession(1, "1234")
+        mandateService.mobileIdSign(1L, _, "555") >> MobileIdSignatureSession.builder().verificationCode("1234").build()
 
         then:
         mvc
@@ -76,7 +76,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "get mobile ID signature status returns the status and challenge code"() {
         when:
-        def session = new MobileIdSignatureSession(1, "1234")
+        def session = MobileIdSignatureSession.builder().verificationCode("1234").build()
         sessionStore.get(MobileIdSignatureSession) >> Optional.of(session)
         mandateService.finalizeMobileIdSignature(_ as Long, 1L, session) >> "SIGNATURE"
 
@@ -122,7 +122,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "id card signature start returns the hash to be signed by the client"() {
         when:
-        mandateService.idCardSign(1L, _, "clientCertificate") >> new IdCardSignatureSession(1, "sigId", "asdfg")
+        mandateService.idCardSign(1L, _, "clientCertificate") >> IdCardSignatureSession.builder().hash("asdfg").build()
 
         then:
         mvc
@@ -136,7 +136,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "put ID card signature status returns the status code"() {
         when:
-        def session = new IdCardSignatureSession(1, "sigId", "hash")
+        def session = IdCardSignatureSession.builder().build()
         sessionStore.get(IdCardSignatureSession) >> Optional.of(session)
         mandateService.finalizeIdCardSignature(_ as Long, 1L, session, "signedHash") >> "SIGNATURE"
 

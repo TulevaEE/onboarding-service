@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.signature;
+package ee.tuleva.onboarding.mandate.signature.mobileid;
 
 import ee.sk.mid.MidClient;
 import ee.sk.mid.MidHashToSign;
@@ -11,6 +11,8 @@ import ee.sk.mid.rest.dao.request.MidSessionStatusRequest;
 import ee.sk.mid.rest.dao.request.MidSignatureRequest;
 import ee.sk.mid.rest.dao.response.MidCertificateChoiceResponse;
 import ee.sk.mid.rest.dao.response.MidSignatureResponse;
+import ee.tuleva.onboarding.mandate.signature.DigiDocFacade;
+import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.digidoc4j.Container;

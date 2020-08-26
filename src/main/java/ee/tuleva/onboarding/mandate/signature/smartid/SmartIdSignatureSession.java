@@ -1,6 +1,7 @@
-package ee.tuleva.onboarding.mandate.signature;
+package ee.tuleva.onboarding.mandate.signature.smartid;
 
 import ee.sk.smartid.SignableHash;
+import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import lombok.Data;
 import org.digidoc4j.Container;
 import org.digidoc4j.DataToSign;

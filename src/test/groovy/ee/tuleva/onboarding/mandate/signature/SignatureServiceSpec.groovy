@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.mandate.signature
 
+import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
+import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
+import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession
+import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSigner
 import spock.lang.Ignore
 import spock.lang.Specification
 
@@ -20,7 +24,7 @@ class SignatureServiceSpec extends Specification {
         signer.startSign(files, "38501010002", "55555555") >> new MobileIdSignatureSession(1, "1234")
 
         when:
-        MobileIdSignatureSession session = service.startSign(files, "38501010002", "55555555")
+        MobileIdSignatureSession session = service.startMobileIdSign(files, "38501010002", "55555555")
 
         then:
         session.challenge == "1234"
@@ -46,7 +50,7 @@ class SignatureServiceSpec extends Specification {
         signer.startSign(files, "signCert") >> expectedSession
 
         when:
-        def session = service.startSign(files, "signCert")
+        def session = service.startIdCardSign(files, "signCert")
 
         then:
         session == expectedSession

@@ -1,9 +1,13 @@
-package ee.tuleva.onboarding.mandate.signature
+package ee.tuleva.onboarding.mandate.signature.smartid
 
 import ee.sk.smartid.*
 import ee.sk.smartid.rest.SmartIdConnector
 import ee.sk.smartid.rest.dao.SessionStatus
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import ee.tuleva.onboarding.mandate.signature.DigiDocFacade
+import ee.tuleva.onboarding.mandate.signature.SignatureFile
+import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession
+import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSigner
 import org.apache.commons.io.IOUtils
 import org.digidoc4j.Container
 import org.digidoc4j.DataToSign

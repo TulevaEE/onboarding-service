@@ -1,0 +1,22 @@
+package ee.tuleva.onboarding.mandate.signature.idcard;
+
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
+import org.digidoc4j.Container;
+import org.digidoc4j.DataToSign;
+
+import java.io.Serializable;
+
+@Getter
+@RequiredArgsConstructor
+@ToString
+public class IdCardSignatureSession implements Serializable {
+
+    private static final long serialVersionUID = 8149193185518071327L;
+
+    private final String hash;
+    private final DataToSign dataToSign;
+    private final Container container;
+
+}

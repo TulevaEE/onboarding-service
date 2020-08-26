@@ -1,19 +1,5 @@
 package ee.tuleva.onboarding.auth.ocsp;
 
-import static ee.tuleva.onboarding.auth.ocsp.AuthenticationException.Code.INVALID_INPUT;
-
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.security.cert.CertificateEncodingException;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.security.cert.X509Extension;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1OctetString;
 import org.bouncycastle.asn1.ASN1Primitive;
@@ -32,6 +18,17 @@ import org.bouncycastle.operator.DigestCalculatorProvider;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.springframework.stereotype.Component;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.net.URI;
+import java.security.cert.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static ee.tuleva.onboarding.auth.ocsp.AuthenticationException.Code.INVALID_INPUT;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Component
 public class OCSPUtils {
@@ -99,12 +96,12 @@ public class OCSPUtils {
   }
 
   public X509Certificate getX509Certificate(String certificate) {
-    CertificateFactory cf = null;
+    CertificateFactory certificateFactory;
     try {
-      cf = CertificateFactory.getInstance("X.509");
+      certificateFactory = CertificateFactory.getInstance("X.509");
       return (X509Certificate)
-          cf.generateCertificate(new ByteArrayInputStream(certificate.getBytes("UTF-8")));
-    } catch (CertificateException | UnsupportedEncodingException e) {
+          certificateFactory.generateCertificate(new ByteArrayInputStream(certificate.getBytes(UTF_8)));
+    } catch (CertificateException e) {
       throw new AuthenticationException(INVALID_INPUT, "Unable to read certificate", e);
     }
   }
@@ -114,12 +111,12 @@ public class OCSPUtils {
 
     try {
       CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-      InputStream in = new ByteArrayInputStream(certificationAuthority.getBytes("UTF-8"));
+      InputStream in = new ByteArrayInputStream(certificationAuthority.getBytes(UTF_8));
       X509Certificate issuerCert = (X509Certificate) certFactory.generateCertificate(in);
 
       OCSPReq ocspReq = getCreateOCSPReq(issuerCert, certificate);
       return new OCSPRequest(responderUrl, certificate, ocspReq);
-    } catch (CertificateException | UnsupportedEncodingException e) {
+    } catch (CertificateException e) {
       throw new AuthenticationException(
           AuthenticationException.Code.UNABLE_TO_TEST_USER_CERTIFICATE, "Uncaught error", e);
     }

@@ -9,7 +9,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toList;
+import static org.apache.commons.lang3.ObjectUtils.compare;
 
 @Service
 @Slf4j
@@ -24,6 +26,9 @@ public class AccountStatementService {
 
         return accountStatement.stream()
             .filter(fundBalanceDto -> fundBalanceDto.getIsin() != null)
+            .filter(fundBalanceDto ->
+                compare(ZERO, fundBalanceDto.getValue()) != 0 || fundBalanceDto.isActiveContributions()
+            )
             .map(fundBalanceDto -> convertToFundBalance(fundBalanceDto, person))
             .collect(toList());
     }

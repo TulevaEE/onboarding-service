@@ -155,14 +155,14 @@ public class MandateService {
         return getStatus(user, mandate, signService.getSignedFile(session));
     }
 
-    public String finalizeIdCardSignature(Long userId, Long mandateId, IdCardSignatureSession session, String signedHash) {
+    public String finalizeIdCardSignature(Long userId, Long mandateId, IdCardSignatureSession session, String signedHashInHex) {
         User user = userService.getById(userId);
         Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
         if (isMandateSigned(mandate)) {
             return handleSignedMandate(user, mandate);
         } else {
-            return handleUnsignedMandateIdCard(user, mandate, session, signedHash);
+            return handleUnsignedMandateIdCard(user, mandate, session, signedHashInHex);
         }
     }
 
@@ -196,8 +196,8 @@ public class MandateService {
         }
     }
 
-    private String handleUnsignedMandateIdCard(User user, Mandate mandate, IdCardSignatureSession session, String signedHash) {
-        byte[] signedFile = signService.getSignedFile(session, signedHash);
+    private String handleUnsignedMandateIdCard(User user, Mandate mandate, IdCardSignatureSession session, String signedHashInHex) {
+        byte[] signedFile = signService.getSignedFile(session, signedHashInHex);
         if (signedFile != null) { // TODO: use Optional
             persistSignedFile(mandate, signedFile);
             mandateProcessor.start(user, mandate);

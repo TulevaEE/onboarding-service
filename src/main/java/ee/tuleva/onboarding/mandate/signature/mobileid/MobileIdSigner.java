@@ -32,8 +32,8 @@ import static ee.sk.mid.MidLanguage.ENG;
 @RequiredArgsConstructor
 public class MobileIdSigner {
 
-    private final MidClient client;
-    private final MidConnector connector;
+    private final MidClient mobileIdClient;
+    private final MidConnector mobileIdConnector;
     private final DigiDocFacade digiDocFacade;
 
     @Value("${mobile-id.pollingSleepTimeoutSeconds}")
@@ -59,7 +59,7 @@ public class MobileIdSigner {
             .withDisplayTextFormat(GSM7)
             .build();
 
-        MidSignatureResponse response = connector.sign(request);
+        MidSignatureResponse response = mobileIdConnector.sign(request);
 
         return new MobileIdSignatureSession(response.getSessionID(), verificationCode, dataToSign, container);
     }
@@ -81,9 +81,9 @@ public class MobileIdSigner {
             .withNationalIdentityNumber(nationalIdentityNumber)
             .build();
 
-        MidCertificateChoiceResponse response = connector.getCertificate(request);
+        MidCertificateChoiceResponse response = mobileIdConnector.getCertificate(request);
 
-        return client.createMobileIdCertificate(response);
+        return mobileIdClient.createMobileIdCertificate(response);
     }
 
     private MidHashToSign hashToSign(byte[] data) {
@@ -96,7 +96,7 @@ public class MobileIdSigner {
     @Nullable
     private MidSessionStatus getSessionStatus(String sessionId) {
         MidSessionStatusRequest request = new MidSessionStatusRequest(sessionId, pollingSleepTimeoutSeconds);
-        MidSessionStatus sessionStatus = connector.getSessionStatus(request, "/signature/session/{sessionId}");
+        MidSessionStatus sessionStatus = mobileIdConnector.getSessionStatus(request, "/signature/session/{sessionId}");
         if (sessionStatus == null || "RUNNING".equalsIgnoreCase(sessionStatus.getState())) {
             return null;
         }
@@ -109,7 +109,7 @@ public class MobileIdSigner {
 
     @SneakyThrows
     private byte[] finalizeSignature(MobileIdSignatureSession session, MidSessionStatus sessionStatus) {
-        MidSignature mobileIdSignature = client.createMobileIdSignature(sessionStatus);
+        MidSignature mobileIdSignature = mobileIdClient.createMobileIdSignature(sessionStatus);
         return digiDocFacade.addSignatureToContainer(mobileIdSignature.getValue(), session.getDataToSign(),
             session.getContainer());
     }

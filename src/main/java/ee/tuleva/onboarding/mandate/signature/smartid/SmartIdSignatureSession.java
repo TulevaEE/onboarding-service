@@ -17,7 +17,7 @@ public class SmartIdSignatureSession implements Serializable {
     private final String personalCode;
     private final List<SignatureFile> files;
     private String signingSessionId;
-    private String challengeCode;
+    private String verificationCode;
     private String documentNumber;
     private DataToSign dataToSign;
     private SignableHash signableHash;

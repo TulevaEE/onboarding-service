@@ -1,97 +1,99 @@
 package ee.tuleva.onboarding.mandate.signature
 
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
+import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSigner
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
+import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSigner
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSigner
-import spock.lang.Ignore
 import spock.lang.Specification
 
-@Ignore
 class SignatureServiceSpec extends Specification {
 
     def smartIdSigner = Mock(SmartIdSigner)
-    def signer = Mock()
-    def service = new SignatureService(smartIdSigner, signer)
+    def mobileIdSigner = Mock(MobileIdSigner)
+    def idCardSigner = Mock(IdCardSigner)
+    def service = new SignatureService(smartIdSigner, mobileIdSigner, idCardSigner)
 
     def "startSign() works for mobile id"() {
         given:
-        List<SignatureFile> files = [
-            new SignatureFile("test1.txt", "text/plain", "Test1".bytes),
-            new SignatureFile("test2.txt", "text/plain", "Test2".bytes)
-        ]
+        def files = [new SignatureFile("test.txt", "text/plain", "fileContent".bytes)]
+        def signingSession = Mock(MobileIdSignatureSession)
 
-        signer.startSign(files, "38501010002", "55555555") >> new MobileIdSignatureSession(1, "1234")
+        1 * mobileIdSigner.startSign(files, "38501010002", "55555555") >> signingSession
 
         when:
         MobileIdSignatureSession session = service.startMobileIdSign(files, "38501010002", "55555555")
 
         then:
-        session.challenge == "1234"
-        session.sessCode == 1
+        session == signingSession
     }
 
     def "getSignedFile() works for mobile id"() {
         given:
-        def session = new MobileIdSignatureSession(1, null)
-        signer.getSignedFile(session) >> ([0] as byte[])
+        def session = Mock(MobileIdSignatureSession)
+        def content = "fileContent".bytes
+        mobileIdSigner.getSignedFile(session) >> content
 
         when:
         def fileContent = service.getSignedFile(session)
 
         then:
-        fileContent == [0] as byte[]
+        fileContent == content
     }
 
     def "startSign() works with id card"() {
         given:
-        def expectedSession = new IdCardSignatureSession(1, "sigId", "hash")
-        def files = [new SignatureFile("file.txt", "text/plain", new byte[1])]
-        signer.startSign(files, "signCert") >> expectedSession
+        def signatureSession = Mock(IdCardSignatureSession)
+        def files = [new SignatureFile("file.txt", "text/plain", "fileContent".bytes)]
+        def signingCertificate = "signingCertificate"
+        idCardSigner.startSign(files, signingCertificate) >> signatureSession
 
         when:
-        def session = service.startIdCardSign(files, "signCert")
+        def session = service.startIdCardSign(files, signingCertificate)
 
         then:
-        session == expectedSession
+        session == signatureSession
     }
 
     def "getSignedFile() works with id card"() {
         given:
-        def session = new IdCardSignatureSession(1, "sigId", "hash")
-        def expectedFile = new byte[1]
-        signer.getSignedFile(session, "signedHash") >> expectedFile
+        def session = Mock(IdCardSignatureSession)
+        def file = "fileContent".bytes
+        def signedHashInHex = "signedHashInHex"
+        idCardSigner.getSignedFile(session, signedHashInHex) >> file
 
         when:
-        def file = service.getSignedFile(session, "signedHash")
+        def signedFile = service.getSignedFile(session, signedHashInHex)
 
         then:
-        file == expectedFile
+        signedFile == file
     }
 
     def "startSign() works with smart id"() {
         given:
-        def expectedSession = new SmartIdSignatureSession("certSessionId", "personalCode", [])
-        def files = [new SignatureFile("file.txt", "text/plain", new byte[1])]
-        smartIdSigner.startSign(files, "personalCode") >> expectedSession
+        def signatureSession = Mock(SmartIdSignatureSession)
+        def files = [new SignatureFile("file.txt", "text/plain", "fileContent".bytes)]
+        def personalCode = "38501010002"
+        smartIdSigner.startSign(files, personalCode) >> signatureSession
 
         when:
-        def session = service.startSmartIdSign(files, "personalCode")
+        def session = service.startSmartIdSign(files, personalCode)
 
         then:
-        session == expectedSession
+        session == signatureSession
     }
 
     def "getSignedFile() works with smart id"() {
         given:
-        def session = new SmartIdSignatureSession("certSessionId", "personalCode", [])
-        def expectedFile = new byte[1]
-        smartIdSigner.getSignedFile(session) >> expectedFile
+        def signatureSession = Mock(SmartIdSignatureSession)
+        def file = "fileContent".bytes
+        smartIdSigner.getSignedFile(signatureSession) >> file
 
         when:
-        def file = service.getSignedFile(session)
+        def signedFile = service.getSignedFile(signatureSession)
 
         then:
-        file == expectedFile
+        signedFile == file
     }
 }

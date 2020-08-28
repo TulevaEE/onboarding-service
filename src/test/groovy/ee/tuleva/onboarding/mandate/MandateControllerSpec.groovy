@@ -107,7 +107,7 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "get smart id signature status returns the status and challenge code"() {
         when:
         def session = new SmartIdSignatureSession("certSessionId", "personalCode", [])
-        session.challengeCode = "1234"
+        session.verificationCode = "1234"
         1 * sessionStore.get(SmartIdSignatureSession) >> Optional.of(session)
         1 * mandateService.finalizeSmartIdSignature(_, 1L, session) >> "SIGNATURE"
 

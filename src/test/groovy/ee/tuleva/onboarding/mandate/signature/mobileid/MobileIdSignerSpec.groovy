@@ -36,7 +36,7 @@ class MobileIdSignerSpec extends Specification {
 
         1 * digiDocFacade.buildContainer(files) >> container
         1 * digiDocFacade.dataToSign(*_) >> dataToSign
-        1 * digiDocFacade.digestToSign(_) >> "digest".bytes
+        1 * dataToSign.getDataToSign() >> "dataToSign".bytes
         1 *  mobileIdConnector.sign(_) >> new MidSignatureResponse(sessionId)
 
         when:
@@ -46,7 +46,7 @@ class MobileIdSignerSpec extends Specification {
         signatureSession.sessionId == sessionId
         signatureSession.dataToSign == dataToSign
         signatureSession.container == container
-        signatureSession.verificationCode == "0260"
+        signatureSession.verificationCode == "5072"
     }
 
     def "can get signed file"() {

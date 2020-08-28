@@ -44,9 +44,9 @@ public class MobileIdSigner {
         Container container = digiDocFacade.buildContainer(files);
 
         DataToSign dataToSign = digiDocFacade.dataToSign(container, certificate);
-        byte[] digestToSign = digiDocFacade.digestToSign(dataToSign);
+        byte[] dataToHash = dataToSign.getDataToSign();
 
-        MidHashToSign hashToSign = hashToSign(digestToSign);
+        MidHashToSign hashToSign = hashToSign(dataToHash);
 
         String verificationCode = hashToSign.calculateVerificationCode();
 

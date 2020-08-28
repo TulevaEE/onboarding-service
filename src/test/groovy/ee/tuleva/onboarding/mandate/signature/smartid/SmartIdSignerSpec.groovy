@@ -86,7 +86,7 @@ class SmartIdSignerSpec extends Specification {
         then:
         file == null
         signatureSession.signingSessionId == "signingSessionId"
-        signatureSession.challengeCode == "2084"
+        signatureSession.verificationCode == "2084"
         signatureSession.documentNumber == "docNr"
         signatureSession.dataToSign == dataToSign
         signatureSession.signableHash.hash == "digest".bytes

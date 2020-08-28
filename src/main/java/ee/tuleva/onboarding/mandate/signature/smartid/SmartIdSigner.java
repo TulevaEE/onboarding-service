@@ -86,7 +86,7 @@ public class SmartIdSigner {
         String signingSessionId = signatureRequestBuilder(signableHash, documentNumber)
             .initiateSigning();
 
-        session.setChallengeCode(VerificationCodeCalculator.calculate(digestToSign));
+        session.setVerificationCode(VerificationCodeCalculator.calculate(digestToSign));
         session.setSigningSessionId(signingSessionId);
         session.setDocumentNumber(documentNumber);
         session.setDataToSign(dataToSign);

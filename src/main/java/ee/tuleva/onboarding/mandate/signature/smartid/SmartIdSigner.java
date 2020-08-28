@@ -26,7 +26,7 @@ import static ee.sk.smartid.HashType.SHA256;
 public class SmartIdSigner {
 
     private final SmartIdClient smartIdClient;
-    private final SmartIdConnector connector;
+    private final SmartIdConnector smartIdConnector;
     private final GenericSessionStore sessionStore;
     private final DigiDocFacade digiDocFacade;
 
@@ -59,7 +59,7 @@ public class SmartIdSigner {
 
     @Nullable
     private SessionStatus getSessionStatus(String sessionId) {
-        SessionStatus sessionStatus = connector.getSessionStatus(sessionId);
+        SessionStatus sessionStatus = smartIdConnector.getSessionStatus(sessionId);
         if (sessionStatus == null || "RUNNING".equalsIgnoreCase(sessionStatus.getState())) {
             return null;
         }

@@ -4,10 +4,11 @@ import ee.tuleva.onboarding.auth.ocsp.OCSPUtils
 import ee.tuleva.onboarding.mandate.signature.DigiDocFacade
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import org.bouncycastle.util.encoders.Hex
+import org.digidoc4j.Container
 import org.digidoc4j.DataToSign
-import org.digidoc4j.impl.asic.asice.AsicEContainer
 import spock.lang.Specification
-import sun.security.x509.X509CertImpl
+
+import java.security.cert.X509Certificate
 
 class IdCardSignerSpec extends Specification {
 
@@ -23,11 +24,11 @@ class IdCardSignerSpec extends Specification {
 
     def "can start id card signature"() {
         given:
-        def files = [new SignatureFile("fileName", "mimeType", new byte[0])]
+        def files = [new SignatureFile("fileName", "mimeType", "content".bytes)]
         def signingCertificate = "cert"
-        def certificate = new X509CertImpl()
-        def container = new AsicEContainer()
-        def dataToSign = new DataToSign(new byte[0], null)
+        def certificate = Mock(X509Certificate)
+        def container = Mock(Container)
+        def dataToSign = Mock(DataToSign)
         def hashToSign = "hello"
         def digestToSign = hashToSign.bytes
 
@@ -47,7 +48,7 @@ class IdCardSignerSpec extends Specification {
 
     def "can get signed file"() {
         given:
-        def session = new IdCardSignatureSession("hash", new DataToSign(new byte[0], null), new AsicEContainer())
+        def session = new IdCardSignatureSession("hash", Mock(DataToSign), Mock(Container))
         def signedHash = ""
         def signature = new byte[0]
         def signedContainer = new byte[0]

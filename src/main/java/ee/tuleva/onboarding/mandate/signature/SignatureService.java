@@ -39,7 +39,7 @@ public class SignatureService {
         return idCardSigner.startSign(files, signingCertificate);
     }
 
-    public byte[] getSignedFile(IdCardSignatureSession session, String signedHash) {
-        return idCardSigner.getSignedFile(session, signedHash);
+    public byte[] getSignedFile(IdCardSignatureSession session, String signedHashInHex) {
+        return idCardSigner.getSignedFile(session, signedHashInHex);
     }
 }

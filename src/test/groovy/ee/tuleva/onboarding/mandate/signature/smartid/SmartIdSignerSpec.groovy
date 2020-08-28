@@ -6,8 +6,6 @@ import ee.sk.smartid.rest.dao.SessionStatus
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.signature.DigiDocFacade
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
-import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession
-import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSigner
 import org.digidoc4j.Container
 import org.digidoc4j.DataToSign
 import spock.lang.Specification
@@ -19,10 +17,10 @@ import static ee.sk.smartid.HashType.SHA256
 class SmartIdSignerSpec extends Specification {
 
     def smartIdClient = Mock(SmartIdClient)
-    def connector = Mock(SmartIdConnector)
+    def smartIdConnector = Mock(SmartIdConnector)
     def sessionStore = Mock(GenericSessionStore)
     def digiDocFacade = Mock(DigiDocFacade)
-    SmartIdSigner signer
+    SmartIdSigner smartIdSigner
 
     def files = [new SignatureFile("test.txt", "text/plain", "Test".bytes)]
     def personalCode = "38501010002"
@@ -35,7 +33,7 @@ class SmartIdSignerSpec extends Specification {
     def container = Mock(Container)
 
     def setup() {
-        signer = new SmartIdSigner(smartIdClient, connector, sessionStore, digiDocFacade)
+        smartIdSigner = new SmartIdSigner(smartIdClient, smartIdConnector, sessionStore, digiDocFacade)
 
         smartIdClient.getCertificate() >> certBuilder
         certBuilder./withNationalIdentity|withCertificateLevel/(*_) >> certBuilder
@@ -49,7 +47,7 @@ class SmartIdSignerSpec extends Specification {
         1 * certBuilder.initiateCertificateChoice() >> certificateSessionId
 
         when:
-        def signatureSession = signer.startSign(files, personalCode)
+        def signatureSession = smartIdSigner.startSign(files, personalCode)
 
         then:
         signatureSession.personalCode == personalCode
@@ -60,10 +58,10 @@ class SmartIdSignerSpec extends Specification {
     def "does nothing while certificate session is still RUNNING"() {
         given:
         def signatureSession = new SmartIdSignatureSession(certificateSessionId, personalCode, files)
-        1 * connector.getSessionStatus(certificateSessionId) >> new SessionStatus(state: "RUNNING")
+        1 * smartIdConnector.getSessionStatus(certificateSessionId) >> new SessionStatus(state: "RUNNING")
 
         when:
-        def file = signer.getSignedFile(signatureSession)
+        def file = smartIdSigner.getSignedFile(signatureSession)
 
         then:
         file == null
@@ -73,7 +71,7 @@ class SmartIdSignerSpec extends Specification {
         given:
         def signatureSession = new SmartIdSignatureSession(certificateSessionId, personalCode, files)
         def certSessionStatus = new SessionStatus(state: "COMPLETE")
-        1 * connector.getSessionStatus(certificateSessionId) >> certSessionStatus
+        1 * smartIdConnector.getSessionStatus(certificateSessionId) >> certSessionStatus
         1 * certBuilder.createSmartIdCertificate(certSessionStatus) >> new SmartIdCertificate(
             certificate: Mock(X509Certificate),
             documentNumber: "docNr"
@@ -83,7 +81,7 @@ class SmartIdSignerSpec extends Specification {
         1 * digiDocFacade.digestToSign(_) >> "digest".bytes
         1 * sigBuilder.initiateSigning() >> "signingSessionId"
         when:
-        def file = signer.getSignedFile(signatureSession)
+        def file = smartIdSigner.getSignedFile(signatureSession)
 
         then:
         file == null
@@ -100,11 +98,11 @@ class SmartIdSignerSpec extends Specification {
         given:
         def signatureSession = new SmartIdSignatureSession(certificateSessionId, personalCode, files)
         signatureSession.signingSessionId = signingSessionId
-        1 * connector.getSessionStatus(certificateSessionId) >> new SessionStatus(state: "COMPLETE")
-        1 * connector.getSessionStatus(signingSessionId) >> new SessionStatus(state: "RUNNING")
+        1 * smartIdConnector.getSessionStatus(certificateSessionId) >> new SessionStatus(state: "COMPLETE")
+        1 * smartIdConnector.getSessionStatus(signingSessionId) >> new SessionStatus(state: "RUNNING")
 
         when:
-        def file = signer.getSignedFile(signatureSession)
+        def file = smartIdSigner.getSignedFile(signatureSession)
 
         then:
         file == null
@@ -122,13 +120,13 @@ class SmartIdSignerSpec extends Specification {
             algorithmName: "SHA256",
             documentNumber: documentNumber
         )
-        1 * connector.getSessionStatus(certificateSessionId) >> completeSession
-        1 * connector.getSessionStatus(signingSessionId) >> completeSession
+        1 * smartIdConnector.getSessionStatus(certificateSessionId) >> completeSession
+        1 * smartIdConnector.getSessionStatus(signingSessionId) >> completeSession
         1 * sigBuilder.createSmartIdSignature(*_) >> signature
         1 * digiDocFacade.addSignatureToContainer(signature.value, dataToSign, container) >> "lol".bytes
 
         when:
-        def file = signer.getSignedFile(signatureSession)
+        def file = smartIdSigner.getSignedFile(signatureSession)
 
         then:
         new String(file) == "lol"

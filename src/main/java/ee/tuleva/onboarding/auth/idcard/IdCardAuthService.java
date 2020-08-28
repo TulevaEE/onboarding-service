@@ -27,12 +27,12 @@ public class IdCardAuthService {
   private static final String AUTHENTICATION_POLICY_ID = "0.4.0.2042.1.2";
   private static final int POLICY_NO_1 = 0;
   private static final int POLICY_NO_2 = 1;
-  private final OCSPAuthService authenticator;
+  private final OCSPAuthService ocspAuthenticator;
   private final GenericSessionStore sessionStore;
 
   public IdCardSession checkCertificate(String certificate) {
     log.info("Checking ID card certificate");
-    CheckCertificateResponse response = authenticator.checkCertificate(certificate);
+    CheckCertificateResponse response = ocspAuthenticator.checkCertificate(certificate);
     IdCardSession session =
         IdCardSession.builder()
             .firstName(response.getFirstName())

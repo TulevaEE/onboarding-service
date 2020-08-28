@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.ocsp;
 
-import org.apache.commons.codec.DecoderException;
+import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1OctetString;
@@ -98,23 +98,22 @@ public class OCSPUtils {
   }
 
   public X509Certificate getX509Certificate(String certificate) {
-    CertificateFactory certificateFactory;
-    try {
-      certificateFactory = CertificateFactory.getInstance("X.509");
-      return (X509Certificate)
-          certificateFactory.generateCertificate(new ByteArrayInputStream(certificate.getBytes(UTF_8)));
-    } catch (CertificateException e) {
-      throw new AuthenticationException(INVALID_INPUT, "Unable to read certificate", e);
-    }
+    byte[] certificateBytes = certificate.getBytes(UTF_8);
+    return generateX09Certificate(certificateBytes);
   }
 
+  @SneakyThrows
   public X509Certificate decodeX09Certificate(String hexCertificate) {
+    byte[] decodedCertificate = Hex.decodeHex(hexCertificate);
+    return generateX09Certificate(decodedCertificate);
+  }
+
+  private X509Certificate generateX09Certificate(byte[] certificate) {
     try {
-      byte[] decodedCertificate = Hex.decodeHex(hexCertificate);
       CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
-      return (X509Certificate) certificateFactory.generateCertificate(new ByteArrayInputStream(decodedCertificate));
-    } catch (DecoderException | CertificateException e) {
-      throw new AuthenticationException(INVALID_INPUT, "Unable to decode certificate", e);
+      return (X509Certificate) certificateFactory.generateCertificate(new ByteArrayInputStream(certificate));
+    } catch (CertificateException e) {
+      throw new AuthenticationException(INVALID_INPUT, "Unable to generate certificate", e);
     }
   }
 

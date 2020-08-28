@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.ocsp
 
-
+import org.apache.commons.codec.binary.Hex
 import spock.lang.Specification
 
 import java.nio.charset.StandardCharsets
@@ -8,7 +8,7 @@ import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
 
 class OCSPUtilsSpec extends Specification {
-    OCSPUtils utils = new OCSPUtils()
+    OCSPUtils ocspUtils = new OCSPUtils()
 
     def "Test if Issuer Certificate URI is correct"() {
         given:
@@ -16,7 +16,7 @@ class OCSPUtilsSpec extends Specification {
         def expectedResponse = new URI("http://issuer.ee/ca.crl")
 
         when:
-        def response = utils.getIssuerCertificateURI(cert)
+        def response = ocspUtils.getIssuerCertificateURI(cert)
 
         then:
         response == expectedResponse
@@ -27,7 +27,7 @@ class OCSPUtilsSpec extends Specification {
         def cert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", null, "http://issuer.ee/ocsp")
 
         when:
-        utils.getIssuerCertificateURI(cert)
+        ocspUtils.getIssuerCertificateURI(cert)
 
         then:
         thrown(AuthenticationException)
@@ -39,7 +39,7 @@ class OCSPUtilsSpec extends Specification {
         def expectedResponse = new URI("http://issuer.ee/ocsp")
 
         when:
-        def response = utils.getResponderURI(cert)
+        def response = ocspUtils.getResponderURI(cert)
 
         then:
         response == expectedResponse
@@ -50,7 +50,7 @@ class OCSPUtilsSpec extends Specification {
         def cert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", null)
 
         when:
-        utils.getResponderURI(cert)
+        ocspUtils.getResponderURI(cert)
 
         then:
         thrown(AuthenticationException)
@@ -61,7 +61,7 @@ class OCSPUtilsSpec extends Specification {
         def cert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", null, null)
 
         when:
-        utils.getResponderURI(cert)
+        ocspUtils.getResponderURI(cert)
 
         then:
         thrown(AuthenticationException)
@@ -72,7 +72,7 @@ class OCSPUtilsSpec extends Specification {
         def cert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", null, null)
 
         when:
-        utils.getIssuerCertificateURI(cert)
+        ocspUtils.getIssuerCertificateURI(cert)
 
         then:
         thrown(AuthenticationException)
@@ -85,20 +85,33 @@ class OCSPUtilsSpec extends Specification {
         def certString = OCSPFixture.certToString(originalCert)
 
         when:
-        def response = utils.getX509Certificate(certString)
+        def response = ocspUtils.getX509Certificate(certString)
 
         then:
         response == originalCert
     }
 
-    def "Test if malformed X509Certificate generates exception "() {
+    def "Test if X509Certificate is properly decoded from hex"() {
+        given:
+        def originalCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
+        def certString = OCSPFixture.certToString(originalCert)
+        def certificateInHex = Hex.encodeHexString(certString.bytes)
+
+        when:
+        def response = ocspUtils.decodeX09Certificate(certificateInHex)
+
+        then:
+        response == originalCert
+    }
+
+    def "Test if malformed X509Certificate generates exception"() {
         given:
 
         def originalCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
         def certString = OCSPFixture.certToString(originalCert)
         certString = new String(certString.getBytes(StandardCharsets.US_ASCII), StandardCharsets.UTF_16)
         when:
-        utils.getX509Certificate(certString)
+        ocspUtils.getX509Certificate(certString)
 
         then:
         thrown(AuthenticationException)
@@ -110,7 +123,7 @@ class OCSPUtilsSpec extends Specification {
         def selfCert = OCSPFixture.generateCertificate("Tiit,Lepp,37801145819", -1, "SHA1WITHRSA", "http://issuer.ee/ca.crl", "http://issuer.ee/ocsp")
         def caCertString = OCSPFixture.certToString(caCert)
         when:
-        def response = utils.generateOCSPRequest(selfCert, caCertString, "http://issuer.ee/ocsp")
+        def response = ocspUtils.generateOCSPRequest(selfCert, caCertString, "http://issuer.ee/ocsp")
         then:
         response.getCertificate() == selfCert
         response.getOcspServer() == "http://issuer.ee/ocsp"
@@ -123,7 +136,7 @@ class OCSPUtilsSpec extends Specification {
         def caCertString = OCSPFixture.certToString(caCert)
         caCertString = new String(caCertString.getBytes(StandardCharsets.US_ASCII), StandardCharsets.UTF_16)
         when:
-        utils.generateOCSPRequest(selfCert, caCertString, "http://issuer.ee/ocsp")
+        ocspUtils.generateOCSPRequest(selfCert, caCertString, "http://issuer.ee/ocsp")
         then:
         thrown(AuthenticationException)
     }
@@ -135,7 +148,7 @@ class OCSPUtilsSpec extends Specification {
         selfCert.getSerialNumber() >> { throw new CertificateException("General Exception") }
         def caCertString = OCSPFixture.certToString(caCert)
         when:
-        utils.generateOCSPRequest(selfCert, caCertString, "http://issuer.ee/ocsp")
+        ocspUtils.generateOCSPRequest(selfCert, caCertString, "http://issuer.ee/ocsp")
         then:
         thrown(AuthenticationException)
     }

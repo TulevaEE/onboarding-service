@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.user;
 
+import ee.tuleva.onboarding.user.event.BeforeUserCreatedEvent;
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import javax.transaction.Transactional;
@@ -23,6 +25,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final MemberRepository memberRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     //TODO: replace with Optional<User>
     @Nullable
@@ -35,6 +38,7 @@ public class UserService {
     }
 
     public User createNewUser(User user) {
+        eventPublisher.publishEvent(new BeforeUserCreatedEvent(user));
         log.info("Creating new user {}", user);
         return userRepository.save(user);
     }

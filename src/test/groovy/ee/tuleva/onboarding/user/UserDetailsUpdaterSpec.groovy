@@ -7,19 +7,24 @@ import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.user.event.BeforeUserCreatedEvent
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_AUTO
 import static ee.tuleva.onboarding.auth.PersonFixture.PersonImpl
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 
 class UserDetailsUpdaterSpec extends Specification {
 
     UserService userService = Mock()
     AmlService amlService = Mock()
+    EpisService episService = Mock()
 
-    UserDetailsUpdater service = new UserDetailsUpdater(userService, amlService)
+    UserDetailsUpdater service = new UserDetailsUpdater(userService, amlService, episService)
 
     def "OnBeforeTokenGrantedEvent: Update user details on before token granted event"(IdDocumentType documentType, Boolean resident) {
         given:
@@ -113,5 +118,19 @@ class UserDetailsUpdaterSpec extends Specification {
             user.firstName == "Erko" &&
                 user.lastName == "Risthein"
         })
+    }
+
+    def "updates user email and phone number based on epis info"() {
+        given:
+        def user = sampleUser().email(null).phoneNumber(null).build()
+        def contactDetails = contactDetailsFixture()
+        1 * episService.getContactDetails(user) >> contactDetails
+
+        when:
+        service.onBeforeUserCreatedEvent(new BeforeUserCreatedEvent(user))
+
+        then:
+        user.phoneNumber == contactDetails.phoneNumber
+        user.email == contactDetails.email
     }
 }

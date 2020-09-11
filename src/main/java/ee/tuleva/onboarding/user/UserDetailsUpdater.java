@@ -5,6 +5,9 @@ import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.user.event.BeforeUserCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
@@ -21,6 +24,7 @@ public class UserDetailsUpdater {
 
     private final UserService userService;
     private final AmlService amlService;
+    private final EpisService episService;
 
     @EventListener
     public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
@@ -50,6 +54,14 @@ public class UserDetailsUpdater {
             user.setLastName(lastName);
             userService.save(user);
         });
+    }
+
+    @EventListener
+    public void onBeforeUserCreatedEvent(BeforeUserCreatedEvent event) {
+        User user = event.getUser();
+        UserPreferences contactDetails = episService.getContactDetails(user);
+        user.setEmail(contactDetails.getEmail());
+        user.setPhoneNumber(contactDetails.getPhoneNumber());
     }
 
     private Boolean isResident(Object credentials) {

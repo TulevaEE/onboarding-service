@@ -16,6 +16,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 @Service
 @Slf4j
 public class EmailService {
@@ -74,7 +76,11 @@ public class EmailService {
     }
 
     public List<Recipient> getRecipients(User user) {
-        ArrayList<Recipient> recipients = new ArrayList<>();
+        if (isBlank(user.getEmail())) {
+            log.error("User email is missing: user={}", user);
+        }
+
+        List<Recipient> recipients = new ArrayList<>();
 
         //Member inbox
         Recipient member = new Recipient();

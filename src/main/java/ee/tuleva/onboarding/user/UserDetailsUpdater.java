@@ -58,6 +58,9 @@ public class UserDetailsUpdater {
 
     @EventListener
     public void onAuthenticationSuccessEvent(AuthenticationSuccessEvent event) {
+        if (!(event.getAuthentication().getPrincipal() instanceof Person)) {
+            return;
+        }
         Person person = (Person) event.getAuthentication().getPrincipal();
 
         userService.findByPersonalCode(person.getPersonalCode()).map(user -> {

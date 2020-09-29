@@ -12,7 +12,7 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class CashFlowService {
 
-    private static final LocalDate BEGINNING_OF_TIME = LocalDate.parse("1900-01-01");
+    private static final LocalDate BEGINNING_OF_TIME = LocalDate.parse("2000-01-01");
 
     private final EpisService episService;
 

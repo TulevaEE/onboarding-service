@@ -4,6 +4,12 @@
         <p th:text="#{mandate.email.greeting(${firstName})}"></p>
         <br>
         <p th:text="#{mandate.email.thirdPillarContent}"></p>
+        <br>
+        <p th:if="${!isSecondPillarActive && !isMember}" th:utext="#{mandate.email.suggestMembership}"></p>
+        <p th:if="${isSecondPillarActive && !isSecondPillarFullyConverted && !isMember}" th:utext="#{mandate.email.suggestSecondPillar}"></p>
+        <p th:if="${isSecondPillarFullyConverted && !isMember}" th:utext="#{mandate.email.suggestMembership}"></p>
+        <br>  
+        <p th:text="#{mandate.email.thirdPillarPaymentInfo}"></p>
         <p>
           <span th:text="#{mandate.payment.accountName}"></span>:
           <strong>Pensionikeskus AS</strong>
@@ -20,10 +26,6 @@
           <span th:text="#{mandate.payment.reference}"></span>:
           <strong th:text="${pensionAccountNumber}"></strong>
         </p>
-        <br>
-        <p th:if="${!isSecondPillarActive && !isMember}" th:utext="#{mandate.email.suggestMembership}"></p>
-        <p th:if="${isSecondPillarActive && !isSecondPillarFullyConverted && !isMember}" th:utext="#{mandate.email.suggestSecondPillar}"></p>
-        <p th:if="${isSecondPillarFullyConverted && !isMember}" th:utext="#{mandate.email.suggestMembership}"></p>
         <br>
         <p th:text="#{mandate.email.mandate}"></p>
         <p th:text="#{mandate.email.info}"></p>

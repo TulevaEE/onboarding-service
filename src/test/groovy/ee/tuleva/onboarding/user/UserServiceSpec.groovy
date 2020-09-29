@@ -1,9 +1,8 @@
 package ee.tuleva.onboarding.user
 
-import ee.tuleva.onboarding.user.event.BeforeUserCreatedEvent
+
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
-import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -15,8 +14,7 @@ class UserServiceSpec extends Specification {
 
     def userRepository = Mock(UserRepository)
     def memberRepository = Mock(MemberRepository)
-    def eventPublisher = Mock(ApplicationEventPublisher)
-    def service = new UserService(userRepository, memberRepository, eventPublisher)
+    def service = new UserService(userRepository, memberRepository)
 
     @Shared
     String personalCodeSample = "somePersonalCode"
@@ -255,7 +253,6 @@ class UserServiceSpec extends Specification {
 
         then:
         createdUser == user
-        1 * eventPublisher.publishEvent(new BeforeUserCreatedEvent(user))
     }
 
     private User updatedUser(String personalCode, String email, String phoneNumber) {

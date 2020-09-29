@@ -28,7 +28,7 @@ public class EmailService {
     @Autowired
     public EmailService(EmailConfiguration emailConfiguration,
                         @Autowired(required = false)
-                                MandrillApi mandrillApi) {
+                            MandrillApi mandrillApi) {
         this.emailConfiguration = emailConfiguration;
         this.mandrillApi = mandrillApi;
     }

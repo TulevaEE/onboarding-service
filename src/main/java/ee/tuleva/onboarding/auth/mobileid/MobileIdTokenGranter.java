@@ -5,7 +5,6 @@ import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
@@ -74,24 +73,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
       throw new AuthNotCompleteException();
     }
 
-    AuthenticatedPerson authenticatedPerson =
-        principalService.getFrom(
-            new Person() {
-              @Override
-              public String getPersonalCode() {
-                return mobileIdSession.getPersonalCode();
-              }
-
-              @Override
-              public String getFirstName() {
-                return mobileIdSession.getFirstName();
-              }
-
-              @Override
-              public String getLastName() {
-                return mobileIdSession.getLastName();
-              }
-            });
+    AuthenticatedPerson authenticatedPerson = principalService.getFrom(mobileIdSession);
 
     Authentication userAuthentication =
         new PersonalCodeAuthentication<>(

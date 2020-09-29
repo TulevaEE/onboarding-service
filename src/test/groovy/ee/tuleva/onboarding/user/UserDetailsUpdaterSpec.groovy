@@ -8,7 +8,7 @@ import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.user.event.BeforeUserCreatedEvent
+import org.springframework.security.authentication.event.AuthenticationSuccessEvent
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
@@ -123,14 +123,15 @@ class UserDetailsUpdaterSpec extends Specification {
     def "updates user email and phone number based on epis info"() {
         given:
         def user = sampleUser().email(null).phoneNumber(null).build()
+        def authentication = Mock(Authentication, { getPrincipal() >> user })
         def contactDetails = contactDetailsFixture()
+        1 * userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
         1 * episService.getContactDetails(user) >> contactDetails
 
         when:
-        service.onBeforeUserCreatedEvent(new BeforeUserCreatedEvent(user))
+        service.onAuthenticationSuccessEvent(new AuthenticationSuccessEvent(authentication))
 
         then:
-        user.phoneNumber == contactDetails.phoneNumber
-        user.email == contactDetails.email
+        1 * userService.updateUser(user.personalCode, contactDetails.email, contactDetails.phoneNumber)
     }
 }

@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.epis.EpisService
 import org.springframework.security.authentication.event.AuthenticationSuccessEvent
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.provider.OAuth2Authentication
+import spock.lang.Ignore
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_AUTO
@@ -120,6 +121,7 @@ class UserDetailsUpdaterSpec extends Specification {
         })
     }
 
+    @Ignore
     def "updates user email and phone number based on epis info"() {
         given:
         def user = sampleUser().email(null).phoneNumber(null).build()

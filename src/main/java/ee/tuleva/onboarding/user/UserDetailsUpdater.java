@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
@@ -63,15 +62,15 @@ public class UserDetailsUpdater {
         }
         Person person = (Person) event.getAuthentication().getPrincipal();
 
-        userService.findByPersonalCode(person.getPersonalCode()).map(user -> {
-                if (!user.hasContactDetails()) {
-                    UserPreferences contactDetails = episService.getContactDetails(person);
-                    userService.updateUser(person.getPersonalCode(), contactDetails.getEmail(),
-                        contactDetails.getPhoneNumber());
-                }
-                return user;
-            }
-        );
+//        userService.findByPersonalCode(person.getPersonalCode()).map(user -> {
+//                if (!user.hasContactDetails()) {
+//                    UserPreferences contactDetails = episService.getContactDetails(person);
+//                    userService.updateUser(person.getPersonalCode(), contactDetails.getEmail(),
+//                        contactDetails.getPhoneNumber());
+//                }
+//                return user;
+//            }
+//        );
     }
 
     private Boolean isResident(Object credentials) {

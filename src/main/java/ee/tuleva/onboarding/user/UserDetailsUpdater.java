@@ -7,11 +7,11 @@ import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
-import ee.tuleva.onboarding.user.event.BeforeUserCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.springframework.context.event.EventListener;
+import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
 import org.springframework.stereotype.Component;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_AUTO;
@@ -57,11 +57,18 @@ public class UserDetailsUpdater {
     }
 
     @EventListener
-    public void onBeforeUserCreatedEvent(BeforeUserCreatedEvent event) {
-        User user = event.getUser();
-        UserPreferences contactDetails = episService.getContactDetails(user);
-        user.setEmail(contactDetails.getEmail());
-        user.setPhoneNumber(contactDetails.getPhoneNumber());
+    public void onAuthenticationSuccessEvent(AuthenticationSuccessEvent event) {
+        Person person = (Person) event.getAuthentication().getPrincipal();
+
+        userService.findByPersonalCode(person.getPersonalCode()).map(user -> {
+                if (!user.hasContactDetails()) {
+                    UserPreferences contactDetails = episService.getContactDetails(person);
+                    userService.updateUser(person.getPersonalCode(), contactDetails.getEmail(),
+                        contactDetails.getPhoneNumber());
+                }
+                return user;
+            }
+        );
     }
 
     private Boolean isResident(Object credentials) {

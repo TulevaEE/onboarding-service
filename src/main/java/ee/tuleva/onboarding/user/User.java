@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.user.exception.NotAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
@@ -85,4 +84,9 @@ public class User implements Person, Serializable {
     public boolean isMember() {
         return getMember().isPresent();
     }
+
+    public boolean hasContactDetails() {
+        return email != null || phoneNumber != null;
+    }
+
 }

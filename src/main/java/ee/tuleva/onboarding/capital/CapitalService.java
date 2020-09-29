@@ -16,6 +16,7 @@ import java.util.function.Predicate;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static java.math.BigDecimal.ROUND_HALF_DOWN;
+import static java.math.BigDecimal.ZERO;
 
 @Service
 @RequiredArgsConstructor
@@ -42,7 +43,7 @@ public class CapitalService {
             .filter(event -> event.getType() == eventType)
             .filter(pastEvents())
             .map(MemberCapitalEvent::getFiatValue)
-            .reduce(BigDecimal.ZERO, BigDecimal::add)
+            .reduce(ZERO, BigDecimal::add)
             .setScale(2, ROUND_HALF_DOWN);
     }
 
@@ -51,18 +52,18 @@ public class CapitalService {
         BigDecimal totalFiatValue = events.stream()
             .filter(pastEvents())
             .map(MemberCapitalEvent::getFiatValue)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            .reduce(ZERO, BigDecimal::add);
 
         BigDecimal totalOwnershipUnitAmount = events.stream()
             .filter(pastEvents())
             .map(MemberCapitalEvent::getOwnershipUnitAmount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+            .reduce(ZERO, BigDecimal::add);
 
         AggregatedCapitalEvent latestAggregatedCapitalEvent =
             aggregatedCapitalEventRepository.findTopByOrderByDateDesc();
 
         if (latestAggregatedCapitalEvent == null) {
-            return BigDecimal.ZERO;
+            return ZERO;
         }
 
         BigDecimal investmentFiatValue =

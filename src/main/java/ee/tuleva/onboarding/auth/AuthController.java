@@ -39,8 +39,8 @@ public class AuthController {
 
   private final MobileIdAuthService mobileIdAuthService;
   private final SmartIdAuthService smartIdAuthService;
-  private final GenericSessionStore genericSessionStore;
   private final IdCardAuthService idCardAuthService;
+  private final GenericSessionStore genericSessionStore;
 
   @Value("${frontend.url}")
   private String frontendUrl;

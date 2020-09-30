@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
@@ -87,8 +88,13 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
     final OAuth2Authentication oAuth2Authentication =
         new OAuth2Authentication(oAuth2Request, userAuthentication);
 
-    eventPublisher.publishEvent(new BeforeTokenGrantedEvent(this, oAuth2Authentication, GRANT_TYPE));
+    eventPublisher.publishEvent(new BeforeTokenGrantedEvent(this, authenticatedPerson, oAuth2Authentication,
+        GRANT_TYPE));
 
-    return getTokenServices().createAccessToken(oAuth2Authentication);
+    OAuth2AccessToken accessToken = getTokenServices().createAccessToken(oAuth2Authentication);
+
+    eventPublisher.publishEvent(new AfterTokenGrantedEvent(this, authenticatedPerson, accessToken));
+
+    return accessToken;
   }
 }

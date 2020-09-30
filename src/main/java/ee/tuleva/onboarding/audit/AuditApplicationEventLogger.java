@@ -25,7 +25,7 @@ public class AuditApplicationEventLogger {
             return;
         }
 
-        log.info("Logging audit application event: timestamp: {}, principal: {}, type: {}, data: {}",
+        log.info("Logging audit application event: timestamp={}, principal={}, type={}, data={}",
                 auditEvent.getTimestamp(),
                 auditEvent.getPrincipal(),
                 auditEvent.getType(),

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.account
 
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.epis.EpisService
@@ -20,11 +20,8 @@ class OnLoginAccountStatementCacheClearerSpec extends Specification {
 
         Person samplePerson = samplePerson()
 
-        OAuth2Authentication oAuth2Authentication = Mock({
-            getPrincipal() >> samplePerson
-        })
-
-        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication, GrantType.ID_CARD)
+        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, samplePerson,
+            Mock(OAuth2Authentication), GrantType.ID_CARD)
 
         when:
         service.onBeforeTokenGrantedEvent(beforeTokenGrantedEvent)

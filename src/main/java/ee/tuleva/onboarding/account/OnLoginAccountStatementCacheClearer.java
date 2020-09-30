@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.account;
 
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import lombok.RequiredArgsConstructor;
@@ -17,8 +17,8 @@ public class OnLoginAccountStatementCacheClearer {
 
     @EventListener
     public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
-        Person person = (Person) event.getAuthentication().getPrincipal();
-        log.info("On BeforeTokenGrantedEvent: timestamp: {}, name: {} {}",
+        Person person = event.getPerson();
+        log.info("On BeforeTokenGrantedEvent: timestamp={}, name={} {}",
                 event.getTimestamp(),
                 person.getFirstName(),
                 person.getLastName()

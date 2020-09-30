@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.aml
 
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
-import ee.tuleva.onboarding.auth.PersonFixture
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
+import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
 class AmlTokenGrantedEventHandlerSpec extends Specification {
@@ -16,12 +17,9 @@ class AmlTokenGrantedEventHandlerSpec extends Specification {
     def "checks user after login"() {
         given:
         def user = sampleUser().build()
-        def person = PersonFixture.samplePerson()
-        BeforeTokenGrantedEvent event = Mock({
-            getAuthentication() >> Mock(OAuth2Authentication, {
-                getPrincipal() >> person
-            })
-        })
+        def person = samplePerson()
+        def auth = Mock(OAuth2Authentication)
+        def event = new BeforeTokenGrantedEvent(this, person, auth, GrantType.MOBILE_ID)
         when:
         handler.onBeforeTokenGrantedEvent(event)
         then:
@@ -32,12 +30,9 @@ class AmlTokenGrantedEventHandlerSpec extends Specification {
     def "throws when user not found"() {
         given:
         def user = sampleUser().build()
-        def person = PersonFixture.samplePerson()
-        BeforeTokenGrantedEvent event = Mock({
-            getAuthentication() >> Mock(OAuth2Authentication, {
-                getPrincipal() >> person
-            })
-        })
+        def person = samplePerson()
+        def auth = Mock(OAuth2Authentication)
+        def event = new BeforeTokenGrantedEvent(this, person, auth, GrantType.MOBILE_ID)
         when:
         handler.onBeforeTokenGrantedEvent(event)
         then:

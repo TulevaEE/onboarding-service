@@ -1,17 +1,17 @@
 package ee.tuleva.onboarding.audit
 
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType
 import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
-import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.smartid.SmartIdFixture
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.GrantType.*
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 
 class LoginAuditEventBroadcasterSpec extends Specification {
 
@@ -20,30 +20,26 @@ class LoginAuditEventBroadcasterSpec extends Specification {
 
     def "OnBeforeTokenGrantedEvent: Broadcast login event"(GrantType grantType, String document, Object credentials) {
         given:
-        String samplePersonalCode = "personalCode"
+        def samplePerson = samplePerson()
 
-        OAuth2Authentication sampleOAuth2Authentication = Mock(OAuth2Authentication, {
-            getPrincipal() >> Mock(Person, {
-                getPersonalCode() >> samplePersonalCode
-            })
+        def sampleAuthentication = Mock(OAuth2Authentication, {
             getUserAuthentication() >> Mock(Authentication, {
                 getCredentials() >> credentials
             })
         })
 
-        BeforeTokenGrantedEvent beforeTokenGrantedEvent = Mock(BeforeTokenGrantedEvent, {
-            getAuthentication() >> sampleOAuth2Authentication
-            getGrantType() >> grantType
-        })
+        def event = new BeforeTokenGrantedEvent(this, samplePerson, sampleAuthentication, grantType)
 
         when:
-        service.onBeforeTokenGrantedEvent(beforeTokenGrantedEvent)
+        service.onBeforeTokenGrantedEvent(event)
+
         then:
         if (document != null) {
-            1 * auditEventPublisher.publish(samplePersonalCode, AuditEventType.LOGIN, "method=$grantType", "document=$document")
+            1 * auditEventPublisher.publish(samplePerson.personalCode, AuditEventType.LOGIN, "method=$grantType", "document=$document")
         } else {
-            1 * auditEventPublisher.publish(samplePersonalCode, AuditEventType.LOGIN, "method=$grantType")
+            1 * auditEventPublisher.publish(samplePerson.personalCode, AuditEventType.LOGIN, "method=$grantType")
         }
+
         where:
         grantType | document                   | credentials
         ID_CARD   | "DIGITAL_ID_CARD"          | new IdCardSession("Chuck", "Norris", "38512121212", IdDocumentType.DIGITAL_ID_CARD)

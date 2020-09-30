@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.audit;
 
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -20,8 +20,8 @@ public class LoginAuditEventBroadcaster {
 
     @EventListener
     public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
-        Person person = (Person) event.getAuthentication().getPrincipal();
-        log.info("Broadcasting login audit event from BeforeTokenGrantedEvent: timestamp: {}, name: {} {}",
+        Person person = event.getPerson();
+        log.info("Broadcasting login audit event from BeforeTokenGrantedEvent: timestamp={}, name={} {}",
             event.getTimestamp(),
             person.getFirstName(),
             person.getLastName()

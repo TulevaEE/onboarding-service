@@ -2,16 +2,16 @@ package ee.tuleva.onboarding.user
 
 import ee.tuleva.onboarding.aml.AmlCheck
 import ee.tuleva.onboarding.aml.AmlService
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
+import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.epis.EpisService
-import org.springframework.security.authentication.event.AuthenticationSuccessEvent
 import org.springframework.security.core.Authentication
+import org.springframework.security.oauth2.common.OAuth2AccessToken
 import org.springframework.security.oauth2.provider.OAuth2Authentication
-import spock.lang.Ignore
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_AUTO
@@ -44,12 +44,13 @@ class UserDetailsUpdaterSpec extends Specification {
                 .build()
         })
 
-        OAuth2Authentication oAuth2Authentication = Mock({
+        OAuth2Authentication authentication = Mock({
             getPrincipal() >> samplePerson
             getUserAuthentication() >> auth
         })
 
-        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication, GrantType.ID_CARD)
+        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, samplePerson,
+            authentication, GrantType.ID_CARD)
 
         when:
         service.onBeforeTokenGrantedEvent(beforeTokenGrantedEvent)
@@ -97,12 +98,13 @@ class UserDetailsUpdaterSpec extends Specification {
             lastName: "RISTHEIN"
         )
 
-        OAuth2Authentication oAuth2Authentication = Mock({
+        OAuth2Authentication authentication = Mock({
             getPrincipal() >> samplePerson
             getUserAuthentication() >> Mock(Authentication)
         })
 
-        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, oAuth2Authentication, GrantType.ID_CARD)
+        BeforeTokenGrantedEvent beforeTokenGrantedEvent = new BeforeTokenGrantedEvent(this, samplePerson,
+            authentication, GrantType.ID_CARD)
 
         when:
         service.onBeforeTokenGrantedEvent(beforeTokenGrantedEvent)
@@ -121,17 +123,19 @@ class UserDetailsUpdaterSpec extends Specification {
         })
     }
 
-    @Ignore
     def "updates user email and phone number based on epis info"() {
         given:
         def user = sampleUser().email(null).phoneNumber(null).build()
-        def authentication = Mock(Authentication, { getPrincipal() >> user })
+        def token = "token"
+        def accessToken = Mock(OAuth2AccessToken, {
+            getValue() >> token
+        })
         def contactDetails = contactDetailsFixture()
         1 * userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
-        1 * episService.getContactDetails(user) >> contactDetails
+        1 * episService.getContactDetails(user, token) >> contactDetails
 
         when:
-        service.onAuthenticationSuccessEvent(new AuthenticationSuccessEvent(authentication))
+        service.onAfterTokenGrantedEvent(new AfterTokenGrantedEvent(this, user, accessToken))
 
         then:
         1 * userService.updateUser(user.personalCode, contactDetails.email, contactDetails.phoneNumber)

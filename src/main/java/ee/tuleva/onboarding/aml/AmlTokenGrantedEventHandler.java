@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -19,7 +19,7 @@ public class AmlTokenGrantedEventHandler {
 
     @EventListener
     public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
-        Person person = (Person) event.getAuthentication().getPrincipal();
+        Person person = event.getPerson();
         User user = userService.findByPersonalCode(person.getPersonalCode())
             .orElseThrow(() -> new IllegalStateException("User not found with code " + person.getPersonalCode()));
         amlService.checkUserAfterLogin(user, person);

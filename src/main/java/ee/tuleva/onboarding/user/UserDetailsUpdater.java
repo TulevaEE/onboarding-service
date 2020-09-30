@@ -2,15 +2,16 @@ package ee.tuleva.onboarding.user;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlService;
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.springframework.context.event.EventListener;
-import org.springframework.security.authentication.event.AuthenticationSuccessEvent;
 import org.springframework.stereotype.Component;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_AUTO;
@@ -27,13 +28,13 @@ public class UserDetailsUpdater {
 
     @EventListener
     public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
-        Person person = (Person) event.getAuthentication().getPrincipal();
+        Person person = event.getPerson();
         String firstName = capitalizeFully(person.getFirstName());
         String lastName = capitalizeFully(person.getLastName());
         Object credentials = event.getAuthentication().getUserAuthentication().getCredentials();
         Boolean resident = isResident(credentials);
 
-        log.info("Updating user name: timestamp: {}, name: {} {} resident: {}",
+        log.info("Updating user name: timestamp={}, name={} {}, resident={}",
             event.getTimestamp(),
             firstName,
             lastName,
@@ -56,21 +57,19 @@ public class UserDetailsUpdater {
     }
 
     @EventListener
-    public void onAuthenticationSuccessEvent(AuthenticationSuccessEvent event) {
-        if (!(event.getAuthentication().getPrincipal() instanceof Person)) {
-            return;
-        }
-        Person person = (Person) event.getAuthentication().getPrincipal();
+    public void onAfterTokenGrantedEvent(AfterTokenGrantedEvent event) {
+        Person person = event.getPerson();
+        String token = event.getAccessToken().getValue();
 
-//        userService.findByPersonalCode(person.getPersonalCode()).map(user -> {
-//                if (!user.hasContactDetails()) {
-//                    UserPreferences contactDetails = episService.getContactDetails(person);
-//                    userService.updateUser(person.getPersonalCode(), contactDetails.getEmail(),
-//                        contactDetails.getPhoneNumber());
-//                }
-//                return user;
-//            }
-//        );
+        userService.findByPersonalCode(person.getPersonalCode()).map(user -> {
+            if (!user.hasContactDetails()) {
+                log.info("User contact details missing. Filling them in with EPIS data");
+                UserPreferences contactDetails = episService.getContactDetails(person, token);
+                userService.updateUser(person.getPersonalCode(), contactDetails.getEmail(),
+                    contactDetails.getPhoneNumber());
+            }
+            return user;
+        });
     }
 
     private Boolean isResident(Object credentials) {

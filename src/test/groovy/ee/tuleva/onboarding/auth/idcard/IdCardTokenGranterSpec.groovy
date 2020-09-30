@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.auth.idcard
 
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
-import ee.tuleva.onboarding.auth.BeforeTokenGrantedEvent
+import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.principal.PrincipalService
@@ -69,6 +70,7 @@ class IdCardTokenGranterSpec extends Specification {
         tokenGranter.getTokenServices() >> authorizationServerTokenServices
         1 * authorizationServerTokenServices.createAccessToken(_ as OAuth2Authentication) >> Mock(OAuth2AccessToken)
         1 * applicationEventPublisher.publishEvent(_ as BeforeTokenGrantedEvent)
+        1 * applicationEventPublisher.publishEvent(_ as AfterTokenGrantedEvent)
 
         when:
         OAuth2AccessToken token = tokenGranter.getAccessToken(sampleClientDetails, tokenRequest)

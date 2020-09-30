@@ -25,7 +25,7 @@ class AuthControllerSpec extends BaseControllerSpec {
     SmartIdAuthService smartIdAuthService = Mock(SmartIdAuthService)
     GenericSessionStore sessionStore = Mock(GenericSessionStore)
     IdCardAuthService idCardAuthService = Mock(IdCardAuthService)
-    AuthController controller = new AuthController(mobileIdAuthService, smartIdAuthService, sessionStore, idCardAuthService)
+    AuthController controller = new AuthController(mobileIdAuthService, smartIdAuthService, idCardAuthService, sessionStore)
     private MockMvc mockMvc
 
     def setup() {

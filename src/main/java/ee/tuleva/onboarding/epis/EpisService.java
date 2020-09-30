@@ -11,12 +11,14 @@ import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2RestOperations;
 import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails;
@@ -84,13 +86,18 @@ public class EpisService {
 
     @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
     public UserPreferences getContactDetails(Person person) {
+        return getContactDetails(person, getToken());
+    }
+
+    @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
+    public UserPreferences getContactDetails(Person person, String token) {
         String url = episServiceUrl + "/contact-details";
 
         log.info("Getting contact details from {} for {} {}",
             url, person.getFirstName(), person.getLastName());
 
         ResponseEntity<UserPreferences> response =
-            userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), UserPreferences.class);
+            userTokenRestTemplate.exchange(url, GET, getHeadersEntity(token), UserPreferences.class);
 
         return response.getBody();
     }
@@ -141,18 +148,24 @@ public class EpisService {
         return userTokenRestTemplate.postForObject(url, new HttpEntity<>(contactDetails, getHeaders()), UserPreferences.class);
     }
 
-    @NotNull
-    private HttpEntity getHeadersEntity() {
-        return new HttpEntity(getHeaders());
+    private HttpEntity<String> getHeadersEntity() {
+        return getHeadersEntity(getToken());
+    }
+
+    private HttpEntity<String> getHeadersEntity(String token) {
+        return new HttpEntity<>(getHeaders(token));
     }
 
     private HttpHeaders getHeaders() {
+        return getHeaders(getToken());
+    }
+
+    private HttpHeaders getHeaders(String token) {
         HttpHeaders headers = createJsonHeaders();
-        headers.add("authorization", "Bearer " + getToken());
+        headers.add("Authorization", "Bearer " + token);
         return headers;
     }
 
-    @NotNull
     private HttpHeaders createJsonHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

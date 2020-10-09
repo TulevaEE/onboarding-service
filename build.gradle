@@ -12,7 +12,7 @@ buildscript {
 	}
 	dependencies {
 		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
-		classpath("gradle.plugin.com.gorylenko.gradle-git-properties:gradle-git-properties:2.0.0")
+		classpath("gradle.plugin.com.gorylenko.gradle-git-properties:gradle-git-properties:2.2.3")
 	}
 }
 

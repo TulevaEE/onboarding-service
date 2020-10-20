@@ -1,7 +1,7 @@
 version: '2'
 services:
   database:
-    image: postgres:9.6.12
+    image: postgres:9.6.18
     ports:
       - "5432:5432"
     environment:

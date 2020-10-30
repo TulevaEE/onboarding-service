@@ -19,9 +19,10 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isThirdPillarActive = false
         def isFullyConverted = false
+        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
 
         when:
-        String html = emailContentService.getSecondPillarHtml(user, isFullyConverted, isThirdPillarActive, ENGLISH)
+        String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
 
         then:
         html.contains('You are now saving for your pension alongside me and other Tuleva members.')
@@ -33,9 +34,10 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isThirdPillarActive = true
         def isFullyConverted = false
+        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
 
         when:
-        String html = emailContentService.getSecondPillarHtml(user, isFullyConverted, isThirdPillarActive, ENGLISH)
+        String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
 
         then:
         html.contains('You are now saving for your pension alongside me and other Tuleva members.')
@@ -47,9 +49,10 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isThirdPillarActive = true
         def isFullyConverted = true
+        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
 
         when:
-        String html = emailContentService.getSecondPillarHtml(user, isFullyConverted, isThirdPillarActive, ENGLISH)
+        String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
 
         then:
         html.contains('You are now saving for your pension alongside me and other Tuleva members.')
@@ -61,9 +64,10 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUser().build()
         def isThirdPillarActive = true
         def isFullyConverted = true
+        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
 
         when:
-        String html = emailContentService.getSecondPillarHtml(user, isFullyConverted, isThirdPillarActive, ENGLISH)
+        String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
 
         then:
         html.contains('You have submitted a pension exchange or future contributions fund mandate through Tuleva web application.')
@@ -74,9 +78,10 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUser().build()
         def isThirdPillarActive = false
         def isFullyConverted = false
+        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
 
         when:
-        String html = emailContentService.getSecondPillarHtml(user, isFullyConverted, isThirdPillarActive, ENGLISH)
+        String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
 
         then:
         html.contains('You have submitted a pension exchange or future contributions fund mandate through Tuleva web application.')
@@ -87,9 +92,10 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isSecondPillarActive = false
         def isFullyConverted = false
+        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
 
         when:
-        String html = emailContentService.getThirdPillarHtml(user, "test_account_1", isFullyConverted, isSecondPillarActive, ENGLISH)
+        String html = emailContentService.getThirdPillarHtml(user, pillarSuggestion, "test_account_1", ENGLISH)
 
         then:
         html.contains('You are now saving for your pension alongside me and other Tuleva members.')
@@ -102,9 +108,10 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isSecondPillarActive = true
         def isFullyConverted = false
+        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
 
         when:
-        String html = emailContentService.getThirdPillarHtml(user, "test_account_1", isFullyConverted, isSecondPillarActive, ENGLISH)
+        String html = emailContentService.getThirdPillarHtml(user, pillarSuggestion, "test_account_1", ENGLISH)
 
         then:
         html.contains('You are now saving for your pension alongside me and other Tuleva members.')
@@ -117,9 +124,10 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isSecondPillarActive = true
         def isFullyConverted = true
+        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
 
         when:
-        String html = emailContentService.getThirdPillarHtml(user, "test_account_1", isFullyConverted, isSecondPillarActive, ENGLISH)
+        String html = emailContentService.getThirdPillarHtml(user, pillarSuggestion, "test_account_1", ENGLISH)
 
         then:
         html.contains('You are now saving for your pension alongside me and other Tuleva members.')
@@ -132,9 +140,10 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUser().build()
         def isSecondPillarActive = true
         def isFullyConverted = true
+        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
 
         when:
-        String html = emailContentService.getThirdPillarHtml(user, "test_account_1", isFullyConverted, isSecondPillarActive, ENGLISH)
+        String html = emailContentService.getThirdPillarHtml(user, pillarSuggestion, "test_account_1", ENGLISH)
 
         then:
         html.contains('You are now saving for your pension alongside me and other Tuleva members.')
@@ -146,9 +155,10 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUser().build()
         def isSecondPillarActive = false
         def isFullyConverted = false
+        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
 
         when:
-        String html = emailContentService.getThirdPillarHtml(user, "test_account_1", isFullyConverted, isSecondPillarActive, ENGLISH)
+        String html = emailContentService.getThirdPillarHtml(user, pillarSuggestion, "test_account_1", ENGLISH)
 
         then:
         html.contains('You are now saving for your pension alongside me and other Tuleva members.')

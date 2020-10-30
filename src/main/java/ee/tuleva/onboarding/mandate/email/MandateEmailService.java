@@ -9,10 +9,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.Arrays;
-import java.util.Base64;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
+
+import static java.util.Collections.*;
 
 @Service
 @Slf4j
@@ -22,11 +21,14 @@ public class MandateEmailService {
     private final MandateEmailContentService emailContentService;
 
     public void sendSecondPillarMandate(User user, Long mandateId, byte[] file, ConversionResponse conversion,
-                                        UserPreferences userPreferences, Locale locale) {
+                                        UserPreferences contactDetails, Locale locale) {
+        SecondPillarSuggestion pillarSuggestion = new SecondPillarSuggestion(user, contactDetails, conversion);
+
         MandrillMessage message = emailService.newMandrillMessage(
-            emailService.getRecipients(user), getMandateEmailSubject(),
-            emailContentService.getSecondPillarHtml(user, conversion.isThirdPillarFullyConverted(),
-                userPreferences.isThirdPillarActive(), locale), getMandateTags(),
+            emailService.getRecipients(user),
+            getMandateEmailSubject(),
+            emailContentService.getSecondPillarHtml(user, pillarSuggestion, locale),
+            getMandateTags(pillarSuggestion),
             getMandateAttachements(file, user, mandateId));
 
         if (message == null) {
@@ -42,13 +44,16 @@ public class MandateEmailService {
     }
 
     public void sendThirdPillarMandate(User user, Long mandateId, byte[] file, ConversionResponse conversion,
-                                       UserPreferences userPreferences, Locale locale) {
+                                       UserPreferences contactDetails, Locale locale) {
+        ThirdPillarSuggestion pillarSuggestion = new ThirdPillarSuggestion(user, contactDetails, conversion);
+
         MandrillMessage message = emailService.newMandrillMessage(
-            emailService.getRecipients(user), getMandateEmailSubject(),
-            emailContentService.getThirdPillarHtml(user, userPreferences.getPensionAccountNumber(),
-                conversion.isSecondPillarFullyConverted(), userPreferences.isSecondPillarActive(),
-                locale), getMandateTags(),
-            getMandateAttachements(file, user, mandateId));
+            emailService.getRecipients(user),
+            getMandateEmailSubject(),
+            emailContentService.getThirdPillarHtml(user, pillarSuggestion, contactDetails.getPensionAccountNumber(), locale),
+            getMandateTags(pillarSuggestion),
+            getMandateAttachements(file, user, mandateId)
+        );
 
         if (message == null) {
             log.warn(
@@ -66,8 +71,15 @@ public class MandateEmailService {
         return "Pensionifondi avaldus";
     }
 
-    private List<String> getMandateTags() {
-        return Arrays.asList("mandate");
+    private List<String> getMandateTags(PillarSuggestion pillarSuggestion) {
+        StringBuilder tag = new StringBuilder("mandate");
+        if (pillarSuggestion.suggestMembership()) {
+            tag.append("_suggest_member");
+        }
+        if (pillarSuggestion.suggestOtherPillar()) {
+            tag.append("_suggest_").append(pillarSuggestion.getPillar());
+        }
+        return singletonList(tag.toString());
     }
 
     private List<MandrillMessage.MessageContent> getMandateAttachements(byte[] file, User user, Long mandateId) {

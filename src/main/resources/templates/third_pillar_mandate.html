@@ -5,10 +5,10 @@
         <br>
         <p th:text="#{mandate.email.thirdPillarContent}"></p>
         <br>
-        <p th:if="${!isSecondPillarActive && !isMember}" th:utext="#{mandate.email.suggestMembership}"></p>
-        <p th:if="${isSecondPillarActive && !isSecondPillarFullyConverted && !isMember}" th:utext="#{mandate.email.suggestSecondPillar}"></p>
-        <p th:if="${isSecondPillarFullyConverted && !isMember}" th:utext="#{mandate.email.suggestMembership}"></p>
-        <br>  
+        <p th:if="${pillarSuggestion.suggestMembershipIfOtherPillarInactive()}" th:utext="#{mandate.email.suggestMembership}"></p>
+        <p th:if="${pillarSuggestion.suggestOtherPillar()}" th:utext="#{mandate.email.suggestSecondPillar}"></p>
+        <p th:if="${pillarSuggestion.suggestMembershipIfOtherPillarFullyConverted()}" th:utext="#{mandate.email.suggestMembership}"></p>
+        <br>
         <p th:text="#{mandate.email.thirdPillarPaymentInfo}"></p>
         <p>
           <span th:text="#{mandate.payment.accountName}"></span>:

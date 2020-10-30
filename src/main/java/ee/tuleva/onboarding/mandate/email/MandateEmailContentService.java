@@ -16,24 +16,20 @@ public class MandateEmailContentService {
 
     private final TemplateEngine templateEngine;
 
-    public String getSecondPillarHtml(User user, boolean isFullyConverted, boolean isThirdPillarActive, Locale locale) {
+    public String getSecondPillarHtml(User user, SecondPillarSuggestion pillarSuggestion, Locale locale) {
         Context ctx = new Context();
         ctx.setLocale(locale);
         ctx.setVariable("firstName", user.getFirstName());
-        ctx.setVariable("isMember", user.isMember());
-        ctx.setVariable("isThirdPillarActive", isThirdPillarActive);
-        ctx.setVariable("isThirdPillarFullyConverted", isFullyConverted);
+        ctx.setVariable("pillarSuggestion", pillarSuggestion);
         return templateEngine.process("second_pillar_mandate", ctx);
     }
 
-    public String getThirdPillarHtml(User user, String pensionAccountNumber, boolean isFullyConverted,
-                                     boolean isSecondPillarActive, Locale locale) {
+    public String getThirdPillarHtml(User user, ThirdPillarSuggestion pillarSuggestion, String pensionAccountNumber,
+                                     Locale locale) {
         Context ctx = new Context();
         ctx.setLocale(locale);
         ctx.setVariable("firstName", user.getFirstName());
-        ctx.setVariable("isMember", user.isMember());
-        ctx.setVariable("isSecondPillarActive", isSecondPillarActive);
-        ctx.setVariable("isSecondPillarFullyConverted", isFullyConverted);
+        ctx.setVariable("pillarSuggestion", pillarSuggestion);
         ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
         return templateEngine.process("third_pillar_mandate", ctx);
     }

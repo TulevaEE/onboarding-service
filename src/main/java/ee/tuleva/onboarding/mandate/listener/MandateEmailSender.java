@@ -32,14 +32,14 @@ public class MandateEmailSender {
 
     @EventListener
     public void onThirdPillarMandateCreatedEvent(ThirdPillarMandateCreatedEvent event) {
+        UserPreferences contactDetails = episService.getContactDetails(event.getUser());
         ConversionResponse conversion = conversionService.getConversion(event.getUser());
-        UserPreferences userPreferences = episService.getContactDetails(event.getUser());
         emailService.sendThirdPillarMandate(
             event.getUser(),
             event.getMandateId(),
             event.getSignedFile(),
             conversion,
-            userPreferences,
+            contactDetails,
             event.getLocale()
         );
     }

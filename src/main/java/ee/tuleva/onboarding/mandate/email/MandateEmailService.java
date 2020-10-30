@@ -11,8 +11,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 
-import static java.util.Collections.*;
-
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -72,14 +70,15 @@ public class MandateEmailService {
     }
 
     private List<String> getMandateTags(PillarSuggestion pillarSuggestion) {
-        StringBuilder tag = new StringBuilder("mandate");
+        List<String> tags = new ArrayList<>();
+        tags.add("mandate");
         if (pillarSuggestion.suggestMembership()) {
-            tag.append("_suggest_member");
+            tags.add("suggest_member");
         }
         if (pillarSuggestion.suggestOtherPillar()) {
-            tag.append("_suggest_").append(pillarSuggestion.getPillar());
+            tags.add("suggest_" + pillarSuggestion.getPillar());
         }
-        return singletonList(tag.toString());
+        return tags;
     }
 
     private List<MandrillMessage.MessageContent> getMandateAttachements(byte[] file, User user, Long mandateId) {

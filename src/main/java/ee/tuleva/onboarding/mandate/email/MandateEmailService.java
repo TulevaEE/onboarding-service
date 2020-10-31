@@ -65,18 +65,18 @@ public class MandateEmailService {
         emailService.send(user, message);
     }
 
-    private String getMandateEmailSubject() {
+    String getMandateEmailSubject() {
         return "Pensionifondi avaldus";
     }
 
-    private List<String> getMandateTags(PillarSuggestion pillarSuggestion) {
+    List<String> getMandateTags(PillarSuggestion pillarSuggestion) {
         List<String> tags = new ArrayList<>();
         tags.add("mandate");
         if (pillarSuggestion.suggestMembership()) {
             tags.add("suggest_member");
         }
         if (pillarSuggestion.suggestOtherPillar()) {
-            tags.add("suggest_" + pillarSuggestion.getPillar());
+            tags.add("suggest_" + pillarSuggestion.getOtherPillar());
         }
         return tags;
     }

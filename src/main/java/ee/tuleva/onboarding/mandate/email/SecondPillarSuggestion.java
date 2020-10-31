@@ -40,7 +40,7 @@ public class SecondPillarSuggestion implements PillarSuggestion {
     }
 
     @Override
-    public int getPillar() {
-        return 2;
+    public int getOtherPillar() {
+        return 3;
     }
 }

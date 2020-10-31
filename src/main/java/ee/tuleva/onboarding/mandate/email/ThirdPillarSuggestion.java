@@ -36,7 +36,7 @@ public class ThirdPillarSuggestion implements PillarSuggestion {
     }
 
     @Override
-    public int getPillar() {
-        return 3;
+    public int getOtherPillar() {
+        return 2;
     }
 }

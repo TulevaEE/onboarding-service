@@ -8,7 +8,7 @@ import spock.lang.Unroll
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
-import static ee.tuleva.onboarding.epis.contact.UserPreferencesFixture.aUserPreferences
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 
 class MandateEmailServiceSpec extends Specification {
 
@@ -20,7 +20,7 @@ class MandateEmailServiceSpec extends Specification {
         given:
         def user = sampleUser().build()
         def conversion = notFullyConverted()
-        def contactDetails = aUserPreferences()
+        def contactDetails = contactDetailsFixture()
         def recipients = [new Recipient()]
         def message = new MandrillMessage()
         def subject = mandateEmailService.getMandateEmailSubject()
@@ -43,7 +43,7 @@ class MandateEmailServiceSpec extends Specification {
         given:
         def user = sampleUser().build()
         def conversion = notFullyConverted()
-        def contactDetails = aUserPreferences()
+        def contactDetails = contactDetailsFixture()
         def recipients = [new Recipient()]
         def message = new MandrillMessage()
         def subject = mandateEmailService.getMandateEmailSubject()
@@ -95,12 +95,12 @@ class MandateEmailServiceSpec extends Specification {
         tags == expectedTags
 
         where:
-        isSecondPillarActive | isFullyConverted | isMember | expectedTags
-        false                | false            | false    | ["mandate", "suggest_member"]
-        false                | false            | true     | ["mandate"]
-        true                 | false            | false    | ["mandate", "suggest_2"]
-        true                 | false            | true     | ["mandate"]
-        true                 | true             | false    | ["mandate", "suggest_member"]
-        true                 | true             | true     | ["mandate"]
+        isSecondPillarActive | isFullyConverted | isMember || expectedTags
+        false                | false            | false    || ["mandate", "suggest_member"]
+        false                | false            | true     || ["mandate"]
+        true                 | false            | false    || ["mandate", "suggest_2"]
+        true                 | false            | true     || ["mandate"]
+        true                 | true             | false    || ["mandate", "suggest_member"]
+        true                 | true             | true     || ["mandate"]
     }
 }

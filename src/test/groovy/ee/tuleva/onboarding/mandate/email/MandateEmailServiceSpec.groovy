@@ -1,68 +1,106 @@
 package ee.tuleva.onboarding.mandate.email
 
-import com.microtripit.mandrillapp.lutung.MandrillApi
-import com.microtripit.mandrillapp.lutung.controller.MandrillMessagesApi
-import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
-import ee.tuleva.onboarding.config.EmailConfiguration
-import ee.tuleva.onboarding.epis.contact.UserPreferences
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
+import spock.lang.Unroll
 
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
+import static ee.tuleva.onboarding.epis.contact.UserPreferencesFixture.aUserPreferences
 
 class MandateEmailServiceSpec extends Specification {
 
-    EmailConfiguration emailConfiguration = Mock(EmailConfiguration)
     MandateEmailContentService emailContentService = Mock(MandateEmailContentService)
-    MandrillApi mandrillApi = Mock(MandrillApi)
-    EmailService service = new EmailService(emailConfiguration, mandrillApi)
-    MandateEmailService mandateService = new MandateEmailService(service, emailContentService)
-
-    def setup() {
-        emailConfiguration.from >> "tuleva@tuleva.ee"
-        emailConfiguration.bcc >> "avaldused@tuleva.ee"
-        emailConfiguration.mandrillKey >> Optional.of("")
-    }
+    EmailService emailService = Mock(EmailService)
+    MandateEmailService mandateEmailService = new MandateEmailService(emailService, emailContentService)
 
     def "Send second pillar mandate email"() {
         given:
         def user = sampleUser().build()
-        def isFullyConverted = false
-        def isThirdPillarActive = false
         def conversion = notFullyConverted()
-        UserPreferences userPreferences = new UserPreferences()
-        emailContentService.getSecondPillarHtml(user, isFullyConverted, isThirdPillarActive, Locale.ENGLISH) >> "html"
+        def contactDetails = aUserPreferences()
+        def recipients = [new Recipient()]
+        def message = new MandrillMessage()
+        def subject = mandateEmailService.getMandateEmailSubject()
+        def html = "html"
+        def tags = ["mandate"]
+
+        emailContentService.getSecondPillarHtml(*_) >> html
+        emailService.getRecipients(user) >> recipients
 
         when:
-        mandateService.sendSecondPillarMandate(
-            sampleUser().build(), 123, "file".bytes, conversion, userPreferences, Locale.ENGLISH)
+        mandateEmailService.sendSecondPillarMandate(
+            user, 123, "file".bytes, conversion, contactDetails, Locale.ENGLISH)
 
         then:
-        1 * mandrillApi.messages() >> mockMandrillMessageApi()
+        1 * emailService.newMandrillMessage(recipients, subject, html, tags, _) >> message
+        1 * emailService.send(user, message)
     }
 
     def "Send third pillar mandate email"() {
         given:
         def user = sampleUser().build()
-        def isFullyConverted = false
-        def isSecondPillarActive = false
         def conversion = notFullyConverted()
-        UserPreferences userPreferences = new UserPreferences()
-        emailContentService.getThirdPillarHtml(
-            user, "123", isFullyConverted, isSecondPillarActive, Locale.ENGLISH) >> "html"
+        def contactDetails = aUserPreferences()
+        def recipients = [new Recipient()]
+        def message = new MandrillMessage()
+        def subject = mandateEmailService.getMandateEmailSubject()
+        def html = "html"
+        def tags = ["mandate"]
+
+        emailContentService.getThirdPillarHtml(*_) >> html
+        emailService.getRecipients(user) >> recipients
 
         when:
-        mandateService.sendThirdPillarMandate(
-            sampleUser().build(), 123, "file".bytes, conversion, userPreferences, Locale.ENGLISH)
+        mandateEmailService.sendThirdPillarMandate(
+            user, 123, "file".bytes, conversion, contactDetails, Locale.ENGLISH)
 
         then:
-        1 * mandrillApi.messages() >> mockMandrillMessageApi()
+        1 * emailService.newMandrillMessage(recipients, subject, html, tags, _) >> message
+        1 * emailService.send(user, message)
     }
 
-    private MandrillMessagesApi mockMandrillMessageApi() {
-        def messagesApi = Mock(MandrillMessagesApi)
-        messagesApi.send(*_) >> ([Mock(MandrillMessageStatus)] as MandrillMessageStatus[])
-        return messagesApi
+    @Unroll
+    def "mandate tagging 2nd pillar"() {
+        given:
+        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, isMember)
+
+        when:
+        def tags = mandateEmailService.getMandateTags(pillarSuggestion)
+
+        then:
+        tags == expectedTags
+
+        where:
+        isThirdPillarActive | isFullyConverted | isMember | expectedTags
+        false               | false            | false    | ["mandate", "suggest_member"]
+        false               | false            | true     | ["mandate"]
+        true                | false            | false    | ["mandate", "suggest_3"]
+        true                | false            | true     | ["mandate"]
+        true                | true             | false    | ["mandate", "suggest_member"]
+        true                | true             | true     | ["mandate"]
+    }
+
+    @Unroll
+    def "mandate tagging 3rd pillar"() {
+        given:
+        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, isMember)
+
+        when:
+        def tags = mandateEmailService.getMandateTags(pillarSuggestion)
+
+        then:
+        tags == expectedTags
+
+        where:
+        isSecondPillarActive | isFullyConverted | isMember | expectedTags
+        false                | false            | false    | ["mandate", "suggest_member"]
+        false                | false            | true     | ["mandate"]
+        true                 | false            | false    | ["mandate", "suggest_2"]
+        true                 | false            | true     | ["mandate"]
+        true                 | true             | false    | ["mandate", "suggest_member"]
+        true                 | true             | true     | ["mandate"]
     }
 }

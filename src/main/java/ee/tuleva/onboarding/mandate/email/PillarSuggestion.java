@@ -8,7 +8,7 @@ public interface PillarSuggestion {
 
     boolean suggestOtherPillar();
 
-    int getPillar();
+    int getOtherPillar();
 
     default boolean suggestMembership() {
         return suggestMembershipIfOtherPillarInactive() || suggestMembershipIfOtherPillarFullyConverted();

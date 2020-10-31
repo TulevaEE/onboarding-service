@@ -74,13 +74,13 @@ class MandateEmailServiceSpec extends Specification {
         tags == expectedTags
 
         where:
-        isThirdPillarActive | isFullyConverted | isMember | expectedTags
-        false               | false            | false    | ["mandate", "suggest_member"]
-        false               | false            | true     | ["mandate"]
-        true                | false            | false    | ["mandate", "suggest_3"]
-        true                | false            | true     | ["mandate"]
-        true                | true             | false    | ["mandate", "suggest_member"]
-        true                | true             | true     | ["mandate"]
+        isThirdPillarActive | isFullyConverted | isMember || expectedTags
+        false               | false            | false    || ["mandate", "suggest_member"]
+        false               | false            | true     || ["mandate"]
+        true                | false            | false    || ["mandate", "suggest_3"]
+        true                | false            | true     || ["mandate"]
+        true                | true             | false    || ["mandate", "suggest_member"]
+        true                | true             | true     || ["mandate"]
     }
 
     @Unroll

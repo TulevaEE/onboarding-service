@@ -42,7 +42,6 @@ public class UserConversionService {
 
     private static final String CONVERTED_FUND_MANAGER_NAME = "Tuleva";
     public static final String EXIT_RESTRICTED_FUND = "EE3600109484";
-    private LocalDate THIRD_PILLAR_FUND_INCEPTION_DATE = LocalDate.of(2019, 10, 15);
 
     public ConversionResponse getConversion(Person person) {
         List<FundBalance> fundBalances = accountStatementService.getAccountStatement(person);
@@ -79,7 +78,7 @@ public class UserConversionService {
 
     private boolean paymentComplete(CashFlowStatement cashFlowStatement) {
         return cashFlowStatement.getTransactions().stream()
-            .filter(cashFlow -> cashFlow.getDate().isAfter(THIRD_PILLAR_FUND_INCEPTION_DATE))
+            .filter(cashFlow -> cashFlow.getDate().isAfter(lastDayOfLastYear()))
             .filter(CashFlow::isCashContribution)
             .filter(cashFlow -> fundRepository.findByIsin(cashFlow.getIsin()).getPillar() == 3)
             .map(CashFlow::getAmount)

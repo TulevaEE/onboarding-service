@@ -25,7 +25,7 @@ class MandateEmailServiceSpec extends Specification {
         def message = new MandrillMessage()
         def subject = mandateEmailService.getMandateEmailSubject()
         def html = "html"
-        def tags = ["mandate"]
+        def tags = ["mandate", "pillar_2", "suggest_3"]
 
         emailContentService.getSecondPillarHtml(*_) >> html
         emailService.getRecipients(user) >> recipients
@@ -48,7 +48,7 @@ class MandateEmailServiceSpec extends Specification {
         def message = new MandrillMessage()
         def subject = mandateEmailService.getMandateEmailSubject()
         def html = "html"
-        def tags = ["mandate"]
+        def tags = ["mandate", "pillar_3", "suggest_2"]
 
         emailContentService.getThirdPillarHtml(*_) >> html
         emailService.getRecipients(user) >> recipients
@@ -65,7 +65,7 @@ class MandateEmailServiceSpec extends Specification {
     @Unroll
     def "mandate tagging for 2nd pillar mandates"() {
         given:
-        def pillarSuggestion = new ThirdPillarSuggestion(isThirdPillarActive, isFullyConverted, isMember)
+        def pillarSuggestion = new PillarSuggestion(3, isThirdPillarActive, isThirdPillarFullyConverted, isMember)
 
         when:
         def tags = mandateEmailService.getMandateTags(pillarSuggestion)
@@ -74,19 +74,19 @@ class MandateEmailServiceSpec extends Specification {
         tags == expectedTags
 
         where:
-        isThirdPillarActive | isFullyConverted | isMember || expectedTags
-        false               | false            | false    || ["mandate", "suggest_member"]
-        false               | false            | true     || ["mandate"]
-        true                | false            | false    || ["mandate", "suggest_3"]
-        true                | false            | true     || ["mandate"]
-        true                | true             | false    || ["mandate", "suggest_member"]
-        true                | true             | true     || ["mandate"]
+        isThirdPillarActive | isThirdPillarFullyConverted | isMember || expectedTags
+        false               | false                       | false    || ["mandate", "pillar_2", "suggest_3"]
+        false               | false                       | true     || ["mandate", "pillar_2", "suggest_3"]
+        true                | false                       | false    || ["mandate", "pillar_2", "suggest_3"]
+        true                | false                       | true     || ["mandate", "pillar_2", "suggest_3"]
+        true                | true                        | false    || ["mandate", "pillar_2", "suggest_member"]
+        true                | true                        | true     || ["mandate", "pillar_2"]
     }
 
     @Unroll
     def "mandate tagging for 3rd pillar mandates"() {
         given:
-        def pillarSuggestion = new SecondPillarSuggestion(isSecondPillarActive, isFullyConverted, isMember)
+        def pillarSuggestion = new PillarSuggestion(2, isSecondPillarActive, isSecondPillarFullyConverted, isMember)
 
         when:
         def tags = mandateEmailService.getMandateTags(pillarSuggestion)
@@ -95,12 +95,12 @@ class MandateEmailServiceSpec extends Specification {
         tags == expectedTags
 
         where:
-        isSecondPillarActive | isFullyConverted | isMember || expectedTags
-        false                | false            | false    || ["mandate", "suggest_member"]
-        false                | false            | true     || ["mandate"]
-        true                 | false            | false    || ["mandate", "suggest_2"]
-        true                 | false            | true     || ["mandate"]
-        true                 | true             | false    || ["mandate", "suggest_member"]
-        true                 | true             | true     || ["mandate"]
+        isSecondPillarActive | isSecondPillarFullyConverted | isMember || expectedTags
+        false                | false                        | false    || ["mandate", "pillar_3", "suggest_2"]
+        false                | false                        | true     || ["mandate", "pillar_3", "suggest_2"]
+        true                 | false                        | false    || ["mandate", "pillar_3", "suggest_2"]
+        true                 | false                        | true     || ["mandate", "pillar_3", "suggest_2"]
+        true                 | true                         | false    || ["mandate", "pillar_3", "suggest_member"]
+        true                 | true                         | true     || ["mandate", "pillar_3"]
     }
 }

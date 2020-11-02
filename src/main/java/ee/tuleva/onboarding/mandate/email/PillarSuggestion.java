@@ -1,17 +1,52 @@
 package ee.tuleva.onboarding.mandate.email;
 
-public interface PillarSuggestion {
+import ee.tuleva.onboarding.conversion.ConversionResponse;
+import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.user.User;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.ToString;
 
-    boolean suggestMembershipIfPillarInactive();
+@ToString
+@AllArgsConstructor
+public class PillarSuggestion {
 
-    boolean suggestMembershipIfFullyConverted();
+    @Getter
+    private final int suggestedPillar;
+    private final boolean isPillarActive;
+    private final boolean isPillarFullyConverted;
+    private final boolean isMember;
 
-    boolean suggestPillar();
+    public PillarSuggestion(int suggestedPillar, User user, UserPreferences contactDetails, ConversionResponse conversion) {
+        this.suggestedPillar = suggestedPillar;
+        isMember = user.isMember();
 
-    int getPillar();
-
-    default boolean suggestMembership() {
-        return suggestMembershipIfPillarInactive() || suggestMembershipIfFullyConverted();
+        if (suggestedPillar == 2) {
+            isPillarActive = contactDetails.isSecondPillarActive();
+            isPillarFullyConverted = conversion.isSecondPillarFullyConverted();
+        } else if (suggestedPillar == 3) {
+            isPillarActive = contactDetails.isThirdPillarActive();
+            isPillarFullyConverted = conversion.isThirdPillarFullyConverted();
+        } else {
+            throw new IllegalArgumentException("Unknown pillar: " + suggestedPillar);
+        }
     }
 
+    public boolean suggestPillar() {
+        return !isPillarActive || !isPillarFullyConverted;
+    }
+
+    public boolean suggestMembership() {
+        return isPillarActive && isPillarFullyConverted && !isMember;
+    }
+
+    public int getOtherPillar() {
+        if (suggestedPillar == 2) {
+            return 3;
+        } else if (suggestedPillar == 3) {
+            return 2;
+        } else {
+            throw new IllegalArgumentException("Unknown pillar: " + suggestedPillar);
+        }
+    }
 }

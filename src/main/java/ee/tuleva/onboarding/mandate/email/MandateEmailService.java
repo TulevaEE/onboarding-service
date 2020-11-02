@@ -20,7 +20,7 @@ public class MandateEmailService {
 
     public void sendSecondPillarMandate(User user, Long mandateId, byte[] file, ConversionResponse conversion,
                                         UserPreferences contactDetails, Locale locale) {
-        SecondPillarSuggestion pillarSuggestion = new SecondPillarSuggestion(user, contactDetails, conversion);
+        ThirdPillarSuggestion pillarSuggestion = new ThirdPillarSuggestion(user, contactDetails, conversion);
 
         MandrillMessage message = emailService.newMandrillMessage(
             emailService.getRecipients(user),
@@ -43,7 +43,7 @@ public class MandateEmailService {
 
     public void sendThirdPillarMandate(User user, Long mandateId, byte[] file, ConversionResponse conversion,
                                        UserPreferences contactDetails, Locale locale) {
-        ThirdPillarSuggestion pillarSuggestion = new ThirdPillarSuggestion(user, contactDetails, conversion);
+        SecondPillarSuggestion pillarSuggestion = new SecondPillarSuggestion(user, contactDetails, conversion);
 
         MandrillMessage message = emailService.newMandrillMessage(
             emailService.getRecipients(user),
@@ -75,8 +75,8 @@ public class MandateEmailService {
         if (pillarSuggestion.suggestMembership()) {
             tags.add("suggest_member");
         }
-        if (pillarSuggestion.suggestOtherPillar()) {
-            tags.add("suggest_" + pillarSuggestion.getOtherPillar());
+        if (pillarSuggestion.suggestPillar()) {
+            tags.add("suggest_" + pillarSuggestion.getPillar());
         }
         return tags;
     }

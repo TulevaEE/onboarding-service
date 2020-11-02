@@ -10,33 +10,37 @@ import lombok.ToString;
 @AllArgsConstructor
 public class ThirdPillarSuggestion implements PillarSuggestion {
 
-    private final boolean isSecondPillarActive;
-    private final boolean isSecondPillarFullyConverted;
+    private final boolean isThirdPillarActive;
+    private final boolean isThirdPillarFullyConverted;
     private final boolean isMember;
 
     public ThirdPillarSuggestion(User user, UserPreferences contactDetails, ConversionResponse conversion) {
-        isSecondPillarActive = contactDetails.isSecondPillarActive();
-        isSecondPillarFullyConverted = conversion.isSecondPillarFullyConverted();
+        isThirdPillarActive = contactDetails.isThirdPillarActive();
+        isThirdPillarFullyConverted = conversion.isThirdPillarFullyConverted();
         isMember = user.isMember();
     }
 
-    @Override
-    public boolean suggestMembershipIfOtherPillarInactive() {
-        return !isSecondPillarActive && !isMember;
+    public boolean showShortMessage() {
+        return (isThirdPillarFullyConverted || !isThirdPillarActive) && isMember;
     }
 
     @Override
-    public boolean suggestMembershipIfOtherPillarFullyConverted() {
-        return isSecondPillarFullyConverted && !isMember;
+    public boolean suggestMembershipIfPillarInactive() {
+        return !isThirdPillarActive && !isMember;
     }
 
     @Override
-    public boolean suggestOtherPillar() {
-        return isSecondPillarActive && !isSecondPillarFullyConverted && !isMember;
+    public boolean suggestMembershipIfFullyConverted() {
+        return isThirdPillarFullyConverted && !isMember;
     }
 
     @Override
-    public int getOtherPillar() {
-        return 2;
+    public boolean suggestPillar() {
+        return isThirdPillarActive && !isThirdPillarFullyConverted && !isMember;
+    }
+
+    @Override
+    public int getPillar() {
+        return 3;
     }
 }

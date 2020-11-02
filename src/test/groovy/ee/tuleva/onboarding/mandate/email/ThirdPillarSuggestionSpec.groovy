@@ -6,22 +6,23 @@ import spock.lang.Unroll
 class ThirdPillarSuggestionSpec extends Specification {
 
     @Unroll
-    def "suggests membership and 2nd pillar for 3rd pillar mandates"() {
+    def "suggests membership and 3rd pillar for 2nd pillar mandates"() {
         when:
-        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isSecondPillarFullyConverted, isMember)
+        def pillarSuggestion = new ThirdPillarSuggestion(isThirdPillarActive, isThirdPillarFullyConverted, isMember)
 
         then:
-        pillarSuggestion.suggestMembershipIfOtherPillarInactive() == suggestMembershipIfOtherPillarInactive
-        pillarSuggestion.suggestMembershipIfOtherPillarFullyConverted() == suggestMembershipIfOtherPillarFullyConverted
-        pillarSuggestion.suggestOtherPillar() == suggestOtherPillar
+        pillarSuggestion.showShortMessage() == showShortMessage
+        pillarSuggestion.suggestMembershipIfPillarInactive() == suggestMembershipIfPillarInactive
+        pillarSuggestion.suggestMembershipIfFullyConverted() == suggestMembershipIfFullyConverted
+        pillarSuggestion.suggestPillar() == suggestPillar
 
         where:
-        isSecondPillarActive | isSecondPillarFullyConverted | isMember || suggestMembershipIfOtherPillarInactive | suggestMembershipIfOtherPillarFullyConverted | suggestOtherPillar
-        false                | false                        | false    || true                                   | false                                        | false
-        false                | false                        | true     || false                                  | false                                        | false
-        true                 | false                        | false    || false                                  | false                                        | true
-        true                 | false                        | true     || false                                  | false                                        | false
-        true                 | true                         | false    || false                                  | true                                         | false
-        true                 | true                         | true     || false                                  | false                                        | false
+        isThirdPillarActive | isThirdPillarFullyConverted | isMember || showShortMessage | suggestMembershipIfPillarInactive | suggestMembershipIfFullyConverted | suggestPillar
+        false               | false                       | false    || false            | true                              | false                             | false
+        false               | false                       | true     || true             | false                             | false                             | false
+        true                | false                       | false    || false            | false                             | false                             | true
+        true                | false                       | true     || false            | false                             | false                             | false
+        true                | true                        | false    || false            | false                             | true                              | false
+        true                | true                        | true     || true             | false                             | false                             | false
     }
 }

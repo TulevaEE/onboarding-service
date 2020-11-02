@@ -3,12 +3,12 @@
     <body>
         <p th:text="#{mandate.email.greeting(${firstName})}"></p>
         <br>
-        <p th:if="${pillarSuggestion.showShortMessage()}" th:text="#{mandate.email.secondPillarContentShort}"></p>
-        <p th:unless="${pillarSuggestion.showShortMessage()}" th:text="#{mandate.email.secondPillarContentLong}"></p>
+        <p th:if="${thirdPillarSuggestion.showShortMessage()}" th:text="#{mandate.email.secondPillarContentShort}"></p>
+        <p th:unless="${thirdPillarSuggestion.showShortMessage()}" th:text="#{mandate.email.secondPillarContentLong}"></p>
         <br>
-        <p th:if="${pillarSuggestion.suggestMembershipIfOtherPillarInactive()}" th:utext="#{mandate.email.suggestMembership}"></p>
-        <p th:if="${pillarSuggestion.suggestOtherPillar()}" th:utext="#{mandate.email.suggestThirdPillar}"></p>
-        <p th:if="${pillarSuggestion.suggestMembershipIfOtherPillarFullyConverted()}" th:utext="#{mandate.email.suggestMembership}"></p>
+        <p th:if="${thirdPillarSuggestion.suggestMembershipIfPillarInactive()}" th:utext="#{mandate.email.suggestMembership}"></p>
+        <p th:if="${thirdPillarSuggestion.suggestPillar()}" th:utext="#{mandate.email.suggestThirdPillar}"></p>
+        <p th:if="${thirdPillarSuggestion.suggestMembershipIfFullyConverted()}" th:utext="#{mandate.email.suggestMembership}"></p>
         <br>
         <p th:text="#{mandate.email.mandate}"></p>
         <p th:text="#{mandate.email.info}"></p>

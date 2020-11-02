@@ -20,13 +20,13 @@ public class MandateEmailService {
 
     public void sendSecondPillarMandate(User user, Long mandateId, byte[] file, ConversionResponse conversion,
                                         UserPreferences contactDetails, Locale locale) {
-        PillarSuggestion pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion);
+        PillarSuggestion thirdPillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion);
 
         MandrillMessage message = emailService.newMandrillMessage(
             emailService.getRecipients(user),
             getMandateEmailSubject(),
-            emailContentService.getSecondPillarHtml(user, pillarSuggestion, locale),
-            getMandateTags(pillarSuggestion),
+            emailContentService.getSecondPillarHtml(user, thirdPillarSuggestion, locale),
+            getMandateTags(thirdPillarSuggestion),
             getMandateAttachements(file, user, mandateId));
 
         if (message == null) {
@@ -43,13 +43,13 @@ public class MandateEmailService {
 
     public void sendThirdPillarMandate(User user, Long mandateId, byte[] file, ConversionResponse conversion,
                                        UserPreferences contactDetails, Locale locale) {
-        PillarSuggestion pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion);
+        PillarSuggestion secondPillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion);
 
         MandrillMessage message = emailService.newMandrillMessage(
             emailService.getRecipients(user),
             getMandateEmailSubject(),
-            emailContentService.getThirdPillarHtml(user, pillarSuggestion, contactDetails.getPensionAccountNumber(), locale),
-            getMandateTags(pillarSuggestion),
+            emailContentService.getThirdPillarHtml(user, secondPillarSuggestion, contactDetails.getPensionAccountNumber(), locale),
+            getMandateTags(secondPillarSuggestion),
             getMandateAttachements(file, user, mandateId)
         );
 

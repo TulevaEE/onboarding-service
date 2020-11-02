@@ -19,7 +19,7 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isThirdPillarActive = false
         def isFullyConverted = false
-        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
+        def pillarSuggestion = new ThirdPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
 
         when:
         String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
@@ -34,7 +34,7 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isThirdPillarActive = true
         def isFullyConverted = false
-        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
+        def pillarSuggestion = new ThirdPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
 
         when:
         String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
@@ -49,7 +49,7 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isThirdPillarActive = true
         def isFullyConverted = true
-        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
+        def pillarSuggestion = new ThirdPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
 
         when:
         String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
@@ -64,7 +64,7 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUser().build()
         def isThirdPillarActive = true
         def isFullyConverted = true
-        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
+        def pillarSuggestion = new ThirdPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
 
         when:
         String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
@@ -78,7 +78,7 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUser().build()
         def isThirdPillarActive = false
         def isFullyConverted = false
-        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
+        def pillarSuggestion = new ThirdPillarSuggestion(isThirdPillarActive, isFullyConverted, user.isMember())
 
         when:
         String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
@@ -92,7 +92,7 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isSecondPillarActive = false
         def isFullyConverted = false
-        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
+        def pillarSuggestion = new SecondPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
 
         when:
         String html = emailContentService.getThirdPillarHtml(user, pillarSuggestion, "test_account_1", ENGLISH)
@@ -108,7 +108,7 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isSecondPillarActive = true
         def isFullyConverted = false
-        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
+        def pillarSuggestion = new SecondPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
 
         when:
         String html = emailContentService.getThirdPillarHtml(user, pillarSuggestion, "test_account_1", ENGLISH)
@@ -124,7 +124,7 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isSecondPillarActive = true
         def isFullyConverted = true
-        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
+        def pillarSuggestion = new SecondPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
 
         when:
         String html = emailContentService.getThirdPillarHtml(user, pillarSuggestion, "test_account_1", ENGLISH)
@@ -140,7 +140,7 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUser().build()
         def isSecondPillarActive = true
         def isFullyConverted = true
-        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
+        def pillarSuggestion = new SecondPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
 
         when:
         String html = emailContentService.getThirdPillarHtml(user, pillarSuggestion, "test_account_1", ENGLISH)
@@ -155,7 +155,7 @@ class MandateEmailContentServiceSpec extends Specification {
         def user = sampleUser().build()
         def isSecondPillarActive = false
         def isFullyConverted = false
-        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
+        def pillarSuggestion = new SecondPillarSuggestion(isSecondPillarActive, isFullyConverted, user.isMember())
 
         when:
         String html = emailContentService.getThirdPillarHtml(user, pillarSuggestion, "test_account_1", ENGLISH)

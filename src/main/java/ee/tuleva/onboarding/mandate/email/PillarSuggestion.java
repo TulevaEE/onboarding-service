@@ -2,16 +2,16 @@ package ee.tuleva.onboarding.mandate.email;
 
 public interface PillarSuggestion {
 
-    boolean suggestMembershipIfOtherPillarInactive();
+    boolean suggestMembershipIfPillarInactive();
 
-    boolean suggestMembershipIfOtherPillarFullyConverted();
+    boolean suggestMembershipIfFullyConverted();
 
-    boolean suggestOtherPillar();
+    boolean suggestPillar();
 
-    int getOtherPillar();
+    int getPillar();
 
     default boolean suggestMembership() {
-        return suggestMembershipIfOtherPillarInactive() || suggestMembershipIfOtherPillarFullyConverted();
+        return suggestMembershipIfPillarInactive() || suggestMembershipIfFullyConverted();
     }
 
 }

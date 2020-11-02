@@ -63,9 +63,9 @@ class MandateEmailServiceSpec extends Specification {
     }
 
     @Unroll
-    def "mandate tagging 2nd pillar"() {
+    def "mandate tagging for 2nd pillar mandates"() {
         given:
-        def pillarSuggestion = new SecondPillarSuggestion(isThirdPillarActive, isFullyConverted, isMember)
+        def pillarSuggestion = new ThirdPillarSuggestion(isThirdPillarActive, isFullyConverted, isMember)
 
         when:
         def tags = mandateEmailService.getMandateTags(pillarSuggestion)
@@ -84,9 +84,9 @@ class MandateEmailServiceSpec extends Specification {
     }
 
     @Unroll
-    def "mandate tagging 3rd pillar"() {
+    def "mandate tagging for 3rd pillar mandates"() {
         given:
-        def pillarSuggestion = new ThirdPillarSuggestion(isSecondPillarActive, isFullyConverted, isMember)
+        def pillarSuggestion = new SecondPillarSuggestion(isSecondPillarActive, isFullyConverted, isMember)
 
         when:
         def tags = mandateEmailService.getMandateTags(pillarSuggestion)

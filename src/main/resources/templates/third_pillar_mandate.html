@@ -5,9 +5,8 @@
         <br>
         <p th:text="#{mandate.email.thirdPillarContent}"></p>
         <br>
-        <p th:if="${secondPillarSuggestion.suggestMembershipIfPillarInactive()}" th:utext="#{mandate.email.suggestMembership}"></p>
         <p th:if="${secondPillarSuggestion.suggestPillar()}" th:utext="#{mandate.email.suggestSecondPillar}"></p>
-        <p th:if="${secondPillarSuggestion.suggestMembershipIfFullyConverted()}" th:utext="#{mandate.email.suggestMembership}"></p>
+        <p th:if="${secondPillarSuggestion.suggestMembership()}" th:utext="#{mandate.email.suggestMembership}"></p>
         <br>
         <p th:text="#{mandate.email.thirdPillarPaymentInfo}"></p>
         <p>

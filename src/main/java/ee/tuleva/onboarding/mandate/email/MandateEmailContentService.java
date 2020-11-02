@@ -16,7 +16,7 @@ public class MandateEmailContentService {
 
     private final TemplateEngine templateEngine;
 
-    public String getSecondPillarHtml(User user, ThirdPillarSuggestion thirdPillarSuggestion, Locale locale) {
+    public String getSecondPillarHtml(User user, PillarSuggestion thirdPillarSuggestion, Locale locale) {
         Context ctx = new Context();
         ctx.setLocale(locale);
         ctx.setVariable("firstName", user.getFirstName());
@@ -24,7 +24,7 @@ public class MandateEmailContentService {
         return templateEngine.process("second_pillar_mandate", ctx);
     }
 
-    public String getThirdPillarHtml(User user, SecondPillarSuggestion secondPillarSuggestion, String pensionAccountNumber,
+    public String getThirdPillarHtml(User user, PillarSuggestion secondPillarSuggestion, String pensionAccountNumber,
                                      Locale locale) {
         Context ctx = new Context();
         ctx.setLocale(locale);

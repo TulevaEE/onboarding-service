@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.fund.FundRepository
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class CreateMandateCommandToMandateConverterSpec extends Specification {
 
@@ -14,18 +15,19 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
     FundRepository fundRepository = Mock()
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository)
 
-
     def "converts to mandate"() {
         given:
         def command = new CreateMandateCommand()
         command.setFutureContributionFundIsin("test")
         command.fundTransferExchanges = []
+        command.address = addressFixture().build()
         def user = sampleUser().build()
         when:
         def mandate = converter.convert(new CreateMandateCommandWithUser(command, user))
         then:
         mandate.pillar == 2
         mandate.user == user
+        mandate.address == command.address
         mandate.futureContributionFundIsin.get() == command.futureContributionFundIsin
         mandate.id == null
         0 * accountStatementService.getAccountStatement(_)

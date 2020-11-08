@@ -5,9 +5,9 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.exception.IdSessionException
+import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
-import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
@@ -34,7 +34,8 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     def "save a mandate"() {
         when:
-        mandateService.save(_, _) >> sampleMandate()
+        def mandate = sampleMandate()
+        mandateService.save(_, _) >> mandate
         then:
         mvc
             .perform(post("/v1/mandates")
@@ -42,8 +43,15 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
-            .andExpect(jsonPath('$.futureContributionFundIsin', is(sampleMandate().futureContributionFundIsin.get())))
-
+            .andExpect(jsonPath('$.futureContributionFundIsin', is(mandate.futureContributionFundIsin.get())))
+            .andExpect(jsonPath('$.pillar', is(mandate.pillar)))
+            .andExpect(jsonPath('$.address.street', is(mandate.address.street)))
+            .andExpect(jsonPath('$.address.districtCode', is(mandate.address.districtCode)))
+            .andExpect(jsonPath('$.address.postalCode', is(mandate.address.postalCode)))
+            .andExpect(jsonPath('$.address.countryCode', is(mandate.address.countryCode)))
+            .andExpect(jsonPath('$.fundTransferExchanges[0].sourceFundIsin', is(mandate.fundTransferExchanges[0].sourceFundIsin)))
+            .andExpect(jsonPath('$.fundTransferExchanges[0].targetFundIsin', is(mandate.fundTransferExchanges[0].targetFundIsin)))
+            .andExpect(jsonPath('$.fundTransferExchanges[0].amount', is(mandate.fundTransferExchanges[0].amount.doubleValue())))
     }
 
     def "mobile id signature start returns the mobile id challenge code"() {
@@ -93,7 +101,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         when:
         def session = new SmartIdSignatureSession("certSessionId", "personalCode", [])
         1 * mandateService.smartIdSign(1L, _) >> session
-        1* sessionStore.save(session)
+        1 * sessionStore.save(session)
 
         then:
         mvc

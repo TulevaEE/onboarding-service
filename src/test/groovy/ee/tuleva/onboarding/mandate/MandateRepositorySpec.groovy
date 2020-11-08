@@ -8,6 +8,8 @@ import spock.lang.Specification
 
 import java.time.Instant
 
+import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
+
 @DataJpaTest
 class MandateRepositorySpec extends Specification {
 
@@ -19,7 +21,7 @@ class MandateRepositorySpec extends Specification {
 
     def "persisting and findByIdAndUserId() works"() {
         given:
-        def user = User.builder()
+        def savedUser = User.builder()
             .firstName("Erko")
             .lastName("Risthein")
             .personalCode("38501010002")
@@ -29,25 +31,29 @@ class MandateRepositorySpec extends Specification {
             .updatedDate(Instant.parse("2017-01-31T10:06:01Z"))
             .active(true)
             .build()
-        entityManager.persist(user)
+        entityManager.persist(savedUser)
         entityManager.flush()
 
-        def mandate = Mandate.builder()
-            .user(user)
+        def address = addressFixture().build()
+
+        def savedMandate = Mandate.builder()
+            .user(savedUser)
             .futureContributionFundIsin("isin")
             .fundTransferExchanges([])
             .pillar(2)
+            .address(address)
             .build()
-        entityManager.persist(mandate)
+        entityManager.persist(savedMandate)
         entityManager.flush()
 
         when:
-        mandate = repository.findByIdAndUserId(mandate.id, user.id)
+        def mandate = repository.findByIdAndUserId(savedMandate.id, savedUser.id)
 
         then:
-        mandate.user == user
+        mandate.user == savedUser
         mandate.futureContributionFundIsin == Optional.of("isin")
         mandate.fundTransferExchanges == []
+        mandate.address == address
     }
 
 }

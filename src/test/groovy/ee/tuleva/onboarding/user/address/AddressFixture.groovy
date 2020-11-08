@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.user.address
 
+import static ee.tuleva.onboarding.user.address.Address.*
+
 class AddressFixture {
 
-    static addressFixture() {
-        return Address.builder()
+    static AddressBuilder addressFixture() {
+        return builder()
             .street("Telliskivi 123")
             .countryCode("US")
             .postalCode("99999")

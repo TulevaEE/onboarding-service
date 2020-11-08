@@ -1,10 +1,16 @@
 package ee.tuleva.onboarding.mandate;
 
 import com.fasterxml.jackson.annotation.JsonView;
+import ee.tuleva.onboarding.config.JsonbType;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.address.Address;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Type;
+import org.hibernate.annotations.TypeDef;
+import org.hibernate.annotations.TypeDefs;
+import org.jetbrains.annotations.Nullable;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
@@ -16,6 +22,9 @@ import java.util.*;
 @Entity
 @Table(name = "mandate")
 @NoArgsConstructor
+@TypeDefs({
+    @TypeDef(name = "jsonb", typeClass = JsonbType.class),
+})
 public class Mandate {
 
     @Id
@@ -41,18 +50,27 @@ public class Mandate {
         createdDate = Instant.now();
     }
 
+    @Nullable
     private byte[] mandate;
+
+    @Type(type = "jsonb")
+    @Column(columnDefinition = "jsonb")
+    @Nullable
+    @JsonView(MandateView.Default.class)
+    private Address address;
 
     @OneToMany(cascade = {CascadeType.ALL}, mappedBy = "mandate")
     @JsonView(MandateView.Default.class)
     List<FundTransferExchange> fundTransferExchanges;
 
     @Builder
-    Mandate(User user, String futureContributionFundIsin, List<FundTransferExchange> fundTransferExchanges, Integer pillar) {
+    Mandate(User user, String futureContributionFundIsin, List<FundTransferExchange> fundTransferExchanges,
+            Integer pillar, Address address) {
         this.user = user;
         this.futureContributionFundIsin = futureContributionFundIsin;
         this.fundTransferExchanges = fundTransferExchanges;
         this.pillar = pillar;
+        this.address = address;
     }
 
     public Optional<byte[]> getMandate() {

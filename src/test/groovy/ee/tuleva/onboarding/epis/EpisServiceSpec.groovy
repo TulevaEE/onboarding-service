@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.epis.fund.NavDto
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO
 import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
-import ee.tuleva.onboarding.mandate.MandateFixture
 import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -24,6 +23,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static org.springframework.http.HttpMethod.GET
 import static org.springframework.http.HttpStatus.OK
 
@@ -44,13 +44,12 @@ class EpisServiceSpec extends Specification {
         Authentication sampleAuthentication = Mock(Authentication)
         sampleAuthentication.getDetails() >> sampleDetails
 
-        SecurityContextHolder.getContext().setAuthentication(sampleAuthentication);
-
+        SecurityContextHolder.getContext().setAuthentication(sampleAuthentication)
     }
 
     def "Send mandate: "() {
         given:
-        def sampleMandate = MandateFixture.sampleMandate()
+        def sampleMandate = sampleMandate()
         def mandateDto = MandateDto.builder()
             .id(sampleMandate.id)
             .build()

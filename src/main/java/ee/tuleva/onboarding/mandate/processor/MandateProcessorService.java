@@ -35,7 +35,8 @@ public class MandateProcessorService {
             .id(mandate.getId())
             .createdDate(mandate.getCreatedDate())
             .fundTransferExchanges(getFundTransferExchanges(mandate))
-            .pillar(mandate.getPillar());
+            .pillar(mandate.getPillar())
+            .address(mandate.getAddress());
         addSelectionApplication(mandate, mandateDto);
         val response = episService.sendMandate(mandateDto.build());
         handleApplicationProcessResponse(response);

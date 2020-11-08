@@ -7,9 +7,11 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class MandateProcessorServiceSpec extends Specification {
 
@@ -24,10 +26,12 @@ class MandateProcessorServiceSpec extends Specification {
     User sampleUser = sampleUser().build()
     Mandate sampleMandate = sampleMandate()
 
-    def "Start: starts processing mandate and saves mandate processes"(Integer pillar) {
+    @Unroll
+    def "Start: starts processing mandate and saves mandate processes"() {
         given:
         Mandate mandate = sampleMandate()
         mandate.pillar = pillar
+        mandate.address = address
         def mandateResponse = new MandateResponseDTO()
         def response = new MandateResponseDTO.MandateResponse()
         mandateResponse.mandateResponses = [response]
@@ -40,11 +44,12 @@ class MandateProcessorServiceSpec extends Specification {
         }) >> { args -> args[0] }
         1 * episService.sendMandate({ MandateDto dto ->
             dto.pillar == mandate.pillar
+            dto.address == mandate.address
         }) >> mandateResponse
         where:
-        pillar | _
-        2      | _
-        3      | _
+        pillar | address
+        2      | addressFixture().build()
+        3      | null
     }
 
     def "IsFinished: processing is complete when all message processes are finished"() {
@@ -53,7 +58,7 @@ class MandateProcessorServiceSpec extends Specification {
         when:
         boolean isFinished = service.isFinished(sampleMandate)
         then:
-        isFinished == true
+        isFinished
     }
 
     def "IsFinished: processing is not complete when all message processes are not finished"() {
@@ -62,7 +67,7 @@ class MandateProcessorServiceSpec extends Specification {
         when:
         boolean isFinished = service.isFinished(sampleMandate)
         then:
-        isFinished == false
+        !isFinished
     }
 
     def "getErrors: get errors response"() {

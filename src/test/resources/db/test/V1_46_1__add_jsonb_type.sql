@@ -1,0 +1,1 @@
+CREATE TYPE IF NOT EXISTS jsonb AS json;

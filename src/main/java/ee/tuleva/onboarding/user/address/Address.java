@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.user.address;
 
+import com.fasterxml.jackson.annotation.JsonView;
+import ee.tuleva.onboarding.mandate.MandateView;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -11,6 +13,7 @@ import javax.validation.constraints.NotNull;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@JsonView(MandateView.Default.class)
 public class Address {
 
     @NotNull

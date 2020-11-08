@@ -61,7 +61,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         "(SELECT * FROM index_values WHERE key='MARKET' and date <= '2019-12-31' ORDER BY date DESC) " +
         "UNION " +
         "(SELECT * FROM index_values WHERE key='GLOBAL_STOCK_INDEX' and date >='2020-01-01') " +
-        ") values ORDER BY values.date ASC";
+        ") v ORDER BY v.date ASC";
 
     private static class FundValueRowMapper implements RowMapper<FundValue> {
         @Override

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.epis.mandate;
 
+import ee.tuleva.onboarding.user.address.Address;
 import lombok.*;
+import org.jetbrains.annotations.Nullable;
 
 import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -10,16 +12,25 @@ import java.util.List;
 @Data
 @Builder
 public class MandateDto {
+    @NotNull
     private final Long id;
+
+    @NotNull
     private final String processId;
+
+    @Nullable
     private final String futureContributionFundIsin;
 
     @NotNull
     private Instant createdDate;
 
-    private Integer pillar = 2;
+    @NotNull
+    private Integer pillar;
 
-    List<MandateFundsTransferExchangeDTO> fundTransferExchanges;
+    private List<MandateFundsTransferExchangeDTO> fundTransferExchanges;
+
+    @Nullable
+    private Address address;
 
     @AllArgsConstructor
     @Getter
@@ -29,6 +40,5 @@ public class MandateDto {
         private BigDecimal amount;
         private String sourceFundIsin;
         private String targetFundIsin;
-
     }
 }

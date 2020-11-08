@@ -33,6 +33,7 @@ public class CreateMandateCommandToMandateConverter implements Converter<CreateM
         val createMandateCommand = createMandateCommandWithUser.getCreateMandateCommand();
 
         mandate.setPillar(getPillar(createMandateCommand));
+        mandate.setAddress(createMandateCommand.getAddress());
 
         List<FundTransferExchange> fundTransferExchanges =
             createMandateCommand.getFundTransferExchanges()

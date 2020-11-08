@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonView;
 import lombok.*;
 
 import javax.persistence.*;
-import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
@@ -34,10 +33,16 @@ public class FundTransferExchange {
     @NotBlank
     @JsonView(MandateView.Default.class)
     private String sourceFundIsin;
+
+    /**
+     * 2nd pillar: Fraction of units (i.e. min 0, max 1)
+     * 3rd pillar: Number of units (i.e. min 0, max number of units you have)
+     */
     @NotNull
     @Min(0)
     @JsonView(MandateView.Default.class)
     private BigDecimal amount;
+
     @NotNull
     @JsonView(MandateView.Default.class)
     private String targetFundIsin;

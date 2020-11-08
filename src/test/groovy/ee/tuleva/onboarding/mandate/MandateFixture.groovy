@@ -9,23 +9,26 @@ import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand
 
 import java.time.Instant
 
-import static ee.tuleva.onboarding.mandate.Mandate.*
+import static ee.tuleva.onboarding.mandate.Mandate.MandateBuilder
+import static ee.tuleva.onboarding.mandate.Mandate.builder
+import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class MandateFixture {
 
     public static futureContibutionFundIsin = "AE123232334"
 
     static CreateMandateCommand sampleCreateMandateCommand() {
-        return [
-            "fundTransferExchanges"     : [
+        return new CreateMandateCommand(
+            "fundTransferExchanges": [
                 new MandateFundTransferExchangeCommand(
                     "amount": 0.88,
                     "sourceFundIsin": "SOMEISIN",
                     "targetFundIsin": futureContibutionFundIsin
                 )
             ],
-            "futureContributionFundIsin": futureContibutionFundIsin
-        ]
+            "futureContributionFundIsin": futureContibutionFundIsin,
+            "address": addressFixture().build()
+        )
     }
 
     static sampleStartIdCardSignCommand(String clientCertificate) {
@@ -37,8 +40,8 @@ class MandateFixture {
     }
 
     static CreateMandateCommand invalidCreateMandateCommand() {
-        return [
-            "fundTransferExchanges"     : [
+        return new CreateMandateCommand(
+            "fundTransferExchanges": [
                 new MandateFundTransferExchangeCommand(
                     "amount": 0.88,
                     "sourceFundIsin": "SOMEISIN",
@@ -51,12 +54,12 @@ class MandateFixture {
                 )
             ],
             "futureContributionFundIsin": futureContibutionFundIsin
-        ]
+        )
     }
 
     static CreateMandateCommand invalidCreateMandateCommandWithSameSourceAndTargetFund =
-        [
-            "fundTransferExchanges"     : [
+        new CreateMandateCommand(
+            "fundTransferExchanges": [
                 new MandateFundTransferExchangeCommand(
                     "amount": 0.88,
                     "sourceFundIsin": "SOMEOTHER",
@@ -69,7 +72,7 @@ class MandateFixture {
                 )
             ],
             "futureContributionFundIsin": futureContibutionFundIsin
-        ];
+        )
 
     static MandateBuilder emptyMandate() {
         builder()
@@ -85,22 +88,23 @@ class MandateFixture {
                     .id(1234)
                     .sourceFundIsin("AE123232331")
                     .targetFundIsin(futureContibutionFundIsin)
-                    .amount(new BigDecimal(0.2))
+                    .amount(new BigDecimal("0.2"))
                     .build(),
                 FundTransferExchange.builder()
                     .id(1235)
                     .sourceFundIsin("AE123232331")
                     .targetFundIsin(futureContibutionFundIsin)
-                    .amount(new BigDecimal(0.8))
+                    .amount(new BigDecimal("0.8"))
                     .build(),
                 FundTransferExchange.builder()
                     .id(1236)
                     .sourceFundIsin("AE123232337")
                     .targetFundIsin(futureContibutionFundIsin)
-                    .amount(new BigDecimal(1))
+                    .amount(new BigDecimal("1"))
                     .build()
             ])
             .futureContributionFundIsin(futureContibutionFundIsin)
+            .address(addressFixture().build())
             .build()
 
         mandate.setId(123)
@@ -117,19 +121,19 @@ class MandateFixture {
                     .id(1234)
                     .sourceFundIsin("AE123232331")
                     .targetFundIsin(futureContibutionFundIsin)
-                    .amount(new BigDecimal(0.2))
+                    .amount(new BigDecimal("0.2"))
                     .build(),
                 FundTransferExchange.builder()
                     .id(1235)
                     .sourceFundIsin("AE123232331")
                     .targetFundIsin(futureContibutionFundIsin)
-                    .amount(new BigDecimal(0.8))
+                    .amount(new BigDecimal("0.8"))
                     .build(),
                 FundTransferExchange.builder()
                     .id(1236)
                     .sourceFundIsin("AE123232337")
                     .targetFundIsin(futureContibutionFundIsin)
-                    .amount(new BigDecimal(1))
+                    .amount(new BigDecimal("1"))
                     .build(),
                 FundTransferExchange.builder()
                     .id(1236)
@@ -155,19 +159,19 @@ class MandateFixture {
                     .id(1234)
                     .sourceFundIsin("AE123232331")
                     .targetFundIsin(futureContibutionFundIsin)
-                    .amount(new BigDecimal(0.2))
+                    .amount(new BigDecimal("0.2"))
                     .build(),
                 FundTransferExchange.builder()
                     .id(1235)
                     .sourceFundIsin("AE123232331")
                     .targetFundIsin(futureContibutionFundIsin)
-                    .amount(new BigDecimal(0.8))
+                    .amount(new BigDecimal("0.8"))
                     .build(),
                 FundTransferExchange.builder()
                     .id(1236)
                     .sourceFundIsin("AE123232337")
                     .targetFundIsin(futureContibutionFundIsin)
-                    .amount(new BigDecimal(1))
+                    .amount(new BigDecimal("1"))
                     .build()
             ])
             .futureContributionFundIsin(futureContibutionFundIsin)

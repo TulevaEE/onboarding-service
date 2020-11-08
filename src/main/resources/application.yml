@@ -134,7 +134,7 @@ async:
 ---
 
 spring:
-  profiles: dev, test
+  profiles: dev
   flyway:
     locations: classpath:/db/migration, classpath:/db/dev
 ---

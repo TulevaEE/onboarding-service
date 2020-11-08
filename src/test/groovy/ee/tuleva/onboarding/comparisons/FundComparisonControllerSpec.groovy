@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.comparisons
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
-import org.codehaus.jackson.map.ObjectMapper
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
-import spock.lang.Specification
 
 import java.text.SimpleDateFormat
 import java.time.Instant

@@ -74,7 +74,7 @@ dependencies {
 	implementation('org.eclipse.persistence:org.eclipse.persistence.moxy:2.7.7')
 
 	implementation('com.github.SK-EID:smart-id-java-client:1.6.1')
-	implementation('org.digidoc4j:digidoc4j:4.0.1') {
+	implementation('org.digidoc4j:digidoc4j:4.0.3') {
 		exclude group: 'commons-logging', module: 'commons-logging'
 	}
 

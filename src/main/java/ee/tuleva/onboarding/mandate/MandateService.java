@@ -1,12 +1,14 @@
 package ee.tuleva.onboarding.mandate;
 
 import ee.tuleva.onboarding.aml.AmlService;
+import ee.tuleva.onboarding.conversion.ConversionResponse;
+import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
-import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWithUser;
+import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.listener.MandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
@@ -48,13 +50,17 @@ public class MandateService {
     private final ApplicationEventPublisher applicationEventPublisher;
     private final HttpServletRequest request;
     private final LocaleResolver localeResolver;
+    private final UserConversionService conversionService;
 
     public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
         validateCreateMandateCommand(createMandateCommand);
         User user = userService.getById(userId);
-        Mandate mandate = mandateConverter.convert(new CreateMandateCommandWithUser(createMandateCommand, user));
-        UserPreferences userPreferences = episService.getContactDetails(user);
-        amlService.addPensionRegistryNameCheckIfMissing(user, userPreferences);
+        ConversionResponse conversion = conversionService.getConversion(user);
+        UserPreferences contactDetails = episService.getContactDetails(user);
+        CreateMandateCommandWrapper createMandateCommandWrapper =
+            new CreateMandateCommandWrapper(createMandateCommand, user, conversion, contactDetails);
+        Mandate mandate = mandateConverter.convert(createMandateCommandWrapper);
+        amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails);
         log.info("Saving mandate {}", mandate);
         if (!amlService.allChecksPassed(mandate)) {
             throw InvalidMandateException.amlChecksMissing();

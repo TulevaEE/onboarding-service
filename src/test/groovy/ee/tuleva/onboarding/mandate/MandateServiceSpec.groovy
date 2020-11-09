@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.aml.AmlService
+import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.error.response.ErrorResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.fund.Fund
@@ -26,26 +26,29 @@ import spock.lang.Specification
 
 import javax.servlet.http.HttpServletRequest
 
+import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 
 class MandateServiceSpec extends Specification {
 
-    MandateRepository mandateRepository = Mock(MandateRepository)
-    SignatureService signService = Mock(SignatureService)
+    MandateRepository mandateRepository = Mock()
+    SignatureService signService = Mock()
     FundRepository fundRepository = Mock()
     AccountStatementService accountStatementService = Mock()
     CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository)
-    MandateProcessorService mandateProcessor = Mock(MandateProcessorService)
-    MandateFileService mandateFileService = Mock(MandateFileService)
-    UserService userService = Mock(UserService)
-    EpisService episService = Mock(EpisService)
+    MandateProcessorService mandateProcessor = Mock()
+    MandateFileService mandateFileService = Mock()
+    UserService userService = Mock()
+    EpisService episService = Mock()
     AmlService amlService = Mock()
-    ApplicationEventPublisher eventPublisher = Mock(ApplicationEventPublisher)
-    HttpServletRequest request = Mock(HttpServletRequest)
-    LocaleResolver localeResolver = Mock(LocaleResolver)
+    ApplicationEventPublisher eventPublisher = Mock()
+    HttpServletRequest request = Mock()
+    LocaleResolver localeResolver = Mock()
+    UserConversionService conversionService = Mock()
 
     MandateService service = new MandateService(mandateRepository, signService, converter, mandateProcessor,
-        mandateFileService, userService, episService, amlService, eventPublisher, request, localeResolver)
+        mandateFileService, userService, episService, amlService, eventPublisher, request, localeResolver, conversionService)
 
     Long sampleMandateId = 1L
     User sampleUser = sampleUser()
@@ -73,15 +76,11 @@ class MandateServiceSpec extends Specification {
 
         mandate.fundTransferExchanges.first().amount ==
             createMandateCmd.fundTransferExchanges.first().amount
-        1 * episService.getContactDetails(sampleUser) >> UserPreferences.builder()
-            .firstName(sampleUser.firstName)
-            .lastName(sampleUser.lastName)
-            .personalCode(sampleUser.personalCode)
-            .build()
+        1 * episService.getContactDetails(sampleUser) >> contactDetailsFixture()
         1 * amlService.addPensionRegistryNameCheckIfMissing(sampleUser, _)
         1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
         1 * amlService.allChecksPassed(_) >> true
-
+        1 * conversionService.getConversion(sampleUser) >> fullyConverted()
     }
 
     def "save: Create mandate with invalid CreateMandateCommand fails"() {
@@ -105,6 +104,8 @@ class MandateServiceSpec extends Specification {
         0 * mandateRepository.save(_)
         1 * amlService.allChecksPassed(_) >> false
         1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
+        1 * conversionService.getConversion(sampleUser) >> fullyConverted()
+        1 * episService.getContactDetails(sampleUser) >> contactDetailsFixture()
     }
 
     def "save: Create mandate with same source and target fund fails"() {
@@ -228,8 +229,7 @@ class MandateServiceSpec extends Specification {
         def signatureSession = IdCardSignatureSession.builder().build()
 
         1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
-        1 * signService.startIdCardSign(_ as List<SignatureFile>, "signingCertificate") >>
-           signatureSession
+        1 * signService.startIdCardSign(_ as List<SignatureFile>, "signingCertificate") >> signatureSession
 
         when:
         def session = service.idCardSign(sampleMandateId, user.id, "signingCertificate")

@@ -53,24 +53,30 @@ public class Mandate {
     @Nullable
     private byte[] mandate;
 
+    @OneToMany(cascade = {CascadeType.ALL}, mappedBy = "mandate")
+    @JsonView(MandateView.Default.class)
+    List<FundTransferExchange> fundTransferExchanges;
+
     @Type(type = "jsonb")
     @Column(columnDefinition = "jsonb")
     @Nullable
     @JsonView(MandateView.Default.class)
     private Address address;
 
-    @OneToMany(cascade = {CascadeType.ALL}, mappedBy = "mandate")
-    @JsonView(MandateView.Default.class)
-    List<FundTransferExchange> fundTransferExchanges;
+    @Type(type = "jsonb")
+    @Column(columnDefinition = "jsonb")
+    @Convert(disableConversion = true)
+    private Map<String, Object> metadata = new HashMap<>();
 
     @Builder
     Mandate(User user, String futureContributionFundIsin, List<FundTransferExchange> fundTransferExchanges,
-            Integer pillar, Address address) {
+            Integer pillar, @Nullable Address address, Map<String, Object> metadata) {
         this.user = user;
         this.futureContributionFundIsin = futureContributionFundIsin;
         this.fundTransferExchanges = fundTransferExchanges;
         this.pillar = pillar;
         this.address = address;
+        this.metadata = metadata;
     }
 
     public Optional<byte[]> getMandate() {
@@ -96,4 +102,7 @@ public class Mandate {
         return exchangeMap;
     }
 
+    public void putMetadata(String key, Object value) {
+        metadata.put(key, value);
+    }
 }

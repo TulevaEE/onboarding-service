@@ -35,6 +35,7 @@ class MandateRepositorySpec extends Specification {
         entityManager.flush()
 
         def address = addressFixture().build()
+        def metadata = ["conversion": true]
 
         def savedMandate = Mandate.builder()
             .user(savedUser)
@@ -42,6 +43,7 @@ class MandateRepositorySpec extends Specification {
             .fundTransferExchanges([])
             .pillar(2)
             .address(address)
+            .metadata(metadata)
             .build()
         entityManager.persist(savedMandate)
         entityManager.flush()
@@ -54,6 +56,8 @@ class MandateRepositorySpec extends Specification {
         mandate.futureContributionFundIsin == Optional.of("isin")
         mandate.fundTransferExchanges == []
         mandate.address == address
+        mandate.metadata == metadata
+
     }
 
 }

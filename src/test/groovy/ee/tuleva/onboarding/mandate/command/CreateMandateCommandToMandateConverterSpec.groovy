@@ -7,13 +7,16 @@ import ee.tuleva.onboarding.fund.FundRepository
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class CreateMandateCommandToMandateConverterSpec extends Specification {
 
     AccountStatementService accountStatementService = Mock()
     FundRepository fundRepository = Mock()
-    CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository)
+    CreateMandateCommandToMandateConverter converter =
+        new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository)
 
     def "converts to mandate"() {
         given:
@@ -22,14 +25,22 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         command.fundTransferExchanges = []
         command.address = addressFixture().build()
         def user = sampleUser().build()
+        def conversion = fullyConverted()
+        def contactDetails = contactDetailsFixture()
         when:
-        def mandate = converter.convert(new CreateMandateCommandWithUser(command, user))
+        def mandate = converter.convert(new CreateMandateCommandWrapper(command, user, conversion, contactDetails))
         then:
         mandate.pillar == 2
         mandate.user == user
         mandate.address == command.address
         mandate.futureContributionFundIsin.get() == command.futureContributionFundIsin
         mandate.id == null
+        mandate.metadata == [
+            isSecondPillarActive: contactDetails.isSecondPillarActive(),
+            isSecondPillarFullyConverted: conversion.isSecondPillarFullyConverted(),
+            isThirdPillarActive: contactDetails.isThirdPillarActive(),
+            isThirdPillarFullyConverted: conversion.isThirdPillarFullyConverted()
+        ]
         0 * accountStatementService.getAccountStatement(_)
         1 * fundRepository.findByIsin("test") >> Fund.builder().pillar(2).isin("test").build()
     }
@@ -52,17 +63,26 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
             .units(500.1234)
             .fund(fund)
             .build()
+        def conversion = fullyConverted()
+        def contactDetails = contactDetailsFixture()
         when:
-        def mandate = converter.convert(new CreateMandateCommandWithUser(command, user))
+        def mandate = converter.convert(new CreateMandateCommandWrapper(command, user, conversion, contactDetails))
         then:
         mandate.pillar == 3
         mandate.user == user
+        mandate.address == command.address
         mandate.futureContributionFundIsin.get() == command.futureContributionFundIsin
         !mandate.fundTransferExchanges.isEmpty()
         mandate.fundTransferExchanges[0].sourceFundIsin == sourceIsin
         mandate.fundTransferExchanges[0].targetFundIsin == targetIsin
         mandate.fundTransferExchanges[0].amount == 250.0617
         mandate.id == null
+        mandate.metadata == [
+            isSecondPillarActive: contactDetails.isSecondPillarActive(),
+            isSecondPillarFullyConverted: conversion.isSecondPillarFullyConverted(),
+            isThirdPillarActive: contactDetails.isThirdPillarActive(),
+            isThirdPillarFullyConverted: conversion.isThirdPillarFullyConverted()
+        ]
         1 * accountStatementService.getAccountStatement(user) >> [fundBalance]
         1 * fundRepository.findByIsin(sourceIsin) >> fund
     }

@@ -2,9 +2,12 @@ package ee.tuleva.onboarding.mandate.command;
 
 import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.FundBalance;
+import ee.tuleva.onboarding.conversion.ConversionResponse;
+import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
 import org.springframework.core.convert.converter.Converter;
@@ -19,21 +22,27 @@ import static java.util.stream.Collectors.toList;
 
 @Component
 @RequiredArgsConstructor
-public class CreateMandateCommandToMandateConverter implements Converter<CreateMandateCommandWithUser, Mandate> {
+public class CreateMandateCommandToMandateConverter implements Converter<CreateMandateCommandWrapper, Mandate> {
 
     private final AccountStatementService accountStatementService;
     private final FundRepository fundRepository;
 
     @Override
     @NonNull
-    public Mandate convert(CreateMandateCommandWithUser createMandateCommandWithUser) {
+    public Mandate convert(CreateMandateCommandWrapper createMandateCommandWrapper) {
+        User user = createMandateCommandWrapper.getUser();
+        val createMandateCommand = createMandateCommandWrapper.getCreateMandateCommand();
+        ConversionResponse conversion = createMandateCommandWrapper.getConversion();
+        UserPreferences contactDetails = createMandateCommandWrapper.getContactDetails();
+
         Mandate mandate = new Mandate();
-        mandate.setUser(createMandateCommandWithUser.getUser());
-
-        val createMandateCommand = createMandateCommandWithUser.getCreateMandateCommand();
-
+        mandate.setUser(user);
         mandate.setPillar(getPillar(createMandateCommand));
         mandate.setAddress(createMandateCommand.getAddress());
+        mandate.putMetadata("isSecondPillarActive", contactDetails.isSecondPillarActive());
+        mandate.putMetadata("isSecondPillarFullyConverted", conversion.isSecondPillarFullyConverted());
+        mandate.putMetadata("isThirdPillarActive", contactDetails.isThirdPillarActive());
+        mandate.putMetadata("isThirdPillarFullyConverted", conversion.isThirdPillarFullyConverted());
 
         List<FundTransferExchange> fundTransferExchanges =
             createMandateCommand.getFundTransferExchanges()

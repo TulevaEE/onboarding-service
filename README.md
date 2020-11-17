@@ -1,6 +1,7 @@
 # Onboarding-service
 
 [![CircleCI](https://circleci.com/gh/TulevaEE/onboarding-service/tree/master.svg?style=shield)](https://circleci.com/gh/TulevaEE/onboarding-service/tree/master)
+[![Known Vulnerabilities](https://snyk.io/test/github/TulevaEE/onboarding-service/badge.svg)](https://snyk.io/test/github/TulevaEE/onboarding-service)
 [![codecov](https://codecov.io/gh/TulevaEE/onboarding-service/branch/master/graph/badge.svg)](https://codecov.io/gh/TulevaEE/onboarding-service)
 
 ## Architecture
@@ -60,11 +61,11 @@ Papertrail
 
 ### API
 
-Authentication: oAuth with Mobile-ID, ID-card and Smart-ID
+Authentication: oAuth2 with Mobile-ID, ID-card and Smart-ID
 
 [Swagger UI](https://onboarding-service.tuleva.ee/swagger-ui.html)
 
-[Postman API collection](reference/api.postman_collection)
+[Postman API collection](reference/api.postman_collection) (outdated)
 
 
 ### Build pipeline
@@ -74,7 +75,6 @@ Merge GitHub pull request to master -> build in CircleCI -> auto-redeploy (if bu
 
 ### How to add new pension funds?
 1. Add the new fund to the `funds` database table.
-2. Add the fund name translations into the frontend `src/translations/` json files (i.e. `"target.funds.EE000000000.title": "My Pension Fund",`)
 
 ### Development notes
 
@@ -98,17 +98,11 @@ Make sure you are running against the right backend environment (dev or prod).
 
 ### References
 
-[DigiDocService Documentation](http://sk-eid.github.io/dds-documentation/)
-
-[DigiDocService Sequence Diagrams](https://eid.eesti.ee/index.php/Sample_applications#Web_form)
-
-[MobileID library](https://github.com/ErkoRisthein/mobileid)
-
-[hwcrypto.js](https://hwcrypto.github.io/)
+[hwcrypto.js](https://github.com/hwcrypto/hwcrypto.js)
 
 [hwcrypto Sequence Diagram](https://github.com/hwcrypto/hwcrypto.js/wiki/SequenceDiagram)
 
-[Test Authentication Methods](https://www.id.ee/?lang=en&id=35755)
+[Test Authentication Methods](https://www.id.ee/en/article/testing-the-services/)
 
 [Test Mobile ID](https://demo.sk.ee/MIDCertsReg/)
 

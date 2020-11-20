@@ -25,7 +25,7 @@ class AmlCheckControllerSpec extends BaseControllerSpec {
         expect:
         mvc.perform(get("/v1/amlchecks"))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.[0]', is("RESIDENCY_MANUAL")))
     }
 

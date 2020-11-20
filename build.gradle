@@ -2,7 +2,7 @@ buildscript {
 	ext {
 		springBootVersion = '2.3.6.RELEASE'
 		springBootAdminVersion = '2.3.1'
-		springCloudSleuthVersion = '2.1.7.RELEASE'
+		springCloudSleuthVersion = '2.2.6.RELEASE'
 	}
 	repositories {
 		mavenCentral()
@@ -53,6 +53,7 @@ dependencies {
 	implementation('org.springframework.boot:spring-boot-starter-cache')
 	implementation('org.springframework.boot:spring-boot-starter-aop')
 	implementation('org.springframework.boot:spring-boot-starter-json')
+	implementation('org.springframework.boot:spring-boot-starter-validation')
 	implementation('org.springframework.cloud:spring-cloud-starter-sleuth')
 	implementation('org.springframework.session:spring-session-jdbc')
 

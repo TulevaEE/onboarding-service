@@ -30,7 +30,7 @@ class ConversionControllerSpec extends BaseControllerSpec {
         expect:
         mvc.perform(get("/v1/me/conversion"))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.secondPillar.transfersComplete',
                 is(conversionResponse.secondPillar.transfersComplete)))
             .andExpect(jsonPath('$.secondPillar.selectionComplete',

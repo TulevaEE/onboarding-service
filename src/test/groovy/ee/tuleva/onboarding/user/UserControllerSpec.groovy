@@ -34,7 +34,7 @@ class UserControllerSpec extends BaseControllerSpec {
         mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
             .perform(get("/v1/me"))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.id', is(2)))
             .andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPerson.firstName)))
             .andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPerson.lastName)))
@@ -64,7 +64,7 @@ class UserControllerSpec extends BaseControllerSpec {
         mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
             .perform(get("/v1/me"))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.id', is(authenticatedPerson.userId.intValue())))
             .andExpect(jsonPath('$.firstName', is(authenticatedPerson.firstName)))
             .andExpect(jsonPath('$.lastName', is(authenticatedPerson.lastName)))
@@ -85,7 +85,7 @@ class UserControllerSpec extends BaseControllerSpec {
         mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
             .perform(get("/v1/me/principal"))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.userId', is(2)))
             .andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPerson.firstName)))
             .andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPerson.lastName)))
@@ -118,7 +118,7 @@ class UserControllerSpec extends BaseControllerSpec {
 
         then:
         performCall.andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.firstName', is("Erko")))
             .andExpect(jsonPath('$.lastName', is("Risthein")))
             .andExpect(jsonPath('$.personalCode', is("38501010002")))
@@ -154,7 +154,7 @@ class UserControllerSpec extends BaseControllerSpec {
 
         then:
         performCall.andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.firstName', is("Erko")))
             .andExpect(jsonPath('$.lastName', is("Risthein")))
             .andExpect(jsonPath('$.personalCode', is("38501010002")))
@@ -179,7 +179,7 @@ class UserControllerSpec extends BaseControllerSpec {
         then:
         0 * userService.updateUser(*_)
         performCall.andExpect(status().isBadRequest())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.errors', hasSize(1)))
     }
 
@@ -201,7 +201,7 @@ class UserControllerSpec extends BaseControllerSpec {
         1 * userService.createOrUpdateUser(command.personalCode, command.email, command.phoneNumber) >>
             userFrom(command)
         performCall.andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.personalCode', is("38501010002")))
             .andExpect(jsonPath('$.email', is("erko@risthein.ee")))
             .andExpect(jsonPath('$.phoneNumber', is("5555555")))

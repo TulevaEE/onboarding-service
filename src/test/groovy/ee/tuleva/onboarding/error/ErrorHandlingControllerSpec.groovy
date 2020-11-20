@@ -61,7 +61,7 @@ class ErrorHandlingControllerSpec extends Specification {
             .requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 403)
             .requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/asdf")
             .requestAttr(RequestDispatcher.ERROR_MESSAGE, "oops!"))
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.errors[0].code', is("RuntimeException")))
             .andExpect(jsonPath('$.errors[0].message', is("oops!")))
             .andExpect(jsonPath('$.errors[0].path').doesNotExist())

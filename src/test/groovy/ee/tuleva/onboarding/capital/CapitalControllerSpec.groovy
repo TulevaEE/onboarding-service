@@ -42,7 +42,7 @@ class CapitalControllerSpec extends BaseControllerSpec {
         expect:
         mockMvc.perform(get("/v1/me/capital"))
                 .andExpect(status().isOk())
-                .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(MockMvcResultMatchers.jsonPath(
             '$.membershipBonus', is(capitalStatement.membershipBonus)))
                 .andExpect(MockMvcResultMatchers.jsonPath(

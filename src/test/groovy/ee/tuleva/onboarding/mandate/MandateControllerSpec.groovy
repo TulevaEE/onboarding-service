@@ -42,7 +42,7 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .content(mapper.writeValueAsString(sampleCreateMandateCommand()))
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.futureContributionFundIsin', is(mandate.futureContributionFundIsin.get())))
             .andExpect(jsonPath('$.pillar', is(mandate.pillar)))
             .andExpect(jsonPath('$.address.street', is(mandate.address.street)))
@@ -64,7 +64,7 @@ class MandateControllerSpec extends BaseControllerSpec {
             .perform(put("/v1/mandates/1/signature/mobileId")
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.challengeCode', is("1234")))
     }
 
@@ -92,7 +92,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         mvc
             .perform(get("/v1/mandates/1/signature/mobileId/status"))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
             .andExpect(jsonPath('$.challengeCode', is("1234")))
     }
@@ -108,7 +108,7 @@ class MandateControllerSpec extends BaseControllerSpec {
             .perform(put("/v1/mandates/1/signature/smartId")
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.challengeCode', is(null)))
     }
 
@@ -123,7 +123,7 @@ class MandateControllerSpec extends BaseControllerSpec {
         mvc
             .perform(get("/v1/mandates/1/signature/smartId/status"))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
             .andExpect(jsonPath('$.challengeCode', is("1234")))
     }
@@ -138,7 +138,7 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .content(mapper.writeValueAsString(sampleStartIdCardSignCommand("clientCertificate")))
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.hash', is("asdfg")))
     }
 
@@ -154,7 +154,7 @@ class MandateControllerSpec extends BaseControllerSpec {
                 .content(mapper.writeValueAsString(sampleFinishIdCardSignCommand("signedHash")))
                 .contentType(MediaType.APPLICATION_JSON))
             .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON_UTF8_VALUE))
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
     }
 

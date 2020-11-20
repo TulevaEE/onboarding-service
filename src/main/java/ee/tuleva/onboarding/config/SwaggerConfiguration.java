@@ -8,13 +8,10 @@ import springfox.documentation.service.ApiInfo;
 import springfox.documentation.service.Contact;
 import springfox.documentation.spi.DocumentationType;
 import springfox.documentation.spring.web.plugins.Docket;
-import springfox.documentation.swagger2.annotations.EnableSwagger2;
 
-import static com.google.common.base.Predicates.or;
 import static springfox.documentation.builders.PathSelectors.regex;
 
 @Configuration
-@EnableSwagger2
 public class SwaggerConfiguration {
 
     @Bean
@@ -23,7 +20,7 @@ public class SwaggerConfiguration {
             .apiInfo(apiInfo())
             .select()
                 .apis(RequestHandlerSelectors.any())
-                .paths(or(regex("/auth.*"), regex("/v1/.*")))
+                .paths(regex("/auth.*|/v1/.*"))
             .build();
     }
 

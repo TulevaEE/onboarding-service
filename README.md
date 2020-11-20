@@ -63,7 +63,7 @@ Papertrail
 
 Authentication: oAuth2 with Mobile-ID, ID-card and Smart-ID
 
-[Swagger UI](https://onboarding-service.tuleva.ee/swagger-ui.html)
+[Swagger UI](https://onboarding-service.tuleva.ee/swagger-ui/)
 
 [Postman API collection](reference/api.postman_collection) (outdated)
 

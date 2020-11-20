@@ -14,7 +14,7 @@ class IndexControllerSpec extends Specification {
 	def "root redirects to the swagger-ui"() {
 		expect:
 		mvc.perform(get("/"))
-				.andExpect(redirectedUrl("/swagger-ui.html"));
+				.andExpect(redirectedUrl("/swagger-ui/"));
 	}
 
 }

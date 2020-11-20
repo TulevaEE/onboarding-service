@@ -96,6 +96,20 @@ Make sure you are running against the right backend environment (dev or prod).
   `mobile-id.hostUrl`, `smartid.relyingPartyUUID`, `smartid.relyingPartyName` config
    values in `application.yml` and change them to production values. Use VPN for testing.
 
+### Caveats
+
+When updating Spring Boot, sometimes you need to remove all of the existing access tokens from the
+`oauth_access_token` database table. However, there's one special token granted for tuleva.ee which
+allows it to fetch Fund NAV values and register new users. In order to generate a new token, you need to:
+token by
+```
+curl --location --request POST 'https://pension.tuleva.ee/api/oauth/token' \
+--header 'Authorization: Basic <base64 of client_id:client_secret>' \
+--data-urlencode 'grant_type=client_credentials' \
+--data-urlencode 'client_id=tuleva.ee'
+```
+and then [update the token values](https://github.com/TulevaEE/wordpress-theme/commit/1796c1ba7c926847ff0edb3b9f8a61e273d40018) in the WordPress Tuleva template.
+
 ### References
 
 [hwcrypto.js](https://github.com/hwcrypto/hwcrypto.js)

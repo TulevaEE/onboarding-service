@@ -59,7 +59,8 @@ dependencies {
 	implementation('org.springframework.session:spring-session-jdbc')
 
 	implementation('de.codecentric:spring-boot-admin-starter-client')
-	implementation('org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure')
+	implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:${springBootVersion}")
+
 
 	developmentOnly('org.springframework.boot:spring-boot-devtools')
 	runtimeOnly('org.postgresql:postgresql')

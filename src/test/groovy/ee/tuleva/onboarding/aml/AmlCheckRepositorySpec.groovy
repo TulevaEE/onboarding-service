@@ -1,14 +1,16 @@
 package ee.tuleva.onboarding.aml
 
-
 import ee.tuleva.onboarding.user.User
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
+import java.time.Instant
+
 import static ee.tuleva.onboarding.aml.AmlCheckType.DOCUMENT
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
+import static java.time.temporal.ChronoUnit.DAYS
 
 @DataJpaTest
 class AmlCheckRepositorySpec extends Specification {
@@ -45,7 +47,7 @@ class AmlCheckRepositorySpec extends Specification {
         check.get().metadata == metadata
     }
 
-    def "exists by user and type works"() {
+    def "exists by user and type and created after works with past date"() {
         given:
         User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
 
@@ -59,14 +61,16 @@ class AmlCheckRepositorySpec extends Specification {
 
         entityManager.flush()
 
+        Instant createdAfter = Instant.now().minus(365, DAYS)
+
         when:
-        def exists = repository.existsByUserAndType(sampleUser, DOCUMENT)
+        def exists = repository.existsByUserAndTypeAndCreatedTimeAfter(sampleUser, DOCUMENT, createdAfter)
 
         then:
         exists
     }
 
-    def "findAllByUser() works"() {
+    def "exists by user and type and created after works with future date"() {
         given:
         User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
 
@@ -80,13 +84,61 @@ class AmlCheckRepositorySpec extends Specification {
 
         entityManager.flush()
 
+        Instant createdAfter = Instant.now().plus(365, DAYS)
+
         when:
-        def checks = repository.findAllByUser(sampleUser)
+        def exists = repository.existsByUserAndTypeAndCreatedTimeAfter(sampleUser, DOCUMENT, createdAfter)
 
         then:
-        checks.size() == 1
+        !exists
+    }
+
+    def "findAllByUserAndCreatedTimeAfter() works with past date"() {
+        given:
+        User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
+
+        AmlCheck sampleCheck = AmlCheck.builder()
+            .user(sampleUser)
+            .type(DOCUMENT)
+            .success(true)
+            .build()
+
+        entityManager.persist(sampleCheck)
+
+        entityManager.flush()
+
+        Instant createdAfter = Instant.now().minus(365, DAYS)
+
+        when:
+        def checks = repository.findAllByUserAndCreatedTimeAfter(sampleUser, createdAfter)
+
+        then:
         checks.first().id != null
         checks.first().user == sampleUser
         checks.first().type == DOCUMENT
+        checks.size() == 1
+    }
+
+    def "findAllByUserAndCreatedTimeAfter() works with future date"() {
+        given:
+        User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
+
+        AmlCheck sampleCheck = AmlCheck.builder()
+            .user(sampleUser)
+            .type(DOCUMENT)
+            .success(true)
+            .build()
+
+        entityManager.persist(sampleCheck)
+
+        entityManager.flush()
+
+        Instant createdAfter = Instant.now().plus(365, DAYS)
+
+        when:
+        def checks = repository.findAllByUserAndCreatedTimeAfter(sampleUser, createdAfter)
+
+        then:
+        checks == []
     }
 }

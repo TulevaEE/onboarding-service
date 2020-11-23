@@ -6,16 +6,24 @@ import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
+import java.time.Clock
+import java.time.Instant
+
 import static ee.tuleva.onboarding.aml.AmlCheckType.*
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static java.time.ZoneOffset.UTC
+import static java.time.temporal.ChronoUnit.DAYS
 
 class AmlServiceSpec extends Specification {
 
     AmlCheckRepository amlCheckRepository = Mock()
     AuditEventPublisher auditEventPublisher = Mock()
-    AmlService amlService = new AmlService(amlCheckRepository, auditEventPublisher)
+    Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
+    AmlService amlService = new AmlService(amlCheckRepository, auditEventPublisher, clock)
+
+    def aYearAgo = Instant.now(clock).minus(365, DAYS)
 
     def "adds user checks"() {
         given:
@@ -51,7 +59,7 @@ class AmlServiceSpec extends Specification {
                 check.type == PENSION_REGISTRY_NAME &&
                 check.success
         })
-        1 * amlCheckRepository.existsByUserAndType(user, PENSION_REGISTRY_NAME) >> false
+        1 * amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, PENSION_REGISTRY_NAME, aYearAgo) >> false
     }
 
     def "adds check if missing"() {
@@ -80,7 +88,7 @@ class AmlServiceSpec extends Specification {
         amlService.addCheckIfMissing(amlCheck)
         then:
         0 * amlCheckRepository.save(_)
-        1 * amlCheckRepository.existsByUserAndType(user, type) >> true
+        1 * amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, type, aYearAgo) >> true
     }
 
     def "gives all checks"() {
@@ -89,7 +97,7 @@ class AmlServiceSpec extends Specification {
         when:
         amlService.getChecks(user)
         then:
-        1 * amlCheckRepository.findAllByUser(user)
+        1 * amlCheckRepository.findAllByUserAndCreatedTimeAfter(user, aYearAgo)
     }
 
     def "does not do checks for second pillar"() {
@@ -111,7 +119,7 @@ class AmlServiceSpec extends Specification {
         def actual = amlService.allChecksPassed(mandate)
         then:
         actual == result
-        1 * amlCheckRepository.findAllByUser(mandate.user) >> checks
+        1 * amlCheckRepository.findAllByUserAndCreatedTimeAfter(mandate.user, aYearAgo) >> checks
         if (!result) {
             1 * auditEventPublisher.publish(mandate.user.getEmail(), AuditEventType.MANDATE_DENIED)
         }

@@ -14,10 +14,13 @@ import lombok.val;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.stream.Collectors.toSet;
 
 @Slf4j
@@ -27,6 +30,7 @@ public class AmlService {
 
     private final AmlCheckRepository amlCheckRepository;
     private final AuditEventPublisher auditEventPublisher;
+    private final Clock clock;
     private final List<List<AmlCheckType>> allowedCombinations = ImmutableList.of(
         ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION),
         ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION),
@@ -58,10 +62,10 @@ public class AmlService {
     }
 
     private Map<String, Object> metadata(Person user, Person person) {
-        return ImmutableMap.of("user", wrap(user), "person", wrap(person));
+        return ImmutableMap.of("user", strip(user), "person", strip(person));
     }
 
-    private Person wrap(Person person) {
+    private Person strip(Person person) {
         return new Person() {
             @Override
             public String getPersonalCode() {
@@ -119,11 +123,11 @@ public class AmlService {
     }
 
     private boolean hasCheck(User user, AmlCheckType type) {
-        return amlCheckRepository.existsByUserAndType(user, type);
+        return amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, type, aYearAgo());
     }
 
     public List<AmlCheck> getChecks(User user) {
-        return amlCheckRepository.findAllByUser(user);
+        return amlCheckRepository.findAllByUserAndCreatedTimeAfter(user, aYearAgo());
     }
 
     public boolean allChecksPassed(Mandate mandate) {
@@ -132,8 +136,7 @@ public class AmlService {
             // No checks needed for second pillar
             return true;
         } else if (mandate.getPillar() == 3) {
-            val checks = amlCheckRepository.findAllByUser(user);
-            val successfulTypes = checks.stream()
+            val successfulTypes = getChecks(user).stream()
                 .filter(AmlCheck::isSuccess)
                 .map(AmlCheck::getType)
                 .collect(toSet());
@@ -144,5 +147,9 @@ public class AmlService {
         log.error("All necessary AML checks not passed for user {}!", user.getId());
         auditEventPublisher.publish(user.getEmail(), AuditEventType.MANDATE_DENIED);
         return false;
+    }
+
+    private Instant aYearAgo() {
+        return Instant.now(clock).minus(365, DAYS);
     }
 }

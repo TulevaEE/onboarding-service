@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.audit.AuditEventType
 import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import java.time.Clock
 import java.time.Instant
@@ -12,7 +13,6 @@ import java.time.Instant
 import static ee.tuleva.onboarding.aml.AmlCheckType.*
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static java.time.ZoneOffset.UTC
 import static java.time.temporal.ChronoUnit.DAYS
 
@@ -25,11 +25,12 @@ class AmlServiceSpec extends Specification {
 
     def aYearAgo = Instant.now(clock).minus(365, DAYS)
 
-    def "adds user checks"() {
+    def "adds aml checks after login"() {
         given:
         def user = sampleUserNonMember().build()
+        def isResident = true
         when:
-        amlService.checkUserAfterLogin(user, user)
+        amlService.checkUserAfterLogin(user, user, isResident)
         then:
         1 * amlCheckRepository.save({ check ->
             check.user == user &&
@@ -39,6 +40,25 @@ class AmlServiceSpec extends Specification {
         1 * amlCheckRepository.save({ check ->
             check.user == user &&
                 check.type == SK_NAME &&
+                check.success
+        })
+        1 * amlCheckRepository.save({ check ->
+            check.user == user &&
+                check.type == RESIDENCY_AUTO &&
+                check.success
+        })
+    }
+
+    def "does not add residency check if its null"() {
+        given:
+        def user = sampleUserNonMember().build()
+        def isResident = null
+        when:
+        amlService.checkUserAfterLogin(user, user, isResident)
+        then:
+        2 * amlCheckRepository.save({ check ->
+            check.user == user &&
+                check.type != RESIDENCY_AUTO &&
                 check.success
         })
     }
@@ -102,36 +122,36 @@ class AmlServiceSpec extends Specification {
 
     def "does not do checks for second pillar"() {
         given:
-        def mandate = sampleMandate()
-        mandate.pillar = 2
+        def user = sampleUser().build()
+        def pillar = 2
         when:
-        def result = amlService.allChecksPassed(mandate)
+        def result = amlService.allChecksPassed(user, pillar)
         then:
         result
     }
 
-    def "sees if all checks are passed for third pillar"(List<AmlCheck> checks, boolean result) {
+    @Unroll
+    def "sees if all checks are passed for third pillar"() {
         given:
-        def mandate = sampleMandate()
-        mandate.user = sampleUser().build()
-        mandate.pillar = 3
+        def user = sampleUser().build()
+        def pillar = 3
         when:
-        def actual = amlService.allChecksPassed(mandate)
+        def actual = amlService.allChecksPassed(user, pillar)
         then:
         actual == result
-        1 * amlCheckRepository.findAllByUserAndCreatedTimeAfter(mandate.user, aYearAgo) >> checks
+        1 * amlCheckRepository.findAllByUserAndCreatedTimeAfter(user, aYearAgo) >> checks
         if (!result) {
-            1 * auditEventPublisher.publish(mandate.user.getEmail(), AuditEventType.MANDATE_DENIED)
+            1 * auditEventPublisher.publish(user.getEmail(), AuditEventType.MANDATE_DENIED)
         }
         where:
-        checks                                                                                                      | result
-        []                                                                                                          | false
-        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION)   | true
-        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION) | true
-        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, SK_NAME, OCCUPATION)                 | true
-        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, SK_NAME, OCCUPATION)               | true
+        checks                                                                                                                       | result
+        []                                                                                                                           | false
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION, CONTACT_DETAILS)   | true
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION, CONTACT_DETAILS) | true
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, SK_NAME, OCCUPATION, CONTACT_DETAILS)                 | true
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, SK_NAME, OCCUPATION, CONTACT_DETAILS)               | true
         [check(POLITICALLY_EXPOSED_PERSON, false)] +
-            successfulChecks(RESIDENCY_MANUAL, DOCUMENT, SK_NAME, PENSION_REGISTRY_NAME, OCCUPATION)                | false
+            successfulChecks(RESIDENCY_MANUAL, DOCUMENT, SK_NAME, PENSION_REGISTRY_NAME, OCCUPATION, CONTACT_DETAILS)                | false
     }
 
     private static List<AmlCheck> successfulChecks(AmlCheckType... checkTypes) {

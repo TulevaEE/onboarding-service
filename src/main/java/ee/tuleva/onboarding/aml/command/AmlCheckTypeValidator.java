@@ -15,7 +15,6 @@ public class AmlCheckTypeValidator implements ConstraintValidator<ValidAmlCheckT
         return amlCheck.isManual();
     }
 
-
     @Override
     public void initialize(ValidAmlCheckType constraintAnnotation) {
     }

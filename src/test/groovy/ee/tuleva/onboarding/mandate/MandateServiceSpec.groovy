@@ -79,7 +79,7 @@ class MandateServiceSpec extends Specification {
         1 * episService.getContactDetails(sampleUser) >> contactDetailsFixture()
         1 * amlService.addPensionRegistryNameCheckIfMissing(sampleUser, _)
         1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
-        1 * amlService.allChecksPassed(_) >> true
+        1 * amlService.allChecksPassed(*_) >> true
         1 * conversionService.getConversion(sampleUser) >> fullyConverted()
     }
 
@@ -102,7 +102,7 @@ class MandateServiceSpec extends Specification {
         InvalidMandateException exception = thrown()
         exception.errorsResponse.errors.first().code == "invalid.mandate.checks.missing"
         0 * mandateRepository.save(_)
-        1 * amlService.allChecksPassed(_) >> false
+        1 * amlService.allChecksPassed(*_) >> false
         1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
         1 * conversionService.getConversion(sampleUser) >> fullyConverted()
         1 * episService.getContactDetails(sampleUser) >> contactDetailsFixture()

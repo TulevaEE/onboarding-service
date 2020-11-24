@@ -10,6 +10,7 @@ import org.springframework.http.MediaType
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 import static org.hamcrest.Matchers.*
@@ -27,7 +28,8 @@ class UserControllerSpec extends BaseControllerSpec {
     def "/me endpoint works with non member"() {
         given:
         def contactDetails = contactDetailsFixture()
-        1 * userService.getById(sampleAuthenticatedPerson.userId) >> userFrom(sampleAuthenticatedPerson)
+        def user = userFrom(sampleAuthenticatedPerson)
+        1 * userService.getById(sampleAuthenticatedPerson.userId) >> user
         1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
 
         expect:
@@ -39,9 +41,9 @@ class UserControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPerson.firstName)))
             .andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPerson.lastName)))
             .andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPerson.personalCode)))
-            .andExpect(jsonPath('$.age', isA(Integer)))
-            .andExpect(jsonPath('$.email', is(nullValue())))
-            .andExpect(jsonPath('$.phoneNumber', is(nullValue())))
+            .andExpect(jsonPath('$.age', is(user.age)))
+            .andExpect(jsonPath('$.email', is(user.email)))
+            .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
             .andExpect(jsonPath('$.memberNumber', is(nullValue())))
             .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
             .andExpect(jsonPath('$.address.street', is(contactDetails.addressRow1)))
@@ -208,7 +210,7 @@ class UserControllerSpec extends BaseControllerSpec {
     }
 
     private User userFrom(AuthenticatedPerson authenticatedPerson, UpdateUserCommand command = null) {
-        User.builder()
+        sampleUserNonMember()
             .id(authenticatedPerson.userId)
             .firstName(authenticatedPerson.firstName)
             .lastName(authenticatedPerson.lastName)

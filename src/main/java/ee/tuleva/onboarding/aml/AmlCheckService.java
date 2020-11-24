@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toList;
 
@@ -32,16 +33,19 @@ public class AmlCheckService {
 
     public List<AmlCheckType> getMissingChecks(Long userId) {
         User user = userService.getById(userId);
-        val initial = stream(AmlCheckType.values())
+        val checks = stream(AmlCheckType.values())
             .filter(AmlCheckType::isManual)
             .collect(toList());
-        val existing = amlService.getChecks(user).stream()
+        val existingChecks = amlService.getChecks(user).stream()
             .map(AmlCheck::getType)
             .collect(toList());
-        initial.removeAll(existing);
-        if (existing.contains(AmlCheckType.RESIDENCY_AUTO)) {
-            initial.remove(AmlCheckType.RESIDENCY_MANUAL);
+        checks.removeAll(existingChecks);
+        if (existingChecks.contains(RESIDENCY_AUTO)) {
+            checks.remove(RESIDENCY_MANUAL);
         }
-        return initial;
+        if (!existingChecks.contains(CONTACT_DETAILS)) {
+            checks.add(CONTACT_DETAILS);
+        }
+        return checks;
     }
 }

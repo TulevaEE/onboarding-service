@@ -20,7 +20,7 @@ class AmlCheckServiceSpec extends Specification {
 
 
     @Unroll
-    def "returns only missing checks"(List<AmlCheck> checks, List<AmlCheckType> missing) {
+    def "returns only missing checks"() {
         given:
         def user = sampleUser().build()
         when:
@@ -31,21 +31,24 @@ class AmlCheckServiceSpec extends Specification {
         1 * amlService.getChecks(user) >> checks
         where:
         checks                              | missing
-        []                                  | [RESIDENCY_MANUAL, POLITICALLY_EXPOSED_PERSON, OCCUPATION]
-        [check(DOCUMENT)]                   | [RESIDENCY_MANUAL, POLITICALLY_EXPOSED_PERSON, OCCUPATION]
-        [check(RESIDENCY_AUTO)]             | [POLITICALLY_EXPOSED_PERSON, OCCUPATION]
-        [check(RESIDENCY_MANUAL)]           | [POLITICALLY_EXPOSED_PERSON, OCCUPATION]
-        [check(POLITICALLY_EXPOSED_PERSON)] | [RESIDENCY_MANUAL, OCCUPATION]
-        [check(OCCUPATION)]                 | [RESIDENCY_MANUAL, POLITICALLY_EXPOSED_PERSON]
+        []                                  | [RESIDENCY_MANUAL, POLITICALLY_EXPOSED_PERSON, OCCUPATION, CONTACT_DETAILS]
+        [check(DOCUMENT)]                   | [RESIDENCY_MANUAL, POLITICALLY_EXPOSED_PERSON, OCCUPATION, CONTACT_DETAILS]
+        [check(RESIDENCY_AUTO)]             | [POLITICALLY_EXPOSED_PERSON, OCCUPATION, CONTACT_DETAILS]
+        [check(RESIDENCY_MANUAL)]           | [POLITICALLY_EXPOSED_PERSON, OCCUPATION, CONTACT_DETAILS]
+        [check(POLITICALLY_EXPOSED_PERSON)] | [RESIDENCY_MANUAL, OCCUPATION, CONTACT_DETAILS]
+        [check(OCCUPATION)]                 | [RESIDENCY_MANUAL, POLITICALLY_EXPOSED_PERSON, CONTACT_DETAILS]
+        [check(CONTACT_DETAILS)]            | [RESIDENCY_MANUAL, POLITICALLY_EXPOSED_PERSON, OCCUPATION]
         [
             check(POLITICALLY_EXPOSED_PERSON),
             check(RESIDENCY_MANUAL),
-            check(OCCUPATION)
+            check(OCCUPATION),
+            check(CONTACT_DETAILS)
         ]                                   | []
         [
             check(POLITICALLY_EXPOSED_PERSON),
             check(RESIDENCY_AUTO),
-            check(OCCUPATION)
+            check(OCCUPATION),
+            check(CONTACT_DETAILS)
         ]                                   | []
     }
 

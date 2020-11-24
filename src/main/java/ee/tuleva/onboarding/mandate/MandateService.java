@@ -62,7 +62,7 @@ public class MandateService {
         Mandate mandate = mandateConverter.convert(createMandateCommandWrapper);
         amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails);
         log.info("Saving mandate {}", mandate);
-        if (!amlService.allChecksPassed(mandate)) {
+        if (!amlService.allChecksPassed(mandate.getUser(), mandate.getPillar())) {
             throw InvalidMandateException.amlChecksMissing();
         }
         return mandateRepository.save(mandate);

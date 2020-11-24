@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.audit.AuditEventPublisher;
 import ee.tuleva.onboarding.audit.AuditEventType;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
-import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,33 +31,47 @@ public class AmlService {
     private final AuditEventPublisher auditEventPublisher;
     private final Clock clock;
     private final List<List<AmlCheckType>> allowedCombinations = ImmutableList.of(
-        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION),
-        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION),
-        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION),
-        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION)
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION, CONTACT_DETAILS),
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION, CONTACT_DETAILS),
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION, CONTACT_DETAILS),
+        ImmutableList.of(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION, CONTACT_DETAILS)
     );
 
-    public void checkUserAfterLogin(User user, Person person) {
-        AmlCheck check = AmlCheck.builder()
+    public void checkUserAfterLogin(User user, Person person, Boolean isResident) {
+        addDocumentCheck(user);
+        addResidencyCheck(user, isResident);
+        addSkNameCheck(user, person);
+    }
+
+    private void addDocumentCheck(User user) {
+        AmlCheck documentCheck = AmlCheck.builder()
             .user(user)
             .type(DOCUMENT)
             .success(true)
             .build();
-        addCheckIfMissing(check);
-        addSkNameCheckIfMissing(user, person);
+        addCheckIfMissing(documentCheck);
     }
 
-    private void addSkNameCheckIfMissing(User user, Person person) {
-        if (!hasCheck(user, SK_NAME)) {
-            boolean success = personDataMatches(user, person.getFirstName(), person.getLastName(), person.getPersonalCode());
+    private void addResidencyCheck(User user, Boolean isResident) {
+        if (isResident != null) {
             AmlCheck check = AmlCheck.builder()
                 .user(user)
-                .type(SK_NAME)
-                .success(success)
-                .metadata(metadata(user, person))
+                .type(RESIDENCY_AUTO)
+                .success(isResident)
                 .build();
-            addCheck(check);
+            addCheckIfMissing(check);
         }
+    }
+
+    private void addSkNameCheck(User user, Person person) {
+        boolean isSuccess = personDataMatches(user, person.getFirstName(), person.getLastName(), person.getPersonalCode());
+        AmlCheck skNameCheck = AmlCheck.builder()
+            .user(user)
+            .type(SK_NAME)
+            .success(isSuccess)
+            .metadata(metadata(user, person))
+            .build();
+        addCheckIfMissing(skNameCheck);
     }
 
     private Map<String, Object> metadata(Person user, Person person) {
@@ -85,19 +98,17 @@ public class AmlService {
     }
 
     public void addPensionRegistryNameCheckIfMissing(User user, UserPreferences userPreferences) {
-        if (!hasCheck(user, PENSION_REGISTRY_NAME)) {
-            boolean success = personDataMatches(user,
-                userPreferences.getFirstName(),
-                userPreferences.getLastName(),
-                userPreferences.getPersonalCode());
-            AmlCheck check = AmlCheck.builder()
-                .user(user)
-                .type(PENSION_REGISTRY_NAME)
-                .success(success)
-                .metadata(metadata(user, userPreferences))
-                .build();
-            addCheck(check);
-        }
+        boolean isSuccess = personDataMatches(user,
+            userPreferences.getFirstName(),
+            userPreferences.getLastName(),
+            userPreferences.getPersonalCode());
+        AmlCheck pensionRegistryNameCheck = AmlCheck.builder()
+            .user(user)
+            .type(PENSION_REGISTRY_NAME)
+            .success(isSuccess)
+            .metadata(metadata(user, userPreferences))
+            .build();
+        addCheckIfMissing(pensionRegistryNameCheck);
     }
 
     private boolean personDataMatches(User user, String firstName, String lastName, String personalCode) {
@@ -122,20 +133,19 @@ public class AmlService {
         amlCheckRepository.save(amlCheck);
     }
 
-    private boolean hasCheck(User user, AmlCheckType type) {
-        return amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, type, aYearAgo());
+    private boolean hasCheck(User user, AmlCheckType checkType) {
+        return amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, checkType, aYearAgo());
     }
 
     public List<AmlCheck> getChecks(User user) {
         return amlCheckRepository.findAllByUserAndCreatedTimeAfter(user, aYearAgo());
     }
 
-    public boolean allChecksPassed(Mandate mandate) {
-        val user = mandate.getUser();
-        if (mandate.getPillar() == 2) {
+    public boolean allChecksPassed(User user, Integer pillar) {
+        if (pillar == 2) {
             // No checks needed for second pillar
             return true;
-        } else if (mandate.getPillar() == 3) {
+        } else if (pillar == 3) {
             val successfulTypes = getChecks(user).stream()
                 .filter(AmlCheck::isSuccess)
                 .map(AmlCheck::getType)

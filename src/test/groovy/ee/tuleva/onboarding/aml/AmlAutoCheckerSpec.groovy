@@ -112,7 +112,6 @@ class AmlAutoCheckerSpec extends Specification {
 
         then:
         thrown(expectedException)
-        1 * amlService.addContactDetailsCheckIfMissing(user)
 
         where:
         allChecksPassed | expectedException

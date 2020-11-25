@@ -322,7 +322,6 @@ class MandateServiceSpec extends Specification {
 
         then:
         thrown InvalidMandateException
-
     }
 
     User sampleUser() {

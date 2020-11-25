@@ -1,13 +1,10 @@
 package ee.tuleva.onboarding.aml;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import ee.tuleva.onboarding.aml.command.AmlCheckAddCommand;
+import ee.tuleva.onboarding.aml.dto.AmlCheckAddCommand;
+import ee.tuleva.onboarding.aml.dto.AmlCheckResponse;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.annotations.ApiOperation;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.RequiredArgsConstructor;
-import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -15,9 +12,7 @@ import springfox.documentation.annotations.ApiIgnore;
 
 import javax.validation.Valid;
 import java.util.List;
-import java.util.Map;
 
-import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 import static java.util.stream.Collectors.toList;
 
 @RestController
@@ -44,21 +39,5 @@ class AmlCheckController {
         Long userId = authenticatedPerson.getUserId();
         amlCheckService.addCheckIfMissing(userId, command);
         return new AmlCheckResponse(command);
-    }
-
-    @Value
-    @Builder
-    @AllArgsConstructor
-    static class AmlCheckResponse {
-        AmlCheckType type;
-        boolean success;
-        @JsonInclude(NON_NULL)
-        Map<String, Object> metadata;
-
-        public AmlCheckResponse(AmlCheckAddCommand command) {
-            this.type = command.getType();
-            this.success = command.isSuccess();
-            this.metadata = command.getMetadata();
-        }
     }
 }

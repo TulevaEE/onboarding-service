@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
-import ee.tuleva.onboarding.aml.command.AmlCheckAddCommand;
+import ee.tuleva.onboarding.aml.dto.AmlCheckAddCommand;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;

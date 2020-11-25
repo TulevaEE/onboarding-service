@@ -74,12 +74,26 @@ class AmlServiceSpec extends Specification {
         when:
         amlService.addPensionRegistryNameCheckIfMissing(user, userPreferences)
         then:
+        1 * amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, PENSION_REGISTRY_NAME, aYearAgo) >> false
         1 * amlCheckRepository.save({ check ->
             check.user == user &&
                 check.type == PENSION_REGISTRY_NAME &&
                 check.success
         })
-        1 * amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, PENSION_REGISTRY_NAME, aYearAgo) >> false
+    }
+
+    def "add contact details check if missing"() {
+        given:
+        def user = sampleUserNonMember().build()
+        when:
+        amlService.addContactDetailsCheckIfMissing(user)
+        then:
+        1 * amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, CONTACT_DETAILS, aYearAgo) >> false
+        1 * amlCheckRepository.save({ check ->
+            check.user == user &&
+                check.type == CONTACT_DETAILS &&
+                check.success
+        })
     }
 
     def "adds check if missing"() {
@@ -107,8 +121,8 @@ class AmlServiceSpec extends Specification {
         when:
         amlService.addCheckIfMissing(amlCheck)
         then:
-        0 * amlCheckRepository.save(_)
         1 * amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, type, aYearAgo) >> true
+        0 * amlCheckRepository.save(_)
     }
 
     def "gives all checks"() {

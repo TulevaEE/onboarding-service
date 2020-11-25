@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate;
 
-import ee.tuleva.onboarding.aml.AmlService;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
@@ -9,10 +8,12 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper;
+import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
+import ee.tuleva.onboarding.mandate.event.MandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
-import ee.tuleva.onboarding.mandate.listener.MandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
-import ee.tuleva.onboarding.mandate.signature.*;
+import ee.tuleva.onboarding.mandate.signature.SignatureFile;
+import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
@@ -46,7 +47,6 @@ public class MandateService {
     private final MandateFileService mandateFileService;
     private final UserService userService;
     private final EpisService episService;
-    private final AmlService amlService;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final HttpServletRequest request;
     private final LocaleResolver localeResolver;
@@ -60,11 +60,8 @@ public class MandateService {
         CreateMandateCommandWrapper createMandateCommandWrapper =
             new CreateMandateCommandWrapper(createMandateCommand, user, conversion, contactDetails);
         Mandate mandate = mandateConverter.convert(createMandateCommandWrapper);
-        amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails);
         log.info("Saving mandate {}", mandate);
-        if (!amlService.allChecksPassed(mandate.getUser(), mandate.getPillar())) {
-            throw InvalidMandateException.amlChecksMissing();
-        }
+        applicationEventPublisher.publishEvent(new BeforeMandateCreatedEvent(this, user, mandate, contactDetails));
         return mandateRepository.save(mandate);
     }
 
@@ -180,13 +177,7 @@ public class MandateService {
         if (mandateProcessor.isFinished(mandate)) {
             episService.clearCache(user);
             handleMandateProcessingErrors(mandate);
-            notifyAboutSignedMandate(user,
-                mandate.getId(),
-                mandate.getMandate()
-                    .orElseThrow(() -> new RuntimeException("Expecting mandate to be signed, but can not access signed file.")),
-                mandate.getPillar()
-            );
-
+            notifyAboutSignedMandate(user, mandate);
             return SIGNATURE;
         } else {
             return OUTSTANDING_TRANSACTION;
@@ -213,15 +204,9 @@ public class MandateService {
         }
     }
 
-    private void notifyAboutSignedMandate(User user, Long mandateId, byte[] signedFile, int pillar) {
+    private void notifyAboutSignedMandate(User user, Mandate mandate) {
         Locale locale = localeResolver.resolveLocale(request);
-        MandateCreatedEvent event = MandateCreatedEvent.newEvent(
-            user,
-            mandateId,
-            signedFile,
-            pillar,
-            locale
-        );
+        MandateCreatedEvent event = MandateCreatedEvent.newEvent(this, user, mandate, locale);
         applicationEventPublisher.publishEvent(event);
     }
 

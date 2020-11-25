@@ -17,7 +17,7 @@ class AmlCheckControllerSpec extends BaseControllerSpec {
 
     AmlCheckController controller = new AmlCheckController(amlCheckService)
 
-    def "GET /amlchecks gives all missing check types"() {
+    def "GET /amlchecks gives all missing checks"() {
         given:
         def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
@@ -26,7 +26,8 @@ class AmlCheckControllerSpec extends BaseControllerSpec {
         mvc.perform(get("/v1/amlchecks"))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath('$.[0]', is("RESIDENCY_MANUAL")))
+            .andExpect(jsonPath('$.[0].type', is("RESIDENCY_MANUAL")))
+            .andExpect(jsonPath('$.[0].success', is(false)))
     }
 
     def "POST /amlchecks adds new check if allowed"() {

@@ -97,6 +97,15 @@ public class AmlService {
         };
     }
 
+    public void addContactDetailsCheckIfMissing(User user) {
+        AmlCheck contactDetailsCheck = AmlCheck.builder()
+            .user(user)
+            .type(CONTACT_DETAILS)
+            .success(true)
+            .build();
+        addCheckIfMissing(contactDetailsCheck);
+    }
+
     public void addPensionRegistryNameCheckIfMissing(User user, UserPreferences userPreferences) {
         boolean isSuccess = personDataMatches(user,
             userPreferences.getFirstName(),
@@ -141,7 +150,7 @@ public class AmlService {
         return amlCheckRepository.findAllByUserAndCreatedTimeAfter(user, aYearAgo());
     }
 
-    public boolean allChecksPassed(User user, Integer pillar) {
+    boolean allChecksPassed(User user, Integer pillar) {
         if (pillar == 2) {
             // No checks needed for second pillar
             return true;

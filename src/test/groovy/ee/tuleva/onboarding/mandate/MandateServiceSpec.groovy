@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.account.AccountStatementService
-import ee.tuleva.onboarding.aml.AmlService
+import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException
 import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.error.response.ErrorResponse
@@ -11,8 +11,9 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
+import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
+import ee.tuleva.onboarding.mandate.event.SecondPillarMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
-import ee.tuleva.onboarding.mandate.listener.SecondPillarMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.SignatureService
@@ -41,14 +42,13 @@ class MandateServiceSpec extends Specification {
     MandateFileService mandateFileService = Mock()
     UserService userService = Mock()
     EpisService episService = Mock()
-    AmlService amlService = Mock()
     ApplicationEventPublisher eventPublisher = Mock()
     HttpServletRequest request = Mock()
     LocaleResolver localeResolver = Mock()
     UserConversionService conversionService = Mock()
 
     MandateService service = new MandateService(mandateRepository, signService, converter, mandateProcessor,
-        mandateFileService, userService, episService, amlService, eventPublisher, request, localeResolver, conversionService)
+        mandateFileService, userService, episService, eventPublisher, request, localeResolver, conversionService)
 
     Long sampleMandateId = 1L
     User sampleUser = sampleUser()
@@ -77,9 +77,8 @@ class MandateServiceSpec extends Specification {
         mandate.fundTransferExchanges.first().amount ==
             createMandateCmd.fundTransferExchanges.first().amount
         1 * episService.getContactDetails(sampleUser) >> contactDetailsFixture()
-        1 * amlService.addPensionRegistryNameCheckIfMissing(sampleUser, _)
         1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
-        1 * amlService.allChecksPassed(*_) >> true
+        1 * eventPublisher.publishEvent(_ as BeforeMandateCreatedEvent)
         1 * conversionService.getConversion(sampleUser) >> fullyConverted()
     }
 
@@ -99,10 +98,10 @@ class MandateServiceSpec extends Specification {
         when:
         service.save(sampleUser.id, createMandateCmd)
         then:
-        InvalidMandateException exception = thrown()
+        AmlChecksMissingException exception = thrown()
         exception.errorsResponse.errors.first().code == "invalid.mandate.checks.missing"
         0 * mandateRepository.save(_)
-        1 * amlService.allChecksPassed(*_) >> false
+        1 * eventPublisher.publishEvent(_ as BeforeMandateCreatedEvent) >> { throw AmlChecksMissingException.newInstance() }
         1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
         1 * conversionService.getConversion(sampleUser) >> fullyConverted()
         1 * episService.getContactDetails(sampleUser) >> contactDetailsFixture()

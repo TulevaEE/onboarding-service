@@ -1,10 +1,11 @@
-package ee.tuleva.onboarding.mandate.listener;
+package ee.tuleva.onboarding.mandate.email;
 
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
-import ee.tuleva.onboarding.mandate.email.MandateEmailService;
+import ee.tuleva.onboarding.mandate.event.SecondPillarMandateCreatedEvent;
+import ee.tuleva.onboarding.mandate.event.ThirdPillarMandateCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;

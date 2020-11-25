@@ -2,8 +2,11 @@ package ee.tuleva.onboarding.epis.contact
 
 
 import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent
+import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
@@ -11,8 +14,9 @@ import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 class ContactDetailsServiceSpec extends Specification {
 
     def episService = Mock(EpisService)
+    def eventPublisher = Mock(ApplicationEventPublisher)
 
-    def addressService = new ContactDetailsService(episService)
+    def contactDetailsService = new ContactDetailsService(episService, eventPublisher)
 
     def "Can update contact details"() {
         given:
@@ -21,7 +25,7 @@ class ContactDetailsServiceSpec extends Specification {
         episService.getContactDetails(user) >> contactDetailsFixture()
 
         when:
-        addressService.updateContactDetails(user, address)
+        contactDetailsService.updateContactDetails(user, address)
 
         then:
         1 * episService.updateContactDetails({ person ->
@@ -34,5 +38,16 @@ class ContactDetailsServiceSpec extends Specification {
             contactDetails.districtCode == address.districtCode
             contactDetails.postalIndex == address.postalCode
         })
+        1 * eventPublisher.publishEvent(_ as ContactDetailsUpdatedEvent)
+    }
+
+    def "can get contact details"() {
+        given:
+        def person = samplePerson()
+        def token = "123"
+        when:
+        contactDetailsService.getContactDetails(person, token)
+        then:
+        1 * episService.getContactDetails(person, token)
     }
 }

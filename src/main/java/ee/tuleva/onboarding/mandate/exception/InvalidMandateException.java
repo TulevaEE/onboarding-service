@@ -9,15 +9,6 @@ public class InvalidMandateException extends ErrorsResponseException {
         super(errorsResponse);
     }
 
-    public static InvalidMandateException amlChecksMissing() {
-        return new InvalidMandateException(
-            ErrorsResponse
-                .ofSingleError(
-                    "invalid.mandate.checks.missing",
-                    "Missing some of the required data that is necessary for creating a new mandate.")
-        );
-    }
-
     public static InvalidMandateException sourceAmountExceeded() {
         return new InvalidMandateException(
             ErrorsResponse

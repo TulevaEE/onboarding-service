@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.user
 
-
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
-import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.epis.contact.ContactDetailsService
 import org.springframework.security.oauth2.common.OAuth2AccessToken
 import spock.lang.Specification
 
@@ -12,9 +11,9 @@ import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDet
 class UserDetailsUpdaterSpec extends Specification {
 
     UserService userService = Mock()
-    EpisService episService = Mock()
+    ContactDetailsService contactDetailsService = Mock()
 
-    UserDetailsUpdater service = new UserDetailsUpdater(userService, episService)
+    UserDetailsUpdater service = new UserDetailsUpdater(userService, contactDetailsService)
 
     def "updates user email and phone number based on epis info"() {
         given:
@@ -25,7 +24,7 @@ class UserDetailsUpdaterSpec extends Specification {
         })
         def contactDetails = contactDetailsFixture()
         1 * userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
-        1 * episService.getContactDetails(user, token) >> contactDetails
+        1 * contactDetailsService.getContactDetails(user, token) >> contactDetails
 
         when:
         service.onAfterTokenGrantedEvent(new AfterTokenGrantedEvent(this, user, accessToken))

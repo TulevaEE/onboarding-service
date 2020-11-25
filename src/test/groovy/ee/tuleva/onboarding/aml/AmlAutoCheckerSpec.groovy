@@ -104,15 +104,15 @@ class AmlAutoCheckerSpec extends Specification {
         given:
         def user = sampleUser().build()
         def mandate = sampleMandate()
-        def contactDetails = contactDetailsFixture()
         1 * amlService.allChecksPassed(user, mandate.getPillar()) >> allChecksPassed
 
         when:
-        amlAutoChecker.beforeMandateCreated(new BeforeMandateCreatedEvent(this, user, mandate, contactDetails))
+        amlAutoChecker.beforeMandateCreated(new BeforeMandateCreatedEvent(this, user, mandate))
         throw new NoExceptionThrown()
 
         then:
         thrown(expectedException)
+        1 * amlService.addContactDetailsCheckIfMissing(user)
 
         where:
         allChecksPassed | expectedException

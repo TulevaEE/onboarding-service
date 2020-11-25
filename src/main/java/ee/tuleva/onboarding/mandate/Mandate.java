@@ -83,6 +83,10 @@ public class Mandate {
         return Optional.ofNullable(mandate);
     }
 
+    public boolean isSigned() {
+        return mandate != null;
+    }
+
     public Optional<String> getFutureContributionFundIsin() {
         return Optional.ofNullable(futureContributionFundIsin);
     }

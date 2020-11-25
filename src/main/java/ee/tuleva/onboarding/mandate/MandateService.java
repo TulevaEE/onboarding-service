@@ -8,8 +8,8 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper;
+import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
-import ee.tuleva.onboarding.mandate.event.MandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
@@ -61,7 +61,7 @@ public class MandateService {
             new CreateMandateCommandWrapper(createMandateCommand, user, conversion, contactDetails);
         Mandate mandate = mandateConverter.convert(createMandateCommandWrapper);
         log.info("Saving mandate {}", mandate);
-        applicationEventPublisher.publishEvent(new BeforeMandateCreatedEvent(this, user, mandate, contactDetails));
+        applicationEventPublisher.publishEvent(new BeforeMandateCreatedEvent(this, user, mandate));
         return mandateRepository.save(mandate);
     }
 
@@ -118,7 +118,7 @@ public class MandateService {
         User user = userService.getById(userId);
         Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
-        if (isMandateSigned(mandate)) {
+        if (mandate.isSigned()) {
             return handleSignedMandate(user, mandate);
         } else {
             return handleUnsignedMandateSmartId(user, mandate, session);
@@ -137,7 +137,6 @@ public class MandateService {
         return OUTSTANDING_TRANSACTION;
     }
 
-
     public IdCardSignatureSession idCardSign(Long mandateId, Long userId, String signingCertificate) {
         List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
         return signService.startIdCardSign(files, signingCertificate);
@@ -147,7 +146,7 @@ public class MandateService {
         User user = userService.getById(userId);
         Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
-        if (isMandateSigned(mandate)) {
+        if (mandate.isSigned()) {
             return handleSignedMandate(user, mandate);
         } else {
             return handleUnsignedMandateMobileId(user, mandate, session);
@@ -162,15 +161,11 @@ public class MandateService {
         User user = userService.getById(userId);
         Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
-        if (isMandateSigned(mandate)) {
+        if (mandate.isSigned()) {
             return handleSignedMandate(user, mandate);
         } else {
             return handleUnsignedMandateIdCard(user, mandate, session, signedHashInHex);
         }
-    }
-
-    private boolean isMandateSigned(Mandate mandate) {
-        return mandate.getMandate().isPresent();
     }
 
     private String handleSignedMandate(User user, Mandate mandate) {
@@ -206,7 +201,7 @@ public class MandateService {
 
     private void notifyAboutSignedMandate(User user, Mandate mandate) {
         Locale locale = localeResolver.resolveLocale(request);
-        MandateCreatedEvent event = MandateCreatedEvent.newEvent(this, user, mandate, locale);
+        AfterMandateSignedEvent event = AfterMandateSignedEvent.newInstance(this, user, mandate, locale);
         applicationEventPublisher.publishEvent(event);
     }
 

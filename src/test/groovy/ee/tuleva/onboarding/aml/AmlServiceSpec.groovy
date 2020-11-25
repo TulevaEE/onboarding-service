@@ -158,14 +158,14 @@ class AmlServiceSpec extends Specification {
             1 * auditEventPublisher.publish(user.getEmail(), AuditEventType.MANDATE_DENIED)
         }
         where:
-        checks                                                                                                                       | result
-        []                                                                                                                           | false
-        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION, CONTACT_DETAILS)   | true
-        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION, CONTACT_DETAILS) | true
-        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, SK_NAME, OCCUPATION, CONTACT_DETAILS)                 | true
-        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, SK_NAME, OCCUPATION, CONTACT_DETAILS)               | true
+        checks                                                                                                      | result
+        []                                                                                                          | false
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION)   | true
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION) | true
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, SK_NAME, OCCUPATION)                 | true
+        successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, SK_NAME, OCCUPATION)               | true
         [check(POLITICALLY_EXPOSED_PERSON, false)] +
-            successfulChecks(RESIDENCY_MANUAL, DOCUMENT, SK_NAME, PENSION_REGISTRY_NAME, OCCUPATION, CONTACT_DETAILS)                | false
+            successfulChecks(RESIDENCY_MANUAL, DOCUMENT, SK_NAME, PENSION_REGISTRY_NAME, OCCUPATION)                | false
     }
 
     private static List<AmlCheck> successfulChecks(AmlCheckType... checkTypes) {

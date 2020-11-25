@@ -4,8 +4,8 @@ import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.mandate.Mandate
-import ee.tuleva.onboarding.mandate.event.SecondPillarMandateCreatedEvent
-import ee.tuleva.onboarding.mandate.event.ThirdPillarMandateCreatedEvent
+import ee.tuleva.onboarding.mandate.event.SecondPillarAfterMandateSignedEvent
+import ee.tuleva.onboarding.mandate.event.ThirdPillarAfterMandateSignedEvent
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
@@ -27,7 +27,7 @@ class MandateEmailSenderSpec extends Specification {
 
         UserPreferences userPreferences = new UserPreferences()
 
-        SecondPillarMandateCreatedEvent event = new SecondPillarMandateCreatedEvent(
+        SecondPillarAfterMandateSignedEvent event = new SecondPillarAfterMandateSignedEvent(
             this, user, mandate, Locale.ENGLISH
         )
         1 * episService.getContactDetails(_) >> userPreferences
@@ -36,7 +36,7 @@ class MandateEmailSenderSpec extends Specification {
         1 * conversionService.getConversion(event.getUser()) >> conversion
 
         when:
-        mandateEmailSender.onSecondPillarMandateCreatedEvent(event)
+        mandateEmailSender.sendEmail(event)
 
         then:
         1 * mandateEmailService.sendSecondPillarMandate(user, 123, _, conversion, userPreferences, Locale.ENGLISH)
@@ -49,7 +49,7 @@ class MandateEmailSenderSpec extends Specification {
 
         UserPreferences userPreferences = new UserPreferences()
 
-        ThirdPillarMandateCreatedEvent event = new ThirdPillarMandateCreatedEvent(
+        ThirdPillarAfterMandateSignedEvent event = new ThirdPillarAfterMandateSignedEvent(
             this, user, mandate, Locale.ENGLISH
         )
         1 * episService.getContactDetails(_) >> userPreferences
@@ -58,7 +58,7 @@ class MandateEmailSenderSpec extends Specification {
         1 * conversionService.getConversion(event.getUser()) >> conversion
 
         when:
-        mandateEmailSender.onThirdPillarMandateCreatedEvent(event)
+        mandateEmailSender.sendEmail(event)
 
         then:
         1 * mandateEmailService.sendThirdPillarMandate(user, 123, _, conversion, userPreferences, Locale.ENGLISH)

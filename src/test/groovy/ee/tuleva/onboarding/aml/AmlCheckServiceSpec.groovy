@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.aml
 
-import ee.tuleva.onboarding.aml.command.AmlCheckAddCommand
+import ee.tuleva.onboarding.aml.dto.AmlCheckAddCommand
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 import spock.lang.Unroll

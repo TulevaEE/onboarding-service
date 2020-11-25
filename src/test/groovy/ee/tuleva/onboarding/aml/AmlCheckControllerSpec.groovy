@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.aml
 
 import ee.tuleva.onboarding.BaseControllerSpec
-import ee.tuleva.onboarding.aml.command.AmlCheckAddCommand
+import ee.tuleva.onboarding.aml.dto.AmlCheckAddCommand
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import org.springframework.http.MediaType
 

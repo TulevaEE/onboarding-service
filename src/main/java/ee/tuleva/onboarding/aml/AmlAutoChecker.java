@@ -27,30 +27,18 @@ public class AmlAutoChecker {
     private final ContactDetailsService contactDetailsService;
 
     @EventListener
-    public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
+    public void beforeLogin(BeforeTokenGrantedEvent event) {
         Person person = event.getPerson();
         Boolean isResident = isResident(event);
 
         User user = userService.findByPersonalCode(person.getPersonalCode())
             .orElseThrow(() -> new IllegalStateException("User not found with code " + person.getPersonalCode()));
 
-        amlService.checkUserAfterLogin(user, person, isResident);
+        amlService.checkUserBeforeLogin(user, person, isResident);
     }
 
     @EventListener
-    public void onContactDetailsUpdatedEvent(ContactDetailsUpdatedEvent event) {
-        amlService.addContactDetailsCheckIfMissing(event.getUser());
-    }
-
-    @EventListener
-    public void onBeforeMandateCreatedEvent(BeforeMandateCreatedEvent event) {
-        if (!amlService.allChecksPassed(event.getUser(), event.getPillar())) {
-            throw AmlChecksMissingException.newInstance();
-        }
-    }
-
-    @EventListener
-    public void onAfterTokenGrantedEvent(AfterTokenGrantedEvent event) {
+    public void afterLogin(AfterTokenGrantedEvent event) {
         Person person = event.getPerson();
         String token = event.getAccessToken().getValue();
 
@@ -58,6 +46,18 @@ public class AmlAutoChecker {
             UserPreferences contactDetails = contactDetailsService.getContactDetails(person, token);
             amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails);
         });
+    }
+
+    @EventListener
+    public void contactDetailsUpdated(ContactDetailsUpdatedEvent event) {
+        amlService.addContactDetailsCheckIfMissing(event.getUser());
+    }
+
+    @EventListener
+    public void beforeMandateCreated(BeforeMandateCreatedEvent event) {
+        if (!amlService.allChecksPassed(event.getUser(), event.getPillar())) {
+            throw AmlChecksMissingException.newInstance();
+        }
     }
 
     private Boolean isResident(BeforeTokenGrantedEvent event) {

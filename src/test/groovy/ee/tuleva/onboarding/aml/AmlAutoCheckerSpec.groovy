@@ -28,7 +28,7 @@ class AmlAutoCheckerSpec extends Specification {
     ContactDetailsService contactDetailsService = Mock()
     AmlAutoChecker amlAutoChecker = new AmlAutoChecker(amlService, userService, contactDetailsService)
 
-    def "checks user after login"() {
+    def "checks user before login"() {
         given:
         def user = sampleUser().build()
         def person = samplePerson()
@@ -47,10 +47,10 @@ class AmlAutoCheckerSpec extends Specification {
         })
 
         when:
-        amlAutoChecker.onBeforeTokenGrantedEvent(new BeforeTokenGrantedEvent(this, person, authentication, GrantType.ID_CARD))
+        amlAutoChecker.beforeLogin(new BeforeTokenGrantedEvent(this, person, authentication, GrantType.ID_CARD))
 
         then:
-        1 * amlService.checkUserAfterLogin(user, person, ESTONIAN_CITIZEN_ID_CARD.isResident())
+        1 * amlService.checkUserBeforeLogin(user, person, ESTONIAN_CITIZEN_ID_CARD.isResident())
     }
 
     def "throws exception when user not found"() {
@@ -62,44 +62,11 @@ class AmlAutoCheckerSpec extends Specification {
         1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
 
         when:
-        amlAutoChecker.onBeforeTokenGrantedEvent(new BeforeTokenGrantedEvent(this, person, auth, GrantType.MOBILE_ID))
+        amlAutoChecker.beforeLogin(new BeforeTokenGrantedEvent(this, person, auth, GrantType.MOBILE_ID))
 
         then:
         thrown(IllegalStateException)
-        0 * amlService.checkUserAfterLogin(*_)
-    }
-
-    def "adds contact details check if missing"() {
-        given:
-        def user = sampleUser().build()
-        def contactDetails = contactDetailsFixture()
-
-        when:
-        amlAutoChecker.onContactDetailsUpdatedEvent(new ContactDetailsUpdatedEvent(this, user, contactDetails))
-
-        then:
-        1 * amlService.addContactDetailsCheckIfMissing(user)
-    }
-
-    @Unroll
-    def "throws exception when not all checks passed on mandate creation"() {
-        given:
-        def user = sampleUser().build()
-        def mandate = sampleMandate()
-        def contactDetails = contactDetailsFixture()
-        1 * amlService.allChecksPassed(user, mandate.getPillar()) >> allChecksPassed
-
-        when:
-        amlAutoChecker.onBeforeMandateCreatedEvent(new BeforeMandateCreatedEvent(this, user, mandate, contactDetails))
-        throw new NoExceptionThrown()
-
-        then:
-        thrown(expectedException)
-
-        where:
-        allChecksPassed | expectedException
-        true            | NoExceptionThrown
-        false           | AmlChecksMissingException
+        0 * amlService.checkUserBeforeLogin(*_)
     }
 
     def "adds pension registry name check if missing on login"() {
@@ -114,10 +81,43 @@ class AmlAutoCheckerSpec extends Specification {
         1 * contactDetailsService.getContactDetails(user, token) >> contactDetails
 
         when:
-        amlAutoChecker.onAfterTokenGrantedEvent(new AfterTokenGrantedEvent(this, user, accessToken))
+        amlAutoChecker.afterLogin(new AfterTokenGrantedEvent(this, user, accessToken))
 
         then:
         1 * amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails)
+    }
+
+    def "adds contact details check if missing"() {
+        given:
+        def user = sampleUser().build()
+        def contactDetails = contactDetailsFixture()
+
+        when:
+        amlAutoChecker.contactDetailsUpdated(new ContactDetailsUpdatedEvent(this, user, contactDetails))
+
+        then:
+        1 * amlService.addContactDetailsCheckIfMissing(user)
+    }
+
+    @Unroll
+    def "throws exception when not all checks passed on mandate creation"() {
+        given:
+        def user = sampleUser().build()
+        def mandate = sampleMandate()
+        def contactDetails = contactDetailsFixture()
+        1 * amlService.allChecksPassed(user, mandate.getPillar()) >> allChecksPassed
+
+        when:
+        amlAutoChecker.beforeMandateCreated(new BeforeMandateCreatedEvent(this, user, mandate, contactDetails))
+        throw new NoExceptionThrown()
+
+        then:
+        thrown(expectedException)
+
+        where:
+        allChecksPassed | expectedException
+        true            | NoExceptionThrown
+        false           | AmlChecksMissingException
     }
 
     private class NoExceptionThrown extends RuntimeException {}

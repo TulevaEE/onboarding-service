@@ -37,7 +37,7 @@ public class AmlService {
         ImmutableList.of(POLITICALLY_EXPOSED_PERSON, PENSION_REGISTRY_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION, CONTACT_DETAILS)
     );
 
-    public void checkUserAfterLogin(User user, Person person, Boolean isResident) {
+    public void checkUserBeforeLogin(User user, Person person, Boolean isResident) {
         addDocumentCheck(user);
         addResidencyCheck(user, isResident);
         addSkNameCheck(user, person);

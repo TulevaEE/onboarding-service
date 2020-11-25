@@ -30,7 +30,7 @@ class AmlServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isResident = true
         when:
-        amlService.checkUserAfterLogin(user, user, isResident)
+        amlService.checkUserBeforeLogin(user, user, isResident)
         then:
         1 * amlCheckRepository.save({ check ->
             check.user == user &&
@@ -54,7 +54,7 @@ class AmlServiceSpec extends Specification {
         def user = sampleUserNonMember().build()
         def isResident = null
         when:
-        amlService.checkUserAfterLogin(user, user, isResident)
+        amlService.checkUserBeforeLogin(user, user, isResident)
         then:
         2 * amlCheckRepository.save({ check ->
             check.user == user &&

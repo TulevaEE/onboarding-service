@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.aml.command;
+package ee.tuleva.onboarding.aml.dto;
 
 import ee.tuleva.onboarding.aml.AmlCheckType;
 

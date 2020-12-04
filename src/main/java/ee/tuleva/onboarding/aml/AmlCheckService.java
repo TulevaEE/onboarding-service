@@ -46,6 +46,9 @@ public class AmlCheckService {
         if (!existingChecks.contains(CONTACT_DETAILS)) {
             checks.add(CONTACT_DETAILS);
         }
+        if (!existingChecks.contains(POLITICALLY_EXPOSED_PERSON)) {
+            checks.remove(POLITICALLY_EXPOSED_PERSON);
+        }
         return checks;
     }
 }

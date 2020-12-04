@@ -31,21 +31,19 @@ class AmlCheckServiceSpec extends Specification {
         1 * amlService.getChecks(user) >> checks
         where:
         checks                              | missing
-        []                                  | [RESIDENCY_MANUAL, POLITICALLY_EXPOSED_PERSON, OCCUPATION, CONTACT_DETAILS]
-        [check(DOCUMENT)]                   | [RESIDENCY_MANUAL, POLITICALLY_EXPOSED_PERSON, OCCUPATION, CONTACT_DETAILS]
-        [check(RESIDENCY_AUTO)]             | [POLITICALLY_EXPOSED_PERSON, OCCUPATION, CONTACT_DETAILS]
-        [check(RESIDENCY_MANUAL)]           | [POLITICALLY_EXPOSED_PERSON, OCCUPATION, CONTACT_DETAILS]
+        []                                  | [RESIDENCY_MANUAL, OCCUPATION, CONTACT_DETAILS]
+        [check(DOCUMENT)]                   | [RESIDENCY_MANUAL, OCCUPATION, CONTACT_DETAILS]
+        [check(RESIDENCY_AUTO)]             | [OCCUPATION, CONTACT_DETAILS]
+        [check(RESIDENCY_MANUAL)]           | [OCCUPATION, CONTACT_DETAILS]
         [check(POLITICALLY_EXPOSED_PERSON)] | [RESIDENCY_MANUAL, OCCUPATION, CONTACT_DETAILS]
-        [check(OCCUPATION)]                 | [RESIDENCY_MANUAL, POLITICALLY_EXPOSED_PERSON, CONTACT_DETAILS]
-        [check(CONTACT_DETAILS)]            | [RESIDENCY_MANUAL, POLITICALLY_EXPOSED_PERSON, OCCUPATION]
+        [check(OCCUPATION)]                 | [RESIDENCY_MANUAL, CONTACT_DETAILS]
+        [check(CONTACT_DETAILS)]            | [RESIDENCY_MANUAL, OCCUPATION]
         [
-            check(POLITICALLY_EXPOSED_PERSON),
             check(RESIDENCY_MANUAL),
             check(OCCUPATION),
             check(CONTACT_DETAILS)
         ]                                   | []
         [
-            check(POLITICALLY_EXPOSED_PERSON),
             check(RESIDENCY_AUTO),
             check(OCCUPATION),
             check(CONTACT_DETAILS)

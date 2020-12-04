@@ -37,10 +37,7 @@
     </cache>
 
     <cache name="funds"
-           maxEntriesLocalHeap="100"
-           maxEntriesLocalDisk="100"
-           overflowToDisk="true"
-           diskPersistent="true"
+           maxElementsInMemory="100"
            eternal="true">
     </cache>
 

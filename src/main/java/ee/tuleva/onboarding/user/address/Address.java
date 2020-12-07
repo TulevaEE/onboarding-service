@@ -6,26 +6,31 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.Nullable;
 
-import javax.validation.constraints.NotNull;
+import javax.validation.constraints.NotBlank;
 
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @JsonView(MandateView.Default.class)
+@ValidAddress
 public class Address {
 
-    @NotNull
+    @NotBlank
     private String street;
 
-    @NotNull
+    @Nullable // Only Estonian addresses must have a district code
     private String districtCode;
 
-    @NotNull
+    @NotBlank
     private String postalCode;
 
-    @NotNull
+    @NotBlank
     private String countryCode;
 
+    public boolean isEstonian() {
+        return "EE".equals(countryCode);
+    }
 }

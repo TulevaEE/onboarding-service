@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user.address;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.mandate.MandateView;
 import lombok.AllArgsConstructor;
@@ -30,6 +31,7 @@ public class Address {
     @NotBlank
     private String countryCode;
 
+    @JsonIgnore
     public boolean isEstonian() {
         return "EE".equals(countryCode);
     }

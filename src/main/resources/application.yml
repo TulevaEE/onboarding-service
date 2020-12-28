@@ -112,7 +112,7 @@ logging:
   level:
     ee:
       sk:
-        smartid: DEBUG
+        smartid: TRACE
         mid:
           rest:
             MidLoggingFilter: TRACE

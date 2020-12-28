@@ -122,6 +122,10 @@ logging:
             fundvalue:
               retrieval:
                 globalstock: DEBUG
+    com:
+      zaxxer:
+        hikari:
+          HikariConfig: DEBUG
 
 morningstar:
   host: ${MORNINGSTAR_HOST:localhost}
@@ -145,8 +149,8 @@ spring:
     url: ${JDBC_DATABASE_URL}
     username: ${JDBC_DATABASE_USERNAME}
     password: ${JDBC_DATABASE_PASSWORD}
-    tomcat:
-      max-active: 60
+    hikari:
+      maximum-pool-size: 60
     initialization-mode: never
 
   flyway:

@@ -78,7 +78,7 @@ public class UserConversionService {
 
     private boolean paymentComplete(CashFlowStatement cashFlowStatement) {
         return cashFlowStatement.getTransactions().stream()
-            .filter(cashFlow -> cashFlow.getDate().isAfter(lastDayOfLastYear()))
+            .filter(cashFlow -> cashFlow.getDate().isAfter(sameTimeLastYear()))
             .filter(CashFlow::isCashContribution)
             .filter(cashFlow -> fundRepository.findByIsin(cashFlow.getIsin()).getPillar() == 3)
             .map(CashFlow::getAmount)
@@ -126,7 +126,11 @@ public class UserConversionService {
     }
 
     private LocalDate lastDayOfLastYear() {
-        return LocalDate.now(clock).minusYears(1).with(lastDayOfYear());
+        return sameTimeLastYear().with(lastDayOfYear());
+    }
+
+    private LocalDate sameTimeLastYear() {
+        return LocalDate.now(clock).minusYears(1);
     }
 
     private boolean isSelectionComplete(List<FundBalance> fundBalances, Integer pillar) {

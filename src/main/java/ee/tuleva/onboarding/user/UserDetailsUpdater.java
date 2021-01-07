@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -48,8 +49,11 @@ public class UserDetailsUpdater {
             if (!user.hasContactDetails()) {
                 log.info("User contact details missing. Filling them in with EPIS data");
                 UserPreferences contactDetails = contactDetailsService.getContactDetails(person, token);
-                userService.updateUser(person.getPersonalCode(), contactDetails.getEmail(),
-                    contactDetails.getPhoneNumber());
+                userService.updateUser(
+                    person.getPersonalCode(),
+                    StringUtils.trim(contactDetails.getEmail()),
+                    StringUtils.trim(contactDetails.getPhoneNumber())
+                );
             }
             return user;
         });

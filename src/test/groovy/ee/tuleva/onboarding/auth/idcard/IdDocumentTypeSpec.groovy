@@ -23,6 +23,5 @@ class IdDocumentTypeSpec extends Specification {
         DIPLOMATIC_ID_CARD                            | false
         DIGITAL_ID_CARD                               | null
         OLD_DIGITAL_ID_CARD                           | null
-        UNKNOWN                                       | null
     }
 }

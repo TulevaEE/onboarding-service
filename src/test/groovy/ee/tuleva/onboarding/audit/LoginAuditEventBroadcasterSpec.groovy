@@ -45,7 +45,7 @@ class LoginAuditEventBroadcasterSpec extends Specification {
         ID_CARD   | "DIGITAL_ID_CARD"          | new IdCardSession("Chuck", "Norris", "38512121212", IdDocumentType.DIGITAL_ID_CARD)
         ID_CARD   | "OLD_ID_CARD"              | new IdCardSession("Chuck", "Norris", "38512121212", IdDocumentType.OLD_ID_CARD)
         ID_CARD   | "ESTONIAN_CITIZEN_ID_CARD" | new IdCardSession("Chuck", "Norris", "38512121212", IdDocumentType.ESTONIAN_CITIZEN_ID_CARD)
-        ID_CARD   | "UNKNOWN"                  | new IdCardSession(" Chuck ", " Norris ", " 38512121212 ", IdDocumentType.UNKNOWN)
+        ID_CARD   | "DIPLOMATIC_ID_CARD"       | new IdCardSession(" Chuck ", " Norris ", " 38512121212 ", IdDocumentType.DIPLOMATIC_ID_CARD)
         MOBILE_ID | null                       | MobileIdFixture.sampleMobileIdSession
         SMART_ID  | null                       | SmartIdFixture.sampleSmartIdSession
     }

@@ -1,7 +1,12 @@
 package ee.tuleva.onboarding.auth.idcard;
 
+import com.google.common.collect.ImmutableList;
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException;
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException;
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException;
 import ee.tuleva.onboarding.auth.ocsp.CheckCertificateResponse;
 import ee.tuleva.onboarding.auth.ocsp.OCSPAuthService;
+import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -9,13 +14,14 @@ import lombok.val;
 import org.bouncycastle.asn1.DLSequence;
 import org.springframework.stereotype.Service;
 
+import javax.security.auth.x500.X500Principal;
 import java.io.IOException;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.util.List;
 import java.util.Objects;
 
-import static org.apache.commons.io.IOUtils.toInputStream;
+import static org.bouncycastle.asn1.x509.Extension.certificatePolicies;
+import static org.bouncycastle.asn1.x509.Extension.extendedKeyUsage;
 import static org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils.parseExtensionValue;
 
 @Service
@@ -23,60 +29,89 @@ import static org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils.parseExtensionV
 @AllArgsConstructor
 public class IdCardAuthService {
 
-  private static final String OID = "2.5.29.32";
   private static final String AUTHENTICATION_POLICY_ID = "0.4.0.2042.1.2";
+  private static final String CLIENT_AUTHENTICATION_ID = "1.3.6.1.5.5.7.3.2";
   private static final int POLICY_NO_1 = 0;
   private static final int POLICY_NO_2 = 1;
+  private static final List<String> VALID_ISSUERS = ImmutableList.of(
+    "CN=ESTEID-SK 2015, OID.2.5.4.97=NTREE-10747013, O=AS Sertifitseerimiskeskus, C=EE",
+    "CN=ESTEID2018, OID.2.5.4.97=NTREE-10747013, O=SK ID Solutions AS, C=EE"
+  );
+
   private final OCSPAuthService ocspAuthenticator;
   private final GenericSessionStore sessionStore;
+  private final OCSPUtils ocspUtils;
 
   public IdCardSession checkCertificate(String certificate) {
     log.info("Checking ID card certificate");
-    CheckCertificateResponse response = ocspAuthenticator.checkCertificate(certificate);
+    X509Certificate x509Certificate = ocspUtils.getX509Certificate(certificate);
+    CheckCertificateResponse response = ocspAuthenticator.checkCertificate(x509Certificate);
+
+    IdDocumentType documentType = getDocumentTypeFromCertificate(x509Certificate);
+    checkClientAuthentication(x509Certificate);
+    checkIssuer(x509Certificate);
+
     IdCardSession session =
         IdCardSession.builder()
             .firstName(response.getFirstName())
             .lastName(response.getLastName())
             .personalCode(response.getPersonalCode())
-            .documentType(getDocumentTypeFromCertificate(certificate))
+            .documentType(documentType)
             .build();
     sessionStore.save(session);
     return session;
   }
 
-  public IdDocumentType getDocumentTypeFromCertificate(String certificate) {
+  public IdDocumentType getDocumentTypeFromCertificate(X509Certificate certificate) {
     try {
-      CertificateFactory cf = CertificateFactory.getInstance("X.509");
-      val certStream = toInputStream(certificate, "UTF8");
-      X509Certificate cert = (X509Certificate) cf.generateCertificate(certStream);
-      return getDocumentTypeFromCertificate(cert);
-    } catch (CertificateException | IOException e) {
-      return IdDocumentType.UNKNOWN;
-    }
-  }
-
-  public IdDocumentType getDocumentTypeFromCertificate(X509Certificate cert) {
-    try {
-      byte[] encodedExtensionValue = cert.getExtensionValue(OID);
+      byte[] encodedExtensionValue = certificate.getExtensionValue(certificatePolicies.getId());
       if (encodedExtensionValue != null) {
-        DLSequence extensionValue = (DLSequence) parseExtensionValue(encodedExtensionValue);
+        val extensionValue = (DLSequence) parseExtensionValue(encodedExtensionValue);
         try {
-          DLSequence first = (DLSequence) extensionValue.getObjectAt(POLICY_NO_1);
-          DLSequence second = (DLSequence) extensionValue.getObjectAt(POLICY_NO_2);
+          val first = (DLSequence) extensionValue.getObjectAt(POLICY_NO_1);
+          val second = (DLSequence) extensionValue.getObjectAt(POLICY_NO_2);
           if (Objects.equals(second.getObjectAt(0).toString(), AUTHENTICATION_POLICY_ID)) {
             return IdDocumentType.findByIdentifier(first.getObjectAt(POLICY_NO_1).toString());
           } else {
-            log.warn("Unknown identifier {}", second.getObjectAt(0));
+            throw new UnknownDocumentTypeException(second.getObjectAt(0).toString());
           }
         } catch (ArrayIndexOutOfBoundsException e) {
-          log.warn("Extension of card certificate not known: {}", extensionValue.toString());
+          log.error("Extension of card certificate not known: {}", extensionValue.toString());
         }
       } else {
-        log.warn("Extension missing!");
+        log.error("Extension missing!");
       }
     } catch (IOException e) {
-      log.warn("Could not parse certificate");
+      log.error("Could not parse certificate", e);
     }
-    return IdDocumentType.UNKNOWN;
+    throw new UnknownDocumentTypeException();
+  }
+
+  public void checkClientAuthentication(X509Certificate certificate) {
+    try {
+      byte[] encodedExtendedKeyUsage = certificate.getExtensionValue(extendedKeyUsage.getId());
+      if (encodedExtendedKeyUsage != null) {
+        val extendedKeyUsage = (DLSequence) parseExtensionValue(encodedExtendedKeyUsage);
+        for (val element : extendedKeyUsage) {
+          if (element.toString().equals(CLIENT_AUTHENTICATION_ID)) {
+            return;
+          }
+        }
+        throw new UnknownExtendedKeyUsageException(extendedKeyUsage.toString());
+      } else {
+        log.error("Extension missing!");
+      }
+    } catch (IOException e) {
+      log.error("Could not parse certificate", e);
+    }
+    throw new UnknownExtendedKeyUsageException();
+  }
+
+  private void checkIssuer(X509Certificate certificate) {
+    val issuer = certificate.getIssuerX500Principal().getName(X500Principal.RFC1779);
+    if (VALID_ISSUERS.contains(issuer)) {
+      return;
+    }
+    throw new UnknownIssuerException(issuer);
   }
 }

@@ -9,6 +9,7 @@ server:
   servlet:
     session:
       timeout: 3600
+      # cookie.domain: tuleva.ee # for session sharing across sub-domains
 
 spring:
   application:

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.auth.idcard;
 
+import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException;
+
 import java.util.Arrays;
 
 import static com.google.common.collect.Lists.newArrayList;
@@ -15,8 +17,7 @@ public enum IdDocumentType {
     EUROPEAN_CITIZEN_FAMILY_MEMBER_RESIDENCE_CARD(7),
     OLD_ID_CARD("1.3.6.1.4.1.10015.1.1"),
     OLD_DIGITAL_ID_CARD("1.3.6.1.4.1.10015.1.2"),
-    DIPLOMATIC_ID_CARD(1, true),
-    UNKNOWN(null);
+    DIPLOMATIC_ID_CARD(1, true);
 
     private static final String POLICE_PREFIX = "1.3.6.1.4.1.51361.1.1.";
     private static final String FOREIGN_AFFAIRS_PREFIX = "1.3.6.1.4.1.51455.1.1.";
@@ -42,7 +43,7 @@ public enum IdDocumentType {
     static IdDocumentType findByIdentifier(String identifier) {
         return Arrays.stream(IdDocumentType.values())
             .filter(d -> d.identifier.equals(identifier))
-            .findFirst().orElse(UNKNOWN);
+            .findFirst().orElseThrow(() -> new UnknownDocumentTypeException(identifier));
     }
 
     public Boolean isResident() {

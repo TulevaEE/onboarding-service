@@ -56,7 +56,7 @@ class IdCardTokenGranterSpec extends Specification {
 
     def "GetAccessToken: Logging in with user and grant access token"() {
         given:
-        def idCardSession = new IdCardSession("Justin", "Case", "38512121212", IdDocumentType.UNKNOWN);
+        def idCardSession = new IdCardSession("Justin", "Case", "38512121212", IdDocumentType.DIPLOMATIC_ID_CARD);
         1 * genericSessionStore.get(IdCardSession) >> Optional.of(idCardSession)
         1 * principalService.getFrom({ Person person ->
             person.personalCode == idCardSession.personalCode &&

@@ -25,20 +25,24 @@ public class OCSPAuthService {
   private final OCSPService service;
 
   public CheckCertificateResponse checkCertificate(String certificate) {
-
     X509Certificate cert = ocspUtils.getX509Certificate(certificate);
-    URI issuerURI = ocspUtils.getIssuerCertificateURI(cert);
-    URI responderURI = ocspUtils.getResponderURI(cert);
+    return checkCertificate(cert);
+  }
+
+  public CheckCertificateResponse checkCertificate(X509Certificate certificate) {
+
+    URI issuerURI = ocspUtils.getIssuerCertificateURI(certificate);
+    URI responderURI = ocspUtils.getResponderURI(certificate);
 
     String certificationAuthority = service.getIssuerCertificate(issuerURI.toString());
 
     OCSPRequest request =
-        ocspUtils.generateOCSPRequest(cert, certificationAuthority, responderURI.toString());
+      ocspUtils.generateOCSPRequest(certificate, certificationAuthority, responderURI.toString());
 
     OCSPResponseType result = service.checkCertificate(request);
     validateGoodResult(result);
 
-    return getCreateCertificateResponse(cert);
+    return getCreateCertificateResponse(certificate);
   }
 
   @NotNull

@@ -29,6 +29,7 @@ import javax.validation.Valid;
 import java.net.URLDecoder;
 
 import static ee.tuleva.onboarding.auth.command.AuthenticationType.SMART_ID;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
@@ -84,7 +85,7 @@ public class AuthController {
       throw new UnauthorizedClientException("Client certificate not verified");
     }
 
-    idCardAuthService.checkCertificate(URLDecoder.decode(clientCertificate, "UTF-8"));
+    idCardAuthService.checkCertificate(URLDecoder.decode(clientCertificate, UTF_8.name()));
 
     if (httpMethod.equals(HttpMethod.GET)) {
       response.sendRedirect(frontendUrl + "?login=idCard");

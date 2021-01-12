@@ -23,7 +23,7 @@
 
 PostgreSQL
 
-Running locally with Docker: `docker-compose up -d`
+Running locally with Docker: `docker-compose up database -d`
 
 **Spring Profile**
 
@@ -109,6 +109,24 @@ curl --location --request POST 'https://pension.tuleva.ee/api/oauth/token' \
 --data-urlencode 'client_id=tuleva.ee'
 ```
 and then [update the token values](https://github.com/TulevaEE/wordpress-theme/commit/1796c1ba7c926847ff0edb3b9f8a61e273d40018) in the WordPress Tuleva template.
+
+### Testing ID-card Locally
+
+In order to test ID-card locally, you need to run nginx locally with the right certificates and the right domain names.
+
+1. Add tuleva certs to `./nginx` (4 files)
+2. Update ```$frontend``` and `$backend` urls in `etc/eb/.ebextensions/nginx/conf.d/01_ssl_proxy.conf`
+3. Add to `hosts` file:
+   ```
+   127.0.0.1 id.tuleva.ee
+   127.0.0.1 pension.tuleva.ee
+   127.0.0.1 onboarding-service.tuleva.ee
+   ```
+4. Run nginx with docker: `docker-compose up nginx`
+5. Add `DANGEROUSLY_DISABLE_HOST_CHECK=true` to `.env` in `onboarding-client`
+6. add `server.servlet.session.cookie.domain: tuleva.ee` to `application.yml`
+7. Test through https://pension.tuleva.ee
+8. Later, don't forget to clean up your `hosts` file
 
 ### References
 

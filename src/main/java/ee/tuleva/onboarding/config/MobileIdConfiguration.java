@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.config;
 
 import ee.sk.mid.MidAuthenticationResponseValidator;
 import ee.sk.mid.MidClient;
-import ee.sk.mid.exception.MidInternalErrorException;
 import ee.sk.mid.rest.MidConnector;
 import ee.sk.mid.rest.MidSessionStatusPoller;
 import lombok.SneakyThrows;
@@ -19,8 +18,6 @@ import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.util.Enumeration;
 
 @Configuration
 @Slf4j
@@ -49,7 +46,7 @@ public class MobileIdConfiguration {
             .withRelyingPartyUUID(relyingPartyUUID)
             .withHostUrl(hostUrl)
             .withPollingSleepTimeoutSeconds(pollingSleepTimeoutSeconds)
-            .withSslKeyStore(getTrustStore(resourceLoader))
+            .withTrustStore(getTrustStore(resourceLoader))
             .build();
     }
 
@@ -64,26 +61,10 @@ public class MobileIdConfiguration {
     }
 
     @Bean
+    @SneakyThrows
     MidAuthenticationResponseValidator mobileIDValidator(ResourceLoader resourceLoader) {
-        MidAuthenticationResponseValidator validator = new MidAuthenticationResponseValidator();
-        initializeTrustedCertificatesFromTrustStore(validator, resourceLoader);
-        return validator;
-    }
-
-    private void initializeTrustedCertificatesFromTrustStore(MidAuthenticationResponseValidator validator,
-                                                             ResourceLoader resourceLoader) {
-        try {
-            KeyStore trustStore = getTrustStore(resourceLoader);
-            Enumeration<String> aliases = trustStore.aliases();
-
-            while (aliases.hasMoreElements()) {
-                String alias = aliases.nextElement();
-                X509Certificate certificate = (X509Certificate) trustStore.getCertificate(alias);
-                validator.addTrustedCACertificate(certificate);
-            }
-        } catch (IOException | CertificateException | KeyStoreException | NoSuchAlgorithmException e) {
-            throw new MidInternalErrorException("Error initializing trusted CA certificates", e);
-        }
+        KeyStore trustStore = getTrustStore(resourceLoader);
+        return new MidAuthenticationResponseValidator(trustStore);
     }
 
     private KeyStore getTrustStore(ResourceLoader resourceLoader)

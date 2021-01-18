@@ -2,7 +2,7 @@ buildscript {
 	ext {
 		springBootVersion = '2.3.6.RELEASE'
 		springBootAdminVersion = '2.3.1'
-		springCloudSleuthVersion = '2.2.6.RELEASE'
+		springCloudSleuthVersion = '3.0.0'
 	}
 	repositories {
 		mavenCentral()

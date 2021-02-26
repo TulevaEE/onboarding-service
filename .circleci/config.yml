@@ -48,7 +48,7 @@ jobs:
       - persist_to_workspace:
           root: /tmp/workspace
           paths:
-            - build
+            - build/*
   deploy:
     docker:
       - image: meetfrank/circleci-node-awsebcli:latest

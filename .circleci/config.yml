@@ -9,7 +9,7 @@ jobs:
       - image: circleci/openjdk:8-jdk
     steps:
       - attach_workspace:
-          at: /tmp/workspace
+          at: .
 
       - checkout
 
@@ -46,9 +46,9 @@ jobs:
             - build/distributions
 
       - persist_to_workspace:
-          root: /tmp/workspace
+          root: .
           paths:
-            - build/*
+            - build
   deploy:
     docker:
       - image: meetfrank/circleci-node-awsebcli:latest
@@ -87,7 +87,7 @@ workflows:
           path: build/docker
           repo: onboarding-service
           attach-workspace: true
-          workspace-root: /tmp/workspace
+          workspace-root: .
           filters:
             branches:
               only: master

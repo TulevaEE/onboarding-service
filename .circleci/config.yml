@@ -1,4 +1,6 @@
 version: 2
+orbs:
+  aws-ecr: circleci/aws-ecr@6.15.3
 jobs:
   build:
     environment:
@@ -50,6 +52,13 @@ jobs:
       - deploy:
           name: Deploy master to Production
           command: eb deploy onboarding-service  --label ${CIRCLE_SHA1} --timeout 20
+
+  build_and_push_image:
+    jobs:
+      - aws-ecr/build-and-push-image:
+          context: elastic-beanstalk-deployment
+          path: build/docker
+          repo: onboarding-service
 
   notify:
     docker:

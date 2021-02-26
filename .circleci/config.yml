@@ -73,9 +73,14 @@ workflows:
             branches:
               only: master
       - aws-ecr/build-and-push-image:
+          requires:
+            - build
           context: elastic-beanstalk-deployment
           path: build/docker
           repo: onboarding-service
+          filters:
+            branches:
+              only: master
       - notify:
           requires:
             - deploy

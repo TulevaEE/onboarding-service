@@ -59,10 +59,9 @@ jobs:
             - v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}
       - deploy:
           name: Deploy master to Production
-          command: eb deploy onboarding-service --label ${CIRCLE_SHA1} --timeout 20
-      - deploy-docker:
-          name: Deploy master to Production Docker
-          command: eb deploy onboarding-service-docker --label ${CIRCLE_SHA1} --timeout 20
+          command: |
+            eb deploy onboarding-service --label ${CIRCLE_SHA1} --timeout 20
+            eb deploy onboarding-service-docker --label ${CIRCLE_SHA1} --timeout 20
 
   notify:
     docker:

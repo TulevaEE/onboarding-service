@@ -22,6 +22,11 @@ apply plugin: 'org.springframework.boot'
 apply plugin: 'io.spring.dependency-management'
 apply plugin: 'jacoco'
 apply plugin: 'com.gorylenko.gradle-git-properties'
+
+gitProperties {
+	extProperty = "gitProps" // git properties will be put in a map at project.ext.gitProps
+}
+
 apply from: './gradle/packaging.gradle.kts'
 
 sourceCompatibility = 1.8
@@ -143,19 +148,6 @@ jacocoTestReport {
 }
 
 check.dependsOn jacocoTestReport
-
-task zipWithExtensions(type: Zip) {
-	dependsOn jar
-	from(jar.outputs.files.singleFile) {
-		rename { "application.jar" }
-	}
-	from("$rootDir/etc/eb/.ebextensions") {
-		into(".ebextensions")
-	}
-	from("$rootDir/etc/eb/Procfile")
-}
-
-assemble.dependsOn zipWithExtensions
 
 configurations {
 	compile.exclude group: 'org.codehaus.jackson' // old jackson v1

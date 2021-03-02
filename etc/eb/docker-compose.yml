@@ -1,0 +1,6 @@
+version: '3.8'
+services:
+  onboarding-service:
+    image: "641866833894.dkr.ecr.eu-central-1.amazonaws.com/onboarding-service:${hash}"
+    ports:
+      - "8080:8080"

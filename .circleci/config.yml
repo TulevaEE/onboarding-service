@@ -81,6 +81,7 @@ workflows:
           context: elastic-beanstalk-deployment
           path: build/docker
           repo: onboarding-service
+          tag: 'latest,${CIRCLE_SHA1}'
           attach-workspace: true
           workspace-root: .
           filters:

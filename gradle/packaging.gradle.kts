@@ -15,7 +15,7 @@ tasks {
     doLast {
       copy {
         from("$rootDir/etc/eb/docker-compose.yml") {
-          expand("hash" to gitProps["git.commit.id"]?.substring(0, 8))
+          expand("hash" to gitProps["git.commit.id"])
         }
         into("$buildDir/zip")
       }

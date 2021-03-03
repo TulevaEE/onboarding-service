@@ -1,7 +1,11 @@
 FROM openjdk:11-jre-slim
 VOLUME /tmp
 
-RUN apt update && apt install curl jq -y
+RUN apt update && apt install curl jq openssl -y
+
+COPY rds-ca-2019-root.pem rds.pem
+RUN openssl x509 -in rds.pem -inform pem -out rds.der -outform der
+RUN echo yes | keytool -importcert -alias rdsroot -cacerts -storepass changeit -file rds.der
 
 COPY dependency/BOOT-INF/lib /app/lib
 COPY dependency/META-INF /app/META-INF

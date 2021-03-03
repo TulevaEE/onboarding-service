@@ -36,6 +36,7 @@ tasks {
       into("dependency")
     }
     from("$rootDir/etc/docker/Dockerfile")
+    from("$rootDir/etc/docker/rds-ca-2019-root.pem")
     into("build/docker")
   }
 

@@ -75,13 +75,6 @@ workflows:
   build-and-deploy:
     jobs:
       - build
-      - deploy:
-          requires:
-            - build
-          context: elastic-beanstalk-deployment
-          filters:
-            branches:
-              only: master
       - aws-ecr/build-and-push-image:
           requires:
             - build
@@ -90,6 +83,13 @@ workflows:
           repo: onboarding-service
           attach-workspace: true
           workspace-root: .
+          filters:
+            branches:
+              only: master
+      - deploy:
+          requires:
+            - aws-ecr/build-and-push-image
+          context: elastic-beanstalk-deployment
           filters:
             branches:
               only: master

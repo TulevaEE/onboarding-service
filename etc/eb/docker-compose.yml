@@ -4,3 +4,6 @@ services:
     image: "641866833894.dkr.ecr.eu-central-1.amazonaws.com/onboarding-service:${hash}"
     ports:
       - "8080:8080"
+    volumes:
+      - /home/webapp/keystore.p12:/keystore.p12
+      - /home/webapp/truststore.jks:/truststore.jks

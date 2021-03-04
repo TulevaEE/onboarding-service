@@ -14,8 +14,8 @@ COPY dependency/entrypoint.sh /entrypoint.sh
 RUN ["chmod", "+x", "/entrypoint.sh"]
 
 HEALTHCHECK --interval=5s --timeout=3s --start-period=30s \
- CMD curl --silent --fail --request GET http://localhost:8080/actuator/health \
+ CMD curl --silent --fail --request GET http://localhost:5000/actuator/health \
                  | jq --exit-status '.status == "UP"' || exit 1
 
-EXPOSE 8080
+EXPOSE 5000
 ENTRYPOINT ["/entrypoint.sh"]

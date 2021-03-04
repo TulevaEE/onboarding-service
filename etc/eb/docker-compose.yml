@@ -7,3 +7,5 @@ services:
     volumes:
       - /home/webapp/keystore.p12:/keystore.p12
       - /home/webapp/truststore.jks:/truststore.jks
+    env_file:
+      - .env

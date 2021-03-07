@@ -25,7 +25,7 @@ class ErrorAttributesConverterSpec extends Specification {
     error.code == 'SampleException'
     error.message == 'Error message'
     error.path == null
-    error.arguments == null
+    error.arguments == []
   }
 
 }

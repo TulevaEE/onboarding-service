@@ -65,7 +65,7 @@ class ErrorHandlingControllerSpec extends Specification {
             .andExpect(jsonPath('$.errors[0].code', is("RuntimeException")))
             .andExpect(jsonPath('$.errors[0].message', is("oops!")))
             .andExpect(jsonPath('$.errors[0].path').doesNotExist())
-            .andExpect(jsonPath('$.errors[0].arguments').doesNotExist())
+            .andExpect(jsonPath('$.errors[0].arguments').isEmpty())
     }
 
 }

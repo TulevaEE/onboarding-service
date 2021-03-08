@@ -16,12 +16,12 @@ public class OnboardingServiceApplication {
     // CloudFlare is not a fan of Java user agents
     System.setProperty("http.agent", "HTTPie/1.0.2");
     Security.addProvider(new BouncyCastleProvider());
-    val context = SpringApplication.run(OnboardingServiceApplication.class, args);
+    SpringApplication.run(OnboardingServiceApplication.class, args);
     validateFileEncoding();
   }
 
   private static void validateFileEncoding() {
-    if (!System.getProperty("file.encoding", "").toLowerCase().equals("utf-8")) {
+    if (!System.getProperty("file.encoding", "").equalsIgnoreCase("utf-8")) {
       log.error("Unsupported file encoding {}!", System.getProperty("file.encoding"));
     }
   }

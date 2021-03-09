@@ -94,6 +94,7 @@ public class EpisService {
 
     @Caching(evict = {
         @CacheEvict(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
+        @CacheEvict(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
     })

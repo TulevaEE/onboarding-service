@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.fund.response.FundDto
 import org.hamcrest.Matchers
 import org.springframework.test.web.servlet.MockMvc
 
+import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -32,7 +33,7 @@ class ApplicationControllerSpec extends BaseControllerSpec {
             .header('Accept-Language', 'et')
             .param('status', 'PENDING'))
             .andExpect(status().isOk())
-            .andExpect(jsonPath('$.*', Matchers.hasSize(1)))
+            .andExpect(jsonPath('$.*', hasSize(1)))
             .andExpect(jsonPath('$[0].details.sourceFund.name', is('source fund name est')))
             .andExpect(jsonPath('$[0].details.targetFund.name', is('target fund name est')))
     }

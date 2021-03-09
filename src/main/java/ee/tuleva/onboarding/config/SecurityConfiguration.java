@@ -29,7 +29,6 @@ import java.util.regex.Pattern;
 
 import static ee.tuleva.onboarding.config.OAuthConfiguration.ResourceServerPathConfiguration.RESOURCE_REQUEST_MATCHER_BEAN;
 
-@EnableOAuth2Client
 @Configuration
 public class SecurityConfiguration {
 

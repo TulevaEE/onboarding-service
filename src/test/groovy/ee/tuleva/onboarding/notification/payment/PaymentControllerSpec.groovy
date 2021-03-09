@@ -21,8 +21,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     def validator = Mock(SmartValidator)
     def eventPublisher = Mock(ApplicationEventPublisher)
     def localeResolver = Mock(LocaleResolver)
-    def request = Mock(HttpServletRequest)
-    def controller = new PaymentController(mapper, userService, validator, eventPublisher, localeResolver, request)
+    def controller = new PaymentController(mapper, userService, validator, eventPublisher, localeResolver)
 
     def mvc = mockMvc(controller)
 
@@ -50,7 +49,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
         def sampleUser = sampleUser().build()
 
         when:
-        localeResolver.resolveLocale(request) >> Locale.ENGLISH
+        localeResolver.resolveLocale(_) >> Locale.ENGLISH
         def perform = mvc.perform(post("/notifications/payments")
             .contentType(MediaType.APPLICATION_JSON)
             .param("json", mapper.writeValueAsString(json))

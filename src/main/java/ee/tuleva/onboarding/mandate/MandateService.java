@@ -5,8 +5,8 @@ import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
-import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
@@ -60,6 +60,10 @@ public class MandateService {
         CreateMandateCommandWrapper createMandateCommandWrapper =
             new CreateMandateCommandWrapper(createMandateCommand, user, conversion, contactDetails);
         Mandate mandate = mandateConverter.convert(createMandateCommandWrapper);
+        return save(user, mandate);
+    }
+
+    public Mandate save(User user, Mandate mandate) {
         log.info("Saving mandate {}", mandate);
         applicationEventPublisher.publishEvent(new BeforeMandateCreatedEvent(this, user, mandate));
         return mandateRepository.save(mandate);

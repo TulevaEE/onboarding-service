@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.epis.cancellation;
 
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import ee.tuleva.onboarding.user.address.Address;
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.lang.Nullable;
-import ee.tuleva.onboarding.user.address.Address;
 
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
@@ -20,7 +21,7 @@ public class CancellationDto {
     private String processId;
 
     @NotNull
-    private ApplicationTypeToCancel applicationTypeToCancel;
+    private ApplicationType applicationTypeToCancel;
 
     @NotNull
     private Instant createdDate;

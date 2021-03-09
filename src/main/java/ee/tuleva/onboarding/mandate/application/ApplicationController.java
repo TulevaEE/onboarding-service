@@ -6,14 +6,10 @@ import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import springfox.documentation.annotations.ApiIgnore;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static ee.tuleva.onboarding.mandate.application.ApplicationController.APPLICATIONS_URI;
 import static java.util.stream.Collectors.toList;
@@ -31,10 +27,20 @@ public class ApplicationController {
     @ApiOperation(value = "Get applications")
     @RequestMapping(method = GET)
     public List<Application> get(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-                                 @RequestHeader(value = "Accept-Language") String language,
                                  @RequestParam("status") ApplicationStatus status) {
-        return applicationService.get(authenticatedPerson, language).stream()
+        return applicationService.get(authenticatedPerson).stream()
             .filter(application -> application.getStatus().equals(status))
             .collect(toList());
+    }
+
+    @ApiOperation(value = "Cancel an application")
+    @PostMapping("/{id}/cancellations")
+    public ApplicationCancellationResponse cancel(
+        @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+        @PathVariable("id") Long applicationId) {
+        log.info("Cancelling application {}", applicationId);
+        return applicationService.createCancellationMandate(
+            authenticatedPerson, authenticatedPerson.getUserId(), applicationId
+        );
     }
 }

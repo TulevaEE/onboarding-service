@@ -23,10 +23,12 @@ class ApplicationConverterSpec extends Specification {
             .sourceFundIsin("source")
             .targetFundIsin("target")
             .build()
-        1 * fundRepository.findByIsin("source") >> sourceFund
-        1 * fundRepository.findByIsin("target") >> targetFund
+        fundRepository.findByIsin("source") >> sourceFund
+        fundRepository.findByIsin("target") >> targetFund
+
         when:
         Application application = converter.convert(applicationDTO, 'et')
+
         then:
         application.id == 123L
         application.type == ApplicationType.TRANSFER

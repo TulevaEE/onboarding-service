@@ -14,10 +14,12 @@ class ApplicationServiceSpec extends Specification {
         given:
         ApplicationDTO applicationDTO = ApplicationDTO.builder().build()
         Application application = Application.builder().build()
-        _ * episService.getApplications(PersonFixture.samplePerson()) >> [applicationDTO]
-        _ * applicationConverter.convert(applicationDTO, 'et') >> application
+        episService.getApplications(PersonFixture.samplePerson()) >> [applicationDTO]
+        applicationConverter.convert(applicationDTO, 'et') >> application
+
         when:
         List<Application> applications = applicationService.get(PersonFixture.samplePerson(), 'et')
+
         then:
         applications == [application]
     }

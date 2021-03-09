@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static ee.tuleva.onboarding.mandate.application.ApplicationController.APPLICATIONS_URI;
+import static java.util.stream.Collectors.toList;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 
 @Slf4j
@@ -34,6 +35,6 @@ public class ApplicationController {
                                  @RequestParam("status") ApplicationStatus status) {
         return applicationService.get(authenticatedPerson, language).stream()
             .filter(application -> application.getStatus().equals(status))
-            .collect(Collectors.toList());
+            .collect(toList());
     }
 }

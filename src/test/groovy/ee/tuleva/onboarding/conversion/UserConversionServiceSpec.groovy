@@ -23,7 +23,7 @@ import static ee.tuleva.onboarding.conversion.UserConversionService.CONVERTED_FU
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION
-import static ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus.*
+import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.*
 
 class UserConversionServiceSpec extends Specification {
 

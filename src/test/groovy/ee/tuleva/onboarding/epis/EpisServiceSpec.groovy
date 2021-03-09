@@ -7,8 +7,8 @@ import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.epis.fund.FundDto
 import ee.tuleva.onboarding.epis.fund.NavDto
 import ee.tuleva.onboarding.epis.mandate.MandateDto
-import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO
-import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
+import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
+import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -59,7 +59,7 @@ class EpisServiceSpec extends Specification {
         1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
             doesHttpEntityContainToken(httpEntity, sampleToken) &&
                 httpEntity.body.id == sampleMandate.id
-        }, MandateResponseDTO.class)
+        }, ApplicationResponseDTO.class)
 
         when:
         service.sendMandate(mandateDto)
@@ -70,18 +70,18 @@ class EpisServiceSpec extends Specification {
 
     def "getFundTransferExchanges: "() {
         given:
-        TransferExchangeDTO[] responseBody = [TransferExchangeDTO.builder().build()]
-        ResponseEntity<TransferExchangeDTO[]> result =
+        ApplicationDTO[] responseBody = [ApplicationDTO.builder().build()]
+        ResponseEntity<ApplicationDTO[]> result =
             new ResponseEntity(responseBody, OK)
 
         1 * restTemplate.exchange(
             _ as String, GET, { HttpEntity httpEntity ->
             doesHttpEntityContainToken(httpEntity, sampleToken)
-        }, TransferExchangeDTO[].class) >> result
+        }, ApplicationDTO[].class) >> result
 
         when:
-        List<TransferExchangeDTO> transferApplicationDTOList =
-            service.getTransferApplications(samplePerson())
+        List<ApplicationDTO> transferApplicationDTOList =
+            service.getApplications(samplePerson())
 
         then:
         transferApplicationDTOList.size() == 1

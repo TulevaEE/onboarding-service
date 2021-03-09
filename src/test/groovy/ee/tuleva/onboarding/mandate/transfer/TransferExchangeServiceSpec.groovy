@@ -4,8 +4,8 @@ import ee.tuleva.onboarding.auth.PersonFixture
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.MandateFixture
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus
-import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO
+import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
+import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import spock.lang.Specification
 
 class TransferExchangeServiceSpec extends Specification {
@@ -27,15 +27,15 @@ class TransferExchangeServiceSpec extends Specification {
         exchanges.size() == 3
     }
 
-    List<TransferExchangeDTO> sampleTransfersApplicationList = [
-            TransferExchangeDTO.builder()
-                    .status(MandateApplicationStatus.FAILED)
+    List<ApplicationDTO> sampleTransfersApplicationList = [
+        ApplicationDTO.builder()
+                    .status(ApplicationStatus.FAILED)
                     .build(),
-            TransferExchangeDTO.builder()
-                    .status(MandateApplicationStatus.COMPLETE)
+        ApplicationDTO.builder()
+                    .status(ApplicationStatus.COMPLETE)
                     .build(),
-            TransferExchangeDTO.builder()
-                    .status(MandateApplicationStatus.PENDING)
+        ApplicationDTO.builder()
+                    .status(ApplicationStatus.PENDING)
                     .targetFundIsin("123")
                     .sourceFundIsin("223")
                     .build()

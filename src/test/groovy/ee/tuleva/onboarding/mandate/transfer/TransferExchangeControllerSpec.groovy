@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.transfer
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
-import ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus
+import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.fund.Fund
 import org.hamcrest.Matchers
 import org.springframework.test.web.servlet.MockMvc
@@ -54,13 +54,13 @@ class TransferExchangeControllerSpec extends BaseControllerSpec {
 
     List<TransferExchange> sampleTransfersApplicationList = [
         TransferExchange.builder()
-            .status(MandateApplicationStatus.FAILED)
+            .status(ApplicationStatus.FAILED)
             .build(),
         TransferExchange.builder()
-            .status(MandateApplicationStatus.COMPLETE)
+            .status(ApplicationStatus.COMPLETE)
             .build(),
         TransferExchange.builder()
-            .status(MandateApplicationStatus.PENDING)
+            .status(ApplicationStatus.PENDING)
             .sourceFund(sourceFund)
             .targetFund(targetFund)
             .build()

@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import static ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus.PENDING;
+import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
 import static java.math.BigDecimal.ROUND_HALF_UP;
 import static java.math.BigDecimal.ZERO;
 import static java.time.temporal.TemporalAdjusters.lastDayOfYear;

@@ -9,8 +9,8 @@ import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
-import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO;
-import ee.tuleva.onboarding.epis.mandate.TransferExchangeDTO;
+import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
+import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,6 +39,7 @@ import static org.springframework.http.HttpMethod.GET;
 @RequiredArgsConstructor
 public class EpisService {
 
+    private final String APPLICATIONS_CACHE_NAME = "applications";
     private final String TRANSFER_APPLICATIONS_CACHE_NAME = "transferApplications";
     private final String CONTACT_DETAILS_CACHE_NAME = "contactDetails";
     private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
@@ -52,14 +53,28 @@ public class EpisService {
     String episServiceUrl;
 
     @Cacheable(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode")
-    public List<TransferExchangeDTO> getTransferApplications(Person person) {
+    @Deprecated
+    public List<ApplicationDTO> getTransferApplications(Person person) {
         String url = episServiceUrl + "/exchanges";
 
         log.info("Getting exchanges from {} for {} {}",
             url, person.getFirstName(), person.getLastName());
 
-        ResponseEntity<TransferExchangeDTO[]> response = userTokenRestTemplate.exchange(
-            url, GET, getHeadersEntity(), TransferExchangeDTO[].class);
+        ResponseEntity<ApplicationDTO[]> response = userTokenRestTemplate.exchange(
+            url, GET, getHeadersEntity(), ApplicationDTO[].class);
+
+        return asList(response.getBody());
+    }
+
+    @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode")
+    public List<ApplicationDTO> getApplications(Person person) {
+        String url = episServiceUrl + "/applications";
+
+        log.info("Getting applications from {} for {} {}",
+            url, person.getFirstName(), person.getLastName());
+
+        ResponseEntity<ApplicationDTO[]> response = userTokenRestTemplate.exchange(
+            url, GET, getHeadersEntity(), ApplicationDTO[].class);
 
         return asList(response.getBody());
     }
@@ -78,7 +93,7 @@ public class EpisService {
     }
 
     @Caching(evict = {
-        @CacheEvict(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
+        @CacheEvict(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
     })
@@ -134,11 +149,11 @@ public class EpisService {
         return clientCredentialsRestTemplate.exchange(url, GET, new HttpEntity<>(createJsonHeaders()), NavDto.class).getBody();
     }
 
-    public MandateResponseDTO sendMandate(MandateDto mandate) {
+    public ApplicationResponseDTO sendMandate(MandateDto mandate) {
         String url = episServiceUrl + "/mandates";
 
         return userTokenRestTemplate.postForObject(
-            url, new HttpEntity<>(mandate, getHeaders()), MandateResponseDTO.class);
+            url, new HttpEntity<>(mandate, getHeaders()), ApplicationResponseDTO.class);
     }
 
     public ApplicationResponse sendCancellation(CancellationDto cancellation) {

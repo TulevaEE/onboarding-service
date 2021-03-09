@@ -14,6 +14,7 @@ import static java.util.stream.Collectors.toList;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Deprecated
 public class TransferExchangeService {
 
     private final EpisService episService;
@@ -23,19 +24,19 @@ public class TransferExchangeService {
         return
             episService.getTransferApplications(person).stream()
                 .map(transferExchangeDTO -> TransferExchange.builder()
-                        .amount(transferExchangeDTO.getAmount())
-                        .currency(transferExchangeDTO.getCurrency())
-                        .date(transferExchangeDTO.getDate())
-                        .currency(transferExchangeDTO.getCurrency())
-                        .status(transferExchangeDTO.getStatus())
-                        .sourceFund(fundRepository.findByIsin(
-                                transferExchangeDTO.getSourceFundIsin()
-                        ))
-                        .targetFund(fundRepository.findByIsin(
-                                transferExchangeDTO.getTargetFundIsin()
-                                )
+                    .amount(transferExchangeDTO.getAmount())
+                    .currency(transferExchangeDTO.getCurrency())
+                    .date(transferExchangeDTO.getDate())
+                    .currency(transferExchangeDTO.getCurrency())
+                    .status(transferExchangeDTO.getStatus())
+                    .sourceFund(fundRepository.findByIsin(
+                        transferExchangeDTO.getSourceFundIsin()
+                    ))
+                    .targetFund(fundRepository.findByIsin(
+                        transferExchangeDTO.getTargetFundIsin()
                         )
-                        .build()
+                    )
+                    .build()
                 )
                 .collect(toList());
     }

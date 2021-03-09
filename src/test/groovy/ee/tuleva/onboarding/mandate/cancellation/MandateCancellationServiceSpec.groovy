@@ -8,9 +8,10 @@ import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
 
 class MandateCancellationServiceSpec extends Specification {
 
@@ -46,5 +47,17 @@ class MandateCancellationServiceSpec extends Specification {
 
         then:
         1 * mandateService.save(user, mandate)
+    }
+
+    def "validates application type before saving"() {
+        given:
+        def user = sampleUser().build()
+        def applicationTypeToCancel = SELECTION
+
+        when:
+        mandateCancellationService.saveCancellationMandate(user.id, applicationTypeToCancel)
+
+        then:
+        thrown(InvalidApplicationTypeException)
     }
 }

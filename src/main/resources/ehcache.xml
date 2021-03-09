@@ -10,6 +10,12 @@
            memoryStoreEvictionPolicy="LRU">
     </cache>
 
+    <cache name="applications"
+           maxElementsInMemory="10000"
+           eternal="true"
+           memoryStoreEvictionPolicy="LRU">
+    </cache>
+
     <cache name="transferApplications"
            maxElementsInMemory="10000"
            eternal="true"

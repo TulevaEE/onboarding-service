@@ -19,7 +19,6 @@ import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import jdk.vm.ci.meta.Local;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;

@@ -96,7 +96,7 @@ public class MandateController {
     public MobileSignatureStatusResponse getMobileIdSignatureStatus(
         @PathVariable("id") Long mandateId,
         @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-        HttpServletRequest request) {
+        @ApiIgnore HttpServletRequest request) {
 
         Optional<MobileIdSignatureSession> signatureSession =
             sessionStore.get(MobileIdSignatureSession.class);

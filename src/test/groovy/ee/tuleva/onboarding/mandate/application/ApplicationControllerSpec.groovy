@@ -2,15 +2,15 @@ package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
-import ee.tuleva.onboarding.fund.Fund
-import ee.tuleva.onboarding.fund.response.FundDto
-import org.hamcrest.Matchers
 import org.springframework.test.web.servlet.MockMvc
 
+import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.*
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
@@ -26,40 +26,44 @@ class ApplicationControllerSpec extends BaseControllerSpec {
 
     def "/applications endpoint works"() {
         given:
-        1 * applicationService.get(_ as Person, 'et') >> sampleApplicationList
+        1 * applicationService.get(_ as Person) >> sampleApplications
 
         expect:
         mockMvc.perform(get('/v1/applications')
-            .header('Accept-Language', 'et')
             .param('status', 'PENDING'))
             .andExpect(status().isOk())
             .andExpect(jsonPath('$.*', hasSize(1)))
-            .andExpect(jsonPath('$[0].details.sourceFund.name', is('source fund name est')))
-            .andExpect(jsonPath('$[0].details.targetFund.name', is('target fund name est')))
+            .andExpect(jsonPath('$[0].details.sourceFundIsin', is(sourceFundIsin)))
+            .andExpect(jsonPath('$[0].details.targetFundIsin', is(targetFundIsin)))
     }
 
-    FundDto sourceFund = new FundDto(Fund.builder()
-        .nameEstonian("source fund name est")
-        .nameEnglish("source fund name eng")
-        .build(), "et")
+    def "can cancel applications"() {
+        def mandate = sampleMandate()
+        def applicationId = 123L
+        1 * applicationService.createCancellationMandate(_ as Person, _ as Long, applicationId) >>
+            new ApplicationCancellationResponse(mandate.id)
 
-    FundDto targetFund = new FundDto(Fund.builder()
-        .nameEstonian("target fund name est")
-        .nameEnglish("target fund name eng")
-        .build(), "et")
+        expect:
+        mockMvc.perform(post("/v1/applications/$applicationId/cancellations"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath('$.mandateId', is(mandate.id.intValue())))
+    }
 
-    List<Application> sampleApplicationList = [
+    String sourceFundIsin = "EE123"
+    String targetFundIsin = "EE234"
+
+    List<Application> sampleApplications = [
         Application.builder()
-            .status(ApplicationStatus.FAILED)
+            .status(FAILED)
             .build(),
         Application.builder()
-            .status(ApplicationStatus.COMPLETE)
+            .status(COMPLETE)
             .build(),
         Application.builder()
-            .status(ApplicationStatus.PENDING)
+            .status(PENDING)
             .details(TransferApplicationDetails.builder()
-                .sourceFund(sourceFund)
-                .targetFund(targetFund)
+                .sourceFundIsin(sourceFundIsin)
+                .targetFundIsin(targetFundIsin)
                 .build())
             .build()
     ]

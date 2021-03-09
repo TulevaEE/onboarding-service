@@ -1,53 +1,33 @@
 package ee.tuleva.onboarding.mandate.application
 
-
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
-import ee.tuleva.onboarding.fund.Fund
-import ee.tuleva.onboarding.fund.FundRepository
-import ee.tuleva.onboarding.fund.response.FundDto
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
+import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
+import static java.math.BigDecimal.ONE
+
 class ApplicationConverterSpec extends Specification {
-    FundRepository fundRepository = Mock()
-    ApplicationConverter converter = new ApplicationConverter(fundRepository)
+
+    ApplicationConverter converter = new ApplicationConverter()
 
     def "converts ApplicationDTO to application"() {
         given:
-        ApplicationDTO applicationDTO = ApplicationDTO.builder()
-            .type(ApplicationType.TRANSFER)
-            .status(ApplicationStatus.PENDING)
-            .id(123L)
-            .currency("EUR")
-            .amount(BigDecimal.ONE)
-            .sourceFundIsin("source")
-            .targetFundIsin("target")
-            .build()
-        fundRepository.findByIsin("source") >> sourceFund
-        fundRepository.findByIsin("target") >> targetFund
+        ApplicationDTO applicationDTO = sampleApplicationDto()
 
         when:
-        Application application = converter.convert(applicationDTO, 'et')
+        Application application = converter.convert(applicationDTO)
 
         then:
         application.id == 123L
-        application.type == ApplicationType.TRANSFER
-        application.status == ApplicationStatus.PENDING
+        application.type == TRANSFER
+        application.status == PENDING
         application.details == TransferApplicationDetails.builder()
-            .amount(BigDecimal.ONE)
+            .amount(ONE)
             .currency("EUR")
-            .sourceFund(new FundDto(sourceFund, 'et'))
-            .targetFund(new FundDto(targetFund, 'et'))
+            .sourceFundIsin("source")
+            .targetFundIsin("target")
             .build()
     }
-
-    Fund sourceFund = Fund.builder()
-        .nameEstonian("source fund name est")
-        .nameEnglish("source fund name eng")
-        .build()
-
-    Fund targetFund = Fund.builder()
-        .nameEstonian("target fund name est")
-        .nameEnglish("target fund name eng")
-        .build()
 }

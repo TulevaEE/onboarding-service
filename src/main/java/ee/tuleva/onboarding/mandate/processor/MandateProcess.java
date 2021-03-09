@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.processor;
 
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.ApplicationType;
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

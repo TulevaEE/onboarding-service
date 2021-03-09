@@ -8,8 +8,9 @@ import ee.tuleva.onboarding.error.response.ErrorResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
+import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
+import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConverter
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
-import ee.tuleva.onboarding.mandate.command.CreateMandateCommandToMandateConverter
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.event.SecondPillarAfterMandateSignedEvent
@@ -38,7 +39,7 @@ class MandateServiceSpec extends Specification {
     SignatureService signService = Mock()
     FundRepository fundRepository = Mock()
     AccountStatementService accountStatementService = Mock()
-    CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository)
+    CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository, new ConversionDecorator())
     MandateProcessorService mandateProcessor = Mock()
     MandateFileService mandateFileService = Mock()
     UserService userService = Mock()

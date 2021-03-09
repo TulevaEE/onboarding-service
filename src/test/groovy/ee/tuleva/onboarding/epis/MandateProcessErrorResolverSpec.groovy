@@ -5,8 +5,8 @@ import ee.tuleva.onboarding.mandate.processor.MandateProcess
 import ee.tuleva.onboarding.mandate.processor.MandateProcessErrorResolver
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.mandate.ApplicationType.SELECTION
-import static ee.tuleva.onboarding.mandate.ApplicationType.TRANSFER
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 
 class MandateProcessErrorResolverSpec extends Specification {
 

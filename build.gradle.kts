@@ -89,7 +89,8 @@ dependencies {
     implementation("net.sf.ehcache:ehcache")
     implementation("org.decampo:xirr:1.1")
     implementation("org.bouncycastle:bcpkix-jdk15on:1.68")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:2.7.7")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:3.0.0")
+    implementation("jakarta.xml.bind:jakarta.xml.bind-api:3.0.0")
 
     implementation("com.github.SK-EID:smart-id-java-client:1.6.1")
     // TODO: upgrade
@@ -98,8 +99,8 @@ dependencies {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
-    implementation("io.sentry:sentry-spring-boot-starter:4.2.0")
-    implementation("io.sentry:sentry-logback:4.2.0")
+    implementation("io.sentry:sentry-spring-boot-starter:4.3.0")
+    implementation("io.sentry:sentry-logback:4.3.0")
 
     implementation("com.vladmihalcea:hibernate-types-52:2.10.3")
 

@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.holdings.adapters;
 
 import ee.tuleva.onboarding.holdings.persistence.Sector;
 
-import javax.xml.bind.annotation.adapters.XmlAdapter;
+import jakarta.xml.bind.annotation.adapters.XmlAdapter;
 
 public class XmlSectorAdapter extends XmlAdapter<Long, Sector> {
     @Override

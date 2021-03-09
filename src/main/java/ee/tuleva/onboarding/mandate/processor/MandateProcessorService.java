@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.processor;
 
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
-import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO;
+import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -42,7 +42,7 @@ public class MandateProcessorService {
         handleApplicationProcessResponse(response);
     }
 
-    private void handleApplicationProcessResponse(MandateResponseDTO response) {
+    private void handleApplicationProcessResponse(ApplicationResponseDTO response) {
         response.getMandateResponses().forEach(mandateProcessResult -> {
             log.info("Process result with id {} received", mandateProcessResult.getProcessId());
             MandateProcess process = mandateProcessRepository.findOneByProcessId(mandateProcessResult.getProcessId());

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.transfer;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.epis.mandate.MandateApplicationStatus;
+import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,6 +19,7 @@ import static org.springframework.web.bind.annotation.RequestMethod.GET;
 @RestController
 @RequestMapping("/v1")
 @RequiredArgsConstructor
+@Deprecated
 public class TransferExchangeController {
 
     private final TransferExchangeService transferExchangeService;
@@ -27,7 +28,7 @@ public class TransferExchangeController {
     @RequestMapping(method = GET, value = "/transfer-exchanges")
     public List<TransferExchangeDto> get(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
                                          @RequestHeader(value = "Accept-Language") String language,
-                                         @RequestParam("status") MandateApplicationStatus status) {
+                                         @RequestParam("status") ApplicationStatus status) {
         return transferExchangeService.get(authenticatedPerson).stream()
             .filter(transferExchange -> transferExchange.getStatus().equals(status))
             .map(transferExchange -> new TransferExchangeDto(transferExchange, language))

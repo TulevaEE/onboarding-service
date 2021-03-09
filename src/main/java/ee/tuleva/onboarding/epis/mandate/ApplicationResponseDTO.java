@@ -8,8 +8,6 @@ import java.util.List;
 
 @Getter
 @Setter
-public class MandateResponseDTO {
-
+public class ApplicationResponseDTO {
     private List<ApplicationResponse> mandateResponses;
-
 }

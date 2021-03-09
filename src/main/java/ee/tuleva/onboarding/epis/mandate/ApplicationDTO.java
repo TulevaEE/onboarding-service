@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.epis.mandate;
 
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import lombok.*;
 
 import java.io.Serializable;
@@ -12,15 +13,15 @@ import java.time.Instant;
 @AllArgsConstructor
 @NoArgsConstructor
 @ToString
-public class TransferExchangeDTO implements Serializable {
+public class ApplicationDTO implements Serializable {
 
     private String currency;
     private Instant date;
-    private String id;
+    private Long id;
     private String documentNumber;
     private BigDecimal amount;
-    private MandateApplicationStatus status;
+    private ApplicationStatus status;
     private String sourceFundIsin;
     private String targetFundIsin;
-
+    private ApplicationType type;
 }

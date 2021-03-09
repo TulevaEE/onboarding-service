@@ -1,5 +1,5 @@
 package ee.tuleva.onboarding.epis.mandate;
 
-public enum MandateApplicationStatus {
+public enum ApplicationStatus {
     COMPLETE, PENDING, FAILED
 }

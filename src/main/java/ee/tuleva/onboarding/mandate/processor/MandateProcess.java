@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.processor;
 
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.MandateApplicationType;
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -32,7 +32,7 @@ public class MandateProcess {
     private String processId;
 
     @Enumerated(EnumType.STRING)
-    private MandateApplicationType type;
+    private ApplicationType type;
 
     private Boolean successful;
 

@@ -6,7 +6,7 @@ import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.MandateApplicationType;
+import ee.tuleva.onboarding.mandate.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -70,7 +70,7 @@ public class MandateProcessorService {
     @NotNull
     private List<MandateDto.MandateFundsTransferExchangeDTO> getFundTransferExchanges(Mandate mandate) {
         return mandate.getFundTransferExchangesBySourceIsin().entrySet().stream().flatMap(entry -> {
-            val process = createMandateProcess(mandate, MandateApplicationType.TRANSFER);
+            val process = createMandateProcess(mandate, ApplicationType.TRANSFER);
             return entry.getValue().stream()
                 .map(it -> dtoFromExchange(process, it));
         }).collect(toList());
@@ -82,13 +82,13 @@ public class MandateProcessorService {
 
     private void addSelectionApplication(Mandate mandate, MandateDto.MandateDtoBuilder mandateDto) {
         if (mandate.getFutureContributionFundIsin().isPresent()) {
-            val process = createMandateProcess(mandate, MandateApplicationType.SELECTION);
+            val process = createMandateProcess(mandate, ApplicationType.SELECTION);
             mandateDto.futureContributionFundIsin(mandate.getFutureContributionFundIsin().get());
             mandateDto.processId(process.getProcessId());
         }
     }
 
-    private MandateProcess createMandateProcess(Mandate mandate, MandateApplicationType type) {
+    private MandateProcess createMandateProcess(Mandate mandate, ApplicationType type) {
         String processId = UUID.randomUUID().toString().replace("-", "");
         return mandateProcessRepository.save(
             MandateProcess.builder()

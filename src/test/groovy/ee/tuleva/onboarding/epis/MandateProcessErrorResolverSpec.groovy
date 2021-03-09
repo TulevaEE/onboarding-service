@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.epis
 
 import ee.tuleva.onboarding.error.response.ErrorsResponse
-import ee.tuleva.onboarding.mandate.MandateApplicationType
 import ee.tuleva.onboarding.mandate.processor.MandateProcess
 import ee.tuleva.onboarding.mandate.processor.MandateProcessErrorResolver
 import spock.lang.Specification
+
+import static ee.tuleva.onboarding.mandate.ApplicationType.SELECTION
+import static ee.tuleva.onboarding.mandate.ApplicationType.TRANSFER
 
 class MandateProcessErrorResolverSpec extends Specification {
 
@@ -33,28 +35,28 @@ class MandateProcessErrorResolverSpec extends Specification {
     List<MandateProcess> sampleErrorProcesses = [
             MandateProcess.builder()
                     .successful(false)
-                    .type(MandateApplicationType.SELECTION)
+                    .type(SELECTION)
                     .errorCode(0)
                     .processId("123")
                     .build()
             ,
             MandateProcess.builder()
                     .successful(false)
-                    .type(MandateApplicationType.TRANSFER)
+                    .type(TRANSFER)
                     .errorCode(40551)
                     .processId("123")
                     .build()
             ,
             MandateProcess.builder()
                     .successful(false)
-                    .type(MandateApplicationType.TRANSFER)
+                    .type(TRANSFER)
                     .errorCode(12345)
                     .processId("123")
                     .build()
             ,
             MandateProcess.builder()
                     .successful(false)
-                    .type(MandateApplicationType.TRANSFER)
+                    .type(TRANSFER)
                     .errorCode(null)
                     .processId("123")
                     .build()

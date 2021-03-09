@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.epis.mandate;
 
-import ee.tuleva.onboarding.mandate.MandateApplicationType;
+import ee.tuleva.onboarding.epis.application.ApplicationResponse;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -10,15 +10,6 @@ import java.util.List;
 @Setter
 public class MandateResponseDTO {
 
-    List<MandateResponse> mandateResponses;
+    private List<ApplicationResponse> mandateResponses;
 
-    @Getter
-    @Setter
-    public static class MandateResponse {
-        private boolean successful;
-        private Integer errorCode;
-        private String errorMessage;
-        private MandateApplicationType applicationType;
-        private String processId;
-    }
 }

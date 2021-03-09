@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.processor
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.MandateResponseDTO
+import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.user.User
@@ -33,7 +34,7 @@ class MandateProcessorServiceSpec extends Specification {
         mandate.pillar = pillar
         mandate.address = address
         def mandateResponse = new MandateResponseDTO()
-        def response = new MandateResponseDTO.MandateResponse()
+        def response = new ApplicationResponse()
         mandateResponse.mandateResponses = [response]
         1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
         when:

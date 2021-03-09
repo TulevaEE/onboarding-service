@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.epis;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
+import ee.tuleva.onboarding.epis.application.ApplicationResponse;
+import ee.tuleva.onboarding.epis.cancellation.CancellationDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.epis.fund.FundDto;
@@ -137,6 +139,13 @@ public class EpisService {
 
         return userTokenRestTemplate.postForObject(
             url, new HttpEntity<>(mandate, getHeaders()), MandateResponseDTO.class);
+    }
+
+    public ApplicationResponse sendCancellation(CancellationDto cancellation) {
+        String url = episServiceUrl + "/cancellations";
+
+        return userTokenRestTemplate.postForObject(
+            url, new HttpEntity<>(cancellation, getHeaders()), ApplicationResponse.class);
     }
 
     @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.epis
 
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
+import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
 import ee.tuleva.onboarding.epis.contact.UserPreferences
 import ee.tuleva.onboarding.epis.fund.FundDto
@@ -20,6 +21,7 @@ import spock.lang.Specification
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleCancellation
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE
@@ -182,6 +184,22 @@ class EpisServiceSpec extends Specification {
         def result = service.getNav("EE666", LocalDate.parse("2018-10-20"))
         then:
         result == navDto
+    }
+
+    def "can send cancellations"() {
+        given:
+        def sampleCancellation = sampleCancellation()
+
+        1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
+            doesHttpEntityContainToken(httpEntity, sampleToken) &&
+                httpEntity.body.id == sampleCancellation.id
+        }, ApplicationResponse.class)
+
+        when:
+        service.sendCancellation(sampleCancellation)
+
+        then:
+        true
     }
 
     boolean doesHttpEntityContainToken(HttpEntity httpEntity, String sampleToken) {

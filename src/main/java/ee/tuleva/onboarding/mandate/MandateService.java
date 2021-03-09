@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import jdk.vm.ci.meta.Local;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -48,8 +49,6 @@ public class MandateService {
     private final UserService userService;
     private final EpisService episService;
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final HttpServletRequest request;
-    private final LocaleResolver localeResolver;
     private final UserConversionService conversionService;
 
     public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
@@ -118,12 +117,12 @@ public class MandateService {
         return signService.startSmartIdSign(files, user.getPersonalCode());
     }
 
-    public String finalizeSmartIdSignature(Long userId, Long mandateId, SmartIdSignatureSession session) {
+    public String finalizeSmartIdSignature(Long userId, Long mandateId, SmartIdSignatureSession session, Locale locale) {
         User user = userService.getById(userId);
         Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
         if (mandate.isSigned()) {
-            return handleSignedMandate(user, mandate);
+            return handleSignedMandate(user, mandate, locale);
         } else {
             return handleUnsignedMandateSmartId(user, mandate, session);
         }
@@ -146,12 +145,12 @@ public class MandateService {
         return signService.startIdCardSign(files, signingCertificate);
     }
 
-    public String finalizeMobileIdSignature(Long userId, Long mandateId, MobileIdSignatureSession session) {
+    public String finalizeMobileIdSignature(Long userId, Long mandateId, MobileIdSignatureSession session, Locale locale) {
         User user = userService.getById(userId);
         Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
         if (mandate.isSigned()) {
-            return handleSignedMandate(user, mandate);
+            return handleSignedMandate(user, mandate, locale);
         } else {
             return handleUnsignedMandateMobileId(user, mandate, session);
         }
@@ -161,22 +160,26 @@ public class MandateService {
         return getStatus(user, mandate, signService.getSignedFile(session));
     }
 
-    public String finalizeIdCardSignature(Long userId, Long mandateId, IdCardSignatureSession session, String signedHashInHex) {
+    public String finalizeIdCardSignature(Long userId,
+                                          Long mandateId,
+                                          IdCardSignatureSession session,
+                                          String signedHashInHex,
+                                          Locale locale) {
         User user = userService.getById(userId);
         Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
         if (mandate.isSigned()) {
-            return handleSignedMandate(user, mandate);
+            return handleSignedMandate(user, mandate, locale);
         } else {
             return handleUnsignedMandateIdCard(user, mandate, session, signedHashInHex);
         }
     }
 
-    private String handleSignedMandate(User user, Mandate mandate) {
+    private String handleSignedMandate(User user, Mandate mandate, Locale locale) {
         if (mandateProcessor.isFinished(mandate)) {
             episService.clearCache(user);
             handleMandateProcessingErrors(mandate);
-            notifyAboutSignedMandate(user, mandate);
+            notifyAboutSignedMandate(user, mandate, locale);
             return SIGNATURE;
         } else {
             return OUTSTANDING_TRANSACTION;
@@ -203,8 +206,7 @@ public class MandateService {
         }
     }
 
-    private void notifyAboutSignedMandate(User user, Mandate mandate) {
-        Locale locale = localeResolver.resolveLocale(request);
+    private void notifyAboutSignedMandate(User user, Mandate mandate, Locale locale) {
         AfterMandateSignedEvent event = AfterMandateSignedEvent.newInstance(this, user, mandate, locale);
         applicationEventPublisher.publishEvent(event);
     }

@@ -101,7 +101,8 @@ dependencies {
     exclude(group = "org.codehaus.groovy")
   }
   testImplementation("org.codehaus.groovy:groovy:2.5.13")
-  testImplementation("com.github.tomakehurst:wiremock:2.26.3")
+  testImplementation("org.mock-server:mockserver-netty:5.11.2")
+  testImplementation("org.mock-server:mockserver-spring-test-listener:5.11.2")
   testImplementation("org.springframework.security:spring-security-test")
   testImplementation("org.mockftpserver:MockFtpServer:2.7.1")
 }

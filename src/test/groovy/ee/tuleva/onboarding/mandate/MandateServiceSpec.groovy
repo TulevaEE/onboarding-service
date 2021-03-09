@@ -31,6 +31,7 @@ import javax.servlet.http.HttpServletRequest
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
+import static java.util.Locale.ENGLISH
 
 class MandateServiceSpec extends Specification {
 
@@ -44,12 +45,10 @@ class MandateServiceSpec extends Specification {
     UserService userService = Mock()
     EpisService episService = Mock()
     ApplicationEventPublisher eventPublisher = Mock()
-    HttpServletRequest request = Mock()
-    LocaleResolver localeResolver = Mock()
     UserConversionService conversionService = Mock()
 
     MandateService service = new MandateService(mandateRepository, signService, converter, mandateProcessor,
-        mandateFileService, userService, episService, eventPublisher, request, localeResolver, conversionService)
+        mandateFileService, userService, episService, eventPublisher, conversionService)
 
     Long sampleMandateId = 1L
     User sampleUser = sampleUser()
@@ -143,7 +142,7 @@ class MandateServiceSpec extends Specification {
         1 * signService.getSignedFile(_) >> null
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession)
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
 
         then:
         status == "OUTSTANDING_TRANSACTION"
@@ -160,7 +159,7 @@ class MandateServiceSpec extends Specification {
         1 * mandateRepository.save({ Mandate it -> it.mandate.get() == sampleFile }) >> sampleMandate
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession)
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
 
         then:
         1 * mandateProcessor.start(sampleUser, sampleMandate)
@@ -177,7 +176,7 @@ class MandateServiceSpec extends Specification {
         0 * eventPublisher.publishEvent(_)
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession)
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
 
         then:
         status == "OUTSTANDING_TRANSACTION"
@@ -194,7 +193,7 @@ class MandateServiceSpec extends Specification {
         1 * episService.clearCache(sampleUser)
 
         when:
-        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession)
+        def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
 
         then:
         status == "SIGNATURE"
@@ -215,7 +214,7 @@ class MandateServiceSpec extends Specification {
         0 * eventPublisher.publishEvent(_)
 
         when:
-        service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession)
+        service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
 
         then:
         thrown InvalidMandateException
@@ -247,7 +246,7 @@ class MandateServiceSpec extends Specification {
         0 * eventPublisher.publishEvent(_)
 
         when:
-        service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash")
+        service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
 
         then:
         thrown(IllegalStateException)
@@ -264,7 +263,7 @@ class MandateServiceSpec extends Specification {
         0 * eventPublisher.publishEvent(_)
 
         when:
-        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash")
+        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
 
         then:
         1 * mandateProcessor.start(sampleUser, sampleMandate)
@@ -281,7 +280,7 @@ class MandateServiceSpec extends Specification {
         0 * eventPublisher.publishEvent(_)
 
         when:
-        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash")
+        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
 
         then:
         status == "OUTSTANDING_TRANSACTION"
@@ -298,7 +297,7 @@ class MandateServiceSpec extends Specification {
         1 * episService.clearCache(sampleUser)
 
         when:
-        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash")
+        def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
 
         then:
         status == "SIGNATURE"
@@ -319,7 +318,7 @@ class MandateServiceSpec extends Specification {
         0 * eventPublisher.publishEvent(_)
 
         when:
-        service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash")
+        service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
 
         then:
         thrown InvalidMandateException

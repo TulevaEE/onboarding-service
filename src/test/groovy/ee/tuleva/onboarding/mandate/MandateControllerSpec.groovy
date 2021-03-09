@@ -13,8 +13,10 @@ import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
+import org.springframework.web.servlet.LocaleResolver
 
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
+import static java.util.Locale.ENGLISH
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
@@ -26,10 +28,11 @@ class MandateControllerSpec extends BaseControllerSpec {
     GenericSessionStore sessionStore = Mock(GenericSessionStore)
     SignatureFileArchiver signatureFileArchiver = Mock(SignatureFileArchiver)
     MandateFileService mandateFileService = Mock(MandateFileService)
+    LocaleResolver localeResolver = Mock(LocaleResolver)
 
     MandateController controller =
         new MandateController(mandateRepository, mandateService, sessionStore,
-            signatureFileArchiver, mandateFileService)
+            signatureFileArchiver, mandateFileService, localeResolver)
 
     MockMvc mvc = mockMvc(controller)
 
@@ -87,7 +90,8 @@ class MandateControllerSpec extends BaseControllerSpec {
         when:
         def session = MobileIdSignatureSession.builder().verificationCode("1234").build()
         sessionStore.get(MobileIdSignatureSession) >> Optional.of(session)
-        mandateService.finalizeMobileIdSignature(_ as Long, 1L, session) >> "SIGNATURE"
+        localeResolver.resolveLocale(_) >> ENGLISH
+        mandateService.finalizeMobileIdSignature(_ as Long, 1L, session, ENGLISH) >> "SIGNATURE"
 
         then:
         mvc
@@ -118,7 +122,8 @@ class MandateControllerSpec extends BaseControllerSpec {
         def session = new SmartIdSignatureSession("certSessionId", "personalCode", [])
         session.verificationCode = "1234"
         1 * sessionStore.get(SmartIdSignatureSession) >> Optional.of(session)
-        1 * mandateService.finalizeSmartIdSignature(_, 1L, session) >> "SIGNATURE"
+        1 * localeResolver.resolveLocale(_) >> ENGLISH
+        1 * mandateService.finalizeSmartIdSignature(_, 1L, session, ENGLISH) >> "SIGNATURE"
 
         then:
         mvc
@@ -147,7 +152,8 @@ class MandateControllerSpec extends BaseControllerSpec {
         when:
         def session = IdCardSignatureSession.builder().build()
         sessionStore.get(IdCardSignatureSession) >> Optional.of(session)
-        mandateService.finalizeIdCardSignature(_ as Long, 1L, session, "signedHash") >> "SIGNATURE"
+        localeResolver.resolveLocale(_) >> ENGLISH
+        mandateService.finalizeIdCardSignature(_ as Long, 1L, session, "signedHash", ENGLISH) >> "SIGNATURE"
 
         then:
         mvc

@@ -30,48 +30,49 @@ import java.util.Locale;
 @RequestMapping("/notifications")
 public class PaymentController {
 
-  private static final String COMPLETED = "COMPLETED";
+    private static final String COMPLETED = "COMPLETED";
 
-  private final ObjectMapper mapper;
-  private final UserService userService;
-  private final SmartValidator validator;
-  private final ApplicationEventPublisher applicationEventPublisher;
-  private final LocaleResolver localeResolver;
-  private final HttpServletRequest request;
+    private final ObjectMapper mapper;
+    private final UserService userService;
+    private final SmartValidator validator;
+    private final ApplicationEventPublisher applicationEventPublisher;
+    private final LocaleResolver localeResolver;
 
 
-  @Value("${membership-success.url}")
-  private String membershipSuccessUrl;
+    @Value("${membership-success.url}")
+    private String membershipSuccessUrl;
 
-  @PostMapping("/payments")
-  public void incomingPayment(@ModelAttribute @Valid IncomingPayment incomingPayment,
-                              @ApiIgnore HttpServletResponse response,
-                              @ApiIgnore Errors errors) throws IOException {
+    @PostMapping("/payments")
+    public void incomingPayment(@ModelAttribute @Valid IncomingPayment incomingPayment,
+                                @ApiIgnore HttpServletResponse response,
+                                @ApiIgnore HttpServletRequest request,
+                                @ApiIgnore Errors errors) throws IOException {
 
-    log.info("Incoming payment: {}", incomingPayment);
+        log.info("Incoming payment: {}", incomingPayment);
 
-    Payment payment = mapper.readValue(incomingPayment.getJson(), Payment.class);
+        Payment payment = mapper.readValue(incomingPayment.getJson(), Payment.class);
 
-    validator.validate(payment, errors);
-    if (errors.hasErrors()) {
-      throw new ValidationErrorsException(errors);
+        validator.validate(payment, errors);
+        if (errors.hasErrors()) {
+            throw new ValidationErrorsException(errors);
+        }
+
+        Long userId = payment.getReference();
+
+        boolean isAMember = userService.isAMember(userId);
+        boolean isStatusCompleted = COMPLETED.equalsIgnoreCase(payment.getStatus());
+
+
+        if (isStatusCompleted && !isAMember) {
+            User user = userService.registerAsMember(userId, payment.getCustomerName());
+            Locale locale = localeResolver.resolveLocale(request);
+            applicationEventPublisher.publishEvent(new MemberCreatedEvent(user, locale));
+        } else {
+            log.warn("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
+        }
+
+        response.sendRedirect(membershipSuccessUrl);
+
     }
-
-    Long userId = payment.getReference();
-
-    boolean isAMember = userService.isAMember(userId);
-    boolean isStatusCompleted = COMPLETED.equalsIgnoreCase(payment.getStatus());
-
-    if (isStatusCompleted && !isAMember) {
-      User user = userService.registerAsMember(userId, payment.getCustomerName());
-      Locale locale = localeResolver.resolveLocale(request);
-      applicationEventPublisher.publishEvent(new MemberCreatedEvent(user, locale));
-    } else {
-      log.warn("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
-    }
-
-    response.sendRedirect(membershipSuccessUrl);
-
-  }
 
 }

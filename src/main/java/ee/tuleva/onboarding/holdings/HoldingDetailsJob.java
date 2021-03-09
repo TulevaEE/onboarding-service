@@ -5,15 +5,14 @@ import ee.tuleva.onboarding.holdings.converters.HoldingDetailConverter;
 import ee.tuleva.onboarding.holdings.persistence.HoldingDetail;
 import ee.tuleva.onboarding.holdings.persistence.HoldingDetailsRepository;
 import ee.tuleva.onboarding.holdings.xml.XmlHoldingDetail;
-import io.swagger.models.Xml;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBException;
+import jakarta.xml.bind.Unmarshaller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;

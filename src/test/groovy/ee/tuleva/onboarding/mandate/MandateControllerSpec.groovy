@@ -4,6 +4,7 @@ import ee.sk.mid.MidAuthenticationHashToSign
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.exception.IdSessionException
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
@@ -35,7 +36,7 @@ class MandateControllerSpec extends BaseControllerSpec {
     def "save a mandate"() {
         when:
         def mandate = sampleMandate()
-        mandateService.save(_, _) >> mandate
+        mandateService.save(_ as Long, _ as CreateMandateCommand) >> mandate
         then:
         mvc
             .perform(post("/v1/mandates")

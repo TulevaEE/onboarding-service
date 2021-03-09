@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.error.converter.ErrorAttributesConverter
 import ee.tuleva.onboarding.error.converter.InputErrorsConverter
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
 import ee.tuleva.onboarding.fund.FundRepository
+import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -31,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(ErrorHandlingController)
 @WithMockUser
 @Import([ErrorResponseEntityFactory, InputErrorsConverter, ErrorAttributesConverter,
-    OAuthConfiguration.ResourceServerPathConfiguration, SecurityConfiguration])
+    OAuthConfiguration.ResourceServerPathConfiguration, SecurityConfiguration, ConversionDecorator])
 class ErrorHandlingControllerSpec extends Specification {
 
     @MockBean

@@ -99,4 +99,19 @@ class MandateContentCreatorSpec extends Specification {
         mandateContentFiles[1].content != null
     }
 
+    def "Generate mandate content for mandate cancellation"() {
+        when:
+        MandateContentFile mandateContentFile =
+            mandateContentCreator.getContentFileForMandateCancellation(
+                sampleUser().build(),
+                sampleMandate(),
+                contactDetailsFixture(),
+                "vahetusavaldus"
+            )
+        then:
+        mandateContentFile.name == "avalduse_tyhistamise_avaldus_123.html"
+        mandateContentFile.mimeType == "text/html"
+        mandateContentFile.content != null
+    }
+
 }

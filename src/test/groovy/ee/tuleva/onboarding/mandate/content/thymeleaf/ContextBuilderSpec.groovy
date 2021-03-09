@@ -108,6 +108,17 @@ class ContextBuilderSpec extends Specification {
         context.getVariable("documentNumber") == documentNumber
     }
 
+    def "MandateTypeToCancel"() {
+        given:
+        String mandateTypeToCancel = "Vahetusavaldus"
+        when:
+        Context context = ContextBuilder.builder()
+            .mandateTypeToCancel(mandateTypeToCancel)
+            .build()
+        then:
+        context.getVariable("mandateTypeToCancel") == mandateTypeToCancel
+    }
+
     def "FundTransferExchanges"() {
         when:
         Context context = ContextBuilder.builder()

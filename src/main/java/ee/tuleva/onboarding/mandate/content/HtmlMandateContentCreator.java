@@ -38,6 +38,31 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
         return files;
     }
 
+    @Override
+    public MandateContentFile getContentFileForMandateCancellation(
+        User user, Mandate mandate, UserPreferences userPreferences, String mandateTypeToCancel
+    ) {
+        String transactionId = UUID.randomUUID().toString();
+        String documentNumber = mandate.getId().toString();
+
+        Context ctx = ContextBuilder.builder()
+            .mandate(mandate)
+            .user(user)
+            .userPreferences(userPreferences)
+            .transactionId(transactionId)
+            .documentNumber(documentNumber)
+            .mandateTypeToCancel(mandateTypeToCancel)
+            .build();
+
+        String htmlContent = templateEngine.process("mandate_cancellation_mandate", ctx);
+
+        return MandateContentFile.builder()
+            .name("avalduse_tyhistamise_avaldus_" + documentNumber + ".html")
+            .mimeType("text/html")
+            .content(htmlContent.getBytes())
+            .build();
+    }
+
     private MandateContentFile getFutureContributionsFundMandateContentFile(
         User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
         String transactionId = UUID.randomUUID().toString();

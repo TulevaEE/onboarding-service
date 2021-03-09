@@ -11,5 +11,8 @@ public interface MandateContentCreator {
 
     List<MandateContentFile> getContentFiles(User user, Mandate mandate,
                                              List<Fund> funds, UserPreferences userPreferences);
+    MandateContentFile getContentFileForMandateCancellation(
+        User user, Mandate mandate, UserPreferences userPreferences,
+        String mandateTypeToCancel);
 
 }

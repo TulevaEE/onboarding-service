@@ -77,6 +77,11 @@ public class ContextBuilder {
         return this;
     }
 
+    public ContextBuilder mandateTypeToCancel(String mandateTypeToCancel) {
+        ctx.setVariable("mandateTypeToCancel", mandateTypeToCancel);
+        return this;
+    }
+
     public ContextBuilder userPreferences(UserPreferences userPreferences) {
         ctx.setVariable("userPreferences", userPreferences);
 

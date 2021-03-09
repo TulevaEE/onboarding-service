@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.content
 
 import ee.tuleva.onboarding.mandate.Mandate
+import org.apache.commons.codec.digest.DigestUtils
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.thymeleaf.ITemplateEngine
@@ -53,8 +54,28 @@ class MandateContentCreatorIntSpec extends Specification {
         mandateContentFiles[1].name == "vahetuseavaldus_1234.html"
         mandateContentFiles[1].mimeType == "text/html"
 
-        mandateContentFiles[0].content != null
-        mandateContentFiles[1].content != null
+        DigestUtils.md5Hex(mandateContentFiles[0].content) == "dbd37a28129a237e3fbdf486f2a40d7c"
+        DigestUtils.md5Hex(mandateContentFiles[1].content) == "5cfcc4f737b0211ed789e8495919c487"
+    }
+
+    def "mandate cancellation mandate can be generated from template"() {
+        given:
+        Mandate mandate = sampleMandate()
+
+        when:
+        MandateContentFile mandateContentFile =
+            mandateContentCreator.getContentFileForMandateCancellation(
+                sampleUser().build(),
+                mandate,
+                contactDetailsFixture(),
+                "vahetusavaldus"
+            )
+
+        then:
+
+        mandateContentFile.name == "avalduse_tyhistamise_avaldus_123.html"
+        mandateContentFile.mimeType == "text/html"
+        DigestUtils.md5Hex(mandateContentFile.content) == "1e4a46ee240947ccdc12bae55128d4eb"
     }
 
     @Unroll

@@ -17,99 +17,98 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 class MandateContentCreatorIntSpec extends Specification {
 
 
-    @Autowired
-    ITemplateEngine templateEngine
+	@Autowired
+	ITemplateEngine templateEngine
 
-    MandateContentCreator mandateContentCreator
+	MandateContentCreator mandateContentCreator
 
-    def setup() {
-        mandateContentCreator = new HtmlMandateContentCreator(templateEngine)
-    }
+	def setup() {
+		mandateContentCreator = new HtmlMandateContentCreator(templateEngine)
+	}
 
-    def "template engine is autowired"() {
-        expect:
-        templateEngine != null
-    }
+	def "template engine is autowired"() {
+		expect:
+		templateEngine != null
+	}
 
-    def "mandate can be generated from template"() {
-        given:
-        Mandate mandate = sampleMandate()
-        mandate.setFutureContributionFundIsin(null)
+	def "mandate can be generated from template"() {
+		given:
+		Mandate mandate = sampleMandate()
+		mandate.setFutureContributionFundIsin(null)
 
-        when:
-        List<MandateContentFile> mandateContentFiles =
-            mandateContentCreator.getContentFiles(
-                sampleUser().build(),
-                mandate,
-                sampleFunds(),
-                contactDetailsFixture()
-            )
+		when:
+		List<MandateContentFile> mandateContentFiles =
+				mandateContentCreator.getContentFiles(
+				sampleUser().build(),
+				mandate,
+				sampleFunds(),
+				contactDetailsFixture()
+				)
 
-        then:
-        mandateContentFiles.size() == 2
+		then:
+		mandateContentFiles.size() == 2
 
-        mandateContentFiles[0].name == "vahetuseavaldus_1236.html"
-        mandateContentFiles[0].mimeType == "text/html"
+		mandateContentFiles[0].name == "vahetuseavaldus_1236.html"
+		mandateContentFiles[0].mimeType == "text/html"
 
-        mandateContentFiles[1].name == "vahetuseavaldus_1234.html"
-        mandateContentFiles[1].mimeType == "text/html"
+		mandateContentFiles[1].name == "vahetuseavaldus_1234.html"
+		mandateContentFiles[1].mimeType == "text/html"
 
-        DigestUtils.md5Hex(mandateContentFiles[0].content) == "e6c23bc9062181eda9c15f9bc848652f"
-        DigestUtils.md5Hex(mandateContentFiles[1].content) == "6b300aa6ac94548a7ed7d69864af0763"
-    }
+		DigestUtils.md5Hex(mandateContentFiles[0].content) == "e6c23bc9062181eda9c15f9bc848652f"
+		DigestUtils.md5Hex(mandateContentFiles[1].content) == "6b300aa6ac94548a7ed7d69864af0763"
+	}
 
-    def "mandate cancellation mandate can be generated from template"() {
-        given:
-        Mandate mandate = sampleMandate()
+	def "mandate cancellation mandate can be generated from template"() {
+		given:
+		Mandate mandate = sampleMandate()
 
-        when:
-        MandateContentFile mandateContentFile =
-            mandateContentCreator.getContentFileForMandateCancellation(
-                sampleUser().build(),
-                mandate,
-                contactDetailsFixture(),
-                "vahetusavaldus"
-            )
+		when:
+		MandateContentFile mandateContentFile =
+				mandateContentCreator.getContentFileForMandateCancellation(
+				sampleUser().build(),
+				mandate,
+				contactDetailsFixture(),
+				"vahetusavaldus"
+				)
 
-        then:
+		then:
 
-        mandateContentFile.name == "avalduse_tyhistamise_avaldus_123.html"
-        mandateContentFile.mimeType == "text/html"
-        DigestUtils.md5Hex(mandateContentFile.content) == "cbf9871b5ce567b99e3d77bcdf1683b2"
-    }
+		mandateContentFile.name == "avalduse_tyhistamise_avaldus_123.html"
+		mandateContentFile.mimeType == "text/html"
+		DigestUtils.md5Hex(mandateContentFile.content) == "cbf9871b5ce567b99e3d77bcdf1683b2"
+	}
 
-    @Unroll
-    def "different pillars have different files"(Integer pillar, String transferContent, String contributionsContent) {
-        given:
-        Mandate mandate = sampleMandate()
-        mandate.setPillar(pillar)
-        mandate.fundTransferExchanges.remove(2)
+	@Unroll
+	def "different pillars have different files"(Integer pillar, String transferContent, String contributionsContent) {
+		given:
+		Mandate mandate = sampleMandate()
+		mandate.setPillar(pillar)
+		mandate.fundTransferExchanges.remove(2)
 
-        when:
-        List<MandateContentFile> mandateContentFiles =
-            mandateContentCreator.getContentFiles(
-                sampleUser().build(),
-                mandate,
-                sampleFunds(),
-                contactDetailsFixture()
-            )
+		when:
+		List<MandateContentFile> mandateContentFiles =
+				mandateContentCreator.getContentFiles(
+				sampleUser().build(),
+				mandate,
+				sampleFunds(),
+				contactDetailsFixture()
+				)
 
-        then:
-        mandateContentFiles.size() == 2
+		then:
+		mandateContentFiles.size() == 2
 
-        mandateContentFiles[0].name == "vahetuseavaldus_1234.html"
-        mandateContentFiles[0].mimeType == "text/html"
+		mandateContentFiles[0].name == "vahetuseavaldus_1234.html"
+		mandateContentFiles[0].mimeType == "text/html"
 
-        mandateContentFiles[1].name == "valikuavaldus_123.html"
-        mandateContentFiles[1].mimeType == "text/html"
+		mandateContentFiles[1].name == "valikuavaldus_123.html"
+		mandateContentFiles[1].mimeType == "text/html"
 
-        new String(mandateContentFiles[0].content).contains(transferContent)
-        new String(mandateContentFiles[1].content).contains(contributionsContent)
+		new String(mandateContentFiles[0].content).contains(transferContent)
+		new String(mandateContentFiles[1].content).contains(contributionsContent)
 
-        where:
-        pillar | transferContent                                 | contributionsContent
-        2      | "KOHUSTUSLIKU PENSIONIFONDI OSAKUTE VAHETAMISE" | "Kohustuslik pensionifond, kuhu soovin"
-        3      | "VABATAHTLIKU PENSIONIFONDI OSAKUTE VAHETAMISE" | "VABATAHTLIKU PENSIONIFONDI VALIKUAVALDUS"
-    }
-
+		where:
+		pillar | transferContent                                 | contributionsContent
+		2      | "KOHUSTUSLIKU PENSIONIFONDI OSAKUTE VAHETAMISE" | "Kohustuslik pensionifond, kuhu soovin"
+		3      | "VABATAHTLIKU PENSIONIFONDI OSAKUTE VAHETAMISE" | "VABATAHTLIKU PENSIONIFONDI VALIKUAVALDUS"
+	}
 }

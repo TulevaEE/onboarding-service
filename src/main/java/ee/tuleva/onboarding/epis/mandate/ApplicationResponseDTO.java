@@ -12,7 +12,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 public class ApplicationResponseDTO {
-  
+
   private List<ApplicationResponse> mandateResponses;
 
   public ApplicationResponseDTO(ApplicationResponse applicationResponse) {

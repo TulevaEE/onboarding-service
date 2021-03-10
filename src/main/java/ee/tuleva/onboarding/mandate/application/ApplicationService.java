@@ -36,7 +36,7 @@ public class ApplicationService {
       Person person, Long userId, Long applicationId) {
     Application applicationToCancel = getApplication(applicationId, person);
     Mandate mandate =
-        mandateCancellationService.saveCancellationMandate(userId, applicationToCancel.getType());
+        mandateCancellationService.saveCancellationMandate(userId, applicationToCancel);
     return new ApplicationCancellationResponse(mandate.getId());
   }
 }

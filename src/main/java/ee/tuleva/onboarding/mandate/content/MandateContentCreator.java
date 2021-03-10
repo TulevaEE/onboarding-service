@@ -10,5 +10,4 @@ public interface MandateContentCreator {
 
   List<MandateContentFile> getContentFiles(
       User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences);
-
 }

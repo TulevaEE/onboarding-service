@@ -43,12 +43,12 @@ public class MandateProcessorService {
 
   private MandateDto getMandateDto(Mandate mandate) {
     val mandateDtoBuilder =
-      MandateDto.builder()
-        .id(mandate.getId())
-        .createdDate(mandate.getCreatedDate())
-        .fundTransferExchanges(getFundTransferExchanges(mandate))
-        .pillar(mandate.getPillar())
-        .address(mandate.getAddress());
+        MandateDto.builder()
+            .id(mandate.getId())
+            .createdDate(mandate.getCreatedDate())
+            .fundTransferExchanges(getFundTransferExchanges(mandate))
+            .pillar(mandate.getPillar())
+            .address(mandate.getAddress());
     addSelectionApplication(mandate, mandateDtoBuilder);
     val mandateDto = mandateDtoBuilder.build();
     return mandateDto;
@@ -56,12 +56,11 @@ public class MandateProcessorService {
 
   private CancellationDto getCancellationDto(Mandate mandate) {
     val mandateDtoBuilder =
-      CancellationDto.builder()
-        .id(mandate.getId())
-        .createdDate(mandate.getCreatedDate())
-        .address(mandate.getAddress())
-        .applicationTypeToCancel(mandate.getApplicationTypeToCancel())
-      ;
+        CancellationDto.builder()
+            .id(mandate.getId())
+            .createdDate(mandate.getCreatedDate())
+            .address(mandate.getAddress())
+            .applicationTypeToCancel(mandate.getApplicationTypeToCancel());
 
     val process = createMandateProcess(mandate, ApplicationType.CANCELLATION);
     mandateDtoBuilder.processId(process.getProcessId());

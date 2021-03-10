@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.sampleApplication
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
 
@@ -34,16 +35,16 @@ class MandateCancellationServiceSpec extends Specification {
         def user = sampleUser().build()
         def conversion = fullyConverted()
         def contactDetails = contactDetailsFixture()
-        def applicationTypeToCancel = WITHDRAWAL
+        def applicationToCancel = sampleApplication().build()
         def mandate = sampleMandate()
 
         1 * userService.getById(user.id) >> user
         1 * conversionService.getConversion(user) >> conversion
         1 * episService.getContactDetails(user) >> contactDetails
-        1 * cancellationMandateBuilder.build(applicationTypeToCancel, user, conversion, contactDetails) >> mandate
+        1 * cancellationMandateBuilder.build(applicationToCancel, user, conversion, contactDetails) >> mandate
 
         when:
-        mandateCancellationService.saveCancellationMandate(user.id, applicationTypeToCancel)
+        mandateCancellationService.saveCancellationMandate(user.id, applicationToCancel)
 
         then:
         1 * mandateService.save(user, mandate)
@@ -52,10 +53,10 @@ class MandateCancellationServiceSpec extends Specification {
     def "validates application type before saving"() {
         given:
         def user = sampleUser().build()
-        def applicationTypeToCancel = SELECTION
+        def applicationToCancel = sampleApplication().type(SELECTION).build()
 
         when:
-        mandateCancellationService.saveCancellationMandate(user.id, applicationTypeToCancel)
+        mandateCancellationService.saveCancellationMandate(user.id, applicationToCancel)
 
         then:
         thrown(InvalidApplicationTypeException)

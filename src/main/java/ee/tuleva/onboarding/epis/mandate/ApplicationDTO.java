@@ -6,12 +6,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.*;
 
-@Getter
-@Setter
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString
+@Data
 public class ApplicationDTO implements Serializable {
 
   private String currency;

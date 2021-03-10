@@ -1,13 +1,21 @@
 package ee.tuleva.onboarding.mandate.cancellation;
 
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL;
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER;
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
+
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import ee.tuleva.onboarding.mandate.application.Application;
+import ee.tuleva.onboarding.mandate.application.TransferApplicationDetails;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.user.User;
+import java.util.Collections;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,18 +26,44 @@ public class CancellationMandateBuilder {
   private final ConversionDecorator conversionDecorator;
 
   public Mandate build(
-      ApplicationType applicationTypeToCancel,
+      Application applicationToCancel,
       User user,
       ConversionResponse conversion,
       UserPreferences contactDetails) {
 
     Mandate mandate = new Mandate();
     mandate.setUser(user);
-    mandate.setPillar(2); // Can only cancel 2nd pillar applications for now
+    mandate.setPillar(2);
     mandate.setAddress(contactDetails.getAddress());
-    mandate.putMetadata("applicationTypeToCancel", applicationTypeToCancel);
+
     conversionDecorator.addConversionMetadata(mandate, conversion, contactDetails);
 
+    if (applicationToCancel.getType() == WITHDRAWAL
+        || applicationToCancel.getType() == EARLY_WITHDRAWAL) {
+      return buildWithdrawalMandate(applicationToCancel, mandate);
+    } else if (applicationToCancel.getType() == TRANSFER) {
+      return buildTransferCancellationMandate(applicationToCancel, mandate);
+    }
+    return null;
+  }
+
+  public Mandate buildWithdrawalMandate(Application applicationToCancel, Mandate mandate) {
+    mandate.putMetadata("applicationTypeToCancel", applicationToCancel.getType());
+    return mandate;
+  }
+
+  private Mandate buildTransferCancellationMandate(
+      Application applicationToCancel, Mandate mandate) {
+    val details = ((TransferApplicationDetails) applicationToCancel.getDetails());
+
+    val exchange =
+        FundTransferExchange.builder()
+            .sourceFundIsin(details.getSourceFundIsin())
+            .targetFundIsin(null)
+            .mandate(mandate)
+            .build();
+
+    mandate.setFundTransferExchanges(Collections.singletonList(exchange));
     return mandate;
   }
 }

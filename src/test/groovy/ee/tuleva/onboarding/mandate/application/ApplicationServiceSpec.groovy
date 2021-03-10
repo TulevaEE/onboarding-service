@@ -8,6 +8,8 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.sampleApplication
+import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.transferApplication
 
 class ApplicationServiceSpec extends Specification {
 
@@ -38,7 +40,7 @@ class ApplicationServiceSpec extends Specification {
         def mandate = sampleMandate()
 
         1 * episService.getApplications(person) >> [applicationDTO]
-        1 * mandateCancellationService.saveCancellationMandate(user.id, applicationDTO.type) >> mandate
+        1 * mandateCancellationService.saveCancellationMandate(user.id, _) >> mandate
 
         when:
         ApplicationCancellationResponse response =

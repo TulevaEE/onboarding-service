@@ -5,6 +5,7 @@ import static org.springframework.http.HttpMethod.GET;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
+import ee.tuleva.onboarding.epis.application.ApplicationResponse;
 import ee.tuleva.onboarding.epis.cancellation.CancellationDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;

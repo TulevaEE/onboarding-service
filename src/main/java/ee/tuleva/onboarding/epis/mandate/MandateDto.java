@@ -5,7 +5,11 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import javax.validation.constraints.NotNull;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
 
 @Data

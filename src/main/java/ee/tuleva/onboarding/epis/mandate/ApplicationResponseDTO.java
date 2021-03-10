@@ -4,12 +4,10 @@ import static java.util.Collections.singletonList;
 
 import ee.tuleva.onboarding.epis.application.ApplicationResponse;
 import java.util.List;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 public class ApplicationResponseDTO {
 

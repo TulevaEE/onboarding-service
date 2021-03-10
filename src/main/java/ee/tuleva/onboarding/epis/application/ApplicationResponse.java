@@ -1,11 +1,15 @@
 package ee.tuleva.onboarding.epis.application;
 
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-@Getter
-@Setter
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class ApplicationResponse {
   private boolean successful;
   private Integer errorCode;

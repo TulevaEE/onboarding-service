@@ -16,7 +16,6 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 @SpringBootTest
 class MandateContentCreatorIntSpec extends Specification {
 
-
   @Autowired
   ITemplateEngine templateEngine
 
@@ -72,7 +71,6 @@ class MandateContentCreatorIntSpec extends Specification {
         )
 
     then:
-
     mandateContentFile.name == "avalduse_tyhistamise_avaldus_123.html"
     mandateContentFile.mimeType == "text/html"
     DigestUtils.md5Hex(mandateContentFile.content) == "cbf9871b5ce567b99e3d77bcdf1683b2"

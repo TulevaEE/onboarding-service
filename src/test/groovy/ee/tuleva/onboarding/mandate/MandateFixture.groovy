@@ -108,7 +108,7 @@ class MandateFixture {
             .build()
 
         mandate.setId(123)
-        mandate.setCreatedDate(Instant.now())
+        mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
         mandate.setMandate("file".getBytes())
         mandate.setPillar(2)
         return mandate
@@ -147,7 +147,7 @@ class MandateFixture {
             .build()
 
         mandate.setId(123)
-        mandate.setCreatedDate(Instant.now())
+        mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
         mandate.setMandate("file".getBytes())
         return mandate
     }
@@ -178,7 +178,7 @@ class MandateFixture {
             .build()
 
         mandate.setId(123)
-        mandate.setCreatedDate(Instant.now())
+        mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
         return mandate
     }
 

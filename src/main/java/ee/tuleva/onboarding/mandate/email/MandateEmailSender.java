@@ -13,36 +13,33 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class MandateEmailSender {
-    private final MandateEmailService emailService;
-    private final EpisService episService;
-    private final UserConversionService conversionService;
+  private final MandateEmailService emailService;
+  private final EpisService episService;
+  private final UserConversionService conversionService;
 
-    @EventListener
-    public void sendEmail(SecondPillarAfterMandateSignedEvent event) {
-        ConversionResponse conversion = conversionService.getConversion(event.getUser());
-        UserPreferences userPreferences = episService.getContactDetails(event.getUser());
-        emailService.sendSecondPillarMandate(
-            event.getUser(),
-            event.getMandateId(),
-            event.getSignedFile(),
-            conversion,
-            userPreferences,
-            event.getLocale()
-        );
-    }
+  @EventListener
+  public void sendEmail(SecondPillarAfterMandateSignedEvent event) {
+    ConversionResponse conversion = conversionService.getConversion(event.getUser());
+    UserPreferences userPreferences = episService.getContactDetails(event.getUser());
+    emailService.sendSecondPillarMandate(
+        event.getUser(),
+        event.getMandateId(),
+        event.getSignedFile(),
+        conversion,
+        userPreferences,
+        event.getLocale());
+  }
 
-    @EventListener
-    public void sendEmail(ThirdPillarAfterMandateSignedEvent event) {
-        UserPreferences contactDetails = episService.getContactDetails(event.getUser());
-        ConversionResponse conversion = conversionService.getConversion(event.getUser());
-        emailService.sendThirdPillarMandate(
-            event.getUser(),
-            event.getMandateId(),
-            event.getSignedFile(),
-            conversion,
-            contactDetails,
-            event.getLocale()
-        );
-    }
-
+  @EventListener
+  public void sendEmail(ThirdPillarAfterMandateSignedEvent event) {
+    UserPreferences contactDetails = episService.getContactDetails(event.getUser());
+    ConversionResponse conversion = conversionService.getConversion(event.getUser());
+    emailService.sendThirdPillarMandate(
+        event.getUser(),
+        event.getMandateId(),
+        event.getSignedFile(),
+        conversion,
+        contactDetails,
+        event.getLocale());
+  }
 }

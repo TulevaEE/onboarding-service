@@ -8,6 +8,5 @@ import org.springframework.validation.Errors;
 @AllArgsConstructor
 public class ValidationErrorsException extends RuntimeException {
 
-    private Errors errors;
-
+  private Errors errors;
 }

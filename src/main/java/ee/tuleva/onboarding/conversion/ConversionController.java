@@ -14,12 +14,12 @@ import springfox.documentation.annotations.ApiIgnore;
 @AllArgsConstructor
 public class ConversionController {
 
-    private final UserConversionService userConversionService;
+  private final UserConversionService userConversionService;
 
-    @ApiOperation(value = "Get info about the current user conversion")
-    @GetMapping("/me/conversion")
-    public ConversionResponse conversion(@ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-        return userConversionService.getConversion(authenticatedPerson);
-    }
-
+  @ApiOperation(value = "Get info about the current user conversion")
+  @GetMapping("/me/conversion")
+  public ConversionResponse conversion(
+      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    return userConversionService.getConversion(authenticatedPerson);
+  }
 }

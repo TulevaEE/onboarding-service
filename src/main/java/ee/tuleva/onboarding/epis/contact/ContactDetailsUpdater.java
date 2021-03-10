@@ -11,14 +11,10 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ContactDetailsUpdater {
 
-    private final ContactDetailsService contactDetailsService;
+  private final ContactDetailsService contactDetailsService;
 
-    @EventListener
-    public void updateAddress(AfterMandateSignedEvent event) {
-        contactDetailsService.updateContactDetails(event.getUser(), event.getAddress());
-    }
-
+  @EventListener
+  public void updateAddress(AfterMandateSignedEvent event) {
+    contactDetailsService.updateContactDetails(event.getUser(), event.getAddress());
+  }
 }
-
-
-

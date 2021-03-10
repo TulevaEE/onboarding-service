@@ -8,9 +8,9 @@ import lombok.Getter;
 @EqualsAndHashCode
 public class BeforeUserCreatedEvent {
 
-    private User user;
+  private User user;
 
-    public BeforeUserCreatedEvent(User user) {
-        this.user = user;
-    }
+  public BeforeUserCreatedEvent(User user) {
+    this.user = user;
+  }
 }

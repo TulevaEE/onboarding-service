@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.auth.idcard;
 
+import static org.bouncycastle.asn1.x509.Extension.certificatePolicies;
+import static org.bouncycastle.asn1.x509.Extension.extendedKeyUsage;
+import static org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils.parseExtensionValue;
+
 import com.google.common.collect.ImmutableList;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException;
@@ -8,21 +12,16 @@ import ee.tuleva.onboarding.auth.ocsp.CheckCertificateResponse;
 import ee.tuleva.onboarding.auth.ocsp.OCSPAuthService;
 import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import java.io.IOException;
+import java.security.cert.X509Certificate;
+import java.util.List;
+import java.util.Objects;
+import javax.security.auth.x500.X500Principal;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.bouncycastle.asn1.DLSequence;
 import org.springframework.stereotype.Service;
-
-import javax.security.auth.x500.X500Principal;
-import java.io.IOException;
-import java.security.cert.X509Certificate;
-import java.util.List;
-import java.util.Objects;
-
-import static org.bouncycastle.asn1.x509.Extension.certificatePolicies;
-import static org.bouncycastle.asn1.x509.Extension.extendedKeyUsage;
-import static org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils.parseExtensionValue;
 
 @Service
 @Slf4j
@@ -33,10 +32,10 @@ public class IdCardAuthService {
   private static final String CLIENT_AUTHENTICATION_ID = "1.3.6.1.5.5.7.3.2";
   private static final int POLICY_NO_1 = 0;
   private static final int POLICY_NO_2 = 1;
-  private static final List<String> VALID_ISSUERS = ImmutableList.of(
-    "CN=ESTEID-SK 2015, OID.2.5.4.97=NTREE-10747013, O=AS Sertifitseerimiskeskus, C=EE",
-    "CN=ESTEID2018, OID.2.5.4.97=NTREE-10747013, O=SK ID Solutions AS, C=EE"
-  );
+  private static final List<String> VALID_ISSUERS =
+      ImmutableList.of(
+          "CN=ESTEID-SK 2015, OID.2.5.4.97=NTREE-10747013, O=AS Sertifitseerimiskeskus, C=EE",
+          "CN=ESTEID2018, OID.2.5.4.97=NTREE-10747013, O=SK ID Solutions AS, C=EE");
 
   private final OCSPAuthService ocspAuthenticator;
   private final GenericSessionStore sessionStore;

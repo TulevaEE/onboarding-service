@@ -11,16 +11,17 @@ import org.springframework.security.oauth2.client.token.grant.client.ClientCrede
 @Configuration
 public class Oauth2RestTemplateConfiguration {
 
-    @Bean
-    @ConfigurationProperties("epis.service.client")
-    ClientCredentialsResourceDetails oauth2ClientCredentialsResourceDetails() {
-        return new ClientCredentialsResourceDetails();
-    }
+  @Bean
+  @ConfigurationProperties("epis.service.client")
+  ClientCredentialsResourceDetails oauth2ClientCredentialsResourceDetails() {
+    return new ClientCredentialsResourceDetails();
+  }
 
-    @Bean
-    public OAuth2RestOperations oauth2RestTemplate(ClientCredentialsResourceDetails resourceDetails, RestResponseErrorHandler errorHandler) {
-        OAuth2RestTemplate template = new OAuth2RestTemplate(resourceDetails);
-        template.setErrorHandler(errorHandler);
-        return template;
-    }
+  @Bean
+  public OAuth2RestOperations oauth2RestTemplate(
+      ClientCredentialsResourceDetails resourceDetails, RestResponseErrorHandler errorHandler) {
+    OAuth2RestTemplate template = new OAuth2RestTemplate(resourceDetails);
+    template.setErrorHandler(errorHandler);
+    return template;
+  }
 }

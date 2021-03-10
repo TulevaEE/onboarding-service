@@ -1,14 +1,15 @@
 package ee.tuleva.onboarding.auth.idcard;
 
-import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
+import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import java.util.Optional;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
@@ -16,8 +17,6 @@ import org.springframework.security.oauth2.common.exceptions.InvalidRequestExcep
 import org.springframework.security.oauth2.provider.*;
 import org.springframework.security.oauth2.provider.token.AbstractTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
-
-import java.util.Optional;
 
 public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGranter {
 
@@ -67,8 +66,8 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
     OAuth2Authentication oAuth2Authentication =
         new OAuth2Authentication(oAuth2Request, userAuthentication);
 
-    eventPublisher.publishEvent(new BeforeTokenGrantedEvent(this, authenticatedPerson, oAuth2Authentication,
-      GRANT_TYPE));
+    eventPublisher.publishEvent(
+        new BeforeTokenGrantedEvent(this, authenticatedPerson, oAuth2Authentication, GRANT_TYPE));
 
     OAuth2AccessToken accessToken = getTokenServices().createAccessToken(oAuth2Authentication);
 

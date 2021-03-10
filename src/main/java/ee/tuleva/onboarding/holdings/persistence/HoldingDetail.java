@@ -1,10 +1,7 @@
 package ee.tuleva.onboarding.holdings.persistence;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import javax.persistence.Entity;
 import javax.persistence.EnumType;
 import javax.persistence.Enumerated;
@@ -13,8 +10,10 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
-import java.math.BigDecimal;
-import java.time.LocalDate;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
@@ -22,40 +21,38 @@ import java.time.LocalDate;
 @Table(name = "holding_details")
 @AllArgsConstructor
 @NoArgsConstructor
-public class HoldingDetail{
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class HoldingDetail {
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    private String symbol;
+  private String symbol;
 
-    private String country;
+  private String country;
 
-    private String currency;
+  private String currency;
 
-    @NotNull
-    private String securityName;
+  @NotNull private String securityName;
 
-    private BigDecimal weighting;
+  private BigDecimal weighting;
 
-    private Long numberOfShare;
+  private Long numberOfShare;
 
-    private Long shareChange;
+  private Long shareChange;
 
-    private Long marketValue;
+  private Long marketValue;
 
-    @Enumerated(EnumType.STRING)
-    private Sector sector;
+  @Enumerated(EnumType.STRING)
+  private Sector sector;
 
-    private BigDecimal holdingYtdReturn;
+  private BigDecimal holdingYtdReturn;
 
-    @Enumerated(EnumType.STRING)
-    private Region region;
+  @Enumerated(EnumType.STRING)
+  private Region region;
 
-    private String isin;
+  private String isin;
 
-    private LocalDate firstBoughtDate;
+  private LocalDate firstBoughtDate;
 
-    @NotNull
-    private LocalDate createdDate;
+  @NotNull private LocalDate createdDate;
 }

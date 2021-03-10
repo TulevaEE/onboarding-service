@@ -1,5 +1,10 @@
 package ee.tuleva.onboarding.auth;
 
+import static ee.tuleva.onboarding.auth.command.AuthenticationType.SMART_ID;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.springframework.web.bind.annotation.RequestMethod.GET;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
+
 import ee.tuleva.onboarding.auth.command.AuthenticateCommand;
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService;
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession;
@@ -11,6 +16,9 @@ import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService;
 import ee.tuleva.onboarding.auth.smartid.SmartIdSession;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import io.swagger.annotations.ApiOperation;
+import java.net.URLDecoder;
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -23,15 +31,6 @@ import org.springframework.security.oauth2.common.exceptions.UnauthorizedClientE
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.*;
 import springfox.documentation.annotations.ApiIgnore;
-
-import javax.servlet.http.HttpServletResponse;
-import javax.validation.Valid;
-import java.net.URLDecoder;
-
-import static ee.tuleva.onboarding.auth.command.AuthenticationType.SMART_ID;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.springframework.web.bind.annotation.RequestMethod.GET;
-import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
 @RestController
 @Slf4j
@@ -59,15 +58,19 @@ public class AuthController {
     }
 
     if (SMART_ID == authenticateCommand.getType()) {
-      SmartIdSession loginSession = smartIdAuthService.startLogin(authenticateCommand.getPersonalCode());
+      SmartIdSession loginSession =
+          smartIdAuthService.startLogin(authenticateCommand.getPersonalCode());
       genericSessionStore.save(loginSession);
-      return new ResponseEntity<>(AuthenticateResponse.fromSmartIdSession(loginSession), HttpStatus.OK);
+      return new ResponseEntity<>(
+          AuthenticateResponse.fromSmartIdSession(loginSession), HttpStatus.OK);
     }
 
     MobileIDSession loginSession =
-        mobileIdAuthService.startLogin(authenticateCommand.getPhoneNumber(), authenticateCommand.getPersonalCode());
+        mobileIdAuthService.startLogin(
+            authenticateCommand.getPhoneNumber(), authenticateCommand.getPersonalCode());
     genericSessionStore.save(loginSession);
-    return new ResponseEntity<>(AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);
+    return new ResponseEntity<>(
+        AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);
   }
 
   @SneakyThrows

@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.audit;
 
 public enum AuditEventType {
-    LOGIN, GET_ACCOUNT_STATEMENT, GET_CASH_FLOWS, MANDATE_DENIED
+  LOGIN,
+  GET_ACCOUNT_STATEMENT,
+  GET_CASH_FLOWS,
+  MANDATE_DENIED
 }

@@ -13,18 +13,17 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class OnLoginAccountStatementCacheClearer {
 
-    private final EpisService episService;
+  private final EpisService episService;
 
-    @EventListener
-    public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
-        Person person = event.getPerson();
-        log.info("On BeforeTokenGrantedEvent: timestamp={}, name={} {}",
-                event.getTimestamp(),
-                person.getFirstName(),
-                person.getLastName()
-        );
+  @EventListener
+  public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
+    Person person = event.getPerson();
+    log.info(
+        "On BeforeTokenGrantedEvent: timestamp={}, name={} {}",
+        event.getTimestamp(),
+        person.getFirstName(),
+        person.getLastName());
 
-        episService.clearCache(person);
-    }
-
+    episService.clearCache(person);
+  }
 }

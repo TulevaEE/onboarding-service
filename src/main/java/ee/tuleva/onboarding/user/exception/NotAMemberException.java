@@ -1,4 +1,3 @@
 package ee.tuleva.onboarding.user.exception;
 
-public class NotAMemberException extends RuntimeException {
-}
+public class NotAMemberException extends RuntimeException {}

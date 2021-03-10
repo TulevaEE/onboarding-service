@@ -5,6 +5,11 @@ import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.member.listener.MemberCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.io.IOException;
+import java.util.Locale;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,61 +23,56 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.LocaleResolver;
 import springfox.documentation.annotations.ApiIgnore;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import javax.validation.Valid;
-import java.io.IOException;
-import java.util.Locale;
-
 @RestController
 @RequiredArgsConstructor
 @Slf4j
 @RequestMapping("/notifications")
 public class PaymentController {
 
-    private static final String COMPLETED = "COMPLETED";
+  private static final String COMPLETED = "COMPLETED";
 
-    private final ObjectMapper mapper;
-    private final UserService userService;
-    private final SmartValidator validator;
-    private final ApplicationEventPublisher applicationEventPublisher;
-    private final LocaleResolver localeResolver;
+  private final ObjectMapper mapper;
+  private final UserService userService;
+  private final SmartValidator validator;
+  private final ApplicationEventPublisher applicationEventPublisher;
+  private final LocaleResolver localeResolver;
 
+  @Value("${membership-success.url}")
+  private String membershipSuccessUrl;
 
-    @Value("${membership-success.url}")
-    private String membershipSuccessUrl;
+  @PostMapping("/payments")
+  public void incomingPayment(
+      @ModelAttribute @Valid IncomingPayment incomingPayment,
+      @ApiIgnore HttpServletResponse response,
+      @ApiIgnore HttpServletRequest request,
+      @ApiIgnore Errors errors)
+      throws IOException {
 
-    @PostMapping("/payments")
-    public void incomingPayment(@ModelAttribute @Valid IncomingPayment incomingPayment,
-                                @ApiIgnore HttpServletResponse response,
-                                @ApiIgnore HttpServletRequest request,
-                                @ApiIgnore Errors errors) throws IOException {
+    log.info("Incoming payment: {}", incomingPayment);
 
-        log.info("Incoming payment: {}", incomingPayment);
+    Payment payment = mapper.readValue(incomingPayment.getJson(), Payment.class);
 
-        Payment payment = mapper.readValue(incomingPayment.getJson(), Payment.class);
-
-        validator.validate(payment, errors);
-        if (errors.hasErrors()) {
-            throw new ValidationErrorsException(errors);
-        }
-
-        Long userId = payment.getReference();
-
-        boolean isAMember = userService.isAMember(userId);
-        boolean isStatusCompleted = COMPLETED.equalsIgnoreCase(payment.getStatus());
-
-
-        if (isStatusCompleted && !isAMember) {
-            User user = userService.registerAsMember(userId, payment.getCustomerName());
-            Locale locale = localeResolver.resolveLocale(request);
-            applicationEventPublisher.publishEvent(new MemberCreatedEvent(user, locale));
-        } else {
-            log.warn("Invalid incoming payment. Status: {}, user is a member: {}", payment.getStatus(), isAMember);
-        }
-
-        response.sendRedirect(membershipSuccessUrl);
-
+    validator.validate(payment, errors);
+    if (errors.hasErrors()) {
+      throw new ValidationErrorsException(errors);
     }
 
+    Long userId = payment.getReference();
+
+    boolean isAMember = userService.isAMember(userId);
+    boolean isStatusCompleted = COMPLETED.equalsIgnoreCase(payment.getStatus());
+
+    if (isStatusCompleted && !isAMember) {
+      User user = userService.registerAsMember(userId, payment.getCustomerName());
+      Locale locale = localeResolver.resolveLocale(request);
+      applicationEventPublisher.publishEvent(new MemberCreatedEvent(user, locale));
+    } else {
+      log.warn(
+          "Invalid incoming payment. Status: {}, user is a member: {}",
+          payment.getStatus(),
+          isAMember);
+    }
+
+    response.sendRedirect(membershipSuccessUrl);
+  }
 }

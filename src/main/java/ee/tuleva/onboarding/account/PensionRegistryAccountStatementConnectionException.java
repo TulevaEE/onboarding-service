@@ -5,10 +5,10 @@ import ee.tuleva.onboarding.error.response.ErrorsResponse;
 
 public class PensionRegistryAccountStatementConnectionException extends ErrorsResponseException {
 
-    public PensionRegistryAccountStatementConnectionException() {
-        super(ErrorsResponse.ofSingleError(
-                "pension.registry.connection.exception",
-                "Couldn't get account statement from pension registry."
-        ));
-    }
+  public PensionRegistryAccountStatementConnectionException() {
+    super(
+        ErrorsResponse.ofSingleError(
+            "pension.registry.connection.exception",
+            "Couldn't get account statement from pension registry."));
+  }
 }

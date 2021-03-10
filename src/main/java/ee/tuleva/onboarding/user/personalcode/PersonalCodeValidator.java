@@ -1,12 +1,11 @@
 package ee.tuleva.onboarding.user.personalcode;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
+import java.time.format.DateTimeParseException;
 import javax.validation.ConstraintValidator;
 import javax.validation.ConstraintValidatorContext;
-import java.time.format.DateTimeParseException;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalCode, String> {
@@ -49,15 +48,17 @@ public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalC
 
   // https://et.wikipedia.org/wiki/Isikukood#Kontrollnumber
   private int calculateChecksum(String personalCode) {
-    int[] c = personalCode.chars()
-        .map(Character::getNumericValue)
-        .toArray();
+    int[] c = personalCode.chars().map(Character::getNumericValue).toArray();
 
-    int sum = 1 * c[0] + 2 * c[1] + 3 * c[2] + 4 * c[3] + 5 * c[4] + 6 * c[5] + 7 * c[6] + 8 * c[7] + 9 * c[8] + 1 * c[9];
+    int sum =
+        1 * c[0] + 2 * c[1] + 3 * c[2] + 4 * c[3] + 5 * c[4] + 6 * c[5] + 7 * c[6] + 8 * c[7]
+            + 9 * c[8] + 1 * c[9];
     int mod = sum % 11;
 
     if (mod == 10) {
-      sum = 3 * c[0] + 4 * c[1] + 5 * c[2] + 6 * c[3] + 7 * c[4] + 8 * c[5] + 9 * c[6] + 1 * c[7] + 2 * c[8] + 3 * c[9];
+      sum =
+          3 * c[0] + 4 * c[1] + 5 * c[2] + 6 * c[3] + 7 * c[4] + 8 * c[5] + 9 * c[6] + 1 * c[7]
+              + 2 * c[8] + 3 * c[9];
       mod = sum % 11;
     }
 
@@ -65,6 +66,5 @@ public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalC
   }
 
   @Override
-  public void initialize(ValidPersonalCode constraintAnnotation) {
-  }
+  public void initialize(ValidPersonalCode constraintAnnotation) {}
 }

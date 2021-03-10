@@ -14,10 +14,10 @@ public class AuthenticateResponse {
   private final String challengeCode;
 
   public static AuthenticateResponse fromMobileIdSession(MobileIDSession mobileIDSession) {
-      return new AuthenticateResponse(mobileIDSession.getChallenge());
+    return new AuthenticateResponse(mobileIDSession.getChallenge());
   }
 
   public static AuthenticateResponse fromSmartIdSession(SmartIdSession smartIdSession) {
-      return new AuthenticateResponse(smartIdSession.getVerificationCode());
+    return new AuthenticateResponse(smartIdSession.getVerificationCode());
   }
 }

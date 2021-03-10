@@ -5,6 +5,5 @@ import lombok.Value;
 @Value
 public class ApplicationCancellationResponse {
 
-    Long mandateId;
-
+  Long mandateId;
 }

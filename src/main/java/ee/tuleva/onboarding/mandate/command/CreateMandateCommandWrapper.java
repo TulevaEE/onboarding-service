@@ -9,8 +9,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Getter
 public class CreateMandateCommandWrapper {
-    private final CreateMandateCommand createMandateCommand;
-    private final User user;
-    private final ConversionResponse conversion;
-    private final UserPreferences contactDetails;
+  private final CreateMandateCommand createMandateCommand;
+  private final User user;
+  private final ConversionResponse conversion;
+  private final UserPreferences contactDetails;
 }

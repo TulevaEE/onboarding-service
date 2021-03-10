@@ -1,16 +1,15 @@
 package ee.tuleva.onboarding.aml.dto;
 
+import static java.lang.annotation.ElementType.*;
+import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
+import java.lang.annotation.Documented;
+import java.lang.annotation.Retention;
+import java.lang.annotation.Target;
 import javax.validation.Constraint;
 import javax.validation.Payload;
 import javax.validation.ReportAsSingleViolation;
 import javax.validation.constraints.NotNull;
-import java.lang.annotation.Documented;
-import java.lang.annotation.Retention;
-import java.lang.annotation.Target;
-
-import static java.lang.annotation.ElementType.*;
-import static java.lang.annotation.RetentionPolicy.RUNTIME;
 
 @Target({FIELD, METHOD, PARAMETER})
 @Retention(RUNTIME)
@@ -20,10 +19,9 @@ import static java.lang.annotation.RetentionPolicy.RUNTIME;
 @NotNull
 public @interface ValidAmlCheckType {
 
-    String message() default "{ee.tuleva.onboarding.aml.command.ValidAmlCheckType.message}";
+  String message() default "{ee.tuleva.onboarding.aml.command.ValidAmlCheckType.message}";
 
-    Class<?>[] groups() default {};
+  Class<?>[] groups() default {};
 
-    Class<? extends Payload>[] payload() default {};
-
+  Class<? extends Payload>[] payload() default {};
 }

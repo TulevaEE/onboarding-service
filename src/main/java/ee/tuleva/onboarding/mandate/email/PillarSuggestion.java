@@ -11,42 +11,45 @@ import lombok.ToString;
 @AllArgsConstructor
 public class PillarSuggestion {
 
-    @Getter
-    private final int suggestedPillar;
-    private final boolean isPillarActive;
-    private final boolean isPillarFullyConverted;
-    private final boolean isMember;
+  @Getter private final int suggestedPillar;
+  private final boolean isPillarActive;
+  private final boolean isPillarFullyConverted;
+  private final boolean isMember;
 
-    public PillarSuggestion(int suggestedPillar, User user, UserPreferences contactDetails, ConversionResponse conversion) {
-        this.suggestedPillar = suggestedPillar;
-        isMember = user.isMember();
+  public PillarSuggestion(
+      int suggestedPillar,
+      User user,
+      UserPreferences contactDetails,
+      ConversionResponse conversion) {
+    this.suggestedPillar = suggestedPillar;
+    isMember = user.isMember();
 
-        if (suggestedPillar == 2) {
-            isPillarActive = contactDetails.isSecondPillarActive();
-            isPillarFullyConverted = conversion.isSecondPillarFullyConverted();
-        } else if (suggestedPillar == 3) {
-            isPillarActive = contactDetails.isThirdPillarActive();
-            isPillarFullyConverted = conversion.isThirdPillarFullyConverted();
-        } else {
-            throw new IllegalArgumentException("Unknown pillar: " + suggestedPillar);
-        }
+    if (suggestedPillar == 2) {
+      isPillarActive = contactDetails.isSecondPillarActive();
+      isPillarFullyConverted = conversion.isSecondPillarFullyConverted();
+    } else if (suggestedPillar == 3) {
+      isPillarActive = contactDetails.isThirdPillarActive();
+      isPillarFullyConverted = conversion.isThirdPillarFullyConverted();
+    } else {
+      throw new IllegalArgumentException("Unknown pillar: " + suggestedPillar);
     }
+  }
 
-    public boolean suggestPillar() {
-        return !isPillarActive || !isPillarFullyConverted;
-    }
+  public boolean suggestPillar() {
+    return !isPillarActive || !isPillarFullyConverted;
+  }
 
-    public boolean suggestMembership() {
-        return isPillarActive && isPillarFullyConverted && !isMember;
-    }
+  public boolean suggestMembership() {
+    return isPillarActive && isPillarFullyConverted && !isMember;
+  }
 
-    public int getOtherPillar() {
-        if (suggestedPillar == 2) {
-            return 3;
-        } else if (suggestedPillar == 3) {
-            return 2;
-        } else {
-            throw new IllegalArgumentException("Unknown pillar: " + suggestedPillar);
-        }
+  public int getOtherPillar() {
+    if (suggestedPillar == 2) {
+      return 3;
+    } else if (suggestedPillar == 3) {
+      return 2;
+    } else {
+      throw new IllegalArgumentException("Unknown pillar: " + suggestedPillar);
     }
+  }
 }

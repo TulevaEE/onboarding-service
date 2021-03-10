@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.mandate.cancellation;
 
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL;
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
+import static java.util.Arrays.asList;
+
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
@@ -13,34 +17,31 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL;
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
-import static java.util.Arrays.asList;
-
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class MandateCancellationService {
 
-    private final MandateService mandateService;
-    private final UserService userService;
-    private final EpisService episService;
-    private final UserConversionService conversionService;
-    private final CancellationMandateBuilder cancellationMandateBuilder;
+  private final MandateService mandateService;
+  private final UserService userService;
+  private final EpisService episService;
+  private final UserConversionService conversionService;
+  private final CancellationMandateBuilder cancellationMandateBuilder;
 
-    public Mandate saveCancellationMandate(Long userId, ApplicationType applicationTypeToCancel) {
-        validate(applicationTypeToCancel);
-        User user = userService.getById(userId);
-        ConversionResponse conversion = conversionService.getConversion(user);
-        UserPreferences contactDetails = episService.getContactDetails(user);
-        Mandate mandate = cancellationMandateBuilder.build(applicationTypeToCancel, user, conversion, contactDetails);
-        return mandateService.save(user, mandate);
+  public Mandate saveCancellationMandate(Long userId, ApplicationType applicationTypeToCancel) {
+    validate(applicationTypeToCancel);
+    User user = userService.getById(userId);
+    ConversionResponse conversion = conversionService.getConversion(user);
+    UserPreferences contactDetails = episService.getContactDetails(user);
+    Mandate mandate =
+        cancellationMandateBuilder.build(applicationTypeToCancel, user, conversion, contactDetails);
+    return mandateService.save(user, mandate);
+  }
+
+  private void validate(ApplicationType applicationTypeToCancel) {
+    if (!asList(WITHDRAWAL, EARLY_WITHDRAWAL).contains(applicationTypeToCancel)) {
+      throw new InvalidApplicationTypeException(
+          "Invalid application type: " + applicationTypeToCancel);
     }
-
-    private void validate(ApplicationType applicationTypeToCancel) {
-        if (!asList(WITHDRAWAL, EARLY_WITHDRAWAL).contains(applicationTypeToCancel)) {
-            throw new InvalidApplicationTypeException("Invalid application type: " + applicationTypeToCancel);
-        }
-    }
-
+  }
 }

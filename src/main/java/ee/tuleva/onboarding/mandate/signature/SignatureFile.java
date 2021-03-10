@@ -7,8 +7,7 @@ import lombok.RequiredArgsConstructor;
 @Getter
 public class SignatureFile {
 
-	private final String name;
-	private final String mimeType;
-	private final byte[] content;
-
+  private final String name;
+  private final String mimeType;
+  private final byte[] content;
 }

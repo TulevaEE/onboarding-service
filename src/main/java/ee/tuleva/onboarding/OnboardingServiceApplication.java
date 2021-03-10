@@ -1,12 +1,10 @@
 package ee.tuleva.onboarding;
 
+import java.security.Security;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-import java.security.Security;
 
 @SpringBootApplication
 @Slf4j

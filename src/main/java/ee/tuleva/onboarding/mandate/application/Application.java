@@ -7,8 +7,8 @@ import lombok.Data;
 @Data
 @Builder
 public class Application {
-    private Long id;
-    private ApplicationType type;
-    private ApplicationStatus status;
-    private ApplicationDetails details;
+  private Long id;
+  private ApplicationType type;
+  private ApplicationStatus status;
+  private ApplicationDetails details;
 }

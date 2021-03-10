@@ -3,13 +3,12 @@ package ee.tuleva.onboarding.error;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.DefaultResponseErrorHandler;
-
-import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
@@ -28,5 +27,4 @@ public class RestResponseErrorHandler extends DefaultResponseErrorHandler {
 
     super.handleError(response);
   }
-
 }

@@ -1,10 +1,9 @@
 package ee.tuleva.onboarding.auth.principal;
 
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
-import lombok.*;
-
-import javax.validation.constraints.NotBlank;
 import java.io.Serializable;
+import javax.validation.constraints.NotBlank;
+import lombok.*;
 
 @Builder
 @Getter
@@ -13,20 +12,16 @@ import java.io.Serializable;
 @NoArgsConstructor
 public class AuthenticatedPerson implements Person, Serializable {
 
-    @ValidPersonalCode
-    private String personalCode;
+  @ValidPersonalCode private String personalCode;
 
-    @NotBlank
-    private String firstName;
+  @NotBlank private String firstName;
 
-    @NotBlank
-    private String lastName;
+  @NotBlank private String lastName;
 
-    private Long userId;
+  private Long userId;
 
-    @Override
-    public String toString() {
-        return personalCode;
-    }
-
+  @Override
+  public String toString() {
+    return personalCode;
+  }
 }

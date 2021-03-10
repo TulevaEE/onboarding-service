@@ -1,5 +1,15 @@
 package ee.tuleva.onboarding.auth.ocsp;
 
+import static ee.tuleva.onboarding.auth.ocsp.AuthenticationException.Code.INVALID_INPUT;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.net.URI;
+import java.security.cert.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Hex;
 import org.bouncycastle.asn1.ASN1InputStream;
@@ -20,17 +30,6 @@ import org.bouncycastle.operator.DigestCalculatorProvider;
 import org.bouncycastle.operator.OperatorCreationException;
 import org.bouncycastle.operator.jcajce.JcaDigestCalculatorProviderBuilder;
 import org.springframework.stereotype.Component;
-
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.net.URI;
-import java.security.cert.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import static ee.tuleva.onboarding.auth.ocsp.AuthenticationException.Code.INVALID_INPUT;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Component
 public class OCSPUtils {
@@ -111,7 +110,8 @@ public class OCSPUtils {
   private X509Certificate generateX09Certificate(byte[] certificate) {
     try {
       CertificateFactory certificateFactory = CertificateFactory.getInstance("X.509");
-      return (X509Certificate) certificateFactory.generateCertificate(new ByteArrayInputStream(certificate));
+      return (X509Certificate)
+          certificateFactory.generateCertificate(new ByteArrayInputStream(certificate));
     } catch (CertificateException e) {
       throw new AuthenticationException(INVALID_INPUT, "Unable to generate certificate", e);
     }

@@ -6,31 +6,33 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetri
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.time.Instant;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class FundComparisonCalculatorService {
 
-    private final AccountOverviewProvider accountOverviewProvider;
-    private final RateOfReturnCalculator rateOfReturnCalculator;
+  private final AccountOverviewProvider accountOverviewProvider;
+  private final RateOfReturnCalculator rateOfReturnCalculator;
 
-    public FundComparison calculateComparison(Person person, Instant startTime, Integer pillar) {
-        AccountOverview overview = accountOverviewProvider.getAccountOverview(person, startTime, pillar);
+  public FundComparison calculateComparison(Person person, Instant startTime, Integer pillar) {
+    AccountOverview overview =
+        accountOverviewProvider.getAccountOverview(person, startTime, pillar);
 
-        double actualRateOfReturn = rateOfReturnCalculator.getRateOfReturn(overview);
-        double estonianAverageRateOfReturn = rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY);
-        double marketAverageRateOfReturn = rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY);
+    double actualRateOfReturn = rateOfReturnCalculator.getRateOfReturn(overview);
+    double estonianAverageRateOfReturn =
+        rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY);
+    double marketAverageRateOfReturn =
+        rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY);
 
-        return FundComparison.builder()
-            .actualReturnPercentage(actualRateOfReturn)
-            .estonianAverageReturnPercentage(estonianAverageRateOfReturn)
-            .marketAverageReturnPercentage(marketAverageRateOfReturn)
-            .build();
-    }
+    return FundComparison.builder()
+        .actualReturnPercentage(actualRateOfReturn)
+        .estonianAverageReturnPercentage(estonianAverageRateOfReturn)
+        .marketAverageReturnPercentage(marketAverageRateOfReturn)
+        .build();
+  }
 }

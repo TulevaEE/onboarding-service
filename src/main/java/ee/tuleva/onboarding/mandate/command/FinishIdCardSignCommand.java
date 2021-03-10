@@ -1,12 +1,10 @@
 package ee.tuleva.onboarding.mandate.command;
 
-import lombok.Data;
 import javax.validation.constraints.NotBlank;
+import lombok.Data;
 
 @Data
 public class FinishIdCardSignCommand {
 
-    @NotBlank
-    private String signedHash;
-
+  @NotBlank private String signedHash;
 }

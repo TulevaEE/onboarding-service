@@ -15,20 +15,20 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ContactDetailsService {
 
-    private final EpisService episService;
-    private final ApplicationEventPublisher eventPublisher;
+  private final EpisService episService;
+  private final ApplicationEventPublisher eventPublisher;
 
-    public UserPreferences updateContactDetails(User user, Address address) {
-        UserPreferences contactDetails = episService.getContactDetails(user);
-        contactDetails.setEmail(user.getEmail());
-        contactDetails.setPhoneNumber(user.getPhoneNumber());
-        contactDetails.setAddress(address);
-        UserPreferences updatedContactDetails = episService.updateContactDetails(user, contactDetails);
-        eventPublisher.publishEvent(new ContactDetailsUpdatedEvent(this, user, updatedContactDetails));
-        return updatedContactDetails;
-    }
+  public UserPreferences updateContactDetails(User user, Address address) {
+    UserPreferences contactDetails = episService.getContactDetails(user);
+    contactDetails.setEmail(user.getEmail());
+    contactDetails.setPhoneNumber(user.getPhoneNumber());
+    contactDetails.setAddress(address);
+    UserPreferences updatedContactDetails = episService.updateContactDetails(user, contactDetails);
+    eventPublisher.publishEvent(new ContactDetailsUpdatedEvent(this, user, updatedContactDetails));
+    return updatedContactDetails;
+  }
 
-    public UserPreferences getContactDetails(Person person, String token) {
-        return episService.getContactDetails(person, token);
-    }
+  public UserPreferences getContactDetails(Person person, String token) {
+    return episService.getContactDetails(person, token);
+  }
 }

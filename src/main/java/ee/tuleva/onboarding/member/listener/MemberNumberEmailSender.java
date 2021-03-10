@@ -9,11 +9,11 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class MemberNumberEmailSender {
-    private final MemberEmailService emailService;
+  private final MemberEmailService emailService;
 
-    @Async
-    @EventListener
-    public void onMemberCreatedEvent(MemberCreatedEvent event) {
-        emailService.sendMemberNumber(event.getUser(), event.getLocale());
-    }
+  @Async
+  @EventListener
+  public void onMemberCreatedEvent(MemberCreatedEvent event) {
+    emailService.sendMemberNumber(event.getUser(), event.getLocale());
+  }
 }

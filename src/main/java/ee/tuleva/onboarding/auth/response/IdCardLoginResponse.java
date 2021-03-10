@@ -7,11 +7,9 @@ import lombok.Data;
 @Builder
 public class IdCardLoginResponse {
 
-    private boolean success;
+  private boolean success;
 
-    public static IdCardLoginResponse success() {
-        return builder()
-                .success(true)
-                .build();
-    }
+  public static IdCardLoginResponse success() {
+    return builder().success(true).build();
+  }
 }

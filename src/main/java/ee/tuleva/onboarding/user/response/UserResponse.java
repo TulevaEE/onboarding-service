@@ -16,52 +16,53 @@ import org.jetbrains.annotations.NotNull;
 @Setter
 public class UserResponse {
 
-    private Long id;
-    private String personalCode;
-    private String firstName;
-    private String lastName;
-    private String email;
-    private String phoneNumber;
-    private Integer memberNumber;
-    private String pensionAccountNumber;
-    private Address address;
-    private boolean isSecondPillarActive;
-    private boolean isThirdPillarActive;
+  private Long id;
+  private String personalCode;
+  private String firstName;
+  private String lastName;
+  private String email;
+  private String phoneNumber;
+  private Integer memberNumber;
+  private String pensionAccountNumber;
+  private Address address;
+  private boolean isSecondPillarActive;
+  private boolean isThirdPillarActive;
 
-    public int getAge() {
-        return PersonalCode.getAge(personalCode);
-    }
+  public int getAge() {
+    return PersonalCode.getAge(personalCode);
+  }
 
-    public static UserResponse from(@NotNull User user) {
-        return responseBuilder(user).build();
-    }
+  public static UserResponse from(@NotNull User user) {
+    return responseBuilder(user).build();
+  }
 
-    public static UserResponse from(@NotNull User user, @NotNull UserPreferences contactDetails) {
-        return responseBuilder(user)
-            .pensionAccountNumber(contactDetails.getPensionAccountNumber())
-            .address(Address.builder()
+  public static UserResponse from(@NotNull User user, @NotNull UserPreferences contactDetails) {
+    return responseBuilder(user)
+        .pensionAccountNumber(contactDetails.getPensionAccountNumber())
+        .address(
+            Address.builder()
                 .street(contactDetails.getAddressRow1())
                 .districtCode(contactDetails.getDistrictCode())
                 .postalCode(contactDetails.getPostalIndex())
                 .countryCode(contactDetails.getCountry())
                 .build())
-            .isSecondPillarActive(contactDetails.isSecondPillarActive())
-            .isThirdPillarActive(contactDetails.isThirdPillarActive())
-            .build();
-    }
+        .isSecondPillarActive(contactDetails.isSecondPillarActive())
+        .isThirdPillarActive(contactDetails.isThirdPillarActive())
+        .build();
+  }
 
-    private static UserResponseBuilder responseBuilder(@NotNull User user) {
-        return builder()
-            .id(user.getId())
-            .firstName(capitalize(user.getFirstName()))
-            .lastName(capitalize(user.getLastName()))
-            .personalCode(user.getPersonalCode())
-            .email(user.getEmail())
-            .phoneNumber(user.getPhoneNumber())
-            .memberNumber(user.getMember().map(Member::getMemberNumber).orElse(null));
-    }
+  private static UserResponseBuilder responseBuilder(@NotNull User user) {
+    return builder()
+        .id(user.getId())
+        .firstName(capitalize(user.getFirstName()))
+        .lastName(capitalize(user.getLastName()))
+        .personalCode(user.getPersonalCode())
+        .email(user.getEmail())
+        .phoneNumber(user.getPhoneNumber())
+        .memberNumber(user.getMember().map(Member::getMemberNumber).orElse(null));
+  }
 
-    private static String capitalize(String string) {
-        return WordUtils.capitalizeFully(string, ' ', '-');
-    }
+  private static String capitalize(String string) {
+    return WordUtils.capitalizeFully(string, ' ', '-');
+  }
 }

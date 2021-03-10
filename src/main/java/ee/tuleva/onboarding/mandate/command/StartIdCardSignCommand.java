@@ -1,13 +1,10 @@
 package ee.tuleva.onboarding.mandate.command;
 
-import lombok.Data;
-
 import javax.validation.constraints.NotBlank;
+import lombok.Data;
 
 @Data
 public class StartIdCardSignCommand {
 
-    @NotBlank
-    private String clientCertificate;
-
+  @NotBlank private String clientCertificate;
 }

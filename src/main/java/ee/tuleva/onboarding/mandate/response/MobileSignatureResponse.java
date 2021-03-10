@@ -9,6 +9,5 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MobileSignatureResponse {
 
-    private final String challengeCode;
-
+  private final String challengeCode;
 }

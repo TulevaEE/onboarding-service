@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.audit;
 
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.GrantType;
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.Person;
 import lombok.RequiredArgsConstructor;
@@ -16,28 +16,30 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class LoginAuditEventBroadcaster {
 
-    private final AuditEventPublisher auditEventPublisher;
+  private final AuditEventPublisher auditEventPublisher;
 
-    @EventListener
-    public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
-        Person person = event.getPerson();
-        log.info("Broadcasting login audit event from BeforeTokenGrantedEvent: timestamp={}, name={} {}",
-            event.getTimestamp(),
-            person.getFirstName(),
-            person.getLastName()
-        );
+  @EventListener
+  public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
+    Person person = event.getPerson();
+    log.info(
+        "Broadcasting login audit event from BeforeTokenGrantedEvent: timestamp={}, name={} {}",
+        event.getTimestamp(),
+        person.getFirstName(),
+        person.getLastName());
 
-        Authentication auth = event.getAuthentication().getUserAuthentication();
+    Authentication auth = event.getAuthentication().getUserAuthentication();
 
-        Object credentials = auth.getCredentials();
-        if (GrantType.ID_CARD.equals(event.getGrantType())) {
-            val idCardSession = (IdCardSession) credentials;
-            auditEventPublisher.publish(person.getPersonalCode(), AuditEventType.LOGIN,
-                "method=" + event.getGrantType(), "document=" + idCardSession.documentType);
-        } else {
-            auditEventPublisher.publish(person.getPersonalCode(), AuditEventType.LOGIN,
-                "method=" + event.getGrantType());
-        }
+    Object credentials = auth.getCredentials();
+    if (GrantType.ID_CARD.equals(event.getGrantType())) {
+      val idCardSession = (IdCardSession) credentials;
+      auditEventPublisher.publish(
+          person.getPersonalCode(),
+          AuditEventType.LOGIN,
+          "method=" + event.getGrantType(),
+          "document=" + idCardSession.documentType);
+    } else {
+      auditEventPublisher.publish(
+          person.getPersonalCode(), AuditEventType.LOGIN, "method=" + event.getGrantType());
     }
-
+  }
 }

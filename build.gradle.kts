@@ -28,15 +28,9 @@ plugins {
 }
 
 spotless {
-    ratchetFrom = "origin/master"
     java {
         removeUnusedImports()
         googleJavaFormat()
-    }
-    groovy {
-        excludeJava()
-        greclipse()
-        indentWithSpaces(2)
     }
     kotlinGradle {
         target("*.gradle.kts")

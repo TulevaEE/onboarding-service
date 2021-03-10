@@ -15,18 +15,21 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class CancellationMandateBuilder {
 
-    private final ConversionDecorator conversionDecorator;
+  private final ConversionDecorator conversionDecorator;
 
-    public Mandate build(ApplicationType applicationTypeToCancel, User user,
-                         ConversionResponse conversion, UserPreferences contactDetails) {
+  public Mandate build(
+      ApplicationType applicationTypeToCancel,
+      User user,
+      ConversionResponse conversion,
+      UserPreferences contactDetails) {
 
-        Mandate mandate = new Mandate();
-        mandate.setUser(user);
-        mandate.setPillar(2); // Can only cancel 2nd pillar applications for now
-        mandate.setAddress(contactDetails.getAddress());
-        mandate.putMetadata("applicationTypeToCancel", applicationTypeToCancel);
-        conversionDecorator.addConversionMetadata(mandate, conversion, contactDetails);
+    Mandate mandate = new Mandate();
+    mandate.setUser(user);
+    mandate.setPillar(2); // Can only cancel 2nd pillar applications for now
+    mandate.setAddress(contactDetails.getAddress());
+    mandate.putMetadata("applicationTypeToCancel", applicationTypeToCancel);
+    conversionDecorator.addConversionMetadata(mandate, conversion, contactDetails);
 
-        return mandate;
-    }
+    return mandate;
+  }
 }

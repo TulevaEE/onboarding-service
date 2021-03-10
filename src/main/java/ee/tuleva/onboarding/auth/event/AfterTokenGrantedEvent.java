@@ -8,12 +8,12 @@ import org.springframework.security.oauth2.common.OAuth2AccessToken;
 @Getter
 public class AfterTokenGrantedEvent extends ApplicationEvent {
 
-    private final Person person;
-    private final OAuth2AccessToken accessToken;
+  private final Person person;
+  private final OAuth2AccessToken accessToken;
 
-    public AfterTokenGrantedEvent(Object source, Person person, OAuth2AccessToken accessToken) {
-        super(source);
-        this.person = person;
-        this.accessToken = accessToken;
-    }
+  public AfterTokenGrantedEvent(Object source, Person person, OAuth2AccessToken accessToken) {
+    super(source);
+    this.person = person;
+    this.accessToken = accessToken;
+  }
 }

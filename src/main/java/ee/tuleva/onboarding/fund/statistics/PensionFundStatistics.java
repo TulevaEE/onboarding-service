@@ -1,15 +1,14 @@
 package ee.tuleva.onboarding.fund.statistics;
 
+import java.io.Serializable;
+import java.math.BigDecimal;
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
+import javax.xml.bind.annotation.XmlAttribute;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
-import java.io.Serializable;
-import java.math.BigDecimal;
 
 @Data
 @Builder
@@ -18,22 +17,21 @@ import java.math.BigDecimal;
 @XmlAccessorType(XmlAccessType.FIELD)
 public class PensionFundStatistics implements Serializable {
 
-    private static final long serialVersionUID = 6065879655793615150L;
+  private static final long serialVersionUID = 6065879655793615150L;
 
-    @XmlAttribute(name = "ISIN")
-    private String isin;
+  @XmlAttribute(name = "ISIN")
+  private String isin;
 
-    @XmlAttribute(name = "VOLUME")
-    private BigDecimal volume;
+  @XmlAttribute(name = "VOLUME")
+  private BigDecimal volume;
 
-    @XmlAttribute(name = "NAV")
-    private BigDecimal nav;
+  @XmlAttribute(name = "NAV")
+  private BigDecimal nav;
 
-    @XmlAttribute(name = "ACTIVE_COUNT")
-    private Integer activeCount;
+  @XmlAttribute(name = "ACTIVE_COUNT")
+  private Integer activeCount;
 
-    public static PensionFundStatistics getNull() {
-        return new PensionFundStatistics();
-    }
-
+  public static PensionFundStatistics getNull() {
+    return new PensionFundStatistics();
+  }
 }

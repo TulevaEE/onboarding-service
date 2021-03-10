@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.fund.statistics;
 
+import static java.time.Duration.ofSeconds;
+
+import java.util.ArrayList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -9,64 +13,59 @@ import org.springframework.http.converter.xml.Jaxb2RootElementHttpMessageConvert
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestOperations;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import static java.time.Duration.ofSeconds;
-
 @Service
 @Slf4j
 public class PensionFundStatisticsService {
 
-    @Value("${pensionikeskus.statistics.2ndpillar.url}")
-    private String secondPillarEndpoint;
+  @Value("${pensionikeskus.statistics.2ndpillar.url}")
+  private String secondPillarEndpoint;
 
-    @Value("${pensionikeskus.statistics.3rdpillar.url}")
-    private String thirdPillarEndpoint;
+  @Value("${pensionikeskus.statistics.3rdpillar.url}")
+  private String thirdPillarEndpoint;
 
-    private final RestOperations restTemplate;
+  private final RestOperations restTemplate;
 
-    private static final String PENSION_FUND_STATISTICS_CACHE = "pensionFundStatistics";
+  private static final String PENSION_FUND_STATISTICS_CACHE = "pensionFundStatistics";
 
-    public PensionFundStatisticsService(RestTemplateBuilder restTemplateBuilder) {
-        restTemplate = restTemplateBuilder
+  public PensionFundStatisticsService(RestTemplateBuilder restTemplateBuilder) {
+    restTemplate =
+        restTemplateBuilder
             .setConnectTimeout(ofSeconds(60))
             .setReadTimeout(ofSeconds(60))
             .additionalMessageConverters(new Jaxb2RootElementHttpMessageConverter())
             .build();
+  }
+
+  @Cacheable(value = PENSION_FUND_STATISTICS_CACHE, unless = "#result.isEmpty()")
+  public List<PensionFundStatistics> getCachedStatistics() {
+    return getPensionFundStatistics();
+  }
+
+  @CachePut(value = PENSION_FUND_STATISTICS_CACHE, unless = "#result.isEmpty()")
+  public List<PensionFundStatistics> refreshCachedStatistics() {
+    return getPensionFundStatistics();
+  }
+
+  List<PensionFundStatistics> getPensionFundStatistics() {
+    List<PensionFundStatistics> statistics = getPensionFundStatistics(secondPillarEndpoint);
+    statistics.addAll(getPensionFundStatistics(thirdPillarEndpoint));
+    return statistics;
+  }
+
+  List<PensionFundStatistics> getPensionFundStatistics(String endpoint) {
+    try {
+      PensionFundStatisticsResponse response =
+          restTemplate.getForObject(endpoint, PensionFundStatisticsResponse.class);
+      List<PensionFundStatistics> result = response.getPensionFundStatistics();
+
+      if (result == null) {
+        log.info("Pension fund statistics is empty");
+        return new ArrayList<>();
+      }
+      return result;
+    } catch (Exception e) {
+      log.error("Error getting pension fund statistics");
+      return new ArrayList<>();
     }
-
-    @Cacheable(value = PENSION_FUND_STATISTICS_CACHE, unless = "#result.isEmpty()")
-    public List<PensionFundStatistics> getCachedStatistics() {
-        return getPensionFundStatistics();
-    }
-
-    @CachePut(value = PENSION_FUND_STATISTICS_CACHE, unless = "#result.isEmpty()")
-    public List<PensionFundStatistics> refreshCachedStatistics() {
-        return getPensionFundStatistics();
-    }
-
-    List<PensionFundStatistics> getPensionFundStatistics() {
-        List<PensionFundStatistics> statistics = getPensionFundStatistics(secondPillarEndpoint);
-        statistics.addAll(getPensionFundStatistics(thirdPillarEndpoint));
-        return statistics;
-    }
-
-    List<PensionFundStatistics> getPensionFundStatistics(String endpoint) {
-        try {
-            PensionFundStatisticsResponse response = restTemplate.getForObject(endpoint,
-                PensionFundStatisticsResponse.class);
-            List<PensionFundStatistics> result = response.getPensionFundStatistics();
-
-            if (result == null) {
-                log.info("Pension fund statistics is empty");
-                return new ArrayList<>();
-            }
-            return result;
-        } catch (Exception e) {
-            log.error("Error getting pension fund statistics");
-            return new ArrayList<>();
-        }
-    }
-
+  }
 }

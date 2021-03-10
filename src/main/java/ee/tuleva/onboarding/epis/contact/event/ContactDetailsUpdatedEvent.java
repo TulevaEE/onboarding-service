@@ -8,12 +8,12 @@ import org.springframework.context.ApplicationEvent;
 @Getter
 public class ContactDetailsUpdatedEvent extends ApplicationEvent {
 
-    private final User user;
-    private final UserPreferences contactDetails;
+  private final User user;
+  private final UserPreferences contactDetails;
 
-    public ContactDetailsUpdatedEvent(Object source, User user, UserPreferences contactDetails) {
-        super(source);
-        this.user = user;
-        this.contactDetails = contactDetails;
-    }
+  public ContactDetailsUpdatedEvent(Object source, User user, UserPreferences contactDetails) {
+    super(source);
+    this.user = user;
+    this.contactDetails = contactDetails;
+  }
 }

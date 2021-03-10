@@ -8,7 +8,6 @@ import lombok.Setter;
 @Setter
 public class AuthenticateCommand {
   private String phoneNumber;
-  @ValidPersonalCode
-  private String personalCode;
+  @ValidPersonalCode private String personalCode;
   private AuthenticationType type;
 }

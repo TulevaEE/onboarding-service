@@ -12,13 +12,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class AuditEventPublisher {
 
-    private final ApplicationEventPublisher applicationEventPublisher;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
-    public void publish(String principal, AuditEventType type, String... data) {
-        log.info("Publishing AuditEvent: principal={}, type={}", principal, type);
+  public void publish(String principal, AuditEventType type, String... data) {
+    log.info("Publishing AuditEvent: principal={}, type={}", principal, type);
 
-        applicationEventPublisher.publishEvent(
-            new AuditApplicationEvent(new AuditEvent(principal, String.valueOf(type), data)));
-    }
-
+    applicationEventPublisher.publishEvent(
+        new AuditApplicationEvent(new AuditEvent(principal, String.valueOf(type), data)));
+  }
 }

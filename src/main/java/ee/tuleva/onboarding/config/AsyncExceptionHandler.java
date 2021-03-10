@@ -1,9 +1,8 @@
 package ee.tuleva.onboarding.config;
 
+import java.lang.reflect.Method;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
-
-import java.lang.reflect.Method;
 
 @Slf4j
 public class AsyncExceptionHandler implements AsyncUncaughtExceptionHandler {
@@ -13,5 +12,4 @@ public class AsyncExceptionHandler implements AsyncUncaughtExceptionHandler {
     log.error("Uncaught async exception", throwable);
     throw new RuntimeException(throwable);
   }
-
 }

@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -79,8 +80,8 @@ public class ContextBuilder {
     return this;
   }
 
-  public ContextBuilder mandateTypeToCancel(String mandateTypeToCancel) {
-    ctx.setVariable("mandateTypeToCancel", mandateTypeToCancel);
+  public ContextBuilder applicationTypeToCancel(ApplicationType applicationTypeToCancel) {
+    ctx.setVariable("applicationTypeToCancel", applicationTypeToCancel);
     return this;
   }
 

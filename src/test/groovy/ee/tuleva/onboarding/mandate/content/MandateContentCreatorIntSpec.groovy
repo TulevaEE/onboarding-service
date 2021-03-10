@@ -37,12 +37,12 @@ class MandateContentCreatorIntSpec extends Specification {
 
     when:
     List<MandateContentFile> mandateContentFiles =
-        mandateContentCreator.getContentFiles(
+      mandateContentCreator.getContentFiles(
         sampleUser().build(),
         mandate,
         sampleFunds(),
         contactDetailsFixture()
-        )
+      )
 
     then:
     mandateContentFiles.size() == 2
@@ -60,20 +60,21 @@ class MandateContentCreatorIntSpec extends Specification {
   def "mandate cancellation mandate can be generated from template"() {
     given:
     Mandate mandate = sampleMandate()
+    mandate.setMetadata(["applicationTypeToCancel": "WITHDRAWAL"])
 
     when:
-    MandateContentFile mandateContentFile =
-        mandateContentCreator.getContentFileForMandateCancellation(
+    List<MandateContentFile> mandateContentFiles =
+      mandateContentCreator.getContentFiles(
         sampleUser().build(),
         mandate,
-        contactDetailsFixture(),
-        "vahetusavaldus"
-        )
+        sampleFunds(),
+        contactDetailsFixture()
+      )
 
     then:
-    mandateContentFile.name == "avalduse_tyhistamise_avaldus_123.html"
-    mandateContentFile.mimeType == "text/html"
-    DigestUtils.md5Hex(mandateContentFile.content) == "cbf9871b5ce567b99e3d77bcdf1683b2"
+    mandateContentFiles[3].name == "avalduse_tyhistamise_avaldus_123.html"
+    mandateContentFiles[3].mimeType == "text/html"
+    DigestUtils.md5Hex(mandateContentFiles[3].content) == "c23707b9946cdac38d519295c972dfd0"
   }
 
   @Unroll
@@ -85,12 +86,12 @@ class MandateContentCreatorIntSpec extends Specification {
 
     when:
     List<MandateContentFile> mandateContentFiles =
-        mandateContentCreator.getContentFiles(
+      mandateContentCreator.getContentFiles(
         sampleUser().build(),
         mandate,
         sampleFunds(),
         contactDetailsFixture()
-        )
+      )
 
     then:
     mandateContentFiles.size() == 2

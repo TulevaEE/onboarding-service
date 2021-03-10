@@ -1,13 +1,29 @@
 package ee.tuleva.onboarding.mandate;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.config.JsonbType;
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.*;
-import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.Convert;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToMany;
+import javax.persistence.PrePersist;
+import javax.persistence.Table;
 import javax.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
@@ -97,7 +113,7 @@ public class Mandate {
   public Map<String, List<FundTransferExchange>> getFundTransferExchangesBySourceIsin() {
     Map<String, List<FundTransferExchange>> exchangeMap = new HashMap<>();
 
-    getFundTransferExchanges().stream()
+    fundTransferExchanges.stream()
         .filter(exchange -> exchange.getAmount().compareTo(BigDecimal.ZERO) > 0)
         .forEach(
             exchange -> {
@@ -112,5 +128,18 @@ public class Mandate {
 
   public void putMetadata(String key, Object value) {
     metadata.put(key, value);
+  }
+
+  @JsonIgnore
+  public boolean isCancellation() {
+    return metadata != null && metadata.containsKey("applicationTypeToCancel");
+  }
+
+  @JsonIgnore
+  public ApplicationType getApplicationTypeToCancel() {
+    if (isCancellation()) {
+      return ApplicationType.valueOf((String) metadata.get("applicationTypeToCancel"));
+    }
+    return null;
   }
 }

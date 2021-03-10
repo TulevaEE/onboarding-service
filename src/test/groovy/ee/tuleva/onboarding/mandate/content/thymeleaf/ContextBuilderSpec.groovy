@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
 
 class ContextBuilderSpec extends Specification {
 
@@ -108,15 +109,15 @@ class ContextBuilderSpec extends Specification {
         context.getVariable("documentNumber") == documentNumber
     }
 
-    def "MandateTypeToCancel"() {
+    def "applicationTypeToCancel"() {
         given:
-        String mandateTypeToCancel = "Vahetusavaldus"
+        def applicationTypeToCancel = WITHDRAWAL
         when:
         Context context = ContextBuilder.builder()
-            .mandateTypeToCancel(mandateTypeToCancel)
+            .applicationTypeToCancel(applicationTypeToCancel)
             .build()
         then:
-        context.getVariable("mandateTypeToCancel") == mandateTypeToCancel
+        context.getVariable("applicationTypeToCancel") == applicationTypeToCancel
     }
 
     def "FundTransferExchanges"() {

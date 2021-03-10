@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextBuilder;
 import ee.tuleva.onboarding.user.User;
 import java.util.ArrayList;
@@ -33,12 +34,20 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
           getFutureContributionsFundMandateContentFile(user, mandate, funds, userPreferences));
     }
 
+    if (mandate.isCancellation()) {
+      files.add(
+          getContentFileForMandateCancellation(
+              user, mandate, userPreferences, mandate.getApplicationTypeToCancel()));
+    }
+
     return files;
   }
 
-  @Override
-  public MandateContentFile getContentFileForMandateCancellation(
-      User user, Mandate mandate, UserPreferences userPreferences, String mandateTypeToCancel) {
+  private MandateContentFile getContentFileForMandateCancellation(
+      User user,
+      Mandate mandate,
+      UserPreferences userPreferences,
+      ApplicationType applicationTypeToCancel) {
     String transactionId = UUID.randomUUID().toString();
     String documentNumber = mandate.getId().toString();
 
@@ -49,7 +58,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
             .userPreferences(userPreferences)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
-            .mandateTypeToCancel(mandateTypeToCancel)
+            .applicationTypeToCancel(applicationTypeToCancel)
             .build();
 
     String htmlContent = templateEngine.process("mandate_cancellation_mandate", ctx);

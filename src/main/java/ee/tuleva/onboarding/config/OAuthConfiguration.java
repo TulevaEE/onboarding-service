@@ -1,9 +1,5 @@
 package ee.tuleva.onboarding.config;
 
-import static ee.tuleva.onboarding.capital.CapitalController.CAPITAL_URI;
-import static ee.tuleva.onboarding.config.OAuthConfiguration.ResourceServerPathConfiguration.RESOURCE_REQUEST_MATCHER_BEAN;
-import static java.util.Arrays.asList;
-
 import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.idcard.IdCardTokenGranter;
@@ -13,7 +9,6 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService;
 import ee.tuleva.onboarding.auth.smartid.SmartIdTokenGranter;
-import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -43,6 +38,12 @@ import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
+
+import javax.sql.DataSource;
+
+import static ee.tuleva.onboarding.capital.CapitalController.CAPITAL_URI;
+import static ee.tuleva.onboarding.config.OAuthConfiguration.ResourceServerPathConfiguration.RESOURCE_REQUEST_MATCHER_BEAN;
+import static java.util.Arrays.asList;
 
 @Configuration
 public class OAuthConfiguration {

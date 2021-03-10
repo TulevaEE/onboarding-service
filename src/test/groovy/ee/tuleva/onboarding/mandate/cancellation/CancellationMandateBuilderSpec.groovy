@@ -10,6 +10,7 @@ import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyCon
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.sampleApplication
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.transferApplication
+import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.withdrawalApplication
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
 
 class CancellationMandateBuilderSpec extends Specification {
@@ -23,7 +24,7 @@ class CancellationMandateBuilderSpec extends Specification {
 
   def "can build withdrawal cancellation mandates"() {
     given:
-    def applicationToCancel = sampleApplication().type(WITHDRAWAL).build()
+    def applicationToCancel = withdrawalApplication().build()
     def user = sampleUser().build()
     def conversion = fullyConverted()
     def contactDetails = contactDetailsFixture()

@@ -17,11 +17,24 @@ class ApplicationFixture {
       .details(transferApplicationDetails().build())
   }
 
+  static Application.ApplicationBuilder withdrawalApplication() {
+    return sampleApplication()
+      .type(ApplicationType.WITHDRAWAL)
+      .status(ApplicationStatus.PENDING)
+      .id(123L)
+      .details(withdrawalApplicationDetails().build())
+  }
+
   static TransferApplicationDetails.TransferApplicationDetailsBuilder transferApplicationDetails() {
     return TransferApplicationDetails.builder()
       .sourceFundIsin("source")
       .targetFundIsin("target")
       .currency("EUR")
       .amount(ONE)
+  }
+
+  static WithdrawalApplicationDetails.WithdrawalApplicationDetailsBuilder withdrawalApplicationDetails() {
+    return WithdrawalApplicationDetails.builder()
+      .depositAccountIBAN("IBAN")
   }
 }

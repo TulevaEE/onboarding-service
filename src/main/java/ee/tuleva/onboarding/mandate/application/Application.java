@@ -9,7 +9,7 @@ import lombok.Data;
 @Builder
 public class Application {
   private Long id;
-  private Instant createdTime;
+  private Instant creationTime;
   private ApplicationType type;
   private ApplicationStatus status;
   private ApplicationDetails details;

@@ -21,4 +21,5 @@ public class ApplicationDTO implements Serializable {
   private String sourceFundIsin;
   private String targetFundIsin;
   private ApplicationType type;
+  private String bankAccount;
 }

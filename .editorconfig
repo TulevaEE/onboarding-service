@@ -6,9 +6,9 @@ indent_style = space
 indent_size = 2
 trim_trailing_whitespace = true
 
-[*.gradle]
+[*.{gradle,gradle.kts}]
 charset = utf-8
-indent_style = tab
+indent_style = space
 indent_size = 4
 insert_final_newline = true
 max_line_length = 120

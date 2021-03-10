@@ -36,6 +36,7 @@ spotless {
     groovy {
         excludeJava()
         greclipse()
+        indentWithSpaces(2)
     }
     kotlinGradle {
         target("*.gradle.kts")

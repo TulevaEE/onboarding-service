@@ -16,6 +16,7 @@ public class ApplicationConverter implements Converter<ApplicationDTO, Applicati
   public Application convert(ApplicationDTO applicationDTO) {
     val applicationBuilder =
         Application.builder()
+            .createdTime(applicationDTO.getDate())
             .type(applicationDTO.getType())
             .status(applicationDTO.getStatus())
             .id(applicationDTO.getId());

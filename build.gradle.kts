@@ -89,7 +89,7 @@ dependencies {
     implementation("net.sf.ehcache:ehcache")
     implementation("org.decampo:xirr:1.1")
     implementation("org.bouncycastle:bcpkix-jdk15on:1.68")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:2.7.7")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:3.0.0")
 
     implementation("com.github.SK-EID:smart-id-java-client:1.6.1")
     // TODO: upgrade

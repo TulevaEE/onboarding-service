@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.processor;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.cancellation.CancellationDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
@@ -31,16 +32,41 @@ public class MandateProcessorService {
     log.info(
         "Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
 
-    val mandateDto =
-        MandateDto.builder()
-            .id(mandate.getId())
-            .createdDate(mandate.getCreatedDate())
-            .fundTransferExchanges(getFundTransferExchanges(mandate))
-            .pillar(mandate.getPillar())
-            .address(mandate.getAddress());
-    addSelectionApplication(mandate, mandateDto);
-    val response = episService.sendMandate(mandateDto.build());
-    handleApplicationProcessResponse(response);
+    if (mandate.isCancellation()) {
+      val response = episService.sendCancellation(getCancellationDto(mandate));
+      handleApplicationProcessResponse(response);
+    } else {
+      val response = episService.sendMandate(getMandateDto(mandate));
+      handleApplicationProcessResponse(response);
+    }
+  }
+
+  private MandateDto getMandateDto(Mandate mandate) {
+    val mandateDtoBuilder =
+      MandateDto.builder()
+        .id(mandate.getId())
+        .createdDate(mandate.getCreatedDate())
+        .fundTransferExchanges(getFundTransferExchanges(mandate))
+        .pillar(mandate.getPillar())
+        .address(mandate.getAddress());
+    addSelectionApplication(mandate, mandateDtoBuilder);
+    val mandateDto = mandateDtoBuilder.build();
+    return mandateDto;
+  }
+
+  private CancellationDto getCancellationDto(Mandate mandate) {
+    val mandateDtoBuilder =
+      CancellationDto.builder()
+        .id(mandate.getId())
+        .createdDate(mandate.getCreatedDate())
+        .address(mandate.getAddress())
+        .applicationTypeToCancel(mandate.getApplicationTypeToCancel())
+      ;
+
+    val process = createMandateProcess(mandate, ApplicationType.CANCELLATION);
+    mandateDtoBuilder.processId(process.getProcessId());
+    val mandateDto = mandateDtoBuilder.build();
+    return mandateDto;
   }
 
   private void handleApplicationProcessResponse(ApplicationResponseDTO response) {
@@ -60,7 +86,6 @@ public class MandateProcessorService {
                     process.getId(),
                     process.isSuccessful().toString(),
                     process.getErrorCode().toString());
-
               } else {
                 log.info(
                     "Process with id {} is {}", process.getId(), process.isSuccessful().toString());

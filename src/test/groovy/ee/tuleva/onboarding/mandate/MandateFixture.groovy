@@ -114,7 +114,19 @@ class MandateFixture {
         return mandate
     }
 
-    static Mandate sampleMandateWithEmptyTransfer() {
+    static Mandate sampleCancellationMandate() {
+        Mandate mandate = builder()
+            .address(addressFixture().build())
+            .build()
+
+        mandate.setId(123)
+        mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
+        mandate.setMandate("file".getBytes())
+        mandate.metadata = ["applicationTypeToCancel" : "SELECTION"]
+        return mandate
+  }
+
+  static Mandate sampleMandateWithEmptyTransfer() {
         Mandate mandate = builder()
             .fundTransferExchanges([
                 FundTransferExchange.builder()

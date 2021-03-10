@@ -212,7 +212,7 @@ class EpisServiceSpec extends Specification {
         1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
             doesHttpEntityContainToken(httpEntity, sampleToken) &&
                 httpEntity.body.id == sampleCancellation.id
-        }, ApplicationResponse.class)
+        }, ApplicationResponseDTO.class)
 
         when:
         service.sendCancellation(sampleCancellation)

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.processor
 
 import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.epis.cancellation.CancellationDto
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
@@ -12,6 +13,7 @@ import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleCancellationMandate
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class MandateProcessorServiceSpec extends Specification {
@@ -51,6 +53,26 @@ class MandateProcessorServiceSpec extends Specification {
         pillar | address
         2      | addressFixture().build()
         3      | null
+    }
+
+    def "Start: starts processing cancellation mandate and saves mandate processes"() {
+        given:
+        Mandate mandate = sampleCancellationMandate()
+        mandate.address = addressFixture().build()
+        def mandateResponse = new ApplicationResponseDTO()
+        def response = new ApplicationResponse()
+        mandateResponse.mandateResponses = [response]
+        1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
+        when:
+        service.start(sampleUser, mandate)
+        then:
+        1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
+          mandateProcess.mandate == mandate && mandateProcess.processId != null
+        }) >> { args -> args[0] }
+        1 * episService.sendCancellation({ CancellationDto dto ->
+          dto.applicationTypeToCancel.toString() == mandate.metadata.get("applicationTypeToCancel")
+          dto.address == mandate.address
+        }) >> mandateResponse
     }
 
     def "IsFinished: processing is complete when all message processes are finished"() {

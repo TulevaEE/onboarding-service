@@ -15,7 +15,7 @@ jobs:
 
       - restore_cache:
           keys:
-            - v1-dependencies-{{ arch }}-{{ checksum "build.gradle" }}
+            - v1-dependencies-{{ arch }}-{{ checksum "build.gradle.kts" }}
             # fallback to using the latest cache if no exact match is found
             - v1-dependencies-
 
@@ -35,7 +35,7 @@ jobs:
           command: bash <(curl -s https://codecov.io/bash)
 
       - save_cache:
-          key: v1-dependencies-{{ arch }}-{{ checksum "build.gradle" }}
+          key: v1-dependencies-{{ arch }}-{{ checksum "build.gradle.kts" }}
           paths:
             - ~/.gradle
 

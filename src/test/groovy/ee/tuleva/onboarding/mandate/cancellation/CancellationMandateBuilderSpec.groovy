@@ -8,10 +8,8 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.sampleApplication
-import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.transferApplication
-import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.withdrawalApplication
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
+import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleWithdrawalApplicationDto
 
 class CancellationMandateBuilderSpec extends Specification {
 
@@ -24,7 +22,7 @@ class CancellationMandateBuilderSpec extends Specification {
 
   def "can build withdrawal cancellation mandates"() {
     given:
-    def applicationToCancel = withdrawalApplication().build()
+    def applicationToCancel = sampleWithdrawalApplicationDto()
     def user = sampleUser().build()
     def conversion = fullyConverted()
     def contactDetails = contactDetailsFixture()
@@ -49,7 +47,7 @@ class CancellationMandateBuilderSpec extends Specification {
 
   def "can build transfer cancellation mandates"() {
     given:
-    def applicationToCancel = transferApplication().build()
+    def applicationToCancel = sampleTransferApplicationDto()
     def user = sampleUser().build()
     def conversion = fullyConverted()
     def contactDetails = contactDetailsFixture()

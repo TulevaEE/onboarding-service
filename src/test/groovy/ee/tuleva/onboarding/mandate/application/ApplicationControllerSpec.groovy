@@ -2,10 +2,12 @@ package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.fund.response.FundDto
 import org.springframework.test.web.servlet.MockMvc
 
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.*
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.transferApplication
 import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -33,8 +35,10 @@ class ApplicationControllerSpec extends BaseControllerSpec {
             .param('status', 'PENDING'))
             .andExpect(status().isOk())
             .andExpect(jsonPath('$.*', hasSize(1)))
-            .andExpect(jsonPath('$[0].details.sourceFundIsin', is(sourceFundIsin)))
-            .andExpect(jsonPath('$[0].details.targetFundIsin', is(targetFundIsin)))
+            .andExpect(jsonPath('$[0].type', is("TRANSFER")))
+            .andExpect(jsonPath('$[0].details.sourceFund.isin', is(sourceFundIsin)))
+            .andExpect(jsonPath('$[0].details.exchanges[0].targetFund.isin', is(targetFundIsin)))
+            .andExpect(jsonPath('$[0].details.exchanges[0].amount', is(1)))
     }
 
     def "can cancel applications"() {
@@ -49,8 +53,8 @@ class ApplicationControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.mandateId', is(mandate.id.intValue())))
     }
 
-    String sourceFundIsin = "EE123"
-    String targetFundIsin = "EE234"
+    String sourceFundIsin = "AE123232334"
+    String targetFundIsin = "EE3600109443"
 
     List<Application> sampleApplications = [
         Application.builder()
@@ -59,12 +63,6 @@ class ApplicationControllerSpec extends BaseControllerSpec {
         Application.builder()
             .status(COMPLETE)
             .build(),
-        Application.builder()
-            .status(PENDING)
-            .details(TransferApplicationDetails.builder()
-                .sourceFundIsin(sourceFundIsin)
-                .targetFundIsin(targetFundIsin)
-                .build())
-            .build()
+        transferApplication().build()
     ]
 }

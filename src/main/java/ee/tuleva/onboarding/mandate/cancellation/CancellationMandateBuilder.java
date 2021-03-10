@@ -6,10 +6,9 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWA
 
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.application.Application;
-import ee.tuleva.onboarding.mandate.application.TransferApplicationDetails;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.user.User;
 import java.util.Collections;
@@ -26,7 +25,7 @@ public class CancellationMandateBuilder {
   private final ConversionDecorator conversionDecorator;
 
   public Mandate build(
-      Application applicationToCancel,
+      ApplicationDTO applicationToCancel,
       User user,
       ConversionResponse conversion,
       UserPreferences contactDetails) {
@@ -47,18 +46,17 @@ public class CancellationMandateBuilder {
     return null;
   }
 
-  public Mandate buildWithdrawalMandate(Application applicationToCancel, Mandate mandate) {
+  public Mandate buildWithdrawalMandate(ApplicationDTO applicationToCancel, Mandate mandate) {
     mandate.putMetadata("applicationTypeToCancel", applicationToCancel.getType());
     return mandate;
   }
 
   private Mandate buildTransferCancellationMandate(
-      Application applicationToCancel, Mandate mandate) {
-    val details = ((TransferApplicationDetails) applicationToCancel.getDetails());
+      ApplicationDTO applicationToCancel, Mandate mandate) {
 
     val exchange =
         FundTransferExchange.builder()
-            .sourceFundIsin(details.getSourceFundIsin())
+            .sourceFundIsin(applicationToCancel.getSourceFundIsin())
             .targetFundIsin(null)
             .mandate(mandate)
             .build();

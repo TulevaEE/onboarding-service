@@ -9,9 +9,9 @@ import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateService;
-import ee.tuleva.onboarding.mandate.application.Application;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -30,7 +30,7 @@ public class MandateCancellationService {
   private final UserConversionService conversionService;
   private final CancellationMandateBuilder cancellationMandateBuilder;
 
-  public Mandate saveCancellationMandate(Long userId, Application applicationToCancel) {
+  public Mandate saveCancellationMandate(Long userId, ApplicationDTO applicationToCancel) {
     validate(applicationToCancel.getType());
     User user = userService.getById(userId);
     ConversionResponse conversion = conversionService.getConversion(user);

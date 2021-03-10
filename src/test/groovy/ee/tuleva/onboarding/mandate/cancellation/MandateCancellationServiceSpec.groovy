@@ -10,55 +10,55 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
-import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.sampleApplication
+import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
 
 class MandateCancellationServiceSpec extends Specification {
 
-    MandateService mandateService = Mock()
-    UserService userService = Mock()
-    EpisService episService = Mock()
-    UserConversionService conversionService = Mock()
-    CancellationMandateBuilder cancellationMandateBuilder = Mock()
+  MandateService mandateService = Mock()
+  UserService userService = Mock()
+  EpisService episService = Mock()
+  UserConversionService conversionService = Mock()
+  CancellationMandateBuilder cancellationMandateBuilder = Mock()
 
-    MandateCancellationService mandateCancellationService
+  MandateCancellationService mandateCancellationService
 
-    def setup() {
-        mandateCancellationService = new MandateCancellationService(
-            mandateService, userService, episService, conversionService, cancellationMandateBuilder
-        )
-    }
+  def setup() {
+    mandateCancellationService = new MandateCancellationService(
+      mandateService, userService, episService, conversionService, cancellationMandateBuilder
+    )
+  }
 
-    def "saves cancellation mandate"() {
-        given:
-        def user = sampleUser().build()
-        def conversion = fullyConverted()
-        def contactDetails = contactDetailsFixture()
-        def applicationToCancel = sampleApplication().build()
-        def mandate = sampleMandate()
+  def "saves cancellation mandate"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+    def applicationToCancel = sampleTransferApplicationDto()
+    def mandate = sampleMandate()
 
-        1 * userService.getById(user.id) >> user
-        1 * conversionService.getConversion(user) >> conversion
-        1 * episService.getContactDetails(user) >> contactDetails
-        1 * cancellationMandateBuilder.build(applicationToCancel, user, conversion, contactDetails) >> mandate
+    1 * userService.getById(user.id) >> user
+    1 * conversionService.getConversion(user) >> conversion
+    1 * episService.getContactDetails(user) >> contactDetails
+    1 * cancellationMandateBuilder.build(applicationToCancel, user, conversion, contactDetails) >> mandate
 
-        when:
-        mandateCancellationService.saveCancellationMandate(user.id, applicationToCancel)
+    when:
+    mandateCancellationService.saveCancellationMandate(user.id, applicationToCancel)
 
-        then:
-        1 * mandateService.save(user, mandate)
-    }
+    then:
+    1 * mandateService.save(user, mandate)
+  }
 
-    def "validates application type before saving"() {
-        given:
-        def user = sampleUser().build()
-        def applicationToCancel = sampleApplication().type(SELECTION).build()
+  def "validates application type before saving"() {
+    given:
+    def user = sampleUser().build()
+    def applicationToCancel = sampleTransferApplicationDto()
+    applicationToCancel.type = SELECTION
 
-        when:
-        mandateCancellationService.saveCancellationMandate(user.id, applicationToCancel)
+    when:
+    mandateCancellationService.saveCancellationMandate(user.id, applicationToCancel)
 
-        then:
-        thrown(InvalidApplicationTypeException)
-    }
+    then:
+    thrown(InvalidApplicationTypeException)
+  }
 }

@@ -59,9 +59,7 @@ class MandateProcessorServiceSpec extends Specification {
         given:
         Mandate mandate = sampleCancellationMandate()
         mandate.address = addressFixture().build()
-        def mandateResponse = new ApplicationResponseDTO()
         def response = new ApplicationResponse()
-        mandateResponse.mandateResponses = [response]
         1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
         when:
         service.start(sampleUser, mandate)
@@ -72,7 +70,7 @@ class MandateProcessorServiceSpec extends Specification {
         1 * episService.sendCancellation({ CancellationDto dto ->
           dto.applicationTypeToCancel.toString() == mandate.metadata.get("applicationTypeToCancel")
           dto.address == mandate.address
-        }) >> mandateResponse
+        }) >> response
     }
 
     def "IsFinished: processing is complete when all message processes are finished"() {

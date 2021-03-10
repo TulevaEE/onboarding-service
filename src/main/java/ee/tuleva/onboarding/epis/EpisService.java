@@ -169,11 +169,11 @@ public class EpisService {
         url, new HttpEntity<>(mandate, getHeaders()), ApplicationResponseDTO.class);
   }
 
-  public ApplicationResponseDTO sendCancellation(CancellationDto cancellation) {
+  public ApplicationResponse sendCancellation(CancellationDto cancellation) {
     String url = episServiceUrl + "/cancellations";
 
     return userTokenRestTemplate.postForObject(
-        url, new HttpEntity<>(cancellation, getHeaders()), ApplicationResponseDTO.class);
+        url, new HttpEntity<>(cancellation, getHeaders()), ApplicationResponse.class);
   }
 
   @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")

@@ -34,7 +34,7 @@ public class MandateProcessorService {
 
     if (mandate.isCancellation()) {
       val response = episService.sendCancellation(getCancellationDto(mandate));
-      handleApplicationProcessResponse(response);
+      handleApplicationProcessResponse(new ApplicationResponseDTO(response));
     } else {
       val response = episService.sendMandate(getMandateDto(mandate));
       handleApplicationProcessResponse(response);

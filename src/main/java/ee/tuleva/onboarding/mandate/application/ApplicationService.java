@@ -33,93 +33,96 @@ public class ApplicationService {
 
   public List<Application> getApplications(Person person) {
     val applicationsByType =
-      episService.getApplications(person).stream().collect(groupingBy(ApplicationDTO::getType));
+        episService.getApplications(person).stream().collect(groupingBy(ApplicationDTO::getType));
     return applicationsByType.entrySet().stream()
-      .flatMap(
-        elem -> {
-          if (elem.getKey() == ApplicationType.TRANSFER) {
-            return groupTransfers(elem.getValue()).stream();
-          } else {
-            return elem.getValue().stream().map(this::convert);
-          }
-        })
-      .sorted()
-      .collect(toList());
+        .flatMap(
+            elem -> {
+              if (elem.getKey() == ApplicationType.TRANSFER) {
+                return groupTransfers(elem.getValue()).stream();
+              } else {
+                return elem.getValue().stream().map(this::convert);
+              }
+            })
+        .sorted()
+        .collect(toList());
   }
 
   private List<Application> groupTransfers(List<ApplicationDTO> transferApplications) {
     val locale = localeService.getCurrentLocale();
     val deadlines = mandateDeadlinesService.getDeadlines();
     val transfersBySource =
-      transferApplications.stream()
-        .collect(
-          groupingBy(
-            ApplicationDTO::getSourceFundIsin, groupingBy(ApplicationDTO::getStatus)));
+        transferApplications.stream()
+            .collect(
+                groupingBy(
+                    ApplicationDTO::getSourceFundIsin, groupingBy(ApplicationDTO::getStatus)));
     return transfersBySource.entrySet().stream()
-      .flatMap(
-        transfers -> {
-          val sourceFundIsin = transfers.getKey();
-          return transfers.getValue().entrySet().stream()
-            .map(
-              entry -> {
-                val status = entry.getKey();
-                val applications = entry.getValue();
-                val application = Application.builder();
-                val firstTransfer =
-                  applications.stream()
-                    .findFirst()
-                    .orElseThrow(IllegalStateException::new);
-                application.id(firstTransfer.getId());
-                application.creationTime(firstTransfer.getDate());
-                application.status(status);
-                application.type(firstTransfer.getType());
-                val sourceFund = fundRepository.findByIsin(sourceFundIsin);
-                val details =
-                  TransferApplicationDetails.builder()
-                    .sourceFund(new FundDto(sourceFund, locale.getLanguage()));
-                details.fulfillmentDate(deadlines.getTransferMandateFulfillmentDate())
-                  .cancellationDeadline(deadlines.getTransferMandateCancellationDeadline());
-                applications.forEach(
-                  applicationDTO -> {
-                    val targetFund =
-                      fundRepository.findByIsin(applicationDTO.getTargetFundIsin());
-                    details.exchange(
-                      TransferApplicationDetails.Exchange.builder()
-                        .amount(applicationDTO.getAmount())
-                        .targetFund(new FundDto(targetFund, locale.getLanguage()))
-                        .build());
-                  });
-                application.details(details.build());
-                return application.build();
-              });
-        })
-      .collect(toList());
+        .flatMap(
+            transfers -> {
+              val sourceFundIsin = transfers.getKey();
+              return transfers.getValue().entrySet().stream()
+                  .map(
+                      entry -> {
+                        val status = entry.getKey();
+                        val applications = entry.getValue();
+                        val application = Application.builder();
+                        val firstTransfer =
+                            applications.stream()
+                                .findFirst()
+                                .orElseThrow(IllegalStateException::new);
+                        application.id(firstTransfer.getId());
+                        application.creationTime(firstTransfer.getDate());
+                        application.status(status);
+                        application.type(firstTransfer.getType());
+                        val sourceFund = fundRepository.findByIsin(sourceFundIsin);
+                        val details =
+                            TransferApplicationDetails.builder()
+                                .sourceFund(new FundDto(sourceFund, locale.getLanguage()));
+                        details
+                            .fulfillmentDate(deadlines.getTransferMandateFulfillmentDate())
+                            .cancellationDeadline(
+                                deadlines.getTransferMandateCancellationDeadline());
+                        applications.forEach(
+                            applicationDTO -> {
+                              val targetFund =
+                                  fundRepository.findByIsin(applicationDTO.getTargetFundIsin());
+                              details.exchange(
+                                  TransferApplicationDetails.Exchange.builder()
+                                      .amount(applicationDTO.getAmount())
+                                      .targetFund(new FundDto(targetFund, locale.getLanguage()))
+                                      .build());
+                            });
+                        application.details(details.build());
+                        return application.build();
+                      });
+            })
+        .collect(toList());
   }
 
   private Application convert(ApplicationDTO applicationDTO) {
     val applicationBuilder =
-      Application.builder()
-        .creationTime(applicationDTO.getDate())
-        .type(applicationDTO.getType())
-        .status(applicationDTO.getStatus())
-        .id(applicationDTO.getId());
+        Application.builder()
+            .creationTime(applicationDTO.getDate())
+            .type(applicationDTO.getType())
+            .status(applicationDTO.getStatus())
+            .id(applicationDTO.getId());
     if (applicationDTO.getType().equals(WITHDRAWAL)
-      || applicationDTO.getType().equals(EARLY_WITHDRAWAL)) {
+        || applicationDTO.getType().equals(EARLY_WITHDRAWAL)) {
       addWithdrawalInfo(applicationBuilder, applicationDTO);
     }
     return applicationBuilder.build();
   }
 
   private void addWithdrawalInfo(
-    Application.ApplicationBuilder applicationBuilder, ApplicationDTO applicationDTO) {
+      Application.ApplicationBuilder applicationBuilder, ApplicationDTO applicationDTO) {
     val deadlines = mandateDeadlinesService.getDeadlines();
     applicationBuilder.details(
-      WithdrawalApplicationDetails.builder()
-        .depositAccountIBAN(applicationDTO.getBankAccount())
-        .fulfillmentDate(deadlines.getWithdrawalFulfillmentDate())
-        .cancellationDeadline(
-          applicationDTO.getType().equals(WITHDRAWAL) ? deadlines.getWithdrawalCancellationDeadline()
-            : deadlines.getEarlyWithdrawalCancellationDeadline())
-        .build());
+        WithdrawalApplicationDetails.builder()
+            .depositAccountIBAN(applicationDTO.getBankAccount())
+            .fulfillmentDate(deadlines.getWithdrawalFulfillmentDate())
+            .cancellationDeadline(
+                applicationDTO.getType().equals(WITHDRAWAL)
+                    ? deadlines.getWithdrawalCancellationDeadline()
+                    : deadlines.getEarlyWithdrawalCancellationDeadline())
+            .build());
   }
 }

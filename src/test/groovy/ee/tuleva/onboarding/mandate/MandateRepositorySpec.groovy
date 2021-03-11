@@ -46,7 +46,6 @@ class MandateRepositorySpec extends Specification {
     def fundTransferExchange = FundTransferExchange.builder()
       .sourceFundIsin("AE123232331")
       .targetFundIsin(null)
-      .amount(new BigDecimal("0.8"))
       .mandate(savedMandate)
       .build()
     savedMandate.fundTransferExchanges = [fundTransferExchange]

@@ -6,7 +6,6 @@ import java.math.BigDecimal;
 import javax.persistence.*;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 import lombok.*;
 
 @Data
@@ -37,7 +36,6 @@ public class FundTransferExchange {
    * 2nd pillar: Fraction of units (i.e. min 0, max 1) 3rd pillar: Number of units (i.e. min 0, max
    * number of units you have)
    */
-  @NotNull
   @Min(0)
   @JsonView(MandateView.Default.class)
   private BigDecimal amount;

@@ -6,6 +6,7 @@ import org.springframework.test.web.servlet.MockMvc
 import java.time.Clock
 import java.time.Instant
 
+import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
 import static java.time.ZoneOffset.UTC
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -13,10 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 class MandateDeadlinesControllerSpec extends BaseControllerSpec {
-  Clock clock = Clock.fixed(Instant.parse("2021-03-11T10:00:00Z"), UTC)
-  PublicHolidays publicHolidays = new PublicHolidays(clock)
-
-  MandateDeadlinesController controller = new MandateDeadlinesController(clock, publicHolidays)
+  MandateDeadlinesService mandateDeadlinesService = Mock()
+  MandateDeadlinesController controller = new MandateDeadlinesController(mandateDeadlinesService)
 
   MockMvc mockMvc
 
@@ -25,6 +24,8 @@ class MandateDeadlinesControllerSpec extends BaseControllerSpec {
   }
 
   def "can get mandate deadlines"() {
+    given:
+    mandateDeadlinesService.deadlines >> sampleDeadlines()
     expect:
     mockMvc.perform(get('/v1/mandate-deadlines'))
       .andExpect(status().isOk())

@@ -42,7 +42,7 @@ class ApplicationServiceSpec extends Specification {
     mandateDeadlinesService.deadlines >> sampleDeadlines()
 
     when:
-    List<Application> applications = applicationService.get(samplePerson())
+    List<Application> applications = applicationService.getApplications(samplePerson())
 
     then:
     applications.size() == 3

@@ -27,11 +27,11 @@ public class ApplicationService {
   private final MandateDeadlinesService mandateDeadlinesService;
 
   public boolean hasPendingWithdrawals(Person person) {
-    return get(person).stream()
+    return getApplications(person).stream()
         .anyMatch(application -> application.isPending() && application.isWithdrawal());
   }
 
-  public List<Application> get(Person person) {
+  public List<Application> getApplications(Person person) {
     val applicationsByType =
       episService.getApplications(person).stream().collect(groupingBy(ApplicationDTO::getType));
     return applicationsByType.entrySet().stream()

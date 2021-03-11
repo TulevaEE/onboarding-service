@@ -34,7 +34,7 @@ public class ApplicationController {
   public List<Application> get(
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @RequestParam("status") ApplicationStatus status) {
-    return applicationService.get(authenticatedPerson).stream()
+    return applicationService.getApplications(authenticatedPerson).stream()
         .filter(application -> application.getStatus().equals(status))
         .collect(toList());
   }

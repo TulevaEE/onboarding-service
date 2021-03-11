@@ -4,8 +4,10 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 @RequiredArgsConstructor
+@Component
 public class PublicHolidays {
 
   private final Clock clock;

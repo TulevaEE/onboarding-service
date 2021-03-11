@@ -15,10 +15,10 @@ public class MandateDeadlines {
   private final Clock clock;
   private final PublicHolidays publicHolidays;
 
-  public LocalDate periodEnding() {
-    LocalDate march31ThisYear = now().withMonth(3).withDayOfMonth(31);
-    LocalDate july31ThisYear = now().withMonth(7).withDayOfMonth(31);
-    LocalDate november30ThisYear = now().withMonth(11).withDayOfMonth(30);
+  public LocalDate getPeriodEnding() {
+    LocalDate march31ThisYear = now().withMonth(3).with(lastDayOfMonth());
+    LocalDate july31ThisYear = now().withMonth(7).with(lastDayOfMonth());
+    LocalDate november30ThisYear = now().withMonth(11).with(lastDayOfMonth());
 
     return Stream.of(march31ThisYear, july31ThisYear, november30ThisYear)
         .filter(deadline -> !deadline.isBefore(now()))
@@ -26,28 +26,28 @@ public class MandateDeadlines {
         .get();
   }
 
-  public LocalDate transferMandateCancellationDeadline() {
-    return periodEnding();
+  public LocalDate getTransferMandateCancellationDeadline() {
+    return getPeriodEnding();
   }
 
-  public LocalDate transferMandateFulfillmentDate() {
-    return nextWorkingDay(periodEnding().plusMonths(1).with(lastDayOfMonth()));
+  public LocalDate getTransferMandateFulfillmentDate() {
+    return nextWorkingDay(getPeriodEnding().plusMonths(1).with(lastDayOfMonth()));
   }
 
-  public LocalDate earlyWithdrawalCancellationDeadline() {
-    return periodEnding().plusMonths(4).with(lastDayOfMonth());
+  public LocalDate getEarlyWithdrawalCancellationDeadline() {
+    return getPeriodEnding().plusMonths(4).with(lastDayOfMonth());
   }
 
-  public LocalDate earlyWithdrawalFulfillmentDate() {
-    return nextWorkingDay(earlyWithdrawalCancellationDeadline().plusMonths(1).with(lastDayOfMonth()));
+  public LocalDate getEarlyWithdrawalFulfillmentDate() {
+    return nextWorkingDay(getEarlyWithdrawalCancellationDeadline().plusMonths(1).with(lastDayOfMonth()));
   }
 
-  public LocalDate withdrawalCancellationDeadline() {
+  public LocalDate getWithdrawalCancellationDeadline() {
     return now().with(lastDayOfMonth());
   }
 
-  public LocalDate withdrawalFulfillmentDate() {
-    return nextWorkingDay(withdrawalCancellationDeadline().plusDays(15));
+  public LocalDate getWithdrawalFulfillmentDate() {
+    return nextWorkingDay(getWithdrawalCancellationDeadline().plusDays(15));
   }
 
   private LocalDate nextWorkingDay(LocalDate to) {

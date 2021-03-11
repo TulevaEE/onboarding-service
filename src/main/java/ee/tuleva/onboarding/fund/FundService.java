@@ -6,6 +6,7 @@ import static java.util.stream.StreamSupport.stream;
 import ee.tuleva.onboarding.fund.response.FundResponse;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
+import ee.tuleva.onboarding.locale.LocaleService;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -20,11 +21,12 @@ public class FundService {
 
   private final FundRepository fundRepository;
   private final PensionFundStatisticsService pensionFundStatisticsService;
+  private final LocaleService localeService;
 
-  public List<FundResponse> getFunds(Optional<String> fundManagerName, String language) {
+  public List<FundResponse> getFunds(Optional<String> fundManagerName) {
     return stream(fundsBy(fundManagerName).spliterator(), false)
         .sorted()
-        .map(fund -> new FundResponse(fund, getStatistics(fund), language))
+        .map(fund -> new FundResponse(fund, getStatistics(fund), localeService.getLanguage()))
         .collect(toList());
   }
 

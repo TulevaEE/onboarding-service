@@ -73,6 +73,7 @@ class ApplicationServiceSpec extends Specification {
     given:
     def withdrawalApplication1 = sampleWithdrawalApplicationDto()
     episService.getApplications(samplePerson()) >> [withdrawalApplication1]
+    mandateDeadlinesService.deadlines >> sampleDeadlines()
     when:
     Boolean result = applicationService.hasPendingWithdrawals(samplePerson())
     then:

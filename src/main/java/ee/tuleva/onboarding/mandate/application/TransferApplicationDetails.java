@@ -13,8 +13,7 @@ import lombok.Singular;
 public class TransferApplicationDetails implements ApplicationDetails {
 
   private FundDto sourceFund;
-  @Singular
-  private List<Exchange> exchanges;
+  @Singular private List<Exchange> exchanges;
   private final LocalDate cancellationDeadline;
   private final LocalDate fulfillmentDate;
 

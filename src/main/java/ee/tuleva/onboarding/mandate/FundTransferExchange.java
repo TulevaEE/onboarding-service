@@ -42,7 +42,6 @@ public class FundTransferExchange {
   @JsonView(MandateView.Default.class)
   private BigDecimal amount;
 
-  @NotNull
   @JsonView(MandateView.Default.class)
   private String targetFundIsin;
 }

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.content
 
+import ee.tuleva.onboarding.mandate.FundTransferExchange
 import ee.tuleva.onboarding.mandate.Mandate
 import org.apache.commons.codec.digest.DigestUtils
 import org.springframework.beans.factory.annotation.Autowired
@@ -75,6 +76,31 @@ class MandateContentCreatorIntSpec extends Specification {
     mandateContentFiles[3].name == "avalduse_tyhistamise_avaldus_123.html"
     mandateContentFiles[3].mimeType == "text/html"
     DigestUtils.md5Hex(mandateContentFiles[3].content) == "c23707b9946cdac38d519295c972dfd0"
+  }
+
+  def "mandate transfer cancellation mandate can be generated from template"() {
+    given:
+    Mandate mandate = sampleMandate()
+    mandate.futureContributionFundIsin = null
+    mandate.fundTransferExchanges = [FundTransferExchange.builder()
+                                       .id(1234)
+                                       .sourceFundIsin("AE123232331")
+                                       .targetFundIsin(null)
+                                       .build()]
+    when:
+    List<MandateContentFile> mandateContentFiles =
+      mandateContentCreator.getContentFiles(
+        sampleUser().build(),
+        mandate,
+        sampleFunds(),
+        contactDetailsFixture()
+      )
+
+    then:
+    mandateContentFiles.size() == 1
+    mandateContentFiles[0].name == "vahetuseavaldus_1234.html"
+    mandateContentFiles[0].mimeType == "text/html"
+    DigestUtils.md5Hex(mandateContentFiles[0].content) == "304a3e50d6f58ed121b7a97ebcc53670"
   }
 
   @Unroll

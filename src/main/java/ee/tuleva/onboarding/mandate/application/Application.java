@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import java.time.Instant;
 import lombok.Builder;
 import lombok.Data;
-import lombok.val;
+import org.apache.commons.lang3.compare.ObjectToStringComparator;
 import org.jetbrains.annotations.NotNull;
 
 @Data
@@ -30,14 +30,6 @@ public class Application implements Comparable<Application> {
 
   @Override
   public int compareTo(@NotNull Application application) {
-    val time = creationTime.compareTo(application.creationTime);
-    if (time != 0) {
-      return time;
-    }
-    val typeValue = type.compareTo(application.type);
-    if (typeValue != 0) {
-      return typeValue;
-    }
-    return status.compareTo(application.status);
+    return ObjectToStringComparator.INSTANCE.compare(this, application);
   }
 }

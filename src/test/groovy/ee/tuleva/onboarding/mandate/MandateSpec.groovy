@@ -22,4 +22,17 @@ class MandateSpec extends Specification {
     ["applicationTypeToCancel": "WITHDRAWAL"]       | true           | WITHDRAWAL
     ["applicationTypeToCancel": "EARLY_WITHDRAWAL"] | true           | EARLY_WITHDRAWAL
   }
+
+  def "can group exchanges by source isin"() {
+    given:
+    FundTransferExchange withAmount = FundTransferExchange.builder().sourceFundIsin("isin")
+      .amount(BigDecimal.ONE).build()
+    FundTransferExchange withoutAmount = FundTransferExchange.builder().sourceFundIsin("isin").build()
+    when:
+    Mandate mandate = Mandate.builder()
+      .fundTransferExchanges([withAmount, withoutAmount])
+      .build()
+    then:
+    mandate.getFundTransferExchangesBySourceIsin() == ['isin': [withAmount, withoutAmount]]
+  }
 }

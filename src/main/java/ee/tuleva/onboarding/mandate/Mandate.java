@@ -114,7 +114,9 @@ public class Mandate {
     Map<String, List<FundTransferExchange>> exchangeMap = new HashMap<>();
 
     fundTransferExchanges.stream()
-        .filter(exchange -> exchange.getAmount().compareTo(BigDecimal.ZERO) > 0)
+        .filter(
+            exchange ->
+                exchange.getAmount() == null || exchange.getAmount().compareTo(BigDecimal.ZERO) > 0)
         .forEach(
             exchange -> {
               if (!exchangeMap.containsKey(exchange.getSourceFundIsin())) {

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.account
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.locale.LocaleConfiguration
 import ee.tuleva.onboarding.locale.LocaleService
 import org.springframework.context.i18n.LocaleContextHolder
 import org.springframework.test.web.servlet.MockMvc
@@ -29,7 +30,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
     given:
     List<FundBalance> fundBalances = activeTuleva2ndPillarFundBalance
     1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
-    localeService.language >> "et"
+    localeService.language >> LocaleConfiguration.DEFAULT_LANGUAGE
 
     expect:
     mockMvc.perform(get("/v1/pension-account-statement"))

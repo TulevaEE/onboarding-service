@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.fund
 
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService
+import ee.tuleva.onboarding.locale.LocaleConfiguration
 import ee.tuleva.onboarding.locale.LocaleService
 import spock.lang.Specification
 
@@ -17,7 +18,7 @@ class FundServiceSpec extends Specification {
 
   def fundService = new FundService(fundRepository, pensionFundStatisticsService,localeService)
 
-  def "can get funds with along statistics"() {
+  def "can get funds and statistics"() {
     given:
     String fundManagerName = "Tuleva"
     Iterable<Fund> funds = sampleFunds().stream()
@@ -30,7 +31,7 @@ class FundServiceSpec extends Specification {
     def peopleCount = 123
     pensionFundStatisticsService.getCachedStatistics() >>
       [new PensionFundStatistics(tulevaFund.isin, volume, nav, peopleCount)]
-    localeService.getLanguage() >> "et"
+    localeService.getLanguage() >> LocaleConfiguration.DEFAULT_LANGUAGE
     when:
     def response = fundService.getFunds(Optional.of(fundManagerName))
 
@@ -85,7 +86,7 @@ class FundServiceSpec extends Specification {
       .collect(toList())
     fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getLanguage() >> "et"
+    localeService.getLanguage() >> LocaleConfiguration.DEFAULT_LANGUAGE
 
     when:
     def response = fundService.getFunds(Optional.of(fundManagerName))

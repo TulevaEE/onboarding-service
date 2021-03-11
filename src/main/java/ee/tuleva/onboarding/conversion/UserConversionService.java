@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
+import ee.tuleva.onboarding.mandate.application.ApplicationService;
 import ee.tuleva.onboarding.mandate.transfer.TransferExchange;
 import ee.tuleva.onboarding.mandate.transfer.TransferExchangeService;
 import java.math.BigDecimal;
@@ -38,6 +39,7 @@ public class UserConversionService {
   private final CashFlowService cashFlowService;
   private final FundRepository fundRepository;
   private final Clock clock;
+  private final ApplicationService applicationService;
 
   private static final String CONVERTED_FUND_MANAGER_NAME = "Tuleva";
   public static final String EXIT_RESTRICTED_FUND = "EE3600109484";
@@ -51,6 +53,7 @@ public class UserConversionService {
             Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 2))
                 .transfersComplete(isTransfersComplete(fundBalances, 2, person))
+                .pendingWithdrawal(applicationService.hasPendingWithdrawals(person))
                 .contribution(
                     Amount.builder()
                         .yearToDate(yearToDateCashContributionSum(cashFlowStatement, 2))

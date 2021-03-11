@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import static com.google.common.collect.MoreCollectors.onlyElement;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
 import static java.util.stream.Collectors.groupingBy;
@@ -12,8 +11,6 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.fund.response.FundDto;
 import ee.tuleva.onboarding.locale.LocaleService;
-import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.cancellation.MandateCancellationService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
@@ -24,9 +21,13 @@ import org.springframework.stereotype.Service;
 public class ApplicationService {
 
   private final EpisService episService;
-  private final MandateCancellationService mandateCancellationService;
   private final LocaleService localeService;
   private final FundRepository fundRepository;
+
+  public boolean hasPendingWithdrawals(Person person) {
+    return get(person).stream()
+        .anyMatch(application -> application.isPending() && application.isWithdrawal());
+  }
 
   public List<Application> get(Person person) {
     val applicationsByType =
@@ -110,20 +111,5 @@ public class ApplicationService {
         WithdrawalApplicationDetails.builder()
             .depositAccountIBAN(applicationDTO.getBankAccount())
             .build());
-  }
-
-  private ApplicationDTO getApplication(Long applicationId, Person person) {
-    List<ApplicationDTO> applications = episService.getApplications(person);
-    return applications.stream()
-        .filter(application -> application.getId().equals(applicationId))
-        .collect(onlyElement());
-  }
-
-  public ApplicationCancellationResponse createCancellationMandate(
-      Person person, Long userId, Long applicationId) {
-    ApplicationDTO applicationToCancel = getApplication(applicationId, person);
-    Mandate mandate =
-        mandateCancellationService.saveCancellationMandate(userId, applicationToCancel);
-    return new ApplicationCancellationResponse(mandate.getId());
   }
 }

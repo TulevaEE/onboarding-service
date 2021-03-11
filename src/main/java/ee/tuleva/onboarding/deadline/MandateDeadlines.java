@@ -39,7 +39,8 @@ public class MandateDeadlines {
   }
 
   public LocalDate getEarlyWithdrawalFulfillmentDate() {
-    return nextWorkingDay(getEarlyWithdrawalCancellationDeadline().plusMonths(1).with(lastDayOfMonth()));
+    return nextWorkingDay(
+        getEarlyWithdrawalCancellationDeadline().plusMonths(1).with(lastDayOfMonth()));
   }
 
   public LocalDate getWithdrawalCancellationDeadline() {
@@ -60,8 +61,8 @@ public class MandateDeadlines {
 
   private boolean isWorkingDay(LocalDate date) {
     return !(date.getDayOfWeek() == SATURDAY
-      || date.getDayOfWeek() == SUNDAY
-      || publicHolidays.isPublicHoliday(date));
+        || date.getDayOfWeek() == SUNDAY
+        || publicHolidays.isPublicHoliday(date));
   }
 
   private LocalDate now() {

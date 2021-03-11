@@ -28,7 +28,7 @@ class FundControllerSpec extends BaseControllerSpec {
     def "get: Get all funds"() {
         given:
         def language = "et"
-        1 * fundService.getFunds(Optional.empty(), language) >> MandateFixture.sampleFunds()
+        1 * fundService.getFunds(Optional.empty()) >> MandateFixture.sampleFunds()
         expect:
         mockMvc
                 .perform(get("/v1/funds").header("Accept-Language", language))
@@ -40,7 +40,7 @@ class FundControllerSpec extends BaseControllerSpec {
     def "get: Get all funds defaults to et"() {
         given:
         def language = "et"
-        1 * fundService.getFunds(Optional.empty(), language) >> MandateFixture.sampleFunds()
+        1 * fundService.getFunds(Optional.empty()) >> MandateFixture.sampleFunds()
         expect:
         mockMvc
             .perform(get("/v1/funds"))
@@ -54,7 +54,7 @@ class FundControllerSpec extends BaseControllerSpec {
         String fundManagerName = "Tuleva"
         def language = "et"
         Iterable<Fund> funds = MandateFixture.sampleFunds().stream().filter( { f -> f.fundManager.name == fundManagerName}).collect(Collectors.toList())
-        1 * fundService.getFunds(Optional.of(fundManagerName), language) >> funds
+        1 * fundService.getFunds(Optional.of(fundManagerName)) >> funds
         expect:
         mockMvc
                 .perform(get("/v1/funds?fundManager.name=" + fundManagerName).header("Accept-Language", language))

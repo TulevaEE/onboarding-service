@@ -46,27 +46,32 @@ class ApplicationServiceSpec extends Specification {
 
     then:
     applications.size() == 3
-    applications[0].id == 456L
+    applications[0].id == 123L
     applications[0].type == ApplicationType.TRANSFER
-    applications[0].status == ApplicationStatus.COMPLETE
+    applications[0].status == ApplicationStatus.PENDING
     applications[0].details.sourceFund.isin == "AE123232334"
     applications[0].details.cancellationDeadline == LocalDate.parse("2021-03-31")
     applications[0].details.fulfillmentDate == LocalDate.parse("2021-05-03")
-    applications[0].details.exchanges.size() == 1
+    applications[0].details.exchanges.size() == 2
     applications[0].details.exchanges[0].targetFund.isin == "EE3600109443"
     applications[0].details.exchanges[0].amount == BigDecimal.ONE
+    applications[0].details.exchanges[1].targetFund.isin == "EE3600109443"
+    applications[0].details.exchanges[1].amount == BigDecimal.ONE
     applications[1].id == 123L
-    applications[1].type == ApplicationType.TRANSFER
+    applications[1].type == ApplicationType.WITHDRAWAL
     applications[1].status == ApplicationStatus.PENDING
-    applications[1].details.sourceFund.isin == "AE123232334"
+    applications[1].details.depositAccountIBAN == "IBAN"
     applications[1].details.cancellationDeadline == LocalDate.parse("2021-03-31")
-    applications[1].details.fulfillmentDate == LocalDate.parse("2021-05-03")
-    applications[1].details.exchanges.size() == 2
-    applications[1].details.exchanges[0].targetFund.isin == "EE3600109443"
-    applications[1].details.exchanges[0].amount == BigDecimal.ONE
-    applications[1].details.exchanges[1].targetFund.isin == "EE3600109443"
-    applications[1].details.exchanges[1].amount == BigDecimal.ONE
-    applications[2] == withdrawalApplication().build()
+    applications[1].details.fulfillmentDate == LocalDate.parse("2021-04-16")
+    applications[2].id == 456L
+    applications[2].type == ApplicationType.TRANSFER
+    applications[2].status == ApplicationStatus.COMPLETE
+    applications[2].details.sourceFund.isin == "AE123232334"
+    applications[2].details.cancellationDeadline == LocalDate.parse("2021-03-31")
+    applications[2].details.fulfillmentDate == LocalDate.parse("2021-05-03")
+    applications[2].details.exchanges.size() == 1
+    applications[2].details.exchanges[0].targetFund.isin == "EE3600109443"
+    applications[2].details.exchanges[0].amount == BigDecimal.ONE
   }
 
   def "checks if there is a pending withdrawal"() {

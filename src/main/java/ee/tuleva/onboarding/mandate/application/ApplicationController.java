@@ -11,7 +11,11 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.annotations.ApiIgnore;
 
 @Slf4j
@@ -19,8 +23,10 @@ import springfox.documentation.annotations.ApiIgnore;
 @RequestMapping("/v1" + APPLICATIONS_URI)
 @RequiredArgsConstructor
 public class ApplicationController {
+
   public static final String APPLICATIONS_URI = "/applications";
 
+  private final ApplicationCancellationService applicationCancellationService;
   private final ApplicationService applicationService;
 
   @ApiOperation(value = "Get applications")
@@ -39,7 +45,7 @@ public class ApplicationController {
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @PathVariable("id") Long applicationId) {
     log.info("Cancelling application {}", applicationId);
-    return applicationService.createCancellationMandate(
+    return applicationCancellationService.createCancellationMandate(
         authenticatedPerson, authenticatedPerson.getUserId(), applicationId);
   }
 }

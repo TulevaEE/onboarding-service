@@ -4,13 +4,10 @@ import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
-import ee.tuleva.onboarding.mandate.cancellation.MandateCancellationService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleWithdrawalApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.withdrawalApplication
@@ -18,12 +15,11 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.withdr
 class ApplicationServiceSpec extends Specification {
 
   EpisService episService = Mock()
-  MandateCancellationService mandateCancellationService = Mock()
   LocaleService localeService = Mock()
   FundRepository fundRepository = Mock()
 
   ApplicationService applicationService =
-    new ApplicationService(episService, mandateCancellationService, localeService, fundRepository)
+    new ApplicationService(episService, localeService, fundRepository)
 
   def "gets applications"() {
     given:
@@ -62,21 +58,13 @@ class ApplicationServiceSpec extends Specification {
     applications[2] == withdrawalApplication().build()
   }
 
-  def "can cancel applications"() {
+  def "checks if there is a pending withdrawal"() {
     given:
-    def person = samplePerson()
-    def user = sampleUser().build()
-    def applicationDTO = sampleTransferApplicationDto()
-    def mandate = sampleMandate()
-
-    1 * episService.getApplications(person) >> [applicationDTO]
-    1 * mandateCancellationService.saveCancellationMandate(user.id, _) >> mandate
-
+    def withdrawalApplication1 = sampleWithdrawalApplicationDto()
+    episService.getApplications(samplePerson()) >> [withdrawalApplication1]
     when:
-    ApplicationCancellationResponse response =
-      applicationService.createCancellationMandate(person, user.id, applicationDTO.id)
-
+    Boolean result = applicationService.hasPendingWithdrawals(samplePerson())
     then:
-    response.mandateId == mandate.id
+    result
   }
 }

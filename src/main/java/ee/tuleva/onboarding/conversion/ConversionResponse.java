@@ -25,8 +25,10 @@ public class ConversionResponse {
   @Builder
   @Data
   public static class Conversion {
+
     private boolean transfersComplete;
     private boolean selectionComplete;
+    private boolean pendingWithdrawal;
     private Boolean paymentComplete;
     private Amount contribution;
     private Amount subtraction;
@@ -40,6 +42,7 @@ public class ConversionResponse {
   @Builder
   @Data
   public static class Amount {
+
     private BigDecimal total;
     private BigDecimal yearToDate;
   }

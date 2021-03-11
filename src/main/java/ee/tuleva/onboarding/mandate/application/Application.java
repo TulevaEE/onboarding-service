@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.application;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import java.time.Instant;
 import lombok.Builder;
@@ -16,6 +17,16 @@ public class Application implements Comparable<Application> {
   private ApplicationType type;
   private ApplicationStatus status;
   private ApplicationDetails details;
+
+  @JsonIgnore
+  public boolean isPending() {
+    return status.equals(ApplicationStatus.PENDING);
+  }
+
+  @JsonIgnore
+  public boolean isWithdrawal() {
+    return type.equals(ApplicationType.WITHDRAWAL) || type.equals(ApplicationType.EARLY_WITHDRAWAL);
+  }
 
   @Override
   public int compareTo(@NotNull Application application) {

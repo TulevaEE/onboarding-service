@@ -47,35 +47,45 @@ public class ApplicationService {
   private List<Application> groupTransfers(List<ApplicationDTO> transferApplications) {
     val locale = localeService.getCurrentLocale();
     val transfersBySource =
-        transferApplications.stream().collect(groupingBy(ApplicationDTO::getSourceFundIsin));
+        transferApplications.stream()
+            .collect(
+                groupingBy(
+                    ApplicationDTO::getSourceFundIsin, groupingBy(ApplicationDTO::getStatus)));
     return transfersBySource.entrySet().stream()
-        .map(
+        .flatMap(
             transfers -> {
-              val application = Application.builder();
-              val firstTransfer =
-                  transfers.getValue().stream().findFirst().orElseThrow(IllegalStateException::new);
-              application.id(firstTransfer.getId());
-              application.creationTime(firstTransfer.getDate());
-              application.status(firstTransfer.getStatus());
-              application.type(firstTransfer.getType());
-              val sourceFund = fundRepository.findByIsin(transfers.getKey());
-              val details =
-                  TransferApplicationDetails.builder()
-                      .sourceFund(new FundDto(sourceFund, locale.getLanguage()));
-              transfers
-                  .getValue()
-                  .forEach(
-                      applicationDTO -> {
-                        val targetFund =
-                            fundRepository.findByIsin(applicationDTO.getTargetFundIsin());
-                        details.exchange(
-                            TransferApplicationDetails.Exchange.builder()
-                                .amount(applicationDTO.getAmount())
-                                .targetFund(new FundDto(targetFund, locale.getLanguage()))
-                                .build());
+              val sourceFundIsin = transfers.getKey();
+              return transfers.getValue().entrySet().stream()
+                  .map(
+                      entry -> {
+                        val status = entry.getKey();
+                        val applications = entry.getValue();
+                        val application = Application.builder();
+                        val firstTransfer =
+                            applications.stream()
+                                .findFirst()
+                                .orElseThrow(IllegalStateException::new);
+                        application.id(firstTransfer.getId());
+                        application.creationTime(firstTransfer.getDate());
+                        application.status(status);
+                        application.type(firstTransfer.getType());
+                        val sourceFund = fundRepository.findByIsin(sourceFundIsin);
+                        val details =
+                            TransferApplicationDetails.builder()
+                                .sourceFund(new FundDto(sourceFund, locale.getLanguage()));
+                        applications.forEach(
+                            applicationDTO -> {
+                              val targetFund =
+                                  fundRepository.findByIsin(applicationDTO.getTargetFundIsin());
+                              details.exchange(
+                                  TransferApplicationDetails.Exchange.builder()
+                                      .amount(applicationDTO.getAmount())
+                                      .targetFund(new FundDto(targetFund, locale.getLanguage()))
+                                      .build());
+                            });
+                        application.details(details.build());
+                        return application.build();
                       });
-              application.details(details.build());
-              return application.build();
             })
         .collect(toList());
   }

@@ -28,7 +28,7 @@ class ApplicationControllerSpec extends BaseControllerSpec {
 
   def "/applications endpoint works"() {
     given:
-    1 * applicationService.get(_ as Person) >> sampleApplications
+    1 * applicationService.getApplications(_ as Person) >> sampleApplications
 
     expect:
     mockMvc.perform(get('/v1/applications')

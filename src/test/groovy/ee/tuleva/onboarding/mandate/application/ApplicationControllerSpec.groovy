@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.FAILED
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.transferApplication
+import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.transferApplicationDetails
 import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -26,7 +27,22 @@ class ApplicationControllerSpec extends BaseControllerSpec {
     mockMvc = mockMvc(controller)
   }
 
-  def "/applications endpoint works"() {
+  def "can get a single application"() {
+    given:
+    def application = transferApplication().build()
+    def details = transferApplicationDetails().build()
+    1 * applicationService.getApplications(_ as Person) >> [application]
+
+    expect:
+    mockMvc.perform(get("/v1/applications/${application.id}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath('$.type', is(application.type.name())))
+            .andExpect(jsonPath('$.details.sourceFund.isin', is(details.sourceFund.isin)))
+            .andExpect(jsonPath('$.details.exchanges[0].targetFund.isin', is(details.exchanges[0].targetFund.isin)))
+            .andExpect(jsonPath('$.details.exchanges[0].amount', is(details.exchanges[0].amount.intValue())))
+  }
+
+  def "can get all pending applications"() {
     given:
     1 * applicationService.getApplications(_ as Person) >> sampleApplications
 

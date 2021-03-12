@@ -12,7 +12,7 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
-import ee.tuleva.onboarding.mandate.exception.MandateNotFoundException;
+import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureStatusResponse;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
@@ -224,7 +224,7 @@ public class MandateController {
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate == null) {
-      throw new MandateNotFoundException();
+      throw new NotFoundException("Mandate not found: id=" + mandateId);
     }
 
     return mandate;

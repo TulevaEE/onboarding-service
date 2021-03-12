@@ -14,7 +14,6 @@ import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadli
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleWithdrawalApplicationDto
-import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.withdrawalApplication
 
 class ApplicationServiceSpec extends Specification {
 

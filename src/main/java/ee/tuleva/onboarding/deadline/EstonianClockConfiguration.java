@@ -12,5 +12,4 @@ public class EstonianClockConfiguration {
   public Clock estonianClock() {
     return Clock.system(ZoneId.of("Europe/Tallinn"));
   }
-
 }

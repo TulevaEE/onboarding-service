@@ -3,11 +3,7 @@ package ee.tuleva.onboarding.deadline
 import ee.tuleva.onboarding.BaseControllerSpec
 import org.springframework.test.web.servlet.MockMvc
 
-import java.time.Clock
-import java.time.Instant
-
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
-import static java.time.ZoneOffset.UTC
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath

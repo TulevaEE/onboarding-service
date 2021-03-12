@@ -48,9 +48,9 @@ class ApplicationServiceSpec extends Specification {
     applications[0].id == 123L
     applications[0].type == ApplicationType.TRANSFER
     applications[0].status == ApplicationStatus.PENDING
+    applications[0].cancellationDeadline == LocalDate.parse("2021-03-31")
+    applications[0].fulfillmentDate == LocalDate.parse("2021-05-03")
     applications[0].details.sourceFund.isin == "AE123232334"
-    applications[0].details.cancellationDeadline == LocalDate.parse("2021-03-31")
-    applications[0].details.fulfillmentDate == LocalDate.parse("2021-05-03")
     applications[0].details.exchanges.size() == 2
     applications[0].details.exchanges[0].targetFund.isin == "EE3600109443"
     applications[0].details.exchanges[0].amount == BigDecimal.ONE
@@ -59,15 +59,15 @@ class ApplicationServiceSpec extends Specification {
     applications[1].id == 123L
     applications[1].type == ApplicationType.WITHDRAWAL
     applications[1].status == ApplicationStatus.PENDING
+    applications[1].cancellationDeadline == LocalDate.parse("2021-03-31")
+    applications[1].fulfillmentDate == LocalDate.parse("2021-04-16")
     applications[1].details.depositAccountIBAN == "IBAN"
-    applications[1].details.cancellationDeadline == LocalDate.parse("2021-03-31")
-    applications[1].details.fulfillmentDate == LocalDate.parse("2021-04-16")
     applications[2].id == 456L
     applications[2].type == ApplicationType.TRANSFER
     applications[2].status == ApplicationStatus.COMPLETE
+    applications[2].cancellationDeadline == LocalDate.parse("2021-03-31")
+    applications[2].fulfillmentDate == LocalDate.parse("2021-05-03")
     applications[2].details.sourceFund.isin == "AE123232334"
-    applications[2].details.cancellationDeadline == LocalDate.parse("2021-03-31")
-    applications[2].details.fulfillmentDate == LocalDate.parse("2021-05-03")
     applications[2].details.exchanges.size() == 1
     applications[2].details.exchanges[0].targetFund.isin == "EE3600109443"
     applications[2].details.exchanges[0].amount == BigDecimal.ONE

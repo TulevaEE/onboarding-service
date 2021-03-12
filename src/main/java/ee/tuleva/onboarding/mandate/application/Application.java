@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.application;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import java.time.Instant;
+import java.time.LocalDate;
 import lombok.Builder;
 import lombok.Data;
 import org.apache.commons.lang3.compare.ObjectToStringComparator;
@@ -17,6 +18,8 @@ public class Application implements Comparable<Application> {
   private ApplicationType type;
   private ApplicationStatus status;
   private ApplicationDetails details;
+  private final LocalDate cancellationDeadline;
+  private final LocalDate fulfillmentDate;
 
   @JsonIgnore
   public boolean isPending() {

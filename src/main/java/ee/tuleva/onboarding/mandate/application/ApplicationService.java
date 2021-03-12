@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
@@ -40,7 +39,7 @@ public class ApplicationService {
               if (elem.getKey() == ApplicationType.TRANSFER) {
                 return groupTransfers(elem.getValue()).stream();
               } else {
-                return elem.getValue().stream().map(this::convert);
+                return elem.getValue().stream().map(this::convertWithdrawal);
               }
             })
         .sorted()
@@ -73,14 +72,13 @@ public class ApplicationService {
                         application.creationTime(firstTransfer.getDate());
                         application.status(status);
                         application.type(firstTransfer.getType());
+                        application.fulfillmentDate(deadlines.getTransferMandateFulfillmentDate());
+                        application.cancellationDeadline(
+                            deadlines.getTransferMandateCancellationDeadline());
                         val sourceFund = fundRepository.findByIsin(sourceFundIsin);
                         val details =
                             TransferApplicationDetails.builder()
                                 .sourceFund(new FundDto(sourceFund, locale.getLanguage()));
-                        details
-                            .fulfillmentDate(deadlines.getTransferMandateFulfillmentDate())
-                            .cancellationDeadline(
-                                deadlines.getTransferMandateCancellationDeadline());
                         applications.forEach(
                             applicationDTO -> {
                               val targetFund =
@@ -98,31 +96,22 @@ public class ApplicationService {
         .collect(toList());
   }
 
-  private Application convert(ApplicationDTO applicationDTO) {
-    val applicationBuilder =
-        Application.builder()
-            .creationTime(applicationDTO.getDate())
-            .type(applicationDTO.getType())
-            .status(applicationDTO.getStatus())
-            .id(applicationDTO.getId());
-    if (applicationDTO.getType().equals(WITHDRAWAL)
-        || applicationDTO.getType().equals(EARLY_WITHDRAWAL)) {
-      addWithdrawalInfo(applicationBuilder, applicationDTO);
-    }
-    return applicationBuilder.build();
-  }
-
-  private void addWithdrawalInfo(
-      Application.ApplicationBuilder applicationBuilder, ApplicationDTO applicationDTO) {
+  private Application convertWithdrawal(ApplicationDTO applicationDTO) {
     val deadlines = mandateDeadlinesService.getDeadlines();
-    applicationBuilder.details(
-        WithdrawalApplicationDetails.builder()
-            .depositAccountIBAN(applicationDTO.getBankAccount())
-            .fulfillmentDate(deadlines.getWithdrawalFulfillmentDate())
-            .cancellationDeadline(
-                applicationDTO.getType().equals(WITHDRAWAL)
-                    ? deadlines.getWithdrawalCancellationDeadline()
-                    : deadlines.getEarlyWithdrawalCancellationDeadline())
-            .build());
+    return Application.builder()
+        .creationTime(applicationDTO.getDate())
+        .type(applicationDTO.getType())
+        .status(applicationDTO.getStatus())
+        .id(applicationDTO.getId())
+        .fulfillmentDate(deadlines.getWithdrawalFulfillmentDate())
+        .cancellationDeadline(
+            applicationDTO.getType().equals(WITHDRAWAL)
+                ? deadlines.getWithdrawalCancellationDeadline()
+                : deadlines.getEarlyWithdrawalCancellationDeadline())
+        .details(
+            WithdrawalApplicationDetails.builder()
+                .depositAccountIBAN(applicationDTO.getBankAccount())
+                .build())
+        .build();
   }
 }

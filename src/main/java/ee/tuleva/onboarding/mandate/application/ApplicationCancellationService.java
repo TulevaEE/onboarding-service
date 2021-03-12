@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import static com.google.common.collect.MoreCollectors.onlyElement;
-
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
@@ -30,6 +28,7 @@ public class ApplicationCancellationService {
     List<ApplicationDTO> applications = episService.getApplications(person);
     return applications.stream()
         .filter(application -> application.getId().equals(applicationId))
-        .collect(onlyElement());
+        .findFirst()
+        .orElse(null);
   }
 }

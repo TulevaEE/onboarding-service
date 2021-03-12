@@ -31,4 +31,22 @@ class ApplicationCancellationServiceSpec extends Specification {
     then:
     response.mandateId == mandate.id
   }
+
+  def "returns first application when multiple applications with same id found"() {
+    given:
+    def person = samplePerson()
+    def user = sampleUser().build()
+    def applicationDTO = sampleTransferApplicationDto()
+    def mandate = sampleMandate()
+
+    1 * episService.getApplications(person) >> [applicationDTO, applicationDTO]
+    1 * mandateCancellationService.saveCancellationMandate(user.id, _) >> mandate
+
+    when:
+    ApplicationCancellationResponse response =
+      applicationCancellationService.createCancellationMandate(person, user.id, applicationDTO.id)
+
+    then:
+    response.mandateId == mandate.id
+  }
 }

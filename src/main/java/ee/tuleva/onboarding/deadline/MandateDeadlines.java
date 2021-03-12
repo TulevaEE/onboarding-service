@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MandateDeadlines {
 
-  private final Clock clock;
+  private final Clock estonianClock;
   private final PublicHolidays publicHolidays;
 
   public LocalDate getPeriodEnding() {
@@ -66,6 +66,6 @@ public class MandateDeadlines {
   }
 
   private LocalDate now() {
-    return LocalDate.now(clock);
+    return LocalDate.now(estonianClock);
   }
 }

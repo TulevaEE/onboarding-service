@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class PublicHolidays {
 
-  private final Clock clock;
+  private final Clock estonianClock;
 
   public boolean isPublicHoliday(LocalDate date) {
     return Arrays.asList(
@@ -78,7 +78,7 @@ public class PublicHolidays {
   }
 
   private LocalDate now() {
-    return LocalDate.now(clock);
+    return LocalDate.now(estonianClock);
   }
 
   private LocalDate getEasterSundayDate(int year) {

@@ -8,10 +8,10 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MandateDeadlinesService {
 
-  private final Clock clock;
+  private final Clock estonianClock;
   private final PublicHolidays publicHolidays;
 
   public MandateDeadlines getDeadlines() {
-    return new MandateDeadlines(clock, publicHolidays);
+    return new MandateDeadlines(estonianClock, publicHolidays);
   }
 }

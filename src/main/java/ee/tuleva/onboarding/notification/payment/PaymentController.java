@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.member.listener.MemberCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.io.IOException;
-import java.util.Locale;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;

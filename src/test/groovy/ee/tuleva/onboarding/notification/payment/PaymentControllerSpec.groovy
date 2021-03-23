@@ -6,9 +6,6 @@ import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.MediaType
 import org.springframework.validation.SmartValidator
-import org.springframework.web.servlet.LocaleResolver
-
-import javax.servlet.http.HttpServletRequest
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -20,8 +17,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     def userService = Mock(UserService)
     def validator = Mock(SmartValidator)
     def eventPublisher = Mock(ApplicationEventPublisher)
-    def localeResolver = Mock(LocaleResolver)
-    def controller = new PaymentController(mapper, userService, validator, eventPublisher, localeResolver)
+    def controller = new PaymentController(mapper, userService, validator, eventPublisher)
 
     def mvc = mockMvc(controller)
 
@@ -49,7 +45,6 @@ class PaymentControllerSpec extends BaseControllerSpec {
         def sampleUser = sampleUser().build()
 
         when:
-        localeResolver.resolveLocale(_) >> Locale.ENGLISH
         def perform = mvc.perform(post("/notifications/payments")
             .contentType(MediaType.APPLICATION_JSON)
             .param("json", mapper.writeValueAsString(json))
@@ -63,7 +58,6 @@ class PaymentControllerSpec extends BaseControllerSpec {
         1 * userService.registerAsMember(1L, json.customer_name) >> sampleUser
         1 * eventPublisher.publishEvent({
             it.user == sampleUser
-            it.locale == Locale.ENGLISH
         })
     }
 

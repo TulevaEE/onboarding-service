@@ -20,7 +20,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.servlet.LocaleResolver;
 import springfox.documentation.annotations.ApiIgnore;
 
 @RestController
@@ -35,7 +34,6 @@ public class PaymentController {
   private final UserService userService;
   private final SmartValidator validator;
   private final ApplicationEventPublisher applicationEventPublisher;
-  private final LocaleResolver localeResolver;
 
   @Value("${membership-success.url}")
   private String membershipSuccessUrl;
@@ -64,8 +62,7 @@ public class PaymentController {
 
     if (isStatusCompleted && !isAMember) {
       User user = userService.registerAsMember(userId, payment.getCustomerName());
-      Locale locale = localeResolver.resolveLocale(request);
-      applicationEventPublisher.publishEvent(new MemberCreatedEvent(user, locale));
+      applicationEventPublisher.publishEvent(new MemberCreatedEvent(user));
     } else {
       log.warn(
           "Invalid incoming payment. Status: {}, user is a member: {}",

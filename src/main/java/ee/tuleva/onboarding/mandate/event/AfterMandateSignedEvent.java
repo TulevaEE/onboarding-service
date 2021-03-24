@@ -32,17 +32,6 @@ public abstract class AfterMandateSignedEvent extends ApplicationEvent {
     }
   }
 
-  public Long getMandateId() {
-    return mandate.getId();
-  }
-
-  public byte[] getSignedFile() {
-    return mandate
-        .getMandate()
-        .orElseThrow(
-            () -> new IllegalStateException("Expecting mandate to be signed after creation"));
-  }
-
   public Address getAddress() {
     return mandate.getAddress();
   }

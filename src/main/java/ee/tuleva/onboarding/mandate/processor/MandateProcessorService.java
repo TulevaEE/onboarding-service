@@ -32,7 +32,7 @@ public class MandateProcessorService {
     log.info(
         "Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
 
-    if (mandate.isCancellation()) {
+    if (mandate.isWithdrawalCancellation()) {
       val response = episService.sendCancellation(getCancellationDto(mandate));
       handleApplicationProcessResponse(new ApplicationResponseDTO(response));
     } else {

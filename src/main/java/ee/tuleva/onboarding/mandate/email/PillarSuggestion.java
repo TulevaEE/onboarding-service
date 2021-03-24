@@ -4,11 +4,13 @@ import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.user.User;
 import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
 @ToString
 @AllArgsConstructor
+@EqualsAndHashCode
 public class PillarSuggestion {
 
   @Getter private final int suggestedPillar;

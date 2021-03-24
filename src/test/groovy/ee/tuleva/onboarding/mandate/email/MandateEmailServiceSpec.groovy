@@ -9,6 +9,7 @@ import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
 class MandateEmailServiceSpec extends Specification {
 
@@ -16,11 +17,13 @@ class MandateEmailServiceSpec extends Specification {
     EmailService emailService = Mock(EmailService)
     MandateEmailService mandateEmailService = new MandateEmailService(emailService, emailContentService)
 
-    def "Send second pillar mandate email"() {
+    def "Send mandate email"() {
         given:
         def user = sampleUser().build()
         def conversion = notFullyConverted()
         def contactDetails = contactDetailsFixture()
+        def mandate = sampleMandate()
+        def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
         def recipients = [new Recipient()]
         def message = new MandrillMessage()
         def subject = mandateEmailService.getMandateEmailSubject()
@@ -31,31 +34,7 @@ class MandateEmailServiceSpec extends Specification {
         emailService.getRecipients(user) >> recipients
 
         when:
-        mandateEmailService.sendSecondPillarMandate(
-            user, 123, "file".bytes, conversion, contactDetails, Locale.ENGLISH)
-
-        then:
-        1 * emailService.newMandrillMessage(recipients, subject, html, tags, _) >> message
-        1 * emailService.send(user, message)
-    }
-
-    def "Send third pillar mandate email"() {
-        given:
-        def user = sampleUser().build()
-        def conversion = notFullyConverted()
-        def contactDetails = contactDetailsFixture()
-        def recipients = [new Recipient()]
-        def message = new MandrillMessage()
-        def subject = mandateEmailService.getMandateEmailSubject()
-        def html = "html"
-        def tags = ["mandate", "pillar_3", "suggest_2"]
-
-        emailContentService.getThirdPillarHtml(*_) >> html
-        emailService.getRecipients(user) >> recipients
-
-        when:
-        mandateEmailService.sendThirdPillarMandate(
-            user, 123, "file".bytes, conversion, contactDetails, Locale.ENGLISH)
+        mandateEmailService.sendMandate(user, mandate, pillarSuggestion, contactDetails, Locale.ENGLISH)
 
         then:
         1 * emailService.newMandrillMessage(recipients, subject, html, tags, _) >> message

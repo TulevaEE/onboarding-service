@@ -34,7 +34,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
           getFutureContributionsFundMandateContentFile(user, mandate, funds, userPreferences));
     }
 
-    if (mandate.isCancellation()) {
+    if (mandate.isWithdrawalCancellation()) {
       files.add(
           getContentFileForMandateCancellation(
               user, mandate, userPreferences, mandate.getApplicationTypeToCancel()));

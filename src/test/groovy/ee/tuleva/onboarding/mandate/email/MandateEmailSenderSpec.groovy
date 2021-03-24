@@ -25,21 +25,23 @@ class MandateEmailSenderSpec extends Specification {
         User user = sampleUser().build()
         Mandate mandate = sampleMandate()
 
-        UserPreferences userPreferences = new UserPreferences()
+        UserPreferences contactDetails = new UserPreferences()
 
         SecondPillarAfterMandateSignedEvent event = new SecondPillarAfterMandateSignedEvent(
             this, user, mandate, Locale.ENGLISH
         )
-        1 * episService.getContactDetails(_) >> userPreferences
+        1 * episService.getContactDetails(_) >> contactDetails
 
         def conversion = notFullyConverted()
         1 * conversionService.getConversion(event.getUser()) >> conversion
+
+        def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
 
         when:
         mandateEmailSender.sendEmail(event)
 
         then:
-        1 * mandateEmailService.sendSecondPillarMandate(user, 123, _, conversion, userPreferences, Locale.ENGLISH)
+        1 * mandateEmailService.sendMandate(user, mandate, pillarSuggestion, contactDetails, Locale.ENGLISH)
     }
 
     def "send email when third pillar mandate event was received" () {
@@ -47,20 +49,22 @@ class MandateEmailSenderSpec extends Specification {
         User user = sampleUser().build()
         Mandate mandate = sampleMandate()
 
-        UserPreferences userPreferences = new UserPreferences()
+        UserPreferences contactDetails = new UserPreferences()
 
         ThirdPillarAfterMandateSignedEvent event = new ThirdPillarAfterMandateSignedEvent(
             this, user, mandate, Locale.ENGLISH
         )
-        1 * episService.getContactDetails(_) >> userPreferences
+        1 * episService.getContactDetails(_) >> contactDetails
 
         def conversion = notFullyConverted()
         1 * conversionService.getConversion(event.getUser()) >> conversion
+
+        PillarSuggestion pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
 
         when:
         mandateEmailSender.sendEmail(event)
 
         then:
-        1 * mandateEmailService.sendThirdPillarMandate(user, 123, _, conversion, userPreferences, Locale.ENGLISH)
+        1 * mandateEmailService.sendMandate(user, mandate, pillarSuggestion, contactDetails, Locale.ENGLISH)
     }
 }

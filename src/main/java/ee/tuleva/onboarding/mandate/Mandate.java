@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.config.JsonbType;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -40,7 +41,7 @@ import org.jetbrains.annotations.Nullable;
 @TypeDefs({
   @TypeDef(name = "jsonb", typeClass = JsonbType.class),
 })
-public class Mandate {
+public class Mandate implements Serializable {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -133,15 +134,29 @@ public class Mandate {
   }
 
   @JsonIgnore
-  public boolean isCancellation() {
+  public boolean isWithdrawalCancellation() {
     return metadata != null && metadata.containsKey("applicationTypeToCancel");
   }
 
   @JsonIgnore
   public ApplicationType getApplicationTypeToCancel() {
-    if (isCancellation()) {
+    if (isWithdrawalCancellation()) {
       return ApplicationType.valueOf((String) metadata.get("applicationTypeToCancel"));
     }
     return null;
+  }
+
+  public byte[] getSignedFile() {
+    return getMandate()
+        .orElseThrow(() -> new IllegalStateException("Expecting mandate to be signed"));
+  }
+
+  @JsonIgnore
+  public boolean isTransferCancellation() {
+    return fundTransferExchanges != null
+        && fundTransferExchanges.size() == 1
+        && fundTransferExchanges.get(0).getSourceFundIsin() != null
+        && fundTransferExchanges.get(0).getTargetFundIsin() == null
+        && fundTransferExchanges.get(0).getAmount() == null;
   }
 }

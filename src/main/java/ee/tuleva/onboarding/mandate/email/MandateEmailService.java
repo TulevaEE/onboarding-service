@@ -1,11 +1,16 @@
 package ee.tuleva.onboarding.mandate.email;
 
+import static java.util.Collections.singletonList;
+
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,63 +22,52 @@ public class MandateEmailService {
   private final EmailService emailService;
   private final MandateEmailContentService emailContentService;
 
-  public void sendSecondPillarMandate(
+  public void sendMandate(
       User user,
-      Long mandateId,
-      byte[] file,
-      ConversionResponse conversion,
+      Mandate mandate,
+      PillarSuggestion pillarSuggestion,
       UserPreferences contactDetails,
       Locale locale) {
-    PillarSuggestion thirdPillarSuggestion =
-        new PillarSuggestion(3, user, contactDetails, conversion);
 
     MandrillMessage message =
         emailService.newMandrillMessage(
             emailService.getRecipients(user),
             getMandateEmailSubject(),
-            emailContentService.getSecondPillarHtml(user, thirdPillarSuggestion, locale),
-            getMandateTags(thirdPillarSuggestion),
-            getMandateAttachements(file, user, mandateId));
+            getContent(user, mandate, pillarSuggestion, contactDetails, locale),
+            getMandateTags(pillarSuggestion),
+            getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
 
     if (message == null) {
       log.warn(
           "Failed to create mandrill message, not sending mandate email for user {} and second pillar mandate {}.",
           user.getId(),
-          mandateId);
+          mandate.getId());
       return;
     }
 
     emailService.send(user, message);
   }
 
-  public void sendThirdPillarMandate(
+  private String getContent(
       User user,
-      Long mandateId,
-      byte[] file,
-      ConversionResponse conversion,
+      Mandate mandate,
+      PillarSuggestion pillarSuggestion,
       UserPreferences contactDetails,
       Locale locale) {
-    PillarSuggestion secondPillarSuggestion =
-        new PillarSuggestion(2, user, contactDetails, conversion);
-
-    MandrillMessage message =
-        emailService.newMandrillMessage(
-            emailService.getRecipients(user),
-            getMandateEmailSubject(),
-            emailContentService.getThirdPillarHtml(
-                user, secondPillarSuggestion, contactDetails.getPensionAccountNumber(), locale),
-            getMandateTags(secondPillarSuggestion),
-            getMandateAttachements(file, user, mandateId));
-
-    if (message == null) {
-      log.warn(
-          "Failed to create mandrill message, not sending mandate email for user {} and third pillar mandate {}.",
-          user.getId(),
-          mandateId);
-      return;
+    if (pillarSuggestion.getOtherPillar() == 2) {
+      if (mandate.isWithdrawalCancellation()) {
+        return emailContentService.getSecondPillarWithdrawalCancellationHtml(user, locale);
+      }
+      if (mandate.isTransferCancellation()) {
+        return emailContentService.getSecondPillarTransferCancellationHtml(user, mandate, locale);
+      }
+      return emailContentService.getSecondPillarHtml(user, pillarSuggestion, locale);
     }
-
-    emailService.send(user, message);
+    if (pillarSuggestion.getOtherPillar() == 3) {
+      return emailContentService.getThirdPillarHtml(
+          user, pillarSuggestion, contactDetails.getPensionAccountNumber(), locale);
+    }
+    throw new IllegalArgumentException("Unknown pillar: " + pillarSuggestion.getOtherPillar());
   }
 
   String getMandateEmailSubject() {
@@ -93,15 +87,15 @@ public class MandateEmailService {
     return tags;
   }
 
-  private List<MandrillMessage.MessageContent> getMandateAttachements(
+  private List<MandrillMessage.MessageContent> getMandateAttachments(
       byte[] file, User user, Long mandateId) {
-    MandrillMessage.MessageContent attachement = new MandrillMessage.MessageContent();
+    MandrillMessage.MessageContent attachment = new MandrillMessage.MessageContent();
 
-    attachement.setName(getNameSuffix(user) + "_avaldus_" + mandateId + ".bdoc");
-    attachement.setType("application/bdoc");
-    attachement.setContent(Base64.getEncoder().encodeToString(file));
+    attachment.setName(getNameSuffix(user) + "_avaldus_" + mandateId + ".bdoc");
+    attachment.setType("application/bdoc");
+    attachment.setContent(Base64.getEncoder().encodeToString(file));
 
-    return Arrays.asList(attachement);
+    return singletonList(attachment);
   }
 
   private String getNameSuffix(User user) {

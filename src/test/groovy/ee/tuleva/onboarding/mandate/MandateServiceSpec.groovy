@@ -23,10 +23,7 @@ import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.web.servlet.LocaleResolver
 import spock.lang.Specification
-
-import javax.servlet.http.HttpServletRequest
 
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
@@ -199,7 +196,7 @@ class MandateServiceSpec extends Specification {
         status == "SIGNATURE"
         1 * eventPublisher.publishEvent({ SecondPillarAfterMandateSignedEvent event ->
             event.user == sampleUser
-            event.mandateId == sampleMandate.id
+            event.mandate == sampleMandate
         })
     }
 
@@ -303,7 +300,7 @@ class MandateServiceSpec extends Specification {
         status == "SIGNATURE"
         1 * eventPublisher.publishEvent({ SecondPillarAfterMandateSignedEvent event ->
             event.user == sampleUser
-            event.mandateId == sampleMandate.id
+            event.mandate == sampleMandate
         })
     }
 

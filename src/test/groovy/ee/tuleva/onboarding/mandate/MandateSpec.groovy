@@ -13,7 +13,7 @@ class MandateSpec extends Specification {
     Mandate mandate = Mandate.builder().metadata(metadata).build()
 
     then:
-    mandate.isCancellation() == isCancellation
+    mandate.isWithdrawalCancellation() == isCancellation
     mandate.getApplicationTypeToCancel() == applicationTypeToCancel
 
     where:

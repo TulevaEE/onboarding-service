@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.cancellation;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
+import static java.util.Collections.singletonList;
 
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
@@ -11,7 +12,6 @@ import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.user.User;
-import java.util.Collections;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
@@ -58,10 +58,11 @@ public class CancellationMandateBuilder {
         FundTransferExchange.builder()
             .sourceFundIsin(applicationToCancel.getSourceFundIsin())
             .targetFundIsin(null)
+            .amount(null)
             .mandate(mandate)
             .build();
 
-    mandate.setFundTransferExchanges(Collections.singletonList(exchange));
+    mandate.setFundTransferExchanges(singletonList(exchange));
     return mandate;
   }
 }

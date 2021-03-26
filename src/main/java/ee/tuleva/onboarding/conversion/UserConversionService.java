@@ -175,7 +175,8 @@ public class UserConversionService {
         .filter(transferExchange -> pillar.equals(transferExchange.getPillar()))
         .filter(
             transferExchange ->
-                transferExchange
+                transferExchange.getTargetFund() != null
+                    && transferExchange
                         .getTargetFund()
                         .getFundManager()
                         .getName()

@@ -86,7 +86,10 @@ public class ApplicationService {
                               details.exchange(
                                   TransferApplicationDetails.Exchange.builder()
                                       .amount(applicationDTO.getAmount())
-                                      .targetFund(targetFund != null ? new FundDto(targetFund, locale.getLanguage()) : null)
+                                      .targetFund(
+                                          targetFund != null
+                                              ? new FundDto(targetFund, locale.getLanguage())
+                                              : null)
                                       .build());
                             });
                         application.details(details.build());

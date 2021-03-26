@@ -20,9 +20,13 @@ public class TransferExchange {
   private Fund targetFund;
 
   public Integer getPillar() {
-    if (sourceFund.getPillar().equals(targetFund.getPillar())) {
+    if (isTransferCancellation() || sourceFund.getPillar().equals(targetFund.getPillar())) {
       return sourceFund.getPillar();
     }
     throw new IllegalStateException("Transfer between different pillar funds");
+  }
+
+  private boolean isTransferCancellation() {
+    return targetFund == null;
   }
 }

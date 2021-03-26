@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 @AllArgsConstructor
 public class OCSPAuthService {
   private final OCSPUtils ocspUtils;
-  private final OCSPService service;
+  private final OCSPService ocspService;
 
   public CheckCertificateResponse checkCertificate(String certificate) {
     X509Certificate cert = ocspUtils.getX509Certificate(certificate);
@@ -33,12 +33,12 @@ public class OCSPAuthService {
     URI issuerURI = ocspUtils.getIssuerCertificateURI(certificate);
     URI responderURI = ocspUtils.getResponderURI(certificate);
 
-    String certificationAuthority = service.getIssuerCertificate(issuerURI.toString());
+    String certificationAuthority = ocspService.getIssuerCertificate(issuerURI.toString());
 
     OCSPRequest request =
         ocspUtils.generateOCSPRequest(certificate, certificationAuthority, responderURI.toString());
 
-    OCSPResponseType result = service.checkCertificate(request);
+    OCSPResponseType result = ocspService.checkCertificate(request);
     validateGoodResult(result);
 
     return getCreateCertificateResponse(certificate);

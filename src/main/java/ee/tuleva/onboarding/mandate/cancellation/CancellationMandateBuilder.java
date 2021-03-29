@@ -8,6 +8,8 @@ import static java.util.Collections.singletonList;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
+import ee.tuleva.onboarding.fund.Fund;
+import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Service;
 public class CancellationMandateBuilder {
 
   private final ConversionDecorator conversionDecorator;
+  private final FundRepository fundRepository;
 
   public Mandate build(
       ApplicationDTO applicationToCancel,
@@ -32,7 +35,6 @@ public class CancellationMandateBuilder {
 
     Mandate mandate = new Mandate();
     mandate.setUser(user);
-    mandate.setPillar(2);
     mandate.setAddress(contactDetails.getAddress());
 
     conversionDecorator.addConversionMetadata(mandate, conversion, contactDetails);
@@ -47,21 +49,24 @@ public class CancellationMandateBuilder {
   }
 
   public Mandate buildWithdrawalMandate(ApplicationDTO applicationToCancel, Mandate mandate) {
+    mandate.setPillar(2);
     mandate.putMetadata("applicationTypeToCancel", applicationToCancel.getType());
     return mandate;
   }
 
   private Mandate buildTransferCancellationMandate(
       ApplicationDTO applicationToCancel, Mandate mandate) {
+    Fund sourceFund = fundRepository.findByIsin(applicationToCancel.getSourceFundIsin());
 
     val exchange =
         FundTransferExchange.builder()
-            .sourceFundIsin(applicationToCancel.getSourceFundIsin())
+            .sourceFundIsin(sourceFund.getIsin())
             .targetFundIsin(null)
             .amount(null)
             .mandate(mandate)
             .build();
 
+    mandate.setPillar(sourceFund.getPillar());
     mandate.setFundTransferExchanges(singletonList(exchange));
     return mandate;
   }

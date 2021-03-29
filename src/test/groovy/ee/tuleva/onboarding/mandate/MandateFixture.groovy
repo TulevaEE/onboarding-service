@@ -208,6 +208,7 @@ class MandateFixture {
                         .name("Tuleva")
                         .build()
                 )
+                .pillar(2)
                 .build(),
             Fund.builder()
                 .isin("EE3600109443")
@@ -221,6 +222,7 @@ class MandateFixture {
                         .name("Tuleva")
                         .build()
                 )
+                .pillar(2)
                 .build(),
             Fund.builder()
                 .isin("EE3600019775")
@@ -233,6 +235,7 @@ class MandateFixture {
                         .name("SEB")
                         .build()
                 )
+                .pillar(2)
                 .build(),
             Fund.builder()
                 .isin("EE3600019776")
@@ -245,6 +248,7 @@ class MandateFixture {
                         .name("LHV")
                         .build()
                 )
+                .pillar(2)
                 .build(),
             Fund.builder()
                 .isin("EE3600019777")
@@ -257,6 +261,7 @@ class MandateFixture {
                         .name("Swedbank")
                         .build()
                 )
+                .pillar(2)
                 .build(),
             Fund.builder()
                 .isin("AE123232331")
@@ -269,6 +274,7 @@ class MandateFixture {
                         .name("Nordea")
                         .build()
                 )
+                .pillar(2)
                 .build(),
             Fund.builder()
                 .isin("AE123232337")
@@ -281,6 +287,7 @@ class MandateFixture {
                         .name("LHV")
                         .build()
                 )
+                .pillar(2)
                 .build()
         )
     }

@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.mandate.application;
 
+import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL;
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import java.time.Instant;
@@ -18,17 +22,17 @@ public class Application implements Comparable<Application> {
   private ApplicationType type;
   private ApplicationStatus status;
   private ApplicationDetails details;
-  private final LocalDate cancellationDeadline;
+  private final Instant cancellationDeadline;
   private final LocalDate fulfillmentDate;
 
   @JsonIgnore
   public boolean isPending() {
-    return status.equals(ApplicationStatus.PENDING);
+    return status == PENDING;
   }
 
   @JsonIgnore
   public boolean isWithdrawal() {
-    return type.equals(ApplicationType.WITHDRAWAL) || type.equals(ApplicationType.EARLY_WITHDRAWAL);
+    return type == WITHDRAWAL || type == EARLY_WITHDRAWAL;
   }
 
   @Override

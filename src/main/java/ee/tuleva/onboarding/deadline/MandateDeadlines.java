@@ -5,7 +5,10 @@ import static java.time.DayOfWeek.SUNDAY;
 import static java.time.temporal.TemporalAdjusters.lastDayOfMonth;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZonedDateTime;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 
@@ -15,10 +18,15 @@ public class MandateDeadlines {
   private final Clock estonianClock;
   private final PublicHolidays publicHolidays;
 
-  public LocalDate getPeriodEnding() {
-    LocalDate march31ThisYear = now().withMonth(3).with(lastDayOfMonth());
-    LocalDate july31ThisYear = now().withMonth(7).with(lastDayOfMonth());
-    LocalDate november30ThisYear = now().withMonth(11).with(lastDayOfMonth());
+  public Instant getPeriodEnding() {
+    return periodEnding().toInstant();
+  }
+
+  private ZonedDateTime periodEnding() {
+    ZonedDateTime march31ThisYear = now().withMonth(3).with(lastDayOfMonth()).with(LocalTime.MAX);
+    ZonedDateTime july31ThisYear = now().withMonth(7).with(lastDayOfMonth()).with(LocalTime.MAX);
+    ZonedDateTime november30ThisYear =
+        now().withMonth(11).with(lastDayOfMonth()).with(LocalTime.MAX);
 
     return Stream.of(march31ThisYear, july31ThisYear, november30ThisYear)
         .filter(deadline -> !deadline.isBefore(now()))
@@ -26,29 +34,37 @@ public class MandateDeadlines {
         .get();
   }
 
-  public LocalDate getTransferMandateCancellationDeadline() {
+  public Instant getTransferMandateCancellationDeadline() {
     return getPeriodEnding();
   }
 
   public LocalDate getTransferMandateFulfillmentDate() {
-    return nextWorkingDay(getPeriodEnding().plusMonths(1).with(lastDayOfMonth()));
+    return nextWorkingDay(periodEnding().plusMonths(1).with(lastDayOfMonth()).toLocalDate());
   }
 
-  public LocalDate getEarlyWithdrawalCancellationDeadline() {
-    return getPeriodEnding().plusMonths(4).with(lastDayOfMonth());
+  public Instant getEarlyWithdrawalCancellationDeadline() {
+    return earlyWithdrawalCancellationDeadline().toInstant();
+  }
+
+  private ZonedDateTime earlyWithdrawalCancellationDeadline() {
+    return periodEnding().plusMonths(4).with(lastDayOfMonth());
   }
 
   public LocalDate getEarlyWithdrawalFulfillmentDate() {
     return nextWorkingDay(
-        getEarlyWithdrawalCancellationDeadline().plusMonths(1).with(lastDayOfMonth()));
+        earlyWithdrawalCancellationDeadline().plusMonths(1).with(lastDayOfMonth()).toLocalDate());
   }
 
-  public LocalDate getWithdrawalCancellationDeadline() {
-    return now().with(lastDayOfMonth());
+  public Instant getWithdrawalCancellationDeadline() {
+    return withdrawalCancellationDeadline().toInstant();
+  }
+
+  private ZonedDateTime withdrawalCancellationDeadline() {
+    return now().with(lastDayOfMonth()).with(LocalTime.MAX);
   }
 
   public LocalDate getWithdrawalFulfillmentDate() {
-    return nextWorkingDay(getWithdrawalCancellationDeadline().plusDays(15));
+    return nextWorkingDay(withdrawalCancellationDeadline().plusDays(15).toLocalDate());
   }
 
   private LocalDate nextWorkingDay(LocalDate to) {
@@ -65,7 +81,7 @@ public class MandateDeadlines {
         || publicHolidays.isPublicHoliday(date));
   }
 
-  private LocalDate now() {
-    return LocalDate.now(estonianClock);
+  private ZonedDateTime now() {
+    return ZonedDateTime.now(estonianClock);
   }
 }

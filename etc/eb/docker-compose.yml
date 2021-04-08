@@ -9,3 +9,16 @@ services:
       - /home/webapp/truststore.jks:/truststore.jks
     env_file:
       - .env
+
+  nginx:
+    image: public.ecr.aws/nginx/nginx:latest
+    volumes:
+      - /tmp/fullchain.pem:/tmp/fullchain.pem
+      - /tmp/privkey.pem:/tmp/privkey.pem
+      - /tmp/id.crt:/tmp/id.crt
+      - /tmp/dhparam.pem:/tmp/dhparam.pem
+      - .platform/nginx/nginx.conf:/etc/nginx/nginx.conf
+      - .platform/nginx/conf.d/01_ssl_proxy.conf:/etc/nginx/conf.d/01_ssl_proxy.conf
+    ports:
+      - 80:80
+      - 443:443

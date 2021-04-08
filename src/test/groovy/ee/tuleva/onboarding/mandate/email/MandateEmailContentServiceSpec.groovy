@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.mandate.email
 
+
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static java.util.Locale.ENGLISH
 
 @SpringBootTest
@@ -20,7 +22,6 @@ class MandateEmailContentServiceSpec extends Specification {
         def isThirdPillarActive = true
         def isFullyConverted = false
         def pillarSuggestion = new PillarSuggestion(3, isThirdPillarActive, isFullyConverted, user.isMember())
-        def mandate = sampleMandate()
 
         when:
         String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
@@ -38,7 +39,7 @@ class MandateEmailContentServiceSpec extends Specification {
         def pillarSuggestion = new PillarSuggestion(3, isThirdPillarActive, isFullyConverted, user.isMember())
 
         when:
-        String html = emailContentService.getContent(user, mandate, pillarSuggestion, contactDetails, ENGLISH)
+        String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
 
         then:
         html.contains('You are now saving for your pension alongside me and other Tuleva members.')
@@ -106,4 +107,27 @@ class MandateEmailContentServiceSpec extends Specification {
         html.contains('You are now saving for your pension alongside me and other Tuleva members.')
         html.contains('test_account_1')
     }
+
+  def "renders 2nd pillar transfer cancellation email"() {
+    given:
+    def user = sampleUserNonMember().build()
+    def mandate = sampleMandate()
+    when:
+    String html = emailContentService.getSecondPillarTransferCancellationHtml(user, mandate, ENGLISH)
+
+    then:
+    html.contains('You have submitted a cancellation application through Tuleva.')
+    html.contains(mandate.getFundTransferExchanges().get(0).getSourceFundIsin())
+  }
+
+  def "renders 2nd pillar withdrawal cancellation email"() {
+    given:
+    def user = sampleUserNonMember().build()
+    def mandate = sampleMandate()
+    when:
+    String html = emailContentService.getSecondPillarWithdrawalCancellationHtml(user, ENGLISH)
+
+    then:
+    html.contains('You have cancelled your 2nd pillar withdrawal application.')
+  }
 }

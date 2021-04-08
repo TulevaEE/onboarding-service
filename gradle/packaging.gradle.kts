@@ -6,6 +6,9 @@ tasks {
     from("$rootDir/etc/eb/.ebextensions") {
       into(".ebextensions")
     }
+    from("$rootDir/etc/eb/.ebextensions/nginx") {
+      into(".platform/nginx")
+    }
     from("$rootDir/etc/eb/Procfile")
     val jar = tasks.getByName<Jar>("jar")
     from(jar.outputs.files.singleFile) {

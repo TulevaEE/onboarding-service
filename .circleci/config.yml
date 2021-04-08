@@ -1,6 +1,7 @@
 version: 2.1
 orbs:
   aws-ecr: circleci/aws-ecr@6.15.3
+  eb: circleci/aws-elastic-beanstalk@1.0.2
 jobs:
   build:
     environment:
@@ -51,9 +52,10 @@ jobs:
             - build
   deploy:
     docker:
-      - image: meetfrank/circleci-node-awsebcli:latest
+      - image: cimg/base:stable
     steps:
       - checkout
+      - eb/setup
       - restore_cache:
           keys:
             - v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}

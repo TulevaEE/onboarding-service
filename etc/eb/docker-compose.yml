@@ -18,7 +18,7 @@ services:
       - /tmp/privkey.pem:/tmp/privkey.pem
       - /tmp/id.crt:/tmp/id.crt
       - /tmp/dhparam.pem:/tmp/dhparam.pem
-      - /etc/nginx/conf.d/01_ssl_proxy.conf:/etc/nginx/conf.d/01_ssl_proxy.conf
+      - .platform/nginx/conf.d/01_ssl_proxy.conf:/etc/nginx/conf.d/01_ssl_proxy.conf
     ports:
       - 80:80
       - 443:443

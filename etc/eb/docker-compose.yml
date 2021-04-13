@@ -13,10 +13,8 @@ services:
   nginx:
     image: public.ecr.aws/nginx/nginx:latest
     volumes:
-      - /tmp/fullchain.pem:/tmp/fullchain.pem
-      - /tmp/privkey.pem:/tmp/privkey.pem
-      - /tmp/id.crt:/tmp/id.crt
-      - /tmp/dhparam.pem:/tmp/dhparam.pem
+      - /tmp/pension.tuleva.ee:/tmp/pension.tuleva.ee
+      - /tmp/staging.tuleva.ee:/tmp/staging.tuleva.ee
       - .platform/nginx/nginx.conf:/etc/nginx/nginx.conf
       - .platform/nginx/conf.d/default.conf:/etc/nginx/conf.d/default.conf
       - .platform/nginx/conf.d/elasticbeanstalk/00_application.conf:/etc/nginx/conf.d/elasticbeanstalk/00_application.conf

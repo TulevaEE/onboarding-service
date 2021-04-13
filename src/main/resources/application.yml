@@ -147,7 +147,7 @@ spring:
 ---
 
 spring:
-  profiles: production
+  profiles: production,staging
   datasource:
     url: ${JDBC_DATABASE_URL}
     username: ${JDBC_DATABASE_USERNAME}

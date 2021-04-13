@@ -50,6 +50,7 @@ jobs:
           root: .
           paths:
             - build
+
   deploy:
     docker:
       - image: cimg/base:stable
@@ -72,7 +73,8 @@ jobs:
       - run: sentry-cli releases set-commits --auto ${CIRCLE_SHA1}
 
 workflows:
-  build-and-deploy:
+  version: 2
+  onboarding-service-workflow:
     jobs:
       - build
       - aws-ecr/build-and-push-image:

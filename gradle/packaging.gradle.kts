@@ -9,11 +9,6 @@ tasks {
     from("$rootDir/etc/eb/.platform") {
       into(".platform")
     }
-    from("$rootDir/etc/eb/Procfile")
-    val jar = tasks.getByName<Jar>("jar")
-    from(jar.outputs.files.singleFile) {
-      rename { "application.jar" }
-    }
     destinationDir = file("$buildDir/zip")
     doLast {
       copy {

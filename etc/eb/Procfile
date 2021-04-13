@@ -1,1 +1,0 @@
-web: java -Dfile.encoding=utf-8 -jar application.jar

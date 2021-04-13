@@ -1,10 +1,10 @@
 map $http_origin $cors_header {
   default "";
-  "~^https?:\/\/(pension\.tuleva\.ee|www\.tuleva\.ee|tuleva\.ee|localhost)" "$http_origin";
+  "~^https?:\/\/(pension\.tuleva\.ee|www\.tuleva\.ee|tuleva\.ee|staging\.tuleva\.ee|localhost)" "$http_origin";
 }
 server {
     listen 443 ssl;
-    server_name pension.tuleva.ee;
+    server_name ${NGINX_MAIN_SERVER_NAME};
     ssl_certificate /tmp/fullchain.pem;
     ssl_certificate_key /tmp/privkey.pem;
     ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
@@ -23,10 +23,10 @@ server {
     add_header X-Content-Type-Options nosniff;
 
     location / {
-        proxy_pass  http://pension.tuleva.ee.s3-website.eu-central-1.amazonaws.com;
+        proxy_pass  http://${NGINX_MAIN_SERVER_NAME}.s3-website.eu-central-1.amazonaws.com;
         proxy_set_header   Connection "";
         proxy_http_version 1.1;
-        proxy_set_header        Host            "pension.tuleva.ee.s3-website.eu-central-1.amazonaws.com";
+        proxy_set_header        Host            "${NGINX_MAIN_SERVER_NAME}.s3-website.eu-central-1.amazonaws.com";
         proxy_set_header        X-Real-IP       $remote_addr;
         proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header        X-Forwarded-Proto https;
@@ -93,12 +93,12 @@ server {
     }
 
     location /idLogin {
-        return 301 https://id.tuleva.ee/$request_uri;
+        return 301 https://${NGINX_ID_SERVER_NAME}/$request_uri;
     }
 }
 server {
     listen 443 ssl;
-    server_name id.tuleva.ee;
+    server_name ${NGINX_ID_SERVER_NAME};
     ssl_certificate /tmp/fullchain.pem;
     ssl_certificate_key /tmp/privkey.pem;
     ssl_client_certificate /tmp/id.crt;

@@ -5,8 +5,8 @@ map $http_origin $cors_header {
 server {
     listen 443 ssl;
     server_name ${NGINX_MAIN_SERVER_NAME};
-    ssl_certificate /tmp/fullchain.pem;
-    ssl_certificate_key /tmp/privkey.pem;
+    ssl_certificate /tmp/${NGINX_MAIN_SERVER_NAME}/fullchain.pem;
+    ssl_certificate_key /tmp/${NGINX_MAIN_SERVER_NAME}/privkey.pem;
     ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
     ssl_prefer_server_ciphers on;
     ssl_dhparam /tmp/${NGINX_MAIN_SERVER_NAME}/dhparam.pem;

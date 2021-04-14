@@ -91,7 +91,7 @@ public class AuthController {
     idCardAuthService.checkCertificate(URLDecoder.decode(clientCertificate, UTF_8.name()));
 
     if (httpMethod.equals(HttpMethod.GET)) {
-      response.sendRedirect(frontendUrl + "?login=idCard");
+      response.sendRedirect(frontendUrl + "/?login=idCard");
     }
     return IdCardLoginResponse.success();
   }

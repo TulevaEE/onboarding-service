@@ -201,7 +201,7 @@ membership-success:
   url: https://tuleva.ee/membership-success/
 
 frontend:
-  url: https://pension.tuleva.ee/
+  url: https://pension.tuleva.ee
 
 morningstar:
   host: ftp.morningstar.com

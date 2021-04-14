@@ -10,6 +10,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
@@ -21,9 +22,10 @@ import org.springframework.web.filter.GenericFilterBean;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class CORSFilter extends GenericFilterBean {
 
-  String DEFAULT_ALLOWED_ORIGIN = "https://pension.tuleva.ee";
-  private final List<String> allowedOrigins =
-      Arrays.asList(DEFAULT_ALLOWED_ORIGIN, "https://staging.tuleva.ee", "https://tuleva.ee");
+  @Value("${frontend.url}")
+  private String frontendUrl;
+
+  private final List<String> allowedOrigins = Arrays.asList(frontendUrl, "https://tuleva.ee");
 
   @Override
   public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)
@@ -32,7 +34,7 @@ public class CORSFilter extends GenericFilterBean {
     HttpServletRequest request = (HttpServletRequest) req;
     String origin = request.getHeader("Origin");
     String allowedOriginResponse =
-        allowedOrigins.contains(origin) ? origin : DEFAULT_ALLOWED_ORIGIN;
+        allowedOrigins.contains(origin) ? origin : frontendUrl;
     response.setHeader("Access-Control-Allow-Origin", allowedOriginResponse);
     response.setHeader("Access-Control-Allow-Methods", "POST, PUT, GET, OPTIONS, DELETE");
     response.setHeader("Access-Control-Max-Age", "3600");

@@ -39,8 +39,7 @@ public class CORSFilter extends GenericFilterBean {
     HttpServletResponse response = (HttpServletResponse) res;
     HttpServletRequest request = (HttpServletRequest) req;
     String origin = request.getHeader("Origin");
-    String allowedOriginResponse =
-        allowedOrigins.contains(origin) ? origin : frontendUrl;
+    String allowedOriginResponse = allowedOrigins.contains(origin) ? origin : frontendUrl;
     response.setHeader("Access-Control-Allow-Origin", allowedOriginResponse);
     response.setHeader("Access-Control-Allow-Methods", "POST, PUT, GET, OPTIONS, DELETE");
     response.setHeader("Access-Control-Max-Age", "3600");

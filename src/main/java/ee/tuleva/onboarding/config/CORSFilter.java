@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.config;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
+import javax.annotation.PostConstruct;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
@@ -25,7 +26,12 @@ public class CORSFilter extends GenericFilterBean {
   @Value("${frontend.url}")
   private String frontendUrl;
 
-  private final List<String> allowedOrigins = Arrays.asList(frontendUrl, "https://tuleva.ee");
+  private List<String> allowedOrigins;
+
+  @PostConstruct
+  public void init() {
+    allowedOrigins = Arrays.asList(frontendUrl, "https://tuleva.ee");
+  }
 
   @Override
   public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)

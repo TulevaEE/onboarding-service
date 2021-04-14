@@ -22,7 +22,8 @@ import org.springframework.web.filter.GenericFilterBean;
 public class CORSFilter extends GenericFilterBean {
 
   String DEFAULT_ALLOWED_ORIGIN = "https://pension.tuleva.ee";
-  private List<String> allowedOrigins = Arrays.asList(DEFAULT_ALLOWED_ORIGIN, "https://tuleva.ee");
+  private final List<String> allowedOrigins =
+      Arrays.asList(DEFAULT_ALLOWED_ORIGIN, "https://staging.tuleva.ee", "https://tuleva.ee");
 
   @Override
   public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain)

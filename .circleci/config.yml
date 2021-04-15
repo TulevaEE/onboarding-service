@@ -80,7 +80,7 @@ workflows:
       - aws-ecr/build-and-push-image:
           requires:
             - build
-          context: elastic-beanstalk-deployment
+          context: aws
           path: build/docker
           repo: onboarding-service
           tag: 'latest,${CIRCLE_SHA1}'
@@ -92,14 +92,14 @@ workflows:
       - deploy:
           requires:
             - aws-ecr/build-and-push-image
-          context: elastic-beanstalk-deployment
+          context: aws
           filters:
             branches:
               only: master
       - notify:
           requires:
             - deploy
-          context: elastic-beanstalk-deployment
+          context: aws
           filters:
             branches:
               only: master

@@ -99,7 +99,7 @@ workflows:
       - notify:
           requires:
             - deploy
-          context: aws
+          context: sentry
           filters:
             branches:
               only: master

@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
-import ee.tuleva.onboarding.user.command.CreateUserCommand;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
 import ee.tuleva.onboarding.user.response.UserResponse;
 import io.swagger.annotations.ApiOperation;
@@ -14,7 +13,11 @@ import javax.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import springfox.documentation.annotations.ApiIgnore;
 
 @RestController
@@ -66,18 +69,4 @@ public class UserController {
     return UserResponse.from(user);
   }
 
-  @ApiOperation(value = "Create a new user")
-  @PostMapping("/users")
-  public UserResponse createUser(
-      @Valid @RequestBody CreateUserCommand cmd, @ApiIgnore Errors errors) {
-
-    if (errors != null && errors.hasErrors()) {
-      throw new ValidationErrorsException(errors);
-    }
-
-    User user =
-        userService.createOrUpdateUser(cmd.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
-
-    return UserResponse.from(user);
-  }
 }

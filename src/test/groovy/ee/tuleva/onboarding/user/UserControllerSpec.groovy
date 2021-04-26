@@ -4,7 +4,6 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService
-import ee.tuleva.onboarding.user.command.CreateUserCommand
 import ee.tuleva.onboarding.user.command.UpdateUserCommand
 import org.springframework.http.MediaType
 
@@ -185,30 +184,6 @@ class UserControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.errors', hasSize(1)))
     }
 
-    def "create a new user"() {
-        given:
-        def command = new CreateUserCommand(
-            personalCode: "38501010002",
-            email: "erko@risthein.ee",
-            phoneNumber: "5555555")
-        def mvc = mockMvc(controller)
-
-        when:
-        def performCall = mvc
-            .perform(post("/v1/users")
-                .content(mapper.writeValueAsString(command))
-                .contentType(MediaType.APPLICATION_JSON))
-
-        then:
-        1 * userService.createOrUpdateUser(command.personalCode, command.email, command.phoneNumber) >>
-            userFrom(command)
-        performCall.andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath('$.personalCode', is("38501010002")))
-            .andExpect(jsonPath('$.email', is("erko@risthein.ee")))
-            .andExpect(jsonPath('$.phoneNumber', is("5555555")))
-    }
-
     private User userFrom(AuthenticatedPerson authenticatedPerson, UpdateUserCommand command = null) {
         sampleUserNonMember()
             .id(authenticatedPerson.userId)
@@ -217,14 +192,6 @@ class UserControllerSpec extends BaseControllerSpec {
             .personalCode(authenticatedPerson.personalCode)
             .email(command?.email)
             .phoneNumber(command?.phoneNumber)
-            .build()
-    }
-
-    private User userFrom(CreateUserCommand command) {
-        User.builder()
-            .personalCode(command.personalCode)
-            .email(command.email)
-            .phoneNumber(command.phoneNumber)
             .build()
     }
 

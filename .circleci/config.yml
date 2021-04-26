@@ -60,14 +60,6 @@ jobs:
           name: Deploy master to Production
           command: eb deploy onboarding-service-docker --label ${CIRCLE_SHA1} --timeout 20
 
-  notify:
-    docker:
-      - image: getsentry/sentry-cli
-    steps:
-      - checkout
-      - run: sentry-cli releases new -p ${CIRCLE_PROJECT_REPONAME} ${CIRCLE_SHA1}
-      - run: sentry-cli releases set-commits --auto ${CIRCLE_SHA1}
-
 workflows:
   version: 2
   onboarding-service-workflow:
@@ -89,13 +81,6 @@ workflows:
           requires:
             - aws-ecr/build-and-push-image
           context: aws
-          filters:
-            branches:
-              only: master
-      - notify:
-          requires:
-            - deploy
-          context: sentry
           filters:
             branches:
               only: master

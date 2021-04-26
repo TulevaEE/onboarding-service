@@ -80,8 +80,6 @@ public class OAuthConfiguration {
           .hasAuthority(Authority.MEMBER)
           .regexMatchers(HttpMethod.GET, "/v1/funds.*")
           .hasAnyAuthority(Authority.USER, Authority.ROLE_CLIENT)
-          .regexMatchers(HttpMethod.POST, "/v1/users")
-          .hasAuthority(Authority.ROLE_CLIENT)
           .regexMatchers(HttpMethod.HEAD, "/v1/members")
           .hasAuthority(Authority.ROLE_CLIENT)
           .regexMatchers("/v1/.*")

@@ -94,7 +94,7 @@ epis:
       access-token-uri: http://localhost:9000/oauth/token
 
 membership-success:
-  url: http://localhost:8000/membership-success/
+  url: http://localhost:3000
 
 frontend:
   url: http://localhost:3000
@@ -198,7 +198,7 @@ epis:
       access-token-uri: ${ACCESS_TOKEN_URI}
 
 membership-success:
-  url: https://tuleva.ee/membership-success/
+  url: https://pension.tuleva.ee
 
 frontend:
   url: https://pension.tuleva.ee

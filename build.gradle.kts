@@ -123,7 +123,7 @@ dependencies {
     testImplementation("org.mock-server:mockserver-netty:5.11.2")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.11.2")
     testImplementation("org.springframework.security:spring-security-test")
-    testImplementation("org.mockftpserver:MockFtpServer:2.7.1")
+    testImplementation("org.mockftpserver:MockFtpServer:2.8.0")
 }
 
 dependencyManagement {

@@ -81,7 +81,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.jsoup:jsoup:1.13.1")
     implementation("commons-net:commons-net:3.8.0")
-    implementation("org.apache.commons:commons-lang3:3.11")
+    implementation("org.apache.commons:commons-lang3:3.12.0")
     implementation("net.sf.ehcache:ehcache")
     implementation("org.decampo:xirr:1.1")
     implementation("org.bouncycastle:bcpkix-jdk15on:1.62")

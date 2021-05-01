@@ -91,7 +91,7 @@ dependencies {
     implementation("com.github.SK-EID:smart-id-java-client:1.6.1")
     // TODO: upgrade
     // implementation("ee.sk.smartid:smart-id-java-client:2.0")
-    implementation("org.digidoc4j:digidoc4j:4.0.3") {
+    implementation("org.digidoc4j:digidoc4j:4.1.1") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 

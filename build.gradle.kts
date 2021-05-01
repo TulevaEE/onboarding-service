@@ -85,7 +85,7 @@ dependencies {
     implementation("net.sf.ehcache:ehcache")
     implementation("org.decampo:xirr:1.1")
     implementation("org.bouncycastle:bcpkix-jdk15on:1.62")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:3.0.0")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:3.0.1")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:3.0.0")
 
     implementation("com.github.SK-EID:smart-id-java-client:1.6.1")

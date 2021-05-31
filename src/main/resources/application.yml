@@ -3,9 +3,12 @@ server:
   error:
     whitelabel.enabled: false
     include-exception: true
+  forward-headers-strategy: NATIVE
   tomcat:
-    remote-ip-header: x-forwarded-for
-    protocol-header: x-forwarded-proto
+    remoteip:
+      remote-ip-header: x-forwarded-for
+      protocol-header: x-forwarded-proto
+    redirect-context-root: false
   servlet:
     session:
       timeout: 3600

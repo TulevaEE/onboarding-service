@@ -23,6 +23,7 @@ server {
     add_header X-Frame-Options DENY;
     add_header X-Content-Type-Options nosniff;
     add_header Content-Security-Policy "default-src 'self' *.tuleva.ee *.google-analytics.com stats.g.doubleclick.net *.facebook.com *.facebook.net";
+    add_header Referrer-Policy strict-origin-when-cross-origin;
 
     location / {
         proxy_pass  http://${NGINX_MAIN_SERVER_NAME}.s3-website.eu-central-1.amazonaws.com;
@@ -162,6 +163,7 @@ server {
     add_header X-Frame-Options DENY;
     add_header X-Content-Type-Options nosniff;
     add_header Content-Security-Policy "default-src 'self' *.tuleva.ee *.google-analytics.com stats.g.doubleclick.net *.facebook.com *.facebook.net";
+    add_header Referrer-Policy strict-origin-when-cross-origin;
 
     location /idLogin {
         expires -1;

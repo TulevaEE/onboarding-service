@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate.email;
 
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
 import java.util.Locale;
@@ -17,29 +16,8 @@ public class MandateEmailContentService {
 
   private final TemplateEngine templateEngine;
 
-  public String getContent(
-      User user,
-      Mandate mandate,
-      PillarSuggestion pillarSuggestion,
-      UserPreferences contactDetails,
-      Locale locale) {
-    if (pillarSuggestion.getOtherPillar() == 2) {
-      if (mandate.isWithdrawalCancellation()) {
-        return getSecondPillarWithdrawalCancellationHtml(user, locale);
-      }
-      if (mandate.isTransferCancellation()) {
-        return getSecondPillarTransferCancellationHtml(user, mandate, locale);
-      }
-      return getSecondPillarHtml(user, pillarSuggestion, locale);
-    }
-    if (pillarSuggestion.getOtherPillar() == 3) {
-      return getThirdPillarHtml(
-          user, pillarSuggestion, contactDetails.getPensionAccountNumber(), locale);
-    }
-    throw new IllegalArgumentException("Unknown pillar: " + pillarSuggestion.getOtherPillar());
-  }
-
-  String getSecondPillarHtml(User user, PillarSuggestion thirdPillarSuggestion, Locale locale) {
+  public String getSecondPillarHtml(
+      User user, PillarSuggestion thirdPillarSuggestion, Locale locale) {
     Context ctx = new Context();
     ctx.setLocale(locale);
     ctx.setVariable("firstName", user.getFirstName());
@@ -47,7 +25,7 @@ public class MandateEmailContentService {
     return templateEngine.process("second_pillar_mandate", ctx);
   }
 
-  String getThirdPillarHtml(
+  public String getThirdPillarHtml(
       User user,
       PillarSuggestion secondPillarSuggestion,
       String pensionAccountNumber,
@@ -60,7 +38,7 @@ public class MandateEmailContentService {
     return templateEngine.process("third_pillar_mandate", ctx);
   }
 
-  String getSecondPillarTransferCancellationHtml(User user, Mandate mandate, Locale locale) {
+  public String getSecondPillarTransferCancellationHtml(User user, Mandate mandate, Locale locale) {
     Context ctx = new Context();
     ctx.setLocale(locale);
     ctx.setVariable("firstName", user.getFirstName());
@@ -69,7 +47,7 @@ public class MandateEmailContentService {
     return templateEngine.process("second_pillar_transfer_cancellation_email", ctx);
   }
 
-  String getSecondPillarWithdrawalCancellationHtml(User user, Locale locale) {
+  public String getSecondPillarWithdrawalCancellationHtml(User user, Locale locale) {
     Context ctx = new Context();
     ctx.setLocale(locale);
     ctx.setVariable("firstName", user.getFirstName());

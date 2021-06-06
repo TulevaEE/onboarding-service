@@ -33,7 +33,7 @@ public class MandateEmailService {
         emailService.newMandrillMessage(
             emailService.getRecipients(user),
             getMandateEmailSubject(),
-            emailContentService.getContent(user, mandate, pillarSuggestion, contactDetails, locale),
+            getContent(user, mandate, pillarSuggestion, contactDetails, locale),
             getMandateTags(pillarSuggestion),
             getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
 
@@ -46,6 +46,28 @@ public class MandateEmailService {
     }
 
     emailService.send(user, message);
+  }
+
+  private String getContent(
+      User user,
+      Mandate mandate,
+      PillarSuggestion pillarSuggestion,
+      UserPreferences contactDetails,
+      Locale locale) {
+    if (pillarSuggestion.getOtherPillar() == 2) {
+      if (mandate.isWithdrawalCancellation()) {
+        return emailContentService.getSecondPillarWithdrawalCancellationHtml(user, locale);
+      }
+      if (mandate.isTransferCancellation()) {
+        return emailContentService.getSecondPillarTransferCancellationHtml(user, mandate, locale);
+      }
+      return emailContentService.getSecondPillarHtml(user, pillarSuggestion, locale);
+    }
+    if (pillarSuggestion.getOtherPillar() == 3) {
+      return emailContentService.getThirdPillarHtml(
+          user, pillarSuggestion, contactDetails.getPensionAccountNumber(), locale);
+    }
+    throw new IllegalArgumentException("Unknown pillar: " + pillarSuggestion.getOtherPillar());
   }
 
   String getMandateEmailSubject() {

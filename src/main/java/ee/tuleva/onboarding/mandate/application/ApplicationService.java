@@ -1,16 +1,21 @@
 package ee.tuleva.onboarding.mandate.application;
 
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
+import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.fund.response.FundDto;
 import ee.tuleva.onboarding.locale.LocaleService;
+import ee.tuleva.onboarding.mandate.application.Application.ApplicationBuilder;
+import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
@@ -25,9 +30,22 @@ public class ApplicationService {
   private final FundRepository fundRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
 
+  public Application getApplication(Long id, AuthenticatedPerson authenticatedPerson) {
+    return getApplications(authenticatedPerson).stream()
+        .filter(application -> application.getId().equals(id))
+        .findFirst()
+        .orElseThrow(() -> new NotFoundException("Application not found: id=" + id));
+  }
+
   public boolean hasPendingWithdrawals(Person person) {
     return getApplications(person).stream()
         .anyMatch(application -> application.isPending() && application.isWithdrawal());
+  }
+
+  public List<Application> getApplications(ApplicationStatus status, Person person) {
+    return getApplications(person).stream()
+        .filter(application -> application.getStatus().equals(status))
+        .collect(toList());
   }
 
   public List<Application> getApplications(Person person) {
@@ -36,85 +54,78 @@ public class ApplicationService {
     return applicationsByType.entrySet().stream()
         .flatMap(
             elem -> {
-              if (elem.getKey() == ApplicationType.TRANSFER) {
+              if (elem.getKey() == TRANSFER) {
                 return groupTransfers(elem.getValue()).stream();
               } else {
-                return elem.getValue().stream().map(this::convertWithdrawal);
+                return elem.getValue().stream().map(this::convert);
               }
             })
         .sorted()
         .collect(toList());
   }
 
-  private List<Application> groupTransfers(List<ApplicationDTO> transferApplications) {
+  private List<TransferApplication> groupTransfers(List<ApplicationDTO> transferApplications) {
     val locale = localeService.getCurrentLocale();
     val deadlines = mandateDeadlinesService.getDeadlines();
-    val transfersBySource =
-        transferApplications.stream()
-            .collect(
-                groupingBy(
-                    ApplicationDTO::getSourceFundIsin, groupingBy(ApplicationDTO::getStatus)));
-    return transfersBySource.entrySet().stream()
-        .flatMap(
-            transfers -> {
-              val sourceFundIsin = transfers.getKey();
-              return transfers.getValue().entrySet().stream()
-                  .map(
-                      entry -> {
-                        val status = entry.getKey();
-                        val applications = entry.getValue();
-                        val application = Application.builder();
-                        val firstTransfer =
-                            applications.stream()
-                                .findFirst()
-                                .orElseThrow(IllegalStateException::new);
-                        application.id(firstTransfer.getId());
-                        application.creationTime(firstTransfer.getDate());
-                        application.status(status);
-                        application.type(firstTransfer.getType());
-                        application.fulfillmentDate(deadlines.getTransferMandateFulfillmentDate());
-                        application.cancellationDeadline(
-                            deadlines.getTransferMandateCancellationDeadline());
-                        val sourceFund = fundRepository.findByIsin(sourceFundIsin);
-                        val details =
-                            TransferApplicationDetails.builder()
-                                .sourceFund(new FundDto(sourceFund, locale.getLanguage()));
-                        applications.forEach(
-                            applicationDTO -> {
-                              val targetFund =
-                                  fundRepository.findByIsin(applicationDTO.getTargetFundIsin());
-                              details.exchange(
-                                  TransferApplicationDetails.Exchange.builder()
-                                      .amount(applicationDTO.getAmount())
-                                      .targetFund(
-                                          targetFund != null
-                                              ? new FundDto(targetFund, locale.getLanguage())
-                                              : null)
-                                      .build());
-                            });
-                        application.details(details.build());
-                        return application.build();
+    return transferApplications.stream()
+        .map(
+            applicationDto -> {
+              val application = TransferApplication.builder();
+              application.id(applicationDto.getId());
+              application.creationTime(applicationDto.getDate());
+              application.status(applicationDto.getStatus());
+              application.type(applicationDto.getType());
+              val sourceFund = fundRepository.findByIsin(applicationDto.getSourceFundIsin());
+              val details =
+                  TransferApplicationDetails.builder()
+                      .sourceFund(new FundDto(sourceFund, locale.getLanguage()));
+              details
+                  .fulfillmentDate(deadlines.getTransferMandateFulfillmentDate())
+                  .cancellationDeadline(deadlines.getTransferMandateCancellationDeadline());
+              applicationDto
+                  .getFundTransferExchanges()
+                  .forEach(
+                      fundTransferExchange -> {
+                        val targetFund =
+                            fundRepository.findByIsin(fundTransferExchange.getTargetFundIsin());
+                        details.exchange(
+                            TransferApplicationDetails.Exchange.builder()
+                                .amount(fundTransferExchange.getAmount())
+                                .targetFund(new FundDto(targetFund, locale.getLanguage()))
+                                .build());
                       });
+              application.details(details.build());
+              return application.build();
             })
         .collect(toList());
   }
 
-  private Application convertWithdrawal(ApplicationDTO applicationDTO) {
+  private Application convert(ApplicationDTO applicationDTO) {
+    ApplicationBuilder<? extends Application, ?> applicationBuilder =
+        Application.builder()
+            .creationTime(applicationDTO.getDate())
+            .type(applicationDTO.getType())
+            .status(applicationDTO.getStatus())
+            .id(applicationDTO.getId());
+    if (applicationDTO.isWithdrawal()) {
+      addWithdrawalInfo(applicationBuilder, applicationDTO);
+    }
+    return applicationBuilder.build();
+  }
+
+  private void addWithdrawalInfo(
+      ApplicationBuilder<? extends Application, ?> applicationBuilder,
+      ApplicationDTO applicationDTO) {
+
     val deadlines = mandateDeadlinesService.getDeadlines();
-    return Application.builder()
-        .creationTime(applicationDTO.getDate())
-        .type(applicationDTO.getType())
-        .status(applicationDTO.getStatus())
-        .id(applicationDTO.getId())
-        .fulfillmentDate(deadlines.getWithdrawalFulfillmentDate())
-        .cancellationDeadline(
-            applicationDTO.getType().equals(WITHDRAWAL)
-                ? deadlines.getWithdrawalCancellationDeadline()
-                : deadlines.getEarlyWithdrawalCancellationDeadline())
-        .details(
-            WithdrawalApplicationDetails.builder()
-                .depositAccountIBAN(applicationDTO.getBankAccount())
-                .build())
-        .build();
+    applicationBuilder.details(
+        WithdrawalApplicationDetails.builder()
+            .depositAccountIBAN(applicationDTO.getBankAccount())
+            .fulfillmentDate(deadlines.getWithdrawalFulfillmentDate())
+            .cancellationDeadline(
+                applicationDTO.getType() == WITHDRAWAL
+                    ? deadlines.getWithdrawalCancellationDeadline()
+                    : deadlines.getEarlyWithdrawalCancellationDeadline())
+            .build());
   }
 }

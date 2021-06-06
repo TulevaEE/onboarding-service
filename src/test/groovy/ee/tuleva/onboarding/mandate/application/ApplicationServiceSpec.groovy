@@ -54,8 +54,11 @@ class ApplicationServiceSpec extends Specification {
       with(details) {
         sourceFund.isin == "AE123232334"
         exchanges.size() == 1
-        exchanges[0].targetFund.isin == "EE3600109443"
-        exchanges[0].amount == 1.0
+        with(exchanges[0]) {
+          sourceFund.isin == "AE123232334"
+          targetFund.isin == "EE3600109443"
+          amount == 1.0
+        }
       }
     }
     with(applications[1]) {
@@ -64,8 +67,12 @@ class ApplicationServiceSpec extends Specification {
       status == PENDING
       with(details) {
         sourceFund.isin == "AE123232334"
-        exchanges[0].targetFund.isin == "EE3600109443"
-        exchanges[0].amount == 1.0
+        exchanges.size() == 1
+        with(exchanges[0]) {
+          sourceFund.isin == "AE123232334"
+          targetFund.isin == "EE3600109443"
+          amount == 1.0
+        }
       }
     }
     with(applications[2]) {

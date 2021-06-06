@@ -95,6 +95,7 @@ public class ApplicationService {
                           details.exchange(
                               TransferApplicationDetails.Exchange.builder()
                                   .amount(fundTransferExchange.getAmount())
+                                  .sourceFund(new FundDto(sourceFund, locale.getLanguage()))
                                   .targetFund(new FundDto(targetFund, locale.getLanguage()))
                                   .build());
                         });

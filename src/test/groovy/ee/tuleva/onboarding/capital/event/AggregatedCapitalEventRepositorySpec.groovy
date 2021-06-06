@@ -31,15 +31,15 @@ class AggregatedCapitalEventRepositorySpec extends Specification {
         entityManager.persist(member)
         MemberCapitalEvent memberCapitalEvent1 =
             memberCapitalEventFixture(member)
-                .accountingDate(new LocalDate(2017, 12, 31))
-                .effectiveDate(new LocalDate(2017, 12, 31))
+                .accountingDate(LocalDate.parse("2017-12-31"))
+                .effectiveDate(LocalDate.parse("2017-12-31"))
                 .build()
         entityManager.persist(memberCapitalEvent1)
 
         MemberCapitalEvent memberCapitalEvent2 =
             memberCapitalEventFixture(member)
-                .accountingDate(new LocalDate(2017, 12, 31))
-                .effectiveDate(new LocalDate(2017, 12, 31))
+                .accountingDate(LocalDate.parse("2017-12-31"))
+                .effectiveDate(LocalDate.parse("2017-12-31"))
                 .build()
         entityManager.persist(memberCapitalEvent2)
 
@@ -48,24 +48,24 @@ class AggregatedCapitalEventRepositorySpec extends Specification {
 
         MemberCapitalEvent memberCapitalEventNextYear1 =
             memberCapitalEventFixture(member)
-                .accountingDate(new LocalDate(2018, 12, 31))
-                .effectiveDate(new LocalDate(2018, 12, 31))
+                .accountingDate(LocalDate.parse("2018-12-31"))
+                .effectiveDate(LocalDate.parse("2018-12-31"))
                 .build()
         entityManager.persist(memberCapitalEventNextYear1)
 
         MemberCapitalEvent memberCapitalEventNextYear2 =
             memberCapitalEventFixture(member)
-                .accountingDate(new LocalDate(2018, 12, 31))
-                .effectiveDate(new LocalDate(2018, 12, 31))
+                .accountingDate(LocalDate.parse("2018-12-31"))
+                .effectiveDate(LocalDate.parse("2018-12-31"))
                 .build()
         entityManager.persist(memberCapitalEventNextYear2)
 
         OrganisationCapitalEvent organisationCapitalEvent = OrganisationCapitalEventFixture.fixture()
-            .date(new LocalDate(2017, 12, 31))
+            .date(LocalDate.parse("2017-12-31"))
             .build()
         entityManager.persist(organisationCapitalEvent)
         OrganisationCapitalEvent organisationCapitalEventNextYear = OrganisationCapitalEventFixture.fixture()
-            .date(new LocalDate(2018, 12, 31))
+            .date(LocalDate.parse("2018-12-31"))
             .build()
         entityManager.persist(organisationCapitalEventNextYear)
 
@@ -92,11 +92,11 @@ class AggregatedCapitalEventRepositorySpec extends Specification {
     def "finds latest event"() {
         given:
         OrganisationCapitalEvent organisationCapitalEvent = OrganisationCapitalEventFixture.fixture()
-            .date(new LocalDate(2017, 12, 31))
+            .date(LocalDate.parse("2017-12-31"))
             .build()
         entityManager.persist(organisationCapitalEvent)
         OrganisationCapitalEvent organisationCapitalEventNextYear = OrganisationCapitalEventFixture.fixture()
-            .date(new LocalDate(2018, 12, 31))
+            .date(LocalDate.parse("2018-12-31"))
             .build()
         entityManager.persist(organisationCapitalEventNextYear)
 

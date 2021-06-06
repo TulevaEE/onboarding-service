@@ -20,10 +20,11 @@ val springCloudAwsVersion = "2.2.5.RELEASE"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.4.5"
+    id("org.springframework.boot") version "2.5.0"
     id("com.gorylenko.gradle-git-properties") version "2.3.1"
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     id("com.diffplug.spotless") version "5.12.5"
+    id("io.freefair.lombok") version "6.0.0-m2"
     jacoco
 }
 
@@ -46,8 +47,8 @@ gitProperties {
 apply(from = "./gradle/packaging.gradle.kts")
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_16
+    targetCompatibility = JavaVersion.VERSION_16
 }
 
 repositories {
@@ -57,8 +58,6 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.projectlombok:lombok:1.18.20")
-    annotationProcessor("org.projectlombok:lombok:1.18.18")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-web")
@@ -113,13 +112,13 @@ dependencies {
         exclude(module = "spock-core")
     }
 
-    testImplementation("org.spockframework:spock-core:1.3-groovy-2.5") {
+    testImplementation("org.spockframework:spock-core:2.0-groovy-3.0") {
         exclude(group = "org.codehaus.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:1.3-groovy-2.5") {
+    testImplementation("org.spockframework:spock-spring:2.0-groovy-3.0") {
         exclude(group = "org.codehaus.groovy")
     }
-    testImplementation("org.codehaus.groovy:groovy:2.5.13")
+    testImplementation("org.codehaus.groovy:groovy:3.0.8")
     testImplementation("org.mock-server:mockserver-netty:5.11.2")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.11.2")
     testImplementation("org.springframework.security:spring-security-test")
@@ -149,6 +148,7 @@ tasks {
             showStackTraces = true
             exceptionFormat = FULL
         }
+        useJUnitPlatform()
     }
 
     bootRun {
@@ -166,11 +166,5 @@ tasks {
 
     check {
         dependsOn(jacocoTestReport)
-    }
-}
-
-configurations {
-    compile {
-        exclude(group = "org.codehaus.jackson") // old jackson v1
     }
 }

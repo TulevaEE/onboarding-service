@@ -113,7 +113,7 @@ dependencies {
         exclude(module = "spock-core")
     }
 
-    testImplementation("org.spockframework:spock-core:1.3-groovy-2.5") {
+    testImplementation("org.spockframework:spock-core:2.0-groovy-3.0") {
         exclude(group = "org.codehaus.groovy")
     }
     testImplementation("org.spockframework:spock-spring:1.3-groovy-2.5") {

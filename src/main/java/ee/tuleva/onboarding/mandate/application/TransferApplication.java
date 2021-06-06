@@ -16,7 +16,5 @@ public class TransferApplication extends Application {
 
   private TransferApplicationDetails details;
 
-  @Builder.Default
-  private ApplicationType type = TRANSFER;
-
+  @Builder.Default private ApplicationType type = TRANSFER;
 }

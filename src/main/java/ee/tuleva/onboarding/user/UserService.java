@@ -79,5 +79,4 @@ public class UserService {
     log.info("Saving user {}", user);
     return userRepository.save(user);
   }
-
 }

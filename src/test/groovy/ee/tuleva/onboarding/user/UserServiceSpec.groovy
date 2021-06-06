@@ -1,11 +1,9 @@
 package ee.tuleva.onboarding.user
 
-
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
 import spock.lang.Shared
 import spock.lang.Specification
-import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
@@ -105,142 +103,6 @@ class UserServiceSpec extends Specification {
         sampleUser().build()          | true
         sampleUserNonMember().build() | false
         null                          | false
-    }
-
-    @Unroll
-    def 'correctly updates user name from "#oldFirstName #oldLastName" to "#newFirstName #newLastName"'() {
-        given:
-        def user = sampleUser().firstName(oldFirstName).lastName(oldLastName).build()
-        userRepository.save(_ as User) >> { User u -> u }
-
-        when:
-        def updatedUser = service.updateNameIfMissing(user, givenFullName)
-
-        then:
-        updatedUser.firstName == newFirstName
-        updatedUser.lastName == newLastName
-
-        where:
-        oldFirstName | oldLastName | givenFullName     || newFirstName | newLastName
-        null         | null        | null              || null         | null
-        null         | null        | ""                || ""           | ""
-        null         | null        | "Erko"            || "Erko"       | ""
-        null         | null        | "ERKO RISTHEIN"   || "Erko"       | "Risthein"
-        null         | null        | "John Jack Smith" || "John Jack"  | "Smith"
-        "John"       | null        | "John Smith"      || "John"       | null
-        null         | "Smith"     | "John Smith"      || null         | "Smith"
-        "John"       | "Smith"     | "John Jack Smith" || "John"       | "Smith"
-    }
-
-    def "doesn't try to update user name when it already exists"() {
-        given:
-        def user = sampleUser().build()
-
-        when:
-        def updatedUser = service.updateNameIfMissing(user, "New Name")
-
-        then:
-        updatedUser.firstName == user.firstName
-        updatedUser.lastName == user.lastName
-    }
-
-    def "never overwrites existing member data"() {
-        given:
-        userRepository.findByPersonalCode(sampleUser.personalCode) >> Optional.ofNullable(userByPersonalCode)
-        userRepository.findByEmail(sampleUser.email) >> Optional.ofNullable(userByEmail)
-
-        when:
-        service.createOrUpdateUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-
-        then:
-        0 * userRepository.save(_)
-        thrown UserAlreadyAMemberException
-
-        where:
-        userByEmail | userByPersonalCode
-        sampleUser  | null
-        sampleUser  | sampleUser
-        null        | sampleUser
-    }
-
-    def "correctly overwrites existing non-member users in the database"() {
-        given:
-        userRepository.findByPersonalCode(sampleUser.personalCode) >> Optional.ofNullable(userByPersonalCode)
-        userRepository.findByEmail(sampleUser.email) >> Optional.ofNullable(userByEmail)
-        userRepository.save(_ as User) >> { User u -> u }
-
-        when:
-        def returnedUser = service.createOrUpdateUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-
-        then:
-        returnedUser == expectedUser
-
-        where:
-        userByEmail                 | userByPersonalCode          | expectedUser
-        null                        | null                        | newUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-        sampleUserNonMember.build() | null                        | updatedUser(sampleUser.personalCode, sampleUserNonMember.email, sampleUser.phoneNumber)
-        null                        | sampleUserNonMember.build() | newUser(personalCodeSample, sampleUser.email, sampleUser.phoneNumber)
-        sampleUserNonMember.build() | sampleUserNonMember.build() | updatedUser(personalCodeSample, sampleUser.email, sampleUser.phoneNumber)
-        sampleUserNonMember.build() | otherUserNonMember.build()  | updatedUser(otherUserNonMember.personalCode, sampleUser.email, sampleUser.phoneNumber)
-    }
-
-    def "if non member user with given personal code is already present, us it on new user registration"() {
-        User oldUser = sampleUserNonMember
-            .id(999999)
-            .build()
-        String newEmail = "test@email.com"
-        String newPhone = "2222222"
-
-        userRepository.findByPersonalCode(oldUser.personalCode) >> Optional.ofNullable(oldUser)
-        userRepository.findByEmail(newEmail) >> Optional.empty()
-        userRepository.save(_ as User) >> { User u -> u }
-
-        when:
-        def returnedUser = service.createOrUpdateUser(oldUser.personalCode, newEmail, newPhone)
-
-        then:
-        returnedUser.id == oldUser.id
-        returnedUser.phoneNumber == newPhone
-        returnedUser.email == newEmail
-    }
-
-    def "if non member user with given personal code is not present, use one found with email"() {
-        User sampleUser = sampleUserNonMember
-            .id(999999)
-            .build()
-
-        userRepository.findByPersonalCode(sampleUser.personalCode) >> Optional.empty()
-        userRepository.findByEmail(sampleUser.email) >> Optional.empty()
-        userRepository.save(_ as User) >> { User u -> u }
-
-        when:
-        def returnedUser = service.createOrUpdateUser(sampleUser.personalCode, sampleUser.email, sampleUser.phoneNumber)
-
-        then:
-        returnedUser.id != sampleUser.id
-        returnedUser.phoneNumber == sampleUser.phoneNumber
-        returnedUser.personalCode == sampleUser.personalCode
-        returnedUser.email == sampleUser.email
-    }
-
-    def "if non member user with given personal code and email is not present, build a new user"() {
-        User oldUser = sampleUserNonMember
-            .id(999999)
-            .build()
-        String newPhone = "2222222"
-        String newPersonalCode = "newPersonalCode"
-
-        userRepository.findByPersonalCode(newPersonalCode) >> Optional.empty()
-        userRepository.findByEmail(oldUser.email) >> Optional.ofNullable(oldUser)
-        userRepository.save(_ as User) >> { User u -> u }
-
-        when:
-        def returnedUser = service.createOrUpdateUser(newPersonalCode, oldUser.email, newPhone)
-
-        then:
-        returnedUser.id == oldUser.id
-        returnedUser.phoneNumber == newPhone
-        returnedUser.personalCode == newPersonalCode
     }
 
     def "can create a new user and publish an event about it"() {

@@ -51,20 +51,6 @@ public class EpisService {
   @Value("${epis.service.url}")
   String episServiceUrl;
 
-  @Cacheable(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode")
-  @Deprecated
-  public List<ApplicationDTO> getTransferApplications(Person person) {
-    String url = episServiceUrl + "/exchanges";
-
-    log.info(
-        "Getting exchanges from {} for {} {}", url, person.getFirstName(), person.getLastName());
-
-    ResponseEntity<ApplicationDTO[]> response =
-        userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), ApplicationDTO[].class);
-
-    return asList(response.getBody());
-  }
-
   @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode")
   public List<ApplicationDTO> getApplications(Person person) {
     String url = episServiceUrl + "/applications";

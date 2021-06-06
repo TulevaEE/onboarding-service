@@ -17,7 +17,7 @@ public class LogoutController {
 
   private final TokenStore tokenStore;
 
-  @GetMapping(value = "/logout")
+  @GetMapping(value = "/v1/logout")
   @ResponseStatus(HttpStatus.OK)
   public void logout(@RequestHeader(value = "Authorization") String authHeader) {
     String tokenValue = authHeader.replace("Bearer", "").trim();

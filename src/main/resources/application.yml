@@ -169,7 +169,9 @@ spring:
         url: 'https://admin.producement.com'
   config:
     activate:
-      on-profile: production,staging
+      on-profile:
+        - production
+        - staging
 
 server:
   servlet:

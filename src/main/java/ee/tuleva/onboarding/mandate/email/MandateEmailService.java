@@ -23,25 +23,25 @@ public class MandateEmailService {
   private final MandateEmailContentService emailContentService;
 
   public void sendMandate(
-      User user,
-      Mandate mandate,
-      PillarSuggestion pillarSuggestion,
-      UserPreferences contactDetails,
-      Locale locale) {
+    User user,
+    Mandate mandate,
+    PillarSuggestion pillarSuggestion,
+    UserPreferences contactDetails,
+    Locale locale) {
 
     MandrillMessage message =
-        emailService.newMandrillMessage(
-            emailService.getRecipients(user),
-            getMandateEmailSubject(),
-            emailContentService.getContent(user, mandate, pillarSuggestion, contactDetails, locale),
-            getMandateTags(pillarSuggestion),
-            getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
+      emailService.newMandrillMessage(
+        emailService.getRecipients(user),
+        getMandateEmailSubject(),
+        emailContentService.getContent(user, mandate, pillarSuggestion, contactDetails, locale),
+        getMandateTags(pillarSuggestion),
+        getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
 
     if (message == null) {
       log.warn(
-          "Failed to create mandrill message, not sending mandate email for user {} and second pillar mandate {}.",
-          user.getId(),
-          mandate.getId());
+        "Failed to create mandrill message, not sending mandate email for user {} and second pillar mandate {}.",
+        user.getId(),
+        mandate.getId());
       return;
     }
 
@@ -66,7 +66,7 @@ public class MandateEmailService {
   }
 
   private List<MandrillMessage.MessageContent> getMandateAttachments(
-      byte[] file, User user, Long mandateId) {
+    byte[] file, User user, Long mandateId) {
     MandrillMessage.MessageContent attachment = new MandrillMessage.MessageContent();
 
     attachment.setName(getNameSuffix(user) + "_avaldus_" + mandateId + ".bdoc");

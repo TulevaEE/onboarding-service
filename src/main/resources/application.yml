@@ -25,7 +25,7 @@ spring:
     continue-on-error: false
     driver-class-name: org.postgresql.Driver
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQL95Dialect
+    database-platform: org.hibernate.dialect.PostgreSQL10Dialect
     show-sql: false
     hibernate:
       ddl-auto: none

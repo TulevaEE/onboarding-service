@@ -144,13 +144,14 @@ async:
 ---
 
 spring:
-  profiles: dev
   flyway:
     locations: classpath:/db/migration, classpath:/db/dev
+  config:
+    activate:
+      on-profile: dev
 ---
 
 spring:
-  profiles: production,staging
   datasource:
     url: ${JDBC_DATABASE_URL}
     username: ${JDBC_DATABASE_USERNAME}
@@ -166,6 +167,9 @@ spring:
       client:
         enabled: true
         url: 'https://admin.producement.com'
+  config:
+    activate:
+      on-profile: production,staging
 
 server:
   servlet:

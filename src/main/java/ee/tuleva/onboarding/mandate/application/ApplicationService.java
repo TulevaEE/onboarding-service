@@ -85,19 +85,21 @@ public class ApplicationService {
               details
                   .fulfillmentDate(deadlines.getTransferMandateFulfillmentDate())
                   .cancellationDeadline(deadlines.getTransferMandateCancellationDeadline());
-              applicationDto
-                  .getFundTransferExchanges()
-                  .forEach(
-                      fundTransferExchange -> {
-                        val targetFund =
-                            fundRepository.findByIsin(fundTransferExchange.getTargetFundIsin());
-                        details.exchange(
-                            TransferApplicationDetails.Exchange.builder()
-                                .amount(fundTransferExchange.getAmount())
-                                .targetFund(new FundDto(targetFund, locale.getLanguage()))
-                                .build());
-                      });
-              application.details(details.build());
+              if (applicationDto.getFundTransferExchanges() != null) {
+                applicationDto
+                    .getFundTransferExchanges()
+                    .forEach(
+                        fundTransferExchange -> {
+                          val targetFund =
+                              fundRepository.findByIsin(fundTransferExchange.getTargetFundIsin());
+                          details.exchange(
+                              TransferApplicationDetails.Exchange.builder()
+                                  .amount(fundTransferExchange.getAmount())
+                                  .targetFund(new FundDto(targetFund, locale.getLanguage()))
+                                  .build());
+                        });
+                application.details(details.build());
+              }
               return application.build();
             })
         .collect(toList());

@@ -33,6 +33,7 @@ class ApplicationServiceSpec extends Specification {
     completedTransferApplication.status = COMPLETE
     completedTransferApplication.id = 456L
     def transferApplication2 = sampleTransferApplicationDto()
+    transferApplication2.fundTransferExchanges = null
     def withdrawalApplication1 = sampleWithdrawalApplicationDto()
     episService.getApplications(samplePerson()) >> [transferApplication1, transferApplication2, completedTransferApplication, withdrawalApplication1]
     localeService.getCurrentLocale() >> Locale.ENGLISH
@@ -71,11 +72,7 @@ class ApplicationServiceSpec extends Specification {
       id == 123L
       type == TRANSFER
       status == PENDING
-      with(details) {
-        sourceFund.isin == "AE123232334"
-        exchanges[0].targetFund.isin == "EE3600109443"
-        exchanges[0].amount == 1.0
-      }
+      details == null
     }
     with(applications[3]) {
       id == 123L

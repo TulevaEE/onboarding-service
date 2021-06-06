@@ -55,8 +55,6 @@ spring:
     store-type: none
     jdbc:
       initialize-schema: never
-  config:
-    use-legacy-processing: true
 
 management:
   endpoints:
@@ -142,7 +140,6 @@ morningstar:
 async:
   enabled: true
 ---
-
 spring:
   flyway:
     locations: classpath:/db/migration, classpath:/db/dev
@@ -150,8 +147,12 @@ spring:
     activate:
       on-profile: dev
 ---
-
 spring:
+  config:
+    activate:
+      on-profile:
+        - production
+        - staging
   datasource:
     url: ${JDBC_DATABASE_URL}
     username: ${JDBC_DATABASE_USERNAME}
@@ -167,11 +168,6 @@ spring:
       client:
         enabled: true
         url: 'https://admin.producement.com'
-  config:
-    activate:
-      on-profile:
-        - production
-        - staging
 
 server:
   servlet:

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.epis.mandate;
 import ee.tuleva.onboarding.epis.mandate.MandateDto.MandateFundsTransferExchangeDTO;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,7 +22,7 @@ public class ApplicationDTO {
   private String documentNumber;
   private ApplicationStatus status;
   private String sourceFundIsin;
-  private List<MandateFundsTransferExchangeDTO> fundTransferExchanges;
+  @Builder.Default private List<MandateFundsTransferExchangeDTO> fundTransferExchanges = new ArrayList<>();
   private ApplicationType type;
   private String bankAccount;
 

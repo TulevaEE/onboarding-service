@@ -18,11 +18,13 @@ import ee.tuleva.onboarding.mandate.application.Application.ApplicationBuilder;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ApplicationService {
 
   private final EpisService episService;
@@ -67,6 +69,7 @@ public class ApplicationService {
   private List<TransferApplication> groupTransfers(List<ApplicationDTO> transferApplications) {
     val locale = localeService.getCurrentLocale();
     val deadlines = mandateDeadlinesService.getDeadlines();
+    log.info("Grouping transfers {}", transferApplications);
     return transferApplications.stream()
         .map(
             applicationDto -> {

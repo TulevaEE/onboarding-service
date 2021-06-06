@@ -6,5 +6,4 @@ public interface ApplicationDetails {
 
   @JsonIgnore
   Integer getPillar();
-
 }

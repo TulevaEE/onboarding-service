@@ -55,11 +55,11 @@ public class ApplicationService {
         episService.getApplications(person).stream().collect(groupingBy(ApplicationDTO::getType));
     return applicationsByType.entrySet().stream()
         .flatMap(
-            elem -> {
-              if (elem.getKey() == TRANSFER) {
-                return groupTransfers(elem.getValue()).stream();
+            entry -> {
+              if (entry.getKey() == TRANSFER) {
+                return groupTransfers(entry.getValue()).stream();
               } else {
-                return elem.getValue().stream().map(this::convert);
+                return entry.getValue().stream().map(this::convert);
               }
             })
         .sorted()
@@ -85,22 +85,20 @@ public class ApplicationService {
               details
                   .fulfillmentDate(deadlines.getTransferMandateFulfillmentDate())
                   .cancellationDeadline(deadlines.getTransferMandateCancellationDeadline());
-              if (applicationDto.getFundTransferExchanges() != null) {
-                applicationDto
-                    .getFundTransferExchanges()
-                    .forEach(
-                        fundTransferExchange -> {
-                          val targetFund =
-                              fundRepository.findByIsin(fundTransferExchange.getTargetFundIsin());
-                          details.exchange(
-                              TransferApplicationDetails.Exchange.builder()
-                                  .amount(fundTransferExchange.getAmount())
-                                  .sourceFund(new FundDto(sourceFund, locale.getLanguage()))
-                                  .targetFund(new FundDto(targetFund, locale.getLanguage()))
-                                  .build());
-                        });
-                application.details(details.build());
-              }
+              applicationDto
+                  .getFundTransferExchanges()
+                  .forEach(
+                      fundTransferExchange -> {
+                        val targetFund =
+                            fundRepository.findByIsin(fundTransferExchange.getTargetFundIsin());
+                        details.exchange(
+                            TransferApplicationDetails.Exchange.builder()
+                                .amount(fundTransferExchange.getAmount())
+                                .sourceFund(new FundDto(sourceFund, locale.getLanguage()))
+                                .targetFund(new FundDto(targetFund, locale.getLanguage()))
+                                .build());
+                      });
+              application.details(details.build());
               return application.build();
             })
         .collect(toList());

@@ -14,7 +14,6 @@ import lombok.experimental.SuperBuilder;
 @ToString(callSuper = true)
 public class TransferApplication extends Application {
 
-  private TransferApplicationDetails details;
-
-  @Builder.Default private ApplicationType type = TRANSFER;
+  private final TransferApplicationDetails details;
+  @Builder.Default private final ApplicationType type = TRANSFER;
 }

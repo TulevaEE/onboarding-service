@@ -17,11 +17,11 @@ import org.jetbrains.annotations.NotNull;
 @SuperBuilder
 public class Application implements Comparable<Application> {
 
-  protected Long id;
-  protected Instant creationTime;
-  protected ApplicationType type;
-  protected ApplicationStatus status;
-  protected ApplicationDetails details;
+  protected final Long id;
+  protected final Instant creationTime;
+  protected final ApplicationType type;
+  protected final ApplicationStatus status;
+  protected final ApplicationDetails details;
 
   @JsonIgnore
   public Integer getPillar() {
@@ -30,17 +30,17 @@ public class Application implements Comparable<Application> {
 
   @JsonIgnore
   public boolean isPending() {
-    return status == PENDING;
+    return getStatus() == PENDING;
   }
 
   @JsonIgnore
   public boolean isWithdrawal() {
-    return type == WITHDRAWAL || type == EARLY_WITHDRAWAL;
+    return getType() == WITHDRAWAL || getType() == EARLY_WITHDRAWAL;
   }
 
   @JsonIgnore
   public boolean isTransfer() {
-    return type == TRANSFER;
+    return getType() == TRANSFER;
   }
 
   @Override

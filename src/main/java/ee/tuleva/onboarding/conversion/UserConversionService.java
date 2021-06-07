@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.conversion;
 
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER;
 import static java.math.BigDecimal.ZERO;
 import static java.time.temporal.TemporalAdjusters.lastDayOfYear;
 import static java.util.stream.Collectors.toList;
@@ -24,7 +23,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.util.Collection;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -176,8 +174,7 @@ public class UserConversionService {
     List<TransferApplication> pendingTransferApplications = getPendingTransferApplications(person);
     return pendingTransferApplications.stream()
         .filter(application -> pillar.equals(application.getPillar()))
-        .map(application -> application.getDetails().getExchanges())
-        .flatMap(Collection::stream)
+        .flatMap(application -> application.getDetails().getExchanges().stream())
         .filter(
             exchange -> isConvertedFundManager(exchange) && amountMatches(exchange, fundBalances))
         .map(exchange -> exchange.getSourceFund().getIsin())
@@ -213,8 +210,8 @@ public class UserConversionService {
   private List<TransferApplication> getPendingTransferApplications(Person person) {
     List<Application> applications = applicationService.getApplications(PENDING, person);
     return applications.stream()
-        .filter(application -> application.getType() == TRANSFER)
-        .map(application -> (TransferApplication) application)
+        .filter(Application::isTransfer)
+        .map(TransferApplication.class::cast)
         .collect(toList());
   }
 

@@ -20,7 +20,7 @@ val springCloudAwsVersion = "2.2.5.RELEASE"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.5.0"
+    id("org.springframework.boot") version "2.5.1"
     id("com.gorylenko.gradle-git-properties") version "2.3.1"
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     id("com.diffplug.spotless") version "5.12.5"
@@ -71,7 +71,8 @@ dependencies {
     implementation("org.springframework.session:spring-session-jdbc")
 
     implementation("de.codecentric:spring-boot-admin-starter-client")
-    implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure")
+    implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.5.0")
+    implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.1.RELEASE")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql")

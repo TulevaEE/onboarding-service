@@ -102,8 +102,6 @@ dependencies {
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
-    implementation("com.sun.xml.ws:jaxws-rt:2.3.3")
-
     implementation("ee.sk.mid:mid-rest-java-client:1.3")
 
     implementation("com.google.guava:guava:30.1.1-jre")

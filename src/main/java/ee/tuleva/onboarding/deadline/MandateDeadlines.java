@@ -4,6 +4,7 @@ import static java.time.DayOfWeek.SATURDAY;
 import static java.time.DayOfWeek.SUNDAY;
 import static java.time.temporal.TemporalAdjusters.lastDayOfMonth;
 
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -65,6 +66,24 @@ public class MandateDeadlines {
 
   public LocalDate getWithdrawalFulfillmentDate() {
     return nextWorkingDay(withdrawalCancellationDeadline().plusDays(15).toLocalDate());
+  }
+
+  public LocalDate getFulfillmentDate(ApplicationType applicationType) {
+    return switch (applicationType) {
+      case TRANSFER -> getTransferMandateFulfillmentDate();
+      case WITHDRAWAL -> getWithdrawalFulfillmentDate();
+      case EARLY_WITHDRAWAL -> getEarlyWithdrawalFulfillmentDate();
+      default -> throw new IllegalArgumentException("Unknown application type: " + applicationType);
+    };
+  }
+
+  public Instant getCancellationDeadline(ApplicationType applicationType) {
+    return switch (applicationType) {
+      case TRANSFER -> getTransferMandateCancellationDeadline();
+      case WITHDRAWAL -> getWithdrawalCancellationDeadline();
+      case EARLY_WITHDRAWAL -> getEarlyWithdrawalCancellationDeadline();
+      default -> throw new IllegalArgumentException("Unknown application type: " + applicationType);
+    };
   }
 
   private LocalDate nextWorkingDay(LocalDate to) {

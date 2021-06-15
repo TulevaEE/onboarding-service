@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.mandate.application;
 
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER;
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
 import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toList;
 
@@ -83,8 +82,9 @@ public class ApplicationService {
                   TransferApplicationDetails.builder()
                       .sourceFund(new FundDto(sourceFund, locale.getLanguage()));
               details
-                  .fulfillmentDate(deadlines.getTransferMandateFulfillmentDate())
-                  .cancellationDeadline(deadlines.getTransferMandateCancellationDeadline());
+                  .fulfillmentDate(deadlines.getFulfillmentDate(applicationDto.getType()))
+                  .cancellationDeadline(
+                      deadlines.getCancellationDeadline(applicationDto.getType()));
               applicationDto
                   .getFundTransferExchanges()
                   .forEach(
@@ -125,11 +125,8 @@ public class ApplicationService {
     applicationBuilder.details(
         WithdrawalApplicationDetails.builder()
             .depositAccountIBAN(applicationDTO.getBankAccount())
-            .fulfillmentDate(deadlines.getWithdrawalFulfillmentDate())
-            .cancellationDeadline(
-                applicationDTO.getType() == WITHDRAWAL
-                    ? deadlines.getWithdrawalCancellationDeadline()
-                    : deadlines.getEarlyWithdrawalCancellationDeadline())
+            .fulfillmentDate(deadlines.getFulfillmentDate(applicationDTO.getType()))
+            .cancellationDeadline(deadlines.getCancellationDeadline(applicationDTO.getType()))
             .build());
   }
 }

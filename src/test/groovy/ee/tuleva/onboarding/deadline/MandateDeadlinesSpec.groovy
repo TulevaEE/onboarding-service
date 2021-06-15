@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.deadline
 
+
 import spock.lang.Specification
 
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
 
 class MandateDeadlinesSpec extends Specification {
 
@@ -76,4 +79,36 @@ class MandateDeadlinesSpec extends Specification {
       LocalDate.parse("2021-09-16") == getWithdrawalFulfillmentDate()
     }
   }
+
+  def "can get fulfillment dates for different application types"() {
+    given:
+    Clock clock = Clock.fixed(Instant.parse("2021-08-11T10:00:00Z"), ZoneId.of("Europe/Tallinn"))
+
+    when:
+    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock))
+
+    then:
+    with(mandateDeadlines) {
+      getFulfillmentDate(TRANSFER) == getTransferMandateFulfillmentDate()
+      getFulfillmentDate(EARLY_WITHDRAWAL) == getEarlyWithdrawalFulfillmentDate()
+      getFulfillmentDate(WITHDRAWAL) == getWithdrawalFulfillmentDate()
+    }
+  }
+
+
+  def "can get cancellation deadlines for different application types"() {
+    given:
+    Clock clock = Clock.fixed(Instant.parse("2021-08-11T10:00:00Z"), ZoneId.of("Europe/Tallinn"))
+
+    when:
+    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock))
+
+    then:
+    with(mandateDeadlines) {
+      getCancellationDeadline(TRANSFER) == getTransferMandateCancellationDeadline()
+      getCancellationDeadline(EARLY_WITHDRAWAL) == getEarlyWithdrawalCancellationDeadline()
+      getCancellationDeadline(WITHDRAWAL) == getWithdrawalCancellationDeadline()
+    }
+  }
+
 }

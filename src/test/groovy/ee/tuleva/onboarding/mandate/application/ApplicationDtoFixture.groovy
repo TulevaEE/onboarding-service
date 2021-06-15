@@ -4,17 +4,13 @@ import ee.tuleva.onboarding.ClockFixture
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 
-import java.time.Instant
-
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
 
 class ApplicationDtoFixture {
   static ApplicationDTO sampleTransferApplicationDto() {
     return ApplicationDTO.builder()
-      .date(Instant.now(ClockFixture.clock))
+      .date(ClockFixture.now)
       .type(TRANSFER)
       .status(PENDING)
       .id(123L)
@@ -26,7 +22,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO sampleWithdrawalApplicationDto() {
     return ApplicationDTO.builder()
-      .date(Instant.now(ClockFixture.clock))
+      .date(ClockFixture.now)
       .type(WITHDRAWAL)
       .status(PENDING)
       .id(123L)
@@ -36,7 +32,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO sampleEarlyWithdrawalApplicationDto() {
     return ApplicationDTO.builder()
-      .date(Instant.now(ClockFixture.clock))
+      .date(ClockFixture.now)
       .type(EARLY_WITHDRAWAL)
       .status(PENDING)
       .id(123L)

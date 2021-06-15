@@ -67,11 +67,11 @@ public class ApplicationService {
 
   private List<TransferApplication> groupTransfers(List<ApplicationDTO> transferApplications) {
     val locale = localeService.getCurrentLocale();
-    val deadlines = mandateDeadlinesService.getDeadlines();
     log.info("Grouping transfers {}", transferApplications);
     return transferApplications.stream()
         .map(
             applicationDto -> {
+              val deadlines = mandateDeadlinesService.getDeadlines(applicationDto.getDate());
               val application = TransferApplication.builder();
               application.id(applicationDto.getId());
               application.creationTime(applicationDto.getDate());
@@ -119,14 +119,14 @@ public class ApplicationService {
 
   private void addWithdrawalInfo(
       ApplicationBuilder<? extends Application, ?> applicationBuilder,
-      ApplicationDTO applicationDTO) {
+      ApplicationDTO applicationDto) {
 
-    val deadlines = mandateDeadlinesService.getDeadlines();
+    val deadlines = mandateDeadlinesService.getDeadlines(applicationDto.getDate());
     applicationBuilder.details(
         WithdrawalApplicationDetails.builder()
-            .depositAccountIBAN(applicationDTO.getBankAccount())
-            .fulfillmentDate(deadlines.getFulfillmentDate(applicationDTO.getType()))
-            .cancellationDeadline(deadlines.getCancellationDeadline(applicationDTO.getType()))
+            .depositAccountIBAN(applicationDto.getBankAccount())
+            .fulfillmentDate(deadlines.getFulfillmentDate(applicationDto.getType()))
+            .cancellationDeadline(deadlines.getCancellationDeadline(applicationDto.getType()))
             .build());
   }
 }

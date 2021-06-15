@@ -18,6 +18,7 @@ public class MandateDeadlines {
 
   private final Clock estonianClock;
   private final PublicHolidays publicHolidays;
+  private final Instant applicationDate;
 
   public Instant getPeriodEnding() {
     return periodEnding().toInstant();
@@ -30,7 +31,7 @@ public class MandateDeadlines {
         now().withMonth(11).with(lastDayOfMonth()).with(LocalTime.MAX);
 
     return Stream.of(march31ThisYear, july31ThisYear, november30ThisYear)
-        .filter(deadline -> !deadline.isBefore(now()))
+        .filter(deadline -> !deadline.isBefore(applicationDate.atZone(estonianClock.getZone())))
         .findFirst()
         .get();
   }
@@ -61,7 +62,10 @@ public class MandateDeadlines {
   }
 
   private ZonedDateTime withdrawalCancellationDeadline() {
-    return now().with(lastDayOfMonth()).with(LocalTime.MAX);
+    return applicationDate
+        .atZone(estonianClock.getZone())
+        .with(lastDayOfMonth())
+        .with(LocalTime.MAX);
   }
 
   public LocalDate getWithdrawalFulfillmentDate() {

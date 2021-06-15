@@ -10,7 +10,8 @@ import java.time.LocalDate
 import static java.time.ZoneOffset.UTC
 
 class MandateDeadlinesServiceSpec extends Specification {
-  Clock clock = Clock.fixed(Instant.parse("2021-03-11T10:00:00Z"), UTC)
+  def time = Instant.parse("2021-03-11T10:00:00Z")
+  Clock clock = Clock.fixed(time, UTC)
   PublicHolidays publicHolidays = new PublicHolidays(clock)
 
   MandateDeadlinesService service = new MandateDeadlinesService(clock, publicHolidays)

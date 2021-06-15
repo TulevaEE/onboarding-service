@@ -22,7 +22,7 @@ class MandateDeadlinesControllerSpec extends BaseControllerSpec {
 
   def "can get mandate deadlines"() {
     given:
-    mandateDeadlinesService.deadlines >> sampleDeadlines()
+    mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
     expect:
     mockMvc.perform(get('/v1/mandate-deadlines'))
       .andDo(print())

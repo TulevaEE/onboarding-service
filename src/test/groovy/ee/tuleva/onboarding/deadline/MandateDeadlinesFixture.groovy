@@ -9,6 +9,6 @@ class MandateDeadlinesFixture {
   private static PublicHolidays publicHolidays = new PublicHolidays(clock)
 
   static MandateDeadlines sampleDeadlines() {
-    return new MandateDeadlines(clock, publicHolidays)
+    return new MandateDeadlines(clock, publicHolidays, Instant.now(clock))
   }
 }

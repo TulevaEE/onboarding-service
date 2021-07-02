@@ -21,6 +21,5 @@ public class AuthenticateCommand {
 
   @ValidPersonalCode private String personalCode;
 
-  @NotNull
-  private AuthenticationType type;
+  @NotNull private AuthenticationType type;
 }

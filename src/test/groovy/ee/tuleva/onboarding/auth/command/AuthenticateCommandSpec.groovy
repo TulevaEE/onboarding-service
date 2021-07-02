@@ -55,8 +55,6 @@ class AuthenticateCommandSpec extends Specification {
 
     where:
     personalCode  | phoneNumber     | propertyName
-    "38501010002" | null            | "phoneNumber"
-    "38501010002" | ""              | "phoneNumber"
     "38501010002" | "+++3725555555" | "phoneNumber"
     "38501010002" | "5555+55555"    | "phoneNumber"
     "38501010002" | "55555555+"     | "phoneNumber"

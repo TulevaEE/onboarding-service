@@ -77,6 +77,32 @@ class AccountStatementServiceSpec extends Specification {
     accountStatement.size() == 3
   }
 
+  def "does not filter out zero balance funds with subtractions"() {
+    given:
+    def person = samplePerson()
+    def zeroFundWithSubtraction = FundBalanceDto.builder()
+      .isin("2")
+      .value(ZERO)
+      .build()
+
+    episService.getAccountStatement(person) >> [zeroFundWithSubtraction]
+    fundBalanceConverter.convert(_, _) >> { FundBalanceDto fundBalanceDto, _ ->
+      FundBalance.builder()
+        .fund(Fund.builder().isin(fundBalanceDto.isin).build())
+        .subtractions(-200.0)
+        .build()
+    }
+
+    when:
+    List<FundBalance> accountStatement = service.getAccountStatement(person)
+
+    then:
+    accountStatement.size() == 1
+    with(accountStatement.get(0)) {
+      isin == zeroFundWithSubtraction.isin
+    }
+  }
+
   def "handles fundBalanceDto to fundBalance conversion exceptions"() {
     given:
     def person = samplePerson()

@@ -7,7 +7,9 @@ import static org.apache.commons.lang3.ObjectUtils.compare;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
+
 import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,13 +26,13 @@ public class AccountStatementService {
     List<FundBalanceDto> accountStatement = episService.getAccountStatement(person);
 
     return accountStatement.stream()
-        .filter(fundBalanceDto -> fundBalanceDto.getIsin() != null)
-        .filter(
-            fundBalanceDto ->
-                compare(ZERO, fundBalanceDto.getValue()) != 0
-                    || fundBalanceDto.isActiveContributions())
-        .map(fundBalanceDto -> convertToFundBalance(fundBalanceDto, person))
-        .collect(toList());
+      .filter(fundBalanceDto -> fundBalanceDto.getIsin() != null)
+      .filter(
+        fundBalanceDto ->
+          compare(ZERO, fundBalanceDto.getValue()) != 0
+            || fundBalanceDto.isActiveContributions())
+      .map(fundBalanceDto -> convertToFundBalance(fundBalanceDto, person))
+      .collect(toList());
   }
 
   private FundBalance convertToFundBalance(FundBalanceDto fundBalanceDto, Person person) {

@@ -1,18 +1,17 @@
 package ee.tuleva.onboarding.account;
 
-import static java.math.BigDecimal.ZERO;
-import static java.util.stream.Collectors.toList;
-import static org.apache.commons.lang3.ObjectUtils.compare;
-
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
-
-import java.util.List;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+import static java.math.BigDecimal.ZERO;
+import static java.util.stream.Collectors.toList;
+import static org.apache.commons.lang3.ObjectUtils.compare;
 
 @Service
 @Slf4j
@@ -31,7 +30,8 @@ public class AccountStatementService {
       .filter(fundBalance ->
         compare(ZERO, fundBalance.getSubtractions()) == -1
           || compare(ZERO, fundBalance.getValue()) != 0
-          || fundBalance.isActiveContributions())
+          || fundBalance.isActiveContributions()
+      )
       .collect(toList());
   }
 

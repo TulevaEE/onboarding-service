@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.account
 
-import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.fund.Fund
@@ -57,8 +56,12 @@ class AccountStatementServiceSpec extends Specification {
     def activeNonZeroFund = FundBalanceDto.builder().isin("4").value(ONE).activeContributions(true).build()
 
     episService.getAccountStatement(person) >> [nonActiveZeroFund, nonActiveNonZeroFund, activeZeroFund, activeNonZeroFund]
-    fundBalanceConverter.convert(_, person) >> { FundBalanceDto fundBalanceDto, _ ->
-      FundBalance.builder().fund(Fund.builder().isin(fundBalanceDto.isin).build()).build()
+    fundBalanceConverter.convert(_, _) >> { FundBalanceDto fundBalanceDto, _ ->
+      FundBalance.builder()
+        .fund(Fund.builder().isin(fundBalanceDto.isin).build())
+        .value(fundBalanceDto.value)
+        .activeContributions(fundBalanceDto.activeContributions)
+        .build()
     }
 
     when:

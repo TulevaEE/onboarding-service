@@ -1,20 +1,19 @@
 package ee.tuleva.onboarding.account;
 
+import static java.math.BigDecimal.ZERO;
+
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
+import java.math.BigDecimal;
+import java.util.function.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
-
-import java.math.BigDecimal;
-import java.util.function.Predicate;
-
-import static java.math.BigDecimal.ZERO;
 
 @Component
 @Slf4j
@@ -29,10 +28,12 @@ public class FundBalanceDtoToFundBalanceConverter
   public FundBalance convert(FundBalanceDto fundBalanceDto, Person person) {
     FundBalance fundBalance = convert(fundBalanceDto);
 
-    BigDecimal contributions = sumAmounts(fundBalance.getIsin(), person, amount -> amount.compareTo(ZERO) > 0);
+    BigDecimal contributions =
+        sumAmounts(fundBalance.getIsin(), person, amount -> amount.compareTo(ZERO) > 0);
     fundBalance.setContributions(contributions);
 
-    BigDecimal subtractions = sumAmounts(fundBalance.getIsin(), person, amount -> amount.compareTo(ZERO) < 0);
+    BigDecimal subtractions =
+        sumAmounts(fundBalance.getIsin(), person, amount -> amount.compareTo(ZERO) < 0);
     fundBalance.setSubtractions(subtractions);
 
     return fundBalance;

@@ -1,17 +1,16 @@
 package ee.tuleva.onboarding.account;
 
-import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.account.FundBalanceDto;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.ObjectUtils.compare;
+
+import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.account.FundBalanceDto;
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
@@ -25,14 +24,14 @@ public class AccountStatementService {
     List<FundBalanceDto> accountStatement = episService.getAccountStatement(person);
 
     return accountStatement.stream()
-      .filter(fundBalanceDto -> fundBalanceDto.getIsin() != null)
-      .map(fundBalanceDto -> convertToFundBalance(fundBalanceDto, person))
-      .filter(fundBalance ->
-        compare(ZERO, fundBalance.getSubtractions()) == -1
-          || compare(ZERO, fundBalance.getValue()) != 0
-          || fundBalance.isActiveContributions()
-      )
-      .collect(toList());
+        .filter(fundBalanceDto -> fundBalanceDto.getIsin() != null)
+        .map(fundBalanceDto -> convertToFundBalance(fundBalanceDto, person))
+        .filter(
+            fundBalance ->
+                compare(ZERO, fundBalance.getSubtractions()) == -1
+                    || compare(ZERO, fundBalance.getValue()) != 0
+                    || fundBalance.isActiveContributions())
+        .collect(toList());
   }
 
   private FundBalance convertToFundBalance(FundBalanceDto fundBalanceDto, Person person) {

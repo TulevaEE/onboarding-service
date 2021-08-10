@@ -47,63 +47,44 @@ class AccountStatementServiceSpec extends Specification {
     0 * fundBalanceConverter.convert(fundBalanceDto, person)
   }
 
-  def "filters non-active out zero balance funds"() {
+  def "filters out non-active zero balance second pillar funds"() {
     given:
     def person = samplePerson()
-    def nonActiveZeroFund = FundBalanceDto.builder().isin("1").value(ZERO).activeContributions(false).build()
-    def nonActiveNonZeroFund = FundBalanceDto.builder().isin("2").value(ONE).activeContributions(false).build()
-    def activeZeroFund = FundBalanceDto.builder().isin("3").value(ZERO).activeContributions(true).build()
-    def activeNonZeroFund = FundBalanceDto.builder().isin("4").value(ONE).activeContributions(true).build()
+    def inactiveZeroFund = FundBalanceDto.builder().isin("1").value(ZERO).activeContributions(false).pillar(2).build()
+    def inactiveNonZeroFund = FundBalanceDto.builder().isin("2").value(ONE).activeContributions(false).pillar(2).build()
+    def activeZeroFund = FundBalanceDto.builder().isin("3").value(ZERO).activeContributions(true).pillar(2).build()
+    def activeNonZeroFund = FundBalanceDto.builder().isin("4").value(ONE).activeContributions(true).pillar(2).build()
 
-    episService.getAccountStatement(person) >> [nonActiveZeroFund, nonActiveNonZeroFund, activeZeroFund, activeNonZeroFund]
+    episService.getAccountStatement(person) >> [inactiveZeroFund, inactiveNonZeroFund, activeZeroFund, activeNonZeroFund]
     fundBalanceConverter.convert(_, _) >> { FundBalanceDto fundBalanceDto, _ ->
-      FundBalance.builder()
-        .fund(Fund.builder().isin(fundBalanceDto.isin).build())
-        .value(fundBalanceDto.value)
-        .activeContributions(fundBalanceDto.activeContributions)
-        .build()
+      FundBalance.builder().fund(Fund.builder().isin(fundBalanceDto.isin).build()).build()
     }
 
     when:
     List<FundBalance> accountStatement = service.getAccountStatement(person)
 
     then:
-    with(accountStatement.get(0)) {
-      isin == nonActiveNonZeroFund.isin
-    }
-    with(accountStatement.get(1)) {
-      isin == activeZeroFund.isin
-    }
-    with(accountStatement.get(2)) {
-      isin == activeNonZeroFund.isin
-    }
     accountStatement.size() == 3
+    with(accountStatement.get(0)) { isin == inactiveNonZeroFund.isin }
+    with(accountStatement.get(1)) { isin == activeZeroFund.isin }
+    with(accountStatement.get(2)) { isin == activeNonZeroFund.isin }
   }
 
-  def "does not filter out zero balance funds with subtractions"() {
+  def "does not filter out zero balance third pillar funds"() {
     given:
     def person = samplePerson()
-    def zeroFundWithSubtraction = FundBalanceDto.builder()
-      .isin("2")
-      .value(ZERO)
-      .build()
+    def inactiveZeroFund = FundBalanceDto.builder().isin("1").value(ZERO).activeContributions(false).pillar(3).build()
 
-    episService.getAccountStatement(person) >> [zeroFundWithSubtraction]
+    episService.getAccountStatement(person) >> [inactiveZeroFund]
     fundBalanceConverter.convert(_, _) >> { FundBalanceDto fundBalanceDto, _ ->
-      FundBalance.builder()
-        .fund(Fund.builder().isin(fundBalanceDto.isin).build())
-        .subtractions(-200.0)
-        .build()
+      FundBalance.builder().fund(Fund.builder().isin(fundBalanceDto.isin).build()).build()
     }
 
     when:
     List<FundBalance> accountStatement = service.getAccountStatement(person)
 
     then:
-    accountStatement.size() == 1
-    with(accountStatement.get(0)) {
-      isin == zeroFundWithSubtraction.isin
-    }
+    with(accountStatement.get(0)) { isin == inactiveZeroFund.isin }
   }
 
   def "handles fundBalanceDto to fundBalance conversion exceptions"() {

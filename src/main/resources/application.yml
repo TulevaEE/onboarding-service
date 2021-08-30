@@ -3,9 +3,12 @@ server:
   error:
     whitelabel.enabled: false
     include-exception: true
+  forward-headers-strategy: NATIVE
   tomcat:
-    remote-ip-header: x-forwarded-for
-    protocol-header: x-forwarded-proto
+    remoteip:
+      remote-ip-header: x-forwarded-for
+      protocol-header: x-forwarded-proto
+    redirect-context-root: false
   servlet:
     session:
       timeout: 3600
@@ -22,7 +25,7 @@ spring:
     continue-on-error: false
     driver-class-name: org.postgresql.Driver
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQL95Dialect
+    database-platform: org.hibernate.dialect.PostgreSQL10Dialect
     show-sql: false
     hibernate:
       ddl-auto: none
@@ -52,8 +55,6 @@ spring:
     store-type: none
     jdbc:
       initialize-schema: never
-  config:
-    use-legacy-processing: true
 
 management:
   endpoints:
@@ -139,15 +140,19 @@ morningstar:
 async:
   enabled: true
 ---
-
 spring:
-  profiles: dev
   flyway:
     locations: classpath:/db/migration, classpath:/db/dev
+  config:
+    activate:
+      on-profile: dev
 ---
-
 spring:
-  profiles: production,staging
+  config:
+    activate:
+      on-profile:
+        - production
+        - staging
   datasource:
     url: ${JDBC_DATABASE_URL}
     username: ${JDBC_DATABASE_USERNAME}

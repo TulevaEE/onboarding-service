@@ -36,7 +36,6 @@ import org.springframework.security.oauth2.provider.ClientDetailsService;
 import org.springframework.security.oauth2.provider.CompositeTokenGranter;
 import org.springframework.security.oauth2.provider.TokenGranter;
 import org.springframework.security.oauth2.provider.client.ClientCredentialsTokenGranter;
-import org.springframework.security.oauth2.provider.refresh.RefreshTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
 import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
 import org.springframework.security.oauth2.provider.token.TokenStore;
@@ -49,6 +48,7 @@ public class OAuthConfiguration {
 
   @Configuration
   public static class ResourceServerPathConfiguration {
+
     public static final String RESOURCE_REQUEST_MATCHER_BEAN = "resourceServerRequestMatcher";
 
     @Bean(RESOURCE_REQUEST_MATCHER_BEAN)
@@ -123,8 +123,7 @@ public class OAuthConfiguration {
     public AuthorizationServerTokenServices tokenServices() {
       DefaultTokenServices tokenServices = new DefaultTokenServices();
       tokenServices.setTokenStore(tokenStore());
-      tokenServices.setSupportRefreshToken(true);
-      tokenServices.setReuseRefreshToken(false);
+      tokenServices.setAccessTokenValiditySeconds(60 * 30);
       tokenServices.setAuthenticationManager(refreshingAuthenticationManager);
       tokenServices.setClientDetailsService(clientDetailsService);
       return tokenServices;
@@ -149,11 +148,6 @@ public class OAuthConfiguration {
       TokenGranter mobileIdTokenGranter = mobileIdTokenGranter(endpoints);
       TokenGranter smartIdTokenGranter = smartIdTokenGranter(endpoints);
       TokenGranter idCardTokenGranter = idCardTokenGranter(endpoints);
-      TokenGranter refreshTokenGranter =
-          new RefreshTokenGranter(
-              endpoints.getTokenServices(),
-              clientDetailsService,
-              endpoints.getOAuth2RequestFactory());
       TokenGranter clientCredentialsTokenGranter =
           new ClientCredentialsTokenGranter(
               endpoints.getTokenServices(),
@@ -165,7 +159,6 @@ public class OAuthConfiguration {
               mobileIdTokenGranter,
               smartIdTokenGranter,
               idCardTokenGranter,
-              refreshTokenGranter,
               clientCredentialsTokenGranter));
     }
 

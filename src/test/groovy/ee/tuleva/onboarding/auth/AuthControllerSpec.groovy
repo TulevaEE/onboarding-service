@@ -32,19 +32,6 @@ class AuthControllerSpec extends BaseControllerSpec {
         mockMvc = mockMvc(controller)
     }
 
-    def "Authenticate: Initiate mobile id authentication (deprecated)"() {
-        given:
-        1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
-        1 * sessionStore.save(_ as MobileIDSession)
-        when:
-        MockHttpServletResponse response = mockMvc
-            .perform(post("/authenticate")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(sampleDeprecatedAuthenticateCommand()))).andReturn().response
-        then:
-        response.status == HttpStatus.OK.value()
-    }
-
     def "Authenticate: Initiate mobile id authentication"() {
         given:
         1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession

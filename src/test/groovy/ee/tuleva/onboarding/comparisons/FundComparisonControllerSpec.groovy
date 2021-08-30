@@ -14,7 +14,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class FundComparisonControllerSpec extends BaseControllerSpec {
 
-
     FundComparisonCalculatorService fundComparisonCalculatorService = Mock(FundComparisonCalculatorService)
 
     FundComparisonController controller = new FundComparisonController(fundComparisonCalculatorService)
@@ -28,11 +27,11 @@ class FundComparisonControllerSpec extends BaseControllerSpec {
     def "fund comparison returns the calculation with a set time"() {
         given:
             ObjectMapper mapper = new ObjectMapper()
-            1 * fundComparisonCalculatorService.calculateComparison(_ as Person, { verifyTimesClose(it, parseInstant("1996-01-01")) }, 2) >> sampleComparison()
+            1 * fundComparisonCalculatorService.calculateComparison(_ as Person, { verifyTimesClose(it, parseInstant("2006-01-01")) }, 2) >> sampleComparison()
 
         expect:
             MvcResult result = mockMvc.perform(get('/v1/fund-comparison')
-                .param('from', '1996-01-01'))
+                .param('from', '2006-01-01'))
                 .andExpect(status().isOk())
                 .andReturn()
             mapper.readValue(result.response.getContentAsString(), FundComparison) == sampleComparison()
@@ -41,7 +40,7 @@ class FundComparisonControllerSpec extends BaseControllerSpec {
     def "fund comparison returns the calculation with a default time if not set"() {
         given:
             ObjectMapper mapper = new ObjectMapper()
-            1 * fundComparisonCalculatorService.calculateComparison(_ as Person, { verifyTimesClose(it, parseInstant("1900-01-01")) }, 2) >> sampleComparison()
+            1 * fundComparisonCalculatorService.calculateComparison(_ as Person, { verifyTimesClose(it, parseInstant("2000-01-01")) }, 2) >> sampleComparison()
 
         expect:
             MvcResult result = mockMvc.perform(get('/v1/fund-comparison'))
@@ -49,6 +48,14 @@ class FundComparisonControllerSpec extends BaseControllerSpec {
                     .andReturn()
             mapper.readValue(result.response.getContentAsString(), FundComparison) == sampleComparison()
     }
+
+  def "validates dates too much in the past"() {
+    when:
+    mockMvc.perform(get('/v1/fund-comparison')
+      .param('from', '1996-01-01'))
+    then:
+    thrown Exception
+  }
 
     private static FundComparison sampleComparison() {
         return new FundComparison(0.05, 0.06, 0.07)

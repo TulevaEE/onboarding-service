@@ -27,10 +27,15 @@ public class FundBalanceDtoToFundBalanceConverter
   @NonNull
   public FundBalance convert(FundBalanceDto fundBalanceDto, Person person) {
     FundBalance fundBalance = convert(fundBalanceDto);
-    fundBalance.setContributions(
-        sumAmounts(fundBalance.getIsin(), person, amount -> amount.compareTo(ZERO) > 0));
-    fundBalance.setSubtractions(
-        sumAmounts(fundBalance.getIsin(), person, amount -> amount.compareTo(ZERO) < 0));
+
+    BigDecimal contributions =
+        sumAmounts(fundBalance.getIsin(), person, amount -> amount.compareTo(ZERO) > 0);
+    fundBalance.setContributions(contributions);
+
+    BigDecimal subtractions =
+        sumAmounts(fundBalance.getIsin(), person, amount -> amount.compareTo(ZERO) < 0);
+    fundBalance.setSubtractions(subtractions);
+
     return fundBalance;
   }
 

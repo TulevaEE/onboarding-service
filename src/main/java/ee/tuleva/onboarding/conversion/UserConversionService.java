@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.conversion;
 
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
-import static java.math.BigDecimal.ROUND_HALF_UP;
 import static java.math.BigDecimal.ZERO;
 import static java.time.temporal.TemporalAdjusters.lastDayOfYear;
 import static java.util.stream.Collectors.toList;
@@ -16,10 +15,12 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
+import ee.tuleva.onboarding.mandate.application.Application;
 import ee.tuleva.onboarding.mandate.application.ApplicationService;
-import ee.tuleva.onboarding.mandate.transfer.TransferExchange;
-import ee.tuleva.onboarding.mandate.transfer.TransferExchangeService;
+import ee.tuleva.onboarding.mandate.application.TransferApplication;
+import ee.tuleva.onboarding.mandate.application.TransferApplicationDetails.Exchange;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
@@ -35,7 +36,6 @@ import org.springframework.stereotype.Service;
 public class UserConversionService {
 
   private final AccountStatementService accountStatementService;
-  private final TransferExchangeService transferExchangeService;
   private final CashFlowService cashFlowService;
   private final FundRepository fundRepository;
   private final Clock clock;
@@ -134,7 +134,7 @@ public class UserConversionService {
             })
         .map(CashFlow::getAmount)
         .reduce(ZERO, BigDecimal::add)
-        .setScale(2, ROUND_HALF_UP);
+        .setScale(2, RoundingMode.HALF_UP);
   }
 
   private LocalDate lastDayOfLastYear() {
@@ -171,44 +171,47 @@ public class UserConversionService {
 
   private List<String> getIsinsOfFullPendingTransfersToConvertedFundManager(
       Person person, List<FundBalance> fundBalances, Integer pillar) {
-    return getPendingTransfers(person).stream()
-        .filter(transferExchange -> pillar.equals(transferExchange.getPillar()))
+    List<TransferApplication> pendingTransferApplications = getPendingTransferApplications(person);
+    return pendingTransferApplications.stream()
+        .filter(application -> pillar.equals(application.getPillar()))
+        .flatMap(application -> application.getDetails().getExchanges().stream())
         .filter(
-            transferExchange ->
-                transferExchange.getTargetFund() != null
-                    && transferExchange
-                        .getTargetFund()
-                        .getFundManager()
-                        .getName()
-                        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME)
-                    && amountMatches(transferExchange, fundBalances))
-        .map(transferExchange -> transferExchange.getSourceFund().getIsin())
+            exchange -> isConvertedFundManager(exchange) && amountMatches(exchange, fundBalances))
+        .map(exchange -> exchange.getSourceFund().getIsin())
         .collect(toList());
   }
 
-  private boolean amountMatches(TransferExchange transferExchange, List<FundBalance> fundBalances) {
-    if (transferExchange.getPillar() == 2) {
-      return transferExchange.getAmount().intValue() == 1;
-    }
-    if (transferExchange.getPillar() == 3) {
-      FundBalance fundBalance = fundBalance(transferExchange, fundBalances);
-      return transferExchange.getAmount().equals(fundBalance.getTotalValue());
-    }
-    throw new IllegalStateException("Invalid pillar: " + transferExchange.getPillar());
+  private boolean isConvertedFundManager(Exchange exchange) {
+    return exchange
+        .getTargetFund()
+        .getFundManager()
+        .getName()
+        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME);
   }
 
-  private FundBalance fundBalance(
-      TransferExchange transferExchange, List<FundBalance> fundBalances) {
+  private boolean amountMatches(Exchange exchange, List<FundBalance> fundBalances) {
+    if (exchange.getPillar() == 2) {
+      return exchange.getAmount().intValue() == 1; // 100%
+    }
+    if (exchange.getPillar() == 3) {
+      FundBalance fundBalance = fundBalance(exchange, fundBalances);
+      return exchange.getAmount().equals(fundBalance.getTotalValue());
+    }
+    throw new IllegalStateException("Invalid pillar: " + exchange.getPillar());
+  }
+
+  private FundBalance fundBalance(Exchange exchange, List<FundBalance> fundBalances) {
     return fundBalances.stream()
-        .filter(
-            fundBalance -> transferExchange.getSourceFund().getIsin().equals(fundBalance.getIsin()))
+        .filter(fundBalance -> exchange.getSourceFund().getIsin().equals(fundBalance.getIsin()))
         .findFirst()
         .orElse(FundBalance.builder().build());
   }
 
-  private List<TransferExchange> getPendingTransfers(Person person) {
-    return transferExchangeService.get(person).stream()
-        .filter(transferExchange -> transferExchange.getStatus().equals(PENDING))
+  private List<TransferApplication> getPendingTransferApplications(Person person) {
+    List<Application> applications = applicationService.getApplications(PENDING, person);
+    return applications.stream()
+        .filter(Application::isTransfer)
+        .map(TransferApplication.class::cast)
         .collect(toList());
   }
 

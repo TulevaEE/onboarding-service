@@ -1,25 +1,31 @@
 package ee.tuleva.onboarding.epis.mandate;
 
+import ee.tuleva.onboarding.epis.mandate.MandateDto.MandateFundsTransferExchangeDTO;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
-import java.io.Serializable;
-import java.math.BigDecimal;
 import java.time.Instant;
-import lombok.*;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-public class ApplicationDTO implements Serializable {
+public class ApplicationDTO {
 
   private String currency;
   private Instant date;
   private Long id;
   private String documentNumber;
-  private BigDecimal amount;
   private ApplicationStatus status;
   private String sourceFundIsin;
-  private String targetFundIsin;
+  private List<MandateFundsTransferExchangeDTO> fundTransferExchanges;
   private ApplicationType type;
   private String bankAccount;
+
+  public boolean isWithdrawal() {
+    return type.equals(ApplicationType.WITHDRAWAL) || type.equals(ApplicationType.EARLY_WITHDRAWAL);
+  }
 }

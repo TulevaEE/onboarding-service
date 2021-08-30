@@ -68,25 +68,6 @@ class EpisServiceSpec extends Specification {
         true
     }
 
-    def "getFundTransferExchanges: "() {
-        given:
-        ApplicationDTO[] responseBody = [ApplicationDTO.builder().build()]
-        ResponseEntity<ApplicationDTO[]> result =
-            new ResponseEntity(responseBody, OK)
-
-        1 * restTemplate.exchange(
-            "http://epis/exchanges", GET, { HttpEntity httpEntity ->
-            doesHttpEntityContainToken(httpEntity, sampleToken)
-        }, ApplicationDTO[].class) >> result
-
-        when:
-        List<ApplicationDTO> transferApplicationDTOList =
-            service.getTransferApplications(samplePerson())
-
-        then:
-        transferApplicationDTOList.size() == 1
-    }
-
     def "getApplications: "() {
         given:
         ApplicationDTO[] responseBody = [ApplicationDTO.builder().build()]

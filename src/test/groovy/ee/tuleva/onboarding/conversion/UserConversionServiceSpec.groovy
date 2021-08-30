@@ -7,9 +7,8 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.fund.manager.FundManager
-import ee.tuleva.onboarding.mandate.application.ApplicationService
-import ee.tuleva.onboarding.mandate.transfer.TransferExchange
-import ee.tuleva.onboarding.mandate.transfer.TransferExchangeService
+import ee.tuleva.onboarding.fund.response.FundDto
+import ee.tuleva.onboarding.mandate.application.*
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -23,23 +22,23 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.conversion.UserConversionService.CONVERTED_FUND_MANAGER_NAME
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.*
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
 
 class UserConversionServiceSpec extends Specification {
 
   def accountStatementService = Mock(AccountStatementService)
-  def transferExchangeService = Mock(TransferExchangeService)
   def cashFlowService = Mock(CashFlowService)
   def fundRepository = Mock(FundRepository)
   def applicationService = Mock(ApplicationService)
   def clock = Clock.fixed(Instant.parse("2019-12-30T10:06:01Z"), ZoneOffset.UTC)
 
-  def service = new UserConversionService(accountStatementService, transferExchangeService, cashFlowService,
+  def service = new UserConversionService(accountStatementService, cashFlowService,
     fundRepository, clock, applicationService)
 
   def "GetConversion: Get conversion response for 2nd pillar withdrawal"() {
     given:
     accountStatementService.getAccountStatement(samplePerson) >> []
-    transferExchangeService.get(samplePerson) >> []
+    applicationService.getApplications(PENDING, samplePerson) >> []
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
     applicationService.hasPendingWithdrawals(samplePerson) >> true
 
@@ -55,7 +54,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion: Get conversion response for 2nd pillar selection and transfer"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    transferExchangeService.get(samplePerson) >> []
+    applicationService.getApplications(PENDING, samplePerson) >> []
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -81,7 +80,8 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion: Get conversion response for 3rd pillar selection and transfer"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    transferExchangeService.get(samplePerson) >> []
+    applicationService.getApplications(PENDING, samplePerson) >> []
+
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -106,7 +106,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion: Get conversion response for 2nd pillar transfer given pending mandates cover the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    transferExchangeService.get(samplePerson) >> fullPending2ndPillarApplications
+    applicationService.getApplications(PENDING, samplePerson) >> fullPending2ndPillarApplications
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -126,7 +126,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion 2nd pillar: only full value pending transfer will be marked as covering the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    transferExchangeService.get(samplePerson) >> partialPending2ndPillarApplications
+    applicationService.getApplications(PENDING, samplePerson) >> partialPending2ndPillarApplications
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -145,7 +145,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion: Get conversion response for 3rd pillar transfer given pending mandates cover the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    transferExchangeService.get(samplePerson) >> fullPending3rdPillarApplications
+    applicationService.getApplications(PENDING, samplePerson) >> fullPending3rdPillarApplications
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -165,7 +165,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion 3rd pillar: only full value pending transfer will be marked as covering the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    transferExchangeService.get(samplePerson) >> partialPending3rdPillarApplications
+    applicationService.getApplications(PENDING, samplePerson) >> partialPending3rdPillarApplications
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -183,7 +183,7 @@ class UserConversionServiceSpec extends Specification {
   def "calculates contribution and subtraction sums"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> []
-    transferExchangeService.get(samplePerson) >> []
+    applicationService.getApplications(PENDING, samplePerson) >> []
     fundRepository.findByIsin("EE123") >> Fund.builder().pillar(2).build()
     fundRepository.findByIsin("EE234") >> Fund.builder().pillar(3).build()
 
@@ -226,65 +226,102 @@ class UserConversionServiceSpec extends Specification {
   }
 
 
-  List<TransferExchange> fullPending2ndPillarApplications = [
-    TransferExchange.builder().status(FAILED).build(),
-    TransferExchange.builder().status(COMPLETE).build(),
-    TransferExchange.builder()
+  List<Application> fullPending2ndPillarApplications = [
+    TransferApplication.builder()
       .status(PENDING)
-      .amount(new BigDecimal(1.0))
-      .sourceFund(Fund.builder()
-        .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
-        .pillar(2)
-        .build()
-      )
-      .targetFund(Fund.builder()
-        .isin("EE234")
-        .pillar(2)
-        .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
-        .build()
-      )
-      .build()
-  ]
-
-  List<TransferExchange> partialPending2ndPillarApplications = [
-    TransferExchange.builder().status(FAILED).build(),
-    TransferExchange.builder().status(COMPLETE).build(),
-    TransferExchange.builder()
-      .status(PENDING)
-      .amount(0.5)
-      .sourceFund(Fund.builder()
-        .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
-        .pillar(2)
-        .build()
-      )
-      .targetFund(Fund.builder()
-        .isin("EE123")
-        .pillar(2)
-        .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
-        .build()
+      .type(TRANSFER)
+      .details(
+        TransferApplicationDetails.builder()
+          .sourceFund(new FundDto(Fund.builder()
+            .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
+            .pillar(2)
+            .build(), "en")
+          )
+          .exchange(TransferApplicationDetails.Exchange.builder()
+            .sourceFund(new FundDto(Fund.builder()
+              .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
+              .pillar(2)
+              .build(), "en")
+            )
+            .targetFund(new FundDto(Fund.builder()
+              .isin("EE234")
+              .pillar(2)
+              .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
+              .build(), "en")
+            )
+            .amount(1.0)
+            .build()
+          )
+          .build()
       )
       .build()
   ]
 
-  List<TransferExchange> fullPending3rdPillarApplications = [
-    TransferExchange.builder().status(FAILED).build(),
-    TransferExchange.builder().status(COMPLETE).build(),
-    TransferExchange.builder()
+
+  List<Application> partialPending2ndPillarApplications = [
+    TransferApplication.builder()
       .status(PENDING)
-      .amount(100.0)
-      .sourceFund(activeExternal3rdPillarFundBalance[0].getFund())
-      .targetFund(activeExternal3rdPillarFundBalance[1].getFund())
+      .type(TRANSFER)
+      .details(
+        TransferApplicationDetails.builder()
+          .sourceFund(new FundDto(Fund.builder()
+            .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
+            .pillar(2)
+            .build(), "en")
+          )
+          .exchange(TransferApplicationDetails.Exchange.builder()
+            .sourceFund(new FundDto(Fund.builder()
+              .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
+              .pillar(2)
+              .build(), "en")
+            )
+            .targetFund(new FundDto(Fund.builder()
+              .isin("EE234")
+              .pillar(2)
+              .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
+              .build(), "en")
+            )
+            .amount(0.5)
+            .build()
+          )
+          .build()
+      )
       .build()
   ]
 
-  List<TransferExchange> partialPending3rdPillarApplications = [
-    TransferExchange.builder().status(FAILED).build(),
-    TransferExchange.builder().status(COMPLETE).build(),
-    TransferExchange.builder()
+  List<Application> fullPending3rdPillarApplications = [
+    TransferApplication.builder()
       .status(PENDING)
-      .amount(50.0)
-      .sourceFund(activeExternal3rdPillarFundBalance[0].getFund())
-      .targetFund(activeExternal3rdPillarFundBalance[1].getFund())
+      .type(TRANSFER)
+      .details(
+        TransferApplicationDetails.builder()
+          .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
+          .exchange(TransferApplicationDetails.Exchange.builder()
+            .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
+            .targetFund(new FundDto(activeExternal3rdPillarFundBalance[1].getFund(), "en"))
+            .amount(100.0)
+            .build()
+          )
+          .build()
+      )
+      .build()
+  ]
+
+  List<Application> partialPending3rdPillarApplications = [
+    TransferApplication.builder()
+      .status(PENDING)
+      .type(TRANSFER)
+      .details(
+        TransferApplicationDetails.builder()
+          .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
+          .exchange(TransferApplicationDetails.Exchange.builder()
+            .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
+            .targetFund(new FundDto(activeExternal3rdPillarFundBalance[1].getFund(), "en"))
+            .amount(50.0)
+            .build()
+          )
+          .build()
+      )
       .build()
   ]
 

@@ -1,11 +1,9 @@
 package ee.tuleva.onboarding.mandate.application;
 
 import static ee.tuleva.onboarding.mandate.application.ApplicationController.APPLICATIONS_URI;
-import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
-import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import io.swagger.annotations.ApiOperation;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -35,10 +33,7 @@ public class ApplicationController {
   public Application getApplication(
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @PathVariable Long id) {
-    return applicationService.getApplications(authenticatedPerson).stream()
-        .filter(application -> application.getId().equals(id))
-        .findFirst()
-        .orElseThrow(() -> new NotFoundException("Application not found: id=" + id));
+    return applicationService.getApplication(id, authenticatedPerson);
   }
 
   @ApiOperation(value = "Get applications")
@@ -46,9 +41,7 @@ public class ApplicationController {
   public List<Application> getApplications(
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @RequestParam("status") ApplicationStatus status) {
-    return applicationService.getApplications(authenticatedPerson).stream()
-        .filter(application -> application.getStatus().equals(status))
-        .collect(toList());
+    return applicationService.getApplications(status, authenticatedPerson);
   }
 
   @ApiOperation(value = "Cancel an application")

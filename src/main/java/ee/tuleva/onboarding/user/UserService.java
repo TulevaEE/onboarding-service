@@ -1,9 +1,5 @@
 package ee.tuleva.onboarding.user;
 
-import static org.apache.commons.lang3.StringUtils.substringAfterLast;
-import static org.apache.commons.lang3.StringUtils.substringBeforeLast;
-import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
-
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
@@ -70,7 +66,6 @@ public class UserService {
     log.info("Registering user as new member #{}: {}", newMember.getMemberNumber(), user);
 
     user.setMember(newMember);
-    updateNameIfMissing(user, fullName);
 
     return save(user);
   }
@@ -80,73 +75,8 @@ public class UserService {
     return user.map(u -> u.getMember().isPresent()).orElse(false);
   }
 
-  private User updateNameIfMissing(User user, String fullName) {
-    if (!user.hasName()) {
-      String firstName = capitalizeFully(substringBeforeLast(fullName, " "));
-      String lastName = capitalizeFully(substringAfterLast(fullName, " "));
-      log.info(
-          "Updating user name from {} {} to {} {}",
-          user.getFirstName(),
-          user.getLastName(),
-          firstName,
-          lastName);
-      user.setFirstName(firstName);
-      user.setLastName(lastName);
-    }
-    return user;
-  }
-
   public User save(User user) {
     log.info("Saving user {}", user);
     return userRepository.save(user);
-  }
-
-  public User createOrUpdateUser(String personalCode, String email, String phoneNumber) {
-    if (isAMember(personalCode, email)) {
-      throw new UserAlreadyAMemberException(
-          "This user is already a member: " + personalCode + " " + email);
-    }
-
-    User user =
-        userRepository
-            .findByPersonalCode(personalCode)
-            .map(
-                u -> {
-                  u.setEmail(email);
-                  u.setPhoneNumber(phoneNumber);
-                  return u;
-                })
-            .orElse(
-                userRepository
-                    .findByEmail(email)
-                    .map(
-                        u -> {
-                          u.setPersonalCode(personalCode);
-                          u.setPhoneNumber(phoneNumber);
-                          return u;
-                        })
-                    .orElse(
-                        User.builder()
-                            .personalCode(personalCode)
-                            .email(email)
-                            .phoneNumber(phoneNumber)
-                            .active(true)
-                            .build()));
-    log.info("Creating or updating user {}", user);
-    return userRepository.save(user);
-  }
-
-  private boolean isAMember(String personalCode, String email) {
-    return isAMemberByPersonalCode(personalCode) || isAMemberByEmail(email);
-  }
-
-  private boolean isAMemberByPersonalCode(String personalCode) {
-    Optional<User> user = userRepository.findByPersonalCode(personalCode);
-    return user.map(u -> u.getMember().isPresent()).orElse(false);
-  }
-
-  private boolean isAMemberByEmail(String email) {
-    Optional<User> user = userRepository.findByEmail(email);
-    return user.map(u -> u.getMember().isPresent()).orElse(false);
   }
 }

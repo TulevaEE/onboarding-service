@@ -24,7 +24,7 @@ plugins {
     id("com.gorylenko.gradle-git-properties") version "2.3.1"
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     id("com.diffplug.spotless") version "5.12.5"
-    id("io.freefair.lombok") version "6.0.0-m2"
+    id("io.freefair.lombok") version "6.1.0"
     jacoco
 }
 

@@ -81,7 +81,7 @@ public class FundValueIndexingJob {
         comparisonIndexRetriever.retrieveValuesForRange(startDate, endDate);
     valuesPulled.forEach(
         value -> {
-          if (!fundValueRepository.findExistingValueForFund(value).isPresent())
+          if (fundValueRepository.findExistingValueForFund(value).isEmpty())
             fundValueRepository.save(value);
           else fundValueRepository.update(value);
         });

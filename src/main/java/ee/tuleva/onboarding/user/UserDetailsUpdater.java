@@ -24,18 +24,18 @@ public class UserDetailsUpdater {
   @EventListener
   public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
     Person person = event.getPerson();
-    String firstName = capitalizeFully(person.getFirstName());
-    String lastName = capitalizeFully(person.getLastName());
 
     log.info(
-        "Updating user name: timestamp={}, name={} {}", event.getTimestamp(), firstName, lastName);
+        "Updating user name: timestamp={}, personal code={}",
+        event.getTimestamp(),
+        person.getPersonalCode());
 
     userService
         .findByPersonalCode(person.getPersonalCode())
         .ifPresent(
             user -> {
-              user.setFirstName(firstName);
-              user.setLastName(lastName);
+              user.setFirstName(capitalizeFully(person.getFirstName()));
+              user.setLastName(capitalizeFully(person.getLastName()));
               userService.save(user);
             });
   }

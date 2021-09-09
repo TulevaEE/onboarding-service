@@ -45,7 +45,7 @@ public class PaymentController {
       @ApiIgnore Errors errors)
       throws IOException {
 
-    log.info("Incoming payment: {}", incomingPayment);
+    log.info("Incoming payment");
 
     Payment payment = mapper.readValue(incomingPayment.getJson(), Payment.class);
 

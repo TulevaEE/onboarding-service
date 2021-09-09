@@ -22,10 +22,9 @@ public class LoginAuditEventBroadcaster {
   public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
     Person person = event.getPerson();
     log.info(
-        "Broadcasting login audit event from BeforeTokenGrantedEvent: timestamp={}, name={} {}",
+        "Broadcasting login audit event from BeforeTokenGrantedEvent: timestamp={}, personal code={}",
         event.getTimestamp(),
-        person.getFirstName(),
-        person.getLastName());
+        person.getPersonalCode());
 
     Authentication auth = event.getAuthentication().getUserAuthentication();
 

@@ -19,10 +19,9 @@ public class OnLoginAccountStatementCacheClearer {
   public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
     Person person = event.getPerson();
     log.info(
-        "On BeforeTokenGrantedEvent: timestamp={}, name={} {}",
+        "On BeforeTokenGrantedEvent: timestamp={}, personal code={}",
         event.getTimestamp(),
-        person.getFirstName(),
-        person.getLastName());
+        person.getPersonalCode());
 
     episService.clearCache(person);
   }

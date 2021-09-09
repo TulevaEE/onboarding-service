@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.mandate;
 
 import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
-import static org.springframework.web.bind.annotation.RequestMethod.*;
+import static org.springframework.web.bind.annotation.RequestMethod.GET;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
+import static org.springframework.web.bind.annotation.RequestMethod.PUT;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession;
@@ -69,7 +71,7 @@ public class MandateController {
       throw new ValidationErrorsException(errors);
     }
 
-    log.info("Creating mandate with {}", createMandateCommand);
+    log.info("Creating mandate");
     return mandateService.save(authenticatedPerson.getUserId(), createMandateCommand);
   }
 

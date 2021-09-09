@@ -2,8 +2,24 @@ package ee.tuleva.onboarding.auth.mobileid;
 
 import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError;
 
-import ee.sk.mid.*;
-import ee.sk.mid.exception.*;
+import ee.sk.mid.MidAuthentication;
+import ee.sk.mid.MidAuthenticationHashToSign;
+import ee.sk.mid.MidAuthenticationIdentity;
+import ee.sk.mid.MidAuthenticationResponseValidator;
+import ee.sk.mid.MidAuthenticationResult;
+import ee.sk.mid.MidClient;
+import ee.sk.mid.MidDisplayTextFormat;
+import ee.sk.mid.MidLanguage;
+import ee.sk.mid.exception.MidDeliveryException;
+import ee.sk.mid.exception.MidInternalErrorException;
+import ee.sk.mid.exception.MidInvalidUserConfigurationException;
+import ee.sk.mid.exception.MidMissingOrInvalidParameterException;
+import ee.sk.mid.exception.MidNotMidClientException;
+import ee.sk.mid.exception.MidPhoneNotAvailableException;
+import ee.sk.mid.exception.MidSessionNotFoundException;
+import ee.sk.mid.exception.MidSessionTimeoutException;
+import ee.sk.mid.exception.MidUnauthorizedException;
+import ee.sk.mid.exception.MidUserCancellationException;
 import ee.sk.mid.rest.MidConnector;
 import ee.sk.mid.rest.MidSessionStatusPoller;
 import ee.sk.mid.rest.dao.MidSessionStatus;
@@ -35,9 +51,6 @@ public class MobileIdAuthService {
     MidAuthenticationRequest request =
         getBuildMidAuthenticationRequest(phoneNumber, personalCode, authenticationHash);
     MidAuthenticationResponse response = connector.authenticate(request);
-
-    log.info(
-        "Mobile ID authentication with challenge " + verificationCode + " sent to " + phoneNumber);
 
     return new MobileIDSession(
         response.getSessionID(), verificationCode, authenticationHash, request.getPhoneNumber());

@@ -59,7 +59,7 @@ public class MandateService {
   }
 
   public Mandate save(User user, Mandate mandate) {
-    log.info("Saving mandate {}", mandate);
+    log.info("Saving mandate for user {}", user.getId());
     applicationEventPublisher.publishEvent(new BeforeMandateCreatedEvent(this, user, mandate));
     return mandateRepository.save(mandate);
   }

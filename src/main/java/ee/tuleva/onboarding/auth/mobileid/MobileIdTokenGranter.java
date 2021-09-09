@@ -15,7 +15,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
-import org.springframework.security.oauth2.provider.*;
+import org.springframework.security.oauth2.provider.ClientDetails;
+import org.springframework.security.oauth2.provider.ClientDetailsService;
+import org.springframework.security.oauth2.provider.OAuth2Authentication;
+import org.springframework.security.oauth2.provider.OAuth2Request;
+import org.springframework.security.oauth2.provider.OAuth2RequestFactory;
+import org.springframework.security.oauth2.provider.TokenGranter;
+import org.springframework.security.oauth2.provider.TokenRequest;
 import org.springframework.security.oauth2.provider.token.AbstractTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
 
@@ -58,7 +64,7 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
     // grant_type validated in AbstractTokenGranter
     final String clientId = client.getClientId();
     if (clientId == null) {
-      log.error("Failed to authenticate client {}", clientId);
+      log.error("Failed to authenticate client");
       throw new InvalidRequestException("Unknown Client ID.");
     }
 

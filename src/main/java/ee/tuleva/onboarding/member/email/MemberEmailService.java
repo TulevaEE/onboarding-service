@@ -18,7 +18,7 @@ public class MemberEmailService {
   private final MemberEmailContentService emailContentService;
 
   public void sendMemberNumber(User user, Locale locale) {
-    log.info("Sending member number email to user: {}", user);
+    log.info("Sending member number email to user: {}", user.getId());
     MandrillMessage message =
         emailService.newMandrillMessage(
             emailService.getRecipients(user),
@@ -29,7 +29,7 @@ public class MemberEmailService {
 
     if (message == null) {
       log.warn(
-          "Failed to create mandrill message, not sending member number email for userId {}, member #",
+          "Failed to create mandrill message, not sending member number email for userId {}, member #{}",
           user.getId(),
           user.getMemberOrThrow().getMemberNumber());
       return;

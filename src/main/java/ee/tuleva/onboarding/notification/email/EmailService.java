@@ -62,12 +62,7 @@ public class EmailService {
 
   public void send(User user, MandrillMessage message) {
     try {
-      log.info(
-          "Sending email from {} to member {} {} at {}",
-          emailConfiguration.getFrom(),
-          user.getFirstName(),
-          user.getLastName(),
-          user.getEmail());
+      log.info("Sending email from {} to user {}", emailConfiguration.getFrom(), user.getId());
       MandrillMessageStatus[] messageStatusReports = mandrillApi.messages().send(message, false);
 
       log.info("Mandrill API response {}", messageStatusReports[0].getStatus()); // FIXME [0]
@@ -80,7 +75,7 @@ public class EmailService {
 
   public List<Recipient> getRecipients(User user) {
     if (isBlank(user.getEmail())) {
-      log.error("User email is missing: user={}", user);
+      log.error("User email is missing: user={}", user.getId());
     }
 
     List<Recipient> recipients = new ArrayList<>();

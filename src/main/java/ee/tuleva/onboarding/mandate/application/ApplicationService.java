@@ -67,7 +67,7 @@ public class ApplicationService {
 
   private List<TransferApplication> groupTransfers(List<ApplicationDTO> transferApplications) {
     val locale = localeService.getCurrentLocale();
-    log.info("Grouping transfers {}", transferApplications);
+
     return transferApplications.stream()
         .map(
             applicationDto -> {

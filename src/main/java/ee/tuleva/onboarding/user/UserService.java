@@ -30,7 +30,7 @@ public class UserService {
   }
 
   public User createNewUser(User user) {
-    log.info("Creating new user {}", user);
+    log.info("Creating new user for personal code {}", user.getPersonalCode());
     return userRepository.save(user);
   }
 
@@ -45,7 +45,7 @@ public class UserService {
                 })
             .orElseThrow(() -> new RuntimeException("User does not exist"));
 
-    log.info("Updating user {}", user);
+    log.info("Updating user with id {}", user.getId());
 
     return save(user);
   }
@@ -63,7 +63,10 @@ public class UserService {
     Member newMember =
         Member.builder().user(user).memberNumber(memberRepository.getNextMemberNumber()).build();
 
-    log.info("Registering user as new member #{}: {}", newMember.getMemberNumber(), user);
+    log.info(
+        "Registering user as new member #{}: user id: {}",
+        newMember.getMemberNumber(),
+        user.getId());
 
     user.setMember(newMember);
 
@@ -76,7 +79,7 @@ public class UserService {
   }
 
   public User save(User user) {
-    log.info("Saving user {}", user);
+    log.info("Saving user with id {}", user.getId());
     return userRepository.save(user);
   }
 }

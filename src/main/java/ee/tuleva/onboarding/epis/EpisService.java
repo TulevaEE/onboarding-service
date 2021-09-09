@@ -55,8 +55,7 @@ public class EpisService {
   public List<ApplicationDTO> getApplications(Person person) {
     String url = episServiceUrl + "/applications";
 
-    log.info(
-        "Getting applications from {} for {} {}", url, person.getFirstName(), person.getLastName());
+    log.info("Getting applications from {} for {}", url, person.getPersonalCode());
 
     ResponseEntity<ApplicationDTO[]> response =
         userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), ApplicationDTO[].class);
@@ -102,11 +101,7 @@ public class EpisService {
   public UserPreferences getContactDetails(Person person, String token) {
     String url = episServiceUrl + "/contact-details";
 
-    log.info(
-        "Getting contact details from {} for {} {}",
-        url,
-        person.getFirstName(),
-        person.getLastName());
+    log.info("Getting contact details from {} for {}", url, person.getPersonalCode());
 
     ResponseEntity<UserPreferences> response =
         userTokenRestTemplate.exchange(url, GET, getHeadersEntity(token), UserPreferences.class);
@@ -118,11 +113,7 @@ public class EpisService {
   public List<FundBalanceDto> getAccountStatement(Person person) {
     String url = episServiceUrl + "/account-statement";
 
-    log.info(
-        "Getting account statement from {} for {} {}",
-        url,
-        person.getFirstName(),
-        person.getLastName());
+    log.info("Getting account statement from {} for {}", url, person.getPersonalCode());
 
     ResponseEntity<FundBalanceDto[]> response =
         userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), FundBalanceDto[].class);

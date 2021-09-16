@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
 
@@ -30,6 +31,7 @@ public class MandateDto {
   @Nullable private Address address;
 
   @AllArgsConstructor
+  @NoArgsConstructor
   @Getter
   @Setter
   public static class MandateFundsTransferExchangeDTO {

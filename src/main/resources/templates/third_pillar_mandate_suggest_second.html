@@ -1,0 +1,25 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <p th:text="#{mandate.email.greeting(${firstName})}"></p>
+    <p th:utext="#{mandate.email.thirdPillar.suggestSecond.content}"></p>
+
+    <br/>
+    <strong th:text="#{mandate.email.thirdPillar.suggestSecond.whySecond.title}"></strong>
+    <p th:utext="#{mandate.email.thirdPillar.suggestSecond.whySecond.content}"></p>
+
+    <br/>
+    <strong th:text="#{mandate.email.thirdPillar.suggestSecond.diversification.title}"></strong>
+    <p th:utext="#{mandate.email.thirdPillar.suggestSecond.diversification.content}"></p>
+
+    <br/>
+    <strong th:text="#{mandate.email.thirdPillar.suggestSecond.tutorial.title}"></strong>
+    <p th:utext="#{mandate.email.thirdPillar.suggestSecond.tutorial.content}"></p>
+    <br/>
+
+    <p th:utext="#{mandate.email.info}"></p>
+    <br/>
+
+    <p th:utext="#{mandate.email.thirdPillar.signature}"></p>
+  </body>
+</html>

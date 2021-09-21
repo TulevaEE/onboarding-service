@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -28,46 +29,54 @@ public class MandateEmailService {
       PillarSuggestion pillarSuggestion,
       UserPreferences contactDetails,
       Locale locale) {
+    switch (pillarSuggestion.getOtherPillar()) {
+      case 2 -> sendSecondPillarEmail(user, mandate, pillarSuggestion, locale);
+      case 3 -> sendThirdPillarEmails(user, mandate, pillarSuggestion, contactDetails, locale);
+      default -> throw new IllegalArgumentException(
+          "Unknown pillar: " + pillarSuggestion.getOtherPillar());
+    }
+  }
 
-    MandrillMessage message =
+  private void sendSecondPillarEmail(
+      User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
+    MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             emailService.getRecipients(user),
             getMandateEmailSubject(),
-            getContent(user, mandate, pillarSuggestion, contactDetails, locale),
+            getSecondPillarContent(user, mandate, pillarSuggestion, locale),
             getMandateTags(pillarSuggestion),
             getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
-
-    if (message == null) {
-      log.warn(
-          "Failed to create mandrill message, not sending mandate email for user {} and second pillar mandate {}.",
-          user.getId(),
-          mandate.getId());
-      return;
-    }
-
-    emailService.send(user, message);
+    emailService.send(user, mandrillMessage);
   }
 
-  private String getContent(
+  private void sendThirdPillarEmails(
       User user,
       Mandate mandate,
       PillarSuggestion pillarSuggestion,
       UserPreferences contactDetails,
       Locale locale) {
-    if (pillarSuggestion.getOtherPillar() == 2) {
-      if (mandate.isWithdrawalCancellation()) {
-        return emailContentService.getSecondPillarWithdrawalCancellationHtml(user, locale);
-      }
-      if (mandate.isTransferCancellation()) {
-        return emailContentService.getSecondPillarTransferCancellationHtml(user, mandate, locale);
-      }
-      return emailContentService.getSecondPillarHtml(user, pillarSuggestion, locale);
+    String content =
+        emailContentService.getThirdPillarHtml(
+            user, pillarSuggestion, contactDetails.getPensionAccountNumber(), locale);
+    MandrillMessage mandrillMessage =
+        emailService.newMandrillMessage(
+            emailService.getRecipients(user),
+            getMandateEmailSubject(),
+            content,
+            getMandateTags(pillarSuggestion),
+            getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
+    emailService.send(user, mandrillMessage, new Date());
+  }
+
+  private String getSecondPillarContent(
+      User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
+    if (mandate.isWithdrawalCancellation()) {
+      return emailContentService.getSecondPillarWithdrawalCancellationHtml(user, locale);
     }
-    if (pillarSuggestion.getOtherPillar() == 3) {
-      return emailContentService.getThirdPillarHtml(
-          user, pillarSuggestion, contactDetails.getPensionAccountNumber(), locale);
+    if (mandate.isTransferCancellation()) {
+      return emailContentService.getSecondPillarTransferCancellationHtml(user, mandate, locale);
     }
-    throw new IllegalArgumentException("Unknown pillar: " + pillarSuggestion.getOtherPillar());
+    return emailContentService.getSecondPillarHtml(user, pillarSuggestion, locale);
   }
 
   String getMandateEmailSubject() {

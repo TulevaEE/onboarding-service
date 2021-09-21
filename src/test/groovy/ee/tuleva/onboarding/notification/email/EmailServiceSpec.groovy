@@ -12,36 +12,36 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
 class EmailServiceSpec extends Specification {
 
-    EmailConfiguration emailConfiguration = Mock(EmailConfiguration)
-    MandrillApi mandrillApi = Mock(MandrillApi)
-    EmailService service = new EmailService(emailConfiguration, mandrillApi)
+  EmailConfiguration emailConfiguration = Mock()
+  MandrillApi mandrillApi = Mock()
+  EmailService service = new EmailService(emailConfiguration, mandrillApi)
 
-    def setup() {
-        emailConfiguration.from >> "tuleva@tuleva.ee"
-        emailConfiguration.bcc >> "avaldused@tuleva.ee"
-        emailConfiguration.mandrillKey >> Optional.of("")
-    }
+  def setup() {
+    emailConfiguration.from >> "tuleva@tuleva.ee"
+    emailConfiguration.bcc >> "avaldused@tuleva.ee"
+    emailConfiguration.mandrillKey >> Optional.of("")
+  }
 
-    def "Send fake email"() {
-        given:
-        User user = sampleUser().build()
-        when:
-        MandrillMessage message = service.newMandrillMessage(
-            service.getRecipients(user),
-            "subject",
-            "html",
-            ["test"],
-            null)
+  def "Send fake email"() {
+    given:
+    User user = sampleUser().build()
+    when:
+    MandrillMessage message = service.newMandrillMessage(
+      service.getRecipients(user),
+      "subject",
+      "html",
+      ["test"],
+      null)
 
-        service.send(user, message)
+    service.send(user, message)
 
-        then:
-        1 * mandrillApi.messages() >> mockMandrillMessageApi()
-    }
+    then:
+    1 * mandrillApi.messages() >> mockMandrillMessageApi()
+  }
 
-    private MandrillMessagesApi mockMandrillMessageApi() {
-        def messagesApi = Mock(MandrillMessagesApi)
-        messagesApi.send(*_) >> ([Mock(MandrillMessageStatus)] as MandrillMessageStatus[])
-        return messagesApi
-    }
+  private MandrillMessagesApi mockMandrillMessageApi() {
+    def messagesApi = Mock(MandrillMessagesApi)
+    messagesApi.send(*_) >> ([Mock(MandrillMessageStatus)] as MandrillMessageStatus[])
+    return messagesApi
+  }
 }

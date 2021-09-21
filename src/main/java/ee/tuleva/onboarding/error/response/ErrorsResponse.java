@@ -3,7 +3,11 @@ package ee.tuleva.onboarding.error.response;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @Getter
 @Setter
@@ -16,7 +20,7 @@ public class ErrorsResponse {
 
   public static ErrorsResponse ofSingleError(String code, String message) {
     return new ErrorsResponse(
-        Collections.singletonList(ErrorResponse.builder().code(code).message(message).build()));
+        Collections.singletonList(ErrorResponse.builder().code(code).build()));
   }
 
   public static ErrorsResponse ofSingleError(ErrorResponse error) {

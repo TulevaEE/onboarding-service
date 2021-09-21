@@ -22,8 +22,8 @@ class ErrorAttributesConverterSpec extends Specification {
     def error = errorsResponse.errors.first()
 
     then:
-    error.code == 'SampleException'
-    error.message == 'Error message'
+    error.code == 'Internal Server Error'
+    error.message == null
     error.path == null
     error.arguments == []
   }

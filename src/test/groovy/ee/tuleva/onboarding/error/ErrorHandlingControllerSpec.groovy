@@ -32,41 +32,41 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(ErrorHandlingController)
 @WithMockUser
 @Import([ErrorResponseEntityFactory, InputErrorsConverter, ErrorAttributesConverter,
-    OAuthConfiguration.ResourceServerPathConfiguration, SecurityConfiguration, ConversionDecorator])
+  OAuthConfiguration.ResourceServerPathConfiguration, SecurityConfiguration, ConversionDecorator])
 class ErrorHandlingControllerSpec extends Specification {
 
-    @MockBean
-    CashFlowService cashFlowService
+  @MockBean
+  CashFlowService cashFlowService
 
-    @TestConfiguration
-    static class ErrorAttributesConfiguration {
-        @Bean
-        ErrorAttributes defaultErrorAttributes() {
-            return new DefaultErrorAttributes(true)
-        }
+  @TestConfiguration
+  static class ErrorAttributesConfiguration {
+    @Bean
+    ErrorAttributes defaultErrorAttributes() {
+      return new DefaultErrorAttributes(true)
     }
+  }
 
-    @Autowired
-    MockMvc mvc
+  @Autowired
+  MockMvc mvc
 
-    @MockBean
-    FundRepository fundRepository
+  @MockBean
+  FundRepository fundRepository
 
-    @MockBean
-    AccountStatementService accountStatementService
+  @MockBean
+  AccountStatementService accountStatementService
 
-    def "error handling works"() {
-        expect:
-        mvc.perform(get("/error")
-            .requestAttr(RequestDispatcher.ERROR_EXCEPTION, new RuntimeException())
-            .requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 403)
-            .requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/asdf")
-            .requestAttr(RequestDispatcher.ERROR_MESSAGE, "oops!"))
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath('$.errors[0].code', is("RuntimeException")))
-            .andExpect(jsonPath('$.errors[0].message', is("oops!")))
-            .andExpect(jsonPath('$.errors[0].path').doesNotExist())
-            .andExpect(jsonPath('$.errors[0].arguments').isEmpty())
-    }
+  def "error handling works"() {
+    expect:
+    mvc.perform(get("/error")
+      .requestAttr(RequestDispatcher.ERROR_EXCEPTION, new RuntimeException())
+      .requestAttr(RequestDispatcher.ERROR_STATUS_CODE, 403)
+      .requestAttr(RequestDispatcher.ERROR_REQUEST_URI, "/asdf")
+      .requestAttr(RequestDispatcher.ERROR_MESSAGE, "oops!"))
+      .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+      .andExpect(jsonPath('$.errors[0].code', is("RuntimeException")))
+      .andExpect(jsonPath('$.errors[0].message', is("oops!")))
+      .andExpect(jsonPath('$.errors[0].path').doesNotExist())
+      .andExpect(jsonPath('$.errors[0].arguments').isEmpty())
+  }
 
 }

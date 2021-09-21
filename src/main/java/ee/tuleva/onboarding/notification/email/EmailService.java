@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.config.EmailConfiguration;
 import ee.tuleva.onboarding.user.User;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,9 +62,18 @@ public class EmailService {
   }
 
   public void send(User user, MandrillMessage message) {
+    send(user, message, null);
+  }
+
+  public void send(User user, MandrillMessage message, Date sendAt) {
     try {
-      log.info("Sending email from {} to user {}", emailConfiguration.getFrom(), user.getId());
-      MandrillMessageStatus[] messageStatusReports = mandrillApi.messages().send(message, false);
+      log.info(
+          "Sending email from {} to user {} at {}",
+          emailConfiguration.getFrom(),
+          user.getId(),
+          sendAt);
+      MandrillMessageStatus[] messageStatusReports =
+          mandrillApi.messages().send(message, false, null, sendAt);
 
       log.info("Mandrill API response {}", messageStatusReports[0].getStatus()); // FIXME [0]
     } catch (MandrillApiError mandrillApiError) {

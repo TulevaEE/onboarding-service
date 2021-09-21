@@ -42,7 +42,7 @@ public class MandateEmailService {
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             emailService.getRecipients(user),
-            getMandateEmailSubject(),
+            "Pensionifondi avaldus",
             getSecondPillarContent(user, mandate, pillarSuggestion, locale),
             getMandateTags(pillarSuggestion),
             getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
@@ -61,7 +61,7 @@ public class MandateEmailService {
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             emailService.getRecipients(user),
-            getMandateEmailSubject(),
+            "Pensionifondi avaldus",
             content,
             getMandateTags(pillarSuggestion),
             getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
@@ -77,10 +77,6 @@ public class MandateEmailService {
       return emailContentService.getSecondPillarTransferCancellationHtml(user, mandate, locale);
     }
     return emailContentService.getSecondPillarHtml(user, pillarSuggestion, locale);
-  }
-
-  String getMandateEmailSubject() {
-    return "Pensionifondi avaldus";
   }
 
   List<String> getMandateTags(PillarSuggestion pillarSuggestion) {

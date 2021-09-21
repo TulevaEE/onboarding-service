@@ -9,12 +9,12 @@ class ErrorAttributesConverterSpec extends Specification {
   def "Converts global errors into an ErrorsResponse"() {
     given:
     def errorAttributes = [
-        "timestamp": "2017-04-20T10:37:35Z",
-        "status"   : 500,
-        "error"    : "Internal Server Error",
-        "exception": "ee.tuleva.exception.SampleException",
-        "path"     : "/v1/users",
-        "message"  : "Error message"
+      "timestamp": "2017-04-20T10:37:35Z",
+      "status"   : 500,
+      "error"    : "Internal Server Error",
+      "exception": "ee.tuleva.exception.SampleException",
+      "path"     : "/v1/users",
+      "message"  : "Error message"
     ]
 
     when:

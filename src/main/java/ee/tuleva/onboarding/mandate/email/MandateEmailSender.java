@@ -19,12 +19,19 @@ public class MandateEmailSender {
 
   @EventListener
   public void sendEmail(AfterMandateSignedEvent event) {
-    int suggestPillar = event instanceof ThirdPillarAfterMandateSignedEvent ? 2 : 3;
     UserPreferences contactDetails = episService.getContactDetails(event.getUser());
-    ConversionResponse conversion = conversionService.getConversion(event.getUser());
-    PillarSuggestion pillarSuggestion =
-        new PillarSuggestion(suggestPillar, event.getUser(), contactDetails, conversion);
+    PillarSuggestion pillarSuggestion = buildPillarSuggestion(event, contactDetails);
     emailService.sendMandate(
         event.getUser(), event.getMandate(), pillarSuggestion, contactDetails, event.getLocale());
+  }
+
+  private PillarSuggestion buildPillarSuggestion(
+      AfterMandateSignedEvent event, UserPreferences contactDetails) {
+    ConversionResponse conversion = conversionService.getConversion(event.getUser());
+    return new PillarSuggestion(
+        event instanceof ThirdPillarAfterMandateSignedEvent ? 2 : 3,
+        event.getUser(),
+        contactDetails,
+        conversion);
   }
 }

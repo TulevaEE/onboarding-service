@@ -56,12 +56,12 @@ public class MandateEmailService {
       UserPreferences contactDetails,
       Locale locale) {
     String content =
-        emailContentService.getThirdPillarHtml(
+        emailContentService.getThirdPillarPaymentDetailsHtml(
             user, pillarSuggestion, contactDetails.getPensionAccountNumber(), locale);
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             emailService.getRecipients(user),
-            "Pensionifondi avaldus",
+            "Sinu 3. samba tähtis info ja avalduse koopia",
             content,
             getMandateTags(pillarSuggestion),
             getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));

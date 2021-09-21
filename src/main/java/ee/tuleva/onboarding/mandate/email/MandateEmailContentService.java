@@ -25,7 +25,7 @@ public class MandateEmailContentService {
     return templateEngine.process("second_pillar_mandate", ctx);
   }
 
-  public String getThirdPillarHtml(
+  public String getThirdPillarPaymentDetailsHtml(
       User user,
       PillarSuggestion secondPillarSuggestion,
       String pensionAccountNumber,
@@ -35,7 +35,7 @@ public class MandateEmailContentService {
     ctx.setVariable("firstName", user.getFirstName());
     ctx.setVariable("secondPillarSuggestion", secondPillarSuggestion);
     ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
-    return templateEngine.process("third_pillar_mandate", ctx);
+    return templateEngine.process("third_pillar_mandate_payment_details", ctx);
   }
 
   public String getSecondPillarTransferCancellationHtml(User user, Mandate mandate, Locale locale) {

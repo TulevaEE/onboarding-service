@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.mandate.email
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
-import spock.lang.Unroll
 
 import java.time.Clock
 import java.time.Instant
@@ -73,7 +72,6 @@ class MandateEmailServiceSpec extends Specification {
     1 * emailService.send(user, message)
   }
 
-  @Unroll
   def "Send third pillar suggest second pillar email"() {
     given:
     def user = sampleUser().build()
@@ -121,7 +119,6 @@ class MandateEmailServiceSpec extends Specification {
     2 * emailService.send(*_)
   }
 
-  @Unroll
   def "mandate tagging for 2nd pillar mandates"() {
     given:
     def pillarSuggestion = new PillarSuggestion(3, isThirdPillarActive, isThirdPillarFullyConverted, isMember)
@@ -142,7 +139,6 @@ class MandateEmailServiceSpec extends Specification {
     true                | true                        | true     || ["mandate", "pillar_2"]
   }
 
-  @Unroll
   def "mandate tagging for 3rd pillar mandates"() {
     given:
     def pillarSuggestion = new PillarSuggestion(2, isSecondPillarActive, isSecondPillarFullyConverted, isMember)

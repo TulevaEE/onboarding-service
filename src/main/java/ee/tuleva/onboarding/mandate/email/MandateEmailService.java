@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.email;
 
+import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Collections.singletonList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -10,7 +11,6 @@ import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -97,7 +97,7 @@ public class MandateEmailService {
     String subject = "Vaata oma teine sammas üle!";
     String content = emailContentService.getThirdPillarSuggestSecondHtml(user, locale);
     List<String> tags = List.of("suggest_2");
-    Instant sendAt = Instant.now(clock).plus(3, ChronoUnit.DAYS);
+    Instant sendAt = Instant.now(clock).plus(3, DAYS);
 
     MandrillMessage message =
         emailService.newMandrillMessage(recipients, subject, content, tags, null);

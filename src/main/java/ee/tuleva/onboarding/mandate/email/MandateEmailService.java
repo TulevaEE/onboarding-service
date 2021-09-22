@@ -3,13 +3,16 @@ package ee.tuleva.onboarding.mandate.email;
 import static java.util.Collections.singletonList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +25,7 @@ import org.springframework.stereotype.Service;
 public class MandateEmailService {
   private final EmailService emailService;
   private final MandateEmailContentService emailContentService;
+  private final Clock clock;
 
   public void sendMandate(
       User user,
@@ -56,6 +60,7 @@ public class MandateEmailService {
       UserPreferences contactDetails,
       Locale locale) {
     sendThirdPillarPaymentDetailsEmail(user, mandate, contactDetails, locale);
+    sendThirdPillarSuggestSecondEmail(user, pillarSuggestion, locale);
   }
 
   private String getSecondPillarContent(
@@ -81,7 +86,22 @@ public class MandateEmailService {
             content,
             List.of("mandate"),
             getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
-    emailService.send(user, mandrillMessage, new Date());
+    emailService.send(user, mandrillMessage);
+  }
+
+  private void sendThirdPillarSuggestSecondEmail(
+      User user, PillarSuggestion pillarSuggestion, Locale locale) {
+    if (!pillarSuggestion.suggestPillar()) return;
+
+    List<Recipient> recipients = emailService.getRecipients(user);
+    String subject = "Vaata oma teine sammas üle!";
+    String content = emailContentService.getThirdPillarSuggestSecondHtml(user, locale);
+    List<String> tags = List.of("suggest_2");
+    Instant sendAt = Instant.now(clock).plus(3, ChronoUnit.DAYS);
+
+    MandrillMessage message =
+        emailService.newMandrillMessage(recipients, subject, content, tags, null);
+    emailService.send(user, message, sendAt);
   }
 
   List<String> getMandateTags(PillarSuggestion pillarSuggestion) {

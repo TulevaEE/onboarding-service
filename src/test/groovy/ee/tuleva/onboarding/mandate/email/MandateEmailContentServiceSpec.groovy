@@ -69,7 +69,7 @@ class MandateEmailContentServiceSpec extends Specification {
     html.contains('You have cancelled your 2nd pillar withdrawal application.')
   }
 
-  def "third pillar message: only action info when fully converted to tuleva and is a member"() {
+  def "renders third pillar mandate payment details email correctly"() {
     given:
     def user = sampleUser().build()
 
@@ -79,5 +79,17 @@ class MandateEmailContentServiceSpec extends Specification {
     then:
     html.contains('Welcome, Jordan.')
     html.contains('test_account_1')
+  }
+
+  def "renders third pillar mandate second pillar suggestion email correctly"() {
+    given:
+    def user = sampleUser().build()
+
+    when:
+    String html = emailContentService.getThirdPillarSuggestSecondHtml(user, ENGLISH)
+
+    then:
+    html.contains('Hello, Jordan.')
+    html.contains('Is Tuleva the right place for my second pillar?')
   }
 }

@@ -49,4 +49,11 @@ public class MandateEmailContentService {
     ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
     return templateEngine.process("third_pillar_mandate_payment_details", ctx);
   }
+
+  public String getThirdPillarSuggestSecondHtml(User user, Locale locale) {
+    Context ctx = new Context();
+    ctx.setLocale(locale);
+    ctx.setVariable("firstName", user.getFirstName());
+    return templateEngine.process("third_pillar_mandate_suggest_second", ctx);
+  }
 }

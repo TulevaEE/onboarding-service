@@ -11,6 +11,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.config.EmailConfiguration;
 import ee.tuleva.onboarding.user.User;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -65,15 +66,17 @@ public class EmailService {
     send(user, message, null);
   }
 
-  public void send(User user, MandrillMessage message, Date sendAt) {
+  public void send(User user, MandrillMessage message, Instant sendAt) {
     try {
       log.info(
           "Sending email from {} to user {} at {}",
           emailConfiguration.getFrom(),
           user.getId(),
           sendAt);
+
+      Date sendDate = sendAt != null ? Date.from(sendAt) : null;
       MandrillMessageStatus[] messageStatusReports =
-          mandrillApi.messages().send(message, false, null, sendAt);
+          mandrillApi.messages().send(message, false, null, sendDate);
 
       log.info("Mandrill API response {}", messageStatusReports[0].getStatus()); // FIXME [0]
     } catch (MandrillApiError mandrillApiError) {

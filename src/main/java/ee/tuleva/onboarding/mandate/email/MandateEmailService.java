@@ -55,17 +55,7 @@ public class MandateEmailService {
       PillarSuggestion pillarSuggestion,
       UserPreferences contactDetails,
       Locale locale) {
-    String content =
-        emailContentService.getThirdPillarPaymentDetailsHtml(
-            user, pillarSuggestion, contactDetails.getPensionAccountNumber(), locale);
-    MandrillMessage mandrillMessage =
-        emailService.newMandrillMessage(
-            emailService.getRecipients(user),
-            "Sinu 3. samba tähtis info ja avalduse koopia",
-            content,
-            getMandateTags(pillarSuggestion),
-            getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
-    emailService.send(user, mandrillMessage, new Date());
+    sendThirdPillarPaymentDetailsEmail(user, mandate, contactDetails, locale);
   }
 
   private String getSecondPillarContent(
@@ -77,6 +67,21 @@ public class MandateEmailService {
       return emailContentService.getSecondPillarTransferCancellationHtml(user, mandate, locale);
     }
     return emailContentService.getSecondPillarHtml(user, pillarSuggestion, locale);
+  }
+
+  private void sendThirdPillarPaymentDetailsEmail(
+      User user, Mandate mandate, UserPreferences contactDetails, Locale locale) {
+    String content =
+        emailContentService.getThirdPillarPaymentDetailsHtml(
+            user, contactDetails.getPensionAccountNumber(), locale);
+    MandrillMessage mandrillMessage =
+        emailService.newMandrillMessage(
+            emailService.getRecipients(user),
+            "Sinu 3. samba tähtis info ja avalduse koopia",
+            content,
+            List.of("mandate"),
+            getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
+    emailService.send(user, mandrillMessage, new Date());
   }
 
   List<String> getMandateTags(PillarSuggestion pillarSuggestion) {

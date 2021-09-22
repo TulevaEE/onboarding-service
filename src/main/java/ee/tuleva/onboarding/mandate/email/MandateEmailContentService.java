@@ -25,19 +25,6 @@ public class MandateEmailContentService {
     return templateEngine.process("second_pillar_mandate", ctx);
   }
 
-  public String getThirdPillarPaymentDetailsHtml(
-      User user,
-      PillarSuggestion secondPillarSuggestion,
-      String pensionAccountNumber,
-      Locale locale) {
-    Context ctx = new Context();
-    ctx.setLocale(locale);
-    ctx.setVariable("firstName", user.getFirstName());
-    ctx.setVariable("secondPillarSuggestion", secondPillarSuggestion);
-    ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
-    return templateEngine.process("third_pillar_mandate_payment_details", ctx);
-  }
-
   public String getSecondPillarTransferCancellationHtml(User user, Mandate mandate, Locale locale) {
     Context ctx = new Context();
     ctx.setLocale(locale);
@@ -52,5 +39,14 @@ public class MandateEmailContentService {
     ctx.setLocale(locale);
     ctx.setVariable("firstName", user.getFirstName());
     return templateEngine.process("second_pillar_withdrawal_cancellation_email", ctx);
+  }
+
+  public String getThirdPillarPaymentDetailsHtml(
+      User user, String pensionAccountNumber, Locale locale) {
+    Context ctx = new Context();
+    ctx.setLocale(locale);
+    ctx.setVariable("firstName", user.getFirstName());
+    ctx.setVariable("pensionAccountNumber", pensionAccountNumber);
+    return templateEngine.process("third_pillar_mandate_payment_details", ctx);
   }
 }

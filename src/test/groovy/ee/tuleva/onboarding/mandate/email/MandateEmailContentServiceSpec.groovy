@@ -72,12 +72,9 @@ class MandateEmailContentServiceSpec extends Specification {
   def "third pillar message: only action info when fully converted to tuleva and is a member"() {
     given:
     def user = sampleUser().build()
-    def isSecondPillarActive = true
-    def isFullyConverted = true
-    def pillarSuggestion = new PillarSuggestion(2, isSecondPillarActive, isFullyConverted, user.isMember())
 
     when:
-    String html = emailContentService.getThirdPillarPaymentDetailsHtml(user, pillarSuggestion, "test_account_1", ENGLISH)
+    String html = emailContentService.getThirdPillarPaymentDetailsHtml(user, "test_account_1", ENGLISH)
 
     then:
     html.contains('Welcome, Jordan.')

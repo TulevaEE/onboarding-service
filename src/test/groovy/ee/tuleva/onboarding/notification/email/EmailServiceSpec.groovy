@@ -8,6 +8,8 @@ import ee.tuleva.onboarding.config.EmailConfiguration
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
+import java.time.Instant
+
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
 class EmailServiceSpec extends Specification {
@@ -41,12 +43,12 @@ class EmailServiceSpec extends Specification {
 
   def "Send delayed email"() {
     given:
-    Date sendAt = new Date();
+    Instant sendAt = Instant.now();
 
     when:
     service.send(user, message, sendAt)
 
     then:
-    1 * mandrillMessagesApi.send(message, false, null, sendAt) >> ([Mock(MandrillMessageStatus)] as MandrillMessageStatus[])
+    1 * mandrillMessagesApi.send(message, false, null, Date.from(sendAt)) >> ([Mock(MandrillMessageStatus)] as MandrillMessageStatus[])
   }
 }

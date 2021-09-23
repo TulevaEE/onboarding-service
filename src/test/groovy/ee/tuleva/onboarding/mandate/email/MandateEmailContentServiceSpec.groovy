@@ -77,7 +77,7 @@ class MandateEmailContentServiceSpec extends Specification {
     String html = emailContentService.getThirdPillarPaymentDetailsHtml(user, "test_account_1", ENGLISH)
 
     then:
-    html.contains('Welcome, Jordan.')
+    html.contains('Welcome Jordan,')
     html.contains('test_account_1')
   }
 
@@ -90,6 +90,6 @@ class MandateEmailContentServiceSpec extends Specification {
 
     then:
     html.contains('Hello, Jordan.')
-    html.contains('Is Tuleva the right place for my second pillar?')
+    html.contains('Should you bring your second pillar to Tuleva?')
   }
 }

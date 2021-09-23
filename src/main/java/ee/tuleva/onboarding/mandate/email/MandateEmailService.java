@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.email;
 
+import static ee.tuleva.onboarding.locale.LocaleConfiguration.DEFAULT_LOCALE;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Collections.singletonList;
 
@@ -79,10 +80,15 @@ public class MandateEmailService {
     String content =
         emailContentService.getThirdPillarPaymentDetailsHtml(
             user, contactDetails.getPensionAccountNumber(), locale);
+    String subject =
+        locale == DEFAULT_LOCALE
+            ? "Sinu 3. samba tähtis info ja avalduse koopia"
+            : "Important information about your 3rd pillar and a copy of the application";
+
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             emailService.getRecipients(user),
-            "Sinu 3. samba tähtis info ja avalduse koopia",
+            subject,
             content,
             List.of("mandate"),
             getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
@@ -94,7 +100,10 @@ public class MandateEmailService {
     if (!pillarSuggestion.suggestPillar()) return;
 
     List<Recipient> recipients = emailService.getRecipients(user);
-    String subject = "Vaata oma teine sammas üle!";
+    String subject =
+        locale == DEFAULT_LOCALE
+            ? "Vaata oma teine sammas üle!"
+            : "Check where your second pillar is invested!";
     String content = emailContentService.getThirdPillarSuggestSecondHtml(user, locale);
     List<String> tags = List.of("suggest_2");
     Instant sendAt = Instant.now(clock).plus(3, DAYS);

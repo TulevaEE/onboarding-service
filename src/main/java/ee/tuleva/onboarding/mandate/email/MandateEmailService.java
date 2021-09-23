@@ -60,7 +60,10 @@ public class MandateEmailService {
       UserPreferences contactDetails,
       Locale locale) {
     sendThirdPillarPaymentDetailsEmail(user, mandate, contactDetails, locale);
-    sendThirdPillarSuggestSecondEmail(user, pillarSuggestion, locale);
+
+    if (pillarSuggestion.suggestPillar()) {
+      sendThirdPillarSuggestSecondEmail(user, pillarSuggestion, locale);
+    }
   }
 
   private String getSecondPillarContent(
@@ -96,8 +99,6 @@ public class MandateEmailService {
 
   private void sendThirdPillarSuggestSecondEmail(
       User user, PillarSuggestion pillarSuggestion, Locale locale) {
-    if (!pillarSuggestion.suggestPillar()) return;
-
     String subject =
         locale == DEFAULT_LOCALE
             ? "Vaata oma teine sammas üle!"

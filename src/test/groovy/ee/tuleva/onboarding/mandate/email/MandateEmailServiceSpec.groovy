@@ -56,7 +56,7 @@ class MandateEmailServiceSpec extends Specification {
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
-    def subject = "Sinu 3. samba tähtis info ja avalduse koopia"
+    def subject = "Important information about your 3rd pillar and a copy of the application"
     def html = "payment details html"
     def tags = ["mandate"]
     def locale = Locale.ENGLISH
@@ -80,7 +80,7 @@ class MandateEmailServiceSpec extends Specification {
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
-    def subject = "Vaata oma teine sammas üle!"
+    def subject = "Check where your second pillar is invested!"
     def html = "suggest second html"
     def tags = ["suggest_2"]
     def locale = Locale.ENGLISH

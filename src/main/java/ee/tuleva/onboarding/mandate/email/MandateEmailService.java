@@ -5,7 +5,6 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Collections.singletonList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.email.EmailService;
@@ -77,13 +76,13 @@ public class MandateEmailService {
 
   private void sendThirdPillarPaymentDetailsEmail(
       User user, Mandate mandate, UserPreferences contactDetails, Locale locale) {
-    String content =
-        emailContentService.getThirdPillarPaymentDetailsHtml(
-            user, contactDetails.getPensionAccountNumber(), locale);
     String subject =
         locale == DEFAULT_LOCALE
             ? "Sinu 3. samba tähtis info ja avalduse koopia"
             : "Important information about your 3rd pillar and a copy of the application";
+    String content =
+        emailContentService.getThirdPillarPaymentDetailsHtml(
+            user, contactDetails.getPensionAccountNumber(), locale);
 
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
@@ -99,17 +98,16 @@ public class MandateEmailService {
       User user, PillarSuggestion pillarSuggestion, Locale locale) {
     if (!pillarSuggestion.suggestPillar()) return;
 
-    List<Recipient> recipients = emailService.getRecipients(user);
     String subject =
         locale == DEFAULT_LOCALE
             ? "Vaata oma teine sammas üle!"
             : "Check where your second pillar is invested!";
     String content = emailContentService.getThirdPillarSuggestSecondHtml(user, locale);
-    List<String> tags = List.of("suggest_2");
     Instant sendAt = Instant.now(clock).plus(3, DAYS);
 
     MandrillMessage message =
-        emailService.newMandrillMessage(recipients, subject, content, tags, null);
+        emailService.newMandrillMessage(
+            emailService.getRecipients(user), subject, content, List.of("suggest_2"), null);
     emailService.send(user, message, sendAt);
   }
 

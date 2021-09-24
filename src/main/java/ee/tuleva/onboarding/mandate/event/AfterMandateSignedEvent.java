@@ -8,7 +8,7 @@ import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
 @Getter
-public abstract class AfterMandateSignedEvent extends ApplicationEvent {
+public class AfterMandateSignedEvent extends ApplicationEvent {
 
   private final User user;
   private final Mandate mandate;
@@ -21,15 +21,8 @@ public abstract class AfterMandateSignedEvent extends ApplicationEvent {
     this.locale = locale;
   }
 
-  public static AfterMandateSignedEvent newInstance(
-      Object source, User user, Mandate mandate, Locale locale) {
-    if (mandate.getPillar() == 2) {
-      return new SecondPillarAfterMandateSignedEvent(source, user, mandate, locale);
-    } else if (mandate.getPillar() == 3) {
-      return new ThirdPillarAfterMandateSignedEvent(source, user, mandate, locale);
-    } else {
-      throw new IllegalArgumentException("Event for the pillar type is not available");
-    }
+  public Integer getPillar() {
+    return mandate.getPillar();
   }
 
   public Address getAddress() {

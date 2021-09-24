@@ -11,6 +11,7 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 
 class MandateEmailSenderSpec extends Specification {
   EpisService episService = Mock(EpisService)
@@ -44,7 +45,7 @@ class MandateEmailSenderSpec extends Specification {
   def "send email when third pillar mandate event was received"() {
     given:
     User user = sampleUser().build()
-    Mandate mandate = sampleMandate()
+    Mandate mandate = thirdPillarMandate()
 
     UserPreferences contactDetails = new UserPreferences()
 

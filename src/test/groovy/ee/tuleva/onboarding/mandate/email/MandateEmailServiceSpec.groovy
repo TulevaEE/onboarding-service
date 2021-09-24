@@ -2,8 +2,11 @@ package ee.tuleva.onboarding.mandate.email
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import ee.tuleva.onboarding.notification.email.EmailService
+import org.springframework.context.MessageSource
+import org.springframework.context.support.AbstractMessageSource
 import spock.lang.Specification
 
+import java.text.MessageFormat
 import java.time.Clock
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -21,7 +24,15 @@ class MandateEmailServiceSpec extends Specification {
   MandateEmailContentService emailContentService = Mock(MandateEmailContentService)
   EmailService emailService = Mock(EmailService)
   def now = Instant.parse("2021-09-01T10:06:01Z")
-  MandateEmailService mandateEmailService = new MandateEmailService(emailService, emailContentService, Clock.fixed(now, UTC))
+
+  def subject = "subject";
+  MessageSource messageSource = new AbstractMessageSource() {
+    protected MessageFormat resolveCode(String code, Locale locale) {
+      return new MessageFormat(subject);
+    }
+  };
+
+  MandateEmailService mandateEmailService = new MandateEmailService(emailService, emailContentService, Clock.fixed(now, UTC), messageSource)
 
   def "Send second pillar mandate email"() {
     given:
@@ -32,7 +43,6 @@ class MandateEmailServiceSpec extends Specification {
     def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
-    def subject = "Pensionifondi avaldus"
     def html = "html"
     def tags = ["mandate", "pillar_2", "suggest_3"]
 
@@ -56,7 +66,6 @@ class MandateEmailServiceSpec extends Specification {
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
-    def subject = "Important information about your 3rd pillar and a copy of the application"
     def html = "payment details html"
     def tags = ["mandate"]
     def locale = Locale.ENGLISH
@@ -80,7 +89,6 @@ class MandateEmailServiceSpec extends Specification {
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
-    def subject = "Check where your second pillar is invested!"
     def html = "suggest second html"
     def tags = ["suggest_2"]
     def locale = Locale.ENGLISH
@@ -110,12 +118,12 @@ class MandateEmailServiceSpec extends Specification {
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
     emailContentService.getThirdPillarPaymentDetailsHtml(*_) >> "html"
     emailService.getRecipients(user) >> [new Recipient()]
+    emailService.newMandrillMessage(*_) >> new MandrillMessage()
 
     when:
     mandateEmailService.sendMandate(user, sampleMandate(), pillarSuggestion, contactDetails, Locale.ENGLISH)
 
     then:
-    2 * emailService.newMandrillMessage(*_) >> new MandrillMessage()
     2 * emailService.send(*_)
   }
 

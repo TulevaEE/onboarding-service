@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate.email;
 
-import static ee.tuleva.onboarding.locale.LocaleConfiguration.DEFAULT_LOCALE;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Collections.singletonList;
 
@@ -17,6 +16,7 @@ import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -26,6 +26,7 @@ public class MandateEmailService {
   private final EmailService emailService;
   private final MandateEmailContentService emailContentService;
   private final Clock clock;
+  private final MessageSource messageSource;
 
   public void sendMandate(
       User user,
@@ -43,10 +44,11 @@ public class MandateEmailService {
 
   private void sendSecondPillarEmail(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
+    String subject = messageSource.getMessage("mandate.email.secondPillar.subject", null, locale);
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             emailService.getRecipients(user),
-            "Pensionifondi avaldus",
+            subject,
             getSecondPillarContent(user, mandate, pillarSuggestion, locale),
             getMandateTags(pillarSuggestion),
             getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
@@ -80,9 +82,7 @@ public class MandateEmailService {
   private void sendThirdPillarPaymentDetailsEmail(
       User user, Mandate mandate, UserPreferences contactDetails, Locale locale) {
     String subject =
-        locale == DEFAULT_LOCALE
-            ? "Sinu 3. samba tähtis info ja avalduse koopia"
-            : "Important information about your 3rd pillar and a copy of the application";
+        messageSource.getMessage("mandate.email.thirdPillar.paymentDetails.subject", null, locale);
     String content =
         emailContentService.getThirdPillarPaymentDetailsHtml(
             user, contactDetails.getPensionAccountNumber(), locale);
@@ -99,9 +99,7 @@ public class MandateEmailService {
 
   private void sendThirdPillarSuggestSecondEmail(User user, Locale locale) {
     String subject =
-        locale == DEFAULT_LOCALE
-            ? "Vaata oma teine sammas üle!"
-            : "Check where your second pillar is invested!";
+        messageSource.getMessage("mandate.email.thirdPillar.suggestSecond.subject", null, locale);
     String content = emailContentService.getThirdPillarSuggestSecondHtml(user, locale);
     Instant sendAt = Instant.now(clock).plus(3, DAYS);
 

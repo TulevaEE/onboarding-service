@@ -213,9 +213,8 @@ public class MandateService {
   }
 
   private void notifyAboutSignedMandate(User user, Mandate mandate, Locale locale) {
-    AfterMandateSignedEvent event =
-        AfterMandateSignedEvent.newInstance(this, user, mandate, locale);
-    applicationEventPublisher.publishEvent(event);
+    applicationEventPublisher.publishEvent(
+        new AfterMandateSignedEvent(this, user, mandate, locale));
   }
 
   private void persistSignedFile(Mandate mandate, byte[] signedFile) {

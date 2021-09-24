@@ -5,7 +5,6 @@ import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
-import ee.tuleva.onboarding.mandate.event.ThirdPillarAfterMandateSignedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -20,18 +19,10 @@ public class MandateEmailSender {
   @EventListener
   public void sendEmail(AfterMandateSignedEvent event) {
     UserPreferences contactDetails = episService.getContactDetails(event.getUser());
-    PillarSuggestion pillarSuggestion = buildPillarSuggestion(event, contactDetails);
+    ConversionResponse conversion = conversionService.getConversion(event.getUser());
+    PillarSuggestion pillarSuggestion =
+        new PillarSuggestion(event.getPillar(), event.getUser(), contactDetails, conversion);
     emailService.sendMandate(
         event.getUser(), event.getMandate(), pillarSuggestion, contactDetails, event.getLocale());
-  }
-
-  private PillarSuggestion buildPillarSuggestion(
-      AfterMandateSignedEvent event, UserPreferences contactDetails) {
-    ConversionResponse conversion = conversionService.getConversion(event.getUser());
-    return new PillarSuggestion(
-        event instanceof ThirdPillarAfterMandateSignedEvent ? 2 : 3,
-        event.getUser(),
-        contactDetails,
-        conversion);
   }
 }

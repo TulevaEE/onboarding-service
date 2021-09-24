@@ -114,6 +114,39 @@ class MandateFixture {
     return mandate
   }
 
+  static Mandate thirdPillarMandate() {
+    Mandate mandate = builder()
+      .fundTransferExchanges([
+        FundTransferExchange.builder()
+          .id(1234)
+          .sourceFundIsin("AE123232331")
+          .targetFundIsin(futureContibutionFundIsin)
+          .amount(new BigDecimal("0.2"))
+          .build(),
+        FundTransferExchange.builder()
+          .id(1235)
+          .sourceFundIsin("AE123232331")
+          .targetFundIsin(futureContibutionFundIsin)
+          .amount(new BigDecimal("0.8"))
+          .build(),
+        FundTransferExchange.builder()
+          .id(1236)
+          .sourceFundIsin("AE123232337")
+          .targetFundIsin(futureContibutionFundIsin)
+          .amount(new BigDecimal("1"))
+          .build()
+      ])
+      .futureContributionFundIsin(futureContibutionFundIsin)
+      .address(addressFixture().build())
+      .build()
+
+    mandate.setId(123)
+    mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
+    mandate.setMandate("file".getBytes())
+    mandate.setPillar(3)
+    return mandate
+  }
+
   static Mandate sampleCancellationMandate() {
     Mandate mandate = builder()
       .address(addressFixture().build())

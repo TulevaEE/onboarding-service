@@ -34,11 +34,10 @@ public class MandateEmailService {
       PillarSuggestion pillarSuggestion,
       UserPreferences contactDetails,
       Locale locale) {
-    switch (pillarSuggestion.getOtherPillar()) {
-      case 2 -> sendSecondPillarEmail(user, mandate, pillarSuggestion, locale);
-      case 3 -> sendThirdPillarEmails(user, mandate, pillarSuggestion, contactDetails, locale);
-      default -> throw new IllegalArgumentException(
-          "Unknown pillar: " + pillarSuggestion.getOtherPillar());
+    if (mandate.getPillar() == 2) {
+      sendSecondPillarEmail(user, mandate, pillarSuggestion, locale);
+    } else {
+      sendThirdPillarEmails(user, mandate, pillarSuggestion, contactDetails, locale);
     }
   }
 
@@ -50,9 +49,18 @@ public class MandateEmailService {
             emailService.getRecipients(user),
             subject,
             getSecondPillarContent(user, mandate, pillarSuggestion, locale),
-            getMandateTags(pillarSuggestion),
+            getSecondPillarMandateTags(pillarSuggestion),
             getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
     emailService.send(user, mandrillMessage);
+  }
+
+  private List<String> getSecondPillarMandateTags(PillarSuggestion pillarSuggestion) {
+    List<String> tags = new ArrayList<>();
+    tags.add("mandate");
+    tags.add("pillar_2");
+    if (pillarSuggestion.suggestMembership()) tags.add("suggest_member");
+    if (pillarSuggestion.suggestPillar()) tags.add("suggest_3");
+    return tags;
   }
 
   private void sendThirdPillarEmails(
@@ -62,7 +70,6 @@ public class MandateEmailService {
       UserPreferences contactDetails,
       Locale locale) {
     sendThirdPillarPaymentDetailsEmail(user, mandate, contactDetails, locale);
-
     if (pillarSuggestion.suggestPillar()) {
       sendThirdPillarSuggestSecondEmail(user, locale);
     }
@@ -107,19 +114,6 @@ public class MandateEmailService {
         emailService.newMandrillMessage(
             emailService.getRecipients(user), subject, content, List.of("suggest_2"), null);
     emailService.send(user, message, sendAt);
-  }
-
-  List<String> getMandateTags(PillarSuggestion pillarSuggestion) {
-    List<String> tags = new ArrayList<>();
-    tags.add("mandate");
-    tags.add("pillar_" + pillarSuggestion.getOtherPillar());
-    if (pillarSuggestion.suggestMembership()) {
-      tags.add("suggest_member");
-    }
-    if (pillarSuggestion.suggestPillar()) {
-      tags.add("suggest_" + pillarSuggestion.getSuggestedPillar());
-    }
-    return tags;
   }
 
   private List<MandrillMessage.MessageContent> getMandateAttachments(

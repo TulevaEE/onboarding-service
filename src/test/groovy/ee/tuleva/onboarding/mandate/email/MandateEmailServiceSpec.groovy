@@ -17,6 +17,7 @@ import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyCon
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static java.time.ZoneOffset.UTC
 
 class MandateEmailServiceSpec extends Specification {
@@ -57,12 +58,32 @@ class MandateEmailServiceSpec extends Specification {
     1 * emailService.send(user, message)
   }
 
+  def "mandate tagging for 2nd pillar mandates"() {
+    given:
+    def pillarSuggestion = new PillarSuggestion(3, isThirdPillarActive, isThirdPillarFullyConverted, isMember)
+
+    when:
+    def tags = mandateEmailService.getSecondPillarMandateTags(pillarSuggestion)
+
+    then:
+    tags == expectedTags
+
+    where:
+    isThirdPillarActive | isThirdPillarFullyConverted | isMember || expectedTags
+    false               | false                       | false    || ["mandate", "pillar_2", "suggest_3"]
+    false               | false                       | true     || ["mandate", "pillar_2", "suggest_3"]
+    true                | false                       | false    || ["mandate", "pillar_2", "suggest_3"]
+    true                | false                       | true     || ["mandate", "pillar_2", "suggest_3"]
+    true                | true                        | false    || ["mandate", "pillar_2", "suggest_member"]
+    true                | true                        | true     || ["mandate", "pillar_2"]
+  }
+
   def "Send third pillar payment details email"() {
     given:
     def user = sampleUser().build()
     def conversion = fullyConverted()
     def contactDetails = contactDetailsFixture()
-    def mandate = sampleMandate()
+    def mandate = thirdPillarMandate()
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
@@ -85,7 +106,7 @@ class MandateEmailServiceSpec extends Specification {
     given:
     def user = sampleUser().build()
     def contactDetails = contactDetailsFixture()
-    def mandate = sampleMandate()
+    def mandate = thirdPillarMandate()
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
@@ -121,49 +142,9 @@ class MandateEmailServiceSpec extends Specification {
     emailService.newMandrillMessage(*_) >> new MandrillMessage()
 
     when:
-    mandateEmailService.sendMandate(user, sampleMandate(), pillarSuggestion, contactDetails, Locale.ENGLISH)
+    mandateEmailService.sendMandate(user, thirdPillarMandate(), pillarSuggestion, contactDetails, Locale.ENGLISH)
 
     then:
     2 * emailService.send(*_)
-  }
-
-  def "mandate tagging for 2nd pillar mandates"() {
-    given:
-    def pillarSuggestion = new PillarSuggestion(3, isThirdPillarActive, isThirdPillarFullyConverted, isMember)
-
-    when:
-    def tags = mandateEmailService.getMandateTags(pillarSuggestion)
-
-    then:
-    tags == expectedTags
-
-    where:
-    isThirdPillarActive | isThirdPillarFullyConverted | isMember || expectedTags
-    false               | false                       | false    || ["mandate", "pillar_2", "suggest_3"]
-    false               | false                       | true     || ["mandate", "pillar_2", "suggest_3"]
-    true                | false                       | false    || ["mandate", "pillar_2", "suggest_3"]
-    true                | false                       | true     || ["mandate", "pillar_2", "suggest_3"]
-    true                | true                        | false    || ["mandate", "pillar_2", "suggest_member"]
-    true                | true                        | true     || ["mandate", "pillar_2"]
-  }
-
-  def "mandate tagging for 3rd pillar mandates"() {
-    given:
-    def pillarSuggestion = new PillarSuggestion(2, isSecondPillarActive, isSecondPillarFullyConverted, isMember)
-
-    when:
-    def tags = mandateEmailService.getMandateTags(pillarSuggestion)
-
-    then:
-    tags == expectedTags
-
-    where:
-    isSecondPillarActive | isSecondPillarFullyConverted | isMember || expectedTags
-    false                | false                        | false    || ["mandate", "pillar_3", "suggest_2"]
-    false                | false                        | true     || ["mandate", "pillar_3", "suggest_2"]
-    true                 | false                        | false    || ["mandate", "pillar_3", "suggest_2"]
-    true                 | false                        | true     || ["mandate", "pillar_3", "suggest_2"]
-    true                 | true                         | false    || ["mandate", "pillar_3", "suggest_member"]
-    true                 | true                         | true     || ["mandate", "pillar_3"]
   }
 }

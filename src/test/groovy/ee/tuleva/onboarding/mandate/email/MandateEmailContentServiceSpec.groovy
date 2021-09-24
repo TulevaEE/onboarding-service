@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.mandate.email
 
-
+import au.com.origin.snapshots.Expect
+import au.com.origin.snapshots.annotations.SnapshotName
+import au.com.origin.snapshots.spock.EnableSnapshots
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import spock.lang.Specification
@@ -11,12 +13,14 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static java.util.Locale.ENGLISH
 
 @SpringBootTest
+@EnableSnapshots
 class MandateEmailContentServiceSpec extends Specification {
 
   @Autowired
   MandateEmailContentService emailContentService
 
-  def "second pillar message: suggest third pillar when not fully converted to tuleva and not a member (third pillar active)"() {
+  @SnapshotName("second_pillar_suggest_third")
+  def "second pillar message: suggest third pillar when not fully converted to tuleva and not a member (third pillar active)"(Expect expect) {
     given:
     def user = sampleUserNonMember().build()
     def isThirdPillarActive = true
@@ -25,13 +29,14 @@ class MandateEmailContentServiceSpec extends Specification {
 
     when:
     String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
+    expect.toMatchSnapshot(html)
 
     then:
-    html.contains('You are now saving for your pension alongside me and other Tuleva members.')
-    html.contains('Next, set up your third pillar.')
+    true
   }
 
-  def "second pillar message: suggest membership when fully converted to tuleva and not a member"() {
+  @SnapshotName("second_pillar_suggest_membership")
+  def "second pillar message: suggest membership when fully converted to tuleva and not a member"(Expect expect) {
     given:
     def user = sampleUserNonMember().build()
     def isThirdPillarActive = true
@@ -40,56 +45,63 @@ class MandateEmailContentServiceSpec extends Specification {
 
     when:
     String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
+    expect.toMatchSnapshot(html)
 
     then:
-    html.contains('You are now saving for your pension alongside me and other Tuleva members.')
-    html.contains('I would still welcome you to think about becoming a member')
+    true
   }
 
-  def "renders 2nd pillar transfer cancellation email"() {
+  @SnapshotName("second_pillar_transfer_cancellation")
+  def "renders 2nd pillar transfer cancellation email"(Expect expect) {
     given:
     def user = sampleUserNonMember().build()
     def mandate = sampleMandate()
+
     when:
     String html = emailContentService.getSecondPillarTransferCancellationHtml(user, mandate, ENGLISH)
+    expect.toMatchSnapshot(html)
 
     then:
-    html.contains('You have submitted a cancellation application through Tuleva.')
-    html.contains(mandate.getFundTransferExchanges().get(0).getSourceFundIsin())
+    true
   }
 
-  def "renders 2nd pillar withdrawal cancellation email"() {
+  @SnapshotName("second_pillar_withdraw_cancellation")
+  def "renders 2nd pillar withdrawal cancellation email"(Expect expect) {
     given:
     def user = sampleUserNonMember().build()
     def mandate = sampleMandate()
+
     when:
     String html = emailContentService.getSecondPillarWithdrawalCancellationHtml(user, ENGLISH)
+    expect.toMatchSnapshot(html)
 
     then:
-    html.contains('You have cancelled your 2nd pillar withdrawal application.')
+    true
   }
 
-  def "renders third pillar mandate payment details email correctly"() {
+  @SnapshotName("third_pillar_payment_details")
+  def "renders third pillar mandate payment details email correctly"(Expect expect) {
     given:
     def user = sampleUser().build()
 
     when:
     String html = emailContentService.getThirdPillarPaymentDetailsHtml(user, "test_account_1", ENGLISH)
+    expect.toMatchSnapshot(html)
 
     then:
-    html.contains('Welcome Jordan,')
-    html.contains('test_account_1')
+    true
   }
 
-  def "renders third pillar mandate second pillar suggestion email correctly"() {
+  @SnapshotName("third_pillar_suggest_second")
+  def "renders third pillar mandate second pillar suggestion email correctly"(Expect expect) {
     given:
     def user = sampleUser().build()
 
     when:
     String html = emailContentService.getThirdPillarSuggestSecondHtml(user, ENGLISH)
+    expect.toMatchSnapshot(html)
 
     then:
-    html.contains('Hello, Jordan.')
-    html.contains('Should you bring your second pillar to Tuleva?')
+    true
   }
 }

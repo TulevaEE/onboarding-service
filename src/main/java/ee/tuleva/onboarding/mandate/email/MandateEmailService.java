@@ -58,8 +58,8 @@ public class MandateEmailService {
     List<String> tags = new ArrayList<>();
     tags.add("mandate");
     tags.add("pillar_2");
-    if (pillarSuggestion.suggestMembership()) tags.add("suggest_member");
-    if (pillarSuggestion.suggestPillar()) tags.add("suggest_3");
+    if (pillarSuggestion.isSuggestMembership()) tags.add("suggest_member");
+    if (pillarSuggestion.isSuggestPillar()) tags.add("suggest_3");
     return tags;
   }
 
@@ -70,7 +70,7 @@ public class MandateEmailService {
       UserPreferences contactDetails,
       Locale locale) {
     sendThirdPillarPaymentDetailsEmail(user, mandate, contactDetails, locale);
-    if (pillarSuggestion.suggestPillar()) {
+    if (pillarSuggestion.isSuggestPillar()) {
       sendThirdPillarSuggestSecondEmail(user, locale);
     }
   }

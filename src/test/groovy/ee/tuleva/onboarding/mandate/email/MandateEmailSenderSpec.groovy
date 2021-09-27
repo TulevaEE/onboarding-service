@@ -33,7 +33,7 @@ class MandateEmailSenderSpec extends Specification {
     def conversion = notFullyConverted()
     1 * conversionService.getConversion(event.getUser()) >> conversion
 
-    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
+    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
 
     when:
     mandateEmailSender.sendEmail(event)
@@ -55,7 +55,7 @@ class MandateEmailSenderSpec extends Specification {
     def conversion = notFullyConverted()
     1 * conversionService.getConversion(event.getUser()) >> conversion
 
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
 
     when:
     mandateEmailSender.sendEmail(event)

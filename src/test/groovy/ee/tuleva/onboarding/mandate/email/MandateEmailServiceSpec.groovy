@@ -41,7 +41,7 @@ class MandateEmailServiceSpec extends Specification {
     def conversion = notFullyConverted()
     def contactDetails = contactDetailsFixture()
     def mandate = sampleMandate()
-    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
+    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
     def html = "html"
@@ -60,7 +60,9 @@ class MandateEmailServiceSpec extends Specification {
 
   def "mandate tagging for 2nd pillar mandates"() {
     given:
-    def pillarSuggestion = new PillarSuggestion(3, isThirdPillarActive, isThirdPillarFullyConverted, isMember)
+    def pillarSuggestion = Mock(PillarSuggestion)
+    pillarSuggestion.isSuggestPillar() >> suggestPillar
+    pillarSuggestion.isSuggestMembership() >> suggestMembership
 
     when:
     def tags = mandateEmailService.getSecondPillarMandateTags(pillarSuggestion)
@@ -69,13 +71,11 @@ class MandateEmailServiceSpec extends Specification {
     tags == expectedTags
 
     where:
-    isThirdPillarActive | isThirdPillarFullyConverted | isMember || expectedTags
-    false               | false                       | false    || ["mandate", "pillar_2", "suggest_3"]
-    false               | false                       | true     || ["mandate", "pillar_2", "suggest_3"]
-    true                | false                       | false    || ["mandate", "pillar_2", "suggest_3"]
-    true                | false                       | true     || ["mandate", "pillar_2", "suggest_3"]
-    true                | true                        | false    || ["mandate", "pillar_2", "suggest_member"]
-    true                | true                        | true     || ["mandate", "pillar_2"]
+    suggestPillar | suggestMembership || expectedTags
+    false         | false             || ["mandate", "pillar_2"]
+    false         | true              || ["mandate", "pillar_2", "suggest_member"]
+    true          | false             || ["mandate", "pillar_2", "suggest_3"]
+    true          | true              || ["mandate", "pillar_2", "suggest_member", "suggest_3"]
   }
 
   def "Send third pillar payment details email"() {
@@ -84,11 +84,11 @@ class MandateEmailServiceSpec extends Specification {
     def conversion = fullyConverted()
     def contactDetails = contactDetailsFixture()
     def mandate = thirdPillarMandate()
-    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
+    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
     def html = "payment details html"
-    def tags = ["mandate"]
+    def tags = ["pillar_3", "mandate"]
     def locale = Locale.ENGLISH
 
     emailContentService.getThirdPillarPaymentDetailsHtml(user, contactDetails.getPensionAccountNumber(), locale) >> html
@@ -107,11 +107,11 @@ class MandateEmailServiceSpec extends Specification {
     def user = sampleUser().build()
     def contactDetails = contactDetailsFixture()
     def mandate = thirdPillarMandate()
-    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
+    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
     def html = "suggest second html"
-    def tags = ["suggest_2"]
+    def tags = ["pillar_3", "suggest_2"]
     def locale = Locale.ENGLISH
     def sendAt = now.plus(3, ChronoUnit.DAYS)
 

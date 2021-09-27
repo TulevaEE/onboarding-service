@@ -20,9 +20,8 @@ public class MandateEmailSender {
   public void sendEmail(AfterMandateSignedEvent event) {
     UserPreferences contactDetails = episService.getContactDetails(event.getUser());
     ConversionResponse conversion = conversionService.getConversion(event.getUser());
-    int suggestedPillar = event.getPillar() == 2 ? 3 : 2;
     PillarSuggestion pillarSuggestion =
-        new PillarSuggestion(suggestedPillar, event.getUser(), contactDetails, conversion);
+        new PillarSuggestion(event.getPillar(), event.getUser(), contactDetails, conversion);
     emailService.sendMandate(
         event.getUser(), event.getMandate(), pillarSuggestion, contactDetails, event.getLocale());
   }

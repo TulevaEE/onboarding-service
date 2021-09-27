@@ -79,7 +79,7 @@ dependencies {
 
     implementation("org.flywaydb:flyway-core")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.jsoup:jsoup:1.13.1")
+    implementation("org.jsoup:jsoup:1.14.2")
     implementation("commons-net:commons-net:3.8.0")
     implementation("org.apache.commons:commons-lang3:3.12.0")
     implementation("net.sf.ehcache:ehcache")

@@ -23,9 +23,9 @@ class MandateEmailContentServiceSpec extends Specification {
   def "second pillar message: suggest third pillar when not fully converted to tuleva and not a member (third pillar active)"(Expect expect) {
     given:
     def user = sampleUserNonMember().build()
-    def isThirdPillarActive = true
-    def isFullyConverted = false
-    def pillarSuggestion = new PillarSuggestion(2, isThirdPillarActive, isFullyConverted, user.isMember())
+    def pillarSuggestion = Mock(PillarSuggestion)
+    pillarSuggestion.isSuggestPillar() >> true
+    pillarSuggestion.isSuggestMembership() >> false
 
     when:
     String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
@@ -39,9 +39,9 @@ class MandateEmailContentServiceSpec extends Specification {
   def "second pillar message: suggest membership when fully converted to tuleva and not a member"(Expect expect) {
     given:
     def user = sampleUserNonMember().build()
-    def isThirdPillarActive = true
-    def isFullyConverted = true
-    def pillarSuggestion = new PillarSuggestion(2, isThirdPillarActive, isFullyConverted, user.isMember())
+    def pillarSuggestion = Mock(PillarSuggestion)
+    pillarSuggestion.isSuggestPillar() >> false
+    pillarSuggestion.isSuggestMembership() >> true
 
     when:
     String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)

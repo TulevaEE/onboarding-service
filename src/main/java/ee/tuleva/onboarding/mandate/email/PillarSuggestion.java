@@ -3,55 +3,35 @@ package ee.tuleva.onboarding.mandate.email;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.user.User;
-import lombok.AllArgsConstructor;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
 
 @ToString
-@AllArgsConstructor
 @EqualsAndHashCode
+@Getter
 public class PillarSuggestion {
 
-  @Getter private final int suggestedPillar;
-  private final boolean isPillarActive;
-  private final boolean isPillarFullyConverted;
-  private final boolean isMember;
+  private final boolean suggestPillar;
+  private final boolean suggestMembership;
 
   public PillarSuggestion(
-      int suggestedPillar,
-      User user,
-      UserPreferences contactDetails,
-      ConversionResponse conversion) {
-    this.suggestedPillar = suggestedPillar;
-    isMember = user.isMember();
+      int pillar, User user, UserPreferences contactDetails, ConversionResponse conversion) {
+    boolean pillarActive;
+    boolean pillarFullyConverted;
 
-    if (suggestedPillar == 2) {
-      isPillarActive = contactDetails.isSecondPillarActive();
-      isPillarFullyConverted = conversion.isSecondPillarFullyConverted();
-    } else if (suggestedPillar == 3) {
-      isPillarActive = contactDetails.isThirdPillarActive();
-      isPillarFullyConverted = conversion.isThirdPillarFullyConverted();
+    if (getSuggestedPillar(pillar) == 2) {
+      pillarActive = contactDetails.isSecondPillarActive();
+      pillarFullyConverted = conversion.isSecondPillarFullyConverted();
     } else {
-      throw new IllegalArgumentException("Unknown pillar: " + suggestedPillar);
+      pillarActive = contactDetails.isThirdPillarActive();
+      pillarFullyConverted = conversion.isThirdPillarFullyConverted();
     }
+    this.suggestPillar = !pillarActive || !pillarFullyConverted;
+    this.suggestMembership = pillarActive && pillarFullyConverted && !user.isMember();
   }
 
-  public boolean suggestPillar() {
-    return !isPillarActive || !isPillarFullyConverted;
-  }
-
-  public boolean suggestMembership() {
-    return isPillarActive && isPillarFullyConverted && !isMember;
-  }
-
-  public int getOtherPillar() {
-    if (suggestedPillar == 2) {
-      return 3;
-    } else if (suggestedPillar == 3) {
-      return 2;
-    } else {
-      throw new IllegalArgumentException("Unknown pillar: " + suggestedPillar);
-    }
+  private int getSuggestedPillar(int pillar) {
+    return pillar == 2 ? 3 : 2;
   }
 }

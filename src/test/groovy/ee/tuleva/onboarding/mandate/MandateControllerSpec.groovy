@@ -2,7 +2,10 @@ package ee.tuleva.onboarding.mandate
 
 import ee.sk.mid.MidAuthenticationHashToSign
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.audit.AuditEventPublisher
+import ee.tuleva.onboarding.audit.AuditEventType
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.exception.IdSessionException
@@ -29,10 +32,11 @@ class MandateControllerSpec extends BaseControllerSpec {
   SignatureFileArchiver signatureFileArchiver = Mock(SignatureFileArchiver)
   MandateFileService mandateFileService = Mock(MandateFileService)
   LocaleResolver localeResolver = Mock(LocaleResolver)
+  AuditEventPublisher auditEventPublisher = Mock()
 
   MandateController controller =
     new MandateController(mandateRepository, mandateService, sessionStore,
-      signatureFileArchiver, mandateFileService, localeResolver)
+      signatureFileArchiver, mandateFileService, localeResolver, auditEventPublisher)
 
   MockMvc mvc = mockMvc(controller)
 
@@ -219,6 +223,26 @@ class MandateControllerSpec extends BaseControllerSpec {
     mvc
       .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
       .andExpect(status().isNotFound())
+  }
+
+  def "POST /createConfirmPageEvent records audit log event"() {
+    given:
+    AuthenticatedPerson authenticatedPerson = Mock()
+    def personalCode = "38501010002"
+    authenticatedPerson.getPersonalCode() >> personalCode
+    def mvc = mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
+
+    when:
+    mvc.perform(post("/v1/mandates/createConfirmPageEvent?pillar=$pillar"))
+      .andExpect(status().isOk())
+
+    then:
+    1 * auditEventPublisher.publish(personalCode, auditEvent)
+
+    where:
+    pillar | auditEvent
+    2      | AuditEventType.SECOND_PILLAR_CONFIRM_PAGE_REACHED
+    3      | AuditEventType.THIRD_PILLAR_CONFIRM_PAGE_REACHED
   }
 
   private Optional<MobileIDSession> dummyMobileIdSessionWithPhone(String phone) {

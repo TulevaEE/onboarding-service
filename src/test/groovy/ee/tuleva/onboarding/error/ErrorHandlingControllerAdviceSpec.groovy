@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.error
 
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.audit.AuditEventPublisher
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.*
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
@@ -20,9 +21,10 @@ class ErrorHandlingControllerAdviceSpec extends BaseControllerSpec {
   SignatureFileArchiver signatureFileArchiver = Mock()
   MandateFileService mandateFileService = Mock()
   LocaleResolver localeResolver = Mock()
+  AuditEventPublisher auditEventPublisher = Mock()
 
   MandateController controller =
-    new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver, mandateFileService, localeResolver)
+    new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver, mandateFileService, localeResolver, auditEventPublisher)
 
   MockMvc mvc = mockMvc(controller)
 

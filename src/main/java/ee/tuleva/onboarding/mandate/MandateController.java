@@ -233,9 +233,8 @@ public class MandateController {
       @RequestParam("pillar") Integer pillar) {
     auditEventPublisher.publish(
         authenticatedPerson.getPersonalCode(),
-        pillar == 2
-            ? AuditEventType.SECOND_PILLAR_CONFIRM_PAGE_REACHED
-            : AuditEventType.THIRD_PILLAR_CONFIRM_PAGE_REACHED);
+        AuditEventType.MANDATE_CONFIRM_PAGE_REACHED,
+        "pillar=" + pillar);
     return true;
   }
 

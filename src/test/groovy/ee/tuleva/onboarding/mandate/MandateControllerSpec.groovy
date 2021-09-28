@@ -237,12 +237,12 @@ class MandateControllerSpec extends BaseControllerSpec {
       .andExpect(status().isOk())
 
     then:
-    1 * auditEventPublisher.publish(personalCode, auditEvent)
+    1 * auditEventPublisher.publish(personalCode, AuditEventType.MANDATE_CONFIRM_PAGE_REACHED, data)
 
     where:
-    pillar | auditEvent
-    2      | AuditEventType.SECOND_PILLAR_CONFIRM_PAGE_REACHED
-    3      | AuditEventType.THIRD_PILLAR_CONFIRM_PAGE_REACHED
+    pillar | data
+    2      | "pillar=2"
+    3      | "pillar=3"
   }
 
   private Optional<MobileIDSession> dummyMobileIdSessionWithPhone(String phone) {

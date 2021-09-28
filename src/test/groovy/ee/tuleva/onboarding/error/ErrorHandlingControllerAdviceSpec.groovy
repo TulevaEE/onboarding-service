@@ -14,30 +14,30 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class ErrorHandlingControllerAdviceSpec extends BaseControllerSpec {
 
-    MandateRepository mandateRepository = Mock(MandateRepository)
-    MandateService mandateService = Mock(MandateService)
-    GenericSessionStore sessionStore = Mock(GenericSessionStore)
-    SignatureFileArchiver signatureFileArchiver = Mock(SignatureFileArchiver)
-    MandateFileService mandateFileService = Mock(MandateFileService)
-    LocaleResolver localeResolver = Mock(LocaleResolver)
+  MandateRepository mandateRepository = Mock()
+  MandateService mandateService = Mock()
+  GenericSessionStore sessionStore = Mock()
+  SignatureFileArchiver signatureFileArchiver = Mock()
+  MandateFileService mandateFileService = Mock()
+  LocaleResolver localeResolver = Mock()
 
-    MandateController controller =
-            new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver, mandateFileService, localeResolver)
+  MandateController controller =
+    new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver, mandateFileService, localeResolver)
 
-    MockMvc mvc = mockMvc(controller)
+  MockMvc mvc = mockMvc(controller)
 
-    def "handleErrors: responds to errors correctly"() {
-        CreateMandateCommand invalidCreateMandateCommand = [:]
+  def "handleErrors: responds to errors correctly"() {
+    CreateMandateCommand invalidCreateMandateCommand = [:]
 
-        expect:
-        mvc
-                .perform(post("/v1/mandates/").content(
-                mapper.writeValueAsString(
-                        invalidCreateMandateCommand
-                ))
-                .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().json('{"errors":[{"code":"NotNull","message":"must not be null","path":"fundTransferExchanges","arguments":[]}]}'))
-    }
+    expect:
+    mvc
+      .perform(post("/v1/mandates/").content(
+        mapper.writeValueAsString(
+          invalidCreateMandateCommand
+        ))
+        .contentType(MediaType.APPLICATION_JSON))
+      .andExpect(status().isBadRequest())
+      .andExpect(content().json('{"errors":[{"code":"NotNull","message":"must not be null","path":"fundTransferExchanges","arguments":[]}]}'))
+  }
 
 }

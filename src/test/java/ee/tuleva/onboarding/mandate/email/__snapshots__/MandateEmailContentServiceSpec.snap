@@ -89,7 +89,7 @@ third_pillar_payment_details=[
 
     <br/>
     <strong>Calculate your maximum tax break and if needed, start small.</strong>
-    <p>You will get the highest tax break if you contribute 15% of your gross income (but no more than 6,000 euros per year). <a href="https://tuleva.ee/en/iii-pillar/?utm_source=autoemail&utm_medium=clients&utm_campaign=sug_2&utm_content=kalkulaator">Here is a calculator to help with deciding.</a><br><br>Don’t be afraid if the amount seems too high at first. Start with a contribution that you are comfortable with: the sooner you begin, the bigger the impact of compound returns. You can always cancel your contributions if something unexpected happens.</p>
+    <p>You will get the highest tax break if you contribute 15% of your gross income (but no more than 6,000 euros per year). <a href="https://tuleva.ee/en/iii-pillar/?utm_source=autoemail&utm_medium=clients&utm_campaign=payment_details&utm_content=kalkulaator">Here is a calculator to help with deciding.</a><br><br>Don’t be afraid if the amount seems too high at first. Start with a contribution that you are comfortable with: the sooner you begin, the bigger the impact of compound returns. You can always cancel your contributions if something unexpected happens.</p>
 
     <br/>
     <strong>Here are the payment details for the recurring payment or a single contribution.</strong>
@@ -101,11 +101,13 @@ third_pillar_payment_details=[
     <p>
       <span>Account number</span>:
       <br/>
-      <strong>EE362200221067235244</strong> - Swedbank
+      <strong>EE362200221067235244</strong> - Swedbank*
       <br/>
       <strong>EE141010220263146225</strong> - SEB
       <br/>
       <strong>EE961700017004379157</strong> - Luminor
+      <br/>
+      <strong>EE547700771002908125</strong> - LHV
     </p>
     <p>
       <span>Payment details</span>:
@@ -132,7 +134,7 @@ third_pillar_suggest_second=[
 <html>
   <body>
     <p>Hello, Jordan.</p>
-    <p>You have started to save in Tuleva’s third pillar fund with low fees and a fact-based investment strategy. I noticed that you are not investing your second pillar with us.<br><br>In a typical bank-run fund you pay up to three times more in fees than with Tuleva. You can check where your second pillar contributions go by <a href="https://pension.tuleva.ee/login?utm_source=autoemail&utm_medium=clients&utm_campaign=sug_2">logging in here</a>. Switching the fund is free of charge and takes only a few minutes.</p>
+    <p>You have started to save in Tuleva’s third pillar fund with low fees and a fact-based investment strategy. I noticed that you are not investing your second pillar with us.<br><br>In a typical bank-run fund you pay up to three times more in fees than with Tuleva. You can check where your second pillar contributions go by <a href="https://pension.tuleva.ee/login?utm_source=autoemail&utm_medium=clients&utm_campaign=sug_2.1">logging in here</a>. Switching the fund is free of charge and takes only a few minutes.</p>
 
     <br/>
     <strong>Should you bring your second pillar to Tuleva?</strong>
@@ -144,7 +146,7 @@ third_pillar_suggest_second=[
 
     <br/>
     <strong>Do you want to know why the second and third pillars are useful?</strong>
-    <p><a href="https://tuleva.ee/en/recommendations/15-minutes/?utm_source=autoemail&utm_medium=clients&utm_campaign=sug_2&utm_content=laura_rikkaks">Read this short article</a> where I describe my investment portfolio, the foundation of which are the second and third pension pillars. You will also find links to a longer series of blog posts which should give you the confidence to start investing now. You will find that pension funds are very clever investment tools with significant tax advantages.</p>
+    <p><a href="https://tuleva.ee/en/recommendations/15-minutes/?utm_source=autoemail&utm_medium=clients&utm_campaign=sug_2.1&utm_content=laura_rikkaks">Read this short article</a> where I describe my investment portfolio, the foundation of which are the second and third pension pillars. You will also find links to a longer series of blog posts which should give you the confidence to start investing now. You will find that pension funds are very clever investment tools with significant tax advantages.</p>
     <br/>
 
     <p>If you have any questions please contact us via <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or 644 5100.</p>

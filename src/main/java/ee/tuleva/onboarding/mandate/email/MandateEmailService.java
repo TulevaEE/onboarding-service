@@ -99,7 +99,7 @@ public class MandateEmailService {
             emailService.getRecipients(user),
             subject,
             content,
-            List.of("pillar_3", "mandate"),
+            List.of("pillar_3.1", "mandate"),
             getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
     emailService.send(user, mandrillMessage);
   }
@@ -115,7 +115,7 @@ public class MandateEmailService {
             emailService.getRecipients(user),
             subject,
             content,
-            List.of("pillar_3", "suggest_2"),
+            List.of("pillar_3.1", "suggest_2"),
             null);
     emailService.send(user, message, sendAt);
   }

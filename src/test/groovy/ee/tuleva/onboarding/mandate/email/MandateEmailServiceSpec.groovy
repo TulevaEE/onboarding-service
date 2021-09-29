@@ -28,12 +28,18 @@ class MandateEmailServiceSpec extends Specification {
 
   def subject = "subject";
   MessageSource messageSource = new AbstractMessageSource() {
+
     protected MessageFormat resolveCode(String code, Locale locale) {
       return new MessageFormat(subject);
     }
   };
 
-  MandateEmailService mandateEmailService = new MandateEmailService(emailService, emailContentService, Clock.fixed(now, UTC), messageSource)
+  MandateEmailService mandateEmailService = new MandateEmailService(
+    emailService,
+    emailContentService,
+    Clock.fixed(now, UTC),
+    messageSource
+  )
 
   def "Send second pillar mandate email"() {
     given:
@@ -88,10 +94,12 @@ class MandateEmailServiceSpec extends Specification {
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
     def html = "payment details html"
-    def tags = ["pillar_3", "mandate"]
+    def tags = ["pillar_3.1", "mandate"]
     def locale = Locale.ENGLISH
 
-    emailContentService.getThirdPillarPaymentDetailsHtml(user, contactDetails.getPensionAccountNumber(), locale) >> html
+    emailContentService
+      .getThirdPillarPaymentDetailsHtml(user, contactDetails.getPensionAccountNumber(), locale)
+      >> html
     emailService.getRecipients(user) >> recipients
 
     when:
@@ -111,7 +119,7 @@ class MandateEmailServiceSpec extends Specification {
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
     def html = "suggest second html"
-    def tags = ["pillar_3", "suggest_2"]
+    def tags = ["pillar_3.1", "suggest_2"]
     def locale = Locale.ENGLISH
     def sendAt = now.plus(3, ChronoUnit.DAYS)
 
@@ -142,7 +150,8 @@ class MandateEmailServiceSpec extends Specification {
     emailService.newMandrillMessage(*_) >> new MandrillMessage()
 
     when:
-    mandateEmailService.sendMandate(user, thirdPillarMandate(), pillarSuggestion, contactDetails, Locale.ENGLISH)
+    mandateEmailService
+      .sendMandate(user, thirdPillarMandate(), pillarSuggestion, contactDetails, Locale.ENGLISH)
 
     then:
     2 * emailService.send(*_)

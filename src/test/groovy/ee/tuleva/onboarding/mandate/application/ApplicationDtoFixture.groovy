@@ -16,7 +16,23 @@ class ApplicationDtoFixture {
       .id(123L)
       .currency("EUR")
       .sourceFundIsin("source")
-      .fundTransferExchanges([new MandateDto.MandateFundsTransferExchangeDTO("processId", 1.0, "source", "target")])
+      .fundTransferExchanges([
+        new MandateDto.MandateFundsTransferExchangeDTO("processId", 1.0, "source", "target", null)
+      ])
+      .build()
+  }
+
+  static ApplicationDTO samplePikTransferApplicationDto() {
+    return ApplicationDTO.builder()
+      .date(ClockFixture.now)
+      .type(TRANSFER)
+      .status(PENDING)
+      .id(123L)
+      .currency("EUR")
+      .sourceFundIsin("source")
+      .fundTransferExchanges([
+        new MandateDto.MandateFundsTransferExchangeDTO("processId", 1.0, "source", null, "targetPik")
+      ])
       .build()
   }
 

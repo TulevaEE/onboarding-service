@@ -39,5 +39,6 @@ public class MandateDto {
     private BigDecimal amount;
     private String sourceFundIsin;
     private String targetFundIsin;
+    private String targetPik;
   }
 }

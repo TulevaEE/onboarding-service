@@ -15,9 +15,18 @@ import lombok.Singular;
 public class TransferApplicationDetails implements ApplicationDetails {
 
   private final FundDto sourceFund;
-  @Singular private List<Exchange> exchanges;
   private final Instant cancellationDeadline;
   private final LocalDate fulfillmentDate;
+  @Singular private List<Exchange> exchanges;
+
+  @Override
+  public Integer getPillar() {
+    Integer sourcePillar = sourceFund.getPillar();
+    if (exchanges.stream().allMatch(exchange -> sourcePillar.equals(exchange.getPillar()))) {
+      return sourcePillar;
+    }
+    throw new IllegalStateException("Transfer between different pillar funds");
+  }
 
   @Data
   @Builder
@@ -25,23 +34,22 @@ public class TransferApplicationDetails implements ApplicationDetails {
 
     private FundDto sourceFund;
     private FundDto targetFund;
+    private String targetPik;
     private BigDecimal amount;
 
     @JsonIgnore
     public Integer getPillar() {
-      if (sourceFund.getPillar().equals(targetFund.getPillar())) {
-        return sourceFund.getPillar();
+      Integer sourcePillar = sourceFund.getPillar();
+      Integer targetPillar = getTargetPillar();
+
+      if (sourcePillar.equals(targetPillar)) {
+        return sourcePillar;
       }
       throw new IllegalStateException("Transfer between different pillar funds");
     }
-  }
 
-  @Override
-  public Integer getPillar() {
-    if (exchanges.stream()
-        .allMatch(exchange -> sourceFund.getPillar().equals(exchange.targetFund.getPillar()))) {
-      return sourceFund.getPillar();
+    private Integer getTargetPillar() {
+      return targetPik != null ? 2 : targetFund.getPillar();
     }
-    throw new IllegalStateException("Transfer between different pillar funds");
   }
 }

@@ -15,6 +15,7 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
+import ee.tuleva.onboarding.fund.response.FundDto;
 import ee.tuleva.onboarding.mandate.application.Application;
 import ee.tuleva.onboarding.mandate.application.ApplicationService;
 import ee.tuleva.onboarding.mandate.application.TransferApplication;
@@ -35,14 +36,14 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class UserConversionService {
 
+  public static final String EXIT_RESTRICTED_FUND = "EE3600109484";
+  private static final String CONVERTED_FUND_MANAGER_NAME = "Tuleva";
+
   private final AccountStatementService accountStatementService;
   private final CashFlowService cashFlowService;
   private final FundRepository fundRepository;
   private final Clock clock;
   private final ApplicationService applicationService;
-
-  private static final String CONVERTED_FUND_MANAGER_NAME = "Tuleva";
-  public static final String EXIT_RESTRICTED_FUND = "EE3600109484";
 
   public ConversionResponse getConversion(Person person) {
     List<FundBalance> fundBalances = accountStatementService.getAccountStatement(person);
@@ -182,11 +183,9 @@ public class UserConversionService {
   }
 
   private boolean isConvertedFundManager(Exchange exchange) {
-    return exchange
-        .getTargetFund()
-        .getFundManager()
-        .getName()
-        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME);
+    FundDto targetFund = exchange.getTargetFund();
+    return targetFund != null
+        && targetFund.getFundManager().getName().equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME);
   }
 
   private boolean amountMatches(Exchange exchange, List<FundBalance> fundBalances) {

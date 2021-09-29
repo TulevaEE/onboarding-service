@@ -101,7 +101,8 @@ class EpisServiceIntSpec extends Specification {
 
   def "can send mandates"() {
     given:
-    def fundsTransferExchange = new MandateDto.MandateFundsTransferExchangeDTO("transferProcessId", 1.0, "EE123", "EE234")
+    def fundsTransferExchange =
+        new MandateDto.MandateFundsTransferExchangeDTO("transferProcessId", 1.0, "EE123", "EE234", null)
     def address = addressFixture().build()
     def mandate = MandateDto.builder()
       .id(111L)

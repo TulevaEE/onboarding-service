@@ -3,10 +3,21 @@ package ee.tuleva.onboarding.mandate;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import java.math.BigDecimal;
-import javax.persistence.*;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Data
 @Getter
@@ -42,4 +53,7 @@ public class FundTransferExchange {
 
   @JsonView(MandateView.Default.class)
   private String targetFundIsin;
+
+  @JsonView(MandateView.Default.class)
+  private String targetPik;
 }

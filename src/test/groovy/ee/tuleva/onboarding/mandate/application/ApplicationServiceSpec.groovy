@@ -18,6 +18,7 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleEarlyWithdrawalApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleWithdrawalApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.samplePikTransferApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
@@ -41,8 +42,10 @@ class ApplicationServiceSpec extends Specification {
     def transferApplication2 = sampleTransferApplicationDto()
     def withdrawalApplication = sampleWithdrawalApplicationDto()
     def earlyWithdrawalApplication = sampleEarlyWithdrawalApplicationDto()
+    def pikTransferApplication = samplePikTransferApplicationDto()
     episService.getApplications(samplePerson()) >> [
-      transferApplication1, transferApplication2, completedTransferApplication, withdrawalApplication, earlyWithdrawalApplication
+      transferApplication1, transferApplication2, completedTransferApplication,
+      pikTransferApplication, withdrawalApplication, earlyWithdrawalApplication
     ]
     localeService.getCurrentLocale() >> Locale.ENGLISH
     fundRepository.findByIsin("source") >> sampleFunds().first()
@@ -54,7 +57,7 @@ class ApplicationServiceSpec extends Specification {
     List<Application> applications = applicationService.getApplications(samplePerson())
 
     then:
-    applications.size() == 5
+    applications.size() == 6
     with(applications[0]) {
       id == 456L
       type == TRANSFER
@@ -108,6 +111,24 @@ class ApplicationServiceSpec extends Specification {
     }
     with(applications[3]) {
       id == 123L
+      type == TRANSFER
+      status == PENDING
+      creationTime == ClockFixture.now
+      with(details) {
+        sourceFund.isin == "AE123232334"
+        exchanges.size() == 1
+        with(exchanges[0]) {
+          sourceFund.isin == "AE123232334"
+          targetFund == null
+          targetPik == "targetPik"
+          amount == 1.0
+        }
+        fulfillmentDate == LocalDate.parse("2021-05-03")
+        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
+      }
+    }
+    with(applications[4]) {
+      id == 123L
       type == EARLY_WITHDRAWAL
       status == PENDING
       creationTime == ClockFixture.now
@@ -117,7 +138,7 @@ class ApplicationServiceSpec extends Specification {
         cancellationDeadline == Instant.parse("2021-07-31T20:59:59.999999999Z")
       }
     }
-    with(applications[4]) {
+    with(applications[5]) {
       id == 123L
       type == WITHDRAWAL
       status == PENDING

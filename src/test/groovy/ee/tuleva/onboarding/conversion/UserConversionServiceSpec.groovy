@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.fund.manager.FundManager
 import ee.tuleva.onboarding.fund.response.FundDto
 import ee.tuleva.onboarding.mandate.application.*
 import spock.lang.Specification
-import spock.lang.Unroll
 
 import java.time.Clock
 import java.time.Instant
@@ -50,7 +49,6 @@ class UserConversionServiceSpec extends Specification {
     !response.thirdPillar.pendingWithdrawal
   }
 
-  @Unroll
   def "GetConversion: Get conversion response for 2nd pillar selection and transfer"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
@@ -76,7 +74,6 @@ class UserConversionServiceSpec extends Specification {
     []                                 | false                         | true
   }
 
-  @Unroll
   def "GetConversion: Get conversion response for 3rd pillar selection and transfer"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
@@ -102,7 +99,6 @@ class UserConversionServiceSpec extends Specification {
     []                                 | false                        | true
   }
 
-  @Unroll
   def "GetConversion: Get conversion response for 2nd pillar transfer given pending mandates cover the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
@@ -122,7 +118,25 @@ class UserConversionServiceSpec extends Specification {
     activeExternal2ndPillarFundBalance | false                         | true
   }
 
-  @Unroll
+  def "GetConversion: Get conversion response for 2nd pillar PIK transfer"() {
+    given:
+    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    applicationService.getApplications(PENDING, samplePerson) >> fullPendingPikApplications
+    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+
+    when:
+    ConversionResponse response = service.getConversion(samplePerson)
+
+    then:
+    response.secondPillar.selectionComplete == secondPillarSelectionComplete
+    response.secondPillar.transfersComplete == secondPillarTransfersComplete
+
+    where:
+    accountBalanceResponse             | secondPillarSelectionComplete | secondPillarTransfersComplete
+    activeTuleva2ndPillarFundBalance   | true                          | true
+    activeExternal2ndPillarFundBalance | false                         | false
+  }
+
   def "GetConversion 2nd pillar: only full value pending transfer will be marked as covering the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
@@ -141,7 +155,6 @@ class UserConversionServiceSpec extends Specification {
     activeExternal2ndPillarFundBalance | false                         | false
   }
 
-  @Unroll
   def "GetConversion: Get conversion response for 3rd pillar transfer given pending mandates cover the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
@@ -161,7 +174,6 @@ class UserConversionServiceSpec extends Specification {
     activeExternal3rdPillarFundBalance | false                        | true
   }
 
-  @Unroll
   def "GetConversion 3rd pillar: only full value pending transfer will be marked as covering the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
@@ -282,6 +294,33 @@ class UserConversionServiceSpec extends Specification {
               .build(), "en")
             )
             .amount(0.5)
+            .build()
+          )
+          .build()
+      )
+      .build()
+  ]
+
+
+  List<Application> fullPendingPikApplications = [
+    TransferApplication.builder()
+      .status(PENDING)
+      .type(TRANSFER)
+      .details(
+        TransferApplicationDetails.builder()
+          .sourceFund(new FundDto(Fund.builder()
+            .isin(activeTuleva2ndPillarFundBalance.first().getFund().getIsin())
+            .pillar(2)
+            .build(), "en")
+          )
+          .exchange(TransferApplicationDetails.Exchange.builder()
+            .sourceFund(new FundDto(Fund.builder()
+              .isin(activeTuleva2ndPillarFundBalance.first().getFund().getIsin())
+              .pillar(2)
+              .build(), "en")
+            )
+            .targetPik("targetPikNumber")
+            .amount(1.0)
             .build()
           )
           .build()

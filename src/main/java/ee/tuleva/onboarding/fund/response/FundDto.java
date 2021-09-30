@@ -25,4 +25,8 @@ public class FundDto {
     this.ongoingChargesFigure = fund.getOngoingChargesFigure();
     this.status = fund.getStatus();
   }
+
+  public String getFundManagerName() {
+    return fundManager.getName();
+  }
 }

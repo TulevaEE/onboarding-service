@@ -185,7 +185,7 @@ public class UserConversionService {
   private boolean isConvertedFundManager(Exchange exchange) {
     FundDto targetFund = exchange.getTargetFund();
     return targetFund != null
-        && targetFund.getFundManager().getName().equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME);
+        && targetFund.getFundManagerName().equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME);
   }
 
   private boolean amountMatches(Exchange exchange, List<FundBalance> fundBalances) {

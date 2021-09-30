@@ -68,7 +68,7 @@ public class ApplicationService {
   }
 
   private List<TransferApplication> groupTransfers(List<ApplicationDTO> transferApplications) {
-    String language = localeService.getCurrentLocale().getLanguage();
+    String language = localeService.getLanguage();
 
     return transferApplications.stream()
         .map(

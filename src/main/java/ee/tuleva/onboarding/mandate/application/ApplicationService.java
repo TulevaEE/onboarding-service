@@ -92,7 +92,7 @@ public class ApplicationService {
                   .forEach(
                       fundTransferExchange ->
                           details.exchange(
-                              new TransferApplicationDetails.Exchange(
+                              new Exchange(
                                   new FundDto(sourceFund, language),
                                   getTargetFund(fundTransferExchange, language),
                                   fundTransferExchange.getTargetPik(),

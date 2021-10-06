@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate.application
 
-
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.response.FundDto
 import spock.lang.Specification
@@ -35,41 +34,20 @@ class ApplicationSpec extends Specification {
   }
 
   def "getPillar"() {
+    def secondPillarFund = new FundDto(Fund.builder().pillar(2).build(), "en")
+    def secondPillarExchange = new Exchange(secondPillarFund, secondPillarFund, null, null)
+
     expect:
     Application.builder()
-      .details(TransferApplicationDetails.builder()
-        .sourceFund(new FundDto(Fund.builder()
-          .pillar(2)
-          .build(), "en"))
-        .exchange(TransferApplicationDetails.Exchange.builder()
-          .sourceFund((new FundDto(Fund.builder()
-            .pillar(2)
-            .build(), "en")))
-          .targetFund((new FundDto(Fund.builder()
-            .pillar(2)
-            .build(), "en")))
-          .build()
+        .details(
+            TransferApplicationDetails.builder().sourceFund(secondPillarFund).exchange(secondPillarExchange).build()
         )
         .build()
-      )
-      .build()
-      .getPillar() == 2
+        .getPillar() == 2
 
-      TransferApplication.builder()
-        .details(TransferApplicationDetails.builder()
-          .sourceFund(new FundDto(Fund.builder()
-            .pillar(2)
-            .build(), "en"))
-          .exchange(TransferApplicationDetails.Exchange.builder()
-            .sourceFund((new FundDto(Fund.builder()
-              .pillar(2)
-              .build(), "en")))
-            .targetFund((new FundDto(Fund.builder()
-              .pillar(2)
-              .build(), "en")))
-            .build()
-          )
-          .build()
+    TransferApplication.builder()
+        .details(
+            TransferApplicationDetails.builder().sourceFund(secondPillarFund).exchange(secondPillarExchange).build()
         )
         .build()
         .getPillar() == 2

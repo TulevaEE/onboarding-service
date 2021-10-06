@@ -35,10 +35,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @RequiredArgsConstructor
 public class UserConversionService {
-
-  public static final String EXIT_RESTRICTED_FUND = "EE3600109484";
-  private static final String CONVERTED_FUND_MANAGER_NAME = "Tuleva";
-
   private final AccountStatementService accountStatementService;
   private final CashFlowService cashFlowService;
   private final FundRepository fundRepository;
@@ -151,13 +147,7 @@ public class UserConversionService {
         && filter(fundBalances, pillar).anyMatch(FundBalance::isActiveContributions)
         && filter(fundBalances, pillar)
             .filter(FundBalance::isActiveContributions)
-            .allMatch(
-                fundBalance ->
-                    fundBalance
-                        .getFund()
-                        .getFundManager()
-                        .getName()
-                        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME));
+            .allMatch(FundBalance::isConverted);
   }
 
   private Stream<FundBalance> filter(List<FundBalance> fundBalances, Integer pillar) {
@@ -184,8 +174,7 @@ public class UserConversionService {
 
   private boolean isConvertedFundManager(Exchange exchange) {
     FundDto targetFund = exchange.getTargetFund();
-    return targetFund != null
-        && targetFund.getFundManagerName().equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME);
+    return targetFund != null && targetFund.isConverted();
   }
 
   private boolean amountMatches(Exchange exchange, List<FundBalance> fundBalances) {
@@ -219,13 +208,9 @@ public class UserConversionService {
         .filter(fundBalance -> pillar.equals(fundBalance.getPillar()))
         .filter(
             fundBalance ->
-                !fundBalance
-                        .getFund()
-                        .getFundManager()
-                        .getName()
-                        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME)
+                !fundBalance.isConverted()
                     && fundBalance.getValue().compareTo(ZERO) > 0
-                    && !EXIT_RESTRICTED_FUND.equals(fundBalance.getIsin()))
+                    && !fundBalance.isExitRestricted())
         .map(fundBalance -> fundBalance.getFund().getIsin())
         .collect(toList());
   }

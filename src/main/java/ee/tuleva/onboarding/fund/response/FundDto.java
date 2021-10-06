@@ -26,7 +26,7 @@ public class FundDto {
     this.status = fund.getStatus();
   }
 
-  public String getFundManagerName() {
-    return fundManager.getName();
+  public boolean isConverted() {
+    return fundManager.isTuleva();
   }
 }

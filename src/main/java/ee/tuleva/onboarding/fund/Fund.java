@@ -4,10 +4,20 @@ import static javax.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import java.math.BigDecimal;
-import javax.persistence.*;
+import javax.persistence.Entity;
+import javax.persistence.Enumerated;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
@@ -17,6 +27,7 @@ import lombok.*;
 @NoArgsConstructor
 @Getter
 public class Fund implements Comparable<Fund> {
+  private static final String EXIT_RESTRICTED_FUND_ISIN = "EE3600109484";
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,6 +65,14 @@ public class Fund implements Comparable<Fund> {
 
   public String getName(String language) {
     return "en".equalsIgnoreCase(language) ? nameEnglish : nameEstonian;
+  }
+
+  public boolean isConverted() {
+    return fundManager.isTuleva();
+  }
+
+  public boolean isExitRestricted() {
+    return isin.equals(EXIT_RESTRICTED_FUND_ISIN);
   }
 
   @Override

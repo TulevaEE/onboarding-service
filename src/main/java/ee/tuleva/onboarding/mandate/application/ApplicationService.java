@@ -90,15 +90,13 @@ public class ApplicationService {
               applicationDto
                   .getFundTransferExchanges()
                   .forEach(
-                      fundTransferExchange -> {
-                        details.exchange(
-                            TransferApplicationDetails.Exchange.builder()
-                                .amount(fundTransferExchange.getAmount())
-                                .sourceFund(new FundDto(sourceFund, language))
-                                .targetFund(getTargetFund(fundTransferExchange, language))
-                                .targetPik(fundTransferExchange.getTargetPik())
-                                .build());
-                      });
+                      fundTransferExchange ->
+                          details.exchange(
+                              new TransferApplicationDetails.Exchange(
+                                  new FundDto(sourceFund, language),
+                                  getTargetFund(fundTransferExchange, language),
+                                  fundTransferExchange.getTargetPik(),
+                                  fundTransferExchange.getAmount())));
               application.details(details.build());
               return application.build();
             })

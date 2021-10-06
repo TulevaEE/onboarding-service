@@ -49,7 +49,7 @@ public class RestTemplateConfiguration {
                   log.debug("Not logging requests to admin URL {}", request.getURI());
                   return execution.execute(request, body);
                 }
-                log.info("Sending request to {} \n {}", request.getURI(), new String(body));
+                log.info("Sending request to {}", request.getURI());
                 ClientHttpResponse response = execution.execute(request, body);
                 log.info("Response status {}", response.getStatusCode());
                 log.debug("Response body \n {}", IOUtils.toString(response.getBody(), "UTF-8"));

@@ -45,4 +45,12 @@ public class FundBalance {
     return ZERO.add(value == null ? ZERO : value)
         .add(unavailableValue == null ? ZERO : unavailableValue);
   }
+
+  public boolean isConverted() {
+    return fund.isConverted();
+  }
+
+  public boolean isExitRestricted() {
+    return fund.isExitRestricted();
+  }
 }

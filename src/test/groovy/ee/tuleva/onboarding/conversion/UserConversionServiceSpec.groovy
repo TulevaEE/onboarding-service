@@ -18,7 +18,6 @@ import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.account.AccountStatementFixture.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.conversion.UserConversionService.CONVERTED_FUND_MANAGER_NAME
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
@@ -258,7 +257,7 @@ class UserConversionServiceSpec extends Specification {
             .targetFund(new FundDto(Fund.builder()
               .isin("EE234")
               .pillar(2)
-              .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
+              .fundManager(FundManager.builder().name(FundManager.TULEVA_FUND_MANAGER_NAME).build())
               .build(), "en")
             )
             .amount(1.0)
@@ -290,7 +289,7 @@ class UserConversionServiceSpec extends Specification {
             .targetFund(new FundDto(Fund.builder()
               .isin("EE234")
               .pillar(2)
-              .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
+              .fundManager(FundManager.builder().name(FundManager.TULEVA_FUND_MANAGER_NAME).build())
               .build(), "en")
             )
             .amount(0.5)

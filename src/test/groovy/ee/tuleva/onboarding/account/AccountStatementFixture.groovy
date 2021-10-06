@@ -4,8 +4,6 @@ import com.google.common.collect.Lists
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
 
-import static ee.tuleva.onboarding.conversion.UserConversionService.EXIT_RESTRICTED_FUND_ISIN
-
 class AccountStatementFixture {
 
   public static List<FundBalance> activeTuleva2ndPillarFundBalance = Lists.asList(
@@ -178,7 +176,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .fund(
               Fund.builder()
-                  .isin(EXIT_RESTRICTED_FUND_ISIN)
+                  .isin(Fund.EXIT_RESTRICTED_FUND_ISIN)
                   .nameEstonian("Swedbank Pensionifond V100 indeks (väljumine piiratud)")
                   .nameEnglish("Swedbank V100 Index Pension Fund (exit restricted)")
                   .shortName("SWV100")

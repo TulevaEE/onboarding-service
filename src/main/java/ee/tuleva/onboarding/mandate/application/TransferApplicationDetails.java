@@ -29,13 +29,27 @@ public class TransferApplicationDetails implements ApplicationDetails {
   }
 
   @Data
-  @Builder
   public static class Exchange {
 
     private FundDto sourceFund;
     private FundDto targetFund;
     private String targetPik;
     private BigDecimal amount;
+
+    public Exchange(FundDto sourceFund, FundDto targetFund, String targetPik, BigDecimal amount) {
+      if (targetFund == null && targetPik == null) {
+        throw new IllegalArgumentException("Target fund or target PIK needs to be defined");
+      }
+      if (targetFund != null && targetPik != null) {
+        throw new IllegalArgumentException(
+            "Both target fund and target PIK can not be present at the same time");
+      }
+
+      this.sourceFund = sourceFund;
+      this.targetFund = targetFund;
+      this.targetPik = targetPik;
+      this.amount = amount;
+    }
 
     @JsonIgnore
     public Integer getPillar() {

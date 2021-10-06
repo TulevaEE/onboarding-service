@@ -86,6 +86,9 @@ public class MandateController {
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
     Optional<MobileIDSession> session = sessionStore.get(MobileIDSession.class);
+    if (session.isEmpty()) {
+      log.error("Mobile session not found. user_id: {}", authenticatedPerson.getUserId());
+    }
     MobileIDSession loginSession = session.orElseThrow(IdSessionException::mobileSessionNotFound);
 
     MobileIdSignatureSession signatureSession =

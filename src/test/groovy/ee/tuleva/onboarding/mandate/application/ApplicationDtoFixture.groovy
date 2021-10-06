@@ -31,7 +31,7 @@ class ApplicationDtoFixture {
       .currency("EUR")
       .sourceFundIsin("source")
       .fundTransferExchanges([
-        new MandateDto.MandateFundsTransferExchangeDTO("processId", 1.0, "source", null, "targetPik")
+        new MandateDto.MandateFundsTransferExchangeDTO("processId", 1.0, "source", null, "EE801281685311741971")
       ])
       .build()
   }

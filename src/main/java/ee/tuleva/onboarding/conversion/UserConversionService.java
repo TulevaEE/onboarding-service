@@ -15,7 +15,6 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
-import ee.tuleva.onboarding.fund.response.FundDto;
 import ee.tuleva.onboarding.mandate.application.Application;
 import ee.tuleva.onboarding.mandate.application.ApplicationService;
 import ee.tuleva.onboarding.mandate.application.TransferApplication;
@@ -166,15 +165,9 @@ public class UserConversionService {
     return pendingTransferApplications.stream()
         .filter(application -> pillar.equals(application.getPillar()))
         .flatMap(application -> application.getDetails().getExchanges().stream())
-        .filter(
-            exchange -> isConvertedFundManager(exchange) && amountMatches(exchange, fundBalances))
+        .filter(exchange -> exchange.isConverted() && amountMatches(exchange, fundBalances))
         .map(exchange -> exchange.getSourceFund().getIsin())
         .collect(toList());
-  }
-
-  private boolean isConvertedFundManager(Exchange exchange) {
-    FundDto targetFund = exchange.getTargetFund();
-    return targetFund != null && targetFund.isConverted();
   }
 
   private boolean amountMatches(Exchange exchange, List<FundBalance> fundBalances) {

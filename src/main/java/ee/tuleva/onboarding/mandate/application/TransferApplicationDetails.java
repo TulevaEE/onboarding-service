@@ -62,6 +62,10 @@ public class TransferApplicationDetails implements ApplicationDetails {
       throw new IllegalStateException("Transfer between different pillar funds");
     }
 
+    public boolean isConverted() {
+      return targetFund != null && targetFund.isConverted();
+    }
+
     private Integer getTargetPillar() {
       return targetPik != null ? 2 : targetFund.getPillar();
     }

@@ -27,6 +27,6 @@ public class FundManager {
   private Long id;
 
   public boolean isTuleva() {
-    return name.equalsIgnoreCase(TULEVA_FUND_MANAGER_NAME);
+    return TULEVA_FUND_MANAGER_NAME.equalsIgnoreCase(name);
   }
 }

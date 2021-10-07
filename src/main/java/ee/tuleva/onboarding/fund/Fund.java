@@ -72,7 +72,7 @@ public class Fund implements Comparable<Fund> {
   }
 
   public boolean isExitRestricted() {
-    return isin.equals(EXIT_RESTRICTED_FUND_ISIN);
+    return EXIT_RESTRICTED_FUND_ISIN.equals(isin);
   }
 
   @Override

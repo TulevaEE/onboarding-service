@@ -9,7 +9,7 @@
 
 ## Prerequisites
 
-- JDK 8
+- JDK 16
 - Groovy
 - Git
 - Gradle
@@ -31,13 +31,13 @@ IMPORTANT: Set your Spring active profile to `dev` - this will also run DB schem
 
 **Backend**
 
-Java 8, Spring Boot, Gradle, Spock for testing
+Java 16, Spring Boot, Gradle, Spock for testing
 
 Running locally: `./gradlew bootRun`
 
 **Frontend**
 
-React, ES6, scss, custom bootstrap, enzyme + jest for testing
+React, TypeScript, scss, custom bootstrap, react-testing-library
 
 **Exception Monitoring**
 

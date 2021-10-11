@@ -84,14 +84,13 @@ dependencies {
     implementation("org.apache.commons:commons-lang3:3.12.0")
     implementation("net.sf.ehcache:ehcache")
     implementation("org.decampo:xirr:1.1")
-    implementation("org.bouncycastle:bcpkix-jdk15on:1.68")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:3.0.1")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:3.0.1")
 
     implementation("com.github.SK-EID:smart-id-java-client:1.6.1")
     // TODO: upgrade
     // implementation("ee.sk.smartid:smart-id-java-client:2.0")
-    implementation("org.digidoc4j:digidoc4j:4.2.0") {
+    implementation("org.digidoc4j:digidoc4j:4.2.1") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
@@ -109,6 +108,7 @@ dependencies {
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "spock-core")
+        exclude(module = "junit-vintage-engine")
     }
 
     testImplementation("org.spockframework:spock-core:2.0-groovy-3.0") {

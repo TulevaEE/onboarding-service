@@ -39,10 +39,6 @@ public class EmailService {
       String html,
       List<String> tags,
       List<MessageContent> attachments) {
-    if (mandrillApi == null) {
-      return null;
-    }
-
     MandrillMessage message = new MandrillMessage();
 
     message.setSubject(subject);
@@ -68,6 +64,11 @@ public class EmailService {
 
   public void send(User user, MandrillMessage message, Instant sendAt) {
     try {
+      if (mandrillApi == null) {
+        log.warn("Mandrill not initialised, not sending mandate email for user: userId={}", user.getId());
+        return;
+      }
+
       log.info(
           "Sending email from {} to user {} at {}",
           emailConfiguration.getFrom(),

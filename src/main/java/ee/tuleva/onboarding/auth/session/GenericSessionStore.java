@@ -1,34 +1,34 @@
 package ee.tuleva.onboarding.auth.session;
 
-import java.io.Serial;
 import java.io.Serializable;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
-import org.springframework.context.annotation.Scope;
-import org.springframework.context.annotation.ScopedProxyMode;
+import javax.servlet.http.HttpSession;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Component
-@Scope(value = "session", proxyMode = ScopedProxyMode.TARGET_CLASS)
-public class GenericSessionStore implements Serializable {
-
-  @Serial private static final long serialVersionUID = -648103071415508424L;
-
-  private final Map<String, Object> sessionAttributes = new HashMap<>();
+public class GenericSessionStore {
 
   public <T extends Serializable> void save(T sessionAttribute) {
-    sessionAttributes.put(sessionAttribute.getClass().getName(), sessionAttribute);
+    session().setAttribute(sessionAttribute.getClass().getName(), sessionAttribute);
   }
 
   public <T extends Serializable> Optional<T> get(Class clazz) {
     @SuppressWarnings("unchecked")
-    T sessionAttribute = (T) sessionAttributes.get(clazz.getName());
+    T sessionAttribute = (T) session().getAttribute(clazz.getName());
 
     if (sessionAttribute == null) {
       return Optional.empty();
     }
 
     return Optional.of(sessionAttribute);
+  }
+
+  private static HttpSession session() {
+    ServletRequestAttributes attr =
+        (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+    boolean allowCreate = true;
+    return attr.getRequest().getSession(allowCreate);
   }
 }

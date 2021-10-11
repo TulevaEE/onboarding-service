@@ -65,7 +65,9 @@ public class EmailService {
   public void send(User user, MandrillMessage message, Instant sendAt) {
     try {
       if (mandrillApi == null) {
-        log.warn("Mandrill not initialised, not sending mandate email for user: userId={}", user.getId());
+        log.warn(
+            "Mandrill not initialised, not sending mandate email for user: userId={}",
+            user.getId());
         return;
       }
 

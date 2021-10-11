@@ -120,7 +120,7 @@ class ApplicationServiceSpec extends Specification {
         with(exchanges[0]) {
           sourceFund.isin == "AE123232334"
           targetFund == null
-          targetPik == "targetPik"
+          targetPik == "EE801281685311741971"
           amount == 1.0
         }
         fulfillmentDate == LocalDate.parse("2021-05-03")

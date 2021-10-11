@@ -18,10 +18,9 @@ import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.account.AccountStatementFixture.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.conversion.UserConversionService.CONVERTED_FUND_MANAGER_NAME
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.*
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
+import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 
 class UserConversionServiceSpec extends Specification {
 
@@ -32,7 +31,7 @@ class UserConversionServiceSpec extends Specification {
   def clock = Clock.fixed(Instant.parse("2019-12-30T10:06:01Z"), ZoneOffset.UTC)
 
   def service = new UserConversionService(accountStatementService, cashFlowService,
-    fundRepository, clock, applicationService)
+      fundRepository, clock, applicationService)
 
   def "GetConversion: Get conversion response for 2nd pillar withdrawal"() {
     given:
@@ -200,22 +199,22 @@ class UserConversionServiceSpec extends Specification {
     fundRepository.findByIsin("EE234") >> Fund.builder().pillar(3).build()
 
     cashFlowService.getCashFlowStatement(samplePerson) >> CashFlowStatement.builder()
-      .transactions([
-        new CashFlow("EE123", LocalDate.parse("2018-12-31"), 100.0, "EUR", CONTRIBUTION_CASH),
-        new CashFlow("EE123", LocalDate.parse("2019-01-01"), 1.0, "EUR", CONTRIBUTION_CASH),
-        new CashFlow("EE123", LocalDate.parse("2019-11-20"), 1.0, "EUR", CONTRIBUTION_CASH),
-        new CashFlow("EE123", LocalDate.parse("2019-12-20"), 1.0, "EUR", SUBTRACTION),
-        new CashFlow("EE123", LocalDate.parse("2019-12-21"), 1.0, "EUR", SUBTRACTION),
+        .transactions([
+            new CashFlow("EE123", LocalDate.parse("2018-12-31"), 100.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE123", LocalDate.parse("2019-01-01"), 1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE123", LocalDate.parse("2019-11-20"), 1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE123", LocalDate.parse("2019-12-20"), 1.0, "EUR", SUBTRACTION),
+            new CashFlow("EE123", LocalDate.parse("2019-12-21"), 1.0, "EUR", SUBTRACTION),
 
-        new CashFlow("EE234", LocalDate.parse("2018-12-31"), 100.0, "EUR", CONTRIBUTION_CASH),
-        new CashFlow("EE234", LocalDate.parse("2019-01-01"), 1.0, "EUR", CONTRIBUTION_CASH),
-        new CashFlow("EE234", LocalDate.parse("2019-01-02"), 1.0, "EUR", CONTRIBUTION_CASH),
-        new CashFlow("EE234", LocalDate.parse("2019-11-20"), 1.0, "EUR", CONTRIBUTION_CASH),
-        new CashFlow("EE234", LocalDate.parse("2019-12-20"), 20.0, "EUR", CONTRIBUTION),
-        new CashFlow("EE234", LocalDate.parse("2019-12-20"), 1.0, "EUR", SUBTRACTION),
-        new CashFlow("EE234", LocalDate.parse("2019-12-21"), 1.0, "EUR", SUBTRACTION),
-      ])
-      .build()
+            new CashFlow("EE234", LocalDate.parse("2018-12-31"), 100.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", LocalDate.parse("2019-01-01"), 1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", LocalDate.parse("2019-01-02"), 1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", LocalDate.parse("2019-11-20"), 1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", LocalDate.parse("2019-12-20"), 20.0, "EUR", CONTRIBUTION),
+            new CashFlow("EE234", LocalDate.parse("2019-12-20"), 1.0, "EUR", SUBTRACTION),
+            new CashFlow("EE234", LocalDate.parse("2019-12-21"), 1.0, "EUR", SUBTRACTION),
+        ])
+        .build()
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)
@@ -239,129 +238,134 @@ class UserConversionServiceSpec extends Specification {
 
 
   List<Application> fullPending2ndPillarApplications = [
-    TransferApplication.builder()
-      .status(PENDING)
-      .type(TRANSFER)
-      .details(
-        TransferApplicationDetails.builder()
-          .sourceFund(new FundDto(Fund.builder()
-            .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
-            .pillar(2)
-            .build(), "en")
-          )
-          .exchange(TransferApplicationDetails.Exchange.builder()
-            .sourceFund(new FundDto(Fund.builder()
-              .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
-              .pillar(2)
-              .build(), "en")
-            )
-            .targetFund(new FundDto(Fund.builder()
-              .isin("EE234")
-              .pillar(2)
-              .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
-              .build(), "en")
-            )
-            .amount(1.0)
-            .build()
+      TransferApplication.builder()
+          .status(PENDING)
+          .type(TRANSFER)
+          .details(
+              TransferApplicationDetails.builder()
+                  .sourceFund(new FundDto(Fund.builder()
+                      .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
+                      .pillar(2)
+                      .build(), "en")
+                  )
+                  .exchange(
+                      new Exchange(
+                          new FundDto(Fund.builder()
+                              .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
+                              .pillar(2)
+                              .build(), "en"),
+                          new FundDto(Fund.builder()
+                              .isin("EE234")
+                              .pillar(2)
+                              .fundManager(FundManager.builder().name(FundManager.TULEVA_FUND_MANAGER_NAME).build())
+                              .build(), "en"),
+                          null,
+                          1.0
+                      )
+                  )
+                  .build()
           )
           .build()
-      )
-      .build()
   ]
 
 
   List<Application> partialPending2ndPillarApplications = [
-    TransferApplication.builder()
-      .status(PENDING)
-      .type(TRANSFER)
-      .details(
-        TransferApplicationDetails.builder()
-          .sourceFund(new FundDto(Fund.builder()
-            .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
-            .pillar(2)
-            .build(), "en")
-          )
-          .exchange(TransferApplicationDetails.Exchange.builder()
-            .sourceFund(new FundDto(Fund.builder()
-              .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
-              .pillar(2)
-              .build(), "en")
-            )
-            .targetFund(new FundDto(Fund.builder()
-              .isin("EE234")
-              .pillar(2)
-              .fundManager(FundManager.builder().name(CONVERTED_FUND_MANAGER_NAME).build())
-              .build(), "en")
-            )
-            .amount(0.5)
-            .build()
+      TransferApplication.builder()
+          .status(PENDING)
+          .type(TRANSFER)
+          .details(
+              TransferApplicationDetails.builder()
+                  .sourceFund(new FundDto(Fund.builder()
+                      .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
+                      .pillar(2)
+                      .build(), "en")
+                  )
+                  .exchange(
+                      new Exchange(
+                          new FundDto(Fund.builder()
+                              .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
+                              .pillar(2)
+                              .build(), "en"),
+                          new FundDto(Fund.builder()
+                              .isin("EE234")
+                              .pillar(2)
+                              .fundManager(FundManager.builder().name(FundManager.TULEVA_FUND_MANAGER_NAME).build())
+                              .build(), "en"),
+                          null,
+                          0.5
+                      )
+                  )
+                  .build()
           )
           .build()
-      )
-      .build()
   ]
 
 
   List<Application> fullPendingPikApplications = [
-    TransferApplication.builder()
-      .status(PENDING)
-      .type(TRANSFER)
-      .details(
-        TransferApplicationDetails.builder()
-          .sourceFund(new FundDto(Fund.builder()
-            .isin(activeTuleva2ndPillarFundBalance.first().getFund().getIsin())
-            .pillar(2)
-            .build(), "en")
-          )
-          .exchange(TransferApplicationDetails.Exchange.builder()
-            .sourceFund(new FundDto(Fund.builder()
-              .isin(activeTuleva2ndPillarFundBalance.first().getFund().getIsin())
-              .pillar(2)
-              .build(), "en")
-            )
-            .targetPik("targetPikNumber")
-            .amount(1.0)
-            .build()
+      TransferApplication.builder()
+          .status(PENDING)
+          .type(TRANSFER)
+          .details(
+              TransferApplicationDetails.builder()
+                  .sourceFund(new FundDto(Fund.builder()
+                      .isin(activeTuleva2ndPillarFundBalance.first().getFund().getIsin())
+                      .pillar(2)
+                      .build(), "en")
+                  )
+                  .exchange(
+                      new Exchange(
+                          new FundDto(Fund.builder()
+                              .isin(activeTuleva2ndPillarFundBalance.first().getFund().getIsin())
+                              .pillar(2)
+                              .build(), "en"),
+                          null,
+                          "EE801281685311741971",
+                          1.0
+                      )
+                  )
+                  .build()
           )
           .build()
-      )
-      .build()
   ]
 
   List<Application> fullPending3rdPillarApplications = [
-    TransferApplication.builder()
-      .status(PENDING)
-      .type(TRANSFER)
-      .details(
-        TransferApplicationDetails.builder()
-          .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
-          .exchange(TransferApplicationDetails.Exchange.builder()
-            .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
-            .targetFund(new FundDto(activeExternal3rdPillarFundBalance[1].getFund(), "en"))
-            .amount(100.0)
-            .build()
+      TransferApplication.builder()
+          .status(PENDING)
+          .type(TRANSFER)
+          .details(
+              TransferApplicationDetails.builder()
+                  .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
+                  .exchange(
+                      new Exchange(
+                          new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"),
+                          new FundDto(activeExternal3rdPillarFundBalance[1].getFund(), "en"),
+                          null,
+                          100.0
+                      )
+                  )
+                  .build()
           )
           .build()
-      )
-      .build()
   ]
 
   List<Application> partialPending3rdPillarApplications = [
-    TransferApplication.builder()
-      .status(PENDING)
-      .type(TRANSFER)
-      .details(
-        TransferApplicationDetails.builder()
-          .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
-          .exchange(TransferApplicationDetails.Exchange.builder()
-            .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
-            .targetFund(new FundDto(activeExternal3rdPillarFundBalance[1].getFund(), "en"))
-            .amount(50.0)
-            .build()
+      TransferApplication.builder()
+          .status(PENDING)
+          .type(TRANSFER)
+          .details(
+              TransferApplicationDetails.builder()
+                  .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
+                  .exchange(
+                      new Exchange(
+                          new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"),
+                          new FundDto(activeExternal3rdPillarFundBalance[1].getFund(), "en"),
+                          null,
+                          50.0
+                      )
+                  )
+                  .build()
           )
           .build()
-      )
-      .build()
   ]
 
 }

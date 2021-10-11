@@ -15,11 +15,10 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
-import ee.tuleva.onboarding.fund.response.FundDto;
 import ee.tuleva.onboarding.mandate.application.Application;
 import ee.tuleva.onboarding.mandate.application.ApplicationService;
+import ee.tuleva.onboarding.mandate.application.Exchange;
 import ee.tuleva.onboarding.mandate.application.TransferApplication;
-import ee.tuleva.onboarding.mandate.application.TransferApplicationDetails.Exchange;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -35,10 +34,6 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @RequiredArgsConstructor
 public class UserConversionService {
-
-  public static final String EXIT_RESTRICTED_FUND = "EE3600109484";
-  private static final String CONVERTED_FUND_MANAGER_NAME = "Tuleva";
-
   private final AccountStatementService accountStatementService;
   private final CashFlowService cashFlowService;
   private final FundRepository fundRepository;
@@ -151,13 +146,7 @@ public class UserConversionService {
         && filter(fundBalances, pillar).anyMatch(FundBalance::isActiveContributions)
         && filter(fundBalances, pillar)
             .filter(FundBalance::isActiveContributions)
-            .allMatch(
-                fundBalance ->
-                    fundBalance
-                        .getFund()
-                        .getFundManager()
-                        .getName()
-                        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME));
+            .allMatch(FundBalance::isConverted);
   }
 
   private Stream<FundBalance> filter(List<FundBalance> fundBalances, Integer pillar) {
@@ -176,16 +165,9 @@ public class UserConversionService {
     return pendingTransferApplications.stream()
         .filter(application -> pillar.equals(application.getPillar()))
         .flatMap(application -> application.getDetails().getExchanges().stream())
-        .filter(
-            exchange -> isConvertedFundManager(exchange) && amountMatches(exchange, fundBalances))
+        .filter(exchange -> exchange.isConverted() && amountMatches(exchange, fundBalances))
         .map(exchange -> exchange.getSourceFund().getIsin())
         .collect(toList());
-  }
-
-  private boolean isConvertedFundManager(Exchange exchange) {
-    FundDto targetFund = exchange.getTargetFund();
-    return targetFund != null
-        && targetFund.getFundManagerName().equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME);
   }
 
   private boolean amountMatches(Exchange exchange, List<FundBalance> fundBalances) {
@@ -219,13 +201,9 @@ public class UserConversionService {
         .filter(fundBalance -> pillar.equals(fundBalance.getPillar()))
         .filter(
             fundBalance ->
-                !fundBalance
-                        .getFund()
-                        .getFundManager()
-                        .getName()
-                        .equalsIgnoreCase(CONVERTED_FUND_MANAGER_NAME)
+                !fundBalance.isConverted()
                     && fundBalance.getValue().compareTo(ZERO) > 0
-                    && !EXIT_RESTRICTED_FUND.equals(fundBalance.getIsin()))
+                    && !fundBalance.isExitRestricted())
         .map(fundBalance -> fundBalance.getFund().getIsin())
         .collect(toList());
   }

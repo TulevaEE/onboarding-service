@@ -90,15 +90,13 @@ public class ApplicationService {
               applicationDto
                   .getFundTransferExchanges()
                   .forEach(
-                      fundTransferExchange -> {
-                        details.exchange(
-                            TransferApplicationDetails.Exchange.builder()
-                                .amount(fundTransferExchange.getAmount())
-                                .sourceFund(new FundDto(sourceFund, language))
-                                .targetFund(getTargetFund(fundTransferExchange, language))
-                                .targetPik(fundTransferExchange.getTargetPik())
-                                .build());
-                      });
+                      fundTransferExchange ->
+                          details.exchange(
+                              new Exchange(
+                                  new FundDto(sourceFund, language),
+                                  getTargetFund(fundTransferExchange, language),
+                                  fundTransferExchange.getTargetPik(),
+                                  fundTransferExchange.getAmount())));
               application.details(details.build());
               return application.build();
             })
@@ -112,7 +110,7 @@ public class ApplicationService {
     Fund targetFund = fundRepository.findByIsin(targetFundIsin);
     if (targetFund == null) {
       throw new IllegalArgumentException(
-          "Fund with ISIN \"" + targetFundIsin + "\" not found in database!");
+          "Fund not found in the database: targetFundIsin=" + targetFundIsin);
     }
     return new FundDto(targetFund, language);
   }

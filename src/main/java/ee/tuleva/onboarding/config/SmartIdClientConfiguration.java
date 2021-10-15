@@ -30,39 +30,47 @@ public class SmartIdClientConfiguration {
 
   @Bean
   @ConfigurationProperties(prefix = "smartid")
-  public SmartIdClient smartIdClient() {
+  public SmartIdClient smartIdClient(KeyStore trustStore) {
     SmartIdClient smartIdClient = new SmartIdClient();
     smartIdClient.setSessionStatusResponseSocketOpenTime(TimeUnit.MILLISECONDS, 1L);
+    smartIdClient.loadSslCertificatesFromKeystore(trustStore);
     return smartIdClient;
   }
 
   @Bean
-  public SmartIdConnector smartIdConnector() {
-    return smartIdClient().getSmartIdConnector();
+  public SmartIdConnector smartIdConnector(SmartIdClient smartIdClient) {
+    return smartIdClient.getSmartIdConnector();
   }
 
   @Bean
-  public AuthenticationResponseValidator authenticationResponseValidator(
-      ResourceLoader resourceLoader) {
+  public AuthenticationResponseValidator authenticationResponseValidator(KeyStore trustStore) {
     AuthenticationResponseValidator validator = new AuthenticationResponseValidator();
-    initializeTrustedCertificatesFromTrustStore(validator, resourceLoader);
+    initializeTrustedCertificatesFromTrustStore(validator, trustStore);
     return validator;
   }
 
   private void initializeTrustedCertificatesFromTrustStore(
-      AuthenticationResponseValidator validator, ResourceLoader resourceLoader) {
+      AuthenticationResponseValidator validator, KeyStore trustStore) {
     try {
-      Resource resource = resourceLoader.getResource("file:" + trustStorePath);
-      InputStream inputStream = resource.getInputStream();
-      KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-      trustStore.load(inputStream, null);
       Enumeration<String> aliases = trustStore.aliases();
-
       while (aliases.hasMoreElements()) {
         String alias = aliases.nextElement();
         X509Certificate certificate = (X509Certificate) trustStore.getCertificate(alias);
         validator.addTrustedCACertificate(certificate);
       }
+    } catch (KeyStoreException e) {
+      throw new TechnicalErrorException("Error initializing trusted CA certificates", e);
+    }
+  }
+
+  @Bean
+  public KeyStore trustStore(ResourceLoader resourceLoader) {
+    try {
+      Resource resource = resourceLoader.getResource("file:" + trustStorePath);
+      InputStream inputStream = resource.getInputStream();
+      KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+      trustStore.load(inputStream, null);
+      return trustStore;
     } catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
       throw new TechnicalErrorException("Error initializing trusted CA certificates", e);
     }

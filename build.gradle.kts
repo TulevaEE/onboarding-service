@@ -24,7 +24,6 @@ plugins {
     id("com.gorylenko.gradle-git-properties") version "2.3.1"
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     id("com.diffplug.spotless") version "5.12.5"
-    id("io.freefair.lombok") version "6.0.0-m2"
     jacoco
 }
 
@@ -105,6 +104,12 @@ dependencies {
 
     implementation("com.google.guava:guava:30.1.1-jre")
 
+    compileOnly("org.projectlombok:lombok:1.18.22")
+    annotationProcessor("org.projectlombok:lombok:1.18.22")
+
+    testCompileOnly("org.projectlombok:lombok:1.18.22")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.22")
+
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "spock-core")
@@ -117,7 +122,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.0-groovy-3.0") {
         exclude(group = "org.codehaus.groovy")
     }
-    testImplementation("org.codehaus.groovy:groovy:3.0.8")
+    testImplementation("org.codehaus.groovy:groovy:3.0.9")
     testImplementation("org.mock-server:mockserver-netty:5.11.2")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.11.2")
     testImplementation("org.springframework.security:spring-security-test")

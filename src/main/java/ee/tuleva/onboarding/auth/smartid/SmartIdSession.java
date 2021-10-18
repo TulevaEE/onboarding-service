@@ -6,12 +6,8 @@ import ee.sk.smartid.SmartIdAuthenticationResult;
 import ee.tuleva.onboarding.auth.principal.Person;
 import java.io.Serializable;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Data
-@RequiredArgsConstructor
-@Slf4j
 public class SmartIdSession implements Person, Serializable {
 
   private static final long serialVersionUID = 6326478770346040900L;

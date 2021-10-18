@@ -14,13 +14,14 @@ import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.*
 class MobileIdAuthServiceSpec extends Specification {
 
     MobileIdAuthService mobileIdAuthService
-    MidClient client = Mock(MidClient)
-    MidAuthenticationResponseValidator validator = Mock(MidAuthenticationResponseValidator)
-    MidConnector connector = Mock(MidConnector)
-    MidSessionStatusPoller poller = Mock(MidSessionStatusPoller)
+    MidClient client = Mock()
+    MidAuthenticationResponseValidator validator = Mock()
+    MidConnector connector = Mock()
+    MidSessionStatusPoller poller = Mock()
+    MobileNumberNormalizer normalizer = new MobileNumberNormalizer()
 
     def setup() {
-        mobileIdAuthService = new MobileIdAuthService(client, validator, connector, poller)
+        mobileIdAuthService = new MobileIdAuthService(client, validator, connector, poller, normalizer)
     }
 
     def "StartLogin: Start mobile id login with a phone number"() {
@@ -45,17 +46,6 @@ class MobileIdAuthServiceSpec extends Specification {
         mobileIDSession.getPhoneNumber() == sampleLongPhoneNumber
     }
 
-    def "StartLogin: Start mobile id login with a lithuanian number"() {
-        given:
-        1 * connector.authenticate(_) >> new MidAuthenticationResponse(sampleSessionId)
-
-        when:
-        def mobileIDSession = mobileIdAuthService.startLogin(sampleLithuanianPhoneNumber, sampleIdCode)
-        then:
-        mobileIDSession.getSessionId() == sampleSessionId
-        mobileIDSession.getPhoneNumber() == sampleLongLithuanianPhoneNumber
-    }
-
     def "IsLoginComplete: Fetch state of mobile id login"() {
         given:
         1 * poller.fetchFinalAuthenticationSessionStatus(_) >> getSampleMidSessionComplete()
@@ -64,7 +54,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         boolean isLoginComplete = mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        isLoginComplete == true
+        isLoginComplete
     }
 
     def "IsLoginComplete: Fetch invalid state of mobile id login"() {
@@ -84,7 +74,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         boolean isLoginComplete = mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        isLoginComplete == false
+        !isLoginComplete
     }
 
     def "IsLoginComplete: Mobile ID sessionStatus is missing"() {
@@ -93,7 +83,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         boolean isLoginComplete = mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        isLoginComplete == false
+        !isLoginComplete
     }
 
 
@@ -103,7 +93,7 @@ class MobileIdAuthServiceSpec extends Specification {
         when:
         boolean isLoginComplete = mobileIdAuthService.isLoginComplete(sampleMobileIdSession)
         then:
-        isLoginComplete == false
+        !isLoginComplete
     }
 
     def "IsLoginComplete: User has cancelled login operation"() {

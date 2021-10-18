@@ -25,7 +25,6 @@ import ee.sk.mid.rest.MidSessionStatusPoller;
 import ee.sk.mid.rest.dao.MidSessionStatus;
 import ee.sk.mid.rest.dao.request.MidAuthenticationRequest;
 import ee.sk.mid.rest.dao.response.MidAuthenticationResponse;
-import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,6 +39,7 @@ public class MobileIdAuthService {
   private final MidAuthenticationResponseValidator validator;
   private final MidConnector connector;
   private final MidSessionStatusPoller poller;
+  private final MobileNumberNormalizer normalizer;
 
   public MobileIDSession startLogin(String phoneNumber, String personalCode) {
 
@@ -137,32 +137,12 @@ public class MobileIdAuthService {
   private MidAuthenticationRequest getBuildMidAuthenticationRequest(
       String phoneNumber, String personalCode, MidAuthenticationHashToSign authenticationHash) {
     return MidAuthenticationRequest.newBuilder()
-        .withPhoneNumber(normalizePhoneNumber(phoneNumber))
+        .withPhoneNumber(normalizer.normalizePhoneNumber(phoneNumber))
         .withNationalIdentityNumber(personalCode)
         .withHashToSign(authenticationHash)
         .withLanguage(MidLanguage.ENG)
         .withDisplayText("Log into self-service")
         .withDisplayTextFormat(MidDisplayTextFormat.GSM7)
         .build();
-  }
-
-  private String normalizePhoneNumber(String phone) {
-    if (phone != null) {
-      if (phone.startsWith("+")) phone = phone.substring(1);
-      if (isLithuanian(phone)) {
-        return "+370" + phone;
-      } else if (isEstonian(phone)) {
-        return "+372" + phone;
-      }
-    }
-    return "+" + phone;
-  }
-
-  private boolean isEstonian(String phone) {
-    return Stream.of("5", "81", "82", "83", "84", "870", "871").anyMatch(phone::startsWith);
-  }
-
-  private boolean isLithuanian(String phone) {
-    return phone.startsWith("86");
   }
 }

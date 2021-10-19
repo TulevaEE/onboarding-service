@@ -45,7 +45,7 @@ public class UserService {
                 })
             .orElseThrow(() -> new RuntimeException("User does not exist"));
 
-    log.info("Updating user with id {}", user.getId());
+    log.info("Updating user: userId={}", user.getId());
 
     return save(user);
   }
@@ -64,7 +64,7 @@ public class UserService {
         Member.builder().user(user).memberNumber(memberRepository.getNextMemberNumber()).build();
 
     log.info(
-        "Registering user as new member #{}: user id: {}",
+        "Registering user as new member: member #={}, userId={}",
         newMember.getMemberNumber(),
         user.getId());
 
@@ -79,7 +79,7 @@ public class UserService {
   }
 
   public User save(User user) {
-    log.info("Saving user with id {}", user.getId());
+    log.info("Saving user: userId={}", user.getId());
     return userRepository.save(user);
   }
 }

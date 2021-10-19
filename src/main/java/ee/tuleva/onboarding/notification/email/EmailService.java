@@ -72,7 +72,7 @@ public class EmailService {
       }
 
       log.info(
-          "Sending email from {} to user {} at {}",
+          "Sending email to user: from={}, userId={}, sendAt={}",
           emailConfiguration.getFrom(),
           user.getId(),
           sendAt);
@@ -91,7 +91,7 @@ public class EmailService {
 
   public List<Recipient> getRecipients(User user) {
     if (isBlank(user.getEmail())) {
-      log.error("User email is missing: user={}", user.getId());
+      log.error("User email is missing: userId={}", user.getId());
     }
 
     List<Recipient> recipients = new ArrayList<>();

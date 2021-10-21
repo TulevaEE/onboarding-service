@@ -63,11 +63,11 @@ public class SmartIdAuthService {
         return true;
       }
     } catch (UnprocessableSmartIdResponseException e) {
-      log.info("Smart ID validation failed: personal_code=" + session.getPersonalCode(), e);
+      log.info("Smart ID validation failed: personalCode=" + session.getPersonalCode(), e);
       throw new SmartIdException(
           ofSingleError("smart.id.validation.failed", "Smart ID validation failed"));
     } catch (UserAccountNotFoundException e) {
-      log.info("Smart ID User account not found: personal_code=" + session.getPersonalCode(), e);
+      log.info("Smart ID User account not found: personalCode=" + session.getPersonalCode(), e);
       throw new SmartIdException(
           ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
     } catch (UserRefusedException e) {

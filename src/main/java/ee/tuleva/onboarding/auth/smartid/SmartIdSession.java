@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import ee.sk.smartid.AuthenticationHash;
 import ee.sk.smartid.AuthenticationIdentity;
-import ee.sk.smartid.SmartIdAuthenticationResult;
 import ee.tuleva.onboarding.auth.principal.Person;
 import java.io.Serializable;
 import lombok.Data;
@@ -20,10 +19,9 @@ public class SmartIdSession implements Person, Serializable {
   private String lastName;
   private String country;
 
-  public void setAuthenticationResult(SmartIdAuthenticationResult result) {
-    AuthenticationIdentity identity = result.getAuthenticationIdentity();
+  public void setAuthenticationIdentity(AuthenticationIdentity identity) {
     firstName = identity.getGivenName();
-    lastName = identity.getSurName();
+    lastName = identity.getSurname();
     country = identity.getCountry();
   }
 }

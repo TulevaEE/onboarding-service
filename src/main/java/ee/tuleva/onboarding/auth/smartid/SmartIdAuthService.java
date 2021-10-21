@@ -8,6 +8,7 @@ import ee.sk.smartid.AuthenticationRequestBuilder;
 import ee.sk.smartid.AuthenticationResponseValidator;
 import ee.sk.smartid.SmartIdAuthenticationResponse;
 import ee.sk.smartid.SmartIdClient;
+import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
 import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
 import ee.sk.smartid.exception.useraction.UserRefusedException;
 import ee.sk.smartid.rest.SmartIdConnector;
@@ -61,8 +62,12 @@ public class SmartIdAuthService {
         session.setAuthenticationIdentity(authenticationIdentity);
         return true;
       }
+    } catch (UnprocessableSmartIdResponseException e) {
+      log.info("Smart ID validation failed: personal_code=" + session.getPersonalCode(), e);
+      throw new SmartIdException(
+          ofSingleError("smart.id.validation.failed", "Smart ID validation failed"));
     } catch (UserAccountNotFoundException e) {
-      log.info("Smart ID User account not found: " + session.getPersonalCode(), e);
+      log.info("Smart ID User account not found: personal_code=" + session.getPersonalCode(), e);
       throw new SmartIdException(
           ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
     } catch (UserRefusedException e) {

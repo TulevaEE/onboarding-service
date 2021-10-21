@@ -2,11 +2,21 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError;
 
-import ee.sk.smartid.*;
-import ee.sk.smartid.exception.*;
+import ee.sk.smartid.AuthenticationHash;
+import ee.sk.smartid.AuthenticationIdentity;
+import ee.sk.smartid.AuthenticationRequestBuilder;
+import ee.sk.smartid.AuthenticationResponseValidator;
+import ee.sk.smartid.SmartIdAuthenticationResponse;
+import ee.sk.smartid.SmartIdClient;
+import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
+import ee.sk.smartid.exception.useraction.UserRefusedException;
 import ee.sk.smartid.rest.SmartIdConnector;
-import ee.sk.smartid.rest.dao.NationalIdentity;
+import ee.sk.smartid.rest.dao.Interaction;
+import ee.sk.smartid.rest.dao.SemanticsIdentifier;
+import ee.sk.smartid.rest.dao.SemanticsIdentifier.CountryCode;
+import ee.sk.smartid.rest.dao.SemanticsIdentifier.IdentityType;
 import ee.sk.smartid.rest.dao.SessionStatus;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,9 +44,9 @@ public class SmartIdAuthService {
     }
   }
 
-  public boolean isLoginComplete(SmartIdSession smartIdSession) {
+  public boolean isLoginComplete(SmartIdSession session) {
     try {
-      SessionStatus sessionStatus = connector.getSessionStatus(smartIdSession.getSessionId());
+      SessionStatus sessionStatus = connector.getSessionStatus(session.getSessionId());
 
       if (sessionStatus == null || "RUNNING".equalsIgnoreCase(sessionStatus.getState())) {
         return false;
@@ -44,15 +54,15 @@ public class SmartIdAuthService {
 
       if ("COMPLETE".equalsIgnoreCase(sessionStatus.getState())) {
         SmartIdAuthenticationResponse authenticationResponse =
-            builder(smartIdSession.getPersonalCode(), smartIdSession.getAuthenticationHash())
+            builder(session.getPersonalCode(), session.getAuthenticationHash())
                 .createSmartIdAuthenticationResponse(sessionStatus);
-        SmartIdAuthenticationResult authenticationResult =
-            getAuthenticationResult(authenticationResponse);
-        smartIdSession.setAuthenticationResult(authenticationResult);
-        return authenticationResult.isValid();
+        AuthenticationIdentity authenticationIdentity =
+            authenticationResponseValidator.validate(authenticationResponse);
+        session.setAuthenticationIdentity(authenticationIdentity);
+        return true;
       }
     } catch (UserAccountNotFoundException e) {
-      log.info("Smart ID User account not found: " + smartIdSession.getPersonalCode(), e);
+      log.info("Smart ID User account not found: " + session.getPersonalCode(), e);
       throw new SmartIdException(
           ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
     } catch (UserRefusedException e) {
@@ -68,24 +78,13 @@ public class SmartIdAuthService {
   }
 
   private AuthenticationRequestBuilder builder(
-      String nationalIdentityCode, AuthenticationHash authenticationHash) {
+      String personalCode, AuthenticationHash authenticationHash) {
     return smartIdClient
         .createAuthentication()
-        .withNationalIdentity(new NationalIdentity("EE", nationalIdentityCode))
+        .withSemanticsIdentifier(
+            new SemanticsIdentifier(IdentityType.PNO, CountryCode.EE, personalCode))
         .withAuthenticationHash(authenticationHash)
-        .withCertificateLevel(
-            "QUALIFIED"); // Certificate level can either be "QUALIFIED" or "ADVANCED"
-  }
-
-  private SmartIdAuthenticationResult getAuthenticationResult(
-      SmartIdAuthenticationResponse authenticationResponse) {
-    SmartIdAuthenticationResult result =
-        authenticationResponseValidator.validate(authenticationResponse);
-    log.info("Smart ID authentication response is valid {}", result.isValid());
-    if (!result.isValid()) {
-      result.getErrors().forEach(log::error);
-      throw SmartIdException.ofErrors(result.getErrors());
-    }
-    return result;
+        .withAllowedInteractionsOrder(List.of(Interaction.displayTextAndPIN("Tuleva: Log In")))
+        .withCertificateLevel("QUALIFIED");
   }
 }

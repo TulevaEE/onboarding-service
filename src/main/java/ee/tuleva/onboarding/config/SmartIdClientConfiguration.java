@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.config;
 
 import ee.sk.smartid.AuthenticationResponseValidator;
 import ee.sk.smartid.SmartIdClient;
-import ee.sk.smartid.exception.TechnicalErrorException;
+import ee.sk.smartid.exception.permanent.SmartIdClientException;
 import ee.sk.smartid.rest.SmartIdConnector;
 import java.io.IOException;
 import java.io.InputStream;
@@ -59,7 +59,7 @@ public class SmartIdClientConfiguration {
         validator.addTrustedCACertificate(certificate);
       }
     } catch (KeyStoreException e) {
-      throw new TechnicalErrorException("Error initializing trusted CA certificates", e);
+      throw new SmartIdClientException("Error initializing trusted CA certificates", e);
     }
   }
 
@@ -72,7 +72,7 @@ public class SmartIdClientConfiguration {
       trustStore.load(inputStream, null);
       return trustStore;
     } catch (IOException | KeyStoreException | NoSuchAlgorithmException | CertificateException e) {
-      throw new TechnicalErrorException("Error initializing trusted CA certificates", e);
+      throw new SmartIdClientException("Error initializing trusted CA certificates", e);
     }
   }
 }

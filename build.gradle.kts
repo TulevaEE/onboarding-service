@@ -86,9 +86,7 @@ dependencies {
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:3.0.1")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:3.0.1")
 
-    implementation("com.github.SK-EID:smart-id-java-client:1.6.1")
-    // TODO: upgrade
-    // implementation("ee.sk.smartid:smart-id-java-client:2.0")
+    implementation("ee.sk.smartid:smart-id-java-client:2.1.1")
     implementation("org.digidoc4j:digidoc4j:4.2.1") {
         exclude(group = "commons-logging", module = "commons-logging")
     }

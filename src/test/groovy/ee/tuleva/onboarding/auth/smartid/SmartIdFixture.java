@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import ee.sk.smartid.AuthenticationHash;
 import ee.sk.smartid.AuthenticationIdentity;
-import ee.sk.smartid.SmartIdAuthenticationResult;
 
 public class SmartIdFixture {
 
@@ -22,12 +21,7 @@ public class SmartIdFixture {
     AuthenticationIdentity identity = new AuthenticationIdentity();
     identity.setIdentityCode(personalCode);
     identity.setGivenName(firstName);
-    identity.setSurName(lastName);
-
-    SmartIdAuthenticationResult result = new SmartIdAuthenticationResult();
-    result.setValid(true);
-    result.setAuthenticationIdentity(identity);
-
-    sampleFinalSmartIdSession.setAuthenticationResult(result);
+    identity.setSurname(lastName);
+    sampleFinalSmartIdSession.setAuthenticationIdentity(identity);
   }
 }

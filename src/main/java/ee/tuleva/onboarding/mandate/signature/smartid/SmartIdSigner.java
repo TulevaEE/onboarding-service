@@ -2,10 +2,19 @@ package ee.tuleva.onboarding.mandate.signature.smartid;
 
 import static ee.sk.smartid.HashType.SHA256;
 
-import ee.sk.smartid.*;
-import ee.sk.smartid.exception.SmartIdException;
+import ee.sk.smartid.CertificateRequestBuilder;
+import ee.sk.smartid.SignableHash;
+import ee.sk.smartid.SignatureRequestBuilder;
+import ee.sk.smartid.SmartIdCertificate;
+import ee.sk.smartid.SmartIdClient;
+import ee.sk.smartid.SmartIdSignature;
+import ee.sk.smartid.VerificationCodeCalculator;
+import ee.sk.smartid.exception.permanent.SmartIdClientException;
 import ee.sk.smartid.rest.SmartIdConnector;
-import ee.sk.smartid.rest.dao.NationalIdentity;
+import ee.sk.smartid.rest.dao.Interaction;
+import ee.sk.smartid.rest.dao.SemanticsIdentifier;
+import ee.sk.smartid.rest.dao.SemanticsIdentifier.CountryCode;
+import ee.sk.smartid.rest.dao.SemanticsIdentifier.IdentityType;
 import ee.sk.smartid.rest.dao.SessionStatus;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.mandate.signature.DigiDocFacade;
@@ -63,7 +72,8 @@ public class SmartIdSigner {
       return null;
     }
     if (!"COMPLETE".equalsIgnoreCase(sessionStatus.getState())) {
-      throw new SmartIdException("Invalid Smart-ID session status: " + sessionStatus.getState());
+      throw new SmartIdClientException(
+          "Invalid Smart-ID session status: " + sessionStatus.getState());
     }
     return sessionStatus;
   }
@@ -118,7 +128,8 @@ public class SmartIdSigner {
   private CertificateRequestBuilder certificateRequestBuilder(String personalCode) {
     return smartIdClient
         .getCertificate()
-        .withNationalIdentity(new NationalIdentity("EE", personalCode))
+        .withSemanticsIdentifier(
+            new SemanticsIdentifier(IdentityType.PNO, CountryCode.EE, personalCode))
         .withCertificateLevel("QUALIFIED");
   }
 
@@ -128,6 +139,8 @@ public class SmartIdSigner {
         .createSignature()
         .withDocumentNumber(documentNumber)
         .withSignableHash(signableHash)
+        .withAllowedInteractionsOrder(
+            List.of(Interaction.displayTextAndPIN("Tuleva: Sign Document")))
         .withCertificateLevel("QUALIFIED");
   }
 }

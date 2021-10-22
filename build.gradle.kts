@@ -57,27 +57,27 @@ repositories {
 }
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-actuator:2.4.10")
-    implementation("org.springframework.boot:spring-boot-starter-security:2.4.10")
-    implementation("org.springframework.boot:spring-boot-starter-web:2.4.10")
-    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:2.4.10")
-    implementation("org.springframework.boot:spring-boot-starter-cache:2.4.10")
-    implementation("org.springframework.boot:spring-boot-starter-aop:2.4.10")
-    implementation("org.springframework.boot:spring-boot-starter-json:2.4.10")
-    implementation("org.springframework.boot:spring-boot-starter-validation:2.4.10")
-    implementation("org.springframework.cloud:spring-cloud-starter-sleuth:3.0.4")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("org.springframework.boot:spring-boot-starter-security")
+    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
+    implementation("org.springframework.boot:spring-boot-starter-cache")
+    implementation("org.springframework.boot:spring-boot-starter-aop")
+    implementation("org.springframework.boot:spring-boot-starter-json")
+    implementation("org.springframework.boot:spring-boot-starter-validation")
+    implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
     implementation("io.springfox:springfox-boot-starter:3.0.0")
-    implementation("org.springframework.session:spring-session-jdbc:2.4.5")
+    implementation("org.springframework.session:spring-session-jdbc")
 
-    implementation("de.codecentric:spring-boot-admin-starter-client:2.5.2")
+    implementation("de.codecentric:spring-boot-admin-starter-client")
     implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.5.5")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.1.RELEASE")
 
-    developmentOnly("org.springframework.boot:spring-boot-devtools:2.5.6")
+    developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql:42.2.23")
 
     implementation("org.flywaydb:flyway-core:7.1.1")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa:2.4.10")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.jsoup:jsoup:1.14.3")
     implementation("commons-net:commons-net:3.8.0")
     implementation("org.apache.commons:commons-lang3:3.12.0")
@@ -109,7 +109,7 @@ dependencies {
     testAnnotationProcessor("org.projectlombok:lombok:1.18.22")
 
     testImplementation("com.h2database:h2:1.4.200")
-    testImplementation("org.springframework.boot:spring-boot-starter-test:2.5.6") {
+    testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }

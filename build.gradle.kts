@@ -62,7 +62,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web:2.4.10")
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf:2.4.10")
     implementation("org.springframework.boot:spring-boot-starter-cache:2.4.10")
-    implementation("org.springframework.boot:spring-boot-starter-aop:2.4.10")
+    implementation("org.springframework.boot:spring-boot-starter-aop:2.5.6")
     implementation("org.springframework.boot:spring-boot-starter-json:2.4.10")
     implementation("org.springframework.boot:spring-boot-starter-validation:2.4.10")
     implementation("org.springframework.cloud:spring-cloud-starter-sleuth:3.0.4")

@@ -74,7 +74,7 @@ dependencies {
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.1.RELEASE")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
-    runtimeOnly("org.postgresql:postgresql:42.2.23")
+    runtimeOnly("org.postgresql:postgresql:42.3.0")
 
     implementation("org.flywaydb:flyway-core:7.1.1")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")

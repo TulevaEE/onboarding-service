@@ -109,7 +109,7 @@ dependencies {
     testAnnotationProcessor("org.projectlombok:lombok:1.18.22")
 
     testImplementation("com.h2database:h2:1.4.200")
-    testImplementation("org.springframework.boot:spring-boot-starter-test:2.4.10") {
+    testImplementation("org.springframework.boot:spring-boot-starter-test:2.5.6") {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }

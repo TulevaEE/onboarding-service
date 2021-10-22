@@ -76,7 +76,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     runtimeOnly("org.postgresql:postgresql:42.2.23")
 
-    implementation("org.flywaydb:flyway-core:7.1.1")
+    implementation("org.flywaydb:flyway-core:8.0.2")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.jsoup:jsoup:1.14.3")
     implementation("commons-net:commons-net:3.8.0")

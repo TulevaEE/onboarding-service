@@ -64,7 +64,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-cache:2.4.10")
     implementation("org.springframework.boot:spring-boot-starter-aop:2.4.10")
     implementation("org.springframework.boot:spring-boot-starter-json:2.4.10")
-    implementation("org.springframework.boot:spring-boot-starter-validation:2.4.10")
+    implementation("org.springframework.boot:spring-boot-starter-validation:2.5.6")
     implementation("org.springframework.cloud:spring-cloud-starter-sleuth:3.0.4")
     implementation("io.springfox:springfox-boot-starter:3.0.0")
     implementation("org.springframework.session:spring-session-jdbc:2.4.5")

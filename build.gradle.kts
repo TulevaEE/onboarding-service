@@ -73,7 +73,7 @@ dependencies {
     implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.5.5")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.1.RELEASE")
 
-    developmentOnly("org.springframework.boot:spring-boot-devtools:2.4.10")
+    developmentOnly("org.springframework.boot:spring-boot-devtools:2.5.6")
     runtimeOnly("org.postgresql:postgresql:42.2.23")
 
     implementation("org.flywaydb:flyway-core:7.1.1")

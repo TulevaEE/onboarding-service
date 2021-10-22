@@ -100,7 +100,7 @@ dependencies {
 
     implementation("ee.sk.mid:mid-rest-java-client:1.3")
 
-    implementation("com.google.guava:guava:30.1.1-jre")
+    implementation("com.google.guava:guava:31.0.1-jre")
 
     compileOnly("org.projectlombok:lombok:1.18.22")
     annotationProcessor("org.projectlombok:lombok:1.18.22")

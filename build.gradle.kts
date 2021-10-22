@@ -57,31 +57,31 @@ repositories {
 }
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
-    implementation("org.springframework.boot:spring-boot-starter-security")
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
-    implementation("org.springframework.boot:spring-boot-starter-cache")
-    implementation("org.springframework.boot:spring-boot-starter-aop")
-    implementation("org.springframework.boot:spring-boot-starter-json")
-    implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
+    implementation("org.springframework.boot:spring-boot-starter-actuator:2.4.10")
+    implementation("org.springframework.boot:spring-boot-starter-security:2.4.10")
+    implementation("org.springframework.boot:spring-boot-starter-web:2.4.10")
+    implementation("org.springframework.boot:spring-boot-starter-thymeleaf:2.4.10")
+    implementation("org.springframework.boot:spring-boot-starter-cache:2.4.10")
+    implementation("org.springframework.boot:spring-boot-starter-aop:2.4.10")
+    implementation("org.springframework.boot:spring-boot-starter-json:2.4.10")
+    implementation("org.springframework.boot:spring-boot-starter-validation:2.4.10")
+    implementation("org.springframework.cloud:spring-cloud-starter-sleuth:3.0.4")
     implementation("io.springfox:springfox-boot-starter:3.0.0")
-    implementation("org.springframework.session:spring-session-jdbc")
+    implementation("org.springframework.session:spring-session-jdbc:2.4.5")
 
-    implementation("de.codecentric:spring-boot-admin-starter-client")
+    implementation("de.codecentric:spring-boot-admin-starter-client:2.5.2")
     implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.5.5")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.1.RELEASE")
 
-    developmentOnly("org.springframework.boot:spring-boot-devtools")
-    runtimeOnly("org.postgresql:postgresql")
+    developmentOnly("org.springframework.boot:spring-boot-devtools:2.4.10")
+    runtimeOnly("org.postgresql:postgresql:42.2.23")
 
-    implementation("org.flywaydb:flyway-core")
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+    implementation("org.flywaydb:flyway-core:7.1.1")
+    implementation("org.springframework.boot:spring-boot-starter-data-jpa:2.4.10")
     implementation("org.jsoup:jsoup:1.14.3")
     implementation("commons-net:commons-net:3.8.0")
     implementation("org.apache.commons:commons-lang3:3.12.0")
-    implementation("net.sf.ehcache:ehcache")
+    implementation("net.sf.ehcache:ehcache:2.10.9.2")
     implementation("org.decampo:xirr:1.1")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:3.0.2")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:3.0.1")
@@ -108,8 +108,8 @@ dependencies {
     testCompileOnly("org.projectlombok:lombok:1.18.22")
     testAnnotationProcessor("org.projectlombok:lombok:1.18.22")
 
-    testImplementation("com.h2database:h2")
-    testImplementation("org.springframework.boot:spring-boot-starter-test") {
+    testImplementation("com.h2database:h2:1.4.200")
+    testImplementation("org.springframework.boot:spring-boot-starter-test:2.4.10") {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }
@@ -123,7 +123,7 @@ dependencies {
     testImplementation("org.codehaus.groovy:groovy:3.0.9")
     testImplementation("org.mock-server:mockserver-netty:5.11.2")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.11.2")
-    testImplementation("org.springframework.security:spring-security-test")
+    testImplementation("org.springframework.security:spring-security-test:5.4.8")
     testImplementation("org.mockftpserver:MockFtpServer:3.0.0")
     testImplementation("com.github.TulevaEE.java-snapshot-testing:java-snapshot-testing-spock:-SNAPSHOT")
     testImplementation("com.github.TulevaEE.java-snapshot-testing:java-snapshot-testing-plugin-jackson:-SNAPSHOT")

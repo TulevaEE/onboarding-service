@@ -71,16 +71,16 @@ dependencies {
 
     implementation("de.codecentric:spring-boot-admin-starter-client")
     implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.5.5")
-    implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.1.RELEASE")
+    implementation("org.springframework.security.oauth:spring-security-oauth2")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
-    runtimeOnly("org.postgresql:postgresql:42.2.23")
+    runtimeOnly("org.postgresql:postgresql")
 
-    implementation("org.flywaydb:flyway-core:7.1.1")
+    implementation("org.flywaydb:flyway-core")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.jsoup:jsoup:1.14.3")
     implementation("commons-net:commons-net:3.8.0")
-    implementation("org.apache.commons:commons-lang3:3.12.0")
+    implementation("org.apache.commons:commons-lang3")
     implementation("net.sf.ehcache:ehcache:2.10.9.2")
     implementation("org.decampo:xirr:1.1")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:3.0.2")
@@ -108,7 +108,7 @@ dependencies {
     testCompileOnly("org.projectlombok:lombok:1.18.22")
     testAnnotationProcessor("org.projectlombok:lombok:1.18.22")
 
-    testImplementation("com.h2database:h2:1.4.200")
+    testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
@@ -123,7 +123,7 @@ dependencies {
     testImplementation("org.codehaus.groovy:groovy:3.0.9")
     testImplementation("org.mock-server:mockserver-netty:5.11.2")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.11.2")
-    testImplementation("org.springframework.security:spring-security-test:5.5.3")
+    testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.0.0")
     testImplementation("com.github.TulevaEE.java-snapshot-testing:java-snapshot-testing-spock:-SNAPSHOT")
     testImplementation("com.github.TulevaEE.java-snapshot-testing:java-snapshot-testing-plugin-jackson:-SNAPSHOT")

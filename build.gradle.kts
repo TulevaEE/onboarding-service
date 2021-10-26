@@ -125,8 +125,8 @@ dependencies {
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.11.2")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.0.0")
-    testImplementation("com.github.TulevaEE.java-snapshot-testing:java-snapshot-testing-spock:-SNAPSHOT")
-    testImplementation("com.github.TulevaEE.java-snapshot-testing:java-snapshot-testing-plugin-jackson:-SNAPSHOT")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:3.2.6")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:3.2.6")
 }
 
 dependencyManagement {

@@ -60,7 +60,7 @@ public class PaymentController {
     boolean isStatusCompleted = COMPLETED.equalsIgnoreCase(payment.getStatus());
 
     if (isStatusCompleted && !isAMember) {
-      User user = userService.registerAsMember(userId, payment.getCustomerName());
+      User user = userService.registerAsMember(userId);
       applicationEventPublisher.publishEvent(new MemberCreatedEvent(user));
     } else {
       log.warn(

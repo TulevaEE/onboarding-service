@@ -18,21 +18,11 @@ class UserServiceSpec extends Specification {
   String personalCodeSample = "somePersonalCode"
 
   @Shared
-  def sampleUser = sampleUser().build()
-  @Shared
   def sampleUserNonMember = User.builder()
       .phoneNumber("somePhone")
       .email("someEmail")
       .personalCode(personalCodeSample)
       .active(true)
-
-  @Shared
-  def otherUserNonMember = User.builder()
-      .phoneNumber("someOtherPhone")
-      .email("someOtherEmail")
-      .personalCode("someOtherPersonalCode")
-      .active(true)
-
 
   def "get user by id"() {
     given:
@@ -69,7 +59,7 @@ class UserServiceSpec extends Specification {
     }
 
     when:
-    def returnedUser = service.registerAsMember(user.id, "${user.firstName} ${user.lastName}")
+    def returnedUser = service.registerAsMember(user.id)
     def member = returnedUser.member.get()
 
     then:
@@ -83,7 +73,7 @@ class UserServiceSpec extends Specification {
     userRepository.findById(user.id) >> Optional.of(user)
 
     when:
-    service.registerAsMember(user.id, "${user.firstName} ${user.lastName}")
+    service.registerAsMember(user.id)
 
     then:
     thrown(UserAlreadyAMemberException)
@@ -117,13 +107,5 @@ class UserServiceSpec extends Specification {
 
     then:
     createdUser == user
-  }
-
-  private User updatedUser(String personalCode, String email, String phoneNumber) {
-    sampleUserNonMember.personalCode(personalCode).email(email).phoneNumber(phoneNumber).build()
-  }
-
-  private User newUser(String personalCode, String email, String phoneNumber) {
-    User.builder().personalCode(personalCode).email(email).phoneNumber(phoneNumber).active(true).build()
   }
 }

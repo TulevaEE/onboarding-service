@@ -56,7 +56,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .andExpect(status().isFound())
         .andExpect(redirectedUrl(membershipSuccessUrl))
     1 * validator.validate(*_)
-    1 * userService.registerAsMember(1L, json.customer_name) >> sampleUser
+    1 * userService.registerAsMember(1L) >> sampleUser
     1 * eventPublisher.publishEvent({
       it.user == sampleUser
     })

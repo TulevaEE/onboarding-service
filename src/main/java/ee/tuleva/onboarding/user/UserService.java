@@ -50,7 +50,7 @@ public class UserService {
     return save(user);
   }
 
-  public User registerAsMember(Long userId, String fullName) {
+  public User registerAsMember(Long userId) {
     User user =
         userRepository
             .findById(userId)

@@ -47,18 +47,17 @@ public class UserDetailsUpdater {
 
     userService
         .findByPersonalCode(person.getPersonalCode())
-        .map(
-            user -> {
-              if (!user.hasContactDetails()) {
-                log.info("User contact details missing. Filling them in with EPIS data");
-                UserPreferences contactDetails =
-                    contactDetailsService.getContactDetails(person, token);
-                userService.updateUser(
-                    person.getPersonalCode(),
-                    StringUtils.trim(contactDetails.getEmail()),
-                    StringUtils.trim(contactDetails.getPhoneNumber()));
-              }
-              return user;
-            });
+        .ifPresent(user -> updateContactDetails(person, token, user));
+  }
+
+  private void updateContactDetails(Person person, String token, User user) {
+    if (!user.hasContactDetails()) {
+      log.info("User contact details missing. Filling them in with EPIS data");
+      UserPreferences contactDetails = contactDetailsService.getContactDetails(person, token);
+      userService.updateUser(
+          person.getPersonalCode(),
+          StringUtils.trim(contactDetails.getEmail()),
+          StringUtils.trim(contactDetails.getPhoneNumber()));
+    }
   }
 }

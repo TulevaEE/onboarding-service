@@ -31,7 +31,8 @@ class MandateControllerSpec extends BaseControllerSpec {
   LocaleResolver localeResolver = Mock(LocaleResolver)
 
   MandateController controller =
-    new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver, mandateFileService, localeResolver)
+      new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver, mandateFileService,
+          localeResolver)
 
   MockMvc mvc = mockMvc(controller)
 
@@ -41,20 +42,23 @@ class MandateControllerSpec extends BaseControllerSpec {
     mandateService.save(_ as Long, _ as CreateMandateCommand) >> mandate
     then:
     mvc
-      .perform(post("/v1/mandates")
-        .content(mapper.writeValueAsString(sampleCreateMandateCommand()))
-        .contentType(MediaType.APPLICATION_JSON))
-      .andExpect(status().isOk())
-      .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-      .andExpect(jsonPath('$.futureContributionFundIsin', is(mandate.futureContributionFundIsin.get())))
-      .andExpect(jsonPath('$.pillar', is(mandate.pillar)))
-      .andExpect(jsonPath('$.address.street', is(mandate.address.street)))
-      .andExpect(jsonPath('$.address.districtCode', is(mandate.address.districtCode)))
-      .andExpect(jsonPath('$.address.postalCode', is(mandate.address.postalCode)))
-      .andExpect(jsonPath('$.address.countryCode', is(mandate.address.countryCode)))
-      .andExpect(jsonPath('$.fundTransferExchanges[0].sourceFundIsin', is(mandate.fundTransferExchanges[0].sourceFundIsin)))
-      .andExpect(jsonPath('$.fundTransferExchanges[0].targetFundIsin', is(mandate.fundTransferExchanges[0].targetFundIsin)))
-      .andExpect(jsonPath('$.fundTransferExchanges[0].amount', is(mandate.fundTransferExchanges[0].amount.doubleValue())))
+        .perform(post("/v1/mandates")
+            .content(mapper.writeValueAsString(sampleCreateMandateCommand()))
+            .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.futureContributionFundIsin', is(mandate.futureContributionFundIsin.get())))
+        .andExpect(jsonPath('$.pillar', is(mandate.pillar)))
+        .andExpect(jsonPath('$.address.street', is(mandate.address.street)))
+        .andExpect(jsonPath('$.address.districtCode', is(mandate.address.districtCode)))
+        .andExpect(jsonPath('$.address.postalCode', is(mandate.address.postalCode)))
+        .andExpect(jsonPath('$.address.countryCode', is(mandate.address.countryCode)))
+        .andExpect(
+            jsonPath('$.fundTransferExchanges[0].sourceFundIsin', is(mandate.fundTransferExchanges[0].sourceFundIsin)))
+        .andExpect(
+            jsonPath('$.fundTransferExchanges[0].targetFundIsin', is(mandate.fundTransferExchanges[0].targetFundIsin)))
+        .andExpect(
+            jsonPath('$.fundTransferExchanges[0].amount', is(mandate.fundTransferExchanges[0].amount.doubleValue())))
   }
 
   def "mobile id signature start returns the mobile id challenge code"() {
@@ -64,11 +68,11 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     then:
     mvc
-      .perform(put("/v1/mandates/1/signature/mobileId")
-        .contentType(MediaType.APPLICATION_JSON))
-      .andExpect(status().isOk())
-      .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-      .andExpect(jsonPath('$.challengeCode', is("1234")))
+        .perform(put("/v1/mandates/1/signature/mobileId")
+            .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.challengeCode', is("1234")))
   }
 
   def "mobile id signature start fails when there's no mobile id session"() {
@@ -77,7 +81,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     when:
     MvcResult result = mvc.perform(put("/v1/mandates/1/signature/mobileId"))
-      .andReturn()
+        .andReturn()
 
     then:
     IdSessionException exception = result.resolvedException
@@ -94,11 +98,11 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     then:
     mvc
-      .perform(get("/v1/mandates/1/signature/mobileId/status"))
-      .andExpect(status().isOk())
-      .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-      .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
-      .andExpect(jsonPath('$.challengeCode', is("1234")))
+        .perform(get("/v1/mandates/1/signature/mobileId/status"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
+        .andExpect(jsonPath('$.challengeCode', is("1234")))
   }
 
   def "smart id signature start returns null challenge code"() {
@@ -109,11 +113,11 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     then:
     mvc
-      .perform(put("/v1/mandates/1/signature/smartId")
-        .contentType(MediaType.APPLICATION_JSON))
-      .andExpect(status().isOk())
-      .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-      .andExpect(jsonPath('$.challengeCode', is(null)))
+        .perform(put("/v1/mandates/1/signature/smartId")
+            .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.challengeCode', is(null)))
   }
 
   def "get smart id signature status returns the status and challenge code"() {
@@ -126,25 +130,26 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     then:
     mvc
-      .perform(get("/v1/mandates/1/signature/smartId/status"))
-      .andExpect(status().isOk())
-      .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-      .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
-      .andExpect(jsonPath('$.challengeCode', is("1234")))
+        .perform(get("/v1/mandates/1/signature/smartId/status"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
+        .andExpect(jsonPath('$.challengeCode', is("1234")))
   }
 
   def "id card signature start returns the hash to be signed by the client"() {
     when:
-    mandateService.idCardSign(1L, _, "clientCertificate") >> IdCardSignatureSession.builder().hashToSignInHex("asdfg").build()
+    mandateService.idCardSign(1L, _, "clientCertificate") >>
+        IdCardSignatureSession.builder().hashToSignInHex("asdfg").build()
 
     then:
     mvc
-      .perform(put("/v1/mandates/1/signature/idCard")
-        .content(mapper.writeValueAsString(sampleStartIdCardSignCommand("clientCertificate")))
-        .contentType(MediaType.APPLICATION_JSON))
-      .andExpect(status().isOk())
-      .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-      .andExpect(jsonPath('$.hash', is("asdfg")))
+        .perform(put("/v1/mandates/1/signature/idCard")
+            .content(mapper.writeValueAsString(sampleStartIdCardSignCommand("clientCertificate")))
+            .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.hash', is("asdfg")))
   }
 
   def "put ID card signature status returns the status code"() {
@@ -156,24 +161,24 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     then:
     mvc
-      .perform(put("/v1/mandates/1/signature/idCard/status")
-        .content(mapper.writeValueAsString(sampleFinishIdCardSignCommand("signedHash")))
-        .contentType(MediaType.APPLICATION_JSON))
-      .andExpect(status().isOk())
-      .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-      .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
+        .perform(put("/v1/mandates/1/signature/idCard/status")
+            .content(mapper.writeValueAsString(sampleFinishIdCardSignCommand("signedHash")))
+            .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.statusCode', is("SIGNATURE")))
   }
 
   def "getMandateFile returns mandate file"() {
     when:
     1 * mandateRepository
-      .findByIdAndUserId(sampleMandate().id, _ as Long) >> sampleMandate()
+        .findByIdAndUserId(sampleMandate().id, _ as Long) >> sampleMandate()
 
     then:
     MvcResult result = mvc
-      .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
-      .andExpect(status().isOk())
-      .andReturn()
+        .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
+        .andExpect(status().isOk())
+        .andReturn()
 
     result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.bdoc"
   }
@@ -181,11 +186,11 @@ class MandateControllerSpec extends BaseControllerSpec {
   def "getMandateFile throws exception if mandate is not signed"() {
     given:
     1 * mandateRepository
-      .findByIdAndUserId(sampleMandate().id, _ as Long) >> sampleUnsignedMandate()
+        .findByIdAndUserId(sampleMandate().id, _ as Long) >> sampleUnsignedMandate()
 
     when:
     mvc
-      .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
+        .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
 
     then:
     thrown Exception
@@ -201,9 +206,9 @@ class MandateControllerSpec extends BaseControllerSpec {
 
     then:
     MvcResult result = mvc
-      .perform(get("/v1/mandates/" + sampleMandate().id + "/file/preview"))
-      .andExpect(status().isOk())
-      .andReturn()
+        .perform(get("/v1/mandates/" + sampleMandate().id + "/file/preview"))
+        .andExpect(status().isOk())
+        .andReturn()
 
     result.getResponse().getHeader("Content-Disposition") == "attachment; filename=Tuleva_avaldus.zip"
 
@@ -212,12 +217,12 @@ class MandateControllerSpec extends BaseControllerSpec {
   def "getMandateFile returns not found on non existing mandate file"() {
     when:
     1 * mandateRepository
-      .findByIdAndUserId(sampleMandate().id, _ as Long) >> null
+        .findByIdAndUserId(sampleMandate().id, _ as Long) >> null
 
     then:
     mvc
-      .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
-      .andExpect(status().isNotFound())
+        .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
+        .andExpect(status().isNotFound())
   }
 
   private Optional<MobileIDSession> dummyMobileIdSessionWithPhone(String phone) {

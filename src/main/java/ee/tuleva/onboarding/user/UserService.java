@@ -82,4 +82,9 @@ public class UserService {
     log.info("Saving user: userId={}", user.getId());
     return userRepository.save(user);
   }
+
+  public boolean isEmailExist(String personalCode, String email) {
+    Optional<User> existingUser = userRepository.findByEmail(email);
+    return existingUser.isPresent() && !personalCode.equals(existingUser.get().getPersonalCode());
+  }
 }

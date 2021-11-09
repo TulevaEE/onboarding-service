@@ -5,8 +5,7 @@ import ee.tuleva.onboarding.user.member.MemberRepository
 import spock.lang.Shared
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
+import static ee.tuleva.onboarding.auth.UserFixture.*
 
 class UserServiceSpec extends Specification {
 
@@ -107,5 +106,23 @@ class UserServiceSpec extends Specification {
 
     then:
     createdUser == user
+  }
+
+  def "isEmailExist returns correct results"() {
+    given:
+    def email = 'test@test.com'
+    userRepository.findByEmail(email) >> existingUser
+
+    when:
+    def result = service.isEmailExist(personalCode, email)
+
+    then:
+    result == isEmailExist
+
+    where:
+    personalCode                      | existingUser                      | isEmailExist
+    '37612349128'                     | Optional.of(simpleUser().build()) | true
+    '37612349128'                     | Optional.empty()                  | false
+    simpleUser().build().personalCode | Optional.of(simpleUser().build()) | false
   }
 }

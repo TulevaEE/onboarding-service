@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user;
 
+import ee.tuleva.onboarding.user.exception.DuplicateEmailException;
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
@@ -35,6 +36,10 @@ public class UserService {
   }
 
   public User updateUser(String personalCode, String email, String phoneNumber) {
+    if (isEmailExist(personalCode, email)) {
+      throw DuplicateEmailException.newInstance();
+    }
+
     User user =
         findByPersonalCode(personalCode)
             .map(

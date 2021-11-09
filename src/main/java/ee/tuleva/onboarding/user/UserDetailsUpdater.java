@@ -52,12 +52,19 @@ public class UserDetailsUpdater {
 
   private void updateContactDetails(Person person, String token, User user) {
     if (!user.hasContactDetails()) {
-      log.info("User contact details missing. Filling them in with EPIS data");
       UserPreferences contactDetails = contactDetailsService.getContactDetails(person, token);
-      userService.updateUser(
-          person.getPersonalCode(),
-          StringUtils.trim(contactDetails.getEmail()),
-          StringUtils.trim(contactDetails.getPhoneNumber()));
+      String phoneNumber = StringUtils.trim(contactDetails.getPhoneNumber());
+      String email = StringUtils.trim(contactDetails.getEmail());
+
+      if (userService.isEmailExist(person.getPersonalCode(), email)) {
+        log.info(
+            "User with given e-mail already exists, leaving the field empty for the user to fill: userId={}",
+            user.getId());
+        email = null;
+      }
+
+      log.info("User contact details missing. Filling them in with EPIS data");
+      userService.updateUser(person.getPersonalCode(), email, phoneNumber);
     }
   }
 }

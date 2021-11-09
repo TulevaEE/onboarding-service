@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user
 
+import ee.tuleva.onboarding.user.exception.DuplicateEmailException
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
 import spock.lang.Shared
@@ -40,13 +41,32 @@ class UserServiceSpec extends Specification {
     def user = sampleUser().build()
     userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
     userRepository.save(user) >> user
+    def newEmail = "erko@risthein.ee"
+    userRepository.findByEmail(newEmail) >> Optional.empty()
 
     when:
-    def updatedUser = service.updateUser(user.personalCode, "erko@risthein.ee", "555555")
+    def updatedUser = service.updateUser(user.personalCode, newEmail, "555555")
 
     then:
-    updatedUser.email == "erko@risthein.ee"
+    updatedUser.email == newEmail
     updatedUser.phoneNumber == "555555"
+  }
+
+  def "will get a clear exception when duplicate e-mail"() {
+    given:
+    def user = sampleUser().build()
+    userRepository.findByPersonalCode(user.personalCode) >> Optional.of(user)
+    userRepository.save(user) >> user
+
+    def userWithExistingEmail = simpleUser().build()
+    def newEmail = userWithExistingEmail.email
+    userRepository.findByEmail(newEmail) >> Optional.of(userWithExistingEmail)
+
+    when:
+    service.updateUser(user.personalCode, newEmail, "555555")
+
+    then:
+    thrown(DuplicateEmailException)
   }
 
   def "can register a non member user as a member"() {

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.signature.mobileid;
 
+import java.io.Serial;
 import java.io.Serializable;
 import lombok.Builder;
 import lombok.Getter;
@@ -14,7 +15,7 @@ import org.digidoc4j.DataToSign;
 @Builder
 public class MobileIdSignatureSession implements Serializable {
 
-  private static final long serialVersionUID = -7443368341567864757L;
+  @Serial private static final long serialVersionUID = -7443368341567864757L;
 
   private final String sessionId;
   private final String verificationCode;

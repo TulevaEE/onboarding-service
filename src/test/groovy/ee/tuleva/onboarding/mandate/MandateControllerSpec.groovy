@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.sk.mid.MidAuthenticationHashToSign
 import ee.tuleva.onboarding.BaseControllerSpec
-import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
+import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
-import ee.tuleva.onboarding.mandate.exception.IdSessionException
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
@@ -33,8 +32,8 @@ class MandateControllerSpec extends BaseControllerSpec {
   MandateController controller =
       new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver, mandateFileService,
           localeResolver)
-
-  MockMvc mvc = mockMvc(controller)
+  AuthenticatedPerson authenticatedPerson = AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember().build()
+  MockMvc mvc = mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
 
   def "save a mandate"() {
     when:
@@ -63,8 +62,8 @@ class MandateControllerSpec extends BaseControllerSpec {
 
   def "mobile id signature start returns the mobile id challenge code"() {
     when:
-    sessionStore.get(MobileIDSession) >> dummyMobileIdSessionWithPhone("555")
-    mandateService.mobileIdSign(1L, _, "555") >> MobileIdSignatureSession.builder().verificationCode("1234").build()
+    mandateService.mobileIdSign(1L, authenticatedPerson.getUserId(), authenticatedPerson.getPhoneNumber()) >>
+        MobileIdSignatureSession.builder().verificationCode("1234").build()
 
     then:
     mvc
@@ -73,20 +72,6 @@ class MandateControllerSpec extends BaseControllerSpec {
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.challengeCode', is("1234")))
-  }
-
-  def "mobile id signature start fails when there's no mobile id session"() {
-    given:
-    sessionStore.get(MobileIDSession) >> Optional.empty()
-
-    when:
-    MvcResult result = mvc.perform(put("/v1/mandates/1/signature/mobileId"))
-        .andReturn()
-
-    then:
-    IdSessionException exception = result.resolvedException
-    exception.errorsResponse.errors.first().code == 'mobile.id.session.not.found'
-
   }
 
   def "get mobile ID signature status returns the status and challenge code"() {
@@ -224,9 +209,4 @@ class MandateControllerSpec extends BaseControllerSpec {
         .perform(get("/v1/mandates/" + sampleMandate().id + "/file"))
         .andExpect(status().isNotFound())
   }
-
-  private Optional<MobileIDSession> dummyMobileIdSessionWithPhone(String phone) {
-    Optional.of(new MobileIDSession("", "", MidAuthenticationHashToSign.generateRandomHashOfDefaultType(), phone))
-  }
-
 }

@@ -56,7 +56,7 @@ public class UserDetailsUpdater {
       String phoneNumber = StringUtils.trim(contactDetails.getPhoneNumber());
       String email = StringUtils.trim(contactDetails.getEmail());
 
-      if (userService.isEmailExist(person.getPersonalCode(), email)) {
+      if (userService.isExistingEmail(person.getPersonalCode(), email)) {
         log.info(
             "User with given e-mail already exists, leaving the field empty for the user to fill: userId={}",
             user.getId());

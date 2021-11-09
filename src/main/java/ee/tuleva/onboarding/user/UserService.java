@@ -36,7 +36,7 @@ public class UserService {
   }
 
   public User updateUser(String personalCode, String email, String phoneNumber) {
-    if (isEmailExist(personalCode, email)) {
+    if (isExistingEmail(personalCode, email)) {
       throw DuplicateEmailException.newInstance();
     }
 
@@ -88,7 +88,7 @@ public class UserService {
     return userRepository.save(user);
   }
 
-  public boolean isEmailExist(String personalCode, String email) {
+  public boolean isExistingEmail(String personalCode, String email) {
     Optional<User> existingUser = userRepository.findByEmail(email);
     return existingUser.isPresent() && !personalCode.equals(existingUser.get().getPersonalCode());
   }

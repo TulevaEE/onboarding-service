@@ -128,19 +128,19 @@ class UserServiceSpec extends Specification {
     createdUser == user
   }
 
-  def "isEmailExist returns correct results"() {
+  def "isExistingEmail returns correct results"() {
     given:
     def email = 'test@test.com'
     userRepository.findByEmail(email) >> existingUser
 
     when:
-    def result = service.isEmailExist(personalCode, email)
+    def result = service.isExistingEmail(personalCode, email)
 
     then:
-    result == isEmailExist
+    result == isExistingEmail
 
     where:
-    personalCode                      | existingUser                      | isEmailExist
+    personalCode                      | existingUser                      | isExistingEmail
     '37612349128'                     | Optional.of(simpleUser().build()) | true
     '37612349128'                     | Optional.empty()                  | false
     simpleUser().build().personalCode | Optional.of(simpleUser().build()) | false

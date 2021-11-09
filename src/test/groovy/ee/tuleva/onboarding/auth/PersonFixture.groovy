@@ -25,6 +25,8 @@ class PersonFixture {
 
         String lastName
 
+        String phoneNumber
+
     }
 
 }

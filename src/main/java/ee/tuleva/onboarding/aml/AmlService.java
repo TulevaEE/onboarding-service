@@ -1,6 +1,13 @@
 package ee.tuleva.onboarding.aml;
 
-import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.aml.AmlCheckType.CONTACT_DETAILS;
+import static ee.tuleva.onboarding.aml.AmlCheckType.DOCUMENT;
+import static ee.tuleva.onboarding.aml.AmlCheckType.OCCUPATION;
+import static ee.tuleva.onboarding.aml.AmlCheckType.PENSION_REGISTRY_NAME;
+import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON;
+import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_AUTO;
+import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_MANUAL;
+import static ee.tuleva.onboarding.aml.AmlCheckType.SK_NAME;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.stream.Collectors.toSet;
 
@@ -100,6 +107,11 @@ public class AmlService {
       @Override
       public String getLastName() {
         return person.getLastName();
+      }
+
+      @Override
+      public String getPhoneNumber() {
+        return person.getPhoneNumber();
       }
     };
   }

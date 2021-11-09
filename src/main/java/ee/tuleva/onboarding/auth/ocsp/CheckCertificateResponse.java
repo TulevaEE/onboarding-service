@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.ocsp;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import java.io.Serial;
 import java.io.Serializable;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -11,9 +12,14 @@ import lombok.ToString;
 @ToString
 public class CheckCertificateResponse implements Serializable, Person {
 
-  private static final long serialVersionUID = 333351175769353073L;
+  @Serial private static final long serialVersionUID = 333351175769353073L;
 
   private final String firstName;
   private final String lastName;
   private final String personalCode;
+
+  @Override
+  public String getPhoneNumber() {
+    return null;
+  }
 }

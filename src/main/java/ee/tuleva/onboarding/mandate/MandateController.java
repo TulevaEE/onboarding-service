@@ -6,7 +6,6 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
 import static org.springframework.web.bind.annotation.RequestMethod.PUT;
 
 import com.fasterxml.jackson.annotation.JsonView;
-import ee.tuleva.onboarding.auth.mobileid.MobileIDSession;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
@@ -81,15 +80,9 @@ public class MandateController {
       @PathVariable("id") Long mandateId,
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
-    Optional<MobileIDSession> session = sessionStore.get(MobileIDSession.class);
-    if (session.isEmpty()) {
-      log.error("Mobile session not found. user_id: {}", authenticatedPerson.getUserId());
-    }
-    MobileIDSession loginSession = session.orElseThrow(IdSessionException::mobileSessionNotFound);
-
     MobileIdSignatureSession signatureSession =
         mandateService.mobileIdSign(
-            mandateId, authenticatedPerson.getUserId(), loginSession.getPhoneNumber());
+            mandateId, authenticatedPerson.getUserId(), authenticatedPerson.getPhoneNumber());
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());

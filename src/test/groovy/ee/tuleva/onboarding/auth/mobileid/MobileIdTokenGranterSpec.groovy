@@ -83,8 +83,7 @@ class MobileIdTokenGranterSpec extends Specification {
             person.personalCode == sampleMobileIdSession.personalCode &&
                 person.firstName == sampleMobileIdSession.firstName &&
                 person.lastName == sampleMobileIdSession.lastName
-
-        }) >> AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
+        }, _) >> AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
         ClientDetails sampleClientDetails = sampleClientDetails()
         TokenRequest tokenRequest = Mock(TokenRequest) {
             1 * createOAuth2Request(sampleClientDetails) >> Mock(OAuth2Request)

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth;
+package ee.tuleva.onboarding.auth
 
 import ee.tuleva.onboarding.auth.principal.Person
 import groovy.transform.ToString
@@ -24,8 +24,6 @@ class PersonFixture {
         String firstName
 
         String lastName
-
-        String phoneNumber
 
     }
 

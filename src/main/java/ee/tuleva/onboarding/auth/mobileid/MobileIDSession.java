@@ -2,13 +2,14 @@ package ee.tuleva.onboarding.auth.mobileid;
 
 import ee.sk.mid.MidHashToSign;
 import ee.tuleva.onboarding.auth.principal.Person;
+import java.io.Serial;
 import java.io.Serializable;
 import lombok.Data;
 
 @Data
 public class MobileIDSession implements Person, Serializable {
 
-  private static final long serialVersionUID = -7501351267187058440L;
+  @Serial private static final long serialVersionUID = -7501351267187058440L;
 
   private final String sessionId;
   private final String challenge;

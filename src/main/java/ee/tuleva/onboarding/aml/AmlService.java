@@ -108,11 +108,6 @@ public class AmlService {
       public String getLastName() {
         return person.getLastName();
       }
-
-      @Override
-      public String getPhoneNumber() {
-        return person.getPhoneNumber();
-      }
     };
   }
 

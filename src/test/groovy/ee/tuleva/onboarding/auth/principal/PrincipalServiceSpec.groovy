@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.auth.principal
 
-import ee.tuleva.onboarding.auth.PersonFixture
+
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
 import spock.lang.Specification
+
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 
 class PrincipalServiceSpec extends Specification {
 
@@ -17,12 +19,12 @@ class PrincipalServiceSpec extends Specification {
 
     def "getFromPerson: initialising from person works" () {
         given:
-        Person person = PersonFixture.samplePerson()
+        Person person = samplePerson()
 
         1 * userService.findByPersonalCode(person.personalCode) >> Optional.ofNullable(sampleUser)
 
         when:
-        AuthenticatedPerson authenticatedPerson = service.getFrom(person)
+        AuthenticatedPerson authenticatedPerson = service.getFrom(person, Optional::empty)
 
         then:
         authenticatedPerson.userId == sampleUser.id
@@ -33,7 +35,7 @@ class PrincipalServiceSpec extends Specification {
 
     def "getFromPerson: create a new user when one is not present" () {
         given:
-        Person person = PersonFixture.samplePerson()
+        Person person = samplePerson()
         String firstNameUncapitalized = "JORDAN"
         String firstNameCorrectlyCapitalized = "Jordan"
         person.firstName = firstNameUncapitalized
@@ -45,7 +47,7 @@ class PrincipalServiceSpec extends Specification {
         1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
 
         when:
-        AuthenticatedPerson authenticatedPerson = service.getFrom(person)
+        AuthenticatedPerson authenticatedPerson = service.getFrom(person, Optional::empty)
 
         then:
         1 * userService.createNewUser({User user ->
@@ -62,15 +64,15 @@ class PrincipalServiceSpec extends Specification {
 
     }
 
-    def "getFromPerson: initialising non active user exceptions" () {
+    def "getFromPerson: initialising non active user throws exception" () {
         given:
-        Person person = PersonFixture.samplePerson()
+        Person person = samplePerson()
         User user = User.builder().active(false).build()
 
         1 * userService.findByPersonalCode(person.personalCode) >> Optional.ofNullable(user)
 
         when:
-        service.getFrom(person)
+        service.getFrom(person, Optional::empty)
 
         then:
         thrown InvalidRequestException

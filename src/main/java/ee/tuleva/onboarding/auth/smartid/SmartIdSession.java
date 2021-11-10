@@ -25,9 +25,4 @@ public class SmartIdSession implements Person, Serializable {
     lastName = identity.getSurname();
     country = identity.getCountry();
   }
-
-  @Override
-  public String getPhoneNumber() {
-    return null;
-  }
 }

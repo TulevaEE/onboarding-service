@@ -17,9 +17,4 @@ public class CheckCertificateResponse implements Serializable, Person {
   private final String firstName;
   private final String lastName;
   private final String personalCode;
-
-  @Override
-  public String getPhoneNumber() {
-    return null;
-  }
 }

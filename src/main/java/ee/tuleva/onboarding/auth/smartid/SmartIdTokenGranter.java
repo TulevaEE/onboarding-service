@@ -72,7 +72,8 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
       throw new AuthNotCompleteException();
     }
 
-    AuthenticatedPerson authenticatedPerson = principalService.getFrom(smartIdSession);
+    AuthenticatedPerson authenticatedPerson =
+        principalService.getFrom(smartIdSession, Optional::empty);
 
     Authentication userAuthentication =
         new PersonalCodeAuthentication<>(

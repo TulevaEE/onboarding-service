@@ -17,7 +17,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class AuthenticatedPerson implements Person, Serializable {
 
-  @Serial private static final long serialVersionUID = 5719823705437190708L;
+  @Serial private static final long serialVersionUID = 4921936099121765225L;
 
   @ValidPersonalCode private String personalCode;
 

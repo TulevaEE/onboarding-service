@@ -23,7 +23,7 @@ class PrincipalServiceSpec extends Specification {
     1 * userService.findByPersonalCode(person.personalCode) >> Optional.ofNullable(sampleUser)
 
     when:
-    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Optional::empty)
+    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Optional.empty())
 
     then:
     authenticatedPerson.userId == sampleUser.id
@@ -45,7 +45,7 @@ class PrincipalServiceSpec extends Specification {
     1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
 
     when:
-    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Optional::empty)
+    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Optional.empty())
 
     then:
     1 * userService.createNewUser({User user ->
@@ -70,7 +70,7 @@ class PrincipalServiceSpec extends Specification {
     1 * userService.findByPersonalCode(person.personalCode) >> Optional.ofNullable(user)
 
     when:
-    service.getFrom(person, Optional::empty)
+    service.getFrom(person, Optional.empty())
 
     then:
     thrown InvalidRequestException

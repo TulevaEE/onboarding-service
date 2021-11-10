@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import java.util.Optional;
-import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
@@ -80,10 +79,8 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
       throw new AuthNotCompleteException();
     }
 
-    Supplier<Optional<String>> phoneSupplier = () -> Optional.of(mobileIdSession.getPhoneNumber());
-
     AuthenticatedPerson authenticatedPerson =
-        principalService.getFrom(mobileIdSession, phoneSupplier);
+        principalService.getFrom(mobileIdSession, Optional.of(mobileIdSession.getPhoneNumber()));
 
     Authentication userAuthentication =
         new PersonalCodeAuthentication<>(

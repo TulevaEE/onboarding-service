@@ -5,7 +5,6 @@ import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
-import java.util.function.Supplier;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
@@ -18,7 +17,7 @@ public class PrincipalService {
 
   private final UserService userService;
 
-  public AuthenticatedPerson getFrom(Person person, Supplier<Optional<String>> phoneSupplier) {
+  public AuthenticatedPerson getFrom(Person person, Optional<String> phoneNumber) {
 
     Optional<User> userOptional = userService.findByPersonalCode(person.getPersonalCode());
 
@@ -33,7 +32,7 @@ public class PrincipalService {
         .firstName(person.getFirstName())
         .lastName(person.getLastName())
         .personalCode(person.getPersonalCode())
-        .phoneNumber(phoneSupplier.get().orElse(null))
+        .phoneNumber(phoneNumber.orElse(null))
         .userId(user.getId())
         .build();
   }

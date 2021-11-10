@@ -18,9 +18,4 @@ public class IdCardSession implements Person, Serializable {
   public final String lastName;
   public final String personalCode;
   public final IdDocumentType documentType;
-
-  @Override
-  public String getPhoneNumber() {
-    return null;
-  }
 }

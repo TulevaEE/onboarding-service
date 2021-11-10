@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.jetbrains.annotations.Nullable;
 
 @Builder
 @Getter
@@ -25,7 +26,7 @@ public class AuthenticatedPerson implements Person, Serializable {
 
   @NotBlank private String lastName;
 
-  private String phoneNumber;
+  @Nullable private String phoneNumber;
 
   private Long userId;
 

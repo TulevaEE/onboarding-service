@@ -62,8 +62,7 @@ class IdCardTokenGranterSpec extends Specification {
             person.personalCode == idCardSession.personalCode &&
                 person.firstName == idCardSession.firstName &&
                 person.lastName == idCardSession.lastName
-
-        }) >> AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
+        }, _) >> AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
         ClientDetails sampleClientDetails = clientDetails()
         TokenRequest tokenRequest = Mock(TokenRequest) {
             1 * createOAuth2Request(sampleClientDetails) >> Mock(OAuth2Request)

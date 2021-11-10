@@ -84,8 +84,7 @@ class SmartIdTokenGranterSpec extends Specification {
             person.personalCode == SmartIdFixture.personalCode &&
                 person.firstName == SmartIdFixture.firstName &&
                 person.lastName == SmartIdFixture.lastName
-
-        }) >> AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
+        }, _) >> AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
         ClientDetails sampleClientDetails = sampleClientDetails()
         TokenRequest tokenRequest = Mock(TokenRequest) {
             1 * createOAuth2Request(sampleClientDetails) >> Mock(OAuth2Request)

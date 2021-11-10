@@ -14,7 +14,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
-import org.springframework.security.oauth2.provider.*;
+import org.springframework.security.oauth2.provider.ClientDetails;
+import org.springframework.security.oauth2.provider.ClientDetailsService;
+import org.springframework.security.oauth2.provider.OAuth2Authentication;
+import org.springframework.security.oauth2.provider.OAuth2Request;
+import org.springframework.security.oauth2.provider.OAuth2RequestFactory;
+import org.springframework.security.oauth2.provider.TokenGranter;
+import org.springframework.security.oauth2.provider.TokenRequest;
 import org.springframework.security.oauth2.provider.token.AbstractTokenGranter;
 import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
 
@@ -55,7 +61,8 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
     }
     IdCardSession idCardSession = session.get();
 
-    AuthenticatedPerson authenticatedPerson = principalService.getFrom(idCardSession);
+    AuthenticatedPerson authenticatedPerson =
+        principalService.getFrom(idCardSession, Optional::empty);
 
     Authentication userAuthentication =
         new PersonalCodeAuthentication<>(

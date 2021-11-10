@@ -26,12 +26,11 @@ import org.springframework.security.oauth2.provider.token.AuthorizationServerTok
 
 public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGranter {
 
+  private static final GrantType GRANT_TYPE = GrantType.ID_CARD;
   private final GenericSessionStore sessionStore;
   private final PrincipalService principalService;
   private final GrantedAuthorityFactory grantedAuthorityFactory;
   private final ApplicationEventPublisher eventPublisher;
-
-  private static final GrantType GRANT_TYPE = GrantType.ID_CARD;
 
   public IdCardTokenGranter(
       AuthorizationServerTokenServices tokenServices,
@@ -62,7 +61,7 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
     IdCardSession idCardSession = session.get();
 
     AuthenticatedPerson authenticatedPerson =
-        principalService.getFrom(idCardSession, Optional::empty);
+        principalService.getFrom(idCardSession, Optional.empty());
 
     Authentication userAuthentication =
         new PersonalCodeAuthentication<>(

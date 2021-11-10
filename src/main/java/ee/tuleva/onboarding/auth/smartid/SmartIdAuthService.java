@@ -39,7 +39,7 @@ public class SmartIdAuthService {
 
       return new SmartIdSession(verificationCode, sessionId, personalCode, authenticationHash);
     } catch (UserAccountNotFoundException e) {
-      log.info("Smart ID User account not found: " + personalCode, e);
+      log.info("Smart ID User account not found: personalCode=" + personalCode, e);
       throw new SmartIdException(
           ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
     }

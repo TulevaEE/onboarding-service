@@ -23,11 +23,12 @@ public class PillarSuggestion {
     if (getSuggestedPillar(pillar) == 2) {
       pillarActive = contactDetails.isSecondPillarActive();
       pillarFullyConverted = conversion.isSecondPillarFullyConverted();
+      this.suggestPillar = !pillarActive;
     } else {
       pillarActive = contactDetails.isThirdPillarActive();
       pillarFullyConverted = conversion.isThirdPillarFullyConverted();
+      this.suggestPillar = !pillarActive || !pillarFullyConverted;
     }
-    this.suggestPillar = !pillarActive || !pillarFullyConverted;
     this.suggestMembership = pillarActive && pillarFullyConverted && !user.isMember();
   }
 

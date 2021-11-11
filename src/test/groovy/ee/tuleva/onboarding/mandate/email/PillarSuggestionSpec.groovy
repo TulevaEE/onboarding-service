@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
 class PillarSuggestionSpec extends Specification {
+
   def user = Mock(User)
   def contactDetails = Mock(UserPreferences)
   def conversion = Mock(ConversionResponse)
@@ -22,7 +23,7 @@ class PillarSuggestionSpec extends Specification {
     where:
     secondPillarActive | secondPillarConverted | suggestPillar
     false              | false                 | true
-    true               | false                 | true
+    true               | false                 | false
     false              | true                  | true
     true               | true                  | false
   }

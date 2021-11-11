@@ -35,10 +35,10 @@ class MandateEmailServiceSpec extends Specification {
   };
 
   MandateEmailService mandateEmailService = new MandateEmailService(
-    emailService,
-    emailContentService,
-    Clock.fixed(now, UTC),
-    messageSource
+      emailService,
+      emailContentService,
+      Clock.fixed(now, UTC),
+      messageSource
   )
 
   def "Send second pillar mandate email"() {
@@ -98,8 +98,8 @@ class MandateEmailServiceSpec extends Specification {
     def locale = Locale.ENGLISH
 
     emailContentService
-      .getThirdPillarPaymentDetailsHtml(user, contactDetails.getPensionAccountNumber(), locale)
-      >> html
+        .getThirdPillarPaymentDetailsHtml(user, contactDetails.getPensionAccountNumber(), locale)
+        >> html
     emailService.getRecipients(user) >> recipients
 
     when:
@@ -114,8 +114,9 @@ class MandateEmailServiceSpec extends Specification {
     given:
     def user = sampleUser().build()
     def contactDetails = contactDetailsFixture()
+    contactDetails.setSecondPillarActive(pillarActive)
     def mandate = thirdPillarMandate()
-    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
+    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, notFullyConverted())
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
     def html = "suggest second html"
@@ -134,9 +135,9 @@ class MandateEmailServiceSpec extends Specification {
     callCount * emailService.send(user, message, sendAt)
 
     where:
-    conversion          | callCount
-    notFullyConverted() | 1
-    fullyConverted()    | 0
+    pillarActive | callCount
+    false        | 1
+    true         | 0
   }
 
   def "Sends two third pillar emails"() {
@@ -151,7 +152,7 @@ class MandateEmailServiceSpec extends Specification {
 
     when:
     mandateEmailService
-      .sendMandate(user, thirdPillarMandate(), pillarSuggestion, contactDetails, Locale.ENGLISH)
+        .sendMandate(user, thirdPillarMandate(), pillarSuggestion, contactDetails, Locale.ENGLISH)
 
     then:
     2 * emailService.send(*_)

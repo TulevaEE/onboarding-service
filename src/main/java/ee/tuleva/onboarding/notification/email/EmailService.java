@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -58,34 +59,37 @@ public class EmailService {
     return message;
   }
 
-  public void send(User user, MandrillMessage message) {
-    send(user, message, null);
+  public Optional<String> send(User user, MandrillMessage message) {
+    return send(user, message, null);
   }
 
-  public void send(User user, MandrillMessage message, Instant sendAt) {
+  public Optional<String> send(User user, MandrillMessage message, Instant sendAt) {
     try {
       if (mandrillApi == null) {
         log.warn(
             "Mandrill not initialised, not sending mandate email for user: userId={}",
             user.getId());
-        return;
+        return Optional.empty();
       }
 
+      Date sendDate = sendAt != null ? Date.from(sendAt) : null;
       log.info(
           "Sending email to user: from={}, userId={}, sendAt={}",
           emailConfiguration.getFrom(),
           user.getId(),
-          sendAt);
+          sendDate);
 
-      Date sendDate = sendAt != null ? Date.from(sendAt) : null;
-      MandrillMessageStatus[] messageStatusReports =
-          mandrillApi.messages().send(message, false, null, sendDate);
+      MandrillMessageStatus messageStatusReport =
+          mandrillApi.messages().send(message, false, null, sendDate)[0]; // FIXME [0]
+      log.info("Mandrill API response {}", messageStatusReport.getStatus());
+      return Optional.of(messageStatusReport.getId());
 
-      log.info("Mandrill API response {}", messageStatusReports[0].getStatus()); // FIXME [0]
     } catch (MandrillApiError mandrillApiError) {
       log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
+      return Optional.empty();
     } catch (IOException e) {
       log.error(e.getLocalizedMessage(), e);
+      return Optional.empty();
     }
   }
 

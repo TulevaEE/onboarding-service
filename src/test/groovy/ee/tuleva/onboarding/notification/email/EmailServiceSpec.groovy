@@ -20,25 +20,29 @@ class EmailServiceSpec extends Specification {
   EmailService service = new EmailService(emailConfiguration, mandrillApi)
   User user = sampleUser().build()
   MandrillMessage message = service.newMandrillMessage(
-    service.getRecipients(user),
-    "subject",
-    "html",
-    ["test"],
-    null)
+      service.getRecipients(user),
+      "subject",
+      "html",
+      ["test"],
+      null)
+  MandrillMessageStatus mandrillMessageStatus = Mock()
 
   def setup() {
     emailConfiguration.from >> "tuleva@tuleva.ee"
     emailConfiguration.bcc >> "avaldused@tuleva.ee"
     emailConfiguration.mandrillKey >> Optional.of("")
     mandrillApi.messages() >> mandrillMessagesApi
+    mandrillMessageStatus.getStatus() >> "sent"
+    mandrillMessageStatus.getId() >> "13"
   }
 
   def "Send fake email"() {
     when:
-    service.send(user, message)
+    Optional<String> messageId = service.send(user, message)
 
     then:
-    1 * mandrillMessagesApi.send(message, false, null, null) >> ([Mock(MandrillMessageStatus)] as MandrillMessageStatus[])
+    1 * mandrillMessagesApi.send(message, false, null, null) >> [mandrillMessageStatus]
+    messageId == Optional.of("13")
   }
 
   def "Send delayed email"() {
@@ -46,9 +50,10 @@ class EmailServiceSpec extends Specification {
     Instant sendAt = Instant.now();
 
     when:
-    service.send(user, message, sendAt)
+    Optional<String> messageId = service.send(user, message, sendAt)
 
     then:
-    1 * mandrillMessagesApi.send(message, false, null, Date.from(sendAt)) >> ([Mock(MandrillMessageStatus)] as MandrillMessageStatus[])
+    1 * mandrillMessagesApi.send(message, false, null, Date.from(sendAt)) >> [mandrillMessageStatus]
+    messageId == Optional.of("13")
   }
 }

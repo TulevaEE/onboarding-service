@@ -6,23 +6,20 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
 import javax.validation.constraints.NotBlank;
-import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 @Entity
 @Table(name = "scheduled_email")
-@AllArgsConstructor
 @NoArgsConstructor
+@RequiredArgsConstructor
 public class ScheduledEmail {
-  @NotBlank Long userId;
-  @NotBlank String mandrillMessageId;
-  @NotBlank ScheduledEmailType type;
+  @NotBlank @NonNull Long userId;
+  @NotBlank @NonNull String mandrillMessageId;
+  @NotBlank @NonNull ScheduledEmailType type;
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
-
-  enum ScheduledEmailType {
-    SUGGEST_SECOND_PILLAR
-  }
 }

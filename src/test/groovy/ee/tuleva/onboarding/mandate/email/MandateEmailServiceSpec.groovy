@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.mandate.email
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
+import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService
+import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType
 import ee.tuleva.onboarding.notification.email.EmailService
 import org.springframework.context.MessageSource
 import org.springframework.context.support.AbstractMessageSource
@@ -22,8 +24,9 @@ import static java.time.ZoneOffset.UTC
 
 class MandateEmailServiceSpec extends Specification {
 
-  MandateEmailContentService emailContentService = Mock(MandateEmailContentService)
-  EmailService emailService = Mock(EmailService)
+  MandateEmailContentService emailContentService = Mock()
+  EmailService emailService = Mock()
+  ScheduledEmailService scheduledEmailService = Mock()
   def now = Instant.parse("2021-09-01T10:06:01Z")
 
   def subject = "subject";
@@ -36,6 +39,7 @@ class MandateEmailServiceSpec extends Specification {
 
   MandateEmailService mandateEmailService = new MandateEmailService(
       emailService,
+      scheduledEmailService,
       emailContentService,
       Clock.fixed(now, UTC),
       messageSource
@@ -132,7 +136,8 @@ class MandateEmailServiceSpec extends Specification {
 
     then:
     callCount * emailService.newMandrillMessage(recipients, subject, html, tags, null) >> message
-    callCount * emailService.send(user, message, sendAt)
+    callCount * emailService.send(user, message, sendAt) >> Optional.of("123")
+    callCount * scheduledEmailService.create(user, "123", ScheduledEmailType.SUGGEST_SECOND_PILLAR)
 
     where:
     pillarActive | callCount
@@ -155,6 +160,6 @@ class MandateEmailServiceSpec extends Specification {
         .sendMandate(user, thirdPillarMandate(), pillarSuggestion, contactDetails, Locale.ENGLISH)
 
     then:
-    2 * emailService.send(*_)
+    2 * emailService.send(*_) >> Optional.of("123")
   }
 }

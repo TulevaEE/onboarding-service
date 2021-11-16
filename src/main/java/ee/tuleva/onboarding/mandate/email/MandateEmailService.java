@@ -6,6 +6,8 @@ import static java.util.Collections.singletonList;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService;
+import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import java.time.Clock;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MandateEmailService {
   private final EmailService emailService;
+  private final ScheduledEmailService scheduledEmailService;
   private final MandateEmailContentService emailContentService;
   private final Clock clock;
   private final MessageSource messageSource;
@@ -117,7 +120,12 @@ public class MandateEmailService {
             content,
             List.of("pillar_3.1", "suggest_2"),
             null);
-    emailService.send(user, message, sendAt);
+    emailService
+        .send(user, message, sendAt)
+        .ifPresent(
+            messageId ->
+                scheduledEmailService.create(
+                    user, messageId, ScheduledEmailType.SUGGEST_SECOND_PILLAR));
   }
 
   private List<MandrillMessage.MessageContent> getMandateAttachments(

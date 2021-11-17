@@ -2,7 +2,7 @@ CREATE TABLE scheduled_email
 (
     id                  SERIAL PRIMARY KEY,
     user_id             INTEGER      NOT NULL REFERENCES users,
-    mandrill_message_id VARCHAR(255),
+    mandrill_message_id VARCHAR(255) NOT NULL,
     type                VARCHAR(255) NOT NULL
 );
 

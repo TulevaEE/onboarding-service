@@ -117,4 +117,14 @@ public class EmailService {
   private String getFromName() {
     return "Tuleva";
   }
+
+  public void cancelScheduledEmail(String mandrillMessageId) {
+    try {
+      mandrillApi.messages().cancelScheduled(mandrillMessageId);
+    } catch (MandrillApiError mandrillApiError) {
+      log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
+    } catch (IOException e) {
+      log.error(e.getLocalizedMessage(), e);
+    }
+  }
 }

@@ -56,4 +56,15 @@ class EmailServiceSpec extends Specification {
     1 * mandrillMessagesApi.send(message, false, null, Date.from(sendAt)) >> [mandrillMessageStatus]
     messageId == Optional.of("13")
   }
+
+  def "cancels scheduled email"() {
+    given:
+    String mandrillMessageId = "100"
+
+    when:
+    service.cancelScheduledEmail(mandrillMessageId)
+
+    then:
+    1 * mandrillApi.messages().cancelScheduled(mandrillMessageId)
+  }
 }

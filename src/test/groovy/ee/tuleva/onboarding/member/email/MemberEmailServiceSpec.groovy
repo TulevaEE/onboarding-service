@@ -36,7 +36,7 @@ class MemberEmailServiceSpec extends Specification {
 
   private MandrillMessagesApi mockMandrillMessageApi() {
     def messagesApi = Mock(MandrillMessagesApi)
-    messagesApi.send(*_) >> ([Mock(MandrillMessageStatus)] as MandrillMessageStatus[])
+    messagesApi.send(*_) >> ([new MandrillMessageStatus(_id: "123")] as MandrillMessageStatus[])
     return messagesApi
   }
 }

@@ -52,7 +52,7 @@ spring:
             user.name: ${spring.security.user.name}
             user.password: ${spring.security.user.password}
   session:
-    store-type: jdbc
+    store-type: none
     jdbc:
       initialize-schema: never
 

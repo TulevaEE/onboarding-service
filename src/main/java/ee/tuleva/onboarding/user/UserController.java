@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
 import ee.tuleva.onboarding.user.response.UserResponse;
 import io.swagger.annotations.ApiOperation;
+import java.util.Optional;
 import javax.validation.Valid;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -58,7 +59,9 @@ public class UserController {
 
     User user =
         userService.updateUser(
-            authenticatedPerson.getPersonalCode(), cmd.getEmail(), cmd.getPhoneNumber());
+            authenticatedPerson.getPersonalCode(),
+            Optional.of(cmd.getEmail()),
+            cmd.getPhoneNumber());
 
     if (cmd.getAddress() != null) {
       UserPreferences contactDetails =

@@ -15,6 +15,7 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.jetbrains.annotations.Nullable;
 
 @Getter
 @Setter
@@ -103,7 +104,7 @@ public class UserPreferences implements Person {
   @Builder.Default private String country = "EE";
   @Builder.Default private LanguagePreferenceType languagePreference = EST;
   @Builder.Default private String noticeNeeded = "Y"; // boolean { 'Y', 'N' }
-  private String email;
+  @Nullable private String email;
   private String phoneNumber;
   private String pensionAccountNumber;
   private List<Distribution> thirdPillarDistribution;

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.content.thymeleaf;
 
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -16,12 +16,12 @@ public class ContextBuilder {
 
   private Context ctx = new Context();
 
-  public Context build() {
-    return ctx;
-  }
-
   public static ContextBuilder builder() {
     return new ContextBuilder();
+  }
+
+  public Context build() {
+    return ctx;
   }
 
   public ContextBuilder user(User user) {
@@ -85,16 +85,16 @@ public class ContextBuilder {
     return this;
   }
 
-  public ContextBuilder userPreferences(UserPreferences userPreferences) {
-    ctx.setVariable("userPreferences", userPreferences);
+  public ContextBuilder contactDetails(ContactDetails contactDetails) {
+    ctx.setVariable("contactDetails", contactDetails);
 
-    ctx.setVariable("addressLine1", userPreferences.getAddressRow1());
-    ctx.setVariable("addressLine2", userPreferences.getAddressRow2());
-    ctx.setVariable("countryCode", userPreferences.getCountry());
-    ctx.setVariable("postCode", userPreferences.getPostalIndex());
-    ctx.setVariable("districtName", userPreferences.getDistrictName());
+    ctx.setVariable("addressLine1", contactDetails.getAddressRow1());
+    ctx.setVariable("addressLine2", contactDetails.getAddressRow2());
+    ctx.setVariable("countryCode", contactDetails.getCountry());
+    ctx.setVariable("postCode", contactDetails.getPostalIndex());
+    ctx.setVariable("districtName", contactDetails.getDistrictName());
     if (ctx.getVariable("email") == null) {
-      ctx.setVariable("email", userPreferences.getEmail());
+      ctx.setVariable("email", contactDetails.getEmail());
     }
     return this;
   }

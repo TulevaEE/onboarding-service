@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user.response;
 
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import ee.tuleva.onboarding.user.member.Member;
@@ -36,7 +36,7 @@ public class UserResponse {
     return responseBuilder(user).build();
   }
 
-  public static UserResponse from(@NotNull User user, @NotNull UserPreferences contactDetails) {
+  public static UserResponse from(@NotNull User user, @NotNull ContactDetails contactDetails) {
     return responseBuilder(user)
         .pensionAccountNumber(contactDetails.getPensionAccountNumber())
         .address(

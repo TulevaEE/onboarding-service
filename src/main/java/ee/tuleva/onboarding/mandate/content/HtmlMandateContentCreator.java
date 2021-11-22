@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.content;
 
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -25,19 +25,18 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
 
   @Override
   public List<MandateContentFile> getContentFiles(
-      User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
+      User user, Mandate mandate, List<Fund> funds, ContactDetails contactDetails) {
     List<MandateContentFile> files =
-        new ArrayList<>(getFundTransferMandateContentFiles(user, mandate, funds, userPreferences));
+        new ArrayList<>(getFundTransferMandateContentFiles(user, mandate, funds, contactDetails));
 
     if (mandate.getFutureContributionFundIsin().isPresent()) {
-      files.add(
-          getFutureContributionsFundMandateContentFile(user, mandate, funds, userPreferences));
+      files.add(getFutureContributionsFundMandateContentFile(user, mandate, funds, contactDetails));
     }
 
     if (mandate.isWithdrawalCancellation()) {
       files.add(
           getContentFileForMandateCancellation(
-              user, mandate, userPreferences, mandate.getApplicationTypeToCancel()));
+              user, mandate, contactDetails, mandate.getApplicationTypeToCancel()));
     }
 
     return files;
@@ -46,7 +45,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
   private MandateContentFile getContentFileForMandateCancellation(
       User user,
       Mandate mandate,
-      UserPreferences userPreferences,
+      ContactDetails contactDetails,
       ApplicationType applicationTypeToCancel) {
     String transactionId = UUID.randomUUID().toString();
     String documentNumber = mandate.getId().toString();
@@ -55,7 +54,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .userPreferences(userPreferences)
+            .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
             .applicationTypeToCancel(applicationTypeToCancel)
@@ -71,7 +70,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
   }
 
   private MandateContentFile getFutureContributionsFundMandateContentFile(
-      User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
+      User user, Mandate mandate, List<Fund> funds, ContactDetails contactDetails) {
     String transactionId = UUID.randomUUID().toString();
 
     String documentNumber = mandate.getId().toString();
@@ -80,7 +79,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .userPreferences(userPreferences)
+            .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
             .futureContributionFundIsin(mandate.getFutureContributionFundIsin().orElse(null))
@@ -98,9 +97,9 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
   }
 
   private List<MandateContentFile> getFundTransferMandateContentFiles(
-      User user, Mandate mandate, List<Fund> funds, UserPreferences userPreferences) {
+      User user, Mandate mandate, List<Fund> funds, ContactDetails contactDetails) {
     return allocateAndGetFundTransferFiles(
-        mandate.getFundTransferExchangesBySourceIsin(), user, mandate, funds, userPreferences);
+        mandate.getFundTransferExchangesBySourceIsin(), user, mandate, funds, contactDetails);
   }
 
   private List<MandateContentFile> allocateAndGetFundTransferFiles(
@@ -108,7 +107,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
       User user,
       Mandate mandate,
       List<Fund> funds,
-      UserPreferences userPreferences) {
+      ContactDetails contactDetails) {
     return exchangeMap.keySet().stream()
         .map(
             sourceIsin ->
@@ -117,7 +116,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
                     user,
                     mandate,
                     funds,
-                    userPreferences))
+                    contactDetails))
         .collect(Collectors.toList());
   }
 
@@ -126,7 +125,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
       User user,
       Mandate mandate,
       List<Fund> funds,
-      UserPreferences userPreferences) {
+      ContactDetails contactDetails) {
     String transactionId = UUID.randomUUID().toString();
     String documentNumber = fundTransferExchanges.get(0).getId().toString();
 
@@ -134,7 +133,7 @@ public class HtmlMandateContentCreator implements MandateContentCreator {
         ContextBuilder.builder()
             .mandate(mandate)
             .user(user)
-            .userPreferences(userPreferences)
+            .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
             .fundTransferExchanges(fundTransferExchanges)

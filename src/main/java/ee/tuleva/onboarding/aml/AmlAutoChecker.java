@@ -5,8 +5,8 @@ import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.user.User;
@@ -51,7 +51,7 @@ public class AmlAutoChecker {
         .findByPersonalCode(person.getPersonalCode())
         .ifPresent(
             user -> {
-              UserPreferences contactDetails =
+              ContactDetails contactDetails =
                   contactDetailsService.getContactDetails(person, token);
               amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails);
             });

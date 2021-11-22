@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.mandate;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator;
@@ -32,9 +32,9 @@ public class MandateFileService {
 
     List<Fund> funds = fundRepository.findAllByPillar(mandate.getPillar());
 
-    UserPreferences userPreferences = episService.getContactDetails(user);
+    ContactDetails contactDetails = episService.getContactDetails(user);
 
-    return mandateContentCreator.getContentFiles(user, mandate, funds, userPreferences).stream()
+    return mandateContentCreator.getContentFiles(user, mandate, funds, contactDetails).stream()
         .map(file -> new SignatureFile(file.getName(), file.getMimeType(), file.getContent()))
         .collect(toList());
   }

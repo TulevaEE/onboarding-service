@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWA
 import static java.util.Collections.singletonList;
 
 import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
@@ -31,7 +31,7 @@ public class CancellationMandateBuilder {
       ApplicationDTO applicationToCancel,
       User user,
       ConversionResponse conversion,
-      UserPreferences contactDetails) {
+      ContactDetails contactDetails) {
 
     Mandate mandate = new Mandate();
     mandate.setUser(user);

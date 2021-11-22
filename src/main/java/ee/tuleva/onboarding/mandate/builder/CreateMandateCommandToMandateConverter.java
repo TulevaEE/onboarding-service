@@ -5,7 +5,7 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -37,7 +37,7 @@ public class CreateMandateCommandToMandateConverter
     User user = wrapper.getUser();
     val createMandateCommand = wrapper.getCreateMandateCommand();
     ConversionResponse conversion = wrapper.getConversion();
-    UserPreferences contactDetails = wrapper.getContactDetails();
+    ContactDetails contactDetails = wrapper.getContactDetails();
 
     Mandate mandate = new Mandate();
     mandate.setUser(user);

@@ -38,12 +38,12 @@ class MandateContentCreatorIntSpec extends Specification {
 
     when:
     List<MandateContentFile> mandateContentFiles =
-      mandateContentCreator.getContentFiles(
-        sampleUser().build(),
-        mandate,
-        sampleFunds(),
-        contactDetailsFixture()
-      )
+        mandateContentCreator.getContentFiles(
+            sampleUser().build(),
+            mandate,
+            sampleFunds(),
+            contactDetailsFixture()
+        )
 
     then:
     mandateContentFiles.size() == 2
@@ -54,8 +54,8 @@ class MandateContentCreatorIntSpec extends Specification {
     mandateContentFiles[1].name == "vahetuseavaldus_1234.html"
     mandateContentFiles[1].mimeType == "text/html"
 
-    DigestUtils.md5Hex(mandateContentFiles[0].content) == "e6c23bc9062181eda9c15f9bc848652f"
-    DigestUtils.md5Hex(mandateContentFiles[1].content) == "6b300aa6ac94548a7ed7d69864af0763"
+    DigestUtils.md5Hex(mandateContentFiles[0].content) == "c19c63b1663b629731ba773c2ecc0154"
+    DigestUtils.md5Hex(mandateContentFiles[1].content) == "cdd3fd5d82a338174862bacd1e506921"
   }
 
   def "mandate cancellation mandate can be generated from template"() {
@@ -65,17 +65,17 @@ class MandateContentCreatorIntSpec extends Specification {
 
     when:
     List<MandateContentFile> mandateContentFiles =
-      mandateContentCreator.getContentFiles(
-        sampleUser().build(),
-        mandate,
-        sampleFunds(),
-        contactDetailsFixture()
-      )
+        mandateContentCreator.getContentFiles(
+            sampleUser().build(),
+            mandate,
+            sampleFunds(),
+            contactDetailsFixture()
+        )
 
     then:
     mandateContentFiles[3].name == "avalduse_tyhistamise_avaldus_123.html"
     mandateContentFiles[3].mimeType == "text/html"
-    DigestUtils.md5Hex(mandateContentFiles[3].content) == "c23707b9946cdac38d519295c972dfd0"
+    DigestUtils.md5Hex(mandateContentFiles[3].content) == "9acc148aceb8f4c00f5d4dbcb1e7aa26"
   }
 
   def "mandate transfer cancellation mandate can be generated from template"() {
@@ -83,24 +83,24 @@ class MandateContentCreatorIntSpec extends Specification {
     Mandate mandate = sampleMandate()
     mandate.futureContributionFundIsin = null
     mandate.fundTransferExchanges = [FundTransferExchange.builder()
-                                       .id(1234)
-                                       .sourceFundIsin("AE123232331")
-                                       .targetFundIsin(null)
-                                       .build()]
+                                         .id(1234)
+                                         .sourceFundIsin("AE123232331")
+                                         .targetFundIsin(null)
+                                         .build()]
     when:
     List<MandateContentFile> mandateContentFiles =
-      mandateContentCreator.getContentFiles(
-        sampleUser().build(),
-        mandate,
-        sampleFunds(),
-        contactDetailsFixture()
-      )
+        mandateContentCreator.getContentFiles(
+            sampleUser().build(),
+            mandate,
+            sampleFunds(),
+            contactDetailsFixture()
+        )
 
     then:
     mandateContentFiles.size() == 1
     mandateContentFiles[0].name == "vahetuseavaldus_1234.html"
     mandateContentFiles[0].mimeType == "text/html"
-    DigestUtils.md5Hex(mandateContentFiles[0].content) == "304a3e50d6f58ed121b7a97ebcc53670"
+    DigestUtils.md5Hex(mandateContentFiles[0].content) == "06fc9116138a6471fbc0040c64ff5928"
   }
 
   @Unroll
@@ -112,12 +112,12 @@ class MandateContentCreatorIntSpec extends Specification {
 
     when:
     List<MandateContentFile> mandateContentFiles =
-      mandateContentCreator.getContentFiles(
-        sampleUser().build(),
-        mandate,
-        sampleFunds(),
-        contactDetailsFixture()
-      )
+        mandateContentCreator.getContentFiles(
+            sampleUser().build(),
+            mandate,
+            sampleFunds(),
+            contactDetailsFixture()
+        )
 
     then:
     mandateContentFiles.size() == 2

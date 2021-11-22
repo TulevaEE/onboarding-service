@@ -8,7 +8,7 @@ import static java.util.Arrays.asList;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateService;
@@ -34,7 +34,7 @@ public class MandateCancellationService {
     validate(applicationToCancel.getType());
     User user = userService.getById(userId);
     ConversionResponse conversion = conversionService.getConversion(user);
-    UserPreferences contactDetails = episService.getContactDetails(user);
+    ContactDetails contactDetails = episService.getContactDetails(user);
     Mandate mandate =
         cancellationMandateBuilder.build(applicationToCancel, user, conversion, contactDetails);
     return mandateService.save(user, mandate);

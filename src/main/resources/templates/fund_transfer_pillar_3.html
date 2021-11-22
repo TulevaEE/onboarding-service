@@ -1,322 +1,988 @@
 <!DOCTYPE HTML>
 <html xmlns:th="http://www.thymeleaf.org">
-<head>
+  <head>
     <title>Ületoomise avaldus</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
 
-    <style type="text/css">ol{margin:0;padding:0}table td,table th{padding:0}.c36{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:191.2pt;border-top-color:#000000;border-bottom-style:solid}.c24{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:59.2pt;border-top-color:#000000;border-bottom-style:solid}.c30{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:29.6pt;border-top-color:#000000;border-bottom-style:solid}.c11{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:274.1pt;border-top-color:#000000;border-bottom-style:solid}.c2{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:156pt;border-top-color:#000000;border-bottom-style:solid}.c21{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:55.5pt;border-top-color:#000000;border-bottom-style:solid}.c9{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:117.8pt;border-top-color:#000000;border-bottom-style:solid}.c33{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:81.8pt;border-top-color:#000000;border-bottom-style:solid}.c35{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:228pt;border-top-color:#000000;border-bottom-style:solid}.c23{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:72pt;border-top-color:#000000;border-bottom-style:solid}.c20{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:75pt;border-top-color:#000000;border-bottom-style:solid}.c10{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:312pt;border-top-color:#000000;border-bottom-style:solid}.c26{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:26.2pt;border-top-color:#000000;border-bottom-style:solid}.c27{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:240pt;border-top-color:#000000;border-bottom-style:solid}.c8{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:176.2pt;border-top-color:#000000;border-bottom-style:solid}.c19{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:234pt;border-top-color:#000000;border-bottom-style:solid}.c22{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:468pt;border-top-color:#000000;border-bottom-style:solid}.c13{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:27.8pt;border-top-color:#000000;border-bottom-style:solid}.c38{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:57pt;border-top-color:#000000;border-bottom-style:solid}.c25{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:174pt;border-top-color:#000000;border-bottom-style:solid}.c29{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:435.8pt;border-top-color:#000000;border-bottom-style:solid}.c17{border-right-style:solid;padding:5pt 5pt 5pt 5pt;border-bottom-color:#000000;border-top-width:1pt;border-right-width:1pt;border-left-color:#000000;vertical-align:top;border-right-color:#000000;border-left-width:1pt;border-top-style:solid;border-left-style:solid;border-bottom-width:1pt;width:27pt;border-top-color:#000000;border-bottom-style:solid}.c37{color:#000000;font-weight:400;text-decoration:none;vertical-align:baseline;font-size:11pt;font-family:"Arial";font-style:normal}.c5{color:#000000;font-weight:400;text-decoration:none;vertical-align:baseline;font-size:11pt;font-family:"Times New Roman";font-style:normal}.c3{color:#000000;font-weight:700;text-decoration:none;vertical-align:baseline;font-size:11pt;font-family:"Times New Roman";font-style:normal}.c18{padding-top:0pt;padding-bottom:0pt;line-height:1.15;orphans:2;widows:2;text-align:left;height:11pt}.c0{padding-top:0pt;padding-bottom:0pt;line-height:1.0;text-align:left;height:11pt}.c16{color:#000000;text-decoration:none;vertical-align:baseline;font-size:12pt;font-style:normal}.c12{padding-top:0pt;padding-bottom:0pt;line-height:0.8416666666666667;text-align:right}.c4{padding-top:0pt;padding-bottom:0pt;line-height:0.9958333333333332;text-align:left}.c31{padding-top:0pt;padding-bottom:0pt;line-height:0.9958333333333332;text-align:center}.c15{border-spacing:0;border-collapse:collapse;margin-right:auto}.c14{padding-top:0pt;padding-bottom:0pt;line-height:1.0;text-align:left}.c32{background-color:#ffffff;max-width:468pt;padding:72pt 72pt 72pt 72pt}.c6{font-weight:400;font-family:"Times New Roman"}.c39{font-weight:700;font-family:"Times New Roman"}.c1{height:0pt}.c28{height:11pt}.c40{height:23pt}.c34{height:20pt}.c7{height:21pt}.title{padding-top:0pt;color:#000000;font-size:26pt;padding-bottom:3pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}.subtitle{padding-top:0pt;color:#666666;font-size:15pt;padding-bottom:16pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}li{color:#000000;font-size:11pt;font-family:"Arial"}p{margin:0;color:#000000;font-size:11pt;font-family:"Arial"}h1{padding-top:20pt;color:#000000;font-size:20pt;padding-bottom:6pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}h2{padding-top:18pt;color:#000000;font-size:16pt;padding-bottom:6pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}h3{padding-top:16pt;color:#434343;font-size:14pt;padding-bottom:4pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}h4{padding-top:14pt;color:#666666;font-size:12pt;padding-bottom:4pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}h5{padding-top:12pt;color:#666666;font-size:11pt;padding-bottom:4pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;orphans:2;widows:2;text-align:left}h6{padding-top:12pt;color:#666666;font-size:11pt;padding-bottom:4pt;font-family:"Arial";line-height:1.15;page-break-after:avoid;font-style:italic;orphans:2;widows:2;text-align:left}</style>
+    <style type="text/css">ol {
+      margin: 0;
+      padding: 0
+    }
+
+    table td, table th {
+      padding: 0
+    }
+
+    .c36 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 191.2pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c24 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 59.2pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c30 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 29.6pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c11 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 274.1pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c2 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 156pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c21 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 55.5pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c9 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 117.8pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c33 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 81.8pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c35 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 228pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c23 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 72pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c20 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 75pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c10 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 312pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c26 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 26.2pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c27 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 240pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c8 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 176.2pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c19 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 234pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c22 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 468pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c13 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 27.8pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c38 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 57pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c25 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 174pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c29 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 435.8pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c17 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 27pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c37 {
+      color: #000000;
+      font-weight: 400;
+      text-decoration: none;
+      vertical-align: baseline;
+      font-size: 11pt;
+      font-family: "Arial";
+      font-style: normal
+    }
+
+    .c5 {
+      color: #000000;
+      font-weight: 400;
+      text-decoration: none;
+      vertical-align: baseline;
+      font-size: 11pt;
+      font-family: "Times New Roman";
+      font-style: normal
+    }
+
+    .c3 {
+      color: #000000;
+      font-weight: 700;
+      text-decoration: none;
+      vertical-align: baseline;
+      font-size: 11pt;
+      font-family: "Times New Roman";
+      font-style: normal
+    }
+
+    .c18 {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 1.15;
+      orphans: 2;
+      widows: 2;
+      text-align: left;
+      height: 11pt
+    }
+
+    .c0 {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 1.0;
+      text-align: left;
+      height: 11pt
+    }
+
+    .c16 {
+      color: #000000;
+      text-decoration: none;
+      vertical-align: baseline;
+      font-size: 12pt;
+      font-style: normal
+    }
+
+    .c12 {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 0.8416666666666667;
+      text-align: right
+    }
+
+    .c4 {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 0.9958333333333332;
+      text-align: left
+    }
+
+    .c31 {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 0.9958333333333332;
+      text-align: center
+    }
+
+    .c15 {
+      border-spacing: 0;
+      border-collapse: collapse;
+      margin-right: auto
+    }
+
+    .c14 {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 1.0;
+      text-align: left
+    }
+
+    .c32 {
+      background-color: #ffffff;
+      max-width: 468pt;
+      padding: 72pt 72pt 72pt 72pt
+    }
+
+    .c6 {
+      font-weight: 400;
+      font-family: "Times New Roman"
+    }
+
+    .c39 {
+      font-weight: 700;
+      font-family: "Times New Roman"
+    }
+
+    .c1 {
+      height: 0pt
+    }
+
+    .c28 {
+      height: 11pt
+    }
+
+    .c40 {
+      height: 23pt
+    }
+
+    .c34 {
+      height: 20pt
+    }
+
+    .c7 {
+      height: 21pt
+    }
+
+    .title {
+      padding-top: 0pt;
+      color: #000000;
+      font-size: 26pt;
+      padding-bottom: 3pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    .subtitle {
+      padding-top: 0pt;
+      color: #666666;
+      font-size: 15pt;
+      padding-bottom: 16pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    li {
+      color: #000000;
+      font-size: 11pt;
+      font-family: "Arial"
+    }
+
+    p {
+      margin: 0;
+      color: #000000;
+      font-size: 11pt;
+      font-family: "Arial"
+    }
+
+    h1 {
+      padding-top: 20pt;
+      color: #000000;
+      font-size: 20pt;
+      padding-bottom: 6pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    h2 {
+      padding-top: 18pt;
+      color: #000000;
+      font-size: 16pt;
+      padding-bottom: 6pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    h3 {
+      padding-top: 16pt;
+      color: #434343;
+      font-size: 14pt;
+      padding-bottom: 4pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    h4 {
+      padding-top: 14pt;
+      color: #666666;
+      font-size: 12pt;
+      padding-bottom: 4pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    h5 {
+      padding-top: 12pt;
+      color: #666666;
+      font-size: 11pt;
+      padding-bottom: 4pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    h6 {
+      padding-top: 12pt;
+      color: #666666;
+      font-size: 11pt;
+      padding-bottom: 4pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      font-style: italic;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }</style>
 
 
-</head>
-<body class="c32">
-<p class="c31"><span class="c6">VABATAHTLIKU PENSIONIFONDI OSAKUTE VAHETAMISE AVALDUS nr <span th:text="${documentNumber}"></span></span></p>
-<p class="c0"><span class="c5"></span></p>
+  </head>
+  <body class="c32">
+    <p class="c31"><span class="c6">VABATAHTLIKU PENSIONIFONDI OSAKUTE VAHETAMISE AVALDUS nr <span
+        th:text="${documentNumber}"></span></span></p>
+    <p class="c0"><span class="c5"></span></p>
 
-<p class="c4"><span class="c39">1. Avalduse esitaja</span></p>
-<p class="c18"><span class="c5"></span></p>
-<a id="t.712981a4452879ce0099246241239d458bf94b79"></a><a id="t.0"></a>
-<table class="c15">
-    <tbody>
-    <tr class="c40">
-        <td class="c2" colspan="1" rowspan="1">
+    <p class="c4"><span class="c39">1. Avalduse esitaja</span></p>
+    <p class="c18"><span class="c5"></span></p>
+    <a id="t.712981a4452879ce0099246241239d458bf94b79"></a><a id="t.0"></a>
+    <table class="c15">
+      <tbody>
+        <tr class="c40">
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c5" th:text="${idCode}"></span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c5" th:text="${firstName}"></span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c5" th:text="${lastName}"></span></p>
-        </td>
-    </tr>
-    <tr class="c1">
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+        </tr>
+        <tr class="c1">
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Isikukood</span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Eesnimi</span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Perekonnanimi</span></p>
-        </td>
-    </tr>
-    <tr class="c7">
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+        </tr>
+        <tr class="c7">
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c5" th:text="${phoneNumber}"></span></p>
-        </td>
-        <td class="c10" colspan="2" rowspan="1">
+          </td>
+          <td class="c10" colspan="2" rowspan="1">
             <p class="c0"><span class="c5" th:text="${email}"></span></p>
-        </td>
-    </tr>
-    <tr class="c7">
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+        </tr>
+        <tr class="c7">
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Kontakttelefon</span></p>
-        </td>
-        <td class="c10" colspan="2" rowspan="1">
+          </td>
+          <td class="c10" colspan="2" rowspan="1">
             <p class="c14"><span class="c5">E-posti aadress</span></p>
-        </td>
-    </tr>
-    </tbody>
-</table>
-<p class="c18"><span class="c5"></span></p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="c18"><span class="c5"></span></p>
 
-<p class="c14"><span class="c3">2. Aadress</span></p>
-<p class="c0"><span class="c3"></span></p>
-<a id="t.e0927e35cdcaed5d1bfd3eb4cb10714eb91b9c37"></a><a id="t.1"></a>
-<table class="c15">
-    <tbody>
-    <tr class="c34">
-        <td class="c27" colspan="1" rowspan="1">
+    <p class="c14"><span class="c3">2. Aadress</span></p>
+    <p class="c0"><span class="c3"></span></p>
+    <a id="t.e0927e35cdcaed5d1bfd3eb4cb10714eb91b9c37"></a><a id="t.1"></a>
+    <table class="c15">
+      <tbody>
+        <tr class="c34">
+          <td class="c27" colspan="1" rowspan="1">
             <p class="c0"><span class="c3" th:text="${addressLine1}"></span></p>
-        </td>
-        <td class="c35" colspan="2" rowspan="1">
+          </td>
+          <td class="c35" colspan="2" rowspan="1">
             <p class="c0"><span class="c3" th:text="${addressLine2}"></span></p>
-        </td>
-    </tr>
-    <tr class="c34">
-        <td class="c27" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">T&auml;nav, maja- ja/v&otilde;i korteri number, maakohas k&uuml;la</span></p>
-        </td>
-        <td class="c35" colspan="2" rowspan="1">
+          </td>
+        </tr>
+        <tr class="c34">
+          <td class="c27" colspan="1" rowspan="1">
+            <p class="c14"><span class="c5">T&auml;nav, maja- ja/v&otilde;i korteri number, maakohas k&uuml;la</span>
+            </p>
+          </td>
+          <td class="c35" colspan="2" rowspan="1">
             <p class="c14"><span class="c5">Asula v&otilde;i sidejaoskond</span></p>
-        </td>
-    </tr>
-    <tr class="c7">
-        <td class="c27" colspan="1" rowspan="1">
+          </td>
+        </tr>
+        <tr class="c7">
+          <td class="c27" colspan="1" rowspan="1">
             <p class="c0"><span class="c5" th:text="${districtName}"></span></p>
-        </td>
-        <td class="c23" colspan="1" rowspan="1">
+          </td>
+          <td class="c23" colspan="1" rowspan="1">
             <p class="c0"><span class="c5" th:text="${postCode}"></span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c5" th:text="${countryCode}"></span></p>
-        </td>
-    </tr>
-    <tr class="c7">
-        <td class="c27" colspan="1" rowspan="1">
+          </td>
+        </tr>
+        <tr class="c7">
+          <td class="c27" colspan="1" rowspan="1">
             <p class="c14"><span class="c6">Linn v&otilde;i maakond</span></p>
-        </td>
-        <td class="c23" colspan="1" rowspan="1">
+          </td>
+          <td class="c23" colspan="1" rowspan="1">
             <p class="c14"><span class="c6">Sihtnumber</span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c14"><span class="c6">Riik</span></p>
-        </td>
-    </tr>
-    </tbody>
-</table>
-<p class="c0"><span class="c3"></span></p>
-<p class="c14"><span class="c3">3. Isiku eelistused</span></p>
-<p class="c0"><span class="c3"></span></p>
-<a id="t.032bcade378b103fe3f95a946ba9f148bbac3d44"></a><a id="t.2"></a>
-<table class="c15">
-    <tbody>
-    <tr class="c7">
-        <td class="c29" colspan="9" rowspan="1">
-            <p class="c14"><span class="c5">Soovin pensioniregistri teatist pensionikonto j&auml;&auml;gi kohta</span></p>
-        </td>
-        <td class="c30" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3" th:text="${userPreferences.noticeNeeded.equalsIgnoreCase('Y') ? 'X' : '' }"></span></p>
-        </td>
-    </tr>
-    <tr class="c7">
-        <td class="c36" colspan="4" rowspan="1">
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="c0"><span class="c3"></span></p>
+    <p class="c14"><span class="c3">3. Isiku eelistused</span></p>
+    <p class="c0"><span class="c3"></span></p>
+    <a id="t.032bcade378b103fe3f95a946ba9f148bbac3d44"></a><a id="t.2"></a>
+    <table class="c15">
+      <tbody>
+        <tr class="c7">
+          <td class="c29" colspan="9" rowspan="1">
+            <p class="c14"><span class="c5">Soovin pensioniregistri teatist pensionikonto j&auml;&auml;gi kohta</span>
+            </p>
+          </td>
+          <td class="c30" colspan="1" rowspan="1">
+            <p class="c0"><span class="c3"
+                                th:text="${contactDetails.noticeNeeded.equalsIgnoreCase('Y') ? 'X' : '' }"></span></p>
+          </td>
+        </tr>
+        <tr class="c7">
+          <td class="c36" colspan="4" rowspan="1">
             <p class="c14"><span class="c5">Teatise esitamise viis</span></p>
-        </td>
-        <td class="c11" colspan="6" rowspan="1">
+          </td>
+          <td class="c11" colspan="6" rowspan="1">
             <p class="c14"><span class="c5">Keel</span></p>
-        </td>
-    </tr>
-    <tr class="c1">
-        <td class="c33" colspan="1" rowspan="1">
+          </td>
+        </tr>
+        <tr class="c1">
+          <td class="c33" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Elektrooniliselt</span></p>
-        </td>
-        <td class="c26" colspan="1" rowspan="1">
+          </td>
+          <td class="c26" colspan="1" rowspan="1">
             <p class="c0">
                 <span class="c5"
-                      th:text="${userPreferences.contactPreference.toString().equalsIgnoreCase('E') ? 'X' : ''}">
+                      th:text="${contactDetails.contactPreference.toString().equalsIgnoreCase('E') ? 'X' : ''}">
 
                 </span></p>
-        </td>
-        <td class="c21" colspan="1" rowspan="1">
+          </td>
+          <td class="c21" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Postiga</span></p>
-        </td>
-        <td class="c13" colspan="1" rowspan="1">
+          </td>
+          <td class="c13" colspan="1" rowspan="1">
             <p class="c0">
                 <span class="c5"
-                      th:text="${userPreferences.contactPreference.toString().equalsIgnoreCase('P') ? 'X' : ''}"></span></p>
-        </td>
-        <td class="c38" colspan="1" rowspan="1">
+                      th:text="${contactDetails.contactPreference.toString().equalsIgnoreCase('P') ? 'X' : ''}"></span>
+            </p>
+          </td>
+          <td class="c38" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Eesti keel</span></p>
-        </td>
-        <td class="c17" colspan="1" rowspan="1">
+          </td>
+          <td class="c17" colspan="1" rowspan="1">
             <p class="c0"><span class="c5"
-                                th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('EST') ? 'X' : ''}"></span></p>
-        </td>
-        <td class="c24" colspan="1" rowspan="1">
+                                th:text="${contactDetails.languagePreference.toString().equalsIgnoreCase('EST') ? 'X' : ''}"></span>
+            </p>
+          </td>
+          <td class="c24" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Vene keel</span></p>
-        </td>
-        <td class="c26" colspan="1" rowspan="1">
+          </td>
+          <td class="c26" colspan="1" rowspan="1">
             <p class="c0"><span class="c5"
-                                th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('RUS') ? 'X' : ''}"></span></p>
-        </td>
-        <td class="c20" colspan="1" rowspan="1">
+                                th:text="${contactDetails.languagePreference.toString().equalsIgnoreCase('RUS') ? 'X' : ''}"></span>
+            </p>
+          </td>
+          <td class="c20" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Inglise keel</span></p>
-        </td>
-        <td class="c30" colspan="1" rowspan="1">
+          </td>
+          <td class="c30" colspan="1" rowspan="1">
             <p class="c0"><span class="c5"
-                                th:text="${userPreferences.languagePreference.toString().equalsIgnoreCase('ENG') ? 'X' : ''}"></span></p>
-        </td>
-    </tr>
-    </tbody>
-</table>
-<p class="c0"><span class="c3"></span></p>
+                                th:text="${contactDetails.languagePreference.toString().equalsIgnoreCase('ENG') ? 'X' : ''}"></span>
+            </p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="c0"><span class="c3"></span></p>
 
-<!--MARK1-->
-<p class="c14"><span class="c3">4. Vabatahtliku pensionifondi nimetus, mille osakuid soovin vahetada ja mille osakud v&otilde;etakse vahetamisel tagasi ning vabatahtlik(ud) pensionifond(id), mille osakuid soovin vahetamisel omandada&sup1;</span></p>
-<p class="c0"><span class="c3"></span></p>
-<a id="t.d6fdd94d45e9e36ceb8ba0e486558ebd2e046b42"></a><a id="t.3"></a>
-<table class="c15">
-    <tbody>
-    <tr class="c1">
-        <td class="c8" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Pensionifondi nimetus, mille osakuid soovin vahetada ja mille osakud v&otilde;etakse vahetamisel tagasi</span></p>
-        </td>
-        <td class="c25" colspan="1" rowspan="1">
+    <!--MARK1-->
+    <p class="c14"><span class="c3">4. Vabatahtliku pensionifondi nimetus, mille osakuid soovin vahetada ja mille osakud v&otilde;etakse vahetamisel tagasi ning vabatahtlik(ud) pensionifond(id), mille osakuid soovin vahetamisel omandada&sup1;</span>
+    </p>
+    <p class="c0"><span class="c3"></span></p>
+    <a id="t.d6fdd94d45e9e36ceb8ba0e486558ebd2e046b42"></a><a id="t.3"></a>
+    <table class="c15">
+      <tbody>
+        <tr class="c1">
+          <td class="c8" colspan="1" rowspan="1">
+            <p class="c14"><span class="c5">Pensionifondi nimetus, mille osakuid soovin vahetada ja mille osakud v&otilde;etakse vahetamisel tagasi</span>
+            </p>
+          </td>
+          <td class="c25" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Pensionifondi nimetus, mille osakuid soovin vahetamisel omandada</span></p>
-        </td>
-        <td class="c9" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Tagasivõetavate osakute arv, mille eest soovin omandada valitud väärtpaberi osakuid</span></p>
-        </td>
-    </tr>
+          </td>
+          <td class="c9" colspan="1" rowspan="1">
+            <p class="c14"><span class="c5">Tagasivõetavate osakute arv, mille eest soovin omandada valitud väärtpaberi osakuid</span>
+            </p>
+          </td>
+        </tr>
 
-    <tr class="c7">
-        <td class="c8" colspan="1" rowspan="5" th:text="${fundIsinNames.get(fundTransferExchanges.get(0).sourceFundIsin)}">
-        </td>
-        <td class="c25" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3" ></span></p>
-        </td>
-        <td class="c9" colspan="1" rowspan="1">
+        <tr class="c7">
+          <td class="c8" colspan="1" rowspan="5"
+              th:text="${fundIsinNames.get(fundTransferExchanges.get(0).sourceFundIsin)}">
+          </td>
+          <td class="c25" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
-        </td>
-    </tr>
+          </td>
+          <td class="c9" colspan="1" rowspan="1">
+            <p class="c0"><span class="c3"></span></p>
+          </td>
+        </tr>
 
-    <tr class="c7" th:each="fundTransferExchange : ${fundTransferExchanges}">
-        <td class="c25" colspan="1" rowspan="1" th:text="${fundIsinNames.get(fundTransferExchange.targetFundIsin)}">
-        </td>
-        <td class="c9" colspan="1" rowspan="1">
+        <tr class="c7" th:each="fundTransferExchange : ${fundTransferExchanges}">
+          <td class="c25" colspan="1" rowspan="1" th:text="${fundIsinNames.get(fundTransferExchange.targetFundIsin)}">
+          </td>
+          <td class="c9" colspan="1" rowspan="1">
             <p class="c0"><span class="c3" th:text="${fundTransferExchange.amount}"></span></p>
-        </td>
-    </tr>
+          </td>
+        </tr>
 
-    </tbody>
-</table>
-<!--MARK2-->
+      </tbody>
+    </table>
+    <!--MARK2-->
 
 
-<p class="c0"><span class="c3"></span></p>
-<p class="c14"><span class="c3">Olen teadlik asjaolust, et käesoleva avalduse esitamisega jääb pensionifond, millesse minu vabatahtliku kogumispensioni maksed laekuvad või peaksid laekuma, endiseks.</span></p>
-<p class="c0"><span class="c3"></span></p>
-<a id="t.b2831fb258baf4dfb1c91996f8b9ea52c86b598f"></a><a id="t.4"></a>
-<table class="c15">
-    <tbody>
-    <tr class="c1">
-        <td class="c19" colspan="1" rowspan="1">
+    <p class="c0"><span class="c3"></span></p>
+    <p class="c14"><span class="c3">Olen teadlik asjaolust, et käesoleva avalduse esitamisega jääb pensionifond, millesse minu vabatahtliku kogumispensioni maksed laekuvad või peaksid laekuma, endiseks.</span>
+    </p>
+    <p class="c0"><span class="c3"></span></p>
+    <a id="t.b2831fb258baf4dfb1c91996f8b9ea52c86b598f"></a><a id="t.4"></a>
+    <table class="c15">
+      <tbody>
+        <tr class="c1">
+          <td class="c19" colspan="1" rowspan="1">
             <p class="c0"><span class="c3" th:text="${documentDatePPKKAAAA}"></span></p>
             <p class="c0"><span class="c3"></span></p>
-        </td>
-        <td class="c19" colspan="1" rowspan="1">
+          </td>
+          <td class="c19" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
-        </td>
-    </tr>
-    <tr class="c1">
-        <td class="c19" colspan="1" rowspan="1">
+          </td>
+        </tr>
+        <tr class="c1">
+          <td class="c19" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Kuup&auml;ev (pp.kk.aaaa)</span></p>
-        </td>
-        <td class="c19" colspan="1" rowspan="1">
+          </td>
+          <td class="c19" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Allkiri</span></p>
-        </td>
-    </tr>
-    </tbody>
-</table>
-<p class="c0"><span class="c3"></span></p>
-<p class="c14"><span class="c3">5. Seadusliku esindaja andmed&sup2;</span></p>
-<p class="c0"><span class="c3"></span></p>
-<a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
-<table class="c15">
-    <tbody>
-    <tr class="c34">
-        <td class="c22" colspan="3" rowspan="1">
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="c0"><span class="c3"></span></p>
+    <p class="c14"><span class="c3">5. Seadusliku esindaja andmed&sup2;</span></p>
+    <p class="c0"><span class="c3"></span></p>
+    <a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
+    <table class="c15">
+      <tbody>
+        <tr class="c34">
+          <td class="c22" colspan="3" rowspan="1">
             <p class="c14"><span class="c3">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
-        </td>
-    </tr>
-    <tr class="c1">
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+        </tr>
+        <tr class="c1">
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
-        </td>
-    </tr>
-    <tr class="c1">
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+        </tr>
+        <tr class="c1">
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Seadusliku esindaja isikukood</span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Ees- ja perekonnanimi</span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Seadusliku esindaja allkiri</span></p>
-        </td>
-    </tr>
-    </tbody>
-</table>
-<p class="c0"><span class="c3"></span></p>
-<p class="c14"><span class="c3">6. Volitatud esindaja andmed&sup3;</span></p>
-<p class="c0"><span class="c3"></span></p>
-<a id="t.364bbe539b833f885e6cdf18af613e0e4b587303"></a><a id="t.6"></a>
-<table class="c15">
-    <tbody>
-    <tr class="c1">
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="c0"><span class="c3"></span></p>
+    <p class="c14"><span class="c3">6. Volitatud esindaja andmed&sup3;</span></p>
+    <p class="c0"><span class="c3"></span></p>
+    <a id="t.364bbe539b833f885e6cdf18af613e0e4b587303"></a><a id="t.6"></a>
+    <table class="c15">
+      <tbody>
+        <tr class="c1">
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
-        </td>
-    </tr>
-    <tr class="c1">
-        <td class="c2" colspan="1" rowspan="1">
+          </td>
+        </tr>
+        <tr class="c1">
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">F&uuml;&uuml;silise isiku puhul tema isikukood</span></p>
             <p class="c0"><span class="c5"></span></p>
-            <p class="c14"><span class="c5">Juriidilise isiku puhul tema registrikood ja juriidilise isiku esindaja isikukood</span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+            <p class="c14"><span class="c5">Juriidilise isiku puhul tema registrikood ja juriidilise isiku esindaja isikukood</span>
+            </p>
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">F&uuml;&uuml;silise isiku puhul tema ees- ja perekonnanimi</span></p>
             <p class="c0"><span class="c5"></span></p>
-            <p class="c14"><span class="c5">Juriidilise isiku puhul tema &auml;rinimi ning juriidilise isiku esindaja ees- ja perekonnanimi</span></p>
-        </td>
-        <td class="c2" colspan="1" rowspan="1">
+            <p class="c14"><span class="c5">Juriidilise isiku puhul tema &auml;rinimi ning juriidilise isiku esindaja ees- ja perekonnanimi</span>
+            </p>
+          </td>
+          <td class="c2" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Avalduse esitaja isikusamasust tuvastanud isiku allkiri</span></p>
-        </td>
-    </tr>
-    </tbody>
-</table>
-<p class="c0"><span class="c3"></span></p>
-<p class="c0"><span class="c3"></span></p>
-<p class="c14"><span class="c5">&sup1; Vabatahtliku pensionifondi osakute vahetamise avaldusega saab vahetada ühe vabatahtliku pensionifondi osakud ühe või mitme teise vabatahtliku pensionfondi osakute vastu.</span></p>
-<p class="c0"><span class="c5"></span></p>
-<p class="c14"><span class="c5">Vabatahtliku pensionifondi nimetuse juurde, mille osakuid soovitakse osakute vahetamisel omandada, märgitakse osakute arv, mis osakute vahetamisel tagasi võetakse. Kui osakute vahetamise käigus soovitakse omandada mitme vabatahtliku pensionifondi osakuid, märgitakse iga vabatahtliku pensionifondi nimetuse juurde, mille osakuid soovitakse omandada, vastavalt sellesse fondi vahetamisel tagasivõtmisele kuuluvate osakute arv.</span></p>
-<p class="c0"><span class="c5"></span></p>
-<p class="c0"><span class="c5"></span></p>
-<p class="c14"><span class="c5">&sup2; Lahter t&auml;idetakse avalduse esitaja seadusliku esindaja poolt, kui tulenevalt &otilde;igusaktidest on avalduse esitamine lubatud &uuml;ksnes seadusliku esindaja poolt v&otilde;i tema n&otilde;usolekul.</span></p>
-<p class="c0"><span class="c5"></span></p>
-<p class="c14"><span class="c5">&sup3; Lahter t&auml;idetakse, kui avaldus esitatakse muu esindaja kui seadusliku esindaja kaudu.</span></p>
-</body>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="c0"><span class="c3"></span></p>
+    <p class="c0"><span class="c3"></span></p>
+    <p class="c14"><span class="c5">&sup1; Vabatahtliku pensionifondi osakute vahetamise avaldusega saab vahetada ühe vabatahtliku pensionifondi osakud ühe või mitme teise vabatahtliku pensionfondi osakute vastu.</span>
+    </p>
+    <p class="c0"><span class="c5"></span></p>
+    <p class="c14"><span class="c5">Vabatahtliku pensionifondi nimetuse juurde, mille osakuid soovitakse osakute vahetamisel omandada, märgitakse osakute arv, mis osakute vahetamisel tagasi võetakse. Kui osakute vahetamise käigus soovitakse omandada mitme vabatahtliku pensionifondi osakuid, märgitakse iga vabatahtliku pensionifondi nimetuse juurde, mille osakuid soovitakse omandada, vastavalt sellesse fondi vahetamisel tagasivõtmisele kuuluvate osakute arv.</span>
+    </p>
+    <p class="c0"><span class="c5"></span></p>
+    <p class="c0"><span class="c5"></span></p>
+    <p class="c14"><span class="c5">&sup2; Lahter t&auml;idetakse avalduse esitaja seadusliku esindaja poolt, kui tulenevalt &otilde;igusaktidest on avalduse esitamine lubatud &uuml;ksnes seadusliku esindaja poolt v&otilde;i tema n&otilde;usolekul.</span>
+    </p>
+    <p class="c0"><span class="c5"></span></p>
+    <p class="c14"><span class="c5">&sup3; Lahter t&auml;idetakse, kui avaldus esitatakse muu esindaja kui seadusliku esindaja kaudu.</span>
+    </p>
+  </body>
 
 </html>

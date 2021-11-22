@@ -4,7 +4,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Collections.singletonList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType;
@@ -35,7 +35,7 @@ public class MandateEmailService {
       User user,
       Mandate mandate,
       PillarSuggestion pillarSuggestion,
-      UserPreferences contactDetails,
+      ContactDetails contactDetails,
       Locale locale) {
     if (mandate.getPillar() == 2) {
       sendSecondPillarEmail(user, mandate, pillarSuggestion, locale);
@@ -70,7 +70,7 @@ public class MandateEmailService {
       User user,
       Mandate mandate,
       PillarSuggestion pillarSuggestion,
-      UserPreferences contactDetails,
+      ContactDetails contactDetails,
       Locale locale) {
     sendThirdPillarPaymentDetailsEmail(user, mandate, contactDetails, locale);
     if (pillarSuggestion.isSuggestPillar()) {
@@ -90,7 +90,7 @@ public class MandateEmailService {
   }
 
   private void sendThirdPillarPaymentDetailsEmail(
-      User user, Mandate mandate, UserPreferences contactDetails, Locale locale) {
+      User user, Mandate mandate, ContactDetails contactDetails, Locale locale) {
     String subject =
         messageSource.getMessage("mandate.email.thirdPillar.paymentDetails.subject", null, locale);
     String content =

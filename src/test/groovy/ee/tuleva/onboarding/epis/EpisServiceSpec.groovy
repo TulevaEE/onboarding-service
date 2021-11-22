@@ -3,12 +3,12 @@ package ee.tuleva.onboarding.epis
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
-import ee.tuleva.onboarding.epis.contact.UserPreferences
+import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.epis.fund.FundDto
 import ee.tuleva.onboarding.epis.fund.NavDto
-import ee.tuleva.onboarding.epis.mandate.MandateDto
-import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
+import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
+import ee.tuleva.onboarding.epis.mandate.MandateDto
 import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -31,178 +31,179 @@ import static org.springframework.http.HttpStatus.OK
 
 class EpisServiceSpec extends Specification {
 
-    RestTemplate restTemplate = Mock(RestTemplate)
-    OAuth2RestOperations clientCredentialsRestTemplate = Mock(OAuth2RestOperations)
-    EpisService service = new EpisService(restTemplate, clientCredentialsRestTemplate)
+  RestTemplate restTemplate = Mock(RestTemplate)
+  OAuth2RestOperations clientCredentialsRestTemplate = Mock(OAuth2RestOperations)
+  EpisService service = new EpisService(restTemplate, clientCredentialsRestTemplate)
 
-    String sampleToken = "123"
+  String sampleToken = "123"
 
-    def setup() {
-        service.episServiceUrl = "http://epis"
+  def setup() {
+    service.episServiceUrl = "http://epis"
 
-        OAuth2AuthenticationDetails sampleDetails = Mock(OAuth2AuthenticationDetails)
-        sampleDetails.getTokenValue() >> sampleToken
+    OAuth2AuthenticationDetails sampleDetails = Mock(OAuth2AuthenticationDetails)
+    sampleDetails.getTokenValue() >> sampleToken
 
-        Authentication sampleAuthentication = Mock(Authentication)
-        sampleAuthentication.getDetails() >> sampleDetails
+    Authentication sampleAuthentication = Mock(Authentication)
+    sampleAuthentication.getDetails() >> sampleDetails
 
-        SecurityContextHolder.getContext().setAuthentication(sampleAuthentication)
-    }
+    SecurityContextHolder.getContext().setAuthentication(sampleAuthentication)
+  }
 
-    def "Send mandate: "() {
-        given:
-        def sampleMandate = sampleMandate()
-        def mandateDto = MandateDto.builder()
-            .id(sampleMandate.id)
-            .build()
+  def "Send mandate: "() {
+    given:
+    def sampleMandate = sampleMandate()
+    def mandateDto = MandateDto.builder()
+        .id(sampleMandate.id)
+        .build()
 
-        1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
-            doesHttpEntityContainToken(httpEntity, sampleToken) &&
-                httpEntity.body.id == sampleMandate.id
-        }, ApplicationResponseDTO.class)
+    1 * restTemplate.postForObject(_ as String, {HttpEntity httpEntity ->
+      doesHttpEntityContainToken(httpEntity, sampleToken) &&
+          httpEntity.body.id == sampleMandate.id
+    }, ApplicationResponseDTO.class)
 
-        when:
-        service.sendMandate(mandateDto)
+    when:
+    service.sendMandate(mandateDto)
 
-        then:
-        true
-    }
+    then:
+    true
+  }
 
-    def "getApplications: "() {
-        given:
-        ApplicationDTO[] responseBody = [ApplicationDTO.builder().build()]
-        ResponseEntity<ApplicationDTO[]> result =
-            new ResponseEntity(responseBody, OK)
+  def "getApplications: "() {
+    given:
+    ApplicationDTO[] responseBody = [ApplicationDTO.builder().build()]
+    ResponseEntity<ApplicationDTO[]> result =
+        new ResponseEntity(responseBody, OK)
 
-        1 * restTemplate.exchange(
-            "http://epis/applications", GET, { HttpEntity httpEntity ->
-            doesHttpEntityContainToken(httpEntity, sampleToken)
-        }, ApplicationDTO[].class) >> result
+    1 * restTemplate.exchange(
+        "http://epis/applications", GET, {HttpEntity httpEntity ->
+      doesHttpEntityContainToken(httpEntity, sampleToken)
+    }, ApplicationDTO[].class) >> result
 
-        when:
-        List<ApplicationDTO> transferApplicationDTOList =
-            service.getApplications(samplePerson())
+    when:
+    List<ApplicationDTO> transferApplicationDTOList =
+        service.getApplications(samplePerson())
 
-        then:
-        transferApplicationDTOList.size() == 1
-    }
+    then:
+    transferApplicationDTOList.size() == 1
+  }
 
-    def "getContactDetails"() {
-        given:
+  def "getContactDetails"() {
+    given:
+    def fixture = contactDetailsFixture()
+    ResponseEntity<ContactDetails> response = new ResponseEntity(fixture, OK)
 
-        UserPreferences userPreferences = contactDetailsFixture()
-        ResponseEntity<UserPreferences> response =
-            new ResponseEntity(userPreferences, OK)
+    1 * restTemplate.exchange(
+        _ as String,
+        GET,
+        {HttpEntity httpEntity -> doesHttpEntityContainToken(httpEntity, sampleToken)
+        },
+        ContactDetails.class
+    ) >> response
+    when:
+    ContactDetails contactDetails = service.getContactDetails(samplePerson())
 
-        1 * restTemplate.exchange(
-            _ as String, GET, { HttpEntity httpEntity ->
-            doesHttpEntityContainToken(httpEntity, sampleToken)
-        }, UserPreferences.class) >> response
-        when:
-        UserPreferences contactDetails = service.getContactDetails(samplePerson())
+    then:
+    contactDetails == fixture
+  }
 
-        then:
-        contactDetails == userPreferences
-    }
+  def "getCashFlowStatement calls the right endpoint"() {
+    given:
+    CashFlowStatement cashFlowStatement = cashFlowFixture()
+    ResponseEntity<CashFlowStatement> response = new ResponseEntity(cashFlowStatement, OK)
 
-    def "getCashFlowStatement calls the right endpoint"() {
-        given:
-        CashFlowStatement cashFlowStatement = cashFlowFixture()
-        ResponseEntity<CashFlowStatement> response = new ResponseEntity(cashFlowStatement, OK)
+    LocalDate fromDate = LocalDate.parse("2001-01-01")
+    LocalDate toDate = LocalDate.parse("2018-01-01")
 
-        LocalDate fromDate = LocalDate.parse("2001-01-01")
-        LocalDate toDate = LocalDate.parse("2018-01-01")
+    1 * restTemplate.exchange(
+        "http://epis/account-cash-flow-statement?from-date=2001-01-01&to-date=2018-01-01", GET, {
+      HttpEntity httpEntity -> doesHttpEntityContainToken(httpEntity, sampleToken)
+    }, CashFlowStatement.class) >> response
 
-        1 * restTemplate.exchange(
-            "http://epis/account-cash-flow-statement?from-date=2001-01-01&to-date=2018-01-01", GET, {
-            HttpEntity httpEntity -> doesHttpEntityContainToken(httpEntity, sampleToken)
-        }, CashFlowStatement.class) >> response
+    when:
+    CashFlowStatement responseDto = service.getCashFlowStatement(samplePerson(), fromDate, toDate)
 
-        when:
-        CashFlowStatement responseDto = service.getCashFlowStatement(samplePerson(), fromDate, toDate)
+    then:
+    cashFlowStatement == responseDto
+  }
 
-        then:
-        cashFlowStatement == responseDto
-    }
+  def "gets account statement"() {
+    given:
+    FundBalanceDto fundBalanceDto = FundBalanceDto.builder().isin("someIsin").build()
+    FundBalanceDto[] response = [fundBalanceDto]
 
-    def "gets account statement"() {
-        given:
-        FundBalanceDto fundBalanceDto = FundBalanceDto.builder().isin("someIsin").build()
-        FundBalanceDto[] response = [fundBalanceDto]
+    1 * restTemplate.exchange(
+        _ as String, GET, {HttpEntity httpEntity ->
+      doesHttpEntityContainToken(httpEntity, sampleToken)
+    }, FundBalanceDto[].class) >> new ResponseEntity(response, OK)
 
-        1 * restTemplate.exchange(
-            _ as String, GET, { HttpEntity httpEntity ->
-            doesHttpEntityContainToken(httpEntity, sampleToken)
-        }, FundBalanceDto[].class) >> new ResponseEntity(response, OK)
+    when:
+    List<FundBalanceDto> fundBalances = service.getAccountStatement(samplePerson())
 
-        when:
-        List<FundBalanceDto> fundBalances = service.getAccountStatement(samplePerson())
+    then:
+    fundBalances == response
+  }
 
-        then:
-        fundBalances == response
-    }
+  def "gets funds"() {
+    given:
 
-    def "gets funds"() {
-        given:
+    FundDto[] sampleFunds = [new FundDto("EE3600109435", "Tuleva Maailma Aktsiate Pensionifond", "TUK75", 2, ACTIVE)]
 
-        FundDto[] sampleFunds = [new FundDto("EE3600109435", "Tuleva Maailma Aktsiate Pensionifond", "TUK75", 2, ACTIVE)]
+    1 * restTemplate.exchange(
+        _ as String, GET, {HttpEntity httpEntity ->
+      doesHttpEntityContainToken(httpEntity, sampleToken)
+    }, FundDto[].class) >> new ResponseEntity(sampleFunds, OK)
 
-        1 * restTemplate.exchange(
-            _ as String, GET, { HttpEntity httpEntity ->
-            doesHttpEntityContainToken(httpEntity, sampleToken)
-        }, FundDto[].class) >> new ResponseEntity(sampleFunds, OK)
+    when:
+    List<FundDto> funds = service.getFunds()
 
-        when:
-        List<FundDto> funds = service.getFunds()
+    then:
+    funds == sampleFunds
+  }
 
-        then:
-        funds == sampleFunds
-    }
+  def "Updates contact details"() {
+    given:
+    def contactDetails = contactDetailsFixture()
 
-    def "Updates contact details"() {
-        given:
-        def contactDetails = contactDetailsFixture()
+    1 * restTemplate.postForObject(_ as String, {HttpEntity httpEntity ->
+      doesHttpEntityContainToken(httpEntity, sampleToken) &&
+          httpEntity.body.personalCode == contactDetails.personalCode
+    }, ContactDetails.class)
 
-        1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
-            doesHttpEntityContainToken(httpEntity, sampleToken) &&
-                httpEntity.body.personalCode == contactDetails.personalCode
-        }, UserPreferences.class)
+    when:
+    service.updateContactDetails(samplePerson, contactDetails)
 
-        when:
-        service.updateContactDetails(samplePerson, contactDetails)
+    then:
+    true
+  }
 
-        then:
-        true
-    }
+  def "gets nav"() {
+    given:
+    def navDto = Mock(NavDto)
+    1 * clientCredentialsRestTemplate.exchange("http://epis/navs/EE666?date=2018-10-20", GET, _, NavDto.class) >>
+        new ResponseEntity<NavDto>(navDto, OK);
+    when:
+    def result = service.getNav("EE666", LocalDate.parse("2018-10-20"))
+    then:
+    result == navDto
+  }
 
-    def "gets nav"() {
-        given:
-        def navDto = Mock(NavDto)
-        1 * clientCredentialsRestTemplate.exchange("http://epis/navs/EE666?date=2018-10-20", GET, _, NavDto.class) >>
-            new ResponseEntity<NavDto>(navDto, OK);
-        when:
-        def result = service.getNav("EE666", LocalDate.parse("2018-10-20"))
-        then:
-        result == navDto
-    }
+  def "can send cancellations"() {
+    given:
+    def sampleCancellation = sampleCancellation()
 
-    def "can send cancellations"() {
-        given:
-        def sampleCancellation = sampleCancellation()
+    1 * restTemplate.postForObject(_ as String, {HttpEntity httpEntity ->
+      doesHttpEntityContainToken(httpEntity, sampleToken) &&
+          httpEntity.body.id == sampleCancellation.id
+    }, ApplicationResponse.class)
 
-        1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
-            doesHttpEntityContainToken(httpEntity, sampleToken) &&
-                httpEntity.body.id == sampleCancellation.id
-        }, ApplicationResponse.class)
+    when:
+    service.sendCancellation(sampleCancellation)
 
-        when:
-        service.sendCancellation(sampleCancellation)
+    then:
+    true
+  }
 
-        then:
-        true
-    }
-
-    boolean doesHttpEntityContainToken(HttpEntity httpEntity, String sampleToken) {
-        httpEntity.headers.getFirst("authorization") == ("Bearer " + sampleToken)
-    }
+  boolean doesHttpEntityContainToken(HttpEntity httpEntity, String sampleToken) {
+    httpEntity.headers.getFirst("authorization") == ("Bearer " + sampleToken)
+  }
 }

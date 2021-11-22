@@ -13,192 +13,195 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 import static org.hamcrest.Matchers.*
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
 class UserControllerSpec extends BaseControllerSpec {
 
-    UserService userService = Mock()
-    EpisService episService = Mock()
-    ContactDetailsService contactDetailsService = Mock()
+  UserService userService = Mock()
+  EpisService episService = Mock()
+  ContactDetailsService contactDetailsService = Mock()
 
-    UserController controller = new UserController(userService, episService, contactDetailsService)
+  UserController controller = new UserController(userService, episService, contactDetailsService)
 
-    def "/me endpoint works with non member"() {
-        given:
-        def contactDetails = contactDetailsFixture()
-        def user = userFrom(sampleAuthenticatedPerson)
-        1 * userService.getById(sampleAuthenticatedPerson.userId) >> user
-        1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
+  def "/me endpoint works with non member"() {
+    given:
+    def contactDetails = contactDetailsFixture()
+    def user = userFrom(sampleAuthenticatedPerson)
+    1 * userService.getById(sampleAuthenticatedPerson.userId) >> user
+    1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
 
-        expect:
-        mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
-            .perform(get("/v1/me"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath('$.id', is(2)))
-            .andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPerson.firstName)))
-            .andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPerson.lastName)))
-            .andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPerson.personalCode)))
-            .andExpect(jsonPath('$.age', is(user.age)))
-            .andExpect(jsonPath('$.email', is(user.email)))
-            .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
-            .andExpect(jsonPath('$.memberNumber', is(nullValue())))
-            .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
-            .andExpect(jsonPath('$.address.street', is(contactDetails.addressRow1)))
-            .andExpect(jsonPath('$.address.districtCode', is(contactDetails.districtCode)))
-            .andExpect(jsonPath('$.address.postalCode', is(contactDetails.postalIndex)))
-            .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
-            .andExpect(jsonPath('$.secondPillarActive', is(contactDetails.secondPillarActive)))
-            .andExpect(jsonPath('$.thirdPillarActive', is(contactDetails.thirdPillarActive)))
-    }
+    expect:
+    mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+        .perform(get("/v1/me"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.id', is(2)))
+        .andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPerson.firstName)))
+        .andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPerson.lastName)))
+        .andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPerson.personalCode)))
+        .andExpect(jsonPath('$.age', is(user.age)))
+        .andExpect(jsonPath('$.email', is(user.email)))
+        .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
+        .andExpect(jsonPath('$.memberNumber', is(nullValue())))
+        .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
+        .andExpect(jsonPath('$.address.street', is(contactDetails.addressRow1)))
+        .andExpect(jsonPath('$.address.districtCode', is(contactDetails.districtCode)))
+        .andExpect(jsonPath('$.address.postalCode', is(contactDetails.postalIndex)))
+        .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
+        .andExpect(jsonPath('$.secondPillarActive', is(contactDetails.secondPillarActive)))
+        .andExpect(jsonPath('$.thirdPillarActive', is(contactDetails.thirdPillarActive)))
+  }
 
-    def "/me endpoint works with a member"() {
-        given:
-        def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-        def user = sampleUser().build()
-        def contactDetails = contactDetailsFixture()
-        1 * userService.getById(user.id) >> user
-        1 * episService.getContactDetails(authenticatedPerson) >> contactDetails
+  def "/me endpoint works with a member"() {
+    given:
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+    def user = sampleUser().build()
+    def contactDetails = contactDetailsFixture()
+    1 * userService.getById(user.id) >> user
+    1 * episService.getContactDetails(authenticatedPerson) >> contactDetails
 
-        expect:
-        mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
-            .perform(get("/v1/me"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath('$.id', is(authenticatedPerson.userId.intValue())))
-            .andExpect(jsonPath('$.firstName', is(authenticatedPerson.firstName)))
-            .andExpect(jsonPath('$.lastName', is(authenticatedPerson.lastName)))
-            .andExpect(jsonPath('$.personalCode', is(authenticatedPerson.personalCode)))
-            .andExpect(jsonPath('$.age', is(user.age)))
-            .andExpect(jsonPath('$.email', is(user.email)))
-            .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
-            .andExpect(jsonPath('$.memberNumber', is(user.member.get().memberNumber)))
-            .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
-            .andExpect(jsonPath('$.address.street', is(contactDetails.addressRow1)))
-            .andExpect(jsonPath('$.address.districtCode', is(contactDetails.districtCode)))
-            .andExpect(jsonPath('$.address.postalCode', is(contactDetails.postalIndex)))
-            .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
-    }
+    expect:
+    mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
+        .perform(get("/v1/me"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.id', is(authenticatedPerson.userId.intValue())))
+        .andExpect(jsonPath('$.firstName', is(authenticatedPerson.firstName)))
+        .andExpect(jsonPath('$.lastName', is(authenticatedPerson.lastName)))
+        .andExpect(jsonPath('$.personalCode', is(authenticatedPerson.personalCode)))
+        .andExpect(jsonPath('$.age', is(user.age)))
+        .andExpect(jsonPath('$.email', is(user.email)))
+        .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
+        .andExpect(jsonPath('$.memberNumber', is(user.member.get().memberNumber)))
+        .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
+        .andExpect(jsonPath('$.address.street', is(contactDetails.addressRow1)))
+        .andExpect(jsonPath('$.address.districtCode', is(contactDetails.districtCode)))
+        .andExpect(jsonPath('$.address.postalCode', is(contactDetails.postalIndex)))
+        .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
+  }
 
-    def "/me/principal endpoint works"() {
-        expect:
-        mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
-            .perform(get("/v1/me/principal"))
-            .andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath('$.userId', is(2)))
-            .andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPerson.firstName)))
-            .andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPerson.lastName)))
-            .andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPerson.personalCode)))
-    }
+  def "/me/principal endpoint works"() {
+    expect:
+    mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+        .perform(get("/v1/me/principal"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.userId', is(2)))
+        .andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPerson.firstName)))
+        .andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPerson.lastName)))
+        .andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPerson.personalCode)))
+  }
 
-    def "updates an existing user"() {
-        given:
-        def contactDetails = contactDetailsFixture()
-        def address = addressFixture().build()
-        def command = new UpdateUserCommand(
-            email: "erko@risthein.ee",
-            phoneNumber: "5555555",
-            address: address
-        )
-        def updatedUser = userFrom(sampleAuthenticatedPerson, command)
+  def "updates an existing user"() {
+    given:
+    def contactDetails = contactDetailsFixture()
+    def address = addressFixture().build()
+    def command = new UpdateUserCommand(
+        email: "erko@risthein.ee",
+        phoneNumber: "5555555",
+        address: address
+    )
+    def updatedUser = userFrom(sampleAuthenticatedPerson, command)
 
-        1 * userService.updateUser(sampleAuthenticatedPerson.personalCode, command.email, command.phoneNumber) >>
-            updatedUser
-        1 * contactDetailsService.updateContactDetails(updatedUser, command.address) >>
-            contactDetails.setAddress(address)
+    1 * userService
+        .updateUser(sampleAuthenticatedPerson.personalCode, Optional.of(command.email), command.phoneNumber) >>
+        updatedUser
+    1 * contactDetailsService.updateContactDetails(updatedUser, command.address) >>
+        contactDetails.setAddress(address)
 
-        def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+    def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
-        when:
-        def performCall = mvc
-            .perform(patch("/v1/me")
-                .content(mapper.writeValueAsString(command))
-                .contentType(MediaType.APPLICATION_JSON))
+    when:
+    def performCall = mvc
+        .perform(patch("/v1/me")
+            .content(mapper.writeValueAsString(command))
+            .contentType(MediaType.APPLICATION_JSON))
 
-        then:
-        performCall.andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath('$.firstName', is("Erko")))
-            .andExpect(jsonPath('$.lastName', is("Risthein")))
-            .andExpect(jsonPath('$.personalCode', is("38501010002")))
-            .andExpect(jsonPath('$.email', is("erko@risthein.ee")))
-            .andExpect(jsonPath('$.phoneNumber', is("5555555")))
-            .andExpect(jsonPath('$.age', isA(Integer)))
-            .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
-            .andExpect(jsonPath('$.address.street', is(address.street)))
-            .andExpect(jsonPath('$.address.districtCode', is(address.districtCode)))
-            .andExpect(jsonPath('$.address.postalCode', is(address.postalCode)))
-            .andExpect(jsonPath('$.address.countryCode', is(address.countryCode)))
-    }
+    then:
+    performCall.andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.firstName', is("Erko")))
+        .andExpect(jsonPath('$.lastName', is("Risthein")))
+        .andExpect(jsonPath('$.personalCode', is("38501010002")))
+        .andExpect(jsonPath('$.email', is("erko@risthein.ee")))
+        .andExpect(jsonPath('$.phoneNumber', is("5555555")))
+        .andExpect(jsonPath('$.age', isA(Integer)))
+        .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
+        .andExpect(jsonPath('$.address.street', is(address.street)))
+        .andExpect(jsonPath('$.address.districtCode', is(address.districtCode)))
+        .andExpect(jsonPath('$.address.postalCode', is(address.postalCode)))
+        .andExpect(jsonPath('$.address.countryCode', is(address.countryCode)))
+  }
 
-    def "can update just email and phone number"() {
-        given:
-        def command = new UpdateUserCommand(
-            email: "erko@risthein.ee",
-            phoneNumber: "5555555"
-        )
-        def updatedUser = userFrom(sampleAuthenticatedPerson, command)
+  def "can update just email and phone number"() {
+    given:
+    def command = new UpdateUserCommand(
+        email: "erko@risthein.ee",
+        phoneNumber: "5555555"
+    )
+    def updatedUser = userFrom(sampleAuthenticatedPerson, command)
 
-        1 * userService.updateUser(sampleAuthenticatedPerson.personalCode, command.email, command.phoneNumber) >>
-            updatedUser
-        0 * contactDetailsService.updateContactDetails(_ , _)
+    1 * userService
+        .updateUser(sampleAuthenticatedPerson.personalCode, Optional.of(command.email), command.phoneNumber) >>
+        updatedUser
+    0 * contactDetailsService.updateContactDetails(_, _)
 
-        def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+    def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
-        when:
-        def performCall = mvc
-            .perform(patch("/v1/me")
-                .content(mapper.writeValueAsString(command))
-                .contentType(MediaType.APPLICATION_JSON))
+    when:
+    def performCall = mvc
+        .perform(patch("/v1/me")
+            .content(mapper.writeValueAsString(command))
+            .contentType(MediaType.APPLICATION_JSON))
 
-        then:
-        performCall.andExpect(status().isOk())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath('$.firstName', is("Erko")))
-            .andExpect(jsonPath('$.lastName', is("Risthein")))
-            .andExpect(jsonPath('$.personalCode', is("38501010002")))
-            .andExpect(jsonPath('$.email', is("erko@risthein.ee")))
-            .andExpect(jsonPath('$.phoneNumber', is("5555555")))
-            .andExpect(jsonPath('$.age', isA(Integer)))
-            .andExpect(jsonPath('$.pensionAccountNumber', is(null)))
-            .andExpect(jsonPath('$.address', is(null)))
-    }
+    then:
+    performCall.andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.firstName', is("Erko")))
+        .andExpect(jsonPath('$.lastName', is("Risthein")))
+        .andExpect(jsonPath('$.personalCode', is("38501010002")))
+        .andExpect(jsonPath('$.email', is("erko@risthein.ee")))
+        .andExpect(jsonPath('$.phoneNumber', is("5555555")))
+        .andExpect(jsonPath('$.age', isA(Integer)))
+        .andExpect(jsonPath('$.pensionAccountNumber', is(null)))
+        .andExpect(jsonPath('$.address', is(null)))
+  }
 
-    def "validates a new user before saving"() {
-        given:
-        def command = new UpdateUserCommand()
-        def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+  def "validates a new user before saving"() {
+    given:
+    def command = new UpdateUserCommand()
+    def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
-        when:
-        def performCall = mvc
-            .perform(patch("/v1/me")
-                .content(mapper.writeValueAsString(command))
-                .contentType(MediaType.APPLICATION_JSON))
+    when:
+    def performCall = mvc
+        .perform(patch("/v1/me")
+            .content(mapper.writeValueAsString(command))
+            .contentType(MediaType.APPLICATION_JSON))
 
-        then:
-        0 * userService.updateUser(*_)
-        performCall.andExpect(status().isBadRequest())
-            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-            .andExpect(jsonPath('$.errors', hasSize(1)))
-    }
+    then:
+    0 * userService.updateUser(*_)
+    performCall.andExpect(status().isBadRequest())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.errors', hasSize(1)))
+  }
 
-    private User userFrom(AuthenticatedPerson authenticatedPerson, UpdateUserCommand command = null) {
-        sampleUserNonMember()
-            .id(authenticatedPerson.userId)
-            .firstName(authenticatedPerson.firstName)
-            .lastName(authenticatedPerson.lastName)
-            .personalCode(authenticatedPerson.personalCode)
-            .email(command?.email)
-            .phoneNumber(command?.phoneNumber)
-            .build()
-    }
-
-    AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()
-        .firstName("Erko")
-        .lastName("Risthein")
-        .personalCode("38501010002")
-        .userId(2L)
+  private static User userFrom(AuthenticatedPerson authenticatedPerson, UpdateUserCommand command = null) {
+    sampleUserNonMember()
+        .id(authenticatedPerson.userId)
+        .firstName(authenticatedPerson.firstName)
+        .lastName(authenticatedPerson.lastName)
+        .personalCode(authenticatedPerson.personalCode)
+        .email(command?.email)
+        .phoneNumber(command?.phoneNumber)
         .build()
+  }
+
+  AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()
+      .firstName("Erko")
+      .lastName("Risthein")
+      .personalCode("38501010002")
+      .userId(2L)
+      .build()
 }

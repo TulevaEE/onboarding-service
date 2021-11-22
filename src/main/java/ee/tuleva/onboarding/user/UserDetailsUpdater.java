@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -54,13 +55,17 @@ public class UserDetailsUpdater {
     if (!user.hasContactDetails()) {
       UserPreferences contactDetails = contactDetailsService.getContactDetails(person, token);
       String phoneNumber = StringUtils.trim(contactDetails.getPhoneNumber());
-      String email = StringUtils.trim(contactDetails.getEmail());
+
+      Optional<String> email =
+          contactDetails.getEmail() != null
+              ? Optional.of(StringUtils.trim(contactDetails.getEmail()))
+              : Optional.empty();
 
       if (userService.isExistingEmail(person.getPersonalCode(), email)) {
         log.info(
             "User with given e-mail already exists, leaving the field empty for the user to fill: userId={}",
             user.getId());
-        email = null;
+        email = Optional.empty();
       }
 
       log.info("User contact details missing. Filling them in with EPIS data");

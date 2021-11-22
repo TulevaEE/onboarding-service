@@ -45,7 +45,7 @@ class UserServiceSpec extends Specification {
     userRepository.findByEmail(newEmail) >> Optional.empty()
 
     when:
-    def updatedUser = service.updateUser(user.personalCode, newEmail, "555555")
+    def updatedUser = service.updateUser(user.personalCode, Optional.of(newEmail), "555555")
 
     then:
     updatedUser.email == newEmail
@@ -63,7 +63,7 @@ class UserServiceSpec extends Specification {
     userRepository.findByEmail(newEmail) >> Optional.of(userWithExistingEmail)
 
     when:
-    service.updateUser(user.personalCode, newEmail, "555555")
+    service.updateUser(user.personalCode, Optional.of(newEmail), "555555")
 
     then:
     thrown(DuplicateEmailException)
@@ -134,7 +134,7 @@ class UserServiceSpec extends Specification {
     userRepository.findByEmail(email) >> existingUser
 
     when:
-    def result = service.isExistingEmail(personalCode, email)
+    def result = service.isExistingEmail(personalCode, Optional.of(email))
 
     then:
     result == isExistingEmail

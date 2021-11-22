@@ -35,7 +35,7 @@ public class UserService {
     return userRepository.save(user);
   }
 
-  public User updateUser(String personalCode, String email, String phoneNumber) {
+  public User updateUser(String personalCode, Optional<String> email, String phoneNumber) {
     if (isExistingEmail(personalCode, email)) {
       throw DuplicateEmailException.newInstance();
     }
@@ -44,7 +44,7 @@ public class UserService {
         findByPersonalCode(personalCode)
             .map(
                 existingUser -> {
-                  existingUser.setEmail(email);
+                  existingUser.setEmail(email.orElse(null));
                   existingUser.setPhoneNumber(phoneNumber);
                   return existingUser;
                 })
@@ -88,8 +88,10 @@ public class UserService {
     return userRepository.save(user);
   }
 
-  public boolean isExistingEmail(String personalCode, String email) {
-    Optional<User> existingUser = userRepository.findByEmail(email);
+  public boolean isExistingEmail(String personalCode, Optional<String> email) {
+    if (email.isEmpty()) return false;
+
+    Optional<User> existingUser = userRepository.findByEmail(email.get());
     return existingUser.isPresent() && !personalCode.equals(existingUser.get().getPersonalCode());
   }
 }

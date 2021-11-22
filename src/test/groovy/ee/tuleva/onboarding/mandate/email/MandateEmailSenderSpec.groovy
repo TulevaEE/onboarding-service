@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.email
 
 import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.contact.UserPreferences
+import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.user.User
@@ -14,6 +14,7 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 
 class MandateEmailSenderSpec extends Specification {
+
   EpisService episService = Mock(EpisService)
   MandateEmailService mandateEmailService = Mock(MandateEmailService)
   UserConversionService conversionService = Mock(UserConversionService)
@@ -25,7 +26,7 @@ class MandateEmailSenderSpec extends Specification {
     User user = sampleUser().build()
     Mandate mandate = sampleMandate()
 
-    UserPreferences contactDetails = new UserPreferences()
+    ContactDetails contactDetails = new ContactDetails()
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
     1 * episService.getContactDetails(_) >> contactDetails
@@ -47,7 +48,7 @@ class MandateEmailSenderSpec extends Specification {
     User user = sampleUser().build()
     Mandate mandate = thirdPillarMandate()
 
-    UserPreferences contactDetails = new UserPreferences()
+    ContactDetails contactDetails = new ContactDetails()
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
     1 * episService.getContactDetails(_) >> contactDetails

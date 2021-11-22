@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.mandate.email
 
 import ee.tuleva.onboarding.conversion.ConversionResponse
-import ee.tuleva.onboarding.epis.contact.UserPreferences
+import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
 class PillarSuggestionSpec extends Specification {
 
   def user = Mock(User)
-  def contactDetails = Mock(UserPreferences)
+  def contactDetails = Mock(ContactDetails)
   def conversion = Mock(ConversionResponse)
 
   def "suggests second pillar"() {

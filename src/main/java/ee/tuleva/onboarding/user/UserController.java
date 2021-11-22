@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.user;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
 import ee.tuleva.onboarding.user.response.UserResponse;
@@ -36,7 +36,7 @@ public class UserController {
       @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();
     User user = userService.getById(userId);
-    UserPreferences contactDetails = episService.getContactDetails(authenticatedPerson);
+    ContactDetails contactDetails = episService.getContactDetails(authenticatedPerson);
     return UserResponse.from(user, contactDetails);
   }
 
@@ -64,7 +64,7 @@ public class UserController {
             cmd.getPhoneNumber());
 
     if (cmd.getAddress() != null) {
-      UserPreferences contactDetails =
+      ContactDetails contactDetails =
           contactDetailsService.updateContactDetails(user, cmd.getAddress());
       return UserResponse.from(user, contactDetails);
     }

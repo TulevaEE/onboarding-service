@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.epis.contact;
 
-import static ee.tuleva.onboarding.epis.contact.UserPreferences.ContactPreferenceType.E;
-import static ee.tuleva.onboarding.epis.contact.UserPreferences.LanguagePreferenceType.EST;
+import static ee.tuleva.onboarding.epis.contact.ContactDetails.ContactPreferenceType.E;
+import static ee.tuleva.onboarding.epis.contact.ContactDetails.LanguagePreferenceType.EST;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.user.address.Address;
@@ -22,8 +22,7 @@ import org.jetbrains.annotations.Nullable;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-// TODO: rename to ContactDetails
-public class UserPreferences implements Person {
+public class ContactDetails implements Person {
 
   private static Map<String, String> districtCodeToName =
       new HashMap<>() {
@@ -121,7 +120,7 @@ public class UserPreferences implements Person {
         .build();
   }
 
-  public UserPreferences setAddress(Address address) {
+  public ContactDetails setAddress(Address address) {
     addressRow1 = address.getStreet();
     addressRow2 = null;
     addressRow3 = null;

@@ -8,7 +8,7 @@ import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.application.ApplicationResponse;
 import ee.tuleva.onboarding.epis.cancellation.CancellationDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
@@ -93,18 +93,18 @@ public class EpisService {
   }
 
   @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
-  public UserPreferences getContactDetails(Person person) {
+  public ContactDetails getContactDetails(Person person) {
     return getContactDetails(person, getToken());
   }
 
   @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
-  public UserPreferences getContactDetails(Person person, String token) {
+  public ContactDetails getContactDetails(Person person, String token) {
     String url = episServiceUrl + "/contact-details";
 
     log.info("Getting contact details from {} for {}", url, person.getPersonalCode());
 
-    ResponseEntity<UserPreferences> response =
-        userTokenRestTemplate.exchange(url, GET, getHeadersEntity(token), UserPreferences.class);
+    ResponseEntity<ContactDetails> response =
+        userTokenRestTemplate.exchange(url, GET, getHeadersEntity(token), ContactDetails.class);
 
     return response.getBody();
   }
@@ -155,13 +155,13 @@ public class EpisService {
   }
 
   @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
-  public UserPreferences updateContactDetails(Person person, UserPreferences contactDetails) {
+  public ContactDetails updateContactDetails(Person person, ContactDetails contactDetails) {
     String url = episServiceUrl + "/contact-details";
 
     log.info("Updating contact details for {}", contactDetails.getPersonalCode());
 
     return userTokenRestTemplate.postForObject(
-        url, new HttpEntity<>(contactDetails, getHeaders()), UserPreferences.class);
+        url, new HttpEntity<>(contactDetails, getHeaders()), ContactDetails.class);
   }
 
   private HttpEntity<String> getHeadersEntity() {

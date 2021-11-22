@@ -18,17 +18,17 @@ public class ContactDetailsService {
   private final EpisService episService;
   private final ApplicationEventPublisher eventPublisher;
 
-  public UserPreferences updateContactDetails(User user, Address address) {
-    UserPreferences contactDetails = episService.getContactDetails(user);
+  public ContactDetails updateContactDetails(User user, Address address) {
+    ContactDetails contactDetails = episService.getContactDetails(user);
     contactDetails.setEmail(user.getEmail());
     contactDetails.setPhoneNumber(user.getPhoneNumber());
     contactDetails.setAddress(address);
-    UserPreferences updatedContactDetails = episService.updateContactDetails(user, contactDetails);
+    ContactDetails updatedContactDetails = episService.updateContactDetails(user, contactDetails);
     eventPublisher.publishEvent(new ContactDetailsUpdatedEvent(this, user, updatedContactDetails));
     return updatedContactDetails;
   }
 
-  public UserPreferences getContactDetails(Person person, String token) {
+  public ContactDetails getContactDetails(Person person, String token) {
     return episService.getContactDetails(person, token);
   }
 }

@@ -5,8 +5,8 @@ import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,7 +53,7 @@ public class UserDetailsUpdater {
 
   private void updateContactDetails(Person person, String token, User user) {
     if (!user.hasContactDetails()) {
-      UserPreferences contactDetails = contactDetailsService.getContactDetails(person, token);
+      ContactDetails contactDetails = contactDetailsService.getContactDetails(person, token);
       String phoneNumber = StringUtils.trim(contactDetails.getPhoneNumber());
 
       Optional<String> email =

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.user.response
 
-
-import ee.tuleva.onboarding.epis.contact.UserPreferences
+import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -17,7 +16,7 @@ class UserResponseSpec extends Specification {
         .firstName(firstName)
         .lastName(lastName)
         .build()
-    def contactDetails = new UserPreferences()
+    def contactDetails = new ContactDetails()
 
     when:
     def userResponse = UserResponse.from(user, contactDetails)
@@ -35,15 +34,15 @@ class UserResponseSpec extends Specification {
   }
 
 
-    def "calculates age in the API response"() {
-        given:
-        def user = sampleUser().build()
+  def "calculates age in the API response"() {
+    given:
+    def user = sampleUser().build()
 
-        when:
-        def userResponse = UserResponse.from(user)
+    when:
+    def userResponse = UserResponse.from(user)
 
-        then:
-        userResponse.age > 0
-    }
+    then:
+    userResponse.age > 0
+  }
 
 }

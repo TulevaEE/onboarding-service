@@ -16,7 +16,7 @@ import com.google.common.collect.ImmutableMap;
 import ee.tuleva.onboarding.audit.AuditEventPublisher;
 import ee.tuleva.onboarding.audit.AuditEventType;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.user.User;
 import java.time.Clock;
 import java.time.Instant;
@@ -117,19 +117,19 @@ public class AmlService {
     addCheckIfMissing(contactDetailsCheck);
   }
 
-  public void addPensionRegistryNameCheckIfMissing(User user, UserPreferences userPreferences) {
+  public void addPensionRegistryNameCheckIfMissing(User user, ContactDetails contactDetails) {
     boolean isSuccess =
         personDataMatches(
             user,
-            userPreferences.getFirstName(),
-            userPreferences.getLastName(),
-            userPreferences.getPersonalCode());
+            contactDetails.getFirstName(),
+            contactDetails.getLastName(),
+            contactDetails.getPersonalCode());
     AmlCheck pensionRegistryNameCheck =
         AmlCheck.builder()
             .user(user)
             .type(PENSION_REGISTRY_NAME)
             .success(isSuccess)
-            .metadata(metadata(user, userPreferences))
+            .metadata(metadata(user, contactDetails))
             .build();
     addCheckIfMissing(pensionRegistryNameCheck);
   }

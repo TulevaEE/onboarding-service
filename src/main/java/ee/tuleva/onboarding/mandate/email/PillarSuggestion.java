@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.email;
 
 import ee.tuleva.onboarding.conversion.ConversionResponse;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.user.User;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -16,7 +16,7 @@ public class PillarSuggestion {
   private final boolean suggestMembership;
 
   public PillarSuggestion(
-      int pillar, User user, UserPreferences contactDetails, ConversionResponse conversion) {
+      int pillar, User user, ContactDetails contactDetails, ConversionResponse conversion) {
     boolean pillarActive;
     boolean pillarFullyConverted;
 

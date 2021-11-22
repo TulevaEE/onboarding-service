@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.mandate.email;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.contact.UserPreferences;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.event.EventListener;
@@ -18,7 +18,7 @@ public class MandateEmailSender {
 
   @EventListener
   public void sendEmail(AfterMandateSignedEvent event) {
-    UserPreferences contactDetails = episService.getContactDetails(event.getUser());
+    ContactDetails contactDetails = episService.getContactDetails(event.getUser());
     ConversionResponse conversion = conversionService.getConversion(event.getUser());
     PillarSuggestion pillarSuggestion =
         new PillarSuggestion(event.getPillar(), event.getUser(), contactDetails, conversion);

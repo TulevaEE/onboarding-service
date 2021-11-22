@@ -24,89 +24,8 @@ import lombok.Setter;
 // TODO: rename to ContactDetails
 public class UserPreferences implements Person {
 
-  public enum ContactPreferenceType {
-    E,
-    P
-  } // E - email, P - postal
-
-  private String firstName;
-
-  private String lastName;
-
-  private String personalCode;
-
-  @Builder.Default private ContactPreferenceType contactPreference = E;
-
-  private String districtCode;
-
-  private String addressRow1;
-
-  private String addressRow2;
-
-  private String addressRow3;
-
-  private String postalIndex;
-
-  @Builder.Default private String country = "EE";
-
-  public enum LanguagePreferenceType {
-    EST,
-    RUS,
-    ENG
-  }
-
-  @Builder.Default private LanguagePreferenceType languagePreference = EST;
-
-  @Builder.Default private String noticeNeeded = "Y"; // boolean { 'Y', 'N' }
-
-  private String email;
-
-  private String phoneNumber;
-
-  private String pensionAccountNumber;
-
-  private List<Distribution> thirdPillarDistribution;
-
-  @Data
-  @Builder
-  @NoArgsConstructor
-  @AllArgsConstructor
-  public static class Distribution {
-    private String activeThirdPillarFundIsin;
-    private BigDecimal percentage;
-  }
-
-  private String activeSecondPillarFundIsin;
-
-  private boolean isSecondPillarActive;
-
-  private boolean isThirdPillarActive;
-
-  public Address getAddress() {
-    return Address.builder()
-        .street(addressRow1)
-        .countryCode(country)
-        .postalCode(postalIndex)
-        .districtCode(districtCode)
-        .build();
-  }
-
-  public UserPreferences setAddress(Address address) {
-    addressRow1 = address.getStreet();
-    addressRow2 = null;
-    addressRow3 = null;
-    country = address.getCountryCode();
-    districtCode = address.getDistrictCode();
-    postalIndex = address.getPostalCode();
-    return this;
-  }
-
-  public String getDistrictName() {
-    return districtCodeToName.get(districtCode);
-  }
-
   private static Map<String, String> districtCodeToName =
-      new HashMap<String, String>() {
+      new HashMap<>() {
         {
           put("1060", "Abja-Paluoja linn");
           put("1301", "Antsla linn");
@@ -172,4 +91,66 @@ public class UserPreferences implements Person {
           put("0086", "Võru maakond");
         }
       };
+  private String firstName;
+  private String lastName;
+  private String personalCode;
+  @Builder.Default private ContactPreferenceType contactPreference = E;
+  private String districtCode;
+  private String addressRow1;
+  private String addressRow2;
+  private String addressRow3;
+  private String postalIndex;
+  @Builder.Default private String country = "EE";
+  @Builder.Default private LanguagePreferenceType languagePreference = EST;
+  @Builder.Default private String noticeNeeded = "Y"; // boolean { 'Y', 'N' }
+  private String email;
+  private String phoneNumber;
+  private String pensionAccountNumber;
+  private List<Distribution> thirdPillarDistribution;
+  private String activeSecondPillarFundIsin;
+  private boolean isSecondPillarActive;
+  private boolean isThirdPillarActive;
+
+  public Address getAddress() {
+    return Address.builder()
+        .street(addressRow1)
+        .countryCode(country)
+        .postalCode(postalIndex)
+        .districtCode(districtCode)
+        .build();
+  }
+
+  public UserPreferences setAddress(Address address) {
+    addressRow1 = address.getStreet();
+    addressRow2 = null;
+    addressRow3 = null;
+    country = address.getCountryCode();
+    districtCode = address.getDistrictCode();
+    postalIndex = address.getPostalCode();
+    return this;
+  }
+
+  public String getDistrictName() {
+    return districtCodeToName.get(districtCode);
+  }
+
+  public enum ContactPreferenceType {
+    E,
+    P
+  } // E - email, P - postal
+
+  public enum LanguagePreferenceType {
+    EST,
+    RUS,
+    ENG
+  }
+
+  @Data
+  @Builder
+  @NoArgsConstructor
+  @AllArgsConstructor
+  public static class Distribution {
+    private String activeThirdPillarFundIsin;
+    private BigDecimal percentage;
+  }
 }

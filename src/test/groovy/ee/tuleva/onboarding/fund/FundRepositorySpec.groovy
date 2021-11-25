@@ -103,7 +103,7 @@ class FundRepositorySpec extends Specification {
         Iterable<Fund> thirdPillarFunds = repository.findAllByPillar(3)
 
         then:
-        thirdPillarFunds.size() == 14 // TODO: bad assert, depends on the flyway migrations
+        thirdPillarFunds.size() == 19 // TODO: bad assert, depends on the flyway migrations
     }
 
     def "ignores inactive funds"() {

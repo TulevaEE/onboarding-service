@@ -1,7 +1,13 @@
 package ee.tuleva.onboarding.mandate.email;
 
+import ee.tuleva.onboarding.deadline.MandateDeadlines;
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,13 +21,21 @@ import org.thymeleaf.context.Context;
 public class MandateEmailContentService {
 
   private final TemplateEngine templateEngine;
+  private final MandateDeadlinesService mandateDeadlinesService;
 
   public String getSecondPillarHtml(
-      User user, PillarSuggestion thirdPillarSuggestion, Locale locale) {
+      User user, Instant mandateDate, PillarSuggestion thirdPillarSuggestion, Locale locale) {
     Context ctx = new Context();
     ctx.setLocale(locale);
     ctx.setVariable("firstName", user.getFirstName());
     ctx.setVariable("thirdPillarSuggestion", thirdPillarSuggestion);
+
+    DateTimeFormatter formatter =
+        DateTimeFormatter.ISO_LOCAL_DATE.withZone(ZoneId.of("Europe/Tallinn"));
+    MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(mandateDate);
+    LocalDate transferDate = deadlines.getTransferMandateFulfillmentDate();
+    ctx.setVariable("transferDate", formatter.format(transferDate));
+
     return templateEngine.process("second_pillar_mandate", ctx);
   }
 

@@ -3,7 +3,7 @@
   <body>
     <p th:text="#{mandate.email.greeting(${firstName})}"></p>
     <br>
-    <p th:text="#{mandate.email.secondPillarContent}"></p>
+    <p th:text="#{mandate.email.secondPillarContent(${transferDate})}"></p>
     <br>
     <p th:if="${thirdPillarSuggestion.isSuggestPillar()}" th:utext="#{mandate.email.suggestThirdPillar}"></p>
     <p th:if="${thirdPillarSuggestion.isSuggestMembership()}" th:utext="#{mandate.email.suggestMembership_2}"></p>

@@ -86,7 +86,8 @@ public class MandateEmailService {
     if (mandate.isTransferCancellation()) {
       return emailContentService.getSecondPillarTransferCancellationHtml(user, mandate, locale);
     }
-    return emailContentService.getSecondPillarHtml(user, pillarSuggestion, locale);
+    return emailContentService.getSecondPillarHtml(
+        user, mandate.getCreatedDate(), pillarSuggestion, locale);
   }
 
   private void sendThirdPillarPaymentDetailsEmail(

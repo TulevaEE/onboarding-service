@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import spock.lang.Specification
 
+import java.time.Instant
+
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
@@ -20,15 +22,17 @@ class MandateEmailContentServiceSpec extends Specification {
   MandateEmailContentService emailContentService
 
   @SnapshotName("second_pillar_suggest_third")
-  def "second pillar message: suggest third pillar when not fully converted to tuleva and not a member (third pillar active)"(Expect expect) {
+  def "second pillar message: suggest third pillar when not fully converted to tuleva and not a member (third pillar active)"(
+      Expect expect) {
     given:
     def user = sampleUserNonMember().build()
     def pillarSuggestion = Mock(PillarSuggestion)
+    Instant mandateDate = Instant.parse("2021-11-30T10:00:00Z")
     pillarSuggestion.isSuggestPillar() >> true
     pillarSuggestion.isSuggestMembership() >> false
 
     when:
-    String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
+    String html = emailContentService.getSecondPillarHtml(user, mandateDate, pillarSuggestion, ENGLISH)
     expect.toMatchSnapshot(html)
 
     then:
@@ -40,11 +44,12 @@ class MandateEmailContentServiceSpec extends Specification {
     given:
     def user = sampleUserNonMember().build()
     def pillarSuggestion = Mock(PillarSuggestion)
+    Instant mandateDate = Instant.parse("2021-11-30T10:00:00Z")
     pillarSuggestion.isSuggestPillar() >> false
     pillarSuggestion.isSuggestMembership() >> true
 
     when:
-    String html = emailContentService.getSecondPillarHtml(user, pillarSuggestion, ENGLISH)
+    String html = emailContentService.getSecondPillarHtml(user, mandateDate, pillarSuggestion, ENGLISH)
     expect.toMatchSnapshot(html)
 
     then:

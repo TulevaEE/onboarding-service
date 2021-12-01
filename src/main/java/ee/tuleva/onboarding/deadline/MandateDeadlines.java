@@ -29,8 +29,10 @@ public class MandateDeadlines {
     ZonedDateTime july31ThisYear = now().withMonth(7).with(lastDayOfMonth()).with(LocalTime.MAX);
     ZonedDateTime november30ThisYear =
         now().withMonth(11).with(lastDayOfMonth()).with(LocalTime.MAX);
+    ZonedDateTime march31NextYear =
+        now().plusYears(1).withMonth(3).with(lastDayOfMonth()).with(LocalTime.MAX);
 
-    return Stream.of(march31ThisYear, july31ThisYear, november30ThisYear)
+    return Stream.of(march31ThisYear, july31ThisYear, november30ThisYear, march31NextYear)
         .filter(deadline -> !deadline.isBefore(applicationDate.atZone(estonianClock.getZone())))
         .findFirst()
         .get();

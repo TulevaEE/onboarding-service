@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.deadline
 
-
 import spock.lang.Specification
 
 import java.time.Clock
@@ -80,6 +79,29 @@ class MandateDeadlinesSpec extends Specification {
 
       Instant.parse("2021-08-31T20:59:59.999999999Z") == getWithdrawalCancellationDeadline()
       LocalDate.parse("2021-09-16") == getWithdrawalFulfillmentDate()
+    }
+  }
+
+  def "test getMandateDeadlines after 30 november"() {
+    given:
+    def applicationDate = Instant.parse("2021-12-01T10:00:00Z")
+    def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
+
+    when:
+    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+
+    then:
+    with(mandateDeadlines) {
+      Instant.parse("2022-03-31T20:59:59.999999999Z") == getPeriodEnding()
+
+      Instant.parse("2022-03-31T20:59:59.999999999Z") == getTransferMandateCancellationDeadline()
+      LocalDate.parse("2022-05-02") == getTransferMandateFulfillmentDate()
+
+      Instant.parse("2022-07-31T20:59:59.999999999Z") == getEarlyWithdrawalCancellationDeadline()
+      LocalDate.parse("2022-09-01") == getEarlyWithdrawalFulfillmentDate()
+
+      Instant.parse("2021-12-31T21:59:59.999999999Z") == getWithdrawalCancellationDeadline()
+      LocalDate.parse("2022-01-17") == getWithdrawalFulfillmentDate()
     }
   }
 

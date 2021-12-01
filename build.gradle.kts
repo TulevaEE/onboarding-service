@@ -70,7 +70,7 @@ dependencies {
     implementation("org.springframework.session:spring-session-jdbc")
 
     implementation("de.codecentric:spring-boot-admin-starter-client")
-    implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.5.5")
+    implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.1")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.1.RELEASE")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")

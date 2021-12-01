@@ -91,7 +91,7 @@ dependencies {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
-    implementation("io.sentry:sentry-spring-boot-starter:5.3.0")
+    implementation("io.sentry:sentry-spring-boot-starter:5.4.3")
     implementation("io.sentry:sentry-logback:5.3.0")
 
     implementation("com.vladmihalcea:hibernate-types-52:2.14.0")

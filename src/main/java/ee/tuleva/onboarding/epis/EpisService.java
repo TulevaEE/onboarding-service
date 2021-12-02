@@ -134,6 +134,7 @@ public class EpisService {
   }
 
   public NavDto getNav(String isin, LocalDate date) {
+    log.info("Fetching NAV for fund from EPIS service: isin={}, date={}", isin, date);
     String url = episServiceUrl + "/navs/" + isin + "?date=" + date;
     return clientCredentialsRestTemplate
         .exchange(url, GET, new HttpEntity<>(createJsonHeaders()), NavDto.class)

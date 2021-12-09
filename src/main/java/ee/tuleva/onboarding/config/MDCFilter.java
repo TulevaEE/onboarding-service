@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.config;
 
+import io.sentry.Sentry;
 import java.io.IOException;
 import java.security.Principal;
 import javax.servlet.FilterChain;
@@ -38,14 +39,18 @@ public class MDCFilter extends GenericFilterBean {
     try {
       chain.doFilter(request, response);
     } finally {
-      if (successfulRegistration) {
-        MDC.remove(PERSONAL_ID);
-      }
+      if (successfulRegistration) clearPersonalId();
     }
+  }
+
+  private void clearPersonalId() {
+    MDC.remove(PERSONAL_ID);
+    Sentry.configureScope(scope -> scope.removeTag(PERSONAL_ID));
   }
 
   private boolean registerPersonalId(String personalId) {
     if (personalId != null && personalId.trim().length() > 0) {
+      Sentry.configureScope(scope -> scope.setTag(PERSONAL_ID, personalId));
       MDC.put(PERSONAL_ID, personalId);
       return true;
     }

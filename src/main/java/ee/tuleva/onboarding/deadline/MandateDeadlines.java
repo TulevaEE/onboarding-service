@@ -9,6 +9,8 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.Month;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -25,15 +27,22 @@ public class MandateDeadlines {
   }
 
   private ZonedDateTime periodEnding() {
-    ZonedDateTime march31ThisYear = now().withMonth(3).with(lastDayOfMonth()).with(LocalTime.MAX);
-    ZonedDateTime july31ThisYear = now().withMonth(7).with(lastDayOfMonth()).with(LocalTime.MAX);
-    ZonedDateTime november30ThisYear =
-        now().withMonth(11).with(lastDayOfMonth()).with(LocalTime.MAX);
-    ZonedDateTime march31NextYear =
-        now().plusYears(1).withMonth(3).with(lastDayOfMonth()).with(LocalTime.MAX);
+    ZoneId timeZone = estonianClock.getZone();
+    ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
+    int applicationYear = zonedApplicationDate.getYear();
 
-    return Stream.of(march31ThisYear, july31ThisYear, november30ThisYear, march31NextYear)
-        .filter(deadline -> !deadline.isBefore(applicationDate.atZone(estonianClock.getZone())))
+    ZonedDateTime march31 =
+        LocalDate.of(applicationYear, Month.MARCH, 31).atStartOfDay(timeZone).with(LocalTime.MAX);
+    ZonedDateTime july31 =
+        LocalDate.of(applicationYear, Month.JULY, 31).atStartOfDay(timeZone).with(LocalTime.MAX);
+    ZonedDateTime november30 =
+        LocalDate.of(applicationYear, Month.NOVEMBER, 30)
+            .atStartOfDay(timeZone)
+            .with(LocalTime.MAX);
+    ZonedDateTime march31NextYear = march31.plusYears(1);
+
+    return Stream.of(march31, july31, november30, march31NextYear)
+        .filter(deadline -> !deadline.isBefore(zonedApplicationDate))
         .findFirst()
         .get();
   }

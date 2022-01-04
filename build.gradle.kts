@@ -98,7 +98,7 @@ dependencies {
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
-    implementation("ee.sk.mid:mid-rest-java-client:1.3")
+    implementation("ee.sk.mid:mid-rest-java-client:1.4")
 
     implementation("com.google.guava:guava:31.0.1-jre")
 

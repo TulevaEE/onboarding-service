@@ -144,6 +144,29 @@ class MandateDeadlinesSpec extends Specification {
     }
   }
 
+  def "test mandate deadlines after year change"() {
+    given:
+    def applicationDate = Instant.parse("2021-10-10T10:00:00Z")
+    def clock = Clock.fixed(Instant.parse("2022-01-05T10:00:00Z"), ZoneId.of("Europe/Tallinn"))
+
+    when:
+    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+
+    then:
+    with(mandateDeadlines) {
+      Instant.parse("2021-11-30T21:59:59.999999999Z") == getPeriodEnding()
+
+      Instant.parse("2021-11-30T21:59:59.999999999Z") == getTransferMandateCancellationDeadline()
+      LocalDate.parse("2022-01-03") == getTransferMandateFulfillmentDate()
+
+      Instant.parse("2022-03-31T20:59:59.999999999Z") == getEarlyWithdrawalCancellationDeadline()
+      LocalDate.parse("2022-05-02") == getEarlyWithdrawalFulfillmentDate()
+
+      Instant.parse("2021-10-31T21:59:59.999999999Z") == getWithdrawalCancellationDeadline()
+      LocalDate.parse("2021-11-16") == getWithdrawalFulfillmentDate()
+    }
+  }
+
   def "can get cancellation deadlines for different application types"() {
     given:
     def applicationDate = Instant.parse("2021-08-11T10:00:00Z")

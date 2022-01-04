@@ -103,7 +103,7 @@ public class SecurityConfiguration {
               "/swagger-ui/**",
               "/webjars/**",
               "/swagger-resources/**",
-              "/v2/api-docs",
+              "/v3/api-docs",
               "/authenticate",
               "/idLogin",
               "/oauth/token",

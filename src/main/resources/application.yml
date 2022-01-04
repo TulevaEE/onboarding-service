@@ -76,6 +76,10 @@ truststore:
   path: "test_keys/truststore.jks"
   password: changeit
 
+springdoc:
+  swagger-ui:
+    path: /swagger-ui
+
 mandate:
   email:
     from: "tuleva@tuleva.ee"

@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.member;
 import static org.springframework.web.bind.annotation.RequestMethod.HEAD;
 
 import ee.tuleva.onboarding.user.member.MemberRepository;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +21,7 @@ public class MemberController {
 
   private final MemberRepository memberRepository;
 
-  @ApiOperation(value = "Get total count of members")
+  @Operation(summary = "Get total count of members")
   @RequestMapping(method = HEAD, value = "/members")
   public ResponseEntity head() {
     Long memberCount =

@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.member.listener.MemberCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import io.swagger.v3.oas.annotations.Parameter;
 import java.io.IOException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -19,7 +20,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import springfox.documentation.annotations.ApiIgnore;
 
 @RestController
 @RequiredArgsConstructor
@@ -40,9 +40,9 @@ public class PaymentController {
   @PostMapping("/payments")
   public void incomingPayment(
       @ModelAttribute @Valid IncomingPayment incomingPayment,
-      @ApiIgnore HttpServletResponse response,
-      @ApiIgnore HttpServletRequest request,
-      @ApiIgnore Errors errors)
+      @Parameter(hidden = true) HttpServletResponse response,
+      @Parameter(hidden = true) HttpServletRequest request,
+      @Parameter(hidden = true) Errors errors)
       throws IOException {
 
     log.info("Incoming payment");

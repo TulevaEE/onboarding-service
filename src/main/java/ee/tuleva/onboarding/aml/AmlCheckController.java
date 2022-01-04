@@ -5,14 +5,17 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.aml.dto.AmlCheckAddCommand;
 import ee.tuleva.onboarding.aml.dto.AmlCheckResponse;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.*;
-import springfox.documentation.annotations.ApiIgnore;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/v1/amlchecks")
@@ -23,9 +26,9 @@ class AmlCheckController {
   private final AmlCheckService amlCheckService;
 
   @GetMapping
-  @ApiOperation(value = "Get missing AML checks")
+  @Operation(summary = "Get missing AML checks")
   public List<AmlCheckResponse> getMissing(
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();
     return amlCheckService.getMissingChecks(userId).stream()
         .map(type -> AmlCheckResponse.builder().type(type).success(false).build())
@@ -33,9 +36,9 @@ class AmlCheckController {
   }
 
   @PostMapping
-  @ApiOperation(value = "Add manual AML check")
+  @Operation(summary = "Add manual AML check")
   public AmlCheckResponse addManualCheck(
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody AmlCheckAddCommand command) {
     Long userId = authenticatedPerson.getUserId();
     amlCheckService.addCheckIfMissing(userId, command);

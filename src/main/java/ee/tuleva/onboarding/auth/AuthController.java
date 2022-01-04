@@ -15,7 +15,8 @@ import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService;
 import ee.tuleva.onboarding.auth.smartid.SmartIdSession;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import java.net.URLDecoder;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
@@ -29,8 +30,11 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.oauth2.common.exceptions.UnauthorizedClientException;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.*;
-import springfox.documentation.annotations.ApiIgnore;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @Slf4j
@@ -45,13 +49,14 @@ public class AuthController {
   @Value("${frontend.url}")
   private String frontendUrl;
 
-  @ApiOperation(value = "Initiate authentication")
+  @Operation(summary = "Initiate authentication")
   @RequestMapping(
       method = POST,
       value = "/authenticate",
       consumes = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<AuthenticateResponse> authenticate(
-      @Valid @RequestBody AuthenticateCommand authenticateCommand, @ApiIgnore Errors errors) {
+      @Valid @RequestBody AuthenticateCommand authenticateCommand,
+      @Parameter(hidden = true) Errors errors) {
 
     if (errors != null && errors.hasErrors()) {
       throw new ValidationErrorsException(errors);
@@ -74,7 +79,7 @@ public class AuthController {
   }
 
   @SneakyThrows
-  @ApiOperation(value = "ID card login")
+  @Operation(summary = "ID card login")
   @RequestMapping(
       method = {GET, POST},
       value = "/idLogin")
@@ -82,8 +87,8 @@ public class AuthController {
   public IdCardLoginResponse idLogin(
       @RequestHeader(value = "ssl-client-verify") String clientCertificateVerification,
       @RequestHeader(value = "ssl-client-cert") String clientCertificate,
-      @ApiIgnore HttpServletResponse response,
-      @ApiIgnore HttpMethod httpMethod) {
+      @Parameter(hidden = true) HttpServletResponse response,
+      @Parameter(hidden = true) HttpMethod httpMethod) {
     if (!"SUCCESS".equals(clientCertificateVerification)) {
       throw new UnauthorizedClientException("Client certificate not verified");
     }

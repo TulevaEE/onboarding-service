@@ -8,7 +8,8 @@ import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
 import ee.tuleva.onboarding.user.response.UserResponse;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import java.util.Optional;
 import javax.validation.Valid;
 import lombok.AllArgsConstructor;
@@ -19,7 +20,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import springfox.documentation.annotations.ApiIgnore;
 
 @RestController
 @RequestMapping("/v1")
@@ -30,10 +30,9 @@ public class UserController {
   private final EpisService episService;
   private final ContactDetailsService contactDetailsService;
 
-  @ApiOperation(value = "Get info about the current user")
+  @Operation(summary = "Get info about the current user")
   @GetMapping("/me")
-  public UserResponse me(
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+  public UserResponse me(@AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();
     User user = userService.getById(userId);
     ContactDetails contactDetails = episService.getContactDetails(authenticatedPerson);
@@ -41,17 +40,16 @@ public class UserController {
   }
 
   @GetMapping("/me/principal")
-  public Person getPrincipal(
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+  public Person getPrincipal(@AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return authenticatedPerson;
   }
 
-  @ApiOperation(value = "Update the current user")
+  @Operation(summary = "Update the current user")
   @PatchMapping("/me")
   public UserResponse patchMe(
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody UpdateUserCommand cmd,
-      @ApiIgnore Errors errors) {
+      @Parameter(hidden = true) Errors errors) {
 
     if (errors != null && errors.hasErrors()) {
       throw new ValidationErrorsException(errors);

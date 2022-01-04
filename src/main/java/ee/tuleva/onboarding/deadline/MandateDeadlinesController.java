@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.deadline;
 
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesController.MANDATE_DEADLINES_URI;
 
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +19,7 @@ public class MandateDeadlinesController {
 
   private final MandateDeadlinesService mandateDeadlinesService;
 
-  @ApiOperation(value = "Get mandate deadlines")
+  @Operation(summary = "Get mandate deadlines")
   @GetMapping
   public MandateDeadlines get() {
     return mandateDeadlinesService.getDeadlines();

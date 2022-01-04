@@ -65,15 +65,18 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-aop")
     implementation("org.springframework.boot:spring-boot-starter-json")
     implementation("org.springframework.boot:spring-boot-starter-validation")
-    implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
-    implementation("io.springfox:springfox-boot-starter:3.0.0")
-    implementation("org.springframework.session:spring-session-jdbc")
+    developmentOnly("org.springframework.boot:spring-boot-devtools")
 
-    implementation("de.codecentric:spring-boot-admin-starter-client")
+    implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
+    implementation("org.springframework.session:spring-session-jdbc")
     implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.2")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.1.RELEASE")
 
-    developmentOnly("org.springframework.boot:spring-boot-devtools")
+    implementation("org.springdoc:springdoc-openapi-ui:1.6.3")
+    implementation("org.springdoc:springdoc-openapi-security:1.6.3")
+
+    implementation("de.codecentric:spring-boot-admin-starter-client")
+
     runtimeOnly("org.postgresql:postgresql")
 
     implementation("org.flywaydb:flyway-core")

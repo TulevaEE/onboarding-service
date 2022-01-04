@@ -22,7 +22,8 @@ import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.List;
@@ -41,7 +42,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.LocaleResolver;
-import springfox.documentation.annotations.ApiIgnore;
 
 @Slf4j
 @RestController
@@ -58,13 +58,13 @@ public class MandateController {
   private final MandateFileService mandateFileService;
   private final LocaleResolver localeResolver;
 
-  @ApiOperation(value = "Create a mandate")
+  @Operation(summary = "Create a mandate")
   @RequestMapping(method = POST)
   @JsonView(MandateView.Default.class)
   public Mandate create(
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody CreateMandateCommand createMandateCommand,
-      @ApiIgnore Errors errors) {
+      @Parameter(hidden = true) Errors errors) {
     if (errors.hasErrors()) {
       log.info("Create mandate command is not valid: {}", errors);
       throw new ValidationErrorsException(errors);
@@ -74,11 +74,11 @@ public class MandateController {
     return mandateService.save(authenticatedPerson.getUserId(), createMandateCommand);
   }
 
-  @ApiOperation(value = "Start signing mandate with mobile ID")
+  @Operation(summary = "Start signing mandate with mobile ID")
   @RequestMapping(method = PUT, value = "/{id}/signature/mobileId")
   public MobileSignatureResponse startMobileIdSignature(
       @PathVariable("id") Long mandateId,
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
     MobileIdSignatureSession signatureSession =
         mandateService.mobileIdSign(
@@ -88,12 +88,12 @@ public class MandateController {
     return new MobileSignatureResponse(signatureSession.getVerificationCode());
   }
 
-  @ApiOperation(value = "Is mandate successfully signed with mobile ID")
+  @Operation(summary = "Is mandate successfully signed with mobile ID")
   @RequestMapping(method = GET, value = "/{id}/signature/mobileId/status")
   public MobileSignatureStatusResponse getMobileIdSignatureStatus(
       @PathVariable("id") Long mandateId,
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      @ApiIgnore HttpServletRequest request) {
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @Parameter(hidden = true) HttpServletRequest request) {
 
     Optional<MobileIdSignatureSession> signatureSession =
         sessionStore.get(MobileIdSignatureSession.class);
@@ -109,11 +109,11 @@ public class MandateController {
     return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
   }
 
-  @ApiOperation(value = "Start signing mandate with Smart ID")
+  @Operation(summary = "Start signing mandate with Smart ID")
   @RequestMapping(method = PUT, value = "/{id}/signature/smartId")
   public MobileSignatureResponse startSmartIdSignature(
       @PathVariable("id") Long mandateId,
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     SmartIdSignatureSession signatureSession =
         mandateService.smartIdSign(mandateId, authenticatedPerson.getUserId());
     sessionStore.save(signatureSession);
@@ -121,11 +121,11 @@ public class MandateController {
     return new MobileSignatureResponse(signatureSession.getVerificationCode());
   }
 
-  @ApiOperation(value = "Is mandate successfully signed with Smart ID")
+  @Operation(summary = "Is mandate successfully signed with Smart ID")
   @RequestMapping(method = GET, value = "/{id}/signature/smartId/status")
   public MobileSignatureStatusResponse getSmartIdSignatureStatus(
       @PathVariable("id") Long mandateId,
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       HttpServletRequest request) {
 
     Optional<SmartIdSignatureSession> signatureSession =
@@ -142,11 +142,11 @@ public class MandateController {
     return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
   }
 
-  @ApiOperation(value = "Start signing mandate with ID card")
+  @Operation(summary = "Start signing mandate with ID card")
   @RequestMapping(method = PUT, value = "/{id}/signature/idCard")
   public IdCardSignatureResponse startIdCardSign(
       @PathVariable("id") Long mandateId,
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody StartIdCardSignCommand signCommand) {
 
     IdCardSignatureSession signatureSession =
@@ -158,12 +158,12 @@ public class MandateController {
     return new IdCardSignatureResponse(signatureSession.getHashToSignInHex());
   }
 
-  @ApiOperation(value = "Is mandate successfully signed with ID card")
+  @Operation(summary = "Is mandate successfully signed with ID card")
   @RequestMapping(method = PUT, value = "/{id}/signature/idCard/status")
   public IdCardSignatureStatusResponse getIdCardSignatureStatus(
       @PathVariable("id") Long mandateId,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       HttpServletRequest request) {
 
     Optional<IdCardSignatureSession> signatureSession =
@@ -184,11 +184,11 @@ public class MandateController {
     return new IdCardSignatureStatusResponse(statusCode);
   }
 
-  @ApiOperation(value = "Get mandate file")
+  @Operation(summary = "Get mandate file")
   @RequestMapping(method = GET, value = "/{id}/file")
   public void getMandateFile(
       @PathVariable("id") Long mandateId,
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       HttpServletResponse response)
       throws IOException {
 
@@ -202,11 +202,11 @@ public class MandateController {
     response.flushBuffer();
   }
 
-  @ApiOperation(value = "Get mandate file")
+  @Operation(summary = "Get mandate file")
   @RequestMapping(method = GET, value = "/{id}/file/preview", produces = "application/zip")
   public void getMandateFilePreview(
       @PathVariable("id") Long mandateId,
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       HttpServletResponse response)
       throws IOException {
 

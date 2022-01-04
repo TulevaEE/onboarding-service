@@ -33,9 +33,4 @@ public class ErrorHandlingController implements ErrorController {
         errorAttributes.getErrorAttributes(webRequest, of(STACK_TRACE, MESSAGE));
     return errorAttributesConverter.convert(errors);
   }
-
-  @Override
-  public String getErrorPath() {
-    return PATH;
-  }
 }

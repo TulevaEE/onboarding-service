@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationController.APP
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import springfox.documentation.annotations.ApiIgnore;
 
 @Slf4j
 @RestController
@@ -28,26 +27,25 @@ public class ApplicationController {
   private final ApplicationCancellationService applicationCancellationService;
   private final ApplicationService applicationService;
 
-  @ApiOperation(value = "Get application")
+  @Operation(summary = "Get application")
   @GetMapping("/{id}")
   public Application getApplication(
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      @PathVariable Long id) {
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson, @PathVariable Long id) {
     return applicationService.getApplication(id, authenticatedPerson);
   }
 
-  @ApiOperation(value = "Get applications")
+  @Operation(summary = "Get applications")
   @GetMapping
   public List<Application> getApplications(
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @RequestParam("status") ApplicationStatus status) {
     return applicationService.getApplications(status, authenticatedPerson);
   }
 
-  @ApiOperation(value = "Cancel an application")
+  @Operation(summary = "Cancel an application")
   @PostMapping("/{id}/cancellations")
   public ApplicationCancellationResponse cancel(
-      @ApiIgnore @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @PathVariable("id") Long applicationId) {
     log.info("Cancelling application {}", applicationId);
     return applicationCancellationService.createCancellationMandate(

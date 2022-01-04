@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.statistics;
 
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +18,7 @@ public class ThirdPillarStatisticsController {
   private final ThirdPillarStatisticsRepository repository;
 
   @PostMapping
-  @ApiOperation(value = "Post third pillar statistics")
+  @Operation(summary = "Post third pillar statistics")
   public ThirdPillarStatistics postStats(@Valid @RequestBody ThirdPillarStatistics statistics) {
     return repository.save(statistics);
   }

@@ -23,7 +23,7 @@ public class PillarSuggestion {
     if (getSuggestedPillar(pillar) == 2) {
       pillarActive = contactDetails.isSecondPillarActive();
       pillarFullyConverted = conversion.isSecondPillarFullyConverted();
-      this.suggestPillar = !pillarActive;
+      this.suggestPillar = !pillarActive || !conversion.isSecondPillarSelected();
     } else {
       pillarActive = contactDetails.isThirdPillarActive();
       pillarFullyConverted = conversion.isThirdPillarFullyConverted();

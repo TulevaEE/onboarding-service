@@ -1,45 +1,60 @@
 package ee.tuleva.onboarding.conversion
 
 import spock.lang.Specification
-import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
 
 class ConversionResponseSpec extends Specification {
 
-    @Unroll
-    def "is second pillar fully converted to Tuleva"() {
-        given:
-        def conversionResponse = new ConversionResponse(secondPillar, notFullyConverted().thirdPillar)
+  def "is Tuleva second pillar selected"() {
+    given:
+    ConversionResponse.Conversion secondPillar = Mock()
+    def conversionResponse = new ConversionResponse(secondPillar, notFullyConverted().thirdPillar)
+    secondPillar.isSelectionComplete() >> selectionComplete
 
-        when:
-        def answer = conversionResponse.isSecondPillarFullyConverted()
+    when:
+    def answer = conversionResponse.isSecondPillarSelected()
 
-        then:
-        answer == expectedAnswer
+    then:
+    answer == selectionComplete
 
-        where:
-        secondPillar                     | expectedAnswer
-        notFullyConverted().secondPillar | false
-        fullyConverted().secondPillar    | true
-    }
+    where:
+    selectionComplete | expectedAnswer
+    true              | true
+    false             | false
+  }
 
-    @Unroll
-    def "is third pillar fully converted to Tuleva"() {
-        given:
-        def conversionResponse = new ConversionResponse(notFullyConverted().secondPillar, thirdPillar)
+  def "is second pillar fully converted to Tuleva"() {
+    given:
+    def conversionResponse = new ConversionResponse(secondPillar, notFullyConverted().thirdPillar)
 
-        when:
-        def answer = conversionResponse.isThirdPillarFullyConverted()
+    when:
+    def answer = conversionResponse.isSecondPillarFullyConverted()
 
-        then:
-        answer == expectedAnswer
+    then:
+    answer == expectedAnswer
 
-        where:
-        thirdPillar                     | expectedAnswer
-        notFullyConverted().thirdPillar | false
-        fullyConverted().thirdPillar    | true
-    }
+    where:
+    secondPillar                     | expectedAnswer
+    notFullyConverted().secondPillar | false
+    fullyConverted().secondPillar    | true
+  }
+
+  def "is third pillar fully converted to Tuleva"() {
+    given:
+    def conversionResponse = new ConversionResponse(notFullyConverted().secondPillar, thirdPillar)
+
+    when:
+    def answer = conversionResponse.isThirdPillarFullyConverted()
+
+    then:
+    answer == expectedAnswer
+
+    where:
+    thirdPillar                     | expectedAnswer
+    notFullyConverted().thirdPillar | false
+    fullyConverted().thirdPillar    | true
+  }
 
 }

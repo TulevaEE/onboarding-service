@@ -22,6 +22,11 @@ public class ConversionResponse {
     return thirdPillar.isFullyConverted();
   }
 
+  @JsonIgnore
+  public boolean isSecondPillarSelected() {
+    return secondPillar.isSelectionComplete();
+  }
+
   @Builder
   @Data
   public static class Conversion {

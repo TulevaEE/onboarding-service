@@ -117,10 +117,12 @@ class MandateEmailServiceSpec extends Specification {
   def "Send third pillar suggest second pillar email"() {
     given:
     def user = sampleUser().build()
+
+    PillarSuggestion pillarSuggestion = Mock()
+    pillarSuggestion.isSuggestPillar() >> suggestPillar
+
     def contactDetails = contactDetailsFixture()
-    contactDetails.setSecondPillarActive(pillarActive)
     def mandate = thirdPillarMandate()
-    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, notFullyConverted())
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
     def html = "suggest second html"
@@ -140,9 +142,9 @@ class MandateEmailServiceSpec extends Specification {
     callCount * scheduledEmailService.create(user, "123", ScheduledEmailType.SUGGEST_SECOND_PILLAR)
 
     where:
-    pillarActive | callCount
-    false        | 1
-    true         | 0
+    suggestPillar | callCount
+    true          | 1
+    false         | 0
   }
 
   def "Sends two third pillar emails"() {

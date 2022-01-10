@@ -15,17 +15,18 @@ class PillarSuggestionSpec extends Specification {
     when:
     contactDetails.isSecondPillarActive() >> secondPillarActive
     conversion.isSecondPillarFullyConverted() >> secondPillarConverted
+    conversion.isSecondPillarSelected() >> secondPillarSelected
     def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
 
     then:
     pillarSuggestion.isSuggestPillar() == suggestPillar
 
     where:
-    secondPillarActive | secondPillarConverted | suggestPillar
-    false              | false                 | true
-    true               | false                 | false
-    false              | true                  | true
-    true               | true                  | false
+    secondPillarActive | secondPillarConverted | secondPillarSelected | suggestPillar
+    false              | false                 | false                | true
+    true               | false                 | false                | true
+    true               | false                 | true                 | false
+    true               | true                  | true                 | false
   }
 
   def "suggests third pillar"() {

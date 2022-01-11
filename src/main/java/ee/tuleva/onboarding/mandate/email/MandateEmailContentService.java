@@ -4,6 +4,7 @@ import static java.time.format.DateTimeFormatter.ofPattern;
 
 import ee.tuleva.onboarding.deadline.MandateDeadlines;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
+import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
 import java.time.Instant;
@@ -22,6 +23,7 @@ public class MandateEmailContentService {
 
   private final TemplateEngine templateEngine;
   private final MandateDeadlinesService mandateDeadlinesService;
+  private final FundRepository fundRepository;
 
   public String getSecondPillarHtml(
       User user, Instant mandateDate, PillarSuggestion thirdPillarSuggestion, Locale locale) {
@@ -41,8 +43,11 @@ public class MandateEmailContentService {
     Context ctx = new Context();
     ctx.setLocale(locale);
     ctx.setVariable("firstName", user.getFirstName());
-    ctx.setVariable(
-        "sourceFundName", mandate.getFundTransferExchanges().get(0).getSourceFundIsin());
+
+    String sourceFundIsin = mandate.getFundTransferExchanges().get(0).getSourceFundIsin();
+    String sourceFundName = fundRepository.findByIsin(sourceFundIsin).getName(locale.getLanguage());
+    ctx.setVariable("sourceFundName", sourceFundName);
+
     return templateEngine.process("second_pillar_transfer_cancellation_email", ctx);
   }
 

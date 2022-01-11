@@ -55,7 +55,7 @@ class MandateContentCreatorIntSpec extends Specification {
     mandateContentFiles[1].mimeType == "text/html"
 
     DigestUtils.md5Hex(mandateContentFiles[0].content) == "c19c63b1663b629731ba773c2ecc0154"
-    DigestUtils.md5Hex(mandateContentFiles[1].content) == "cdd3fd5d82a338174862bacd1e506921"
+    DigestUtils.md5Hex(mandateContentFiles[1].content) == "3f4e933db3f5be2b8edc646827df3fdd"
   }
 
   def "mandate cancellation mandate can be generated from template"() {

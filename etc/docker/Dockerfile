@@ -1,7 +1,7 @@
 FROM openjdk:17
 VOLUME /tmp
 
-RUN apt update && apt install curl jq openssl -y
+RUN microdnf update && microdnf install curl jq openssl -y
 
 COPY rds-ca-2019-root.pem rds.pem
 RUN openssl x509 -in rds.pem -inform pem -out rds.der -outform der

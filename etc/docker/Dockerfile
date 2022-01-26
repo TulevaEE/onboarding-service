@@ -1,4 +1,4 @@
-FROM openjdk:17-slim
+FROM openjdk:17
 VOLUME /tmp
 
 RUN apt update && apt install curl jq openssl -y

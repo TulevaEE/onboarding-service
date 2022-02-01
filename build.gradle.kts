@@ -69,7 +69,7 @@ dependencies {
 
     implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
     implementation("org.springframework.session:spring-session-jdbc")
-    implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.2")
+    implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.3")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.1.RELEASE")
 
     implementation("org.springdoc:springdoc-openapi-ui:1.6.3")

@@ -108,6 +108,7 @@ public class ContactDetails implements Person {
   private String pensionAccountNumber;
   private List<Distribution> thirdPillarDistribution;
   private String activeSecondPillarFundIsin;
+  private String activeSecondPillarFundPik;
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
 

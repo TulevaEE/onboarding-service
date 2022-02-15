@@ -24,13 +24,10 @@ public class UserResponse {
   private String phoneNumber;
   private Integer memberNumber;
   private String pensionAccountNumber;
+  private String secondPillarPikNumber;
   private Address address;
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
-
-  public int getAge() {
-    return PersonalCode.getAge(personalCode);
-  }
 
   public static UserResponse from(@NotNull User user) {
     return responseBuilder(user).build();
@@ -46,6 +43,7 @@ public class UserResponse {
                 .postalCode(contactDetails.getPostalIndex())
                 .countryCode(contactDetails.getCountry())
                 .build())
+        .secondPillarPikNumber(contactDetails.getActiveSecondPillarFundPik())
         .isSecondPillarActive(contactDetails.isSecondPillarActive())
         .isThirdPillarActive(contactDetails.isThirdPillarActive())
         .build();
@@ -64,5 +62,9 @@ public class UserResponse {
 
   private static String capitalize(String string) {
     return WordUtils.capitalizeFully(string, ' ', '-');
+  }
+
+  public int getAge() {
+    return PersonalCode.getAge(personalCode);
   }
 }

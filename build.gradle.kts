@@ -73,7 +73,7 @@ dependencies {
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.1.RELEASE")
 
     implementation("org.springdoc:springdoc-openapi-ui:1.6.3")
-    implementation("org.springdoc:springdoc-openapi-security:1.6.3")
+    implementation("org.springdoc:springdoc-openapi-security:1.6.6")
 
     implementation("de.codecentric:spring-boot-admin-starter-client")
 

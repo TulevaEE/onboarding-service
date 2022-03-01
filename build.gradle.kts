@@ -125,7 +125,7 @@ dependencies {
     }
     testImplementation("org.codehaus.groovy:groovy:3.0.9")
     testImplementation("org.mock-server:mockserver-netty:5.11.2")
-    testImplementation("org.mock-server:mockserver-spring-test-listener:5.11.2")
+    testImplementation("org.mock-server:mockserver-spring-test-listener:5.12.0")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.0.0")
     testImplementation("io.github.origin-energy:java-snapshot-testing-spock:3.2.6")

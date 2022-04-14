@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.comparisons.returns;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static java.math.BigDecimal.ZERO;
-import static java.time.ZoneId.systemDefault;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -88,8 +87,7 @@ public class ReturnCalculator {
       virtualFundUnitsBought = virtualFundUnitsBought.add(currentlyBoughtVirtualFundUnits);
     }
     Optional<FundValue> finalVirtualFundValue =
-        fundValueProvider.getLatestValue(
-            comparisonFund, accountOverview.getEndTime().atZone(systemDefault()).toLocalDate());
+        fundValueProvider.getLatestValue(comparisonFund, accountOverview.getEndDate());
     if (finalVirtualFundValue.isEmpty()) {
       return Optional.empty();
     }
@@ -153,11 +151,8 @@ public class ReturnCalculator {
     List<Transaction> purchaseTransactions = new ArrayList<>();
 
     if (accountOverview.getBeginningBalance().compareTo(ZERO) != 0) {
-      // TODO: bug - how to get the correct beginning time and beginning amount?
-      BigDecimal beginningAmount = accountOverview.getBeginningBalance();
-      Instant beginningTime =
-          accountOverview.getFirstTransactionTime().orElse(accountOverview.getStartTime());
-      Transaction beginningTransaction = new Transaction(beginningAmount, beginningTime);
+      Transaction beginningTransaction =
+          new Transaction(accountOverview.getBeginningBalance(), accountOverview.getStartTime());
       purchaseTransactions.add(beginningTransaction);
     }
     purchaseTransactions.addAll(transactions);

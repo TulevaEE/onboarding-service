@@ -6,6 +6,8 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnProvider;
+import ee.tuleva.onboarding.deadline.MandateDeadlines;
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -21,12 +23,11 @@ public class ReturnsService {
 
   private final List<ReturnProvider> returnProviders;
   private final FundValueRepository fundValueRepository;
+  private final MandateDeadlinesService mandateDeadlinesService;
 
   public Returns get(Person person, LocalDate fromDate, List<String> keys) {
-    LocalDate revisedFromDate = chooseDateAccordingToDataAvailability(fromDate, keys);
-
     int pillar = getPillar(keys);
-    Instant fromTime = revisedFromDate.atStartOfDay().toInstant(ZoneOffset.UTC);
+    Instant fromTime = getRevisedFromTime(fromDate, keys);
 
     List<Return> returns =
         returnProviders.stream()
@@ -39,6 +40,17 @@ public class ReturnsService {
             .toList();
 
     return Returns.builder().returns(returns).build();
+  }
+
+  private Instant getRevisedFromTime(LocalDate fromDate, List<String> keys) {
+    LocalDate earliestNavDate = chooseDateAccordingToDataAvailability(fromDate, keys);
+    Instant earliestNavTime = earliestNavDate.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
+    MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(earliestNavTime);
+    return deadlines
+        .getTransferMandateFulfillmentDate()
+        .atStartOfDay()
+        .atZone(ZoneOffset.UTC)
+        .toInstant();
   }
 
   private LocalDate chooseDateAccordingToDataAvailability(LocalDate fromDate, List<String> keys) {

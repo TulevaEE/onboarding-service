@@ -8,7 +8,7 @@ import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import java.math.BigDecimal;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,11 +37,11 @@ public class ContextBuilder {
 
   public ContextBuilder mandate(Mandate mandate) {
     DateTimeFormatter formatterEst =
-        DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.systemDefault());
+        DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneOffset.UTC);
     String documentDate = formatterEst.format(mandate.getCreatedDate());
 
     DateTimeFormatter formatterEst2 =
-        DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.systemDefault());
+        DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneOffset.UTC);
     String documentDatePPKKAAAA = formatterEst2.format(mandate.getCreatedDate());
 
     ctx.setVariable("documentDate", documentDate);

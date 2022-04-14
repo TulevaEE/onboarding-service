@@ -7,6 +7,7 @@ import static java.time.ZoneId.systemDefault;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
+import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.overview.Transaction;
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -32,6 +33,7 @@ public class ReturnCalculator {
   private static final int CASH_DECIMAL_PLACES = 2;
 
   private final FundValueProvider fundValueProvider;
+  private final AccountOverviewProvider accountOverviewProvider;
 
   public ReturnDto getReturn(AccountOverview accountOverview) {
     BigDecimal rateOfReturn = getPersonalRateOfReturn(accountOverview);
@@ -153,11 +155,11 @@ public class ReturnCalculator {
     List<Transaction> purchaseTransactions = new ArrayList<>();
 
     if (accountOverview.getBeginningBalance().compareTo(ZERO) != 0) {
-      // TODO: how to get the correct beginning time?
+      // TODO: bug - how to get the correct beginning time and beginning amount?
+      BigDecimal beginningAmount = accountOverview.getBeginningBalance();
       Instant beginningTime =
           accountOverview.getFirstTransactionTime().orElse(accountOverview.getStartTime());
-      Transaction beginningTransaction =
-          new Transaction(accountOverview.getBeginningBalance(), beginningTime);
+      Transaction beginningTransaction = new Transaction(beginningAmount, beginningTime);
       purchaseTransactions.add(beginningTransaction);
     }
     purchaseTransactions.addAll(transactions);

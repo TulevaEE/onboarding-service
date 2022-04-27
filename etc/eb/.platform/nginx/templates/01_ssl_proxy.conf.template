@@ -125,7 +125,7 @@ server {
         proxy_set_header        X-Forwarded-Proto https;
     }
 
-    location /v2/api-docs {
+    location /v3/api-docs {
         proxy_pass http://onboarding-service:5000;
         proxy_set_header   Connection "";
         proxy_http_version 1.1;

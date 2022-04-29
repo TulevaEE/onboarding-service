@@ -2,6 +2,7 @@ version: 2.1
 orbs:
   aws-ecr: circleci/aws-ecr@6.15.3
   eb: circleci/aws-elastic-beanstalk@1.0.2
+  codecov: codecov/codecov@3.2.2
 jobs:
   build:
     environment:
@@ -30,6 +31,8 @@ jobs:
       - store_artifacts:
           path: ./build/reports/
           destination: /reports
+
+      - codecov/upload
 
       - save_cache:
           key: v1-dependencies-{{ arch }}-{{ checksum "build.gradle.kts" }}

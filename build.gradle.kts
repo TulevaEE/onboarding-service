@@ -20,7 +20,7 @@ val springCloudAwsVersion = "2.2.5.RELEASE"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.6.2"
+    id("org.springframework.boot") version "2.6.7"
     id("com.gorylenko.gradle-git-properties") version "2.3.2"
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     id("com.diffplug.spotless") version "6.1.0"

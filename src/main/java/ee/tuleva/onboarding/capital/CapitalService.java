@@ -1,22 +1,21 @@
 package ee.tuleva.onboarding.capital;
 
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
+import static java.math.BigDecimal.ROUND_HALF_DOWN;
+import static java.math.BigDecimal.ZERO;
+
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent;
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
-import javax.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Predicate;
-
-import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
-import static java.math.BigDecimal.ROUND_HALF_DOWN;
-import static java.math.BigDecimal.ZERO;
+import javax.validation.constraints.NotNull;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor

@@ -22,26 +22,28 @@ class CapitalServiceSpec extends Specification {
         given:
         Member member = memberFixture().build()
         def event1 = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(1000.00)
-            .ownershipUnitAmount(1.0).build()
+            .ownershipUnitAmount(1000.00).build()
         def event2 = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(0.123456)
-            .ownershipUnitAmount(2.0).build()
+            .ownershipUnitAmount(0.1).build()
         def event3 = memberCapitalEventFixture(member).type(MEMBERSHIP_BONUS).fiatValue(2000.00)
-            .ownershipUnitAmount(3.0).build()
+            .ownershipUnitAmount(1900.0).build()
         def event4 = memberCapitalEventFixture(member).type(MEMBERSHIP_BONUS).fiatValue(0.234567)
-            .ownershipUnitAmount(4.0).build()
+            .ownershipUnitAmount(0.2).build()
         def event5 = memberCapitalEventFixture(member).type(UNVESTED_WORK_COMPENSATION).fiatValue(3000.00)
-            .ownershipUnitAmount(5.0).build()
+            .ownershipUnitAmount(2900.0).build()
         def event6 = memberCapitalEventFixture(member).type(UNVESTED_WORK_COMPENSATION).fiatValue(0.345678)
-            .ownershipUnitAmount(6.0).build()
+            .ownershipUnitAmount(0.3).build()
         def event7 = memberCapitalEventFixture(member).type(WORK_COMPENSATION).fiatValue(4000.00)
-            .ownershipUnitAmount(7.0).build()
+            .ownershipUnitAmount(3900.0).build()
         def event8 = memberCapitalEventFixture(member).type(WORK_COMPENSATION).fiatValue(0.456789)
-            .ownershipUnitAmount(8.0).build()
+            .ownershipUnitAmount(0.4).build()
+        def event9 = memberCapitalEventFixture(member).type(CAPITAL_PAYOUT).fiatValue(-500.00)
+          .ownershipUnitAmount(-490.0).build()
 
-        def events = [event1, event2, event3, event4, event5, event6, event7, event8]
+        def events = [event1, event2, event3, event4, event5, event6, event7, event8, event9]
         memberCapitalEventRepository.findAllByMemberId(member.id) >> events
 
-        def ownershipUnitPrice = 5000.567890
+        def ownershipUnitPrice = 1.567890
         aggregatedCapitalEventRepository.findTopByOrderByDateDesc() >>
             getAggregatedCapitalEvent(ownershipUnitPrice)
 
@@ -49,11 +51,11 @@ class CapitalServiceSpec extends Specification {
         CapitalStatement capitalStatement = service.getCapitalStatement(member.id)
 
         then:
-        capitalStatement.capitalPayment == 1000.12
+        capitalStatement.capitalPayment == 500.12
         capitalStatement.membershipBonus == 2000.23
         capitalStatement.unvestedWorkCompensation == 3000.35
         capitalStatement.workCompensation == 4000.46
-        capitalStatement.profit == 170_019.28
+        capitalStatement.profit == 4940.67
     }
 
     def "works with no capital"() {

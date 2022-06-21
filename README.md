@@ -9,7 +9,7 @@
 
 ## Prerequisites
 
-- JDK 16
+- JDK 17
 - Groovy
 - Git
 - Gradle
@@ -31,7 +31,7 @@ IMPORTANT: Set your Spring active profile to `dev` - this will also run DB schem
 
 **Backend**
 
-Java 16, Spring Boot, Gradle, Spock for testing
+Java 17, Spring Boot, Gradle, Spock for testing
 
 Running locally: `./gradlew bootRun`
 
@@ -80,7 +80,7 @@ Merge GitHub pull request to master -> build in CircleCI -> auto-redeploy (if bu
 
 Code style: https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml
 
-If you don't want to run epis-serivice,
+If you don't want to run epis-service,
 then you can mock `TransferExchangeService.java`, which calls epis-service.
 
 ### Common Issues

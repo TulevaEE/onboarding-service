@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import ee.sk.smartid.AuthenticationHash;
 import ee.sk.smartid.AuthenticationIdentity;
+import ee.sk.smartid.SmartIdAuthenticationResponse;
 import ee.tuleva.onboarding.auth.principal.Person;
 import java.io.Serial;
 import java.io.Serializable;
@@ -13,7 +14,7 @@ public class SmartIdSession implements Person, Serializable {
   @Serial private static final long serialVersionUID = 6326478770346040900L;
 
   private final String verificationCode;
-  private final String sessionId;
+  private final SmartIdAuthenticationResponse authenticationResponse;
   private final String personalCode;
   private final AuthenticationHash authenticationHash;
   private String firstName;

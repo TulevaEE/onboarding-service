@@ -38,6 +38,11 @@ public class SmartIdClientConfiguration {
   }
 
   @Bean
+  public SmartIdConnector smartIdConnector(SmartIdClient smartIdClient) {
+    return smartIdClient.getSmartIdConnector();
+  }
+
+  @Bean
   public AuthenticationResponseValidator authenticationResponseValidator(KeyStore trustStore) {
     AuthenticationResponseValidator validator = new AuthenticationResponseValidator();
     initializeTrustedCertificatesFromTrustStore(validator, trustStore);

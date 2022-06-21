@@ -33,52 +33,51 @@ public class SmartIdAuthService {
       AuthenticationHash authenticationHash = AuthenticationHash.generateRandomHash();
 
       String verificationCode = authenticationHash.calculateVerificationCode();
-      SmartIdAuthenticationResponse response = requestBuilder(personalCode,
-        authenticationHash).authenticate();
+      SmartIdAuthenticationResponse response =
+          requestBuilder(personalCode, authenticationHash).authenticate();
 
-      return new SmartIdSession(verificationCode, response, personalCode,
-        authenticationHash);
+      return new SmartIdSession(verificationCode, response, personalCode, authenticationHash);
     } catch (UserAccountNotFoundException e) {
       log.info("Smart ID User account not found: personalCode=" + personalCode, e);
       throw new SmartIdException(
-        ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
+          ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
     }
   }
 
   public boolean isLoginComplete(SmartIdSession session) {
     try {
       AuthenticationIdentity authenticationIdentity =
-        authenticationResponseValidator.validate(session.getAuthenticationResponse());
+          authenticationResponseValidator.validate(session.getAuthenticationResponse());
       session.setAuthenticationIdentity(authenticationIdentity);
       return true;
     } catch (UnprocessableSmartIdResponseException e) {
       log.info("Smart ID validation failed: personalCode=" + session.getPersonalCode(), e);
       throw new SmartIdException(
-        ofSingleError("smart.id.validation.failed", "Smart ID validation failed"));
+          ofSingleError("smart.id.validation.failed", "Smart ID validation failed"));
     } catch (UserAccountNotFoundException e) {
       log.info("Smart ID User account not found: personalCode=" + session.getPersonalCode(), e);
       throw new SmartIdException(
-        ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
+          ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
     } catch (UserRefusedException e) {
       throw new SmartIdException(ofSingleError("smart.id.user.refused", "Smart ID User refused"));
     } catch (Exception e) {
       log.error("Smart ID technical error", e);
       throw new SmartIdException(
-        ofSingleError("smart.id.technical.error", "Smart ID technical error"));
+          ofSingleError("smart.id.technical.error", "Smart ID technical error"));
     } finally {
       log.info("Smart ID authentication ended");
     }
   }
 
   private AuthenticationRequestBuilder requestBuilder(
-    String personalCode, AuthenticationHash authenticationHash) {
+      String personalCode, AuthenticationHash authenticationHash) {
     return smartIdClient
-      .createAuthentication()
-      .withSemanticsIdentifier(
-        new SemanticsIdentifier(IdentityType.PNO, CountryCode.EE, personalCode))
-      .withAuthenticationHash(authenticationHash)
-      .withAllowedInteractionsOrder(List.of(
-        Interaction.verificationCodeChoice("Log in to Tuleva?")
-      )).withCertificateLevel("QUALIFIED");
+        .createAuthentication()
+        .withSemanticsIdentifier(
+            new SemanticsIdentifier(IdentityType.PNO, CountryCode.EE, personalCode))
+        .withAuthenticationHash(authenticationHash)
+        .withAllowedInteractionsOrder(
+            List.of(Interaction.verificationCodeChoice("Log in to Tuleva?")))
+        .withCertificateLevel("QUALIFIED");
   }
 }

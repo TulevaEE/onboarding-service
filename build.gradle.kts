@@ -13,7 +13,7 @@ buildscript {
     }
 }
 
-val springBootAdminVersion = "2.5.5"
+val springBootAdminVersion = "2.7.0"
 val springCloudSleuthVersion = "3.1.0"
 val springCloudAwsVersion = "2.2.5.RELEASE"
 

@@ -16,7 +16,6 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.*
 class SmartIdAuthServiceSpec extends Specification {
 
   SmartIdAuthService smartIdAuthService
-  SmartIdAuthenticationHashGenerator hashGenerator = Mock(SmartIdAuthenticationHashGenerator)
   AuthenticationResponseValidator validator = Mock(AuthenticationResponseValidator)
   SmartIdConnector connector = Mock(SmartIdConnector)
 
@@ -26,19 +25,16 @@ class SmartIdAuthServiceSpec extends Specification {
     smartIdClient.setRelyingPartyUUID("00000000-0000-0000-0000-000000000000")
     smartIdClient.setRelyingPartyName("Demo")
 
-    smartIdAuthService = new SmartIdAuthService(smartIdClient, hashGenerator, validator, connector)
+    smartIdAuthService = new SmartIdAuthService(smartIdClient, validator)
   }
 
   def "StartLogin: Start smart id login generates hash"() {
     given:
     AuthenticationHash hash = AuthenticationHash.generateRandomHash()
-    1 * hashGenerator.generateHash() >> hash
-    1 * connector.authenticate(_, _) >> authenticationSessionResponse(sessionId)
     when:
     SmartIdSession session = smartIdAuthService.startLogin(personalCode)
     then:
     session.verificationCode == hash.calculateVerificationCode()
-    session.sessionId == sessionId
     session.personalCode == personalCode
   }
 

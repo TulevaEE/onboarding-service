@@ -17,11 +17,12 @@ public class SmartIdFixture {
       new SmartIdSession(
           verificationCode, new SmartIdAuthenticationResponse(), personalCode, AuthenticationHash.generateRandomHash());
 
+  public static AuthenticationIdentity sampleAuthenticationIdentity = new AuthenticationIdentity();
+
   static {
-    AuthenticationIdentity identity = new AuthenticationIdentity();
-    identity.setIdentityCode(personalCode);
-    identity.setGivenName(firstName);
-    identity.setSurname(lastName);
-    sampleFinalSmartIdSession.setAuthenticationIdentity(identity);
+    sampleAuthenticationIdentity.setIdentityCode(personalCode);
+    sampleAuthenticationIdentity.setGivenName(firstName);
+    sampleAuthenticationIdentity.setSurname(lastName);
+    sampleFinalSmartIdSession.setAuthenticationIdentity(sampleAuthenticationIdentity);
   }
 }

@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 public class SmartIdAuthService {
 
   private final SmartIdClient smartIdClient;
-  public final SmartIdAuthenticationHashGenerator hashGenerator;
+  private final SmartIdAuthenticationHashGenerator hashGenerator;
   private final AuthenticationResponseValidator authenticationResponseValidator;
 
   public SmartIdSession startLogin(String personalCode) {

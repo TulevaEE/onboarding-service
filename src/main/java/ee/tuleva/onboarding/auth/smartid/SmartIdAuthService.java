@@ -31,12 +31,8 @@ public class SmartIdAuthService {
   public SmartIdSession startLogin(String personalCode) {
     try {
       AuthenticationHash authenticationHash = AuthenticationHash.generateRandomHash();
-
       String verificationCode = authenticationHash.calculateVerificationCode();
-      SmartIdAuthenticationResponse response =
-          requestBuilder(personalCode, authenticationHash).authenticate();
-
-      return new SmartIdSession(verificationCode, response, personalCode, authenticationHash);
+      return new SmartIdSession(verificationCode, personalCode, authenticationHash);
     } catch (UserAccountNotFoundException e) {
       log.info("Smart ID User account not found: personalCode=" + personalCode, e);
       throw new SmartIdException(
@@ -46,8 +42,10 @@ public class SmartIdAuthService {
 
   public boolean isLoginComplete(SmartIdSession session) {
     try {
+      SmartIdAuthenticationResponse response =
+        requestBuilder(session.getPersonalCode(), session.getAuthenticationHash()).authenticate();
       AuthenticationIdentity authenticationIdentity =
-          authenticationResponseValidator.validate(session.getAuthenticationResponse());
+          authenticationResponseValidator.validate(response);
       session.setAuthenticationIdentity(authenticationIdentity);
       return true;
     } catch (UnprocessableSmartIdResponseException e) {

@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import ee.sk.smartid.AuthenticationHash;
 import ee.sk.smartid.AuthenticationIdentity;
-import ee.sk.smartid.SmartIdAuthenticationResponse;
+import ee.sk.smartid.rest.dao.SemanticsIdentifier;
+import ee.sk.smartid.rest.dao.SemanticsIdentifier.CountryCode;
+import ee.sk.smartid.rest.dao.SemanticsIdentifier.IdentityType;
 
 public class SmartIdFixture {
 
@@ -10,19 +12,20 @@ public class SmartIdFixture {
   public static final String firstName = "Aadu";
   public static final String lastName = "Kadakas";
   private static final String verificationCode = "12345";
+  public static final String aSessionId = "someSessionId";
   public static SmartIdSession sampleSmartIdSession =
-      new SmartIdSession(
-          verificationCode, new SmartIdAuthenticationResponse(), personalCode, AuthenticationHash.generateRandomHash());
+    new SmartIdSession(verificationCode, personalCode, AuthenticationHash.generateRandomHash());
   public static SmartIdSession sampleFinalSmartIdSession =
-      new SmartIdSession(
-          verificationCode, new SmartIdAuthenticationResponse(), personalCode, AuthenticationHash.generateRandomHash());
+    new SmartIdSession(verificationCode, personalCode, AuthenticationHash.generateRandomHash());
 
-  public static AuthenticationIdentity sampleAuthenticationIdentity = new AuthenticationIdentity();
+  public static AuthenticationIdentity anAuthenticationIdentity = new AuthenticationIdentity();
+  public static SemanticsIdentifier aSemanticsIdentifier = new SemanticsIdentifier(IdentityType.PNO,
+    CountryCode.EE, personalCode);
 
   static {
-    sampleAuthenticationIdentity.setIdentityCode(personalCode);
-    sampleAuthenticationIdentity.setGivenName(firstName);
-    sampleAuthenticationIdentity.setSurname(lastName);
-    sampleFinalSmartIdSession.setAuthenticationIdentity(sampleAuthenticationIdentity);
+    anAuthenticationIdentity.setIdentityCode(personalCode);
+    anAuthenticationIdentity.setGivenName(firstName);
+    anAuthenticationIdentity.setSurname(lastName);
+    sampleFinalSmartIdSession.setAuthenticationIdentity(anAuthenticationIdentity);
   }
 }

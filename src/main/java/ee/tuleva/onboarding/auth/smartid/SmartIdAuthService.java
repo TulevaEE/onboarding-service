@@ -26,24 +26,19 @@ import org.springframework.stereotype.Service;
 public class SmartIdAuthService {
 
   private final SmartIdClient smartIdClient;
+  public final SmartIdAuthenticationHashGenerator hashGenerator;
   private final AuthenticationResponseValidator authenticationResponseValidator;
 
   public SmartIdSession startLogin(String personalCode) {
-    try {
-      AuthenticationHash authenticationHash = AuthenticationHash.generateRandomHash();
-      String verificationCode = authenticationHash.calculateVerificationCode();
-      return new SmartIdSession(verificationCode, personalCode, authenticationHash);
-    } catch (UserAccountNotFoundException e) {
-      log.info("Smart ID User account not found: personalCode=" + personalCode, e);
-      throw new SmartIdException(
-          ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
-    }
+    AuthenticationHash authenticationHash = hashGenerator.generateHash();
+    String verificationCode = authenticationHash.calculateVerificationCode();
+    return new SmartIdSession(verificationCode, personalCode, authenticationHash);
   }
 
   public boolean isLoginComplete(SmartIdSession session) {
     try {
       SmartIdAuthenticationResponse response =
-        requestBuilder(session.getPersonalCode(), session.getAuthenticationHash()).authenticate();
+          requestBuilder(session.getPersonalCode(), session.getAuthenticationHash()).authenticate();
       AuthenticationIdentity authenticationIdentity =
           authenticationResponseValidator.validate(response);
       session.setAuthenticationIdentity(authenticationIdentity);

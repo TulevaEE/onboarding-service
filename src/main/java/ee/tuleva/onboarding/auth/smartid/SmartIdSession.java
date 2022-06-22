@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.auth.smartid;
 
 import ee.sk.smartid.AuthenticationHash;
 import ee.sk.smartid.AuthenticationIdentity;
-import ee.sk.smartid.SmartIdAuthenticationResponse;
 import ee.tuleva.onboarding.auth.principal.Person;
 import java.io.Serial;
 import java.io.Serializable;

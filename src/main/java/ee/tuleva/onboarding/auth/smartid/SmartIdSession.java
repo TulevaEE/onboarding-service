@@ -14,7 +14,6 @@ public class SmartIdSession implements Person, Serializable {
   @Serial private static final long serialVersionUID = 6326478770346040900L;
 
   private final String verificationCode;
-  private final SmartIdAuthenticationResponse authenticationResponse;
   private final String personalCode;
   private final AuthenticationHash authenticationHash;
   private String firstName;

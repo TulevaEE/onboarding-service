@@ -78,7 +78,9 @@ Merge GitHub pull request to master -> build in CircleCI -> auto-redeploy (if bu
 
 ### Development notes
 
-Code style: https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml
+Code style:
+[Java](https://github.com/google/styleguide/blob/gh-pages/intellij-java-google-style.xml),
+[Kotlin](https://github.com/pinterest/ktlint#-with-intellij-idea)
 
 If you don't want to run epis-service,
 then you can mock `TransferExchangeService.java`, which calls epis-service.

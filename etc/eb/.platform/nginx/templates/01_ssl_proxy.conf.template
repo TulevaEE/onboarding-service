@@ -3,8 +3,8 @@ map $http_origin $cors_header {
   "~^https?:\/\/(pension\.tuleva\.ee|www\.tuleva\.ee|tuleva\.ee|staging\.tuleva\.ee|localhost)" "$http_origin";
 }
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
+    listen 443 ssl;
+    listen [::]:443 ssl;
     server_name ${NGINX_MAIN_SERVER_NAME};
     ssl_certificate /tmp/${NGINX_MAIN_SERVER_NAME}/fullchain.pem;
     ssl_certificate_key /tmp/${NGINX_MAIN_SERVER_NAME}/privkey.pem;
@@ -140,8 +140,8 @@ server {
     }
 }
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
+    listen 443 ssl;
+    listen [::]:443 ssl;
     server_name ${NGINX_ID_SERVER_NAME};
     ssl_certificate /tmp/${NGINX_MAIN_SERVER_NAME}/fullchain.pem;
     ssl_certificate_key /tmp/${NGINX_MAIN_SERVER_NAME}/privkey.pem;

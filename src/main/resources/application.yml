@@ -114,7 +114,7 @@ pensionikeskus:
 smartid:
   relyingPartyUUID: ${SMARTID_RELYING_PARTY_UUID:00000000-0000-0000-0000-000000000000}
   relyingPartyName: ${SMARTID_RELYING_PARTY_NAME:Demo}
-  hostUrl: 'https://sid.demo.sk.ee/smart-id-rp/v1/'
+  hostUrl: https://sid.demo.sk.ee/smart-id-rp/v1/
 
 logging:
   level:
@@ -186,6 +186,9 @@ mobile-id:
   hostUrl: "https://mid.sk.ee/mid-api"
   service:
     name: "Tuleva"
+
+smartid:
+  hostUrl: https://rp-api.smart-id.com/v1
 
 truststore:
   path: "/home/webapp/truststore.jks"

@@ -89,7 +89,7 @@ dependencies {
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:3.0.2")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:3.0.1")
 
-    implementation("ee.sk.smartid:smart-id-java-client:2.2")
+    implementation("ee.sk.smartid:smart-id-java-client:2.1.4")
     implementation("org.digidoc4j:digidoc4j:4.3.0") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
@@ -117,13 +117,13 @@ dependencies {
         exclude(module = "junit-vintage-engine")
     }
 
-    testImplementation("org.spockframework:spock-core:2.0-groovy-3.0") {
+    testImplementation("org.spockframework:spock-core:2.1-groovy-3.0") {
         exclude(group = "org.codehaus.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.0-groovy-3.0") {
+    testImplementation("org.spockframework:spock-spring:2.1-groovy-3.0") {
         exclude(group = "org.codehaus.groovy")
     }
-    testImplementation("org.codehaus.groovy:groovy:3.0.9")
+    testImplementation("org.codehaus.groovy:groovy:3.0.11")
     testImplementation("org.mock-server:mockserver-netty:5.11.2")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.11.2")
     testImplementation("org.springframework.security:spring-security-test")

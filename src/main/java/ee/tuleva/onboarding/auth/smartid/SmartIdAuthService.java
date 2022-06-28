@@ -70,7 +70,9 @@ public class SmartIdAuthService {
             new SemanticsIdentifier(IdentityType.PNO, CountryCode.EE, personalCode))
         .withAuthenticationHash(authenticationHash)
         .withAllowedInteractionsOrder(
-            List.of(Interaction.verificationCodeChoice("Log in to Tuleva?")))
+            List.of(
+                Interaction.verificationCodeChoice("Log in to Tuleva?"),
+                Interaction.displayTextAndPIN("Log in to Tuleva?")))
         .withCertificateLevel("QUALIFIED");
   }
 }

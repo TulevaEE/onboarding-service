@@ -62,9 +62,6 @@ management:
       exposure:
         include: '*'
 
-ssl:
-  trustAllHTTPSHosts: true
-
 mobile-id:
   # use "https://mid.sk.ee/mid-api" for testing signing
   hostUrl: 'https://tsp.demo.sk.ee/mid-api'

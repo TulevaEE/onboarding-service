@@ -28,18 +28,18 @@ public class CapitalService {
     List<MemberCapitalEvent> events = memberCapitalEventRepository.findAllByMemberId(memberId);
 
     return new CapitalStatement(
-        getCapitalAmount(events, MEMBERSHIP_BONUS),
-        getCapitalAmount(events, CAPITAL_PAYMENT),
-        getCapitalAmount(events, UNVESTED_WORK_COMPENSATION),
-        getCapitalAmount(events, WORK_COMPENSATION),
+        getCapitalAmount(events, List.of(MEMBERSHIP_BONUS)),
+        getCapitalAmount(events, List.of(CAPITAL_PAYMENT, CAPITAL_PAYOUT)),
+        getCapitalAmount(events, List.of(UNVESTED_WORK_COMPENSATION)),
+        getCapitalAmount(events, List.of(WORK_COMPENSATION)),
         getProfit(events));
   }
 
   @NotNull
   private BigDecimal getCapitalAmount(
-      List<MemberCapitalEvent> events, MemberCapitalEventType eventType) {
+      List<MemberCapitalEvent> events, List<MemberCapitalEventType> eventTypes) {
     return events.stream()
-        .filter(event -> event.getType() == eventType)
+        .filter(event -> eventTypes.contains(event.getType()))
         .filter(pastEvents())
         .map(MemberCapitalEvent::getFiatValue)
         .reduce(ZERO, BigDecimal::add)

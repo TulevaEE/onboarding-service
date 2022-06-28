@@ -32,8 +32,8 @@ public class SmartIdClientConfiguration {
   @ConfigurationProperties(prefix = "smartid")
   public SmartIdClient smartIdClient(KeyStore trustStore) {
     SmartIdClient smartIdClient = new SmartIdClient();
-    smartIdClient.setSessionStatusResponseSocketOpenTime(TimeUnit.MILLISECONDS, 1L);
-    smartIdClient.loadSslCertificatesFromKeystore(trustStore);
+    smartIdClient.setSessionStatusResponseSocketOpenTime(TimeUnit.SECONDS, 1L);
+    smartIdClient.setTrustStore(trustStore);
     return smartIdClient;
   }
 

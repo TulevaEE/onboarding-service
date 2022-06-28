@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  aws-ecr: circleci/aws-ecr@6.15.3
+  aws-ecr: circleci/aws-ecr@8.1.2
   eb: circleci/aws-elastic-beanstalk@1.0.2
   codecov: codecov/codecov@3.2.2
 jobs:
@@ -8,7 +8,7 @@ jobs:
     environment:
       TERM: dumb
     docker:
-      - image: cimg/openjdk:17.0.0
+      - image: cimg/openjdk:17.0
     steps:
       - attach_workspace:
           at: .

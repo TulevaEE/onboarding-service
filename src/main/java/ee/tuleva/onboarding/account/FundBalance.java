@@ -12,6 +12,7 @@ import lombok.Setter;
 @Setter
 @Builder
 public class FundBalance {
+
   private Fund fund;
   private BigDecimal value;
   private BigDecimal unavailableValue;
@@ -47,9 +48,9 @@ public class FundBalance {
   }
 
   BigDecimal getContributionSum() {
-    return contributions != null || subtractions != null
-        ? ZERO.add(contributions == null ? ZERO : contributions)
-        .add(subtractions == null ? ZERO : subtractions)
-        : null;
+    BigDecimal sum =
+        ZERO.add(contributions == null ? ZERO : contributions)
+            .add(subtractions == null ? ZERO : subtractions);
+    return contributions != null || subtractions != null ? sum : null;
   }
 }

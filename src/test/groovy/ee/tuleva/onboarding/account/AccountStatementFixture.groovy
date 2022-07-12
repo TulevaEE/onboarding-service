@@ -4,6 +4,8 @@ import com.google.common.collect.Lists
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
 
+import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
+
 class AccountStatementFixture {
 
   public static List<FundBalance> activeTuleva2ndPillarFundBalance = Lists.asList(
@@ -14,6 +16,7 @@ class AccountStatementFixture {
           .pillar(2)
           .contributions(90.0)
           .subtractions(0.0)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin("AE123232331")
@@ -22,6 +25,9 @@ class AccountStatementFixture {
                   .shortName("TUK75")
                   .id(123)
                   .pillar(2)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.005)
+                  .managementFeeRate(0.0034)
                   .fundManager(
                       FundManager.builder()
                           .id(123)
@@ -35,14 +41,18 @@ class AccountStatementFixture {
           .pillar(2)
           .contributions(90.0)
           .subtractions(0.0)
+          .currency("EUR")
           .fund(
-              Fund.builder().
-                  isin("AE123232332")
+              Fund.builder()
+                  .isin("AE123232332")
                   .nameEstonian("Tuleva maailma võlakirjade pensionifond")
                   .nameEnglish("Tuleva world bond pensionfund")
                   .shortName("TUK00")
                   .id(124)
                   .pillar(2)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.005)
+                  .managementFeeRate(0.0034)
                   .fundManager(
                       FundManager.builder()
                           .id(123)
@@ -60,6 +70,7 @@ class AccountStatementFixture {
           .pillar(2)
           .contributions(90.0)
           .subtractions(0.0)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin("AE123232337")
@@ -68,6 +79,9 @@ class AccountStatementFixture {
                   .shortName("LXK75")
                   .id(123)
                   .pillar(2)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.01)
+                  .managementFeeRate(0.008)
                   .fundManager(
                       FundManager.builder()
                           .id(123)
@@ -81,6 +95,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .pillar(2)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin("AE123232332")
@@ -89,6 +104,9 @@ class AccountStatementFixture {
                   .shortName("TUK00")
                   .id(124)
                   .pillar(2)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.005)
+                  .managementFeeRate(0.0034)
                   .fundManager(
                       FundManager.builder()
                           .id(123)
@@ -106,6 +124,7 @@ class AccountStatementFixture {
           .activeContributions(true)
           .contributions(0.0)
           .subtractions(0.0)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin("AE1232322222")
@@ -114,6 +133,9 @@ class AccountStatementFixture {
                   .shortName("LXK00")
                   .pillar(2)
                   .id(123)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.01)
+                  .managementFeeRate(0.008)
                   .fundManager(
                       FundManager.builder()
                           .id(123)
@@ -127,6 +149,7 @@ class AccountStatementFixture {
           .pillar(2)
           .contributions(90.0)
           .subtractions(0.0)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin("AE123232332")
@@ -135,6 +158,9 @@ class AccountStatementFixture {
                   .shortName("TUK00")
                   .pillar(2)
                   .id(124)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.005)
+                  .managementFeeRate(0.0034)
                   .fundManager(
                       FundManager.builder()
                           .id(123)
@@ -152,6 +178,7 @@ class AccountStatementFixture {
           .pillar(3)
           .contributions(90.0)
           .subtractions(0.0)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin("EE645")
@@ -160,6 +187,9 @@ class AccountStatementFixture {
                   .shortName("TUV100")
                   .id(123)
                   .pillar(3)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.005)
+                  .managementFeeRate(0.0034)
                   .fundManager(
                       FundManager.builder()
                           .id(123)
@@ -174,6 +204,7 @@ class AccountStatementFixture {
           .pillar(3)
           .contributions(190.0)
           .subtractions(0.0)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin(Fund.EXIT_RESTRICTED_FUND_ISIN)
@@ -182,6 +213,9 @@ class AccountStatementFixture {
                   .shortName("SWV100")
                   .id(323)
                   .pillar(3)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.006)
+                  .managementFeeRate(0.004)
                   .fundManager(
                       FundManager.builder()
                           .id(345)
@@ -199,6 +233,7 @@ class AccountStatementFixture {
           .pillar(3)
           .contributions(90.0)
           .subtractions(0.0)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin("EE7654")
@@ -207,6 +242,9 @@ class AccountStatementFixture {
                   .shortName("LIT100")
                   .pillar(3)
                   .id(123)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.01)
+                  .managementFeeRate(0.008)
                   .fundManager(
                       FundManager.builder()
                           .id(123)
@@ -220,6 +258,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .pillar(3)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin("EE645")
@@ -228,6 +267,9 @@ class AccountStatementFixture {
                   .shortName("TUV100")
                   .id(124)
                   .pillar(3)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.005)
+                  .managementFeeRate(0.0034)
                   .fundManager(
                       FundManager.builder()
                           .id(123)
@@ -245,6 +287,7 @@ class AccountStatementFixture {
           .pillar(3)
           .contributions(0.0)
           .subtractions(0.0)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin("EE645")
@@ -253,6 +296,9 @@ class AccountStatementFixture {
                   .shortName("TUV100")
                   .id(123)
                   .pillar(3)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.005)
+                  .managementFeeRate(0.0034)
                   .fundManager(
                       FundManager.builder()
                           .id(123)
@@ -270,6 +316,7 @@ class AccountStatementFixture {
           .activeContributions(true)
           .contributions(0.0)
           .subtractions(0.0)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin("AE1232322222")
@@ -278,6 +325,9 @@ class AccountStatementFixture {
                   .shortName("LXK00")
                   .id(123)
                   .pillar(3)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.01)
+                  .managementFeeRate(0.008)
                   .fundManager(
                       FundManager.builder()
                           .id(123)
@@ -291,6 +341,7 @@ class AccountStatementFixture {
           .pillar(3)
           .contributions(90.0)
           .subtractions(0.0)
+          .currency("EUR")
           .fund(
               Fund.builder()
                   .isin("EE645")
@@ -299,6 +350,9 @@ class AccountStatementFixture {
                   .shortName("TUV100")
                   .id(124)
                   .pillar(3)
+                  .status(ACTIVE)
+                  .ongoingChargesFigure(0.005)
+                  .managementFeeRate(0.0034)
                   .fundManager(
                       FundManager.builder()
                           .id(123)

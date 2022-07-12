@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.fund.manager;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
@@ -24,8 +25,10 @@ public class FundManager {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @JsonIgnore
   private Long id;
 
+  @JsonIgnore
   public boolean isTuleva() {
     return TULEVA_FUND_MANAGER_NAME.equalsIgnoreCase(name);
   }

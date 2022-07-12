@@ -7,6 +7,7 @@ import org.springframework.test.web.servlet.MockMvc
 
 import java.util.stream.Collectors
 
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static org.hamcrest.Matchers.hasSize
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -28,32 +29,32 @@ class FundControllerSpec extends BaseControllerSpec {
     def "get: Get all funds"() {
         given:
         def language = "et"
-        1 * fundService.getFunds(Optional.empty()) >> MandateFixture.sampleFunds()
+        1 * fundService.getFunds(Optional.empty()) >> sampleFunds()
         expect:
         mockMvc
                 .perform(get("/v1/funds").header("Accept-Language", language))
 
                 .andExpect(status().isOk())
-                .andExpect(jsonPath('$', hasSize(MandateFixture.sampleFunds().size())))
+                .andExpect(jsonPath('$', hasSize(sampleFunds().size())))
     }
 
     def "get: Get all funds defaults to et"() {
         given:
         def language = "et"
-        1 * fundService.getFunds(Optional.empty()) >> MandateFixture.sampleFunds()
+        1 * fundService.getFunds(Optional.empty()) >> sampleFunds()
         expect:
         mockMvc
             .perform(get("/v1/funds"))
 
             .andExpect(status().isOk())
-            .andExpect(jsonPath('$', hasSize(MandateFixture.sampleFunds().size())))
+            .andExpect(jsonPath('$', hasSize(sampleFunds().size())))
     }
 
     def "get: Get all funds by manager name"() {
         given:
         String fundManagerName = "Tuleva"
         def language = "et"
-        Iterable<Fund> funds = MandateFixture.sampleFunds().stream().filter( { f -> f.fundManager.name == fundManagerName}).collect(Collectors.toList())
+        Iterable<Fund> funds = sampleFunds().stream().filter( { f -> f.fundManager.name == fundManagerName}).collect(Collectors.toList())
         1 * fundService.getFunds(Optional.of(fundManagerName)) >> funds
         expect:
         mockMvc

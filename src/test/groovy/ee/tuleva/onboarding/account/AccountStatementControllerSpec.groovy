@@ -4,7 +4,6 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.locale.LocaleConfiguration
 import ee.tuleva.onboarding.locale.LocaleService
-import org.springframework.context.i18n.LocaleContextHolder
 import org.springframework.test.web.servlet.MockMvc
 
 import static ee.tuleva.onboarding.account.AccountStatementFixture.activeTuleva2ndPillarFundBalance
@@ -34,21 +33,29 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
 
     expect:
     mockMvc.perform(get("/v1/pension-account-statement"))
-      .andExpect(status().isOk())
-      .andExpect(jsonPath('$[0].value', is(fundBalances[0].value.doubleValue())))
-      .andExpect(jsonPath('$[0].unavailableValue', is(fundBalances[0].unavailableValue.doubleValue())))
-      .andExpect(jsonPath('$[0].activeContributions', is(fundBalances[0].activeContributions)))
-      .andExpect(jsonPath('$[0].currency', is(fundBalances[0].currency)))
-      .andExpect(jsonPath('$[0].contributions', is(fundBalances[0].contributions.doubleValue())))
-      .andExpect(jsonPath('$[0].subtractions', is(fundBalances[0].subtractions.doubleValue())))
-      .andExpect(jsonPath('$[0].contributionSum', is(fundBalances[0].contributionSum.doubleValue())))
-      .andExpect(jsonPath('$[0].profit', is(fundBalances[0].profit.doubleValue())))
-      .andExpect(jsonPath('$[0].pillar', is(fundBalances[0].pillar)))
-      .andExpect(jsonPath('$[0].fund.isin', is(fundBalances[0].fund.isin)))
-      .andExpect(jsonPath('$[0].fund.name', is(fundBalances[0].fund.nameEstonian)))
-      .andExpect(jsonPath('$[0].fund.pillar', is(fundBalances[0].fund.pillar)))
-      .andExpect(jsonPath('$[0].fund.fundManager.name', is(fundBalances[0].fund.fundManager.name)))
-      .andExpect(jsonPath('$', hasSize(fundBalances.size())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath('$[0]', is([
+            fund               : [
+                fundManager         : [
+                    name: fundBalances[0].fund.fundManager.name,
+                ],
+                isin                : fundBalances[0].fund.isin,
+                name                : fundBalances[0].fund.nameEstonian,
+                managementFeeRate   : fundBalances[0].fund.managementFeeRate.doubleValue(),
+                pillar              : fundBalances[0].fund.pillar,
+                ongoingChargesFigure: fundBalances[0].fund.ongoingChargesFigure.doubleValue(),
+                status              : fundBalances[0].fund.status.name()
+            ],
+            value              : fundBalances[0].value.doubleValue(),
+            unavailableValue   : fundBalances[0].unavailableValue.doubleValue(),
+            currency           : fundBalances[0].currency,
+            pillar             : fundBalances[0].pillar,
+            activeContributions: fundBalances[0].activeContributions,
+            contributions      : fundBalances[0].contributions.doubleValue(),
+            subtractions       : fundBalances[0].subtractions.doubleValue(),
+            profit             : fundBalances[0].profit.doubleValue()
+        ])))
+        .andExpect(jsonPath('$', hasSize(fundBalances.size())))
   }
 
   def "/pension-account-statement endpoint accepts language header and responds with appropriate fund.name"() {
@@ -59,11 +66,11 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
 
     expect:
     mockMvc.perform(get("/v1/pension-account-statement")
-      .header("Accept-Language", language)
+        .header("Accept-Language", language)
     )
-      .andExpect(status().isOk())
-      .andExpect(jsonPath('$[0].fund.name', is(translation)))
-      .andExpect(jsonPath('$', hasSize(fundBalances.size())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath('$[0].fund.name', is(translation)))
+        .andExpect(jsonPath('$', hasSize(fundBalances.size())))
     where:
     language | translation
     'null'   | "Tuleva maailma aktsiate pensionifond"

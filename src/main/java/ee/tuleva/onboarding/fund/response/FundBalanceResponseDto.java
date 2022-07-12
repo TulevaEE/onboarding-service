@@ -16,7 +16,6 @@ public class FundBalanceResponseDto {
   private boolean activeContributions;
   private BigDecimal contributions;
   private BigDecimal subtractions;
-  @Deprecated private BigDecimal contributionSum;
   private BigDecimal profit;
 
   public static FundBalanceResponseDto from(FundBalance fundBalance, String language) {
@@ -29,7 +28,6 @@ public class FundBalanceResponseDto {
         .activeContributions(fundBalance.isActiveContributions())
         .contributions(fundBalance.getContributions())
         .subtractions(fundBalance.getSubtractions())
-        .contributionSum(fundBalance.getContributionSum())
         .profit(fundBalance.getProfit())
         .build();
   }

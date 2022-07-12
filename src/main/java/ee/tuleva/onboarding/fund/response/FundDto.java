@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.fund.response;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.Fund.FundStatus;
 import ee.tuleva.onboarding.fund.manager.FundManager;
@@ -26,6 +27,7 @@ public class FundDto {
     this.status = fund.getStatus();
   }
 
+  @JsonIgnore
   public boolean isConverted() {
     return fundManager.isTuleva();
   }

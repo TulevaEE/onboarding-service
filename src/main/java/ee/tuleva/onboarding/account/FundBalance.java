@@ -22,14 +22,6 @@ public class FundBalance {
   private BigDecimal contributions;
   private BigDecimal subtractions;
 
-  @Deprecated
-  public BigDecimal getContributionSum() {
-    return contributions != null || subtractions != null
-        ? ZERO.add(contributions == null ? ZERO : contributions)
-            .add(subtractions == null ? ZERO : subtractions)
-        : null;
-  }
-
   public BigDecimal getProfit() {
     BigDecimal unavailableValue = this.unavailableValue != null ? this.unavailableValue : ZERO;
     return value != null && getContributionSum() != null
@@ -52,5 +44,12 @@ public class FundBalance {
 
   public boolean isExitRestricted() {
     return fund.isExitRestricted();
+  }
+
+  BigDecimal getContributionSum() {
+    return contributions != null || subtractions != null
+        ? ZERO.add(contributions == null ? ZERO : contributions)
+        .add(subtractions == null ? ZERO : subtractions)
+        : null;
   }
 }

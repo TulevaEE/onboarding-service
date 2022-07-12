@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.fund;
 
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 
-import ee.tuleva.onboarding.fund.response.FundResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
 import java.util.Optional;
@@ -20,7 +19,7 @@ public class FundController {
 
   @Operation(summary = "Get info about available funds")
   @RequestMapping(method = GET, value = "/funds")
-  public List<FundResponse> get(
+  public List<ExtendedApiFundResponse> get(
       @RequestParam("fundManager.name") Optional<String> fundManagerName) {
     return fundService.getFunds(fundManagerName);
   }

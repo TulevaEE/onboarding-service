@@ -11,9 +11,9 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import ee.tuleva.onboarding.epis.mandate.MandateDto.MandateFundsTransferExchangeDTO;
+import ee.tuleva.onboarding.fund.ApiFundResponse;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
-import ee.tuleva.onboarding.fund.response.FundDto;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.application.Application.ApplicationBuilder;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
@@ -82,7 +82,7 @@ public class ApplicationService {
               val sourceFund = fundRepository.findByIsin(applicationDto.getSourceFundIsin());
               val details =
                   TransferApplicationDetails.builder()
-                      .sourceFund(new FundDto(sourceFund, language));
+                      .sourceFund(new ApiFundResponse(sourceFund, language));
               details
                   .fulfillmentDate(deadlines.getFulfillmentDate(applicationDto.getType()))
                   .cancellationDeadline(
@@ -93,7 +93,7 @@ public class ApplicationService {
                       fundTransferExchange ->
                           details.exchange(
                               new Exchange(
-                                  new FundDto(sourceFund, language),
+                                  new ApiFundResponse(sourceFund, language),
                                   getTargetFund(fundTransferExchange, language),
                                   fundTransferExchange.getTargetPik(),
                                   fundTransferExchange.getAmount())));
@@ -103,7 +103,8 @@ public class ApplicationService {
         .collect(toList());
   }
 
-  private FundDto getTargetFund(MandateFundsTransferExchangeDTO exchangeDTO, String language) {
+  private ApiFundResponse getTargetFund(
+      MandateFundsTransferExchangeDTO exchangeDTO, String language) {
     String targetFundIsin = exchangeDTO.getTargetFundIsin();
     if (targetFundIsin == null) return null;
 
@@ -112,7 +113,7 @@ public class ApplicationService {
       throw new IllegalArgumentException(
           "Fund not found in the database: targetFundIsin=" + targetFundIsin);
     }
-    return new FundDto(targetFund, language);
+    return new ApiFundResponse(targetFund, language);
   }
 
   private Application convert(ApplicationDTO applicationDTO) {

@@ -1,19 +1,20 @@
 package ee.tuleva.onboarding.mandate.application;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import ee.tuleva.onboarding.fund.response.FundDto;
+import ee.tuleva.onboarding.fund.ApiFundResponse;
 import java.math.BigDecimal;
 import lombok.Data;
 
 @Data
 public class Exchange {
 
-  private FundDto sourceFund;
-  private FundDto targetFund;
+  private ApiFundResponse sourceFund;
+  private ApiFundResponse targetFund;
   private String targetPik;
   private BigDecimal amount;
 
-  public Exchange(FundDto sourceFund, FundDto targetFund, String targetPik, BigDecimal amount) {
+  public Exchange(
+      ApiFundResponse sourceFund, ApiFundResponse targetFund, String targetPik, BigDecimal amount) {
     if (targetFund == null && targetPik == null) {
       throw new IllegalArgumentException("Target fund or target PIK needs to be defined");
     }

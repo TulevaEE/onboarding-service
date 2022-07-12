@@ -25,15 +25,15 @@ public class AccountStatementService {
 
     return accountStatement.stream()
         .filter(fundBalanceDto -> fundBalanceDto.getIsin() != null)
-        .filter(this::isSecondPillarNotEmpty)
         .map(fundBalanceDto -> convertToFundBalance(fundBalanceDto, person))
+        .filter(this::isSecondPillarNotEmpty)
         .collect(toList());
   }
 
-  private boolean isSecondPillarNotEmpty(FundBalanceDto fundBalanceDto) {
-    return compare(ZERO, fundBalanceDto.getValue()) != 0
-        || fundBalanceDto.isActiveContributions()
-        || fundBalanceDto.getPillar() == 3;
+  private boolean isSecondPillarNotEmpty(FundBalance fundBalance) {
+    return compare(ZERO, fundBalance.getValue()) != 0
+        || fundBalance.isActiveContributions()
+        || fundBalance.getPillar() == 3;
   }
 
   private FundBalance convertToFundBalance(FundBalanceDto fundBalanceDto, Person person) {

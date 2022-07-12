@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
 import static java.math.BigDecimal.ZERO;
 import static java.time.temporal.TemporalAdjusters.lastDayOfYear;
 import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.CashFlowService;
@@ -24,6 +25,7 @@ import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -159,15 +161,15 @@ public class UserConversionService {
         .containsAll(unConvertedIsins(fundBalances, pillar));
   }
 
-  private List<String> getIsinsOfFullPendingTransfersToConvertedFundManager(
+  private Set<String> getIsinsOfFullPendingTransfersToConvertedFundManager(
       Person person, List<FundBalance> fundBalances, Integer pillar) {
     List<TransferApplication> pendingTransferApplications = getPendingTransferApplications(person);
     return pendingTransferApplications.stream()
         .filter(application -> pillar.equals(application.getPillar()))
-        .flatMap(application -> application.getDetails().getExchanges().stream())
+        .flatMap(application -> application.getExchanges().stream())
         .filter(exchange -> exchange.isConverted() && amountMatches(exchange, fundBalances))
         .map(exchange -> exchange.getSourceFund().getIsin())
-        .collect(toList());
+        .collect(toSet());
   }
 
   private boolean amountMatches(Exchange exchange, List<FundBalance> fundBalances) {

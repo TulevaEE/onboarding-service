@@ -17,6 +17,5 @@ public class FundBalanceDto {
   private BigDecimal units;
   private BigDecimal unavailableUnits;
   private BigDecimal nav;
-  private Integer pillar;
   private boolean activeContributions;
 }

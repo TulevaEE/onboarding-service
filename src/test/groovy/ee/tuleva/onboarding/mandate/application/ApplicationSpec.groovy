@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.fund.Fund
-import ee.tuleva.onboarding.fund.response.FundDto
+import ee.tuleva.onboarding.fund.ApiFundResponse
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.*
@@ -34,7 +34,7 @@ class ApplicationSpec extends Specification {
   }
 
   def "getPillar"() {
-    def secondPillarFund = new FundDto(Fund.builder().pillar(2).build(), "en")
+    def secondPillarFund = new ApiFundResponse(Fund.builder().pillar(2).build(), "en")
     def secondPillarExchange = new Exchange(secondPillarFund, secondPillarFund, null, null)
 
     expect:

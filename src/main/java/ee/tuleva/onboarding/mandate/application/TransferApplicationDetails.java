@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import ee.tuleva.onboarding.fund.response.FundDto;
+import ee.tuleva.onboarding.fund.ApiFundResponse;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -12,7 +12,7 @@ import lombok.Singular;
 @Builder
 public class TransferApplicationDetails implements ApplicationDetails {
 
-  private final FundDto sourceFund;
+  private final ApiFundResponse sourceFund;
   private final Instant cancellationDeadline;
   private final LocalDate fulfillmentDate;
   @Singular private List<Exchange> exchanges;

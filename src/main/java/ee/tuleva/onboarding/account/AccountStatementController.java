@@ -4,7 +4,6 @@ import static java.util.stream.Collectors.toList;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.fund.response.FundBalanceResponseDto;
 import ee.tuleva.onboarding.locale.LocaleService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
@@ -23,17 +22,17 @@ public class AccountStatementController {
 
   @Operation(summary = "Get pension register account statement")
   @RequestMapping(method = GET, value = "/pension-account-statement")
-  public List<FundBalanceResponseDto> getMyPensionAccountStatement(
+  public List<ApiFundBalanceResponse> getMyPensionAccountStatement(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     List<FundBalance> fundBalances =
         accountStatementService.getAccountStatement(authenticatedPerson);
     return convertToDtos(fundBalances, localeService.getLanguage());
   }
 
-  private List<FundBalanceResponseDto> convertToDtos(
+  private List<ApiFundBalanceResponse> convertToDtos(
       List<FundBalance> fundBalances, String language) {
     return fundBalances.stream()
-        .map(fundBalance -> FundBalanceResponseDto.from(fundBalance, language))
+        .map(fundBalance -> ApiFundBalanceResponse.from(fundBalance, language))
         .collect(toList());
   }
 }

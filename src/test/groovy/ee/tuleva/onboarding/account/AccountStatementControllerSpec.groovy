@@ -49,7 +49,6 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
             value              : fundBalances[0].value.doubleValue(),
             unavailableValue   : fundBalances[0].unavailableValue.doubleValue(),
             currency           : fundBalances[0].currency,
-            pillar             : fundBalances[0].pillar,
             activeContributions: fundBalances[0].activeContributions,
             contributions      : fundBalances[0].contributions.doubleValue(),
             subtractions       : fundBalances[0].subtractions.doubleValue(),

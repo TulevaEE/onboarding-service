@@ -18,7 +18,6 @@ public class FundBalance {
   private BigDecimal unavailableValue;
   private BigDecimal units;
   private String currency;
-  private Integer pillar;
   private boolean activeContributions;
   private BigDecimal contributions;
   private BigDecimal subtractions;
@@ -32,6 +31,10 @@ public class FundBalance {
 
   public String getIsin() {
     return fund.getIsin();
+  }
+
+  public Integer getPillar() {
+    return fund.getPillar();
   }
 
   public BigDecimal getTotalValue() {

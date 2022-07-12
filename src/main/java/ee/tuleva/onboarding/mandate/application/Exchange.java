@@ -39,6 +39,7 @@ public class Exchange {
     throw new IllegalStateException("Transfer between different pillar funds");
   }
 
+  @JsonIgnore
   public boolean isConverted() {
     return targetFund != null && targetFund.isConverted();
   }

@@ -85,7 +85,7 @@ dependencies {
     implementation("commons-net:commons-net:3.8.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("net.sf.ehcache:ehcache:2.10.9.2")
-    implementation("org.decampo:xirr:1.1")
+    implementation("org.decampo:xirr:1.2")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:3.0.2")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:3.0.1")
 

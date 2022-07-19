@@ -14,14 +14,14 @@ buildscript {
 }
 
 val springBootAdminVersion = "2.7.2"
-val springCloudSleuthVersion = "3.1.3"
+val springCloudVersion = "2021.0.3"
 
 plugins {
     java
     groovy
     id("org.springframework.boot") version "2.7.1"
-    id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("io.spring.dependency-management") version "1.0.12.RELEASE"
+    id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.8.0"
     jacoco
 }
@@ -51,8 +51,6 @@ java {
 
 repositories {
     mavenCentral()
-    maven("https://raw.githubusercontent.com/TulevaEE/releases-repo/master/")
-    maven("https://jitpack.io")
 }
 
 dependencies {
@@ -85,8 +83,8 @@ dependencies {
     implementation("org.apache.commons:commons-lang3")
     implementation("net.sf.ehcache:ehcache:2.10.9.2")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:3.0.2")
-    implementation("jakarta.xml.bind:jakarta.xml.bind-api:3.0.1")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.0-M3")
+    implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.1.4")
     implementation("org.digidoc4j:digidoc4j:5.0.0") {
@@ -134,7 +132,7 @@ dependencies {
 dependencyManagement {
     imports {
         mavenBom("de.codecentric:spring-boot-admin-dependencies:$springBootAdminVersion")
-        mavenBom("org.springframework.cloud:spring-cloud-sleuth:$springCloudSleuthVersion")
+        mavenBom("org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion")
     }
 }
 
@@ -165,8 +163,9 @@ tasks {
     jacocoTestReport {
         dependsOn(test)
         reports {
-            xml.isEnabled = true
-            html.isEnabled = false
+            xml.required.set(true)
+            html.required.set(false)
+            csv.required.set(false)
         }
     }
 

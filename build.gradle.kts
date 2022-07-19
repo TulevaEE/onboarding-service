@@ -105,7 +105,7 @@ dependencies {
 
     implementation("com.google.guava:guava:31.0.1-jre")
 
-    compileOnly("org.projectlombok:lombok:1.18.22")
+    compileOnly("org.projectlombok:lombok:1.18.24")
     annotationProcessor("org.projectlombok:lombok:1.18.22")
 
     testCompileOnly("org.projectlombok:lombok:1.18.22")

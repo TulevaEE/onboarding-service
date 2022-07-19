@@ -15,12 +15,11 @@ buildscript {
 
 val springBootAdminVersion = "2.7.2"
 val springCloudSleuthVersion = "3.1.3"
-val springCloudAwsVersion = "2.2.5.RELEASE"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.6.2"
+    id("org.springframework.boot") version "2.7.1"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("io.spring.dependency-management") version "1.0.12.RELEASE"
     id("com.diffplug.spotless") version "6.8.0"
@@ -69,11 +68,11 @@ dependencies {
 
     implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
     implementation("org.springframework.session:spring-session-jdbc")
-    implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.2")
+    implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
 
-    implementation("org.springdoc:springdoc-openapi-ui:1.6.3")
-    implementation("org.springdoc:springdoc-openapi-security:1.6.3")
+    implementation("org.springdoc:springdoc-openapi-ui:1.6.9")
+    implementation("org.springdoc:springdoc-openapi-security:1.6.9")
 
     implementation("de.codecentric:spring-boot-admin-starter-client")
 
@@ -94,7 +93,7 @@ dependencies {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
-    implementation("io.sentry:sentry-spring-boot-starter:6.2.1")
+    implementation("io.sentry:sentry-spring-boot-starter:6.3.0")
     implementation("io.sentry:sentry-logback:6.3.0")
 
     implementation("com.vladmihalcea:hibernate-types-52:2.16.3")
@@ -106,10 +105,10 @@ dependencies {
     implementation("com.google.guava:guava:31.1-jre")
 
     compileOnly("org.projectlombok:lombok:1.18.24")
-    annotationProcessor("org.projectlombok:lombok:1.18.22")
+    annotationProcessor("org.projectlombok:lombok:1.18.24")
 
-    testCompileOnly("org.projectlombok:lombok:1.18.22")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.22")
+    testCompileOnly("org.projectlombok:lombok:1.18.24")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.24")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {

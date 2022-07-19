@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.fund;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
 
-import ee.tuleva.onboarding.fund.response.FundResponse;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.locale.LocaleService;
@@ -17,16 +16,18 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class FundService {
+class FundService {
 
   private final FundRepository fundRepository;
   private final PensionFundStatisticsService pensionFundStatisticsService;
   private final LocaleService localeService;
 
-  public List<FundResponse> getFunds(Optional<String> fundManagerName) {
+  List<ExtendedApiFundResponse> getFunds(Optional<String> fundManagerName) {
     return stream(fundsBy(fundManagerName).spliterator(), false)
         .sorted()
-        .map(fund -> new FundResponse(fund, getStatistics(fund), localeService.getLanguage()))
+        .map(
+            fund ->
+                new ExtendedApiFundResponse(fund, getStatistics(fund), localeService.getLanguage()))
         .collect(toList());
   }
 

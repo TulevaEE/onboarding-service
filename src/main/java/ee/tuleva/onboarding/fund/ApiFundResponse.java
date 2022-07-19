@@ -1,13 +1,15 @@
-package ee.tuleva.onboarding.fund.response;
+package ee.tuleva.onboarding.fund;
 
-import ee.tuleva.onboarding.fund.Fund;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.fund.Fund.FundStatus;
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import java.math.BigDecimal;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
-public class FundDto {
+@NoArgsConstructor
+public class ApiFundResponse {
   private FundManager fundManager;
   private String isin;
   private String name;
@@ -16,7 +18,7 @@ public class FundDto {
   private BigDecimal ongoingChargesFigure;
   private FundStatus status;
 
-  public FundDto(Fund fund, String language) {
+  public ApiFundResponse(Fund fund, String language) {
     this.fundManager = fund.getFundManager();
     this.isin = fund.getIsin();
     this.name = fund.getName(language);
@@ -26,6 +28,7 @@ public class FundDto {
     this.status = fund.getStatus();
   }
 
+  @JsonIgnore
   public boolean isConverted() {
     return fundManager.isTuleva();
   }

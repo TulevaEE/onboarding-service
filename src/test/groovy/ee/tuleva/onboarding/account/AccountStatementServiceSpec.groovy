@@ -50,34 +50,41 @@ class AccountStatementServiceSpec extends Specification {
   def "filters out non-active zero balance second pillar funds"() {
     given:
     def person = samplePerson()
-    def inactiveZeroFund = FundBalanceDto.builder().isin("1").value(ZERO).activeContributions(false).pillar(2).build()
-    def inactiveNonZeroFund = FundBalanceDto.builder().isin("2").value(ONE).activeContributions(false).pillar(2).build()
-    def activeZeroFund = FundBalanceDto.builder().isin("3").value(ZERO).activeContributions(true).pillar(2).build()
-    def activeNonZeroFund = FundBalanceDto.builder().isin("4").value(ONE).activeContributions(true).pillar(2).build()
+    def inactiveZeroFund = FundBalanceDto.builder().isin("1").value(ZERO).activeContributions(false).build()
+    def inactiveNonZeroFund = FundBalanceDto.builder().isin("2").value(ONE).activeContributions(false).build()
+    def activeZeroFund = FundBalanceDto.builder().isin("3").value(ZERO).activeContributions(true).build()
+    def activeNonZeroFund = FundBalanceDto.builder().isin("4").value(ONE).activeContributions(true).build()
 
     episService.getAccountStatement(person) >> [inactiveZeroFund, inactiveNonZeroFund, activeZeroFund, activeNonZeroFund]
     fundBalanceConverter.convert(_, _) >> { FundBalanceDto fundBalanceDto, _ ->
-      FundBalance.builder().fund(Fund.builder().isin(fundBalanceDto.isin).build()).build()
+      FundBalance.builder()
+          .fund(Fund.builder()
+              .isin(fundBalanceDto.isin)
+              .pillar(2)
+              .build())
+          .value(fundBalanceDto.value)
+          .activeContributions(fundBalanceDto.activeContributions)
+          .build()
     }
 
     when:
     List<FundBalance> accountStatement = service.getAccountStatement(person)
 
     then:
-    accountStatement.size() == 3
     with(accountStatement.get(0)) { isin == inactiveNonZeroFund.isin }
     with(accountStatement.get(1)) { isin == activeZeroFund.isin }
     with(accountStatement.get(2)) { isin == activeNonZeroFund.isin }
+    accountStatement.size() == 3
   }
 
   def "does not filter out zero balance third pillar funds"() {
     given:
     def person = samplePerson()
-    def inactiveZeroFund = FundBalanceDto.builder().isin("1").value(ZERO).activeContributions(false).pillar(3).build()
+    def inactiveZeroFund = FundBalanceDto.builder().isin("1").value(ZERO).activeContributions(false).build()
 
     episService.getAccountStatement(person) >> [inactiveZeroFund]
     fundBalanceConverter.convert(_, _) >> { FundBalanceDto fundBalanceDto, _ ->
-      FundBalance.builder().fund(Fund.builder().isin(fundBalanceDto.isin).build()).build()
+      FundBalance.builder().fund(Fund.builder().isin(fundBalanceDto.isin).pillar(2).build()).build()
     }
 
     when:

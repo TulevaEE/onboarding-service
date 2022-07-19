@@ -7,7 +7,7 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.fund.manager.FundManager
-import ee.tuleva.onboarding.fund.response.FundDto
+import ee.tuleva.onboarding.fund.ApiFundResponse
 import ee.tuleva.onboarding.mandate.application.*
 import spock.lang.Specification
 
@@ -243,18 +243,18 @@ class UserConversionServiceSpec extends Specification {
           .type(TRANSFER)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new FundDto(Fund.builder()
+                  .sourceFund(new ApiFundResponse(Fund.builder()
                       .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
                       .pillar(2)
                       .build(), "en")
                   )
                   .exchange(
                       new Exchange(
-                          new FundDto(Fund.builder()
+                          new ApiFundResponse(Fund.builder()
                               .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
                               .pillar(2)
                               .build(), "en"),
-                          new FundDto(Fund.builder()
+                          new ApiFundResponse(Fund.builder()
                               .isin("EE234")
                               .pillar(2)
                               .fundManager(FundManager.builder().name(FundManager.TULEVA_FUND_MANAGER_NAME).build())
@@ -275,18 +275,18 @@ class UserConversionServiceSpec extends Specification {
           .type(TRANSFER)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new FundDto(Fund.builder()
+                  .sourceFund(new ApiFundResponse(Fund.builder()
                       .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
                       .pillar(2)
                       .build(), "en")
                   )
                   .exchange(
                       new Exchange(
-                          new FundDto(Fund.builder()
+                          new ApiFundResponse(Fund.builder()
                               .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
                               .pillar(2)
                               .build(), "en"),
-                          new FundDto(Fund.builder()
+                          new ApiFundResponse(Fund.builder()
                               .isin("EE234")
                               .pillar(2)
                               .fundManager(FundManager.builder().name(FundManager.TULEVA_FUND_MANAGER_NAME).build())
@@ -307,14 +307,14 @@ class UserConversionServiceSpec extends Specification {
           .type(TRANSFER)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new FundDto(Fund.builder()
+                  .sourceFund(new ApiFundResponse(Fund.builder()
                       .isin(activeTuleva2ndPillarFundBalance.first().getFund().getIsin())
                       .pillar(2)
                       .build(), "en")
                   )
                   .exchange(
                       new Exchange(
-                          new FundDto(Fund.builder()
+                          new ApiFundResponse(Fund.builder()
                               .isin(activeTuleva2ndPillarFundBalance.first().getFund().getIsin())
                               .pillar(2)
                               .build(), "en"),
@@ -334,11 +334,11 @@ class UserConversionServiceSpec extends Specification {
           .type(TRANSFER)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
+                  .sourceFund(new ApiFundResponse(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
                   .exchange(
                       new Exchange(
-                          new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"),
-                          new FundDto(activeExternal3rdPillarFundBalance[1].getFund(), "en"),
+                          new ApiFundResponse(activeExternal3rdPillarFundBalance[0].getFund(), "en"),
+                          new ApiFundResponse(activeExternal3rdPillarFundBalance[1].getFund(), "en"),
                           null,
                           100.0
                       )
@@ -354,11 +354,11 @@ class UserConversionServiceSpec extends Specification {
           .type(TRANSFER)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
+                  .sourceFund(new ApiFundResponse(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
                   .exchange(
                       new Exchange(
-                          new FundDto(activeExternal3rdPillarFundBalance[0].getFund(), "en"),
-                          new FundDto(activeExternal3rdPillarFundBalance[1].getFund(), "en"),
+                          new ApiFundResponse(activeExternal3rdPillarFundBalance[0].getFund(), "en"),
+                          new ApiFundResponse(activeExternal3rdPillarFundBalance[1].getFund(), "en"),
                           null,
                           50.0
                       )

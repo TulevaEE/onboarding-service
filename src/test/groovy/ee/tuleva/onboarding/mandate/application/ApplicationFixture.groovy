@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.ClockFixture
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
-import ee.tuleva.onboarding.fund.response.FundDto
+import ee.tuleva.onboarding.fund.ApiFundResponse
 
 import java.time.Instant
 
@@ -34,11 +34,11 @@ class ApplicationFixture {
 
   static TransferApplicationDetails.TransferApplicationDetailsBuilder transferApplicationDetails() {
     return TransferApplicationDetails.builder()
-        .sourceFund(new FundDto(sampleFunds().first(), 'en'))
+        .sourceFund(new ApiFundResponse(sampleFunds().first(), 'en'))
         .exchange(
             new Exchange(
                 null,
-                new FundDto(sampleFunds().drop(1).first(), 'en'),
+                new ApiFundResponse(sampleFunds().drop(1).first(), 'en'),
                 null,
                 BigDecimal.ONE
             )
@@ -46,7 +46,7 @@ class ApplicationFixture {
         .exchange(
             new Exchange(
                 null,
-                new FundDto(sampleFunds().drop(1).first(), 'en'),
+                new ApiFundResponse(sampleFunds().drop(1).first(), 'en'),
                 null,
                 BigDecimal.ONE
             )

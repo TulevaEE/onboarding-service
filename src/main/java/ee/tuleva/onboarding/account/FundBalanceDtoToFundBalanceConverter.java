@@ -52,7 +52,6 @@ public class FundBalanceDtoToFundBalanceConverter
     return FundBalance.builder()
         .activeContributions(fundBalanceDto.isActiveContributions())
         .currency(fundBalanceDto.getCurrency())
-        .pillar(fundBalanceDto.getPillar())
         .value(fundBalanceDto.getValue())
         .unavailableValue(fundBalanceDto.getUnavailableValue())
         .units(fundBalanceDto.getUnits())

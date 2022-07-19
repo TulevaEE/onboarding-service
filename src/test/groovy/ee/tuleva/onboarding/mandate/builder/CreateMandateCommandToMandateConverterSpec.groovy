@@ -63,7 +63,6 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         def fund = Fund.builder().pillar(3).isin(sourceIsin).build()
         def user = sampleUser().build()
         def fundBalance = FundBalance.builder()
-            .pillar(3)
             .units(500.1234)
             .fund(fund)
             .build()

@@ -12,23 +12,15 @@ import lombok.Setter;
 @Setter
 @Builder
 public class FundBalance {
+
   private Fund fund;
   private BigDecimal value;
   private BigDecimal unavailableValue;
   private BigDecimal units;
   private String currency;
-  private Integer pillar;
   private boolean activeContributions;
   private BigDecimal contributions;
   private BigDecimal subtractions;
-
-  @Deprecated
-  public BigDecimal getContributionSum() {
-    return contributions != null || subtractions != null
-        ? ZERO.add(contributions == null ? ZERO : contributions)
-            .add(subtractions == null ? ZERO : subtractions)
-        : null;
-  }
 
   public BigDecimal getProfit() {
     BigDecimal unavailableValue = this.unavailableValue != null ? this.unavailableValue : ZERO;
@@ -39,6 +31,10 @@ public class FundBalance {
 
   public String getIsin() {
     return fund.getIsin();
+  }
+
+  public Integer getPillar() {
+    return fund.getPillar();
   }
 
   public BigDecimal getTotalValue() {
@@ -52,5 +48,12 @@ public class FundBalance {
 
   public boolean isExitRestricted() {
     return fund.isExitRestricted();
+  }
+
+  BigDecimal getContributionSum() {
+    BigDecimal sum =
+        ZERO.add(contributions == null ? ZERO : contributions)
+            .add(subtractions == null ? ZERO : subtractions);
+    return contributions != null || subtractions != null ? sum : null;
   }
 }

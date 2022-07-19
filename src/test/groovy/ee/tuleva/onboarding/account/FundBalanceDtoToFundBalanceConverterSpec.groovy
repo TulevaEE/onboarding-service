@@ -30,7 +30,6 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
         fundBalance.unavailableValue == fundBalanceDto.unavailableValue
         fundBalance.units == fundBalanceDto.units
         fundBalance.currency == fundBalanceDto.currency
-        fundBalance.pillar == fundBalanceDto.pillar
         fundBalance.activeContributions == fundBalanceDto.activeContributions
         fundBalance.contributions == null
         fundBalance.subtractions == null
@@ -79,7 +78,6 @@ class FundBalanceDtoToFundBalanceConverterSpec extends Specification {
             .units(345.0)
             .nav(0.12345)
             .currency("EUR")
-            .pillar(3)
             .activeContributions(true)
             .build()
     }

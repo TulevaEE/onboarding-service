@@ -1,35 +1,31 @@
-package ee.tuleva.onboarding.fund.response;
+package ee.tuleva.onboarding.account;
 
-import ee.tuleva.onboarding.account.FundBalance;
+import ee.tuleva.onboarding.fund.ApiFundResponse;
 import java.math.BigDecimal;
 import lombok.Builder;
 import lombok.Data;
 
 @Data
 @Builder
-public class FundBalanceResponseDto {
-  private FundDto fund;
+class ApiFundBalanceResponse {
+  private ApiFundResponse fund;
   private BigDecimal value;
   private BigDecimal unavailableValue;
   private String currency;
-  private Integer pillar;
   private boolean activeContributions;
   private BigDecimal contributions;
   private BigDecimal subtractions;
-  @Deprecated private BigDecimal contributionSum;
   private BigDecimal profit;
 
-  public static FundBalanceResponseDto from(FundBalance fundBalance, String language) {
-    return FundBalanceResponseDto.builder()
-        .fund(new FundDto(fundBalance.getFund(), language))
+  static ApiFundBalanceResponse from(FundBalance fundBalance, String language) {
+    return ApiFundBalanceResponse.builder()
+        .fund(new ApiFundResponse(fundBalance.getFund(), language))
         .value(fundBalance.getValue())
         .unavailableValue(fundBalance.getUnavailableValue())
         .currency(fundBalance.getCurrency())
-        .pillar(fundBalance.getPillar())
         .activeContributions(fundBalance.isActiveContributions())
         .contributions(fundBalance.getContributions())
         .subtractions(fundBalance.getSubtractions())
-        .contributionSum(fundBalance.getContributionSum())
         .profit(fundBalance.getProfit())
         .build();
   }

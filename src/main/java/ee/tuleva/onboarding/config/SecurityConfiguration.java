@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.config;
 
 import static ee.tuleva.onboarding.config.OAuthConfiguration.ResourceServerPathConfiguration.RESOURCE_REQUEST_MATCHER_BEAN;
+import static org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest.to;
+import static org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest.toAnyEndpoint;
 
 import java.util.List;
 import java.util.regex.Pattern;
@@ -9,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.autoconfigure.security.SecurityProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -94,9 +95,9 @@ public class SecurityConfiguration {
       val nonResources = new NegatedRequestMatcher(resources);
       http.requestMatcher(nonResources)
           .authorizeRequests()
-          .requestMatchers(EndpointRequest.to("health"))
+          .requestMatchers(to("health"))
           .permitAll()
-          .requestMatchers(EndpointRequest.toAnyEndpoint().excluding("health"))
+          .requestMatchers(toAnyEndpoint().excluding("health"))
           .authenticated()
           .antMatchers(
               "/",
@@ -107,7 +108,8 @@ public class SecurityConfiguration {
               "/authenticate",
               "/idLogin",
               "/oauth/token",
-              "/notifications/payments")
+              "/notifications/payments",
+              "/v1/funds")
           .permitAll()
           .anyRequest()
           .authenticated()

@@ -28,7 +28,7 @@ jobs:
 
       - snyk/scan:
           fail-on-issues: false
-          organization: Tuleva
+          organization: tuleva
 
       - store_test_results:
           path: ./build/test-results

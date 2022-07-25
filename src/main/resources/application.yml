@@ -36,31 +36,10 @@ spring:
     throw-exception-if-no-handler-found: true
   cache:
     type: ehcache
-  security:
-    user:
-      name: service
-      password: Kalamaja123
-  boot:
-    admin:
-      client:
-        enabled: false
-        username: admin
-        password: Kalamaja123
-        url: http://localhost:8081
-        instance:
-          metadata:
-            user.name: ${spring.security.user.name}
-            user.password: ${spring.security.user.password}
   session:
     store-type: none
     jdbc:
       initialize-schema: never
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: '*'
 
 mobile-id:
   # use "https://mid.sk.ee/mid-api" for testing signing
@@ -164,12 +143,6 @@ spring:
 
   flyway:
     baseline-on-migrate: false
-  boot:
-    admin:
-      client:
-        enabled: true
-        url: 'https://admin.producement.com'
-
 server:
   servlet:
     session.cookie.domain: tuleva.ee # for session sharing across sub-domains

@@ -5,5 +5,4 @@ public class Authority {
   public static final String USER = "USER";
   public static final String MEMBER = "MEMBER";
 
-  public static final String ROLE_CLIENT = "ROLE_CLIENT";
 }

@@ -108,8 +108,7 @@ public class SecurityConfiguration {
               "/authenticate",
               "/idLogin",
               "/oauth/token",
-              "/notifications/payments",
-              "/v1/funds")
+              "/notifications/payments")
           .permitAll()
           .anyRequest()
           .authenticated()

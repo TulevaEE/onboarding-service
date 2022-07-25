@@ -13,7 +13,6 @@ buildscript {
     }
 }
 
-val springBootAdminVersion = "2.7.2"
 val springCloudVersion = "2021.0.3"
 
 plugins {
@@ -72,8 +71,6 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-ui:1.6.9")
     implementation("org.springdoc:springdoc-openapi-security:1.6.9")
 
-    implementation("de.codecentric:spring-boot-admin-starter-client")
-
     runtimeOnly("org.postgresql:postgresql")
 
     implementation("org.flywaydb:flyway-core")
@@ -131,7 +128,6 @@ dependencies {
 
 dependencyManagement {
     imports {
-        mavenBom("de.codecentric:spring-boot-admin-dependencies:$springBootAdminVersion")
         mavenBom("org.springframework.cloud:spring-cloud-dependencies:$springCloudVersion")
     }
 }

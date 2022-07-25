@@ -1,14 +1,10 @@
 package ee.tuleva.onboarding.config.http;
 
-import de.codecentric.boot.admin.client.config.ClientProperties;
 import ee.tuleva.onboarding.error.RestResponseErrorHandler;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.boot.web.client.RestTemplateCustomizer;
 import org.springframework.context.annotation.Bean;
@@ -35,8 +31,7 @@ public class RestTemplateConfiguration {
   }
 
   @Bean
-  RestTemplateCustomizer loggingRestTemplateCustomizer(
-      @Autowired(required = false) ClientProperties clientProperties) {
+  RestTemplateCustomizer loggingRestTemplateCustomizer() {
     return restTemplate -> {
       SimpleClientHttpRequestFactory simpleClient = new SimpleClientHttpRequestFactory();
       simpleClient.setOutputStreaming(false);
@@ -45,31 +40,14 @@ public class RestTemplateConfiguration {
           .getInterceptors()
           .add(
               (request, body, execution) -> {
-                if (isAdminUrl(clientProperties, request.getURI().getHost())) {
-                  log.debug("Not logging requests to admin URL {}", request.getURI());
-                  return execution.execute(request, body);
-                }
                 log.info("Sending request to {}", request.getURI());
                 ClientHttpResponse response = execution.execute(request, body);
                 log.info("Response status {}", response.getStatusCode());
-                log.debug("Response body \n {}", IOUtils.toString(response.getBody(), "UTF-8"));
+                log.debug(
+                    "Response body \n {}",
+                    IOUtils.toString(response.getBody(), StandardCharsets.UTF_8));
                 return response;
               });
     };
-  }
-
-  private boolean isAdminUrl(ClientProperties clientProperties, String host) {
-    if (clientProperties == null) {
-      return false;
-    }
-    return Arrays.stream(clientProperties.getUrl())
-        .anyMatch(
-            it -> {
-              try {
-                return new URL(it).getHost().equalsIgnoreCase(host);
-              } catch (MalformedURLException e) {
-                return false;
-              }
-            });
   }
 }

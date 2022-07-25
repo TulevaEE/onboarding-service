@@ -1,8 +1,9 @@
 version: 2.1
 orbs:
   aws-ecr: circleci/aws-ecr@8.1.2
-  eb: circleci/aws-elastic-beanstalk@1.0.2
-  codecov: codecov/codecov@3.2.2
+  eb: circleci/aws-elastic-beanstalk@2.0.1
+  codecov: codecov/codecov@3.2.3
+  snyk: snyk/snyk@1.2.3
 jobs:
   build:
     environment:
@@ -24,6 +25,9 @@ jobs:
       - run:
           name: Build
           command: ./gradlew build --no-daemon --stacktrace
+
+      - snyk/scan:
+          fail-on-issues: false
 
       - store_test_results:
           path: ./build/test-results
@@ -67,7 +71,8 @@ workflows:
   version: 2
   onboarding-service-workflow:
     jobs:
-      - build
+      - build:
+          context: snyk
       - aws-ecr/build-and-push-image:
           requires:
             - build

@@ -117,7 +117,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.1-groovy-3.0") {
         exclude(group = "org.codehaus.groovy")
     }
-    testImplementation("org.codehaus.groovy:groovy:3.0.11")
+    testImplementation("org.codehaus.groovy:groovy:3.0.12")
     testImplementation("org.mock-server:mockserver-netty:5.13.2")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.13.2")
     testImplementation("org.springframework.security:spring-security-test")

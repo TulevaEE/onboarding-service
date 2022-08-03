@@ -8,7 +8,7 @@ import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Table;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 @Table(name = "scheduled_email")
 @NoArgsConstructor
 @RequiredArgsConstructor
-@Getter
+@Data
 public class ScheduledEmail {
   @NonNull private Long userId;
   @NonNull private String mandrillMessageId;

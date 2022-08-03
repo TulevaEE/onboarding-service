@@ -81,7 +81,10 @@ public class EmailService {
 
       MandrillMessageStatus messageStatusReport =
           mandrillApi.messages().send(message, false, null, sendDate)[0]; // FIXME [0]
-      log.info("Mandrill API response {}", messageStatusReport.getStatus());
+      log.info(
+          "Mandrill API response: status={}, id={}",
+          messageStatusReport.getStatus(),
+          messageStatusReport.getId());
       return Optional.of(messageStatusReport.getId());
 
     } catch (MandrillApiError mandrillApiError) {

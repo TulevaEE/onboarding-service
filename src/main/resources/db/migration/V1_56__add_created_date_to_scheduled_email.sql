@@ -1,0 +1,2 @@
+ALTER TABLE scheduled_email
+  ADD COLUMN created_date TIMESTAMP NOT NULL DEFAULT NOW();

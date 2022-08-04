@@ -125,7 +125,13 @@ public class EmailService {
     try {
       mandrillApi.messages().cancelScheduled(mandrillMessageId);
     } catch (MandrillApiError mandrillApiError) {
-      log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
+      if ("Unknown_Message".equals(mandrillApiError.getMandrillErrorName())) {
+        log.info(
+            "Mandrill email already sent out?, cannot cancel: {}",
+            mandrillApiError.getMandrillErrorAsJson());
+      } else {
+        log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
+      }
     } catch (IOException e) {
       log.error(e.getLocalizedMessage(), e);
     }

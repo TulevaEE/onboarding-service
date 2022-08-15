@@ -1,22 +1,24 @@
-package ee.tuleva.onboarding.audit
+package ee.tuleva.onboarding.event.broadcasting
 
-import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.GrantType
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType
-import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
-import ee.tuleva.onboarding.auth.smartid.SmartIdFixture
+import ee.tuleva.onboarding.event.TrackableEventPublisher
+import ee.tuleva.onboarding.event.TrackableEventType
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.GrantType.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.auth.mobileid.MobileIdFixture.sampleMobileIdSession
+import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sampleSmartIdSession
 
-class LoginAuditEventBroadcasterSpec extends Specification {
+class LoginEventBroadcasterSpec extends Specification {
 
-    AuditEventPublisher auditEventPublisher = Mock(AuditEventPublisher)
-    LoginAuditEventBroadcaster service = new LoginAuditEventBroadcaster(auditEventPublisher)
+    TrackableEventPublisher trackableEventPublisher = Mock(TrackableEventPublisher)
+    LoginEventBroadcaster service = new LoginEventBroadcaster(trackableEventPublisher)
 
     def "OnBeforeTokenGrantedEvent: Broadcast login event"(GrantType grantType, String document, Object credentials) {
         given:
@@ -35,9 +37,9 @@ class LoginAuditEventBroadcasterSpec extends Specification {
 
         then:
         if (document != null) {
-            1 * auditEventPublisher.publish(samplePerson.personalCode, AuditEventType.LOGIN, "method=$grantType", "document=$document")
+            1 * trackableEventPublisher.publish(samplePerson.personalCode, TrackableEventType.LOGIN, "method=$grantType", "document=$document")
         } else {
-            1 * auditEventPublisher.publish(samplePerson.personalCode, AuditEventType.LOGIN, "method=$grantType")
+            1 * trackableEventPublisher.publish(samplePerson.personalCode, TrackableEventType.LOGIN, "method=$grantType")
         }
 
         where:
@@ -46,7 +48,7 @@ class LoginAuditEventBroadcasterSpec extends Specification {
         ID_CARD   | "OLD_ID_CARD"              | new IdCardSession("Chuck", "Norris", "38512121212", IdDocumentType.OLD_ID_CARD)
         ID_CARD   | "ESTONIAN_CITIZEN_ID_CARD" | new IdCardSession("Chuck", "Norris", "38512121212", IdDocumentType.ESTONIAN_CITIZEN_ID_CARD)
         ID_CARD   | "DIPLOMATIC_ID_CARD"       | new IdCardSession(" Chuck ", " Norris ", " 38512121212 ", IdDocumentType.DIPLOMATIC_ID_CARD)
-        MOBILE_ID | null                       | MobileIdFixture.sampleMobileIdSession
-        SMART_ID  | null                       | SmartIdFixture.sampleSmartIdSession
+        MOBILE_ID | null                       | sampleMobileIdSession
+        SMART_ID  | null                       | sampleSmartIdSession
     }
 }

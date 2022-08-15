@@ -1,14 +1,16 @@
-package ee.tuleva.onboarding.audit
+package ee.tuleva.onboarding.event.broadcasting
 
+import ee.tuleva.onboarding.event.TrackableEventPublisher
+import ee.tuleva.onboarding.event.TrackableEventType
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
-class MandateSuccessfulAuditEventBroadcasterSpec extends Specification {
+class MandateSuccessfulEventBroadcasterSpec extends Specification {
 
-  AuditEventPublisher auditEventPublisher = Mock(AuditEventPublisher)
-  MandateSuccessfulAuditEventBroadcaster service = new MandateSuccessfulAuditEventBroadcaster(auditEventPublisher)
+  TrackableEventPublisher trackableEventPublisher = Mock(TrackableEventPublisher)
+  MandateSuccessfulEventBroadcaster service = new MandateSuccessfulEventBroadcaster(trackableEventPublisher)
 
   def "Broadcast mandate successful event"() {
     given:
@@ -25,7 +27,7 @@ class MandateSuccessfulAuditEventBroadcasterSpec extends Specification {
     service.publishMandateSuccessfulEvent(event)
 
     then:
-    1 * auditEventPublisher.publish(personalCode, AuditEventType.MANDATE_SUCCESSFUL, eventData)
+    1 * trackableEventPublisher.publish(personalCode, TrackableEventType.MANDATE_SUCCESSFUL, eventData)
 
     where:
     pillar | eventData

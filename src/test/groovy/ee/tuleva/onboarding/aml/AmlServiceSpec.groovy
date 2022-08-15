@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.aml
 
-import ee.tuleva.onboarding.audit.AuditEventPublisher
-import ee.tuleva.onboarding.audit.AuditEventType
+import ee.tuleva.onboarding.event.TrackableEventPublisher
+import ee.tuleva.onboarding.event.TrackableEventType
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
@@ -19,9 +19,9 @@ import static java.time.temporal.ChronoUnit.DAYS
 class AmlServiceSpec extends Specification {
 
   AmlCheckRepository amlCheckRepository = Mock()
-  AuditEventPublisher auditEventPublisher = Mock()
+  TrackableEventPublisher trackableEventPublisher = Mock()
   Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
-  AmlService amlService = new AmlService(amlCheckRepository, auditEventPublisher, clock)
+  AmlService amlService = new AmlService(amlCheckRepository, trackableEventPublisher, clock)
 
   def aYearAgo = Instant.now(clock).minus(365, DAYS)
 
@@ -155,7 +155,7 @@ class AmlServiceSpec extends Specification {
     actual == result
     1 * amlCheckRepository.findAllByUserAndCreatedTimeAfter(user, aYearAgo) >> checks
     if (!result) {
-      1 * auditEventPublisher.publish(user.getEmail(), AuditEventType.MANDATE_DENIED)
+      1 * trackableEventPublisher.publish(user.getEmail(), TrackableEventType.MANDATE_DENIED)
     }
     where:
     checks                                                                                                      | result

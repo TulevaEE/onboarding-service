@@ -1,6 +1,6 @@
-package ee.tuleva.onboarding.audit;
+package ee.tuleva.onboarding.event;
 
-public enum AuditEventType {
+public enum TrackableEventType {
   LOGIN,
   GET_ACCOUNT_STATEMENT,
   GET_CASH_FLOWS,

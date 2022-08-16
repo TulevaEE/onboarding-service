@@ -33,4 +33,21 @@ class TrackableEventPublisherSpec extends Specification {
                 trackableEvent.auditEvent.data.get("some") == "data"
         })
     }
+
+    def "Publish with data map"() {
+      given:
+      String samplePrincipal = "principal"
+      Map<String, Object> data = new HashMap<>()
+      String testKey = "test"
+      String testValue = "value"
+      data.put(testKey, testValue)
+      when:
+      trackableEventPublisher.publish(samplePrincipal, TrackableEventType.LOGIN, data)
+      then:
+      1 * applicationEventPublisher.publishEvent({ TrackableEvent trackableEvent ->
+        trackableEvent.auditEvent.principal == samplePrincipal &&
+            trackableEvent.auditEvent.type == String.valueOf(TrackableEventType.LOGIN) &&
+            trackableEvent.auditEvent.data.get(testKey) == testValue
+      })
+    }
 }

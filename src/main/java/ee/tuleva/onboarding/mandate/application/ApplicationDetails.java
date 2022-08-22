@@ -6,4 +6,7 @@ public interface ApplicationDetails {
 
   @JsonIgnore
   Integer getPillar();
+
+  @JsonIgnore
+  ApplicationType getType();
 }

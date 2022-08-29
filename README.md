@@ -15,6 +15,7 @@
 - Gradle
 - Lombok
 - IntelliJ
+- [AWS Toolkit for IntelliJ](https://aws.amazon.com/intellij/)
 - Docker
 
 ## Tech stack
@@ -131,6 +132,29 @@ In order to test ID-card locally, you need to run nginx locally with the right c
 6. add `server.servlet.session.cookie.domain: tuleva.ee` to `application.yml`
 7. Test through https://pension.tuleva.ee
 8. Later, don't forget to clean up your `hosts` file
+
+### AWS Profile
+WE use AWS SSO, to get it working properly you need to configure the profile first either by running `aws configure sso` or
+pasting the following into `~/.aws/config`:
+```ini
+[profile tuleva]
+region = eu-central-1
+output = json
+sso_start_url = https://tuleva.awsapps.com/start
+sso_region = eu-central-1
+sso_account_id = 641866833894
+sso_role_name = AdministratorAccess
+```
+
+### VPN
+
+We use AWS Client VPN. To get started, log into [AWS SSO Portal](https://tuleva.awsapps.com/start) and follow VPN Client Self Service instructions.
+
+### Connecting to the database
+
+- Establish VPN connection
+- Configure AWS Profile and login `aws sso login`
+- Connect to the DB using AWS IAM authentication where user is `iamuser` and profile `tuleva`.
 
 ### References
 

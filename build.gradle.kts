@@ -18,7 +18,7 @@ val springCloudVersion = "2021.0.3"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.7.2"
+    id("org.springframework.boot") version "2.7.3"
     id("io.spring.dependency-management") version "1.0.13.RELEASE"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.10.0"
@@ -69,7 +69,7 @@ dependencies {
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
 
     implementation("org.springdoc:springdoc-openapi-ui:1.6.11")
-    implementation("org.springdoc:springdoc-openapi-security:1.6.9")
+    implementation("org.springdoc:springdoc-openapi-security:1.6.11")
 
     runtimeOnly("org.postgresql:postgresql")
 
@@ -118,12 +118,12 @@ dependencies {
         exclude(group = "org.codehaus.groovy")
     }
     testImplementation("org.codehaus.groovy:groovy:3.0.12")
-    testImplementation("org.mock-server:mockserver-netty:5.13.2")
+    testImplementation("org.mock-server:mockserver-netty:5.14.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.14.0")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.0.0")
     testImplementation("io.github.origin-energy:java-snapshot-testing-spock:3.3.0")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:3.2.7")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:3.3.0")
 }
 
 dependencyManagement {

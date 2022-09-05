@@ -6,50 +6,45 @@ import ee.tuleva.onboarding.fund.ApiFundResponse
 
 import java.time.Instant
 
+import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.*
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
+import static ee.tuleva.onboarding.mandate.application.Application.*
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
+import static ee.tuleva.onboarding.mandate.application.TransferApplicationDetails.*
 
 class ApplicationFixture {
 
-  static Application.ApplicationBuilder sampleApplication() {
-    return Application.builder().type(ApplicationType.TRANSFER)
+  static ApplicationBuilder sampleApplication() {
+    return builder()
   }
 
-  static Application.ApplicationBuilder transferApplication() {
+  static ApplicationBuilder transferApplication() {
     return sampleApplication()
         .creationTime(Instant.now(ClockFixture.clock))
-        .type(ApplicationType.TRANSFER)
-        .status(ApplicationStatus.PENDING)
+        .status(PENDING)
         .id(123L)
         .details(transferApplicationDetails().build())
   }
 
-  static Application.ApplicationBuilder withdrawalApplication() {
+  static ApplicationBuilder withdrawalApplication() {
     return sampleApplication()
         .creationTime(Instant.now(ClockFixture.clock))
-        .type(ApplicationType.WITHDRAWAL)
-        .status(ApplicationStatus.PENDING)
+        .status(PENDING)
         .id(123L)
         .details(withdrawalApplicationDetails().build())
   }
 
-  static TransferApplicationDetails.TransferApplicationDetailsBuilder transferApplicationDetails() {
+  static TransferApplicationDetailsBuilder transferApplicationDetails() {
+    def sourceFund = new ApiFundResponse(sampleFunds().first(), 'en')
+    def targetFund = new ApiFundResponse(sampleFunds().drop(1).first(), 'en')
+
     return TransferApplicationDetails.builder()
-        .sourceFund(new ApiFundResponse(sampleFunds().first(), 'en'))
-        .exchange(
-            new Exchange(
-                null,
-                new ApiFundResponse(sampleFunds().drop(1).first(), 'en'),
-                null,
-                BigDecimal.ONE
-            )
-        )
-        .exchange(
-            new Exchange(
-                null,
-                new ApiFundResponse(sampleFunds().drop(1).first(), 'en'),
-                null,
-                BigDecimal.ONE
-            )
+        .sourceFund(sourceFund)
+        .exchange(Exchange.builder()
+            .sourceFund(sourceFund)
+            .targetFund(targetFund)
+            .amount(1.0)
+            .build()
         )
   }
 

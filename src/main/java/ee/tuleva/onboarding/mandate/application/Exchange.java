@@ -3,11 +3,12 @@ package ee.tuleva.onboarding.mandate.application;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
 import java.math.BigDecimal;
+import lombok.Builder;
 import lombok.Data;
 
 @Data
+@Builder
 public class Exchange {
-
   private ApiFundResponse sourceFund;
   private ApiFundResponse targetFund;
   private String targetPik;
@@ -47,5 +48,10 @@ public class Exchange {
 
   private Integer getTargetPillar() {
     return targetPik != null ? 2 : targetFund.getPillar();
+  }
+
+  @JsonIgnore
+  public boolean isFullAmount() {
+    return getPillar() == 2 && amount.intValue() == 1; // 100%
   }
 }

@@ -4,11 +4,14 @@ import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.account.CashFlowService
 import ee.tuleva.onboarding.epis.cashflows.CashFlow
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
+import ee.tuleva.onboarding.fund.ApiFundResponse
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.fund.manager.FundManager
-import ee.tuleva.onboarding.fund.ApiFundResponse
-import ee.tuleva.onboarding.mandate.application.*
+import ee.tuleva.onboarding.mandate.application.Application
+import ee.tuleva.onboarding.mandate.application.ApplicationService
+import ee.tuleva.onboarding.mandate.application.Exchange
+import ee.tuleva.onboarding.mandate.application.TransferApplicationDetails
 import spock.lang.Specification
 
 import java.time.Clock
@@ -20,7 +23,6 @@ import static ee.tuleva.onboarding.account.AccountStatementFixture.*
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 
 class UserConversionServiceSpec extends Specification {
 
@@ -36,7 +38,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion: Get conversion response for 2nd pillar withdrawal"() {
     given:
     accountStatementService.getAccountStatement(samplePerson) >> []
-    applicationService.getApplications(PENDING, samplePerson) >> []
+    applicationService.getTransferApplications(PENDING, samplePerson) >> []
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
     applicationService.hasPendingWithdrawals(samplePerson) >> true
 
@@ -51,7 +53,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion: Get conversion response for 2nd pillar selection and transfer"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    applicationService.getApplications(PENDING, samplePerson) >> []
+    applicationService.getTransferApplications(PENDING, samplePerson) >> []
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -76,7 +78,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion: Get conversion response for 3rd pillar selection and transfer"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    applicationService.getApplications(PENDING, samplePerson) >> []
+    applicationService.getTransferApplications(PENDING, samplePerson) >> []
 
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
@@ -101,7 +103,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion: Get conversion response for 2nd pillar transfer given pending mandates cover the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    applicationService.getApplications(PENDING, samplePerson) >> fullPending2ndPillarApplications
+    applicationService.getTransferApplications(PENDING, samplePerson) >> [fullPending2ndPillarApplication]
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -120,7 +122,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion: Get conversion response for 2nd pillar PIK transfer"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    applicationService.getApplications(PENDING, samplePerson) >> fullPendingPikApplications
+    applicationService.getTransferApplications(PENDING, samplePerson) >> [fullPendingPikApplication]
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -139,7 +141,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion 2nd pillar: only full value pending transfer will be marked as covering the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    applicationService.getApplications(PENDING, samplePerson) >> partialPending2ndPillarApplications
+    applicationService.getTransferApplications(PENDING, samplePerson) >> [partialPending2ndPillarApplication]
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -157,7 +159,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion: Get conversion response for 3rd pillar transfer given pending mandates cover the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    applicationService.getApplications(PENDING, samplePerson) >> fullPending3rdPillarApplications
+    applicationService.getTransferApplications(PENDING, samplePerson) >> [fullPending3rdPillarApplication]
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -176,7 +178,7 @@ class UserConversionServiceSpec extends Specification {
   def "GetConversion 3rd pillar: only full value pending transfer will be marked as covering the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    applicationService.getApplications(PENDING, samplePerson) >> partialPending3rdPillarApplications
+    applicationService.getTransferApplications(PENDING, samplePerson) >> [partialPending3rdPillarApplication]
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
 
     when:
@@ -194,7 +196,7 @@ class UserConversionServiceSpec extends Specification {
   def "calculates contribution and subtraction sums"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> []
-    applicationService.getApplications(PENDING, samplePerson) >> []
+    applicationService.getTransferApplications(PENDING, samplePerson) >> []
     fundRepository.findByIsin("EE123") >> Fund.builder().pillar(2).build()
     fundRepository.findByIsin("EE234") >> Fund.builder().pillar(3).build()
 
@@ -237,10 +239,9 @@ class UserConversionServiceSpec extends Specification {
   }
 
 
-  List<Application> fullPending2ndPillarApplications = [
-      TransferApplication.builder()
+  Application<TransferApplicationDetails> fullPending2ndPillarApplication =
+      Application.<TransferApplicationDetails> builder()
           .status(PENDING)
-          .type(TRANSFER)
           .details(
               TransferApplicationDetails.builder()
                   .sourceFund(new ApiFundResponse(Fund.builder()
@@ -266,13 +267,11 @@ class UserConversionServiceSpec extends Specification {
                   .build()
           )
           .build()
-  ]
 
 
-  List<Application> partialPending2ndPillarApplications = [
-      TransferApplication.builder()
+  Application<TransferApplicationDetails> partialPending2ndPillarApplication =
+      Application.<TransferApplicationDetails> builder()
           .status(PENDING)
-          .type(TRANSFER)
           .details(
               TransferApplicationDetails.builder()
                   .sourceFund(new ApiFundResponse(Fund.builder()
@@ -298,13 +297,10 @@ class UserConversionServiceSpec extends Specification {
                   .build()
           )
           .build()
-  ]
 
-
-  List<Application> fullPendingPikApplications = [
-      TransferApplication.builder()
+  Application<TransferApplicationDetails> fullPendingPikApplication =
+      Application.<TransferApplicationDetails> builder()
           .status(PENDING)
-          .type(TRANSFER)
           .details(
               TransferApplicationDetails.builder()
                   .sourceFund(new ApiFundResponse(Fund.builder()
@@ -326,12 +322,10 @@ class UserConversionServiceSpec extends Specification {
                   .build()
           )
           .build()
-  ]
 
-  List<Application> fullPending3rdPillarApplications = [
-      TransferApplication.builder()
+  Application<TransferApplicationDetails> fullPending3rdPillarApplication =
+      Application.<TransferApplicationDetails> builder()
           .status(PENDING)
-          .type(TRANSFER)
           .details(
               TransferApplicationDetails.builder()
                   .sourceFund(new ApiFundResponse(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
@@ -346,12 +340,10 @@ class UserConversionServiceSpec extends Specification {
                   .build()
           )
           .build()
-  ]
 
-  List<Application> partialPending3rdPillarApplications = [
-      TransferApplication.builder()
+  Application<TransferApplicationDetails> partialPending3rdPillarApplication =
+      Application.<TransferApplicationDetails> builder()
           .status(PENDING)
-          .type(TRANSFER)
           .details(
               TransferApplicationDetails.builder()
                   .sourceFund(new ApiFundResponse(activeExternal3rdPillarFundBalance[0].getFund(), "en"))
@@ -366,6 +358,5 @@ class UserConversionServiceSpec extends Specification {
                   .build()
           )
           .build()
-  ]
 
 }

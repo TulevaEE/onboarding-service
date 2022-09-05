@@ -16,10 +16,8 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
-import ee.tuleva.onboarding.mandate.application.Application;
 import ee.tuleva.onboarding.mandate.application.ApplicationService;
 import ee.tuleva.onboarding.mandate.application.Exchange;
-import ee.tuleva.onboarding.mandate.application.TransferApplication;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -36,6 +34,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @RequiredArgsConstructor
 public class UserConversionService {
+
   private final AccountStatementService accountStatementService;
   private final CashFlowService cashFlowService;
   private final FundRepository fundRepository;
@@ -163,10 +162,10 @@ public class UserConversionService {
 
   private Set<String> getIsinsOfFullPendingTransfersToConvertedFundManager(
       Person person, List<FundBalance> fundBalances, Integer pillar) {
-    List<TransferApplication> pendingTransferApplications = getPendingTransferApplications(person);
+    var pendingTransferApplications = applicationService.getTransferApplications(PENDING, person);
     return pendingTransferApplications.stream()
         .filter(application -> pillar.equals(application.getPillar()))
-        .flatMap(application -> application.getExchanges().stream())
+        .flatMap(application -> application.getDetails().getExchanges().stream())
         .filter(exchange -> exchange.isConverted() && amountMatches(exchange, fundBalances))
         .map(exchange -> exchange.getSourceFund().getIsin())
         .collect(toSet());
@@ -174,7 +173,7 @@ public class UserConversionService {
 
   private boolean amountMatches(Exchange exchange, List<FundBalance> fundBalances) {
     if (exchange.getPillar() == 2) {
-      return exchange.getAmount().intValue() == 1; // 100%
+      return exchange.isFullAmount();
     }
     if (exchange.getPillar() == 3) {
       FundBalance fundBalance = fundBalance(exchange, fundBalances);
@@ -188,14 +187,6 @@ public class UserConversionService {
         .filter(fundBalance -> exchange.getSourceFund().getIsin().equals(fundBalance.getIsin()))
         .findFirst()
         .orElse(FundBalance.builder().build());
-  }
-
-  private List<TransferApplication> getPendingTransferApplications(Person person) {
-    List<Application> applications = applicationService.getApplications(PENDING, person);
-    return applications.stream()
-        .filter(Application::isTransfer)
-        .map(TransferApplication.class::cast)
-        .collect(toList());
   }
 
   private List<String> unConvertedIsins(List<FundBalance> fundBalances, Integer pillar) {

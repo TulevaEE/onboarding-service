@@ -26,6 +26,6 @@ public class ApplicationDTO {
   private String bankAccount;
 
   public boolean isWithdrawal() {
-    return type.equals(ApplicationType.WITHDRAWAL) || type.equals(ApplicationType.EARLY_WITHDRAWAL);
+    return type != null && type.isWithdrawal();
   }
 }

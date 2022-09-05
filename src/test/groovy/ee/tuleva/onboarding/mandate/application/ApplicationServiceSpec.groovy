@@ -54,11 +54,10 @@ class ApplicationServiceSpec extends Specification {
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
 
     when:
-    List<Application> applications = applicationService.getApplications(samplePerson())
+    def applications = applicationService.getAllApplications(samplePerson())
 
     then:
-    applications.size() == 6
-    with(applications[0]) {
+    with(applications[0] as Application<TransferApplicationDetails>) {
       id == 456L
       type == TRANSFER
       status == COMPLETE
@@ -75,7 +74,7 @@ class ApplicationServiceSpec extends Specification {
         cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
       }
     }
-    with(applications[1]) {
+    with(applications[1] as Application<TransferApplicationDetails>) {
       id == 123L
       type == TRANSFER
       status == PENDING
@@ -92,7 +91,7 @@ class ApplicationServiceSpec extends Specification {
         cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
       }
     }
-    with(applications[2]) {
+    with(applications[2] as Application<TransferApplicationDetails>) {
       id == 123L
       type == TRANSFER
       status == PENDING
@@ -109,7 +108,7 @@ class ApplicationServiceSpec extends Specification {
         cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
       }
     }
-    with(applications[3]) {
+    with(applications[3] as Application<TransferApplicationDetails>) {
       id == 123L
       type == TRANSFER
       status == PENDING
@@ -127,7 +126,7 @@ class ApplicationServiceSpec extends Specification {
         cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
       }
     }
-    with(applications[4]) {
+    with(applications[4] as Application<WithdrawalApplicationDetails>) {
       id == 123L
       type == EARLY_WITHDRAWAL
       status == PENDING
@@ -138,7 +137,7 @@ class ApplicationServiceSpec extends Specification {
         cancellationDeadline == Instant.parse("2021-07-31T20:59:59.999999999Z")
       }
     }
-    with(applications[5]) {
+    with(applications[5] as Application<WithdrawalApplicationDetails>) {
       id == 123L
       type == WITHDRAWAL
       status == PENDING
@@ -149,15 +148,6 @@ class ApplicationServiceSpec extends Specification {
         cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
       }
     }
-  }
-
-  def "checks if there is a pending withdrawal"() {
-    given:
-    episService.getApplications(samplePerson()) >> [sampleWithdrawalApplicationDto()]
-    mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
-    when:
-    def hasPendingWithdrawals = applicationService.hasPendingWithdrawals(samplePerson())
-    then:
-    hasPendingWithdrawals
+    applications.size() == 6
   }
 }

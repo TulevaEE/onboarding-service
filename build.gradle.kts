@@ -19,7 +19,7 @@ plugins {
     java
     groovy
     id("org.springframework.boot") version "2.7.2"
-    id("io.spring.dependency-management") version "1.0.12.RELEASE"
+    id("io.spring.dependency-management") version "1.0.13.RELEASE"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.10.0"
     jacoco
@@ -68,7 +68,7 @@ dependencies {
     implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
 
-    implementation("org.springdoc:springdoc-openapi-ui:1.6.9")
+    implementation("org.springdoc:springdoc-openapi-ui:1.6.11")
     implementation("org.springdoc:springdoc-openapi-security:1.6.9")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -91,7 +91,7 @@ dependencies {
     implementation("io.sentry:sentry-spring-boot-starter:6.3.0")
     implementation("io.sentry:sentry-logback:6.4.1")
 
-    implementation("com.vladmihalcea:hibernate-types-52:2.17.1")
+    implementation("com.vladmihalcea:hibernate-types-52:2.18.0")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 

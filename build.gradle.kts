@@ -21,7 +21,7 @@ plugins {
     id("org.springframework.boot") version "2.7.2"
     id("io.spring.dependency-management") version "1.0.12.RELEASE"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
-    id("com.diffplug.spotless") version "6.9.0"
+    id("com.diffplug.spotless") version "6.10.0"
     jacoco
 }
 
@@ -75,7 +75,7 @@ dependencies {
 
     implementation("org.flywaydb:flyway-core")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.jsoup:jsoup:1.15.2")
+    implementation("org.jsoup:jsoup:1.15.3")
     implementation("commons-net:commons-net:3.8.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("net.sf.ehcache:ehcache:2.10.9.2")
@@ -89,7 +89,7 @@ dependencies {
     }
 
     implementation("io.sentry:sentry-spring-boot-starter:6.3.0")
-    implementation("io.sentry:sentry-logback:6.3.0")
+    implementation("io.sentry:sentry-logback:6.4.1")
 
     implementation("com.vladmihalcea:hibernate-types-52:2.17.1")
 
@@ -119,10 +119,10 @@ dependencies {
     }
     testImplementation("org.codehaus.groovy:groovy:3.0.12")
     testImplementation("org.mock-server:mockserver-netty:5.14.0")
-    testImplementation("org.mock-server:mockserver-spring-test-listener:5.13.2")
+    testImplementation("org.mock-server:mockserver-spring-test-listener:5.14.0")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.0.0")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:3.2.7")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:3.3.0")
     testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:3.2.7")
 }
 

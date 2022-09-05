@@ -13,4 +13,12 @@ public enum ApplicationType {
   ;
 
   public final String nameEstonian;
+
+  public boolean isWithdrawal() {
+    return this == WITHDRAWAL || this == EARLY_WITHDRAWAL;
+  }
+
+  public boolean isTransfer() {
+    return this == TRANSFER;
+  }
 }

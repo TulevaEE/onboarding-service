@@ -15,6 +15,10 @@ public class Application<T extends ApplicationDetails> implements Comparable<App
   private final Long id;
   private final Instant creationTime;
   private final ApplicationStatus status;
+  public ApplicationType getType() {
+    return details != null ? details.getType() : null;
+  }
+
   private final T details;
 
   @JsonIgnore
@@ -35,10 +39,6 @@ public class Application<T extends ApplicationDetails> implements Comparable<App
   @JsonIgnore
   public boolean isTransfer() {
     return getType() != null && getType().isTransfer();
-  }
-
-  public ApplicationType getType() {
-    return details != null ? details.getType() : null;
   }
 
   @JsonIgnore

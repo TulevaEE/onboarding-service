@@ -15,6 +15,7 @@ public class Application<T extends ApplicationDetails> implements Comparable<App
   private final Long id;
   private final Instant creationTime;
   private final ApplicationStatus status;
+
   public ApplicationType getType() {
     return details != null ? details.getType() : null;
   }

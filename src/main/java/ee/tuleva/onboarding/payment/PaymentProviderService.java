@@ -7,7 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.utils.URIBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
+
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -15,10 +16,10 @@ import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
 
-@Component
+@Service
 @RequiredArgsConstructor
 @Slf4j
-public class PaymentLinkService {
+public class PaymentProviderService {
 
   private final Clock clock;
 
@@ -27,8 +28,7 @@ public class PaymentLinkService {
   @Value("${payment-provider.url}")
   private String paymentProviderUrl;
 
-
-  public String create(PaymentData paymentData) {
+  public String getPaymentUrl(PaymentData paymentData) {
     Map<String, Object> payload = new HashMap<>();
     PaymentProviderBankConfiguration bankConfiguration =
         paymentProviderBankConfigurations.get(paymentData.getBank().getBeanName());
@@ -37,12 +37,14 @@ public class PaymentLinkService {
     payload.put("amount", paymentData.getAmount());
     payload.put("access_key", bankConfiguration.getAccessKey());
     payload.put("merchant_reference", paymentData.getInternalReference());
-    payload.put("merchant_return_url", "https://pension.tuleva.ee/v1/payment/success");
-//    payload.put("merchant_notification_url", "");
+    payload.put("merchant_return_url", "https://pension.tuleva.ee/v1/payments/success");
+    payload.put("merchant_notification_url", "https://pension.tuleva.ee/v1/payments/notification");
     payload.put("payment_information_unstructured", paymentData.getPaymentInformation());
+    payload.put("payment_information_structured", paymentData.getReference());
     payload.put("preselected_locale", "et");
-    payload.put("checkout_email", paymentData.getUserEmail());
     payload.put("exp", clock.instant().getEpochSecond() + 600);
+    payload.put("checkout_first_name", paymentData.getFirstName());
+    payload.put("checkout_last_name", paymentData.getLastName());
     payload.put("preselected_aspsp", bankConfiguration.getAspsp());
 
     JWSObject jwsObject = getSignedJws(payload, bankConfiguration);

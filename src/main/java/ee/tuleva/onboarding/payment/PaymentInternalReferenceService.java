@@ -2,10 +2,11 @@ package ee.tuleva.onboarding.payment;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ee.tuleva.onboarding.auth.principal.Person;
-import java.util.UUID;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -13,9 +14,11 @@ public class PaymentInternalReferenceService {
 
   private final ObjectMapper mapper;
 
-  public String getPaymentReference(Person person) {
-    PaymentReference paymentReference =
-        new PaymentReference(person.getPersonalCode(), UUID.randomUUID());
+  public String getPaymentReference(AuthenticatedPerson authenticatedPerson) {
+    PaymentReference paymentReference = new PaymentReference(
+        authenticatedPerson.getPersonalCode(),
+        UUID.randomUUID()
+    );
     try {
       return mapper.writeValueAsString(paymentReference);
     } catch (JsonProcessingException e) {

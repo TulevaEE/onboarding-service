@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import org.junit.jupiter.api.BeforeAll
 import spock.lang.Specification
 
 class PaymentInternalReferenceServiceSpec extends Specification {
@@ -10,6 +11,7 @@ class PaymentInternalReferenceServiceSpec extends Specification {
 
   PaymentInternalReferenceService paymentInternalReferenceService;
 
+  @BeforeAll
   def setup() {
     paymentInternalReferenceService = new PaymentInternalReferenceService(objectMapper)
   }

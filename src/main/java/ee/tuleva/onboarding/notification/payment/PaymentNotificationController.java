@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @Slf4j
 @RequestMapping("/notifications")
-public class PaymentController {
+public class PaymentNotificationController {
 
   private static final String COMPLETED = "COMPLETED";
 

@@ -1,16 +1,18 @@
 package ee.tuleva.onboarding.payment;
 
-import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.currency.Currency;
-import java.math.BigDecimal;
 import lombok.Builder;
 import lombok.Data;
+
+import java.math.BigDecimal;
 
 @Data
 @Builder
 public class PaymentData {
-  private Person person;
-  private Currency currency;
+  private String currency;
+
   private BigDecimal amount;
+  private String internalReference;
+  private String paymentInformation;
   private Bank bank;
+  private String userEmail;
 }

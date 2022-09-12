@@ -34,4 +34,5 @@ public class PaymentProviderConfiguration {
   public PaymentProviderBankConfiguration paymentProviderSwedbankConfiguration() {
     return new PaymentProviderBankConfiguration();
   }
+
 }

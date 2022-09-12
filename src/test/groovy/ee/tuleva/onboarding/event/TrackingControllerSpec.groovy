@@ -7,7 +7,7 @@ import org.springframework.http.MediaType
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
-class TrackingControllerSpec  extends BaseControllerSpec {
+class TrackingControllerSpec extends BaseControllerSpec {
 
   TrackableEventPublisher trackableEventPublisher = Mock()
   TrackingController trackingController = new TrackingController(trackableEventPublisher)

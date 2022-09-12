@@ -12,12 +12,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
-class PaymentControllerSpec extends BaseControllerSpec {
+class PaymentNotificationControllerSpec extends BaseControllerSpec {
 
   def userService = Mock(UserService)
   def validator = Mock(SmartValidator)
   def eventPublisher = Mock(ApplicationEventPublisher)
-  def controller = new PaymentController(mapper, userService, validator, eventPublisher)
+  def controller = new PaymentNotificationController(mapper, userService, validator, eventPublisher)
 
   def mvc = mockMvc(controller)
 

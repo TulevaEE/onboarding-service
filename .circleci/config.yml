@@ -13,15 +13,12 @@ jobs:
     steps:
       - attach_workspace:
           at: .
-
       - checkout
-
       - restore_cache:
           keys:
             - v1-dependencies-{{ arch }}-{{ checksum "build.gradle.kts" }}
             # fallback to using the latest cache if no exact match is found
             - v1-dependencies-
-
       - run:
           name: Build
           command: ./gradlew build --no-daemon --stacktrace
@@ -67,7 +64,22 @@ jobs:
       - deploy:
           name: Deploy master to Production
           command: eb deploy onboarding-service-env --label ${CIRCLE_SHA1} --timeout 20
-
+  notify-sentry-deploy:
+    docker:
+      - image: cimg/base:stable
+    environment:
+      SENTRY_PROJECT: onboarding-service
+    steps:
+      - checkout
+      - run:
+          name: Create release and notify Sentry of deploy
+          command: |
+            curl -sL https://sentry.io/get-cli/ | bash
+            export SENTRY_RELEASE=$(sentry-cli releases propose-version)
+            sentry-cli releases new -p $SENTRY_PROJECT $SENTRY_RELEASE
+            sentry-cli releases set-commits $SENTRY_RELEASE --auto
+            sentry-cli releases finalize $SENTRY_RELEASE
+            sentry-cli releases deploys $SENTRY_RELEASE new -e $SENTRY_ENVIRONMENT
 workflows:
   version: 2
   onboarding-service-workflow:
@@ -90,6 +102,13 @@ workflows:
           requires:
             - aws-ecr/build-and-push-image
           context: aws
+          filters:
+            branches:
+              only: master
+      - notify-sentry-deploy:
+          requires:
+            - deploy
+          context: sentry
           filters:
             branches:
               only: master

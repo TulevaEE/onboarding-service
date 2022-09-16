@@ -8,7 +8,7 @@ class PaymentInternalReferenceServiceSpec extends Specification {
 
   ObjectMapper objectMapper = new ObjectMapper()
 
-  PaymentInternalReferenceService paymentInternalReferenceService;
+  PaymentInternalReferenceService paymentInternalReferenceService
 
   def setup() {
     paymentInternalReferenceService = new PaymentInternalReferenceService(objectMapper)

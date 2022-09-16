@@ -6,5 +6,5 @@ import lombok.Data;
 public class PaymentProviderBankConfiguration {
   String accessKey;
   String secretKey;
-  String aspsp;
+  String bic;
 }

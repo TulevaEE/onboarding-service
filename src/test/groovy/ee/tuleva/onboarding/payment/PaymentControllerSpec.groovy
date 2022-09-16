@@ -14,8 +14,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PaymentControllerSpec extends BaseControllerSpec {
 
   PaymentProviderService paymentProviderService = Mock()
-  private final EpisService episService = Mock()
-  private final PaymentInternalReferenceService paymentInternalReferenceService = Mock()
 
   PaymentController paymentController
   String frontendUrl = "https://frontend.url"
@@ -23,8 +21,6 @@ class PaymentControllerSpec extends BaseControllerSpec {
   def setup() {
     paymentController = new PaymentController(
         paymentProviderService,
-        episService,
-        paymentInternalReferenceService
     )
     paymentController.frontendUrl = frontendUrl
   }
@@ -43,25 +39,18 @@ class PaymentControllerSpec extends BaseControllerSpec {
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
 
     String paymentUrl = "https://some.url?payment_token=23948h3t9gfd"
-    String internalReference = """{"personalCode": "123443434", "uuid": "2332"}"""
 
     PaymentData paymentData = PaymentData.builder()
-        .description("30101119828")
-        .currency(Currency.EUR)
-        .amount(BigDecimal.valueOf(100))
-        .internalReference(internalReference)
-        .bank(Bank.LHV)
-        .firstName(sampleAuthenticatedPerson.firstName)
-        .lastName(sampleAuthenticatedPerson.lastName)
-        .reference(contactDetailsFixture().getPensionAccountNumber())
-        .build()
+      .person(sampleAuthenticatedPerson)
+      .currency(Currency.EUR)
+      .amount(100.22)
+      .bank(Bank.LHV)
+      .build()
 
     1 * paymentProviderService.getPaymentUrl(paymentData) >> paymentUrl
-    1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson) >> internalReference
-    1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetailsFixture()
 
     expect:
-    mvc.perform(get("/v1/payments/link?amount=100&currency=EUR&bank=LHV"))
+    mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&bank=LHV"))
         .andExpect(redirectedUrl(paymentUrl))
   }
 

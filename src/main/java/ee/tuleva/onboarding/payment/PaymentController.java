@@ -2,8 +2,6 @@ package ee.tuleva.onboarding.payment;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.currency.Currency;
-import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import java.math.BigDecimal;
 import lombok.RequiredArgsConstructor;
@@ -23,8 +21,6 @@ public class PaymentController {
   private String frontendUrl;
 
   private final PaymentProviderService paymentProviderService;
-  private final EpisService episService;
-  private final PaymentInternalReferenceService paymentInternalReferenceService;
 
   @GetMapping("/link")
   @Operation(summary = "Create a payment")
@@ -34,19 +30,12 @@ public class PaymentController {
       @RequestParam BigDecimal amount,
       @RequestParam Bank bank) {
 
-    ContactDetails contactDetails = episService.getContactDetails(authenticatedPerson);
-
     PaymentData paymentData =
         PaymentData.builder()
-            .description("30101119828")
+            .person(authenticatedPerson)
             .currency(currency)
             .amount(amount)
-            .internalReference(
-                paymentInternalReferenceService.getPaymentReference(authenticatedPerson))
             .bank(bank)
-            .firstName(authenticatedPerson.getFirstName())
-            .lastName(authenticatedPerson.getLastName())
-            .reference(contactDetails.getPensionAccountNumber())
             .build();
 
     String paymentUrl = paymentProviderService.getPaymentUrl(paymentData);

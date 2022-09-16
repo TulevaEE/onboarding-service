@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.payment;
 
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
+import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -22,6 +24,10 @@ public class PaymentProviderService {
 
   private final Clock clock;
 
+  private final EpisService episService;
+
+  private final PaymentInternalReferenceService paymentInternalReferenceService;
+
   private final Map<String, PaymentProviderBankConfiguration> paymentProviderBankConfigurations;
 
   @Value("${payment-provider.url}")
@@ -31,6 +37,9 @@ public class PaymentProviderService {
   private String apiUrl;
 
   public String getPaymentUrl(PaymentData paymentData) {
+
+    ContactDetails contactDetails = episService.getContactDetails(paymentData.getPerson());
+
     Map<String, Object> payload = new HashMap<>();
     PaymentProviderBankConfiguration bankConfiguration =
         paymentProviderBankConfigurations.get(paymentData.getBank().getBeanName());
@@ -38,16 +47,18 @@ public class PaymentProviderService {
     payload.put("currency", paymentData.getCurrency());
     payload.put("amount", paymentData.getAmount());
     payload.put("access_key", bankConfiguration.getAccessKey());
-    payload.put("merchant_reference", paymentData.getInternalReference());
+    payload.put(
+        "merchant_reference",
+        paymentInternalReferenceService.getPaymentReference(paymentData.getPerson()));
     payload.put("merchant_return_url", apiUrl + "/payments/success");
     payload.put("merchant_notification_url", apiUrl + "/payments/notification");
-    payload.put("payment_information_unstructured", paymentData.getDescription());
-    payload.put("payment_information_structured", paymentData.getReference());
+    payload.put("payment_information_unstructured", "30101119828");
+    payload.put("payment_information_structured", contactDetails.getPensionAccountNumber());
     payload.put("preselected_locale", "et");
     payload.put("exp", clock.instant().getEpochSecond() + 600);
-    payload.put("checkout_first_name", paymentData.getFirstName());
-    payload.put("checkout_last_name", paymentData.getLastName());
-    payload.put("preselected_aspsp", bankConfiguration.getAspsp());
+    payload.put("checkout_first_name", paymentData.getPerson().getFirstName());
+    payload.put("checkout_last_name", paymentData.getPerson().getLastName());
+    payload.put("preselected_aspsp", bankConfiguration.getBic());
 
     JWSObject jwsObject = getSignedJws(payload, bankConfiguration);
     URL url = getUrl(jwsObject);

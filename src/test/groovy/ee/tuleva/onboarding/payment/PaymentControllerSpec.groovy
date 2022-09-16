@@ -4,7 +4,6 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.epis.EpisService
-import org.junit.jupiter.api.BeforeAll
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -20,7 +19,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
   PaymentController paymentController
   String frontendUrl = "https://frontend.url"
-  @BeforeAll
+
   def setup() {
     paymentController = new PaymentController(
         paymentProviderService,
@@ -47,7 +46,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     String internalReference = """{"personalCode": "123443434", "uuid": "2332"}"""
 
     PaymentData paymentData = PaymentData.builder()
-        .paymentInformation("30101119828")
+        .description("30101119828")
         .currency(Currency.EUR)
         .amount(BigDecimal.valueOf(100))
         .internalReference(internalReference)

@@ -1,11 +1,15 @@
 package ee.tuleva.onboarding.payment
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.currency.Currency
+import ee.tuleva.onboarding.epis.EpisService
 import spock.lang.Specification
 
 import java.time.Clock
 import java.time.Instant
 
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static java.time.ZoneOffset.UTC
 
 class PaymentProviderServiceSpec extends Specification {
@@ -15,12 +19,16 @@ class PaymentProviderServiceSpec extends Specification {
   Map<String, PaymentProviderBankConfiguration> paymentProviderBankConfigurations
     = [:]
 
+  private final EpisService episService = Mock()
+  private final PaymentInternalReferenceService paymentInternalReferenceService = Mock()
   PaymentProviderService paymentLinkService
 
   void setup() {
     paymentProviderBankConfigurations.put(Bank.LHV.getBeanName(), samplePaymentProviderBankConfiguration())
     paymentLinkService = new PaymentProviderService(
         clock,
+        episService,
+        paymentInternalReferenceService,
         paymentProviderBankConfigurations
     )
     paymentLinkService.paymentProviderUrl = "https://sandbox-payments.montonio.com"
@@ -29,29 +37,36 @@ class PaymentProviderServiceSpec extends Specification {
 
   void create() {
     given:
+    String internalReference = """{"personalCode": "123443434", "uuid": "2332"}"""
     PaymentData paymentData = PaymentData.builder()
+        .person(sampleAuthenticatedPerson)
         .currency(Currency.EUR)
         .amount(BigDecimal.TEN)
-        .internalReference("payment id")
-        .description("5566565")
-        .reference("232343434")
         .bank(Bank.LHV)
-        .firstName("Jordan")
-        .lastName("Valdma")
         .build()
 
+    1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson as Person) >> internalReference
+    1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetailsFixture()
     when:
     String paymentLink = paymentLinkService.getPaymentUrl(paymentData)
 
     then:
-    paymentLink == "https://sandbox-payments.montonio.com?payment_token=eyJhbGciOiJIUzI1NiJ9.eyJtZXJjaGFudF9yZXR1cm5fdXJsIjoiaHR0cHM6Ly9vbmJvYXJkaW5nLXNlcnZpY2UudHVsZXZhLmVlL3YxL3BheW1lbnRzL3N1Y2Nlc3MiLCJhbW91bnQiOjEwLCJwYXltZW50X2luZm9ybWF0aW9uX3Vuc3RydWN0dXJlZCI6IjU1NjY1NjUiLCJjaGVja291dF9maXJzdF9uYW1lIjoiSm9yZGFuIiwibWVyY2hhbnRfbm90aWZpY2F0aW9uX3VybCI6Imh0dHBzOi8vb25ib2FyZGluZy1zZXJ2aWNlLnR1bGV2YS5lZS92MS9wYXltZW50cy9ub3RpZmljYXRpb24iLCJwcmVzZWxlY3RlZF9hc3BzcCI6ImV4YW1wbGVBc3BzcCIsIm1lcmNoYW50X3JlZmVyZW5jZSI6InBheW1lbnQgaWQiLCJhY2Nlc3Nfa2V5IjoiZXhhbXBsZUFjY2Vzc0tleSIsInBheW1lbnRfaW5mb3JtYXRpb25fc3RydWN0dXJlZCI6IjIzMjM0MzQzNCIsImN1cnJlbmN5IjoiRVVSIiwiZXhwIjoxNjA2MTI2MjAwLCJwcmVzZWxlY3RlZF9sb2NhbGUiOiJldCIsImNoZWNrb3V0X2xhc3RfbmFtZSI6IlZhbGRtYSJ9.OBnDnKNFkFOiJy9EMA6DwBzT3UKfFe0qDAy4x7k6RMg"
+    paymentLink == "https://sandbox-payments.montonio.com?payment_token=eyJhbGciOiJIUzI1NiJ9.eyJtZXJjaGFudF9yZXR1cm5fdXJsIjoiaHR0cHM6Ly9vbmJvYXJkaW5nLXNlcnZpY2UudHVsZXZhLmVlL3YxL3BheW1lbnRzL3N1Y2Nlc3MiLCJhbW91bnQiOjEwLCJwYXltZW50X2luZm9ybWF0aW9uX3Vuc3RydWN0dXJlZCI6IjMwMTAxMTE5ODI4IiwiY2hlY2tvdXRfZmlyc3RfbmFtZSI6IkpvcmRhbiIsIm1lcmNoYW50X25vdGlmaWNhdGlvbl91cmwiOiJodHRwczovL29uYm9hcmRpbmctc2VydmljZS50dWxldmEuZWUvdjEvcGF5bWVudHMvbm90aWZpY2F0aW9uIiwicHJlc2VsZWN0ZWRfYXNwc3AiOiJleGFtcGxlQXNwc3AiLCJtZXJjaGFudF9yZWZlcmVuY2UiOiJ7XCJwZXJzb25hbENvZGVcIjogXCIxMjM0NDM0MzRcIiwgXCJ1dWlkXCI6IFwiMjMzMlwifSIsImFjY2Vzc19rZXkiOiJleGFtcGxlQWNjZXNzS2V5IiwicGF5bWVudF9pbmZvcm1hdGlvbl9zdHJ1Y3R1cmVkIjoiOTkzNDMyNDMyIiwiY3VycmVuY3kiOiJFVVIiLCJleHAiOjE2MDYxMjYyMDAsInByZXNlbGVjdGVkX2xvY2FsZSI6ImV0IiwiY2hlY2tvdXRfbGFzdF9uYW1lIjoiVmFsZG1hIn0.O5zhG_x5Fb6a8jFFaLmPi6bCyH1b9wk5P3EOn08r3Tk"
   }
 
   private PaymentProviderBankConfiguration samplePaymentProviderBankConfiguration() {
     PaymentProviderBankConfiguration samplePaymentProviderBankConfiguration = new PaymentProviderBankConfiguration()
     samplePaymentProviderBankConfiguration.accessKey = "exampleAccessKey"
     samplePaymentProviderBankConfiguration.secretKey = "exampleSecretKeyexampleSecretKeyexampleSecretKey"
-    samplePaymentProviderBankConfiguration.aspsp = "exampleAspsp"
+    samplePaymentProviderBankConfiguration.bic = "exampleAspsp"
     return samplePaymentProviderBankConfiguration
   }
+
+  AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()
+      .firstName("Jordan")
+      .lastName("Valdma")
+      .personalCode("38501010000")
+      .userId(2L)
+      .build()
+
 }

@@ -80,6 +80,9 @@ membership-success:
 frontend:
   url: http://localhost:3000
 
+api:
+  url: http://localhost:8080/v1
+
 pensionikeskus:
   statistics:
     2ndpillar:
@@ -203,6 +206,9 @@ membership-success:
 
 frontend:
   url: https://pension.tuleva.ee
+
+api:
+  url: https://onboarding-service.tuleva.ee/v1
 
 morningstar:
   host: ftp.morningstar.com

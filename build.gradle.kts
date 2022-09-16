@@ -70,8 +70,8 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:9.24.3")
 
-    implementation("org.springdoc:springdoc-openapi-ui:1.6.9")
-    implementation("org.springdoc:springdoc-openapi-security:1.6.9")
+    implementation("org.springdoc:springdoc-openapi-ui:1.6.11")
+    implementation("org.springdoc:springdoc-openapi-security:1.6.11")
 
     runtimeOnly("org.postgresql:postgresql")
 
@@ -90,10 +90,10 @@ dependencies {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
-    implementation("io.sentry:sentry-spring-boot-starter:6.3.0")
-    implementation("io.sentry:sentry-logback:6.3.0")
+    implementation("io.sentry:sentry-spring-boot-starter:6.4.1")
+    implementation("io.sentry:sentry-logback:6.4.1")
 
-    implementation("com.vladmihalcea:hibernate-types-52:2.17.1")
+    implementation("com.vladmihalcea:hibernate-types-52:2.18.0")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
@@ -120,12 +120,12 @@ dependencies {
         exclude(group = "org.codehaus.groovy")
     }
     testImplementation("org.codehaus.groovy:groovy:3.0.12")
-    testImplementation("org.mock-server:mockserver-netty:5.13.2")
-    testImplementation("org.mock-server:mockserver-spring-test-listener:5.13.2")
+    testImplementation("org.mock-server:mockserver-netty:5.14.0")
+    testImplementation("org.mock-server:mockserver-spring-test-listener:5.14.0")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.0.0")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:3.2.7")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:3.2.7")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:3.3.0")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:3.3.0")
 }
 
 dependencyManagement {

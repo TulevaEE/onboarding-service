@@ -43,14 +43,14 @@ class PaymentControllerSpec extends BaseControllerSpec {
     PaymentData paymentData = PaymentData.builder()
       .person(sampleAuthenticatedPerson)
       .currency(Currency.EUR)
-      .amount(BigDecimal.valueOf(100))
+      .amount(100.22)
       .bank(Bank.LHV)
       .build()
 
     1 * paymentProviderService.getPaymentUrl(paymentData) >> paymentUrl
 
     expect:
-    mvc.perform(get("/v1/payments/link?amount=100&currency=EUR&bank=LHV"))
+    mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&bank=LHV"))
         .andExpect(redirectedUrl(paymentUrl))
   }
 

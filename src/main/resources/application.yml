@@ -219,11 +219,11 @@ morningstar:
 payment-provider:
   url: https://payments.montonio.com
   luminor:
-    access-key: 0be260f2-1966-4d18-bb9d-1f0909a663f7
+    access-key: fb673dc3-d898-4592-844f-83491aa430cc
     secret-key: ${PAYMENT_SECRET_LUMINOR}
     bic: RIKOEE22
   seb:
-    access-key: 25f6018a-d93e-4f2a-b235-58ab79c47235
+    access-key: bec7e2ff-df2b-4342-829e-d131706a7858
     secret-key: ${PAYMENT_SECRET_SEB}
     bic: EEUHEE2X
   swedbank:

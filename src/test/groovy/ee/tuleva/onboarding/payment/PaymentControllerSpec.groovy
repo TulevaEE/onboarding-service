@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.payment
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
-import ee.tuleva.onboarding.epis.EpisService
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post

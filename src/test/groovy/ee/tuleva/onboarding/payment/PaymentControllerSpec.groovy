@@ -3,9 +3,13 @@ package ee.tuleva.onboarding.payment
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
+import org.springframework.http.MediaType
 
+import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
@@ -36,7 +40,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
 
-    String paymentUrl = "https://some.url?payment_token=23948h3t9gfd"
+    PaymentLink paymentLink = new PaymentLink("https://some.url?payment_token=23948h3t9gfd")
 
     PaymentData paymentData = PaymentData.builder()
       .person(sampleAuthenticatedPerson)
@@ -45,11 +49,13 @@ class PaymentControllerSpec extends BaseControllerSpec {
       .bank(Bank.LHV)
       .build()
 
-    1 * paymentProviderService.getPaymentUrl(paymentData) >> paymentUrl
+    1 * paymentProviderService.getPaymentLink(paymentData) >> paymentLink
 
     expect:
     mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&bank=LHV"))
-        .andExpect(redirectedUrl(paymentUrl))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.url', is(paymentLink.url())))
   }
 
   def "GET /success"() {

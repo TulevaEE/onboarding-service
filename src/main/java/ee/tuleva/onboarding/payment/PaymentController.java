@@ -8,10 +8,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.view.RedirectView;
 
-@Controller
+@RestController
 @RequestMapping("/v1/payments")
 @Slf4j
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class PaymentController {
 
   @GetMapping("/link")
   @Operation(summary = "Create a payment")
-  public String createPayment(
+  public PaymentLink createPayment(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @RequestParam Currency currency,
       @RequestParam BigDecimal amount,
@@ -38,15 +38,13 @@ public class PaymentController {
             .bank(bank)
             .build();
 
-    String paymentUrl = paymentProviderService.getPaymentUrl(paymentData);
-    return "redirect:" + paymentUrl;
+    return paymentProviderService.getPaymentLink(paymentData);
   }
 
   @GetMapping("/success")
   @Operation(summary = "Redirects user to payment success")
-  public String getPaymentSuccessRedirect(
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    return "redirect:" + frontendUrl + "/3rd-pillar-flow/success/";
+  public RedirectView getPaymentSuccessRedirect() {
+    return new RedirectView(frontendUrl + "/3rd-pillar-flow/success/");
   }
 
   @PostMapping("/notifications")

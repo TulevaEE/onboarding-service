@@ -36,7 +36,7 @@ public class PaymentProviderService {
   @Value("${api.url}")
   private String apiUrl;
 
-  public String getPaymentUrl(PaymentData paymentData) {
+  public PaymentLink getPaymentLink(PaymentData paymentData) {
 
     ContactDetails contactDetails = episService.getContactDetails(paymentData.getPerson());
 
@@ -62,7 +62,8 @@ public class PaymentProviderService {
 
     JWSObject jwsObject = getSignedJws(payload, bankConfiguration);
     URL url = getUrl(jwsObject);
-    return url.toString();
+
+    return new PaymentLink(url.toString());
   }
 
   private URL getUrl(JWSObject jwsObject) {

@@ -28,7 +28,9 @@ public class PaymentProviderService {
 
   private final PaymentInternalReferenceService paymentInternalReferenceService;
 
-  private final Map<String, PaymentProviderBankConfiguration> paymentProviderBankConfigurations;
+//  private final Map<String, PaymentProviderBankConfiguration> paymentProviderBankConfigurations;
+
+  private final PaymentProviderConfiguration paymentProviderConfiguration;
 
   @Value("${payment-provider.url}")
   private String paymentProviderUrl;
@@ -40,9 +42,12 @@ public class PaymentProviderService {
 
     ContactDetails contactDetails = episService.getContactDetails(paymentData.getPerson());
 
-    Map<String, Object> payload = new HashMap<>();
     PaymentProviderBankConfiguration bankConfiguration =
-        paymentProviderBankConfigurations.get(paymentData.getBank().getBeanName());
+        paymentProviderConfiguration.getByBank(paymentData.getBank());
+
+    Map<String, Object> payload = new HashMap<>();
+//    PaymentProviderBankConfiguration bankConfiguration =
+//        paymentProviderBankConfigurations.get(paymentData.getBank().getBeanName());
 
     payload.put("currency", paymentData.getCurrency());
     payload.put("amount", paymentData.getAmount());

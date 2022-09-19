@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.payment;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.user.User;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -2,14 +2,13 @@ package ee.tuleva.onboarding.payment;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.user.User;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 
 @Data
 @Builder
@@ -22,8 +21,15 @@ public class Payment {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @ManyToOne private User user;
+  @NotNull
+  @ManyToOne
+  private User user;
 
-  @NotNull private Instant createdDate;
+  @NotNull
+  private UUID internalReference;
 
+  @NotNull
+  private BigDecimal amount;
+
+  private Instant createdDate;
 }

@@ -10,7 +10,7 @@ import lombok.ToString;
 @Data
 @JsonNaming(SnakeCaseStrategy.class)
 @ToString
-public class Payment {
+public class MemberPayment {
 
   private static final int MIN_AMOUNT = 125;
 

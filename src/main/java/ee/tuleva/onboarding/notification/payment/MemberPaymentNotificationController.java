@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 @Slf4j
 @RequestMapping("/notifications")
-public class PaymentNotificationController {
+public class MemberPaymentNotificationController {
 
   private static final String COMPLETED = "COMPLETED";
 
@@ -47,17 +47,17 @@ public class PaymentNotificationController {
 
     log.info("Incoming payment");
 
-    Payment payment = mapper.readValue(incomingPayment.getJson(), Payment.class);
+    MemberPayment memberPayment = mapper.readValue(incomingPayment.getJson(), MemberPayment.class);
 
-    validator.validate(payment, errors);
+    validator.validate(memberPayment, errors);
     if (errors.hasErrors()) {
       throw new ValidationErrorsException(errors);
     }
 
-    Long userId = payment.getReference();
+    Long userId = memberPayment.getReference();
 
     boolean isAMember = userService.isAMember(userId);
-    boolean isStatusCompleted = COMPLETED.equalsIgnoreCase(payment.getStatus());
+    boolean isStatusCompleted = COMPLETED.equalsIgnoreCase(memberPayment.getStatus());
 
     if (isStatusCompleted && !isAMember) {
       User user = userService.registerAsMember(userId);
@@ -65,7 +65,7 @@ public class PaymentNotificationController {
     } else {
       log.warn(
           "Invalid incoming payment. Status: {}, user is a member: {}",
-          payment.getStatus(),
+          memberPayment.getStatus(),
           isAMember);
     }
 

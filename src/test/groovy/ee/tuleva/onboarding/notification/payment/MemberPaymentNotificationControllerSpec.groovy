@@ -12,16 +12,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
-class PaymentNotificationControllerSpec extends BaseControllerSpec {
+class MemberPaymentNotificationControllerSpec extends BaseControllerSpec {
 
   def userService = Mock(UserService)
   def validator = Mock(SmartValidator)
   def eventPublisher = Mock(ApplicationEventPublisher)
-  def controller = new PaymentNotificationController(mapper, userService, validator, eventPublisher)
+  def controller = new MemberPaymentNotificationController(mapper, userService, validator, eventPublisher)
 
   def mvc = mockMvc(controller)
 
-  String membershipSuccessUrl = 'a_URL';
+  String membershipSuccessUrl = 'a_URL'
 
   def setup() {
     controller.membershipSuccessUrl = membershipSuccessUrl
@@ -73,7 +73,7 @@ class PaymentNotificationControllerSpec extends BaseControllerSpec {
 
   def "member is not created when the payment status is not COMPLETED"() {
     given:
-    def json = '{ "status": "PENDING" }';
+    def json = '{ "status": "PENDING" }'
 
     when:
     def perform = mvc.perform(post("/notifications/payments")

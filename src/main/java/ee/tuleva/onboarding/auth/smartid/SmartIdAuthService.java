@@ -15,9 +15,20 @@ import ee.sk.smartid.rest.dao.Interaction;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier.CountryCode;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier.IdentityType;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.PreDestroy;
+import lombok.Builder;
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
+import org.apache.commons.collections4.map.LRUMap;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,41 +36,87 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class SmartIdAuthService {
 
+  @Builder
+  @Data
+  static
+  class SmartIdResult {
+
+    AuthenticationIdentity authenticationIdentity;
+    SmartIdException error;
+  }
+
+  private final Map<AuthenticationHash, SmartIdResult> smartIdResults = Collections.synchronizedMap(
+      new LRUMap<>());
+  private final ExecutorService poller = Executors.newFixedThreadPool(20);
+
   private final SmartIdClient smartIdClient;
   private final SmartIdAuthenticationHashGenerator hashGenerator;
   private final AuthenticationResponseValidator authenticationResponseValidator;
 
+  @SneakyThrows
+  @PreDestroy
+  public void stop() {
+    poller.shutdown();
+    try {
+      if (!poller.awaitTermination(800, TimeUnit.MILLISECONDS)) {
+        poller.shutdownNow();
+      }
+    } catch (InterruptedException e) {
+      poller.shutdownNow();
+    }
+  }
+
   public SmartIdSession startLogin(String personalCode) {
     AuthenticationHash authenticationHash = hashGenerator.generateHash();
     String verificationCode = authenticationHash.calculateVerificationCode();
-    return new SmartIdSession(verificationCode, personalCode, authenticationHash);
+    SmartIdSession session = new SmartIdSession(verificationCode, personalCode, authenticationHash);
+    poll(session);
+    return session;
   }
 
   public boolean isLoginComplete(SmartIdSession session) {
-    try {
-      SmartIdAuthenticationResponse response =
-          requestBuilder(session.getPersonalCode(), session.getAuthenticationHash()).authenticate();
-      AuthenticationIdentity authenticationIdentity =
-          authenticationResponseValidator.validate(response);
-      session.setAuthenticationIdentity(authenticationIdentity);
-      return true;
-    } catch (UnprocessableSmartIdResponseException e) {
-      log.info("Smart ID validation failed: personalCode=" + session.getPersonalCode(), e);
-      throw new SmartIdException(
-          ofSingleError("smart.id.validation.failed", "Smart ID validation failed"));
-    } catch (UserAccountNotFoundException e) {
-      log.info("Smart ID User account not found: personalCode=" + session.getPersonalCode(), e);
-      throw new SmartIdException(
-          ofSingleError("smart.id.account.not.found", "Smart ID user account not found"));
-    } catch (UserRefusedException e) {
-      throw new SmartIdException(ofSingleError("smart.id.user.refused", "Smart ID User refused"));
-    } catch (Exception e) {
-      log.error("Smart ID technical error", e);
-      throw new SmartIdException(
-          ofSingleError("smart.id.technical.error", "Smart ID technical error"));
-    } finally {
-      log.info("Smart ID authentication ended");
+    val result = smartIdResults.remove(session.getAuthenticationHash());
+    if (result == null) {
+      return false;
     }
+    if (result.error != null) {
+      throw result.error;
+    }
+    session.setAuthenticationIdentity(result.getAuthenticationIdentity());
+    return true;
+  }
+
+  private void poll(SmartIdSession session) {
+    log.info("Starting to poll");
+    poller.submit(() -> {
+      val resultBuilder = SmartIdResult.builder();
+      try {
+        SmartIdAuthenticationResponse response =
+            requestBuilder(session.getPersonalCode(),
+                session.getAuthenticationHash()).authenticate();
+        AuthenticationIdentity authenticationIdentity =
+            authenticationResponseValidator.validate(response);
+        resultBuilder.authenticationIdentity(authenticationIdentity);
+      } catch (UnprocessableSmartIdResponseException e) {
+        log.info("Smart ID validation failed: personalCode=" + session.getPersonalCode(), e);
+        resultBuilder.error(new SmartIdException(
+            ofSingleError("smart.id.validation.failed", "Smart ID validation failed")));
+      } catch (UserAccountNotFoundException e) {
+        log.info("Smart ID User account not found: personalCode=" + session.getPersonalCode(), e);
+        resultBuilder.error(new SmartIdException(
+            ofSingleError("smart.id.account.not.found", "Smart ID user account not found")));
+      } catch (UserRefusedException e) {
+        resultBuilder.error(new SmartIdException(
+            ofSingleError("smart.id.user.refused", "Smart ID User refused")));
+      } catch (Exception e) {
+        log.error("Smart ID technical error", e);
+        resultBuilder.error(new SmartIdException(
+            ofSingleError("smart.id.technical.error", "Smart ID technical error")));
+      } finally {
+        log.info("Smart ID authentication ended");
+        smartIdResults.put(session.getAuthenticationHash(), resultBuilder.build());
+      }
+    });
   }
 
   private AuthenticationRequestBuilder requestBuilder(

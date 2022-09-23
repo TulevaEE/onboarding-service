@@ -7,6 +7,7 @@ import spock.lang.Specification
 import static PaymentFixture.aPaymentProviderBankConfiguration
 import static PaymentFixture.aSerializedToken
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.anInternalReference
 import static ee.tuleva.onboarding.payment.PaymentFixture.anAmount
 
@@ -30,14 +31,11 @@ class PaymentProviderCallbackServiceSpec extends Specification {
   void processToken() {
     given:
     def token = aSerializedToken
-    User aUser = sampleUser().build()
     when:
     1 * userService.findByPersonalCode(anInternalReference.getPersonalCode()) >>
-        Optional.of(aUser)
+        Optional.of(aNewPayment.user)
     paymentProviderCallbackService.processToken(token)
     then:
-    1 * paymentRepository.save(
-        new Payment(null, aUser, anInternalReference.getUuid(), anAmount, null)
-    )
+    1 * paymentRepository.save(aNewPayment)
   }
 }

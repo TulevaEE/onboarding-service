@@ -22,6 +22,8 @@ public class PaymentController {
 
   private final PaymentProviderService paymentProviderService;
 
+  private final PaymentProviderCallbackService paymentProviderCallbackService;
+
   @GetMapping("/link")
   @Operation(summary = "Create a payment")
   public PaymentLink createPayment(
@@ -43,11 +45,15 @@ public class PaymentController {
 
   @GetMapping("/success")
   @Operation(summary = "Redirects user to payment success")
-  public RedirectView getPaymentSuccessRedirect() {
+  public RedirectView getPaymentSuccessRedirect(
+      @RequestParam("payment_token") String serializedToken) {
+    paymentProviderCallbackService.processToken(serializedToken);
     return new RedirectView(frontendUrl + "/3rd-pillar-flow/success/");
   }
 
   @PostMapping("/notifications")
   @Operation(summary = "Payment callback")
-  public void paymentCallback() {}
+  public void paymentCallback(@RequestParam("payment_token") String serializedToken) {
+    paymentProviderCallbackService.processToken(serializedToken);
+  }
 }

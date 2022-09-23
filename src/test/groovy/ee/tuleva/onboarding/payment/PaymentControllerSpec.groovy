@@ -12,10 +12,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import static PaymentFixture.aSerializedToken
 
 class PaymentControllerSpec extends BaseControllerSpec {
 
   PaymentProviderService paymentProviderService = Mock()
+  PaymentProviderCallbackService paymentProviderCallbackService = Mock()
 
   PaymentController paymentController
   String frontendUrl = "https://frontend.url"
@@ -23,6 +25,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
   def setup() {
     paymentController = new PaymentController(
         paymentProviderService,
+        paymentProviderCallbackService
     )
     paymentController.frontendUrl = frontendUrl
   }
@@ -62,8 +65,9 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
 
+    1 * paymentProviderCallbackService.processToken(aSerializedToken)
     expect:
-    mvc.perform(get("/v1/payments/success"))
+    mvc.perform(get("/v1/payments/success").param("payment_token", aSerializedToken))
         .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/success/"))
   }
 
@@ -71,8 +75,9 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
 
+    1 * paymentProviderCallbackService.processToken(aSerializedToken)
     expect:
-    mvc.perform(post("/v1/payments/notifications?payment_token=asdf1234"))
+    mvc.perform(post("/v1/payments/notifications").param("payment_token", aSerializedToken))
         .andExpect(status().isOk())
   }
 

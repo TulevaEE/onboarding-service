@@ -9,7 +9,7 @@ import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 
 @DataJpaTest
-class PaymentRepositorySpec extends Specification{
+class PaymentRepositorySpec extends Specification {
   @Autowired
   private TestEntityManager entityManager
 

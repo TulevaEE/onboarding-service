@@ -1,16 +1,19 @@
 package ee.tuleva.onboarding.payment
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 import static PaymentFixture.aPaymentProviderBankConfiguration
 import static PaymentFixture.aSerializedToken
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.payment.PaymentFixture.anInternalReference
+import static ee.tuleva.onboarding.payment.PaymentFixture.anAmount
 
 class PaymentProviderCallbackServiceSpec extends Specification {
   UserService userService = Mock()
   PaymentProviderCallbackService paymentProviderCallbackService
+  PaymentRepository paymentRepository = Mock()
 
   Map<String, PaymentProviderBankConfiguration> paymentProviderBankConfigurations
       = [:]
@@ -19,6 +22,7 @@ class PaymentProviderCallbackServiceSpec extends Specification {
     paymentProviderCallbackService = new PaymentProviderCallbackService(
         paymentProviderBankConfigurations,
         userService,
+        paymentRepository,
         new ObjectMapper()
     )
   }
@@ -26,11 +30,14 @@ class PaymentProviderCallbackServiceSpec extends Specification {
   void processToken() {
     given:
     def token = aSerializedToken
+    User aUser = sampleUser().build()
     when:
     1 * userService.findByPersonalCode(anInternalReference.getPersonalCode()) >>
-        Optional.of(sampleUser().build())
+        Optional.of(aUser)
     paymentProviderCallbackService.processToken(token)
     then:
-    true
+    1 * paymentRepository.save(
+        new Payment(null, aUser, anInternalReference.getUuid(), anAmount, null)
+    )
   }
 }

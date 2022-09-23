@@ -25,5 +25,10 @@ public class Payment {
 
   @NotNull private BigDecimal amount;
 
-  private Instant createdDate;
+  private Instant createdTime;
+
+  @PrePersist
+  protected void onCreate() {
+    createdTime = Instant.now();
+  }
 }

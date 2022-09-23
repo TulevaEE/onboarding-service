@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.payment
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.payment.PaymentFixture.getAnAmount
+import static ee.tuleva.onboarding.payment.PaymentFixture.getAnInternalReference
+
 class PaymentFixture {
   static PaymentProviderBankConfiguration aPaymentProviderBankConfiguration() {
     PaymentProviderBankConfiguration samplePaymentProviderBankConfiguration = new PaymentProviderBankConfiguration()
@@ -14,4 +18,6 @@ class PaymentFixture {
   static String anInternalReferenceSerialized = """{"personalCode": "123443434", "uuid": "3ab94f11-fb71-4401-8043-5e911227037e"}"""
   static PaymentReference anInternalReference =
       new PaymentReference("123443434", UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"))
+  static Payment aNewPayment = new Payment(null, sampleUser().build(), anInternalReference.getUuid(), anAmount, null)
+
 }

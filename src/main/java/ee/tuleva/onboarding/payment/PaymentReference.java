@@ -8,8 +8,7 @@ import lombok.RequiredArgsConstructor;
 @Data
 @AllArgsConstructor
 @RequiredArgsConstructor
-public class
-PaymentReference {
+public class PaymentReference {
   private String personalCode;
   private UUID uuid;
 }

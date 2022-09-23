@@ -39,16 +39,18 @@ public class PaymentProviderCallbackService {
 
     PaymentReference internalReference = getInternalReference(serializedInternalReference);
 
-    User user = userService.findByPersonalCode(internalReference.getPersonalCode()).orElseThrow();
+    if (paymentRepository.findByInternalReference(internalReference.getUuid()).isEmpty()) {
+      User user = userService.findByPersonalCode(internalReference.getPersonalCode()).orElseThrow();
 
-    Payment paymentToBeSaved =
-        Payment.builder()
-            .amount(amount)
-            .internalReference(internalReference.getUuid())
-            .user(user)
-            .build();
+      Payment paymentToBeSaved =
+          Payment.builder()
+              .amount(amount)
+              .internalReference(internalReference.getUuid())
+              .user(user)
+              .build();
 
-    paymentRepository.save(paymentToBeSaved);
+      paymentRepository.save(paymentToBeSaved);
+    }
   }
 
   private PaymentReference getInternalReference(String serializedInternalReference) {

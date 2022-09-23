@@ -31,8 +31,22 @@ class PaymentProviderCallbackServiceSpec extends Specification {
     when:
     1 * userService.findByPersonalCode(anInternalReference.getPersonalCode()) >>
         Optional.of(aNewPayment.user)
+    1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.empty()
     paymentProviderCallbackService.processToken(token)
     then:
     1 * paymentRepository.save(aNewPayment)
   }
+
+  def "if payment with a given internal reference exists, then do not create a new one"() {
+    given:
+    def token = aSerializedToken
+    when:
+    1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.of(
+        aNewPayment
+    )
+    paymentProviderCallbackService.processToken(token)
+    then:
+    0 * paymentRepository.save(_)
+  }
+
 }

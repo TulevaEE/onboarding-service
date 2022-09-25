@@ -125,22 +125,23 @@ async:
 
 payment-provider:
   url: https://sandbox-payments.montonio.com
-  luminor:
-    access-key: 0be260f2-1966-4d18-bb9d-1f0909a663f7
-    secret-key: ${PAYMENT_SECRET_LUMINOR}
-    bic: RIKOEE22
-  seb:
-    access-key: 25f6018a-d93e-4f2a-b235-58ab79c47235
-    secret-key: ${PAYMENT_SECRET_SEB}
-    bic: EEUHEE2X
-  swedbank:
-    access-key: e343cf15-09ea-466d-91bd-b805bbed034a
-    secret-key: ${PAYMENT_SECRET_SWEDBANK}
-    bic: HABAEE2X
-  lhv:
-    access-key: 070e9cae-9f0c-423e-9345-70d624a05578
-    secret-key: ${PAYMENT_SECRET_LHV}
-    bic: LHVBEE22
+  banks:
+    luminor:
+      access-key: 0be260f2-1966-4d18-bb9d-1f0909a663f7
+      secret-key: ${PAYMENT_SECRET_LUMINOR}
+      bic: RIKOEE22
+    seb:
+      access-key: 25f6018a-d93e-4f2a-b235-58ab79c47235
+      secret-key: ${PAYMENT_SECRET_SEB}
+      bic: EEUHEE2X
+    swedbank:
+      access-key: e343cf15-09ea-466d-91bd-b805bbed034a
+      secret-key: ${PAYMENT_SECRET_SWEDBANK}
+      bic: HABAEE2X
+    lhv:
+      access-key: 070e9cae-9f0c-423e-9345-70d624a05578
+      secret-key: ${PAYMENT_SECRET_LHV}
+      bic: LHVBEE22
 ---
 spring:
   flyway:
@@ -218,19 +219,20 @@ morningstar:
 
 payment-provider:
   url: https://payments.montonio.com
-  luminor:
-    access-key: fb673dc3-d898-4592-844f-83491aa430cc
-    secret-key: ${PAYMENT_SECRET_LUMINOR}
-    bic: RIKOEE22
-  seb:
-    access-key: bec7e2ff-df2b-4342-829e-d131706a7858
-    secret-key: ${PAYMENT_SECRET_SEB}
-    bic: EEUHEE2X
-  swedbank:
-    access-key: 0741a0c4-39c2-4d28-a692-0ab66d4c9c7c
-    secret-key: ${PAYMENT_SECRET_SWEDBANK}
-    bic: HABAEE2X
-  lhv:
-    access-key: 955bc96c-aa71-4ff3-bea9-c8a429168c1d
-    secret-key: ${PAYMENT_SECRET_LHV}
-    bic: LHVBEE22
+  banks:
+    luminor:
+      access-key: fb673dc3-d898-4592-844f-83491aa430cc
+      secret-key: ${PAYMENT_SECRET_LUMINOR}
+      bic: RIKOEE22
+    seb:
+      access-key: bec7e2ff-df2b-4342-829e-d131706a7858
+      secret-key: ${PAYMENT_SECRET_SEB}
+      bic: EEUHEE2X
+    swedbank:
+      access-key: 0741a0c4-39c2-4d28-a692-0ab66d4c9c7c
+      secret-key: ${PAYMENT_SECRET_SWEDBANK}
+      bic: HABAEE2X
+    lhv:
+      access-key: 955bc96c-aa71-4ff3-bea9-c8a429168c1d
+      secret-key: ${PAYMENT_SECRET_LHV}
+      bic: LHVBEE22

@@ -8,32 +8,26 @@ import spock.lang.Specification
 import java.time.Clock
 import java.time.Instant
 
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.currency.Currency.EUR
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.payment.Bank.LHV
-import static PaymentFixture.aPaymentProviderBankConfiguration
-import static PaymentFixture.anInternalReferenceSerialized
-import static PaymentFixture.aSerializedToken
+import static ee.tuleva.onboarding.payment.PaymentFixture.*
 import static java.time.ZoneOffset.UTC
 
 class PaymentProviderServiceSpec extends Specification {
 
   Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
 
-  Map<String, PaymentProviderBankConfiguration> paymentProviderBankConfigurations
-    = [:]
-
   private final EpisService episService = Mock()
   private final PaymentInternalReferenceService paymentInternalReferenceService = Mock()
   PaymentProviderService paymentLinkService
 
   void setup() {
-    paymentProviderBankConfigurations.put(LHV.getBeanName(), aPaymentProviderBankConfiguration())
     paymentLinkService = new PaymentProviderService(
         clock,
         episService,
         paymentInternalReferenceService,
-        paymentProviderBankConfigurations
+        aPaymentProviderConfiguration()
     )
     paymentLinkService.paymentProviderUrl = "https://sandbox-payments.montonio.com"
     paymentLinkService.apiUrl = "https://onboarding-service.tuleva.ee/v1"

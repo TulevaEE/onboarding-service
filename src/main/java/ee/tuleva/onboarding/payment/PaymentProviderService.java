@@ -1,16 +1,18 @@
 package ee.tuleva.onboarding.payment;
 
-import com.nimbusds.jose.*;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.JWSObject;
+import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import java.net.MalformedURLException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.time.Clock;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.client.utils.URIBuilder;
 import org.jetbrains.annotations.NotNull;
@@ -28,7 +30,7 @@ public class PaymentProviderService {
 
   private final PaymentInternalReferenceService paymentInternalReferenceService;
 
-  private final Map<String, PaymentProviderBankConfiguration> paymentProviderBankConfigurations;
+  private final PaymentProviderConfiguration paymentProviderConfiguration;
 
   @Value("${payment-provider.url}")
   private String paymentProviderUrl;
@@ -41,8 +43,8 @@ public class PaymentProviderService {
     ContactDetails contactDetails = episService.getContactDetails(paymentData.getPerson());
 
     Map<String, Object> payload = new HashMap<>();
-    PaymentProviderBankConfiguration bankConfiguration =
-        paymentProviderBankConfigurations.get(paymentData.getBank().getBeanName());
+    PaymentProviderBank bankConfiguration =
+        paymentProviderConfiguration.getPaymentProviderBank(paymentData.getBank());
 
     payload.put("currency", paymentData.getCurrency());
     payload.put("amount", paymentData.getAmount());
@@ -66,26 +68,19 @@ public class PaymentProviderService {
     return new PaymentLink(url.toString());
   }
 
+  @SneakyThrows
   private URL getUrl(JWSObject jwsObject) {
-    try {
-      return new URIBuilder(paymentProviderUrl)
-          .addParameter("payment_token", jwsObject.serialize())
-          .build()
-          .toURL();
-    } catch (URISyntaxException | MalformedURLException e) {
-      throw new RuntimeException(e);
-    }
+    return new URIBuilder(paymentProviderUrl)
+        .addParameter("payment_token", jwsObject.serialize())
+        .build()
+        .toURL();
   }
 
-  @NotNull
+  @SneakyThrows
   private JWSObject getSignedJws(
-      Map<String, Object> payload, PaymentProviderBankConfiguration bankConfiguration) {
+      Map<String, Object> payload, PaymentProviderBank bankConfiguration) {
     JWSObject jwsObject = new JWSObject(new JWSHeader(JWSAlgorithm.HS256), new Payload(payload));
-    try {
-      jwsObject.sign(new MACSigner(bankConfiguration.secretKey.getBytes()));
-    } catch (JOSEException e) {
-      throw new RuntimeException(e);
-    }
+    jwsObject.sign(new MACSigner(bankConfiguration.secretKey.getBytes()));
     return jwsObject;
   }
 }

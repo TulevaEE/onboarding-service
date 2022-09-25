@@ -1,37 +1,33 @@
 package ee.tuleva.onboarding.payment;
 
+import static java.util.stream.Collectors.toMap;
+
+import java.util.Map;
+import java.util.Map.Entry;
+import javax.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 @RequiredArgsConstructor
-@Slf4j
+@ConfigurationProperties("payment-provider")
 public class PaymentProviderConfiguration {
 
-  @Bean
-  @ConfigurationProperties(prefix = "payment-provider.lhv")
-  public PaymentProviderBankConfiguration paymentProviderLhvConfiguration() {
-    return new PaymentProviderBankConfiguration();
+  private final Map<Bank, PaymentProviderBank> banks;
+  private Map<String, PaymentProviderBank> banksByBic;
+
+  public PaymentProviderBank getPaymentProviderBank(Bank bank) {
+    return banks.get(bank);
   }
 
-  @Bean
-  @ConfigurationProperties(prefix = "payment-provider.luminor")
-  public PaymentProviderBankConfiguration paymentProviderLuminorConfiguration() {
-    return new PaymentProviderBankConfiguration();
+  public PaymentProviderBank getPaymentProviderBank(String bic) {
+    return banksByBic.get(bic);
   }
 
-  @Bean
-  @ConfigurationProperties(prefix = "payment-provider.seb")
-  public PaymentProviderBankConfiguration paymentProviderSebConfiguration() {
-    return new PaymentProviderBankConfiguration();
-  }
-
-  @Bean
-  @ConfigurationProperties(prefix = "payment-provider.swedbank")
-  public PaymentProviderBankConfiguration paymentProviderSwedbankConfiguration() {
-    return new PaymentProviderBankConfiguration();
+  @PostConstruct
+  private void mapByBic() {
+    banksByBic =
+        banks.entrySet().stream().collect(toMap(entry -> entry.getValue().bic, Entry::getValue));
   }
 }

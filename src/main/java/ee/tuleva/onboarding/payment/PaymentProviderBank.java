@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.payment;
 import lombok.Data;
 
 @Data
-public class PaymentProviderBankConfiguration {
+public class PaymentProviderBank {
   String accessKey;
   String secretKey;
   String bic;

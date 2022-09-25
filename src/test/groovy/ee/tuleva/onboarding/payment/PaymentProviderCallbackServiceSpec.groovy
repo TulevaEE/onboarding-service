@@ -3,22 +3,18 @@ package ee.tuleva.onboarding.payment
 import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
-import static PaymentFixture.aPaymentProviderBankConfiguration
+
 import static PaymentFixture.aSerializedToken
-import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
-import static ee.tuleva.onboarding.payment.PaymentFixture.anInternalReference
+import static ee.tuleva.onboarding.payment.PaymentFixture.*
 
 class PaymentProviderCallbackServiceSpec extends Specification {
   UserService userService = Mock()
   PaymentProviderCallbackService paymentProviderCallbackService
   PaymentRepository paymentRepository = Mock()
 
-  Map<String, PaymentProviderBankConfiguration> paymentProviderBankConfigurations
-      = [:]
   void setup() {
-    paymentProviderBankConfigurations.put(Bank.LHV.getBeanName(), aPaymentProviderBankConfiguration())
     paymentProviderCallbackService = new PaymentProviderCallbackService(
-        paymentProviderBankConfigurations,
+        aPaymentProviderConfiguration(),
         userService,
         paymentRepository,
         new ObjectMapper()

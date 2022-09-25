@@ -7,6 +7,7 @@ import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.locale.LocaleService;
 import java.net.URL;
 import java.time.Clock;
 import java.util.HashMap;
@@ -30,6 +31,8 @@ public class PaymentProviderService {
   private final PaymentInternalReferenceService paymentInternalReferenceService;
 
   private final PaymentProviderConfiguration paymentProviderConfiguration;
+
+  private final LocaleService localeService;
 
   @Value("${payment-provider.url}")
   private String paymentProviderUrl;
@@ -55,7 +58,7 @@ public class PaymentProviderService {
     payload.put("merchant_notification_url", apiUrl + "/payments/notification");
     payload.put("payment_information_unstructured", "30101119828");
     payload.put("payment_information_structured", contactDetails.getPensionAccountNumber());
-    payload.put("preselected_locale", "et");
+    payload.put("preselected_locale", localeService.getLanguage());
     payload.put("exp", clock.instant().getEpochSecond() + 600);
     payload.put("checkout_first_name", paymentData.getPerson().getFirstName());
     payload.put("checkout_last_name", paymentData.getPerson().getLastName());

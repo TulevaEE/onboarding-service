@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.payment
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.epis.EpisService
+import ee.tuleva.onboarding.locale.LocaleService
 import spock.lang.Specification
 
 import java.time.Clock
@@ -21,16 +22,19 @@ class PaymentProviderServiceSpec extends Specification {
   private final EpisService episService = Mock()
   private final PaymentInternalReferenceService paymentInternalReferenceService = Mock()
   PaymentProviderService paymentLinkService
+  private final LocaleService localeService = Mock()
 
   void setup() {
     paymentLinkService = new PaymentProviderService(
         clock,
         episService,
         paymentInternalReferenceService,
-        aPaymentProviderConfiguration()
+        aPaymentProviderConfiguration(),
+        localeService
     )
     paymentLinkService.paymentProviderUrl = "https://sandbox-payments.montonio.com"
     paymentLinkService.apiUrl = "https://onboarding-service.tuleva.ee/v1"
+    localeService.getLanguage() >> Locale.forLanguageTag("et")
   }
 
   void create() {

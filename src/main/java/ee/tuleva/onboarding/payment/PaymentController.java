@@ -48,7 +48,7 @@ public class PaymentController {
   public RedirectView getPaymentSuccessRedirect(
       @RequestParam("payment_token") String serializedToken) {
     paymentProviderCallbackService.processToken(serializedToken);
-    return new RedirectView(frontendUrl + "/3rd-pillar-flow/success/");
+    return new RedirectView(frontendUrl + "/3rd-pillar-flow/success");
   }
 
   @PostMapping("/notifications")

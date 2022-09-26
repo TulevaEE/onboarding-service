@@ -68,7 +68,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     1 * paymentProviderCallbackService.processToken(aSerializedToken)
     expect:
     mvc.perform(get("/v1/payments/success").param("payment_token", aSerializedToken))
-        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/success/"))
+        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/success"))
   }
 
   def "POST /notifications"() {

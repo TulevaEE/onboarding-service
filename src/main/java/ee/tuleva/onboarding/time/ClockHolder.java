@@ -11,6 +11,7 @@ public class ClockHolder {
   public static void setClock(Clock newClock) {
     clock = newClock;
   }
+
   public static Clock clock() {
     return clock;
   }

@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.toMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import javax.annotation.PostConstruct;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties("payment-provider")
 public class PaymentProviderConfiguration {
 
-  private final Map<Bank, PaymentProviderBank> banks;
+  @Getter private final Map<Bank, PaymentProviderBank> banks;
   private Map<String, PaymentProviderBank> banksByBic;
 
   public PaymentProviderBank getPaymentProviderBank(Bank bank) {

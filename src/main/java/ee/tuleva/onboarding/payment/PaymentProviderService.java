@@ -58,7 +58,7 @@ public class PaymentProviderService {
     payload.put("merchant_notification_url", apiUrl + "/payments/notification");
     payload.put("payment_information_unstructured", "30101119828");
     payload.put("payment_information_structured", contactDetails.getPensionAccountNumber());
-    payload.put("preselected_locale", localeService.getLanguage());
+    payload.put("preselected_locale", getLanguage());
     payload.put("exp", clock.instant().getEpochSecond() + 600);
     payload.put("checkout_first_name", paymentData.getPerson().getFirstName());
     payload.put("checkout_last_name", paymentData.getPerson().getLastName());
@@ -68,6 +68,11 @@ public class PaymentProviderService {
     URL url = getUrl(jwsObject);
 
     return new PaymentLink(url.toString());
+  }
+
+  private String getLanguage() {
+    String language = localeService.getLanguage();
+    return language.equals("en") ? "en_US" : language;
   }
 
   @SneakyThrows

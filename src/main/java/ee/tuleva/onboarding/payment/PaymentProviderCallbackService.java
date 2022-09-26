@@ -35,7 +35,7 @@ public class PaymentProviderCallbackService {
 
     PaymentReference internalReference = getInternalReference(serializedInternalReference);
 
-    if (paymentWithReferenceExists(internalReference) && isPaymentFinalized(token)) {
+    if (noPaymentWithReference(internalReference) && isPaymentFinalized(token)) {
       User user = userService.findByPersonalCode(internalReference.getPersonalCode()).orElseThrow();
 
       Payment paymentToBeSaved =
@@ -50,7 +50,7 @@ public class PaymentProviderCallbackService {
     }
   }
 
-  private boolean paymentWithReferenceExists(PaymentReference internalReference) {
+  private boolean noPaymentWithReference(PaymentReference internalReference) {
     return paymentRepository.findByInternalReference(internalReference.getUuid()).isEmpty();
   }
 

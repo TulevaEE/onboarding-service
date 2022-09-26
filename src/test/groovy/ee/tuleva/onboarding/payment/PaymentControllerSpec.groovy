@@ -63,7 +63,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
   def "GET /success"() {
     given:
-    def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
+    def mvc = mockMvc(paymentController)
 
     1 * paymentProviderCallbackService.processToken(aSerializedToken)
     expect:
@@ -73,7 +73,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
   def "POST /notifications"() {
     given:
-    def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
+    def mvc = mockMvc(paymentController)
 
     1 * paymentProviderCallbackService.processToken(aSerializedToken)
     expect:

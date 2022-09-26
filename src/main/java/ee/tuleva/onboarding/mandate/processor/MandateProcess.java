@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.processor;
 
-import static ee.tuleva.onboarding.time.ClockHolder.CLOCK;
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
@@ -42,7 +42,7 @@ public class MandateProcess {
 
   @PrePersist
   protected void onCreate() {
-    createdDate = CLOCK().instant();
+    createdDate = clock().instant();
   }
 
   public Optional<Boolean> isSuccessful() {

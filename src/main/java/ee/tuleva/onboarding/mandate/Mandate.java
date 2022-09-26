@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate;
 
-import static ee.tuleva.onboarding.time.ClockHolder.CLOCK;
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
@@ -63,7 +63,7 @@ public class Mandate implements Serializable {
 
   @PrePersist
   protected void onCreate() {
-    createdDate = CLOCK().instant();
+    createdDate = clock().instant();
   }
 
   @Nullable private byte[] mandate;

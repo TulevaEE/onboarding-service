@@ -4,12 +4,18 @@ import java.time.Clock;
 import java.time.ZoneId;
 
 public class ClockHolder {
-  public static Clock CLOCK() {
-    ZoneId timeZone = ZoneId.systemDefault();
-    return Clock.system(timeZone);
+
+  private static ZoneId timeZone = ZoneId.systemDefault();
+  private static Clock clock = Clock.system(timeZone);
+
+  public static void setClock(Clock newClock) {
+    clock = newClock;
+  }
+  public static Clock clock() {
+    return clock;
   }
 
-  public static Clock CLOCK(ZoneId zone) {
+  public static Clock clock(ZoneId zone) {
     return Clock.system(zone);
   }
 }

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.time;
 
-import static ee.tuleva.onboarding.time.ClockHolder.CLOCK;
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import java.time.Clock;
 import org.springframework.context.annotation.Bean;
@@ -11,6 +11,6 @@ public class ClockConfig {
 
   @Bean
   public Clock clock() {
-    return CLOCK();
+    return ClockHolder.clock();
   }
 }

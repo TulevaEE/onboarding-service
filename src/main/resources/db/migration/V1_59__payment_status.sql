@@ -1,0 +1,2 @@
+DELETE FROM payment;
+ALTER TABLE payment ADD COLUMN status VARCHAR(255) NOT NULL;

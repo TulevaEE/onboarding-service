@@ -12,6 +12,8 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
 import javax.persistence.Table;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -44,7 +46,10 @@ public class Fund implements Comparable<Fund> {
 
   @NotNull private String shortName;
 
-  @NotNull private Integer pillar;
+  @NotNull
+  @Min(2)
+  @Max(3)
+  private Integer pillar;
 
   @NotNull private BigDecimal managementFeeRate;
 

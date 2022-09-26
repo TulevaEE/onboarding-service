@@ -4,6 +4,8 @@ import ee.tuleva.onboarding.user.address.Address;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,7 +26,10 @@ public class MandateDto {
 
   @NotNull private Instant createdDate;
 
-  @NotNull private Integer pillar;
+  @NotNull
+  @Min(2)
+  @Max(3)
+  private Integer pillar;
 
   private List<MandateFundsTransferExchangeDTO> fundTransferExchanges;
 

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.notification.email
 import com.microtripit.mandrillapp.lutung.MandrillApi
 import com.microtripit.mandrillapp.lutung.controller.MandrillMessagesApi
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
+import com.microtripit.mandrillapp.lutung.view.MandrillMessageContent
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.config.EmailConfiguration
 import ee.tuleva.onboarding.user.User
@@ -66,5 +67,21 @@ class EmailServiceSpec extends Specification {
 
     then:
     1 * mandrillApi.messages().cancelScheduled(mandrillMessageId)
+  }
+
+  def "can get email attachments"() {
+    given:
+    String mandrillMessageId = "123"
+
+    MandrillMessageContent content = Mock()
+    def attachments = [new MandrillMessage.MessageContent()]
+    content.getAttachments() >> attachments
+    1 * mandrillMessagesApi.content(mandrillMessageId) >> content
+
+    when:
+    def result = service.getEmailAttachments(mandrillMessageId)
+
+    then:
+    result == attachments
   }
 }

@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.user;
 
+import static ee.tuleva.onboarding.time.ClockHolder.CLOCK;
+
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.exception.NotAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
@@ -66,7 +67,7 @@ public class User implements Person, Serializable {
 
   @PrePersist
   protected void onCreate() {
-    createdDate = ClockHolder.CLOCK().instant();
+    createdDate = CLOCK().instant();
     updatedDate = Instant.now();
   }
 

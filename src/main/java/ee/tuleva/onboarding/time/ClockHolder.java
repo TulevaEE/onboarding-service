@@ -8,4 +8,8 @@ public class ClockHolder {
     ZoneId timeZone = ZoneId.systemDefault();
     return Clock.system(timeZone);
   }
+
+  public static Clock CLOCK(ZoneId zone) {
+    return Clock.system(zone);
+  }
 }

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
-import ee.tuleva.onboarding.ClockFixture
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
+import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.fund.ApiFundResponse
 
 import java.time.Instant
@@ -9,7 +8,6 @@ import java.time.Instant
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.*
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.application.Application.*
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
 import static ee.tuleva.onboarding.mandate.application.TransferApplicationDetails.*
 
 class ApplicationFixture {
@@ -20,7 +18,7 @@ class ApplicationFixture {
 
   static ApplicationBuilder transferApplication() {
     return sampleApplication()
-        .creationTime(Instant.now(ClockFixture.clock))
+        .creationTime(Instant.now(TestClockHolder.clock))
         .status(PENDING)
         .id(123L)
         .details(transferApplicationDetails().build())
@@ -28,7 +26,7 @@ class ApplicationFixture {
 
   static ApplicationBuilder withdrawalApplication() {
     return sampleApplication()
-        .creationTime(Instant.now(ClockFixture.clock))
+        .creationTime(Instant.now(TestClockHolder.clock))
         .status(PENDING)
         .id(123L)
         .details(withdrawalApplicationDetails().build())

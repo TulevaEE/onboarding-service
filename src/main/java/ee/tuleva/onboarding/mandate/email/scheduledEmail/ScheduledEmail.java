@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.email.scheduledEmail;
 
 import static javax.persistence.EnumType.STRING;
 
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Instant;
 import javax.persistence.Entity;
 import javax.persistence.Enumerated;
@@ -38,6 +39,6 @@ public class ScheduledEmail {
 
   @PrePersist
   protected void onCreate() {
-    createdDate = Instant.now();
+    createdDate = ClockHolder.CLOCK().instant();
   }
 }

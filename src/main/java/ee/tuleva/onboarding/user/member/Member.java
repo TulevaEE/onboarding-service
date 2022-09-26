@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.user.member;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import java.io.Serializable;
 import java.time.Instant;
@@ -36,6 +37,6 @@ public class Member implements Serializable {
 
   @PrePersist
   protected void onCreate() {
-    createdDate = Instant.now();
+    createdDate = ClockHolder.CLOCK().instant();
   }
 }

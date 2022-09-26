@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
-import ee.tuleva.onboarding.ClockFixture
+import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 
@@ -11,7 +11,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO sampleTransferApplicationDto() {
     return ApplicationDTO.builder()
-        .date(ClockFixture.now)
+        .date(TestClockHolder.now)
         .type(TRANSFER)
         .status(PENDING)
         .id(123L)
@@ -31,7 +31,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO samplePikTransferApplicationDto() {
     return ApplicationDTO.builder()
-        .date(ClockFixture.now)
+        .date(TestClockHolder.now)
         .type(TRANSFER)
         .status(PENDING)
         .id(123L)
@@ -51,7 +51,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO sampleWithdrawalApplicationDto() {
     return ApplicationDTO.builder()
-        .date(ClockFixture.now)
+        .date(TestClockHolder.now)
         .type(WITHDRAWAL)
         .status(PENDING)
         .id(123L)
@@ -61,7 +61,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO sampleEarlyWithdrawalApplicationDto() {
     return ApplicationDTO.builder()
-        .date(ClockFixture.now)
+        .date(TestClockHolder.now)
         .type(EARLY_WITHDRAWAL)
         .status(PENDING)
         .id(123L)

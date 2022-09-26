@@ -21,9 +21,9 @@ class PaymentProviderCallbackServiceSpec extends Specification {
     )
   }
 
-  void processToken() {
+  void "if returning payment token is complete and no other payment exists in the database, create one"() {
     given:
-    def token = aSerializedToken
+    def token = aSerializedCallbackFinalizedToken
     when:
     1 * userService.findByPersonalCode(anInternalReference.getPersonalCode()) >>
         Optional.of(aNewPayment.user)
@@ -35,7 +35,31 @@ class PaymentProviderCallbackServiceSpec extends Specification {
 
   def "if payment with a given internal reference exists, then do not create a new one"() {
     given:
-    def token = aSerializedToken
+    def token = aSerializedCallbackFinalizedToken
+    when:
+    1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.of(
+        aNewPayment
+    )
+    paymentProviderCallbackService.processToken(token)
+    then:
+    0 * paymentRepository.save(_)
+  }
+
+  def "if payment callback token is pending then do not create a new one"() {
+    given:
+    def token = aSerializedCallbackPendingToken
+    when:
+    1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.of(
+        aNewPayment
+    )
+    paymentProviderCallbackService.processToken(token)
+    then:
+    0 * paymentRepository.save(_)
+  }
+
+  def "if payment callback token is failed then do not create a new one"() {
+    given:
+    def token = aSerializedCallbackFailedToken
     when:
     1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.of(
         aNewPayment

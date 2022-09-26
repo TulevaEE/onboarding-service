@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.mandate;
 
+import static ee.tuleva.onboarding.time.ClockHolder.CLOCK;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.config.JsonbType;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
-import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import java.io.Serializable;
@@ -62,7 +63,7 @@ public class Mandate implements Serializable {
 
   @PrePersist
   protected void onCreate() {
-    createdDate = ClockHolder.CLOCK().instant();
+    createdDate = CLOCK().instant();
   }
 
   @Nullable private byte[] mandate;

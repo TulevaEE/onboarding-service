@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.deadline;
 
+import static ee.tuleva.onboarding.time.ClockHolder.CLOCK;
+
 import java.time.Clock;
 import java.time.ZoneId;
 import org.springframework.context.annotation.Bean;
@@ -10,6 +12,6 @@ public class EstonianClockConfiguration {
 
   @Bean
   public Clock estonianClock() {
-    return Clock.system(ZoneId.of("Europe/Tallinn"));
+    return CLOCK(ZoneId.of("Europe/Tallinn"));
   }
 }

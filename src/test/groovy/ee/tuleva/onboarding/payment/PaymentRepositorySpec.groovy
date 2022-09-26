@@ -60,6 +60,7 @@ class PaymentRepositorySpec extends Specification {
     foundPayment.get().user == sampleUser
     foundPayment.get().getAmount() == aNewPayment.amount
     foundPayment.get().internalReference == aNewPayment.internalReference
+    foundPayment.get().getStatus() == aNewPayment.getStatus()
     foundPayment.get().createdTime != null
 
   }

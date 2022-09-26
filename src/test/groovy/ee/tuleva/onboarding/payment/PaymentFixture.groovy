@@ -18,6 +18,6 @@ class PaymentFixture {
   static String anInternalReferenceSerialized = """{"personalCode": "123443434", "uuid": "3ab94f11-fb71-4401-8043-5e911227037e"}"""
   static PaymentReference anInternalReference =
       new PaymentReference("123443434", UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"))
-  static Payment aNewPayment = new Payment(null, sampleUser().build(), anInternalReference.getUuid(), anAmount, null)
+  static Payment aNewPayment = new Payment(null, sampleUser().build(), anInternalReference.getUuid(), anAmount, PaymentStatus.PENDING, null)
 
 }

@@ -43,6 +43,7 @@ public class PaymentProviderCallbackService {
               .amount(amount)
               .internalReference(internalReference.getUuid())
               .user(user)
+              .status(PaymentStatus.PENDING)
               .build();
 
       paymentRepository.save(paymentToBeSaved);

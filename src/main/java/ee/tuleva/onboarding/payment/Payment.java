@@ -25,6 +25,7 @@ public class Payment {
 
   @NotNull private BigDecimal amount;
 
+  @NotNull private PaymentStatus status;
   private Instant createdTime;
 
   @PrePersist

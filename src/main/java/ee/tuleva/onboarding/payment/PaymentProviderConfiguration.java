@@ -16,19 +16,20 @@ import org.springframework.context.annotation.Configuration;
 public class PaymentProviderConfiguration {
 
   @Getter private final Map<Bank, PaymentProviderBank> banks;
-  private Map<String, PaymentProviderBank> banksByBic;
+  private Map<String, PaymentProviderBank> banksByAccessKey;
 
   public PaymentProviderBank getPaymentProviderBank(Bank bank) {
     return banks.get(bank);
   }
 
-  public PaymentProviderBank getPaymentProviderBank(String bic) {
-    return banksByBic.get(bic);
+  public PaymentProviderBank getPaymentProviderBank(String accessKey) {
+    return banksByAccessKey.get(accessKey);
   }
 
   @PostConstruct
   private void mapByBic() {
-    banksByBic =
-        banks.entrySet().stream().collect(toMap(entry -> entry.getValue().bic, Entry::getValue));
+    banksByAccessKey =
+        banks.entrySet().stream()
+            .collect(toMap(entry -> entry.getValue().accessKey, Entry::getValue));
   }
 }

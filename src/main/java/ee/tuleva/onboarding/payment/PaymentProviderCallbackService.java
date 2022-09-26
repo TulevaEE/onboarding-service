@@ -65,9 +65,9 @@ public class PaymentProviderCallbackService {
 
   @SneakyThrows
   private void verifyToken(JWSObject token) {
-    String bic = token.getPayload().toJSONObject().get("preselected_aspsp").toString();
+    String accessKey = token.getPayload().toJSONObject().get("access_key").toString();
     PaymentProviderBank bankConfiguration =
-        paymentProviderConfiguration.getPaymentProviderBank(bic);
+        paymentProviderConfiguration.getPaymentProviderBank(accessKey);
 
     if (!token.verify(new MACVerifier(bankConfiguration.secretKey.getBytes()))) {
       throw new BadCredentialsException("Token not verified");

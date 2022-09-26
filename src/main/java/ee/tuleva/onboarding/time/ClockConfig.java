@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.config;
+package ee.tuleva.onboarding.time;
 
 import java.time.Clock;
 import org.springframework.context.annotation.Bean;
@@ -9,6 +9,6 @@ public class ClockConfig {
 
   @Bean
   public Clock clock() {
-    return Clock.systemUTC();
+    return ClockHolder.CLOCK();
   }
 }

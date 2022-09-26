@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
-import ee.tuleva.onboarding.ClockFixture
+import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.fund.FundRepository
@@ -61,7 +61,7 @@ class ApplicationServiceSpec extends Specification {
       id == 456L
       type == TRANSFER
       status == COMPLETE
-      creationTime == ClockFixture.now
+      creationTime == TestClockHolder.now
       with(details) {
         sourceFund.isin == "AE123232334"
         exchanges.size() == 1
@@ -78,7 +78,7 @@ class ApplicationServiceSpec extends Specification {
       id == 123L
       type == TRANSFER
       status == PENDING
-      creationTime == ClockFixture.now
+      creationTime == TestClockHolder.now
       with(details) {
         sourceFund.isin == "AE123232334"
         exchanges.size() == 1
@@ -95,7 +95,7 @@ class ApplicationServiceSpec extends Specification {
       id == 123L
       type == TRANSFER
       status == PENDING
-      creationTime == ClockFixture.now
+      creationTime == TestClockHolder.now
       with(details) {
         sourceFund.isin == "AE123232334"
         exchanges.size() == 1
@@ -112,7 +112,7 @@ class ApplicationServiceSpec extends Specification {
       id == 123L
       type == TRANSFER
       status == PENDING
-      creationTime == ClockFixture.now
+      creationTime == TestClockHolder.now
       with(details) {
         sourceFund.isin == "AE123232334"
         exchanges.size() == 1
@@ -130,7 +130,7 @@ class ApplicationServiceSpec extends Specification {
       id == 123L
       type == EARLY_WITHDRAWAL
       status == PENDING
-      creationTime == ClockFixture.now
+      creationTime == TestClockHolder.now
       with(details) {
         depositAccountIBAN == "IBAN"
         fulfillmentDate == LocalDate.parse("2021-09-01")
@@ -141,7 +141,7 @@ class ApplicationServiceSpec extends Specification {
       id == 123L
       type == WITHDRAWAL
       status == PENDING
-      creationTime == ClockFixture.now
+      creationTime == TestClockHolder.now
       with(details) {
         depositAccountIBAN == "IBAN"
         fulfillmentDate == LocalDate.parse("2021-04-16")

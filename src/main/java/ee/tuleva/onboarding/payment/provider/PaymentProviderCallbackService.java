@@ -6,6 +6,8 @@ import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.MACVerifier;
+import ee.tuleva.onboarding.locale.LocaleService;
+import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentRepository;
 import ee.tuleva.onboarding.user.User;
@@ -15,6 +17,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.stereotype.Service;
 
@@ -27,6 +30,8 @@ class PaymentProviderCallbackService {
   private final UserService userService;
   private final PaymentRepository paymentRepository;
   private final ObjectMapper objectMapper;
+  private final ApplicationEventPublisher eventPublisher;
+  private final LocaleService localeService;
 
   @SneakyThrows
   public void processToken(String serializedToken) {
@@ -52,7 +57,10 @@ class PaymentProviderCallbackService {
               .status(PENDING)
               .build();
 
-      paymentRepository.save(paymentToBeSaved);
+      Payment payment = paymentRepository.save(paymentToBeSaved);
+      // TODO: validate whether the locale is set correctly here
+      eventPublisher.publishEvent(
+          new PaymentCreatedEvent(this, user, payment, localeService.getCurrentLocale()));
     }
   }
 

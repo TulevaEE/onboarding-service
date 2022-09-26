@@ -23,6 +23,6 @@ public class MandateEmailSender {
     PillarSuggestion pillarSuggestion =
         new PillarSuggestion(event.getPillar(), event.getUser(), contactDetails, conversion);
     emailService.sendMandate(
-        event.getUser(), event.getMandate(), pillarSuggestion, contactDetails, event.getLocale());
+        event.getUser(), event.getMandate(), pillarSuggestion, event.getLocale());
   }
 }

@@ -2,7 +2,10 @@ package ee.tuleva.onboarding.payment.provider
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.payment.PaymentRepository
+import ee.tuleva.onboarding.locale.LocaleService
+import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
 import ee.tuleva.onboarding.user.UserService
+import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
@@ -10,15 +13,19 @@ import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 
 class PaymentProviderCallbackServiceSpec extends Specification {
   UserService userService = Mock()
-    PaymentProviderCallbackService paymentProviderCallbackService
+  PaymentProviderCallbackService paymentProviderCallbackService
   PaymentRepository paymentRepository = Mock()
+  ApplicationEventPublisher eventPublisher = Mock()
+  LocaleService localeService = Mock()
 
   void setup() {
     paymentProviderCallbackService = new PaymentProviderCallbackService(
         aPaymentProviderConfiguration(),
         userService,
         paymentRepository,
-        new ObjectMapper()
+        new ObjectMapper(),
+        eventPublisher,
+        localeService
     )
   }
 
@@ -69,6 +76,19 @@ class PaymentProviderCallbackServiceSpec extends Specification {
     paymentProviderCallbackService.processToken(token)
     then:
     0 * paymentRepository.save(_)
+  }
+
+  void "publish payment created event"() {
+    given:
+    def token = aSerializedCallbackFinalizedToken
+    def user = aNewPayment().user
+    userService.findByPersonalCode(anInternalReference.getPersonalCode()) >> Optional.of(user)
+    paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.empty()
+    localeService.getCurrentLocale() >> Locale.ENGLISH
+    when:
+    paymentProviderCallbackService.processToken(token)
+    then:
+    1 * eventPublisher.publishEvent(_ as PaymentCreatedEvent)
   }
 
 }

@@ -31,11 +31,10 @@ class MandateEmailServiceSpec extends Specification {
 
   def subject = "subject";
   MessageSource messageSource = new AbstractMessageSource() {
-
     protected MessageFormat resolveCode(String code, Locale locale) {
-      return new MessageFormat(subject);
+      return new MessageFormat(subject)
     }
-  };
+  }
 
   MandateEmailService mandateEmailService = new MandateEmailService(
       emailService,
@@ -61,7 +60,7 @@ class MandateEmailServiceSpec extends Specification {
     emailService.getRecipients(user) >> recipients
 
     when:
-    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, contactDetails, Locale.ENGLISH)
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
 
     then:
     1 * emailService.newMandrillMessage(recipients, subject, html, tags, _) >> message
@@ -88,80 +87,4 @@ class MandateEmailServiceSpec extends Specification {
     true          | true              || ["mandate", "pillar_2", "suggest_member", "suggest_3"]
   }
 
-  def "Send third pillar payment details email"() {
-    given:
-    def user = sampleUser().build()
-    def conversion = fullyConverted()
-    def contactDetails = contactDetailsFixture()
-    def mandate = thirdPillarMandate()
-    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
-    def recipients = [new Recipient()]
-    def message = new MandrillMessage()
-    def html = "payment details html"
-    def tags = ["pillar_3.1", "mandate"]
-    def locale = Locale.ENGLISH
-
-    emailContentService
-        .getThirdPillarPaymentDetailsHtml(user, contactDetails.getPensionAccountNumber(), locale)
-        >> html
-    emailService.getRecipients(user) >> recipients
-
-    when:
-    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, contactDetails, locale)
-
-    then:
-    1 * emailService.newMandrillMessage(recipients, subject, html, tags, _) >> message
-    1 * emailService.send(user, message)
-  }
-
-  def "Send third pillar suggest second pillar email"() {
-    given:
-    def user = sampleUser().build()
-
-    PillarSuggestion pillarSuggestion = Mock()
-    pillarSuggestion.isSuggestPillar() >> suggestPillar
-
-    def contactDetails = contactDetailsFixture()
-    def mandate = thirdPillarMandate()
-    def recipients = [new Recipient()]
-    def message = new MandrillMessage()
-    def html = "suggest second html"
-    def tags = ["pillar_3.1", "suggest_2"]
-    def locale = Locale.ENGLISH
-    def sendAt = now.plus(3, ChronoUnit.DAYS)
-
-    emailContentService.getThirdPillarSuggestSecondHtml(user, locale) >> html
-    emailService.getRecipients(user) >> recipients
-
-    when:
-    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, contactDetails, locale)
-
-    then:
-    callCount * emailService.newMandrillMessage(recipients, subject, html, tags, null) >> message
-    callCount * emailService.send(user, message, sendAt) >> Optional.of("123")
-    callCount * scheduledEmailService.create(user, "123", ScheduledEmailType.SUGGEST_SECOND_PILLAR)
-
-    where:
-    suggestPillar | callCount
-    true          | 1
-    false         | 0
-  }
-
-  def "Sends two third pillar emails"() {
-    given:
-    def user = sampleUser().build()
-    def conversion = notFullyConverted()
-    def contactDetails = contactDetailsFixture()
-    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
-    emailContentService.getThirdPillarPaymentDetailsHtml(*_) >> "html"
-    emailService.getRecipients(user) >> [new Recipient()]
-    emailService.newMandrillMessage(*_) >> new MandrillMessage()
-
-    when:
-    mandateEmailService
-        .sendMandate(user, thirdPillarMandate(), pillarSuggestion, contactDetails, Locale.ENGLISH)
-
-    then:
-    2 * emailService.send(*_) >> Optional.of("123")
-  }
 }

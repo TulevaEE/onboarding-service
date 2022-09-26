@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
-class ScheduledEmailCancellerTest extends Specification {
+class ScheduledEmailCancellerSpec extends Specification {
 
   ScheduledEmailService scheduledEmailService = Mock()
   ScheduledEmailCanceller scheduledEmailCanceller = new ScheduledEmailCanceller(scheduledEmailService)

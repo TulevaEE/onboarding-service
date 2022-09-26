@@ -40,7 +40,7 @@ class MandateEmailSenderSpec extends Specification {
     mandateEmailSender.sendEmail(event)
 
     then:
-    1 * mandateEmailService.sendMandate(user, mandate, pillarSuggestion, contactDetails, Locale.ENGLISH)
+    1 * mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
   }
 
   def "send email when third pillar mandate event was received"() {
@@ -62,6 +62,6 @@ class MandateEmailSenderSpec extends Specification {
     mandateEmailSender.sendEmail(event)
 
     then:
-    1 * mandateEmailService.sendMandate(user, mandate, pillarSuggestion, contactDetails, Locale.ENGLISH)
+    1 * mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
   }
 }

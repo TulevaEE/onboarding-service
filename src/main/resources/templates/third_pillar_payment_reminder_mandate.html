@@ -1,0 +1,11 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+  <body>
+    <p th:text="#{mandate.email.thirdPillar.greeting(${firstName})}"></p>
+    <p th:utext="#{mandate.email.thirdPillar.paymentReminder.content}"></p>
+
+    <p th:utext="#{mandate.email.info}"></p>
+    <br/>
+    <p th:utext="#{mandate.email.thirdPillar.signature}"></p>
+  </body>
+</html>

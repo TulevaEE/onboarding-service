@@ -27,6 +27,8 @@ import javax.persistence.ManyToOne;
 import javax.persistence.OneToMany;
 import javax.persistence.PrePersist;
 import javax.persistence.Table;
+import javax.validation.constraints.Max;
+import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
@@ -55,7 +57,10 @@ public class Mandate implements Serializable {
   @JsonView(MandateView.Default.class)
   private String futureContributionFundIsin;
 
-  @NotNull private Integer pillar;
+  @NotNull
+  @Min(2)
+  @Max(3)
+  private Integer pillar;
 
   @NotNull
   @JsonView(MandateView.Default.class)

@@ -27,7 +27,7 @@ public class PaymentProviderConfiguration {
   }
 
   @PostConstruct
-  private void mapByBic() {
+  private void mapByAccessKey() {
     banksByAccessKey =
         banks.entrySet().stream()
             .collect(toMap(entry -> entry.getValue().accessKey, Entry::getValue));

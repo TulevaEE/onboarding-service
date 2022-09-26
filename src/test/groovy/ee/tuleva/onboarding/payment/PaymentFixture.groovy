@@ -9,7 +9,7 @@ class PaymentFixture {
     samplePaymentProviderBankConfiguration.secretKey = "exampleSecretKeyexampleSecretKeyexampleSecretKey"
     samplePaymentProviderBankConfiguration.bic = "exampleAspsp"
     def configuration = new PaymentProviderConfiguration([(Bank.LHV): samplePaymentProviderBankConfiguration])
-    configuration.mapBy()
+    configuration.mapByAccessKey()
     return configuration
   }
 

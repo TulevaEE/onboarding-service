@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.epis.cashflows;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class CashFlow {
   private String isin;
-  private LocalDate date;
+  private Instant time;
   private BigDecimal amount;
   private String currency;
   private Type type;
@@ -32,8 +32,8 @@ public class CashFlow {
     return type == SUBTRACTION;
   }
 
-  public boolean isAfter(LocalDate other) {
-    return date.isAfter(other);
+  public boolean isAfter(Instant other) {
+    return time.isAfter(other);
   }
 
   public enum Type {

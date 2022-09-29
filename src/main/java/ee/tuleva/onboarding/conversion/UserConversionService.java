@@ -21,7 +21,8 @@ import ee.tuleva.onboarding.mandate.application.Exchange;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
-import java.time.LocalDate;
+import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -83,7 +84,7 @@ public class UserConversionService {
 
   private boolean paymentComplete(CashFlowStatement cashFlowStatement) {
     return cashFlowStatement.getTransactions().stream()
-            .filter(cashFlow -> cashFlow.getDate().isAfter(sameTimeLastYear()))
+            .filter(cashFlow -> cashFlow.getTime().isAfter(sameTimeLastYear()))
             .filter(CashFlow::isCashContribution)
             .filter(cashFlow -> fundRepository.findByIsin(cashFlow.getIsin()).getPillar() == 3)
             .map(CashFlow::getAmount)
@@ -134,12 +135,12 @@ public class UserConversionService {
         .setScale(2, RoundingMode.HALF_UP);
   }
 
-  private LocalDate lastDayOfLastYear() {
-    return sameTimeLastYear().with(lastDayOfYear());
+  private Instant lastDayOfLastYear() {
+    return ZonedDateTime.now(clock).minusYears(1).with(lastDayOfYear()).toInstant();
   }
 
-  private LocalDate sameTimeLastYear() {
-    return LocalDate.now(clock).minusYears(1);
+  private Instant sameTimeLastYear() {
+    return ZonedDateTime.now(clock).minusYears(1).toInstant();
   }
 
   private boolean isSelectionComplete(List<FundBalance> fundBalances, Integer pillar) {

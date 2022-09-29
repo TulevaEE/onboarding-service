@@ -4,17 +4,10 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
 
-@Value
-@RequiredArgsConstructor
-public class Transaction {
-  BigDecimal amount;
-  LocalDate date;
+public record Transaction(BigDecimal amount, Instant time) {
 
-  public Transaction(BigDecimal amount, Instant date) {
-    this.amount = amount;
-    this.date = date.atZone(ZoneOffset.UTC).toLocalDate();
+  public LocalDate date() {
+    return time.atZone(ZoneOffset.UTC).toLocalDate();
   }
 }

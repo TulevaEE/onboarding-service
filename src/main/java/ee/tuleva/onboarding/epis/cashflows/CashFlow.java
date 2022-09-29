@@ -40,6 +40,7 @@ public class CashFlow {
     CONTRIBUTION_CASH,
     CONTRIBUTION,
     SUBTRACTION,
+    CASH,
     OTHER
   }
 }

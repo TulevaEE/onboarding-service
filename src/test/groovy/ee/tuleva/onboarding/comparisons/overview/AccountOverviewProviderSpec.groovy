@@ -63,9 +63,9 @@ class AccountOverviewProviderSpec extends Specification {
         accountOverview.pillar == pillar
         accountOverview.transactions.size() == 2
         accountOverview.transactions[0].amount == cashFlowStatement.transactions[0].amount
-        accountOverview.transactions[0].date == cashFlowStatement.transactions[0].date
+        accountOverview.transactions[0].time == cashFlowStatement.transactions[0].time
         accountOverview.transactions[1].amount == cashFlowStatement.transactions[1].amount
-        accountOverview.transactions[1].date == cashFlowStatement.transactions[1].date
+        accountOverview.transactions[1].time == cashFlowStatement.transactions[1].time
     }
 
     private static boolean verifyTimeCloseToNow(Instant time) {

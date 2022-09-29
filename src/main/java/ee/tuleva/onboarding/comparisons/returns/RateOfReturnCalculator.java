@@ -11,9 +11,8 @@ import ee.tuleva.onboarding.comparisons.overview.Transaction;
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -43,13 +42,13 @@ public class RateOfReturnCalculator {
     BigDecimal virtualFundUnitsBought = ZERO;
     for (Transaction transaction : purchaseTransactions) {
       Optional<FundValue> fundValueAtTime =
-          fundValueProvider.getLatestValue(comparisonFund, transaction.getDate());
+          fundValueProvider.getLatestValue(comparisonFund, transaction.date());
       if (!fundValueAtTime.isPresent()) {
         return 0;
       }
       BigDecimal fundPriceAtTime = fundValueAtTime.get().getValue();
       BigDecimal currentlyBoughtVirtualFundUnits =
-          transaction.getAmount().divide(fundPriceAtTime, MathContext.DECIMAL128);
+          transaction.amount().divide(fundPriceAtTime, MathContext.DECIMAL128);
       virtualFundUnitsBought = virtualFundUnitsBought.add(currentlyBoughtVirtualFundUnits);
     }
     Optional<FundValue> finalVirtualFundValue =
@@ -70,9 +69,7 @@ public class RateOfReturnCalculator {
 
     if (!accountOverview.getBeginningBalance().equals(ZERO)) {
       Transaction beginningTransaction =
-          new Transaction(
-              accountOverview.getBeginningBalance(),
-              accountOverview.getStartTime().atZone(ZoneOffset.UTC).toLocalDate());
+          new Transaction(accountOverview.getBeginningBalance(), accountOverview.getStartTime());
       purchaseTransactions.add(beginningTransaction);
     }
     purchaseTransactions.addAll(transactions);
@@ -87,14 +84,13 @@ public class RateOfReturnCalculator {
   }
 
   private static Transaction negateTransactionAmount(Transaction transaction) {
-    return new Transaction(transaction.getAmount().negate(), transaction.getDate());
+    return new Transaction(transaction.amount().negate(), transaction.time());
   }
 
   private double calculateReturn(
       List<Transaction> purchaseTransactions, BigDecimal endingBalance, Instant endTime) {
     List<Transaction> negatedTransactions = negateTransactionAmounts(purchaseTransactions);
-    Transaction endingTransaction =
-        new Transaction(endingBalance, endTime.atZone(ZoneId.of("Europe/Tallinn")).toLocalDate());
+    Transaction endingTransaction = new Transaction(endingBalance, endTime);
 
     List<Transaction> internalTransactions = new ArrayList<>();
     internalTransactions.addAll(negatedTransactions);
@@ -123,8 +119,7 @@ public class RateOfReturnCalculator {
   }
 
   private boolean allZero(List<Transaction> transactions) {
-    return transactions.stream()
-        .allMatch(transaction -> ZERO.compareTo(transaction.getAmount()) == 0);
+    return transactions.stream().allMatch(transaction -> ZERO.compareTo(transaction.amount()) == 0);
   }
 
   private double roundPercentage(double percentage) {
@@ -137,6 +132,6 @@ public class RateOfReturnCalculator {
   private static org.decampo.xirr.Transaction xirrTransactionFromInternalTransaction(
       Transaction transaction) {
     return new org.decampo.xirr.Transaction(
-        transaction.getAmount().doubleValue(), transaction.getDate());
+        transaction.amount().doubleValue(), Date.from(transaction.time()));
   }
 }

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.payment;
+package ee.tuleva.onboarding.payment.provider;
 
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import java.net.URL;
 import java.time.Clock;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -22,7 +23,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PaymentProviderService {
+class PaymentProviderService {
 
   private final Clock clock;
 
@@ -71,8 +72,10 @@ public class PaymentProviderService {
   }
 
   private String getLanguage() {
-    String language = localeService.getLanguage();
-    return language.equals("en") ? "en_US" : language;
+    Locale locale = localeService.getCurrentLocale();
+    return Locale.ENGLISH.getLanguage().equals(locale.getLanguage())
+        ? "en_US"
+        : locale.getLanguage();
   }
 
   @SneakyThrows

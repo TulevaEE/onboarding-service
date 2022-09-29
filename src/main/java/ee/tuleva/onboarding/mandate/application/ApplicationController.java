@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/v1" + APPLICATIONS_URI)
 @RequiredArgsConstructor
-public class ApplicationController {
+class ApplicationController {
 
   public static final String APPLICATIONS_URI = "/applications";
 
@@ -29,7 +29,7 @@ public class ApplicationController {
 
   @Operation(summary = "Get application")
   @GetMapping("/{id}")
-  public Application getApplication(
+  public Application<?> getApplication(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson, @PathVariable Long id) {
     return applicationService.getApplication(id, authenticatedPerson);
   }

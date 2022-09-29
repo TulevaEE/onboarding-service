@@ -27,7 +27,8 @@ class FundService {
         .sorted()
         .map(
             fund ->
-                new ExtendedApiFundResponse(fund, getStatistics(fund), localeService.getLanguage()))
+                new ExtendedApiFundResponse(
+                    fund, getStatistics(fund), localeService.getCurrentLocale()))
         .collect(toList());
   }
 

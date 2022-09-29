@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.payment;
+package ee.tuleva.onboarding.payment.provider;
 
 import static java.util.stream.Collectors.toMap;
 
@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @RequiredArgsConstructor
 @ConfigurationProperties("payment-provider")
-public class PaymentProviderConfiguration {
+class PaymentProviderConfiguration {
 
   @Getter private final Map<Bank, PaymentProviderBank> banks;
   private Map<String, PaymentProviderBank> banksByAccessKey;

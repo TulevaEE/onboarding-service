@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.account;
 
 import ee.tuleva.onboarding.fund.ApiFundResponse;
 import java.math.BigDecimal;
+import java.util.Locale;
 import lombok.Builder;
 import lombok.Data;
 
@@ -17,9 +18,9 @@ class ApiFundBalanceResponse {
   private BigDecimal subtractions;
   private BigDecimal profit;
 
-  static ApiFundBalanceResponse from(FundBalance fundBalance, String language) {
+  static ApiFundBalanceResponse from(FundBalance fundBalance, Locale locale) {
     return ApiFundBalanceResponse.builder()
-        .fund(new ApiFundResponse(fundBalance.getFund(), language))
+        .fund(new ApiFundResponse(fundBalance.getFund(), locale))
         .value(fundBalance.getValue())
         .unavailableValue(fundBalance.getUnavailableValue())
         .currency(fundBalance.getCurrency())

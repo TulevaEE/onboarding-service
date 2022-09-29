@@ -45,7 +45,7 @@ public class MandateEmailContentService {
     ctx.setVariable("firstName", user.getFirstName());
 
     String sourceFundIsin = mandate.getFundTransferExchanges().get(0).getSourceFundIsin();
-    String sourceFundName = fundRepository.findByIsin(sourceFundIsin).getName(locale.getLanguage());
+    String sourceFundName = fundRepository.findByIsin(sourceFundIsin).getName(locale);
     ctx.setVariable("sourceFundName", sourceFundName);
 
     return templateEngine.process("second_pillar_transfer_cancellation_email", ctx);

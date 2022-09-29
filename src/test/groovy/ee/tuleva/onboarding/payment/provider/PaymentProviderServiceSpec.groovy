@@ -1,9 +1,14 @@
-package ee.tuleva.onboarding.payment
+package ee.tuleva.onboarding.payment.provider
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.locale.LocaleService
+import ee.tuleva.onboarding.locale.MockLocaleService
+import ee.tuleva.onboarding.payment.provider.PaymentData
+import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService
+import ee.tuleva.onboarding.payment.provider.PaymentLink
+import ee.tuleva.onboarding.payment.provider.PaymentProviderService
 import spock.lang.Specification
 
 import java.time.Clock
@@ -11,18 +16,18 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.payment.Bank.LHV
-import static ee.tuleva.onboarding.payment.PaymentFixture.*
+import static ee.tuleva.onboarding.payment.provider.Bank.LHV
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 import static java.time.ZoneOffset.UTC
 
 class PaymentProviderServiceSpec extends Specification {
 
   Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
 
-  private final EpisService episService = Mock()
-  private final PaymentInternalReferenceService paymentInternalReferenceService = Mock()
+  EpisService episService = Mock()
+  PaymentInternalReferenceService paymentInternalReferenceService = Mock()
+  LocaleService localeService = new MockLocaleService("et")
   PaymentProviderService paymentLinkService
-  private final LocaleService localeService = Mock()
 
   void setup() {
     paymentLinkService = new PaymentProviderService(
@@ -34,7 +39,6 @@ class PaymentProviderServiceSpec extends Specification {
     )
     paymentLinkService.paymentProviderUrl = "https://sandbox-payments.montonio.com"
     paymentLinkService.apiUrl = "https://onboarding-service.tuleva.ee/v1"
-    localeService.getLanguage() >> Locale.forLanguageTag("et")
   }
 
   void create() {

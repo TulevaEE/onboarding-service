@@ -31,7 +31,7 @@ class FundServiceSpec extends Specification {
     def peopleCount = 123
     pensionFundStatisticsService.getCachedStatistics() >>
       [new PensionFundStatistics(tulevaFund.isin, volume, nav, peopleCount)]
-    localeService.getLanguage() >> LocaleConfiguration.DEFAULT_LANGUAGE
+    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
     when:
     def response = fundService.getFunds(Optional.of(fundManagerName))
 
@@ -52,7 +52,7 @@ class FundServiceSpec extends Specification {
       .filter({ fund -> fund.fundManager.name == fundManagerName })
       .collect(toList())
     fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
-    localeService.getLanguage() >> language
+    localeService.getCurrentLocale() >> Locale.forLanguageTag(language)
 
     def tulevaFund = funds.first()
     pensionFundStatisticsService.getCachedStatistics() >> singletonList(PensionFundStatistics.getNull())
@@ -86,7 +86,7 @@ class FundServiceSpec extends Specification {
       .collect(toList())
     fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
-    localeService.getLanguage() >> LocaleConfiguration.DEFAULT_LANGUAGE
+    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
 
     when:
     def response = fundService.getFunds(Optional.of(fundManagerName))

@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -38,6 +39,7 @@ public class ApplicationService {
   private final LocaleService localeService;
   private final FundRepository fundRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
+  private final PaymentApplicationService paymentApplicationService;
 
   public Application<?> getApplication(Long id, AuthenticatedPerson authenticatedPerson) {
     return getAllApplications(authenticatedPerson).stream()
@@ -54,6 +56,7 @@ public class ApplicationService {
     List<Application<?>> applications = new ArrayList<>();
     applications.addAll(getTransferApplications(person));
     applications.addAll(getWithdrawalApplications(person));
+    applications.addAll(paymentApplicationService.getPaymentApplications(person));
     Collections.sort(applications);
     return applications;
   }
@@ -107,7 +110,7 @@ public class ApplicationService {
 
   private List<Application<TransferApplicationDetails>> groupTransfers(
       List<ApplicationDTO> transferApplications) {
-    String language = localeService.getLanguage();
+    Locale locale = localeService.getCurrentLocale();
 
     return transferApplications.stream()
         .map(
@@ -121,7 +124,7 @@ public class ApplicationService {
               val details =
                   TransferApplicationDetails.builder()
                       .type(applicationDto.getType())
-                      .sourceFund(new ApiFundResponse(sourceFund, language))
+                      .sourceFund(new ApiFundResponse(sourceFund, locale))
                       .fulfillmentDate(deadlines.getFulfillmentDate(applicationDto.getType()))
                       .cancellationDeadline(
                           deadlines.getCancellationDeadline(applicationDto.getType()));
@@ -131,8 +134,8 @@ public class ApplicationService {
                       fundTransferExchange ->
                           details.exchange(
                               new Exchange(
-                                  new ApiFundResponse(sourceFund, language),
-                                  getTargetFund(fundTransferExchange, language),
+                                  new ApiFundResponse(sourceFund, locale),
+                                  getTargetFund(fundTransferExchange, locale),
                                   fundTransferExchange.getTargetPik(),
                                   fundTransferExchange.getAmount())));
               application.details(details.build());
@@ -142,7 +145,7 @@ public class ApplicationService {
   }
 
   private ApiFundResponse getTargetFund(
-      MandateFundsTransferExchangeDTO exchangeDTO, String language) {
+      MandateFundsTransferExchangeDTO exchangeDTO, Locale locale) {
     String targetFundIsin = exchangeDTO.getTargetFundIsin();
     if (targetFundIsin == null) {
       return null;
@@ -153,7 +156,7 @@ public class ApplicationService {
       throw new IllegalArgumentException(
           "Fund not found in the database: targetFundIsin=" + targetFundIsin);
     }
-    return new ApiFundResponse(targetFund, language);
+    return new ApiFundResponse(targetFund, locale);
   }
 
   private Application<WithdrawalApplicationDetails> convertWithdrawal(

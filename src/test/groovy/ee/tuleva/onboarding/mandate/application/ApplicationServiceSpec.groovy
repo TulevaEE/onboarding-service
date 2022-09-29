@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.mandate.application
 
+import ee.tuleva.onboarding.auth.PersonFixture
+import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.epis.EpisService
@@ -11,17 +14,22 @@ import java.time.Instant
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
+import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarApiFundResponse
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleEarlyWithdrawalApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleWithdrawalApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.samplePikTransferApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.paymentApplication
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.PAYMENT
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
+import static java.util.Currency.*
 
 class ApplicationServiceSpec extends Specification {
 
@@ -29,12 +37,14 @@ class ApplicationServiceSpec extends Specification {
   LocaleService localeService = Mock()
   FundRepository fundRepository = Mock()
   MandateDeadlinesService mandateDeadlinesService = Mock()
+  PaymentApplicationService paymentApplicationService = Mock()
 
   ApplicationService applicationService =
-    new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService)
+    new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService)
 
   def "gets applications"() {
     given:
+    def person = samplePerson()
     def transferApplication1 = sampleTransferApplicationDto()
     def completedTransferApplication = sampleTransferApplicationDto()
     completedTransferApplication.status = COMPLETE
@@ -43,7 +53,8 @@ class ApplicationServiceSpec extends Specification {
     def withdrawalApplication = sampleWithdrawalApplicationDto()
     def earlyWithdrawalApplication = sampleEarlyWithdrawalApplicationDto()
     def pikTransferApplication = samplePikTransferApplicationDto()
-    episService.getApplications(samplePerson()) >> [
+
+    episService.getApplications(person) >> [
       transferApplication1, transferApplication2, completedTransferApplication,
       pikTransferApplication, withdrawalApplication, earlyWithdrawalApplication
     ]
@@ -52,9 +63,10 @@ class ApplicationServiceSpec extends Specification {
     fundRepository.findByIsin("target") >> sampleFunds().drop(1).first()
 
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
+    paymentApplicationService.getPaymentApplications(person) >> [paymentApplication().build()]
 
     when:
-    def applications = applicationService.getAllApplications(samplePerson())
+    def applications = applicationService.getAllApplications(person)
 
     then:
     with(applications[0] as Application<TransferApplicationDetails>) {
@@ -148,6 +160,17 @@ class ApplicationServiceSpec extends Specification {
         cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
       }
     }
-    applications.size() == 6
+    with(applications[6] as Application<PaymentApplicationDetails>) {
+      id == 123L
+      type == PAYMENT
+      status == PENDING
+      creationTime == TestClockHolder.now
+      with(details) {
+        amount == 10.0
+        currency == EUR
+        targetFund == tuleva3rdPillarApiFundResponse()
+      }
+    }
+    applications.size() == 7
   }
 }

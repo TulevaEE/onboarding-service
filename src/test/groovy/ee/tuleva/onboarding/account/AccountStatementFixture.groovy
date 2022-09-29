@@ -2,9 +2,11 @@ package ee.tuleva.onboarding.account
 
 import com.google.common.collect.Lists
 import ee.tuleva.onboarding.fund.Fund
+import ee.tuleva.onboarding.fund.FundFixture
 import ee.tuleva.onboarding.fund.manager.FundManager
 
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva3rdPillarFund
 
 class AccountStatementFixture {
 
@@ -172,24 +174,8 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(
-              Fund.builder()
-                  .isin("EE645")
-                  .nameEstonian("Tuleva III Samba Pensionifond")
-                  .nameEnglish("Tuleva III Pillar Pension Fund")
-                  .shortName("TUV100")
-                  .id(123)
-                  .pillar(3)
-                  .status(ACTIVE)
-                  .ongoingChargesFigure(0.005)
-                  .managementFeeRate(0.0034)
-                  .fundManager(
-                      FundManager.builder()
-                          .id(123)
-                          .name("Tuleva")
-                          .build()
-                  ).build()
-          ).build(),
+          .fund(tuleva3rdPillarFund)
+          .build(),
       FundBalance.builder()
           .value(200.0)
           .unavailableValue(0.0)
@@ -249,24 +235,8 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(
-              Fund.builder()
-                  .isin("EE645")
-                  .nameEstonian("Tuleva III Samba Pensionifond")
-                  .nameEnglish("Tuleva III Pillar Pension Fund")
-                  .shortName("TUV100")
-                  .id(124)
-                  .pillar(3)
-                  .status(ACTIVE)
-                  .ongoingChargesFigure(0.005)
-                  .managementFeeRate(0.0034)
-                  .fundManager(
-                      FundManager.builder()
-                          .id(123)
-                          .name("Tuleva")
-                          .build()
-                  ).build()
-          ).build()
+          .fund(tuleva3rdPillarFund)
+          .build()
   )
 
   public static List<FundBalance> activeTuleva3rdPillarFund = Lists.asList(
@@ -277,24 +247,8 @@ class AccountStatementFixture {
           .contributions(0.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(
-              Fund.builder()
-                  .isin("EE645")
-                  .nameEstonian("Tuleva III Samba Pensionifond")
-                  .nameEnglish("Tuleva III Pillar Pension Fund")
-                  .shortName("TUV100")
-                  .id(123)
-                  .pillar(3)
-                  .status(ACTIVE)
-                  .ongoingChargesFigure(0.005)
-                  .managementFeeRate(0.0034)
-                  .fundManager(
-                      FundManager.builder()
-                          .id(123)
-                          .name("Tuleva")
-                          .build()
-                  ).build()
-          ).build()
+          .fund(tuleva3rdPillarFund)
+          .build()
   )
 
   public static List<FundBalance> inactiveTuleva3rdPillarFundBalance = Lists.asList(
@@ -329,24 +283,8 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(
-              Fund.builder()
-                  .isin("EE645")
-                  .nameEstonian("Tuleva III Samba Pensionifond")
-                  .nameEnglish("Tuleva III Pillar Pension Fund")
-                  .shortName("TUV100")
-                  .id(124)
-                  .pillar(3)
-                  .status(ACTIVE)
-                  .ongoingChargesFigure(0.005)
-                  .managementFeeRate(0.0034)
-                  .fundManager(
-                      FundManager.builder()
-                          .id(123)
-                          .name("Tuleva")
-                          .build()
-                  ).build()
-          ).build()
+          .fund(tuleva3rdPillarFund)
+          .build()
   )
 
 }

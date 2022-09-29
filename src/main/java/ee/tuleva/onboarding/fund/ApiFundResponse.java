@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.fund.Fund.FundStatus;
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import java.math.BigDecimal;
+import java.util.Locale;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -18,10 +19,10 @@ public class ApiFundResponse {
   private BigDecimal ongoingChargesFigure;
   private FundStatus status;
 
-  public ApiFundResponse(Fund fund, String language) {
+  public ApiFundResponse(Fund fund, Locale locale) {
     this.fundManager = fund.getFundManager();
     this.isin = fund.getIsin();
-    this.name = fund.getName(language);
+    this.name = fund.getName(locale);
     this.managementFeeRate = fund.getManagementFeeRate();
     this.pillar = fund.getPillar();
     this.ongoingChargesFigure = fund.getOngoingChargesFigure();

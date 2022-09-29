@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.payment;
 
+import static ee.tuleva.onboarding.currency.Currency.*;
+
+import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -24,6 +27,8 @@ public class Payment {
   @NotNull private UUID internalReference;
 
   @NotNull private BigDecimal amount;
+
+  @NotNull private Currency currency = EUR;
 
   @NotNull private PaymentStatus status;
   private Instant createdTime;

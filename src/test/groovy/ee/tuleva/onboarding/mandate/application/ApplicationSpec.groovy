@@ -51,7 +51,7 @@ class ApplicationSpec extends Specification {
   }
 
   def "getPillar"() {
-    def secondPillarFund = new ApiFundResponse(Fund.builder().pillar(2).build(), "en")
+    def secondPillarFund = new ApiFundResponse(Fund.builder().pillar(2).build(), Locale.ENGLISH)
     def secondPillarExchange = new Exchange(secondPillarFund, secondPillarFund, null, null)
 
     expect:

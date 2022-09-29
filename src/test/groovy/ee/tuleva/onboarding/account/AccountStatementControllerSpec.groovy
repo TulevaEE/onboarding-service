@@ -29,7 +29,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
     given:
     List<FundBalance> fundBalances = activeTuleva2ndPillarFundBalance
     1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
-    localeService.language >> LocaleConfiguration.DEFAULT_LANGUAGE
+    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
 
     expect:
     mockMvc.perform(get("/v1/pension-account-statement"))
@@ -61,7 +61,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
     given:
     List<FundBalance> fundBalances = activeTuleva2ndPillarFundBalance
     1 * accountStatementService.getAccountStatement(_ as Person) >> fundBalances
-    localeService.language >> language
+    localeService.getCurrentLocale() >> Locale.forLanguageTag(language)
 
     expect:
     mockMvc.perform(get("/v1/pension-account-statement")

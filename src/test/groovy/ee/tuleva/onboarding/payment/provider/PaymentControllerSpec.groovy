@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.payment
+package ee.tuleva.onboarding.payment.provider
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
@@ -12,14 +12,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
-import static PaymentFixture.aSerializedToken
 
 class PaymentControllerSpec extends BaseControllerSpec {
 
   PaymentProviderService paymentProviderService = Mock()
-  PaymentProviderCallbackService paymentProviderCallbackService = Mock()
+    PaymentProviderCallbackService paymentProviderCallbackService = Mock()
 
-  PaymentController paymentController
+    PaymentController paymentController
   String frontendUrl = "https://frontend.url"
 
   def setup() {
@@ -65,9 +64,9 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentProviderCallbackService.processToken(aSerializedToken)
+    1 * paymentProviderCallbackService.processToken(PaymentProviderFixture.aSerializedToken)
     expect:
-    mvc.perform(get("/v1/payments/success").param("payment_token", aSerializedToken))
+    mvc.perform(get("/v1/payments/success").param("payment_token", PaymentProviderFixture.aSerializedToken))
         .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/success"))
   }
 
@@ -75,9 +74,9 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentProviderCallbackService.processToken(aSerializedToken)
+    1 * paymentProviderCallbackService.processToken(PaymentProviderFixture.aSerializedToken)
     expect:
-    mvc.perform(post("/v1/payments/notifications").param("payment_token", aSerializedToken))
+    mvc.perform(post("/v1/payments/notifications").param("payment_token", PaymentProviderFixture.aSerializedToken))
         .andExpect(status().isOk())
   }
 

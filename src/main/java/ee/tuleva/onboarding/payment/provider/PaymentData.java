@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.payment;
+package ee.tuleva.onboarding.payment.provider;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;
@@ -8,7 +8,7 @@ import lombok.Data;
 
 @Data
 @Builder
-public class PaymentData {
+class PaymentData {
   private Person person;
   private Currency currency;
   private BigDecimal amount;

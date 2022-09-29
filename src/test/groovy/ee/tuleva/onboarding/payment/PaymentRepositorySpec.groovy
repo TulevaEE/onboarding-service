@@ -5,8 +5,10 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
-import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
+
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
+import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
 
 @DataJpaTest
 class PaymentRepositorySpec extends Specification {
@@ -19,7 +21,7 @@ class PaymentRepositorySpec extends Specification {
   def "persisting and findById() works"() {
     given:
     User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
-    Payment paymentToBeSaved = aNewPayment
+    Payment paymentToBeSaved = aNewPayment()
     paymentToBeSaved.id = null
     paymentToBeSaved.user = sampleUser
 
@@ -32,17 +34,19 @@ class PaymentRepositorySpec extends Specification {
 
     then:
     foundPayment.isPresent()
-    foundPayment.get().id != null
-    foundPayment.get().user == sampleUser
-    foundPayment.get().getAmount() == aNewPayment.amount
-    foundPayment.get().internalReference == aNewPayment.internalReference
-    foundPayment.get().createdTime != null
+    with(foundPayment.get()) {
+      id != null
+      user == sampleUser
+      amount == paymentToBeSaved.amount
+      internalReference == paymentToBeSaved.internalReference
+      createdTime != null
+    }
   }
 
   def "findByInternalReference"() {
     given:
     User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
-    Payment paymentToBeSaved = aNewPayment
+    Payment paymentToBeSaved = aNewPayment()
     paymentToBeSaved.id = null
     paymentToBeSaved.user = sampleUser
 
@@ -56,13 +60,37 @@ class PaymentRepositorySpec extends Specification {
 
     then:
     foundPayment.isPresent()
-    foundPayment.get().id != null
-    foundPayment.get().user == sampleUser
-    foundPayment.get().getAmount() == aNewPayment.amount
-    foundPayment.get().internalReference == aNewPayment.internalReference
-    foundPayment.get().getStatus() == aNewPayment.getStatus()
-    foundPayment.get().createdTime != null
-
+    with(foundPayment.get()) {
+      id != null
+      user == sampleUser
+      amount == paymentToBeSaved.amount
+      internalReference == paymentToBeSaved.internalReference
+      status == paymentToBeSaved.status
+      createdTime != null
+    }
   }
 
+  def "can find by user and status"() {
+    given:
+    User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
+    Payment payment = aNewPayment().tap {
+      id = null
+      user = sampleUser
+    }
+    entityManager.persist(payment)
+    entityManager.flush()
+
+    when:
+    def payments = paymentRepository.findAllByUserPersonalCodeAndStatus(sampleUser.personalCode, PENDING)
+
+    then:
+    payments.size() == 1
+    with(payments[0]) {
+      id != null
+      user == sampleUser
+      amount == payment.amount
+      internalReference == payment.internalReference
+      createdTime != null
+    }
+  }
 }

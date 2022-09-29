@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.payment;
+package ee.tuleva.onboarding.payment.provider;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.currency.Currency;
@@ -15,7 +15,7 @@ import org.springframework.web.servlet.view.RedirectView;
 @RequestMapping("/v1/payments")
 @Slf4j
 @RequiredArgsConstructor
-public class PaymentController {
+class PaymentController {
 
   @Value("${frontend.url}")
   private String frontendUrl;

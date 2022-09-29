@@ -1,11 +1,17 @@
-package ee.tuleva.onboarding.payment;
+package ee.tuleva.onboarding.payment.provider;
+
+import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.MACVerifier;
+import ee.tuleva.onboarding.payment.Payment;
+import ee.tuleva.onboarding.payment.PaymentRepository;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -15,7 +21,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PaymentProviderCallbackService {
+class PaymentProviderCallbackService {
 
   private final PaymentProviderConfiguration paymentProviderConfiguration;
   private final UserService userService;
@@ -28,10 +34,9 @@ public class PaymentProviderCallbackService {
     JWSObject token = JWSObject.parse(serializedToken);
     verifyToken(token);
 
-    String serializedInternalReference =
-        token.getPayload().toJSONObject().get("merchant_reference").toString();
-
-    BigDecimal amount = new BigDecimal(token.getPayload().toJSONObject().get("amount").toString());
+    Map<String, Object> json = token.getPayload().toJSONObject();
+    String serializedInternalReference = json.get("merchant_reference").toString();
+    BigDecimal amount = new BigDecimal(json.get("amount").toString());
 
     PaymentReference internalReference = getInternalReference(serializedInternalReference);
 
@@ -41,9 +46,10 @@ public class PaymentProviderCallbackService {
       Payment paymentToBeSaved =
           Payment.builder()
               .amount(amount)
+              .currency(EUR)
               .internalReference(internalReference.getUuid())
               .user(user)
-              .status(PaymentStatus.PENDING)
+              .status(PENDING)
               .build();
 
       paymentRepository.save(paymentToBeSaved);

@@ -4,6 +4,7 @@ import static javax.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import java.math.BigDecimal;
+import java.util.Locale;
 import javax.persistence.Entity;
 import javax.persistence.Enumerated;
 import javax.persistence.GeneratedValue;
@@ -63,8 +64,8 @@ public class Fund implements Comparable<Fund> {
     PAYOUTS_FORBIDDEN // Väljamaksed keelatud
   }
 
-  public String getName(String language) {
-    return "en".equalsIgnoreCase(language) ? nameEnglish : nameEstonian;
+  public String getName(Locale locale) {
+    return Locale.ENGLISH.getLanguage().equals(locale.getLanguage()) ? nameEnglish : nameEstonian;
   }
 
   public boolean isConverted() {

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.payment;
+package ee.tuleva.onboarding.payment.provider;
 
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 @Data
 @AllArgsConstructor
 @RequiredArgsConstructor
-public class PaymentReference {
+class PaymentReference {
   private String personalCode;
   private UUID uuid;
 }

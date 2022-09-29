@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.locale.LocaleService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.List;
+import java.util.Locale;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,13 +27,13 @@ public class AccountStatementController {
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     List<FundBalance> fundBalances =
         accountStatementService.getAccountStatement(authenticatedPerson);
-    return convertToDtos(fundBalances, localeService.getLanguage());
+    return convertToDtos(fundBalances, localeService.getCurrentLocale());
   }
 
   private List<ApiFundBalanceResponse> convertToDtos(
-      List<FundBalance> fundBalances, String language) {
+      List<FundBalance> fundBalances, Locale locale) {
     return fundBalances.stream()
-        .map(fundBalance -> ApiFundBalanceResponse.from(fundBalance, language))
+        .map(fundBalance -> ApiFundBalanceResponse.from(fundBalance, locale))
         .collect(toList());
   }
 }

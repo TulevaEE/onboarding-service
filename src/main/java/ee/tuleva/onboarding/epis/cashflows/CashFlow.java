@@ -36,6 +36,10 @@ public class CashFlow {
     return time.isAfter(other);
   }
 
+  public boolean isCash() {
+    return type == CASH;
+  }
+
   public enum Type {
     CONTRIBUTION_CASH,
     CONTRIBUTION,

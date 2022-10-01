@@ -93,7 +93,7 @@ dependencies {
     implementation("io.sentry:sentry-spring-boot-starter:6.4.1")
     implementation("io.sentry:sentry-logback:6.4.1")
 
-    implementation("com.vladmihalcea:hibernate-types-52:2.18.0")
+    implementation("com.vladmihalcea:hibernate-types-52:2.19.2")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 

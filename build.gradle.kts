@@ -82,7 +82,7 @@ dependencies {
     implementation("org.apache.commons:commons-lang3")
     implementation("net.sf.ehcache:ehcache:2.10.9.2")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.0-M3")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.0-RC2")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.1.4")

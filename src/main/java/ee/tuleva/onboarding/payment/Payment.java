@@ -56,11 +56,12 @@ public class Payment implements Comparable<Payment> {
 
   @Override
   public int compareTo(@org.jetbrains.annotations.NotNull Payment other) {
-    return Comparator.comparing(Payment::getCreatedTime)
+    return Comparator.comparing(Payment::getCreatedTime, Comparator.nullsLast(Instant::compareTo))
         .thenComparing(Payment::getAmount)
         .thenComparing(Payment::getCurrency)
         .thenComparing(Payment::getStatus)
         .thenComparing(Payment::getInternalReference)
+        .thenComparing(Payment::getId, Comparator.nullsLast(Long::compareTo))
         .compare(this, other);
   }
 }

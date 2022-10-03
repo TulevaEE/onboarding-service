@@ -111,10 +111,10 @@ dependencies {
         exclude(module = "junit-vintage-engine")
     }
 
-    testImplementation("org.spockframework:spock-core:2.2-groovy-4.0") {
+    testImplementation("org.spockframework:spock-core:2.3-groovy-3.0") {
         exclude(group = "org.codehaus.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.1-groovy-3.0") {
+    testImplementation("org.spockframework:spock-spring:2.3-groovy-3.0") {
         exclude(group = "org.codehaus.groovy")
     }
     testImplementation("org.codehaus.groovy:groovy:3.0.12")

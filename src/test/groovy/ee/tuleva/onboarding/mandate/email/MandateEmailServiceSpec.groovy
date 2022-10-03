@@ -11,7 +11,6 @@ import spock.lang.Specification
 import java.text.MessageFormat
 import java.time.Clock
 import java.time.Instant
-import java.time.temporal.ChronoUnit
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -21,6 +20,7 @@ import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDet
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static java.time.ZoneOffset.UTC
+import static java.time.temporal.ChronoUnit.HOURS
 
 class MandateEmailServiceSpec extends Specification {
 
@@ -85,6 +85,32 @@ class MandateEmailServiceSpec extends Specification {
     false         | true              || ["mandate", "pillar_2", "suggest_member"]
     true          | false             || ["mandate", "pillar_2", "suggest_3"]
     true          | true              || ["mandate", "pillar_2", "suggest_member", "suggest_3"]
+  }
+
+  def "schedule third pillar payment reminder email"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = thirdPillarMandate()
+    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
+    def recipients = [new Recipient()]
+    def message = new MandrillMessage()
+    def html = "payment reminder html"
+    def tags = ["pillar_3.1", "reminder_3"]
+    def locale = Locale.ENGLISH
+    def sendAt = now.plus(1, HOURS)
+
+    emailContentService.getThirdPillarPaymentReminderHtml(user, locale) >> html
+    emailService.getRecipients(user) >> recipients
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, locale)
+
+    then:
+    1 * emailService.newMandrillMessage(recipients, subject, html, tags, _) >> message
+    1 * emailService.send(user, message, sendAt) >> Optional.of("123")
+    1 * scheduledEmailService.create(user, "123", ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT)
   }
 
 }

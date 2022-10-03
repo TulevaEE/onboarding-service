@@ -74,7 +74,7 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.age', is(user.age)))
         .andExpect(jsonPath('$.email', is(user.email)))
         .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
-        .andExpect(jsonPath('$.memberNumber', is(user.member.get().memberNumber)))
+        .andExpect(jsonPath('$.memberNumber', is(user.memberOrThrow.memberNumber)))
         .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
         .andExpect(jsonPath('$.address.street', is(contactDetails.addressRow1)))
         .andExpect(jsonPath('$.address.districtCode', is(contactDetails.districtCode)))

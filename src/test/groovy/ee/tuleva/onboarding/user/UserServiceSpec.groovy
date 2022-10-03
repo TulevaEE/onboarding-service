@@ -79,7 +79,7 @@ class UserServiceSpec extends Specification {
 
     when:
     def returnedUser = service.registerAsMember(user.id)
-    def member = returnedUser.member.get()
+    def member = returnedUser.memberOrThrow
 
     then:
     member.memberNumber == 1000

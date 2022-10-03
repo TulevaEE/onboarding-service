@@ -112,14 +112,13 @@ dependencies {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }
-
-    testImplementation("org.spockframework:spock-core:2.3-groovy-3.0") {
-        exclude(group = "org.codehaus.groovy")
+    testImplementation("org.spockframework:spock-core:2.3-groovy-4.0") {
+        exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.3-groovy-3.0") {
-        exclude(group = "org.codehaus.groovy")
+    testImplementation("org.spockframework:spock-spring:2.3-groovy-4.0") {
+        exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.codehaus.groovy:groovy:3.0.13")
+    testImplementation("org.apache.groovy:groovy:4.0.5")
     testImplementation("org.mock-server:mockserver-netty:5.14.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.14.0")
     testImplementation("org.springframework.security:spring-security-test")

@@ -34,9 +34,9 @@ class CapitalControllerSpec extends BaseControllerSpec {
     def "Member capital statement"() {
         given:
         CapitalStatement capitalStatement = CapitalStatementFixture.fixture().build()
-        User user = UserFixture.sampleUser().build()
+        User user = sampleUser().build()
         1 * userService.getById(user.id) >> user
-        1 * capitalService.getCapitalStatement(user.member.get().id) >>
+        1 * capitalService.getCapitalStatement(user.memberOrThrow.id) >>
             capitalStatement
 
         expect:

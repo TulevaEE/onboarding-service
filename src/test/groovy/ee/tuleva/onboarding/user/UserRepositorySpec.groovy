@@ -91,6 +91,6 @@ class UserRepositorySpec extends Specification {
         User user = repository.findById(sampleUser.id).get()
 
         then:
-        !user.member.isPresent()
+        !user.getMember().isPresent()
     }
 }

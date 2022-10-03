@@ -3,9 +3,8 @@ package ee.tuleva.onboarding.payment
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
+import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING
 
 class PaymentServiceSpec extends Specification {
 

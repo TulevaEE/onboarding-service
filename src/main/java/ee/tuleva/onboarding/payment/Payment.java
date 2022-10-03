@@ -38,7 +38,9 @@ public class Payment {
 
   @NotNull private BigDecimal amount;
 
-  @NotNull private Currency currency = EUR;
+  @NotNull
+  @Enumerated(STRING)
+  private Currency currency = EUR;
 
   @NotNull
   @Enumerated(STRING)

@@ -18,8 +18,8 @@ val springCloudVersion = "2021.0.4"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.7.3"
-    id("io.spring.dependency-management") version "1.0.13.RELEASE"
+    id("org.springframework.boot") version "2.7.4"
+    id("io.spring.dependency-management") version "1.0.14.RELEASE"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.11.0"
     jacoco
@@ -68,7 +68,7 @@ dependencies {
     implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.25.1")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.25.4")
 
     implementation("org.springdoc:springdoc-openapi-ui:1.6.11")
     implementation("org.springdoc:springdoc-openapi-security:1.6.11")

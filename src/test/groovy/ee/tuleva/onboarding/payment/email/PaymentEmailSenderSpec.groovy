@@ -1,12 +1,11 @@
 package ee.tuleva.onboarding.payment.email
 
-
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
-import static java.util.Locale.*
+import static java.util.Locale.ENGLISH
 
 class PaymentEmailSenderSpec extends Specification {
 
@@ -17,7 +16,7 @@ class PaymentEmailSenderSpec extends Specification {
     given:
     def user = sampleUser().build()
     def locale = ENGLISH
-    def paymentCreatedEvent = new PaymentCreatedEvent(this, user, aNewPayment, locale)
+    def paymentCreatedEvent = new PaymentCreatedEvent(this, user, aNewPayment(), locale)
 
     when:
     paymentEmailSender.sendEmails(paymentCreatedEvent)

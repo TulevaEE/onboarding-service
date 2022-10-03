@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.payment.provider
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
-import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService
 import spock.lang.Specification
 
 class PaymentInternalReferenceServiceSpec extends Specification {

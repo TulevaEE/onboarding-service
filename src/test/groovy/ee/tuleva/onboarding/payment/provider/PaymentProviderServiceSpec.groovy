@@ -5,10 +5,6 @@ import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.locale.MockLocaleService
-import ee.tuleva.onboarding.payment.provider.PaymentData
-import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService
-import ee.tuleva.onboarding.payment.provider.PaymentLink
-import ee.tuleva.onboarding.payment.provider.PaymentProviderService
 import spock.lang.Specification
 
 import java.time.Clock

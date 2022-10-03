@@ -97,7 +97,7 @@ class MandateEmailServiceSpec extends Specification {
     def recipients = [new Recipient()]
     def message = new MandrillMessage()
     def html = "payment reminder html"
-    def tags = ["pillar_3.1", "reminder_3"]
+    def tags = ["pillar_3.1", "reminder"]
     def locale = Locale.ENGLISH
     def sendAt = now.plus(1, HOURS)
 

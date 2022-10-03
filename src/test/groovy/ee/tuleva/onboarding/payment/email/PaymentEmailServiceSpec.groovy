@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.payment.email
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
+import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmail
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService
-import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType
 import ee.tuleva.onboarding.notification.email.EmailService
 import org.springframework.context.MessageSource
 import org.springframework.context.support.AbstractMessageSource
@@ -14,6 +14,8 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT
+import static ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType.SUGGEST_SECOND_PILLAR
 import static java.time.ZoneOffset.UTC
 
 class PaymentEmailServiceSpec extends Specification {
@@ -44,15 +46,20 @@ class PaymentEmailServiceSpec extends Specification {
     def html = "payment success html"
     def tags = ["pillar_3.1", "mandate", "payment"]
     def locale = Locale.ENGLISH
+    def mandrillMessageId = "mandrillMessageId123"
+    def mandateAttachment = new MandrillMessage.MessageContent()
 
     emailContentService.getThirdPillarPaymentSuccessHtml(user, locale) >> html
     emailService.getRecipients(user) >> recipients
+    scheduledEmailService.cancel(user, REMIND_THIRD_PILLAR_PAYMENT) >>
+        [new ScheduledEmail(user.id, mandrillMessageId, REMIND_THIRD_PILLAR_PAYMENT)]
+    emailService.getEmailAttachments(mandrillMessageId) >> [mandateAttachment]
 
     when:
     paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, locale)
 
     then:
-    1 * emailService.newMandrillMessage(recipients, subject, html, tags, []) >> message
+    1 * emailService.newMandrillMessage(recipients, subject, html, tags, [mandateAttachment]) >> message
     1 * emailService.send(user, message) >> Optional.of("123")
   }
 
@@ -75,6 +82,6 @@ class PaymentEmailServiceSpec extends Specification {
     then:
     1 * emailService.newMandrillMessage(recipients, subject, html, tags, null) >> message
     1 * emailService.send(user, message, sendAt) >> Optional.of("123")
-    1 * scheduledEmailService.create(user, "123", ScheduledEmailType.SUGGEST_SECOND_PILLAR)
+    1 * scheduledEmailService.create(user, "123", SUGGEST_SECOND_PILLAR)
   }
 }

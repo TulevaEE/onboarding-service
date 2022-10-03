@@ -89,7 +89,7 @@ public class MandateEmailService {
             emailService.getRecipients(user),
             subject,
             content,
-            List.of("pillar_3.1", "reminder_3"),
+            List.of("pillar_3.1", "reminder"),
             null);
     emailService
         .send(user, message, sendAt)

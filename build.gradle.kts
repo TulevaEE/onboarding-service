@@ -19,7 +19,7 @@ plugins {
     java
     groovy
     id("org.springframework.boot") version "2.7.3"
-    id("io.spring.dependency-management") version "1.0.13.RELEASE"
+    id("io.spring.dependency-management") version "1.0.14.RELEASE"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.11.0"
     jacoco

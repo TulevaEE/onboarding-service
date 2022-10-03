@@ -5,6 +5,7 @@ import static java.util.Collections.emptyList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
+import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmail;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
@@ -40,13 +41,21 @@ public class PaymentEmailService {
             subject,
             content,
             List.of("pillar_3.1", "mandate", "payment"),
-            getMandateAttachments());
+            cancelReminderEmailsAndGetMandateAttachment(user));
     emailService.send(user, mandrillMessage);
   }
 
-  private List<MessageContent> getMandateAttachments() {
-    // TODO: add mandate attachment if necessary
-    return emptyList();
+  private List<MessageContent> cancelReminderEmailsAndGetMandateAttachment(User user) {
+    List<ScheduledEmail> cancelledEmails =
+        scheduledEmailService.cancel(user, ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT);
+
+    if (cancelledEmails.isEmpty()) {
+      return emptyList();
+    }
+
+    ScheduledEmail latestScheduledEmail = cancelledEmails.get(0);
+    String mandrillMessageId = latestScheduledEmail.getMandrillMessageId();
+    return emailService.getEmailAttachments(mandrillMessageId);
   }
 
   void scheduleThirdPillarSuggestSecondEmail(User user, Locale locale) {

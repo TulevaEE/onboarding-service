@@ -22,11 +22,12 @@ public class ScheduledEmailService {
     scheduledEmailRepository.save(scheduledEmail);
   }
 
-  public void cancel(User user, ScheduledEmailType type) {
+  public List<ScheduledEmail> cancel(User user, ScheduledEmailType type) {
     List<ScheduledEmail> emails =
-        scheduledEmailRepository.findAllByUserIdAndType(user.getId(), type);
+        scheduledEmailRepository.findAllByUserIdAndTypeOrderByCreatedDateDesc(user.getId(), type);
     log.info("Cancelling scheduled emails: emails={}", emails);
     emails.forEach(email -> emailService.cancelScheduledEmail(email.getMandrillMessageId()));
     scheduledEmailRepository.deleteAll(emails);
+    return emails;
   }
 }

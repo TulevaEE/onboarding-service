@@ -44,7 +44,7 @@ class ScheduledEmailServiceSpec extends Specification {
     service.cancel(user, type)
 
     then:
-    1 * scheduledEmailRepository.findAllByUserIdAndType(user.id, type) >> emails
+    1 * scheduledEmailRepository.findAllByUserIdAndTypeOrderByCreatedDateDesc(user.id, type) >> emails
     1 * emailService.cancelScheduledEmail("100")
     1 * emailService.cancelScheduledEmail("200")
     1 * scheduledEmailRepository.deleteAll(emails)

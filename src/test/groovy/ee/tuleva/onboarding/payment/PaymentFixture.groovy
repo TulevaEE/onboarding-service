@@ -8,14 +8,16 @@ import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING
 
 class PaymentFixture {
 
+  static BigDecimal pendingPaymentAmount = new BigDecimal("10.00")
+
   static Payment aNewPayment() {
     return new Payment(
-        null, sampleUser().build(), UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), new BigDecimal("10.00"), EUR, PENDING, null)
+        null, sampleUser().build(), UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), pendingPaymentAmount, EUR, PENDING, null)
   }
 
-  static Payment aPendingPayment() {
+  static Payment aPendingPayment(Long id = 123L) {
     return aNewPayment().tap {
-      id = 123L
+      it.id = id
       createdTime = Instant.parse("2022-09-29T10:15:30Z")
     }
   }

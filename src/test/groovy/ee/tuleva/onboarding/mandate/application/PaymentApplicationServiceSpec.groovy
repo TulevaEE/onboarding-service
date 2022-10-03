@@ -3,9 +3,11 @@ package ee.tuleva.onboarding.mandate.application
 import ee.tuleva.onboarding.account.CashFlowService
 import ee.tuleva.onboarding.epis.cashflows.CashFlow
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
+import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.locale.MockLocaleService
+import ee.tuleva.onboarding.payment.Payment
 import ee.tuleva.onboarding.payment.PaymentService
 import spock.lang.Specification
 
@@ -14,11 +16,13 @@ import java.time.Instant
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarApiFundResponse
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva3rdPillarFund
 import static ee.tuleva.onboarding.mandate.application.PaymentApplicationService.*
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPendingPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.pendingPaymentAmount
 import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING
 
 class PaymentApplicationServiceSpec extends Specification {
@@ -30,16 +34,14 @@ class PaymentApplicationServiceSpec extends Specification {
   PaymentApplicationService paymentApplicationService =
       new PaymentApplicationService(paymentService, cashFlowService, fundRepository, localeService)
 
-  def "can get payment applications"() {
+  def "can get payment applications"(List<CashFlow> transactions,
+                                     List<Payment> pendingPayments,
+                                     List<Application<PaymentApplicationDetails>> pendingPaymentApplications) {
     given:
     def person = samplePerson()
-    def payment = aPendingPayment()
-    paymentService.getPayments(person, PENDING) >> [payment]
+    paymentService.getPayments(person, PENDING) >> pendingPayments
     cashFlowService.getCashFlowStatement(person) >> CashFlowStatement.builder()
-        .transactions([
-            new CashFlow(null, Instant.parse("2018-12-31T00:00:00Z"), payment.amount, "EUR", CASH),
-            new CashFlow(null, Instant.parse("2018-12-31T00:00:00Z"), -payment.amount, "EUR", CASH),
-        ])
+        .transactions(transactions)
         .build()
     fundRepository.findByIsin(TULEVA_3RD_PILLAR_FUND_ISIN) >> tuleva3rdPillarFund
 
@@ -47,16 +49,49 @@ class PaymentApplicationServiceSpec extends Specification {
     def paymentApplications = paymentApplicationService.getPaymentApplications(person)
 
     then:
-    paymentApplications.size() == 1
-    with(paymentApplications[0]) {
-      id == 123L
-      creationTime == payment.createdTime
-      status == COMPLETE
-      with(details) {
-        amount == 10.0
-        currency == EUR
-        targetFund == tuleva3rdPillarApiFundResponse()
-      }
-    }
+    paymentApplications.size() == pendingPaymentApplications.size()
+    paymentApplications.containsAll(pendingPaymentApplications)
+    pendingPaymentApplications.containsAll(paymentApplications)
+    where:
+    transactions                                                                                                             | pendingPayments                                | pendingPaymentApplications
+    [transaction(), transaction(), negativeTransaction(), tulevaContribution(), negativeTransaction(), tulevaContribution()] | [aPendingPayment(123L), aPendingPayment(456L)] | [completePayment(123L), completePayment(456L)]
+    [transaction(), negativeTransaction()]                                                                                   | [aPendingPayment()]                            | [pendingPayment()]
+    []                                                                                                                       | [aPendingPayment()]                            | [pendingPayment()]
+    [transaction(), negativeTransaction(), tulevaContribution()]                                                             | [aPendingPayment()]                            | [completePayment()]
+    [transaction(), negativeTransaction(), foreignContribution()]                                                            | [aPendingPayment()]                            | [pendingPayment()]
+    []                                                                                                                       | [aPendingPayment(123L), aPendingPayment(456L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction()]                                                                                                          | [aPendingPayment(123L), aPendingPayment(456L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction(), transaction()]                                                                                           | [aPendingPayment(123L), aPendingPayment(456L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction(), transaction(), negativeTransaction()]                                                                    | [aPendingPayment(123L), aPendingPayment(456L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction(), transaction(), negativeTransaction(), tulevaContribution()]                                              | [aPendingPayment(123L), aPendingPayment(456L)] | [completePayment(123L), pendingPayment(456L)]
+  }
+
+  private CashFlow transaction() {
+    return new CashFlow(null, Instant.parse("2022-09-29T10:25:30Z"), pendingPaymentAmount, "EUR", CASH)
+  }
+
+  private CashFlow negativeTransaction() {
+    return new CashFlow(null, Instant.parse("2022-09-29T10:35:30Z"), -pendingPaymentAmount, "EUR", CASH)
+  }
+
+  private CashFlow tulevaContribution() {
+    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, Instant.parse("2022-09-29T10:45:30Z"), pendingPaymentAmount, "EUR", CONTRIBUTION_CASH)
+  }
+
+  private CashFlow foreignContribution() {
+    return new CashFlow("OTHERISIN", Instant.parse("2022-09-29T10:45:30Z"), pendingPaymentAmount, "EUR", CONTRIBUTION_CASH)
+  }
+
+  private Application<PaymentApplicationDetails> completePayment(Long id = 123L) {
+    return pendingPayment(id, COMPLETE)
+  }
+
+  private Application<PaymentApplicationDetails> pendingPayment(Long id = 123L, ApplicationStatus status = ApplicationStatus.PENDING) {
+    return new Application<PaymentApplicationDetails>(
+        id, Instant.parse("2022-09-29T10:15:30Z"), status,
+        new PaymentApplicationDetails(
+            pendingPaymentAmount, EUR, tuleva3rdPillarApiFundResponse(), ApplicationType.PAYMENT,
+        )
+    )
   }
 }

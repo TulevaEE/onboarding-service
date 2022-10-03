@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.UUID;
 import javax.persistence.Entity;
 import javax.persistence.Enumerated;
@@ -26,7 +27,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @AllArgsConstructor
 @NoArgsConstructor
-public class Payment {
+public class Payment implements Comparable<Payment> {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -51,5 +52,15 @@ public class Payment {
   @PrePersist
   protected void onCreate() {
     createdTime = Instant.now();
+  }
+
+  @Override
+  public int compareTo(@org.jetbrains.annotations.NotNull Payment other) {
+    return Comparator.comparing(Payment::getCreatedTime)
+        .thenComparing(Payment::getAmount)
+        .thenComparing(Payment::getCurrency)
+        .thenComparing(Payment::getStatus)
+        .thenComparing(Payment::getInternalReference)
+        .compare(this, other);
   }
 }

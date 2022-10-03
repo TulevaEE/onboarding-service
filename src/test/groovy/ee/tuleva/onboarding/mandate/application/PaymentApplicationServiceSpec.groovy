@@ -34,9 +34,7 @@ class PaymentApplicationServiceSpec extends Specification {
   PaymentApplicationService paymentApplicationService =
       new PaymentApplicationService(paymentService, cashFlowService, fundRepository, localeService)
 
-  def "can get payment applications"(List<CashFlow> transactions,
-                                     List<Payment> pendingPayments,
-                                     List<Application<PaymentApplicationDetails>> pendingPaymentApplications) {
+  def "can get payment applications"() {
     given:
     def person = samplePerson()
     paymentService.getPayments(person, PENDING) >> pendingPayments
@@ -49,9 +47,8 @@ class PaymentApplicationServiceSpec extends Specification {
     def paymentApplications = paymentApplicationService.getPaymentApplications(person)
 
     then:
-    paymentApplications.size() == pendingPaymentApplications.size()
-    paymentApplications.containsAll(pendingPaymentApplications)
-    pendingPaymentApplications.containsAll(paymentApplications)
+    paymentApplications == pendingPaymentApplications
+
     where:
     transactions                                                                                                             | pendingPayments                                | pendingPaymentApplications
     [transaction(), transaction(), negativeTransaction(), tulevaContribution(), negativeTransaction(), tulevaContribution()] | [aPendingPayment(123L), aPendingPayment(456L)] | [completePayment(123L), completePayment(456L)]

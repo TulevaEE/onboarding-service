@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.mandate.application;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE;
-import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING;
 
 import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -13,6 +11,7 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentService;
+import ee.tuleva.onboarding.payment.PaymentStatus;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
@@ -41,7 +40,7 @@ class PaymentApplicationService {
   private final LocaleService localeService;
 
   public List<Application<PaymentApplicationDetails>> getPaymentApplications(Person person) {
-    val pendingPayments = paymentService.getPayments(person, PENDING);
+    val pendingPayments = paymentService.getPayments(person, PaymentStatus.PENDING);
     val cashFlowStatement = cashFlowService.getCashFlowStatement(person);
     val locale = localeService.getCurrentLocale();
     val fund = fundRepository.findByIsin(TULEVA_3RD_PILLAR_FUND_ISIN);
@@ -58,7 +57,7 @@ class PaymentApplicationService {
         applications.add(createApplication(payment, apiFund, ApplicationStatus.PENDING));
       } else if (cashIsBalanced(linkedCash)) {
         if (hasTulevaContribution(linkedCash)) {
-          applications.add(createApplication(payment, apiFund, COMPLETE));
+          applications.add(createApplication(payment, apiFund, ApplicationStatus.COMPLETE));
         } else {
           applications.add(createApplication(payment, apiFund, ApplicationStatus.PENDING));
         }
@@ -106,18 +105,21 @@ class PaymentApplicationService {
   private Optional<CashFlow> linkedContribution(
       List<CashFlow> remainingCashFlow, Optional<CashFlow> payout) {
     return payout.flatMap(
-        p ->
+        cashFlow ->
             remainingCashFlow.stream()
-                .filter(isContributionAfterTimeWithAmount(p.getTime(), p.getAmount().negate()))
+                .filter(
+                    isContributionAfterTimeWithAmount(
+                        cashFlow.getTime(), cashFlow.getAmount().negate()))
                 .findFirst());
   }
 
   private Optional<CashFlow> linkedPayout(
       List<CashFlow> remainingCashFlow, Optional<CashFlow> payin) {
     return payin.flatMap(
-        p ->
+        cashFlow ->
             remainingCashFlow.stream()
-                .filter(isCashAfterTimeWithAmount(p.getTime(), p.getAmount().negate()))
+                .filter(
+                    isCashAfterTimeWithAmount(cashFlow.getTime(), cashFlow.getAmount().negate()))
                 .findFirst());
   }
 
@@ -146,11 +148,11 @@ class PaymentApplicationService {
   }
 
   private Predicate<CashFlow> hasSameAmount(BigDecimal amount) {
-    return (cf) -> cf.getAmount().equals(amount);
+    return (cashFlow) -> cashFlow.getAmount().equals(amount);
   }
 
   private Predicate<CashFlow> isAfterTimeWithGrace(Instant time) {
-    return (cf) -> cf.isAfter(time.minus(GRACE_PERIOD));
+    return (cashFlow) -> cashFlow.isAfter(time.minus(GRACE_PERIOD));
   }
 
   private Application<PaymentApplicationDetails> createApplication(

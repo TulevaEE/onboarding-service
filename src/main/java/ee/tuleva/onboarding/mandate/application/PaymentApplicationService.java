@@ -86,12 +86,12 @@ class PaymentApplicationService {
     val remainingCashFlow = new ArrayList<>(cashFlow.stream().sorted().toList());
     val linkedCashFlow = new HashMap<Payment, List<CashFlow>>();
     for (Payment payment : payments.stream().sorted().toList()) {
-      val payin = linkedPayin(remainingCashFlow, payment);
-      val payout = linkedPayout(remainingCashFlow, payin);
-      val contribution = linkedContribution(remainingCashFlow, payout);
+      val payIn = linkedPayIn(remainingCashFlow, payment);
+      val payOut = linkedPayOut(remainingCashFlow, payIn);
+      val contribution = linkedContribution(remainingCashFlow, payOut);
 
       val paymentCashFlow =
-          Stream.of(payin, payout, contribution)
+          Stream.of(payIn, payOut, contribution)
               .filter(Optional::isPresent)
               .map(Optional::get)
               .toList();
@@ -103,8 +103,8 @@ class PaymentApplicationService {
   }
 
   private Optional<CashFlow> linkedContribution(
-      List<CashFlow> remainingCashFlow, Optional<CashFlow> payout) {
-    return payout.flatMap(
+      List<CashFlow> remainingCashFlow, Optional<CashFlow> payOut) {
+    return payOut.flatMap(
         cashFlow ->
             remainingCashFlow.stream()
                 .filter(
@@ -113,9 +113,9 @@ class PaymentApplicationService {
                 .findFirst());
   }
 
-  private Optional<CashFlow> linkedPayout(
-      List<CashFlow> remainingCashFlow, Optional<CashFlow> payin) {
-    return payin.flatMap(
+  private Optional<CashFlow> linkedPayOut(
+      List<CashFlow> remainingCashFlow, Optional<CashFlow> payIn) {
+    return payIn.flatMap(
         cashFlow ->
             remainingCashFlow.stream()
                 .filter(
@@ -123,7 +123,7 @@ class PaymentApplicationService {
                 .findFirst());
   }
 
-  private Optional<CashFlow> linkedPayin(List<CashFlow> remainingCashFlow, Payment payment) {
+  private Optional<CashFlow> linkedPayIn(List<CashFlow> remainingCashFlow, Payment payment) {
     return remainingCashFlow.stream()
         .filter(isCashAfterGraceTimeWithAmount(payment.getCreatedTime(), payment.getAmount()))
         .findFirst();

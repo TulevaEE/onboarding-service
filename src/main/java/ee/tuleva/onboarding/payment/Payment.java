@@ -1,15 +1,25 @@
 package ee.tuleva.onboarding.payment;
 
-import static ee.tuleva.onboarding.currency.Currency.*;
+import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static javax.persistence.EnumType.*;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
-import javax.persistence.*;
+import javax.persistence.Entity;
+import javax.persistence.Enumerated;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.ManyToOne;
+import javax.persistence.PrePersist;
 import javax.validation.constraints.NotNull;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
@@ -30,7 +40,10 @@ public class Payment {
 
   @NotNull private Currency currency = EUR;
 
-  @NotNull private PaymentStatus status;
+  @NotNull
+  @Enumerated(STRING)
+  private PaymentStatus status;
+
   private Instant createdTime;
 
   @PrePersist

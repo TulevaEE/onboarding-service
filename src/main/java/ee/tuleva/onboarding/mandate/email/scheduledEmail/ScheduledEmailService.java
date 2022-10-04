@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.email.scheduledEmail;
 
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
+import java.util.ArrayList;
 import java.util.List;
 import javax.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 @Transactional
 @Slf4j
 public class ScheduledEmailService {
+
   private final ScheduledEmailRepository scheduledEmailRepository;
   private final EmailService emailService;
 
@@ -26,8 +28,13 @@ public class ScheduledEmailService {
     List<ScheduledEmail> emails =
         scheduledEmailRepository.findAllByUserIdAndTypeOrderByCreatedDateDesc(user.getId(), type);
     log.info("Cancelling scheduled emails: emails={}", emails);
-    emails.forEach(email -> emailService.cancelScheduledEmail(email.getMandrillMessageId()));
+    List<ScheduledEmail> cancelled = new ArrayList<>();
+    emails.forEach(
+        email ->
+            emailService
+                .cancelScheduledEmail(email.getMandrillMessageId())
+                .ifPresent(info -> cancelled.add(email)));
     scheduledEmailRepository.deleteAll(emails);
-    return emails;
+    return cancelled;
   }
 }

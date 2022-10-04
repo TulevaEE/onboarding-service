@@ -9,6 +9,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
+import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo;
 import ee.tuleva.onboarding.config.EmailConfiguration;
 import ee.tuleva.onboarding.user.User;
 import java.io.IOException;
@@ -123,9 +124,9 @@ public class EmailService {
     return "Tuleva";
   }
 
-  public void cancelScheduledEmail(String mandrillMessageId) {
+  public Optional<MandrillScheduledMessageInfo> cancelScheduledEmail(String mandrillMessageId) {
     try {
-      mandrillApi.messages().cancelScheduled(mandrillMessageId);
+      return Optional.of(mandrillApi.messages().cancelScheduled(mandrillMessageId));
     } catch (MandrillApiError mandrillApiError) {
       if ("Unknown_Message".equals(mandrillApiError.getMandrillErrorName())) {
         log.info(
@@ -137,6 +138,7 @@ public class EmailService {
     } catch (IOException e) {
       log.error(e.getLocalizedMessage(), e);
     }
+    return Optional.empty();
   }
 
   @SneakyThrows

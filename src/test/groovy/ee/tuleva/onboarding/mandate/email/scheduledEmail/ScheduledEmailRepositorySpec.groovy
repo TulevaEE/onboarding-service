@@ -22,7 +22,7 @@ class ScheduledEmailRepositorySpec extends Specification {
     def user = entityManager.persist(sampleUserNonMember().id(null).build())
     def emailType = ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT
     def scheduledEmail = entityManager.persist(
-        new ScheduledEmail(user.id, "mandrillMessageId123", emailType)
+        new ScheduledEmail(userId: user.id, mandrillMessageId: "mandrillMessageId123", type: emailType)
     )
     entityManager.flush()
 

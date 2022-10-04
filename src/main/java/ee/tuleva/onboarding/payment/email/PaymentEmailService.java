@@ -5,6 +5,7 @@ import static java.util.Collections.emptyList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
+import ee.tuleva.onboarding.mandate.email.MandateEmailService;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmail;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType;
@@ -27,6 +28,7 @@ public class PaymentEmailService {
   private final EmailService emailService;
   private final ScheduledEmailService scheduledEmailService;
   private final PaymentEmailContentService emailContentService;
+  private final MandateEmailService mandateEmailService;
   private final Clock clock;
   private final MessageSource messageSource;
 
@@ -54,8 +56,7 @@ public class PaymentEmailService {
     }
 
     ScheduledEmail latestScheduledEmail = cancelledEmails.get(0);
-    String mandrillMessageId = latestScheduledEmail.getMandrillMessageId();
-    return emailService.getEmailAttachments(mandrillMessageId);
+    return mandateEmailService.getMandateAttachments(user, latestScheduledEmail.getMandate());
   }
 
   void scheduleThirdPillarSuggestSecondEmail(User user, Locale locale) {

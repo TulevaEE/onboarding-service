@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.payment.email
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
+import ee.tuleva.onboarding.mandate.Mandate
+import ee.tuleva.onboarding.mandate.email.MandateEmailService
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmail
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService
 import ee.tuleva.onboarding.notification.email.EmailService
@@ -23,6 +25,7 @@ class PaymentEmailServiceSpec extends Specification {
   PaymentEmailContentService emailContentService = Mock()
   EmailService emailService = Mock()
   ScheduledEmailService scheduledEmailService = Mock()
+  MandateEmailService mandateEmailService = Mock()
   def now = Instant.parse("2021-09-01T10:06:01Z")
 
   def subject = "subject";
@@ -35,6 +38,7 @@ class PaymentEmailServiceSpec extends Specification {
   PaymentEmailService paymentEmailService = new PaymentEmailService(emailService,
       scheduledEmailService,
       emailContentService,
+      mandateEmailService,
       Clock.fixed(now, UTC),
       messageSource)
 
@@ -48,12 +52,15 @@ class PaymentEmailServiceSpec extends Specification {
     def locale = Locale.ENGLISH
     def mandrillMessageId = "mandrillMessageId123"
     def mandateAttachment = new MandrillMessage.MessageContent()
+    def mandate = new Mandate(mandate: new byte[0])
 
     emailContentService.getThirdPillarPaymentSuccessHtml(user, locale) >> html
     emailService.getRecipients(user) >> recipients
-    scheduledEmailService.cancel(user, REMIND_THIRD_PILLAR_PAYMENT) >>
-        [new ScheduledEmail(user.id, mandrillMessageId, REMIND_THIRD_PILLAR_PAYMENT)]
-    emailService.getEmailAttachments(mandrillMessageId) >> [mandateAttachment]
+    scheduledEmailService.cancel(user, REMIND_THIRD_PILLAR_PAYMENT) >> [new ScheduledEmail(
+        userId: user.id, mandrillMessageId: mandrillMessageId,
+        type: REMIND_THIRD_PILLAR_PAYMENT, mandate: mandate
+    )]
+    mandateEmailService.getMandateAttachments(user, mandate) >> [mandateAttachment]
 
     when:
     paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, locale)

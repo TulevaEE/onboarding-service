@@ -35,7 +35,7 @@ public class MandateEmailService {
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
     switch (mandate.getPillar()) {
       case 2 -> sendSecondPillarEmail(user, mandate, pillarSuggestion, locale);
-      case 3 -> scheduleThirdPillarPaymentReminderEmail(user, locale);
+      case 3 -> scheduleThirdPillarPaymentReminderEmail(user, mandate, locale);
       default -> throw new IllegalArgumentException("Unknown pillar: " + mandate.getPillar());
     }
   }
@@ -49,7 +49,7 @@ public class MandateEmailService {
             subject,
             getSecondPillarContent(user, mandate, pillarSuggestion, locale),
             getSecondPillarMandateTags(pillarSuggestion),
-            getMandateAttachments(mandate.getSignedFile(), user, mandate.getId()));
+            getMandateAttachments(user, mandate));
     emailService.send(user, mandrillMessage);
   }
 
@@ -78,7 +78,7 @@ public class MandateEmailService {
         user, mandate.getCreatedDate(), pillarSuggestion, locale);
   }
 
-  private void scheduleThirdPillarPaymentReminderEmail(User user, Locale locale) {
+  private void scheduleThirdPillarPaymentReminderEmail(User user, Mandate mandate, Locale locale) {
     String subject =
         messageSource.getMessage("mandate.email.thirdPillar.paymentReminder.subject", null, locale);
     String content = emailContentService.getThirdPillarPaymentReminderHtml(user, locale);
@@ -90,22 +90,22 @@ public class MandateEmailService {
             subject,
             content,
             List.of("pillar_3.1", "reminder"),
-            null);
+            getMandateAttachments(user, mandate));
+
     emailService
         .send(user, message, sendAt)
         .ifPresent(
             messageId ->
                 scheduledEmailService.create(
-                    user, messageId, ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT));
+                    user, messageId, ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT, mandate));
   }
 
-  private List<MandrillMessage.MessageContent> getMandateAttachments(
-      byte[] file, User user, Long mandateId) {
+  public List<MandrillMessage.MessageContent> getMandateAttachments(User user, Mandate mandate) {
     MandrillMessage.MessageContent attachment = new MandrillMessage.MessageContent();
 
-    attachment.setName(getNameSuffix(user) + "_avaldus_" + mandateId + ".bdoc");
+    attachment.setName(getNameSuffix(user) + "_avaldus_" + mandate.getId() + ".bdoc");
     attachment.setType("application/bdoc");
-    attachment.setContent(Base64.getEncoder().encodeToString(file));
+    attachment.setContent(Base64.getEncoder().encodeToString(mandate.getSignedFile()));
 
     return singletonList(attachment);
   }

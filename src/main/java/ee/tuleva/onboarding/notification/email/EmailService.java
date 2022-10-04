@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.notification.email;
 
-import static java.util.Collections.emptyList;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.microtripit.mandrillapp.lutung.MandrillApi;
@@ -8,7 +7,6 @@ import com.microtripit.mandrillapp.lutung.model.MandrillApiError;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
-import com.microtripit.mandrillapp.lutung.view.MandrillMessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo;
 import ee.tuleva.onboarding.config.EmailConfiguration;
@@ -19,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -140,16 +137,5 @@ public class EmailService {
       log.error(e.getLocalizedMessage(), e);
     }
     return Optional.empty();
-  }
-
-  @SneakyThrows
-  public List<MessageContent> getEmailAttachments(String mandrillMessageId) {
-    try {
-      MandrillMessageContent content = mandrillApi.messages().content(mandrillMessageId);
-      return content.getAttachments();
-    } catch (MandrillApiError mandrillApiError) {
-      log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
-    }
-    return emptyList();
   }
 }

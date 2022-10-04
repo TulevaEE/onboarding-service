@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.email.scheduledEmail;
 
+import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import java.util.ArrayList;
@@ -19,7 +20,17 @@ public class ScheduledEmailService {
   private final EmailService emailService;
 
   public void create(User user, String messageId, ScheduledEmailType type) {
-    ScheduledEmail scheduledEmail = new ScheduledEmail(user.getId(), messageId, type);
+    create(user, messageId, type, null);
+  }
+
+  public void create(User user, String messageId, ScheduledEmailType type, Mandate mandate) {
+    ScheduledEmail scheduledEmail =
+        ScheduledEmail.builder()
+            .userId(user.getId())
+            .mandrillMessageId(messageId)
+            .type(type)
+            .mandate(mandate)
+            .build();
     log.info("Scheduling an email: email={}", scheduledEmail);
     scheduledEmailRepository.save(scheduledEmail);
   }

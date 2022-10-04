@@ -63,7 +63,7 @@ class MandateEmailServiceSpec extends Specification {
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
 
     then:
-    1 * emailService.newMandrillMessage(recipients, subject, html, tags, _) >> message
+    1 * emailService.newMandrillMessage(recipients, subject, html, tags, !null) >> message
     1 * emailService.send(user, message)
   }
 
@@ -108,9 +108,9 @@ class MandateEmailServiceSpec extends Specification {
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, locale)
 
     then:
-    1 * emailService.newMandrillMessage(recipients, subject, html, tags, _) >> message
+    1 * emailService.newMandrillMessage(recipients, subject, html, tags, !null) >> message
     1 * emailService.send(user, message, sendAt) >> Optional.of("123")
-    1 * scheduledEmailService.create(user, "123", ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT)
+    1 * scheduledEmailService.create(user, "123", ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT, mandate)
   }
 
 }

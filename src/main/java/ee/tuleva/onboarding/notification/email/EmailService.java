@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.notification.email;
 
+import static java.util.Collections.emptyList;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.microtripit.mandrillapp.lutung.MandrillApi;
@@ -143,7 +144,12 @@ public class EmailService {
 
   @SneakyThrows
   public List<MessageContent> getEmailAttachments(String mandrillMessageId) {
-    MandrillMessageContent content = mandrillApi.messages().content(mandrillMessageId);
-    return content.getAttachments();
+    try {
+      MandrillMessageContent content = mandrillApi.messages().content(mandrillMessageId);
+      return content.getAttachments();
+    } catch (MandrillApiError mandrillApiError) {
+      log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);
+    }
+    return emptyList();
   }
 }

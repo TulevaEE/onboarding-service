@@ -2,24 +2,31 @@ package ee.tuleva.onboarding.payment.provider
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.locale.LocaleService
+import groovy.json.JsonSlurper
 import spock.lang.Specification
 
 class PaymentInternalReferenceServiceSpec extends Specification {
 
   ObjectMapper objectMapper = new ObjectMapper()
 
-    PaymentInternalReferenceService paymentInternalReferenceService
+  PaymentInternalReferenceService paymentInternalReferenceService
+  LocaleService localeService = Mock()
 
   def setup() {
-    paymentInternalReferenceService = new PaymentInternalReferenceService(objectMapper)
+    paymentInternalReferenceService = new PaymentInternalReferenceService(objectMapper, localeService)
   }
 
   def "Creates a correct payment reference"() {
     when:
-    String reference = paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson)
+    1 * localeService.currentLocale >> Locale.ENGLISH
+    String referenceString = paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson)
+    def slurper = new JsonSlurper()
+    def reference = slurper.parseText(referenceString)
     then:
-    reference.startsWith("""{"personalCode":"38501010000","uuid":""")
-    reference.length() == 76
+    reference.personalCode == "38501010000"
+    reference.locale == "en"
+    reference.uuid.size() == 36
   }
 
   AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()

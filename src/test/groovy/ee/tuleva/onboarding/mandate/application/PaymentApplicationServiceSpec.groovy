@@ -54,12 +54,12 @@ class PaymentApplicationServiceSpec extends Specification {
     []                                                                                                                       | [aPendingPayment()]                            | [pendingPayment()]
     [transaction(), negativeTransaction(), tulevaContribution()]                                                             | [aPendingPayment()]                            | [completePayment()]
     [transaction(), negativeTransaction(), foreignContribution()]                                                            | [aPendingPayment()]                            | [pendingPayment()]
-    []                                                                                                                       | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(456L), pendingPayment(123L)]
-    [transaction()]                                                                                                          | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(456L), pendingPayment(123L)]
-    [transaction(), transaction()]                                                                                           | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(456L), pendingPayment(123L)]
-    [transaction(), transaction(), negativeTransaction()]                                                                    | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(456L), pendingPayment(123L)]
-    [transaction(), transaction(), negativeTransaction(), tulevaContribution()]                                              | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(456L), completePayment(123L)]
-    [transaction(), transaction(), negativeTransaction(), tulevaContribution(), negativeTransaction(), tulevaContribution()] | [aPendingPayment(456L), aPendingPayment(123L)] | [completePayment(456L), completePayment(123L)]
+    []                                                                                                                       | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction()]                                                                                                          | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction(), transaction()]                                                                                           | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction(), transaction(), negativeTransaction()]                                                                    | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction(), transaction(), negativeTransaction(), tulevaContribution()]                                              | [aPendingPayment(456L), aPendingPayment(123L)] | [completePayment(123L), pendingPayment(456L)]
+    [transaction(), transaction(), negativeTransaction(), tulevaContribution(), negativeTransaction(), tulevaContribution()] | [aPendingPayment(456L), aPendingPayment(123L)] | [completePayment(123L), completePayment(456L)]
   }
 
   private CashFlow transaction() {

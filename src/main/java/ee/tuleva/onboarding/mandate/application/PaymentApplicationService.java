@@ -16,11 +16,11 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -84,7 +84,7 @@ class PaymentApplicationService {
   private Map<Payment, List<CashFlow>> getLinkedCashFlow(
       List<Payment> payments, List<CashFlow> cashFlow) {
     val remainingCashFlow = new ArrayList<>(cashFlow.stream().sorted().toList());
-    val linkedCashFlow = new HashMap<Payment, List<CashFlow>>();
+    val linkedCashFlow = new TreeMap<Payment, List<CashFlow>>();
     for (Payment payment : payments.stream().sorted().toList()) {
       val payIn = linkedPayIn(remainingCashFlow, payment);
       val payOut = linkedPayOut(remainingCashFlow, payIn);

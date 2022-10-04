@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.MACVerifier;
-import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentRepository;
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent;
@@ -32,7 +31,6 @@ class PaymentProviderCallbackService {
   private final PaymentRepository paymentRepository;
   private final ObjectMapper objectMapper;
   private final ApplicationEventPublisher eventPublisher;
-  private final LocaleService localeService;
 
   @SneakyThrows
   public Optional<Payment> processToken(String serializedToken) {
@@ -70,7 +68,7 @@ class PaymentProviderCallbackService {
 
     Payment payment = paymentRepository.save(paymentToBeSaved);
     eventPublisher.publishEvent(
-        new PaymentCreatedEvent(this, user, payment, localeService.getCurrentLocale()));
+        new PaymentCreatedEvent(this, user, payment, internalReference.getLocale()));
 
     return Optional.of(payment);
   }

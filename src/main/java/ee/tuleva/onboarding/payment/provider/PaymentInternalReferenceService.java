@@ -19,8 +19,8 @@ class PaymentInternalReferenceService {
   @SneakyThrows
   public String getPaymentReference(Person person) {
     PaymentReference paymentReference =
-        new PaymentReference(person.getPersonalCode(), UUID.randomUUID(),
-            localeService.getCurrentLocale());
+        new PaymentReference(
+            person.getPersonalCode(), UUID.randomUUID(), localeService.getCurrentLocale());
     return mapper.writeValueAsString(paymentReference);
   }
 }

@@ -5,6 +5,8 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
 import org.springframework.http.MediaType
 
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -60,23 +62,34 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.url', is(paymentLink.url())))
   }
 
-  def "GET /success"() {
+  def "GET /success redirects to success screen on successful payment"() {
     given:
     def mvc = mockMvc(paymentController)
-
-    1 * paymentProviderCallbackService.processToken(PaymentProviderFixture.aSerializedToken)
+    1 * paymentProviderCallbackService.processToken(aSerializedToken) >> Optional.of(aNewPayment())
     expect:
-    mvc.perform(get("/v1/payments/success").param("payment_token", PaymentProviderFixture.aSerializedToken))
+    mvc.perform(get("/v1/payments/success")
+        .param("payment_token", aSerializedToken))
         .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/success"))
+  }
+
+  def "GET /success redirects back to payment screen on cancelled payment"() {
+    given:
+    def mvc = mockMvc(paymentController)
+    1 * paymentProviderCallbackService.processToken(aSerializedToken) >> Optional.empty()
+    expect:
+    mvc.perform(get("/v1/payments/success")
+        .param("payment_token", aSerializedToken))
+        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/payment"))
   }
 
   def "POST /notifications"() {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentProviderCallbackService.processToken(PaymentProviderFixture.aSerializedToken)
+    1 * paymentProviderCallbackService.processToken(aSerializedToken)
     expect:
-    mvc.perform(post("/v1/payments/notifications").param("payment_token", PaymentProviderFixture.aSerializedToken))
+    mvc.perform(post("/v1/payments/notifications")
+        .param("payment_token", aSerializedToken))
         .andExpect(status().isOk())
   }
 

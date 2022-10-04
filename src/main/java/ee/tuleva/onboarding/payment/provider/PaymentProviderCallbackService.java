@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +35,7 @@ class PaymentProviderCallbackService {
   private final LocaleService localeService;
 
   @SneakyThrows
-  public void processToken(String serializedToken) {
+  public Optional<Payment> processToken(String serializedToken) {
 
     JWSObject token = JWSObject.parse(serializedToken);
     verifyToken(token);
@@ -45,27 +46,33 @@ class PaymentProviderCallbackService {
 
     PaymentReference internalReference = getInternalReference(serializedInternalReference);
 
-    if (noPaymentWithReference(internalReference) && isPaymentFinalized(token)) {
-      User user = userService.findByPersonalCode(internalReference.getPersonalCode()).orElseThrow();
-
-      Payment paymentToBeSaved =
-          Payment.builder()
-              .amount(amount)
-              .currency(EUR)
-              .internalReference(internalReference.getUuid())
-              .user(user)
-              .status(PENDING)
-              .build();
-
-      Payment payment = paymentRepository.save(paymentToBeSaved);
-      // TODO: validate whether the locale is set correctly here
-      eventPublisher.publishEvent(
-          new PaymentCreatedEvent(this, user, payment, localeService.getCurrentLocale()));
+    if (!isPaymentFinalized(token)) {
+      return Optional.empty();
     }
-  }
 
-  private boolean noPaymentWithReference(PaymentReference internalReference) {
-    return paymentRepository.findByInternalReference(internalReference.getUuid()).isEmpty();
+    Optional<Payment> existingPayment =
+        paymentRepository.findByInternalReference(internalReference.getUuid());
+
+    if (existingPayment.isPresent()) {
+      return existingPayment;
+    }
+
+    User user = userService.findByPersonalCode(internalReference.getPersonalCode()).orElseThrow();
+
+    Payment paymentToBeSaved =
+        Payment.builder()
+            .amount(amount)
+            .currency(EUR)
+            .internalReference(internalReference.getUuid())
+            .user(user)
+            .status(PENDING)
+            .build();
+
+    Payment payment = paymentRepository.save(paymentToBeSaved);
+    eventPublisher.publishEvent(
+        new PaymentCreatedEvent(this, user, payment, localeService.getCurrentLocale()));
+
+    return Optional.of(payment);
   }
 
   private boolean isPaymentFinalized(JWSObject token) {

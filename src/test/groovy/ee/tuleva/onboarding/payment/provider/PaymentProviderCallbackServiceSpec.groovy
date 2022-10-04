@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.payment.provider
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import ee.tuleva.onboarding.payment.Payment
+import ee.tuleva.onboarding.payment.PaymentFixture
 import ee.tuleva.onboarding.payment.PaymentRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
@@ -36,21 +38,23 @@ class PaymentProviderCallbackServiceSpec extends Specification {
     1 * userService.findByPersonalCode(anInternalReference.getPersonalCode()) >>
         Optional.of(payment.user)
     1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.empty()
+    1 * paymentRepository.save(payment) >> payment
     when:
-    paymentProviderCallbackService.processToken(token)
+    def returnedPayment = paymentProviderCallbackService.processToken(token)
     then:
-    1 * paymentRepository.save(payment)
+    returnedPayment.get() == payment
+
   }
 
   def "if payment with a given internal reference exists, then do not create a new one"() {
     given:
     def token = aSerializedCallbackFinalizedToken
+    def existingPayment = Optional.of(aNewPayment())
+    1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> existingPayment
     when:
-    1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.of(
-        aNewPayment()
-    )
-    paymentProviderCallbackService.processToken(token)
+    def returnedPayment = paymentProviderCallbackService.processToken(token)
     then:
+    returnedPayment == existingPayment
     0 * paymentRepository.save(_)
   }
 
@@ -58,11 +62,9 @@ class PaymentProviderCallbackServiceSpec extends Specification {
     given:
     def token = aSerializedCallbackPendingToken
     when:
-    1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.of(
-        aNewPayment()
-    )
-    paymentProviderCallbackService.processToken(token)
+    def returnedPayment = paymentProviderCallbackService.processToken(token)
     then:
+    returnedPayment.isEmpty()
     0 * paymentRepository.save(_)
   }
 
@@ -70,21 +72,21 @@ class PaymentProviderCallbackServiceSpec extends Specification {
     given:
     def token = aSerializedCallbackFailedToken
     when:
-    1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.of(
-        aNewPayment()
-    )
-    paymentProviderCallbackService.processToken(token)
+    def returnedPayment = paymentProviderCallbackService.processToken(token)
     then:
+    returnedPayment.isEmpty()
     0 * paymentRepository.save(_)
   }
 
   void "publish payment created event"() {
     given:
     def token = aSerializedCallbackFinalizedToken
-    def user = aNewPayment().user
+    def payment = aNewPayment()
+    def user = payment.user
     userService.findByPersonalCode(anInternalReference.getPersonalCode()) >> Optional.of(user)
     paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.empty()
     localeService.getCurrentLocale() >> Locale.ENGLISH
+    paymentRepository.save(payment) >> payment
     when:
     paymentProviderCallbackService.processToken(token)
     then:

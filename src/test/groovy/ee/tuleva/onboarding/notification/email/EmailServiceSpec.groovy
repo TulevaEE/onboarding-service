@@ -5,6 +5,7 @@ import com.microtripit.mandrillapp.lutung.controller.MandrillMessagesApi
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageContent
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
+import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo
 import ee.tuleva.onboarding.config.EmailConfiguration
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
@@ -61,12 +62,14 @@ class EmailServiceSpec extends Specification {
   def "cancels scheduled email"() {
     given:
     String mandrillMessageId = "100"
+    def info = new MandrillScheduledMessageInfo()
+    1 * mandrillApi.messages().cancelScheduled(mandrillMessageId) >> info
 
     when:
-    service.cancelScheduledEmail(mandrillMessageId)
+    def scheduledEmailInfo = service.cancelScheduledEmail(mandrillMessageId)
 
     then:
-    1 * mandrillApi.messages().cancelScheduled(mandrillMessageId)
+    scheduledEmailInfo.get() == info
   }
 
   def "can get email attachments"() {

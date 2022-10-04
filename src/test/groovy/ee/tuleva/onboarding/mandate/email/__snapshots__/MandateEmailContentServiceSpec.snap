@@ -159,7 +159,10 @@ third_pillar_payment_reminder[en]=[
 <html>
   <body>
     <p>Welcome Jordan,</p>
-    <p>I’m glad you’ve decided to start saving in the third pillar with us. Next, <a href="https://pension.tuleva.ee/3rd-pillar-flow?utm_source=autoemail&utm_medium=clients&utm_campaign=reminder_3">log into your pension account</a> and make a payment. Attached is a copy of your third pillar application, which we have sent to the Pension Registry.</p>
+    <p>I’m glad you’ve decided to start saving in the third pillar with us.</p>
+    <p>Your contribution has not reached the Tuleva III Pillar Pension Fund yet. If you made a payment from your internet bank or set up a recurring payment, your contribution will show up on your pension account one working day after payment.</p>
+    <p>If you forgot to make a payment, <a href="https://pension.tuleva.ee/3rd-pillar-flow?utm_source=autoemail&utm_medium=clients&utm_campaign=reminder_3">log into your pension account</a> and do it now.</p>
+    <p>Attached is a copy of your third pillar application, which we have sent to the Pension Registry.</p>
 
     <p>If you have any questions please contact us via <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or 644 5100.</p>
     <br/>
@@ -175,7 +178,10 @@ third_pillar_payment_reminder[et]=[
 <html>
   <body>
     <p>Tere tulemast, Jordan.</p>
-    <p>Mul on hea meel, et oled alustanud meiega koos kolmandasse sambasse raha kogumist. Järgmiseks <a href="https://pension.tuleva.ee/3rd-pillar-flow?utm_source=autoemail&utm_medium=clients&utm_campaign=reminder_3">logi sisse oma pensionikontole</a> ja tee sissemakse. Manuses on koopia sinu tehtud avaldustest, mille edastasime Pensionikeskusele.</p>
+    <p>Mul on hea meel, et oled alustanud meiega koos kolmandasse sambasse raha kogumist.</p>
+    <p>Sinu sissemakse pole veel Tuleva III Samba Pensionifondi jõudnud. Kui tegid makse oma internetipangast või seadsid üles püsimakse, siis jõuab sinu raha fondi üks tööpäev pärast makse tegemist. Siis näed makset ka oma pensionikontol.</p>
+    <p>Kui unustasid makse tegemata, <a href="https://pension.tuleva.ee/3rd-pillar-flow?utm_source=autoemail&utm_medium=clients&utm_campaign=reminder_3">logi sisse oma pensionikontole</a> ja tee makse ära.</p>
+    <p>Manuses on koopia sinu tehtud avaldustest, mille edastasime Pensionikeskusele.</p>
 
     <p>Kui sul tekib ükskõik milliseid küsimusi, võta kõhklemata ühendust: e-post <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a>, tel 644 5100.</p>
     <br/>

@@ -25,11 +25,13 @@ import java.util.TreeMap;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 class PaymentApplicationService {
 
   private static final String TULEVA_3RD_PILLAR_FUND_ISIN = "EE3600001707";
@@ -49,17 +51,26 @@ class PaymentApplicationService {
 
     val applications = new ArrayList<Application<PaymentApplicationDetails>>();
 
+    log.info("Pending payments: {}", pendingPayments);
+
+    log.info("Cash flow statement: {}", cashFlowStatement);
+
     val linkedCashFlow = getLinkedCashFlow(pendingPayments, cashFlowStatement.getTransactions());
+
+    log.info("Linked cash flow: {}", linkedCashFlow);
 
     for (val entry : linkedCashFlow.entrySet()) {
       val payment = entry.getKey();
       val linkedCash = entry.getValue();
       if (linkedCash.isEmpty() || !cashIsBalanced(linkedCash)) {
+        log.info("Cash is not balanced or no cash entries for {}", payment.getId());
         applications.add(createApplication(payment, apiFund, ApplicationStatus.PENDING));
       } else if (cashIsBalanced(linkedCash)) {
         if (hasTulevaContribution(linkedCash)) {
+          log.info("Payment {} has Tuleva fund contribution, marking as complete", payment.getId());
           applications.add(createApplication(payment, apiFund, ApplicationStatus.COMPLETE));
         } else {
+          log.info("Payment {} does not have a Tuleva fund contribution yet", payment.getId());
           applications.add(createApplication(payment, apiFund, ApplicationStatus.PENDING));
         }
       }
@@ -96,6 +107,8 @@ class PaymentApplicationService {
               .filter(Optional::isPresent)
               .map(Optional::get)
               .toList();
+
+      log.info("Payment {} has linked cash flow: {}", payment.getId(), paymentCashFlow);
 
       paymentCashFlow.forEach(remainingCashFlow::remove);
       linkedCashFlow.put(payment, paymentCashFlow);

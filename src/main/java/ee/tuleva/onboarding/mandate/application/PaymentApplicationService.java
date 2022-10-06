@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentService;
 import ee.tuleva.onboarding.payment.PaymentStatus;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -148,7 +149,14 @@ class PaymentApplicationService {
   }
 
   private Predicate<CashFlow> hasSameAmount(BigDecimal amount) {
-    return (cashFlow) -> cashFlow.getAmount().equals(amount);
+    return (cashFlow) ->
+        cashFlow
+                .getAmount()
+                .setScale(2, RoundingMode.HALF_UP)
+                .subtract(amount)
+                .abs()
+                .compareTo(new BigDecimal("0.01"))
+            <= 0;
   }
 
   private Predicate<CashFlow> isAfterTimeWithGrace(Instant time) {

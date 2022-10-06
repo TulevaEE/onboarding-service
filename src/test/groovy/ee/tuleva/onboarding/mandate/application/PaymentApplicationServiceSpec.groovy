@@ -21,6 +21,8 @@ import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarAp
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva3rdPillarFund
 import static ee.tuleva.onboarding.mandate.application.PaymentApplicationService.TULEVA_3RD_PILLAR_FUND_ISIN
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPendingPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.contributionAmountHigh
+import static ee.tuleva.onboarding.payment.PaymentFixture.contributionAmountLow
 import static ee.tuleva.onboarding.payment.PaymentFixture.pendingPaymentAmount
 import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING
 
@@ -49,17 +51,18 @@ class PaymentApplicationServiceSpec extends Specification {
     paymentApplications == pendingPaymentApplications
 
     where:
-    transactions                                                                                                             | pendingPayments                                | pendingPaymentApplications
-    [transaction(), negativeTransaction()]                                                                                   | [aPendingPayment()]                            | [pendingPayment()]
-    []                                                                                                                       | [aPendingPayment()]                            | [pendingPayment()]
-    [transaction(), negativeTransaction(), tulevaContribution()]                                                             | [aPendingPayment()]                            | [completePayment()]
-    [transaction(), negativeTransaction(), foreignContribution()]                                                            | [aPendingPayment()]                            | [pendingPayment()]
-    []                                                                                                                       | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
-    [transaction()]                                                                                                          | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
-    [transaction(), transaction()]                                                                                           | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
-    [transaction(), transaction(), negativeTransaction()]                                                                    | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
-    [transaction(), transaction(), negativeTransaction(), tulevaContribution()]                                              | [aPendingPayment(456L), aPendingPayment(123L)] | [completePayment(123L), pendingPayment(456L)]
-    [transaction(), transaction(), negativeTransaction(), tulevaContribution(), negativeTransaction(), tulevaContribution()] | [aPendingPayment(456L), aPendingPayment(123L)] | [completePayment(123L), completePayment(456L)]
+    transactions                                                                                                                     | pendingPayments                                | pendingPaymentApplications
+    [transaction(), negativeTransaction()]                                                                                           | [aPendingPayment()]                            | [pendingPayment()]
+    []                                                                                                                               | [aPendingPayment()]                            | [pendingPayment()]
+    [transaction(), negativeTransaction(), tulevaContributionHigh()]                                                                 | [aPendingPayment()]                            | [completePayment()]
+    [transaction(), negativeTransaction(), tulevaContributionLow()]                                                                  | [aPendingPayment()]                            | [completePayment()]
+    [transaction(), negativeTransaction(), foreignContribution()]                                                                    | [aPendingPayment()]                            | [pendingPayment()]
+    []                                                                                                                               | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction()]                                                                                                                  | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction(), transaction()]                                                                                                   | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction(), transaction(), negativeTransaction()]                                                                            | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
+    [transaction(), transaction(), negativeTransaction(), tulevaContributionHigh()]                                                  | [aPendingPayment(456L), aPendingPayment(123L)] | [completePayment(123L), pendingPayment(456L)]
+    [transaction(), transaction(), negativeTransaction(), tulevaContributionHigh(), negativeTransaction(), tulevaContributionHigh()] | [aPendingPayment(456L), aPendingPayment(123L)] | [completePayment(123L), completePayment(456L)]
   }
 
   private CashFlow transaction() {
@@ -70,12 +73,16 @@ class PaymentApplicationServiceSpec extends Specification {
     return new CashFlow(null, Instant.parse("2022-09-29T10:35:30Z"), -pendingPaymentAmount, "EUR", CASH)
   }
 
-  private CashFlow tulevaContribution() {
-    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, Instant.parse("2022-09-29T10:45:30Z"), pendingPaymentAmount, "EUR", CONTRIBUTION_CASH)
+  private CashFlow tulevaContributionHigh() {
+    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, Instant.parse("2022-09-29T10:45:30Z"), contributionAmountHigh, "EUR", CONTRIBUTION_CASH)
+  }
+
+  private CashFlow tulevaContributionLow() {
+    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, Instant.parse("2022-09-29T10:45:30Z"), contributionAmountLow, "EUR", CONTRIBUTION_CASH)
   }
 
   private CashFlow foreignContribution() {
-    return new CashFlow("OTHERISIN", Instant.parse("2022-09-29T10:45:30Z"), pendingPaymentAmount, "EUR", CONTRIBUTION_CASH)
+    return new CashFlow("OTHERISIN", Instant.parse("2022-09-29T10:45:30Z"), contributionAmountHigh, "EUR", CONTRIBUTION_CASH)
   }
 
   private Application<PaymentApplicationDetails> completePayment(Long id = 123L) {

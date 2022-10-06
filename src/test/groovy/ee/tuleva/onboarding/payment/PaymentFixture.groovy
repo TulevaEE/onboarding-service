@@ -9,6 +9,8 @@ import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING
 class PaymentFixture {
 
   static BigDecimal pendingPaymentAmount = new BigDecimal("10.00")
+  static BigDecimal contributionAmountHigh = new BigDecimal("10.01")
+  static BigDecimal contributionAmountLow = new BigDecimal("9.99")
 
   static Payment aNewPayment() {
     return new Payment(

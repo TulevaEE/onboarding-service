@@ -202,19 +202,19 @@ class UserConversionServiceSpec extends Specification {
 
     cashFlowService.getCashFlowStatement(samplePerson) >> CashFlowStatement.builder()
         .transactions([
-            new CashFlow("EE123", Instant.parse("2018-12-31T00:00:00Z"), 100.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE123", Instant.parse("2019-01-01T00:00:00Z"), 1.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE123", Instant.parse("2019-11-20T00:00:00Z"), 1.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE123", Instant.parse("2019-12-20T00:00:00Z"), 1.0, "EUR", SUBTRACTION),
-            new CashFlow("EE123", Instant.parse("2019-12-21T00:00:00Z"), 1.0, "EUR", SUBTRACTION),
+            new CashFlow("EE123", Instant.parse("2018-12-31T00:00:00Z"),null, 100.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE123", Instant.parse("2019-01-01T00:00:00Z"),null,  1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE123", Instant.parse("2019-11-20T00:00:00Z"),null,  1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE123", Instant.parse("2019-12-20T00:00:00Z"),null,  1.0, "EUR", SUBTRACTION),
+            new CashFlow("EE123", Instant.parse("2019-12-21T00:00:00Z"),null,  1.0, "EUR", SUBTRACTION),
 
-            new CashFlow("EE234", Instant.parse("2018-12-31T00:00:00Z"), 100.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE234", Instant.parse("2019-01-01T00:00:00Z"), 1.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE234", Instant.parse("2019-01-02T00:00:00Z"), 1.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE234", Instant.parse("2019-11-20T00:00:00Z"), 1.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE234", Instant.parse("2019-12-20T00:00:00Z"), 20.0, "EUR", CONTRIBUTION),
-            new CashFlow("EE234", Instant.parse("2019-12-20T00:00:00Z"), 1.0, "EUR", SUBTRACTION),
-            new CashFlow("EE234", Instant.parse("2019-12-21T00:00:00Z"), 1.0, "EUR", SUBTRACTION),
+            new CashFlow("EE234", Instant.parse("2018-12-31T00:00:00Z"),null,  100.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", Instant.parse("2019-01-01T00:00:00Z"),null,  1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", Instant.parse("2019-01-02T00:00:00Z"),null,  1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", Instant.parse("2019-11-20T00:00:00Z"),null,  1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", Instant.parse("2019-12-20T00:00:00Z"),null,  20.0, "EUR", CONTRIBUTION),
+            new CashFlow("EE234", Instant.parse("2019-12-20T00:00:00Z"),null,  1.0, "EUR", SUBTRACTION),
+            new CashFlow("EE234", Instant.parse("2019-12-21T00:00:00Z"),null,  1.0, "EUR", SUBTRACTION),
         ])
         .build()
 

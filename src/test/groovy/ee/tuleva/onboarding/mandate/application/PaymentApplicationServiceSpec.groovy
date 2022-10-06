@@ -66,23 +66,23 @@ class PaymentApplicationServiceSpec extends Specification {
   }
 
   private CashFlow transaction() {
-    return new CashFlow(null, Instant.parse("2022-09-29T10:25:30Z"), pendingPaymentAmount, "EUR", CASH)
+    return new CashFlow(null, Instant.parse("2022-09-29T10:25:30Z"), null, pendingPaymentAmount, "EUR", CASH)
   }
 
   private CashFlow negativeTransaction() {
-    return new CashFlow(null, Instant.parse("2022-09-29T10:35:30Z"), -pendingPaymentAmount, "EUR", CASH)
+    return new CashFlow(null, Instant.parse("2022-09-29T10:35:30Z"), null, -pendingPaymentAmount, "EUR", CASH)
   }
 
   private CashFlow tulevaContributionHigh() {
-    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, Instant.parse("2022-09-29T10:45:30Z"), contributionAmountHigh, "EUR", CONTRIBUTION_CASH)
+    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, Instant.parse("2022-09-29T10:45:30Z"), Instant.parse("2022-09-28T00:00:00Z"), contributionAmountHigh, "EUR", CONTRIBUTION_CASH)
   }
 
   private CashFlow tulevaContributionLow() {
-    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, Instant.parse("2022-09-29T10:45:30Z"), contributionAmountLow, "EUR", CONTRIBUTION_CASH)
+    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, Instant.parse("2022-09-29T10:45:30Z"), Instant.parse("2022-09-28T00:00:00Z"), contributionAmountLow, "EUR", CONTRIBUTION_CASH)
   }
 
   private CashFlow foreignContribution() {
-    return new CashFlow("OTHERISIN", Instant.parse("2022-09-29T10:45:30Z"), contributionAmountHigh, "EUR", CONTRIBUTION_CASH)
+    return new CashFlow("OTHERISIN", Instant.parse("2022-09-29T10:45:30Z"), Instant.parse("2022-09-28T00:00:00Z"), contributionAmountHigh, "EUR", CONTRIBUTION_CASH)
   }
 
   private Application<PaymentApplicationDetails> completePayment(Long id = 123L) {

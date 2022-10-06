@@ -74,7 +74,7 @@ class PaymentApplicationServiceSpec extends Specification {
   }
 
   private CashFlow tulevaContributionHigh() {
-    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, Instant.parse("2022-09-29T10:45:30Z"), Instant.parse("2022-09-28T00:00:00Z"), contributionAmountHigh, "EUR", CONTRIBUTION_CASH)
+    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, Instant.parse("2022-09-29T10:35:30Z"), Instant.parse("2022-09-28T00:00:00Z"), contributionAmountHigh, "EUR", CONTRIBUTION_CASH)
   }
 
   private CashFlow tulevaContributionLow() {

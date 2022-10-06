@@ -122,7 +122,7 @@ class PaymentApplicationService {
         cashFlow ->
             remainingCashFlow.stream()
                 .filter(
-                    isContributionAfterTimeWithAmount(
+                    isContributionOnOrAfterTimeWithAmount(
                         cashFlow.getPriceTime(), cashFlow.getAmount().negate()))
                 .findFirst());
   }
@@ -152,13 +152,14 @@ class PaymentApplicationService {
 
   private Predicate<CashFlow> isCashAfterTimeWithAmount(Instant time, BigDecimal amount) {
     return ((Predicate<CashFlow>) CashFlow::isCash)
-        .and((cashFlow -> cashFlow.isAfter(time)))
+        .and((cashFlow -> !cashFlow.getTime().isBefore(time)))
         .and(hasSameAmount(amount));
   }
 
-  private Predicate<CashFlow> isContributionAfterTimeWithAmount(Instant time, BigDecimal amount) {
+  private Predicate<CashFlow> isContributionOnOrAfterTimeWithAmount(
+      Instant time, BigDecimal amount) {
     return ((Predicate<CashFlow>) CashFlow::isContribution)
-        .and((cashFlow -> cashFlow.isAfter(time)))
+        .and((cashFlow -> !cashFlow.getTime().isBefore(time)))
         .and(hasSameAmount(amount));
   }
 

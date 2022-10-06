@@ -84,7 +84,7 @@ public class UserConversionService {
 
   private boolean paymentComplete(CashFlowStatement cashFlowStatement) {
     return cashFlowStatement.getTransactions().stream()
-            .filter(cashFlow -> cashFlow.getTime().isAfter(sameTimeLastYear()))
+            .filter(cashFlow -> cashFlow.isPriceTimeAfter(sameTimeLastYear()))
             .filter(CashFlow::isCashContribution)
             .filter(cashFlow -> fundRepository.findByIsin(cashFlow.getIsin()).getPillar() == 3)
             .map(CashFlow::getAmount)
@@ -98,7 +98,8 @@ public class UserConversionService {
     return sum(
         cashFlowStatement,
         pillar,
-        cashFlow -> cashFlow.isCashContribution() && cashFlow.isAfter(lastDayOfLastYear()));
+        cashFlow ->
+            cashFlow.isCashContribution() && cashFlow.isPriceTimeAfter(lastDayOfLastYear()));
   }
 
   private BigDecimal totalContributionSum(CashFlowStatement cashFlowStatement, int pillar) {
@@ -109,7 +110,7 @@ public class UserConversionService {
     return sum(
         cashFlowStatement,
         pillar,
-        cashFlow -> cashFlow.isSubtraction() && cashFlow.isAfter(lastDayOfLastYear()));
+        cashFlow -> cashFlow.isSubtraction() && cashFlow.isPriceTimeAfter(lastDayOfLastYear()));
   }
 
   private BigDecimal totalSubtractionSum(CashFlowStatement cashFlowStatement, int pillar) {

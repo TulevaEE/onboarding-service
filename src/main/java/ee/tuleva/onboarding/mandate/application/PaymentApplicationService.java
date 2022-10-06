@@ -123,7 +123,7 @@ class PaymentApplicationService {
             remainingCashFlow.stream()
                 .filter(
                     isContributionAfterTimeWithAmount(
-                        cashFlow.getTime(), cashFlow.getAmount().negate()))
+                        cashFlow.getPriceTime(), cashFlow.getAmount().negate()))
                 .findFirst());
   }
 
@@ -133,7 +133,8 @@ class PaymentApplicationService {
         cashFlow ->
             remainingCashFlow.stream()
                 .filter(
-                    isCashAfterTimeWithAmount(cashFlow.getTime(), cashFlow.getAmount().negate()))
+                    isCashAfterTimeWithAmount(
+                        cashFlow.getPriceTime(), cashFlow.getAmount().negate()))
                 .findFirst());
   }
 

@@ -68,7 +68,7 @@ public class AccountOverviewProvider {
       List<CashFlow> cashFlows, Predicate<CashFlow> cashFlowFilter) {
     return cashFlows.stream()
         .filter(cashFlowFilter)
-        .map(cashFlow -> new Transaction(cashFlow.getAmount(), cashFlow.getTime()))
+        .map(cashFlow -> new Transaction(cashFlow.getAmount(), cashFlow.getPriceTime()))
         .collect(toList());
   }
 

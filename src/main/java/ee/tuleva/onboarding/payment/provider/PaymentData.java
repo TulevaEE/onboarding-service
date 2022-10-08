@@ -8,7 +8,7 @@ import lombok.Data;
 
 @Data
 @Builder
-class PaymentData {
+public class PaymentData {
   private Person person;
   private Currency currency;
   private BigDecimal amount;

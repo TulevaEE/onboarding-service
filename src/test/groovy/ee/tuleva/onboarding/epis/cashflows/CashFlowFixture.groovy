@@ -2,6 +2,11 @@ package ee.tuleva.onboarding.epis.cashflows
 
 import java.time.Instant
 
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH
+import static ee.tuleva.onboarding.mandate.application.PaymentApplicationService.TULEVA_3RD_PILLAR_FUND_ISIN
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aPaymentAmount
+
 class CashFlowFixture {
 
   static CashFlowStatement cashFlowFixture() {
@@ -26,4 +31,20 @@ class CashFlowFixture {
         ]).build()
   }
 
+  static CashFlowStatement cashFlowFixtureThatMatchesPayment() {
+    def time = Instant.now().plus(60)
+    return CashFlowStatement.builder()
+        .startBalance([
+            "1": CashFlow.builder().time(time).priceTime(time).amount(1000.0).currency("EUR").isin("1").build(),
+
+        ])
+        .endBalance([
+            "1": CashFlow.builder().time(time).priceTime(time).amount(1010.0).currency("EUR").isin("1").build(),
+        ])
+        .transactions([
+            CashFlow.builder().time(time).priceTime(time).amount(aPaymentAmount).currency("EUR").isin(null).type(CASH).build(),
+            CashFlow.builder().time(time.plus(1)).priceTime(time.plus(1)).amount(aPaymentAmount.negate()).currency("EUR").isin(null).type(CASH).build(),
+            CashFlow.builder().time(time.plus(1)).priceTime(time.plus(1)).amount(10.01).currency("EUR").isin(TULEVA_3RD_PILLAR_FUND_ISIN).type(CONTRIBUTION_CASH).build(),
+        ]).build()
+  }
 }

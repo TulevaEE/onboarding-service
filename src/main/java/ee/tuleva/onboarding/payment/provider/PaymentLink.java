@@ -1,3 +1,3 @@
 package ee.tuleva.onboarding.payment.provider;
 
-record PaymentLink(String url) {}
+public record PaymentLink(String url) {}

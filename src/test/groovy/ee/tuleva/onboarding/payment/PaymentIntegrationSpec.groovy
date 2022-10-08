@@ -7,11 +7,14 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
+import ee.tuleva.onboarding.mandate.application.Application
+import ee.tuleva.onboarding.mandate.application.PaymentApplicationDetails
 import ee.tuleva.onboarding.mandate.application.PaymentApplicationService
 import ee.tuleva.onboarding.payment.provider.PaymentController
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserRepository
 import org.mockserver.client.MockServerClient
+import org.mockserver.mock.Expectation
 import org.mockserver.springtest.MockServerTest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -26,6 +29,9 @@ import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails
 import org.springframework.test.context.TestPropertySource
+import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.MvcResult
+import org.springframework.test.web.servlet.ResultActions
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixtureThatMatchesPayment
@@ -99,17 +105,74 @@ class PaymentIntegrationSpec extends BaseControllerSpec {
   }
 
 
-  def "GET /payments/link"() {
+  def "Payment happy flow"() {
     given:
 
-    mockServerClient
-        .when(request("/contact-details")
-            .withHeader("Authorization", "Bearer dummy"))
-        .respond(response()
-            .withContentType(APPLICATION_JSON)
-            .withBody(((new ObjectMapper()).writeValueAsString(contactDetailsFixture())))
-        )
+    mockEpisContactDetails()
+    mockEpisTransactions()
 
+    def mvc = mockMvcWithAuthenticationPrincipal(anAuthenticatedPerson, paymentController)
+
+    expect:
+    expectAPaymentLink(mvc)
+    expectNoPaymentsStored()
+    expectThatPaymentCallbackRedirectsUser(mvc)
+    expectThatPaymentCallbackCreatedAPendingPayment()
+    expectToBeAbleToReceivePaymentNotification(mvc)
+    expectThatPaymentStatusIsStillPending()
+    expectLinkedPaymentAndTransactions()
+  }
+
+  private void expectLinkedPaymentAndTransactions() {
+    def applications = paymentApplicationService.getPaymentApplications(anAuthenticatedPerson)
+    applications.size() == 1
+    def application = applications.first()
+
+    application.status == ApplicationStatus.COMPLETE
+    application.details.amount == aPaymentAmount
+    application.details.currency == Currency.EUR
+    application.details.targetFund.pillar == 3
+    application.details.targetFund.isin == TULEVA_3RD_PILLAR_FUND_ISIN
+  }
+
+  private boolean expectNoPaymentsStored() {
+    paymentRepository.findAll().isEmpty()
+  }
+
+  private void expectThatPaymentStatusIsStillPending() {
+    paymentRepository.findAll().size() == 1
+    def payment = paymentRepository.findAll().asList().first()
+    payment.status == PaymentStatus.PENDING
+    payment.internalReference.equals(anInternalReference.uuid)
+    payment.amount == aPaymentAmount
+    payment.user.id == aUser.id
+  }
+
+  private ResultActions expectToBeAbleToReceivePaymentNotification(MockMvc mvc) {
+    mvc.perform(post("/v1/payments/notifications")
+        .param("payment_token", aSerializedCallbackFinalizedTokenWithCorrectIdCode))
+        .andExpect(status().isOk())
+  }
+
+  private void expectThatPaymentCallbackCreatedAPendingPayment() {
+    paymentRepository.findAll().size() == 1
+    paymentRepository.findAll().asList().first().status == PaymentStatus.PENDING
+  }
+
+  private ResultActions expectThatPaymentCallbackRedirectsUser(MockMvc mvc) {
+    mvc.perform(get("/v1/payments/success")
+        .param("payment_token", aSerializedCallbackFinalizedTokenWithCorrectIdCode))
+        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/success"))
+  }
+
+  private MvcResult expectAPaymentLink(MockMvc mvc) {
+    mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&bank=LHV"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath('$.url', startsWith('https://')))
+        .andReturn()
+  }
+
+  private void mockEpisTransactions() {
     ObjectMapper mapper = JsonMapper.builder()
         .addModule(new JavaTimeModule())
         .build()
@@ -121,42 +184,15 @@ class PaymentIntegrationSpec extends BaseControllerSpec {
             .withContentType(APPLICATION_JSON)
             .withBody((mapper.writeValueAsString(cashFlowFixtureThatMatchesPayment())))
         )
+  }
 
-    def mvc = mockMvcWithAuthenticationPrincipal(anAuthenticatedPerson, paymentController)
-
-    expect:
-    mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&bank=LHV"))
-        .andExpect(status().isOk())
-    .andExpect(jsonPath('$.url', startsWith('https://')))
-    .andReturn()
-
-    paymentRepository.findAll().isEmpty()
-
-    mvc.perform(get("/v1/payments/success")
-        .param("payment_token", aSerializedCallbackFinalizedTokenWithCorrectIdCode))
-        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/success"))
-
-    paymentRepository.findAll().size() == 1
-    paymentRepository.findAll().asList().first().status == PaymentStatus.PENDING
-
-    mvc.perform(post("/v1/payments/notifications")
-        .param("payment_token", aSerializedCallbackFinalizedTokenWithCorrectIdCode))
-        .andExpect(status().isOk())
-
-    paymentRepository.findAll().size() == 1
-    def payment = paymentRepository.findAll().asList().first()
-    payment.status == PaymentStatus.PENDING
-    payment.internalReference.equals(anInternalReference.uuid)
-    payment.amount == aPaymentAmount
-    payment.user.id == aUser.id
-
-    def applications = paymentApplicationService.getPaymentApplications(anAuthenticatedPerson)
-    applications.size() == 1
-    def application = applications.first()
-    application.status == ApplicationStatus.COMPLETE
-    application.details.amount == aPaymentAmount
-    application.details.currency == Currency.EUR
-    application.details.targetFund.pillar == 3
-    application.details.targetFund.isin == TULEVA_3RD_PILLAR_FUND_ISIN
+  private Expectation[] mockEpisContactDetails() {
+    mockServerClient
+        .when(request("/contact-details")
+            .withHeader("Authorization", "Bearer dummy"))
+        .respond(response()
+            .withContentType(APPLICATION_JSON)
+            .withBody(((new ObjectMapper()).writeValueAsString(contactDetailsFixture())))
+        )
   }
 }

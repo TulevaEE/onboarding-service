@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
+import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.mandate.application.PaymentApplicationService
 import ee.tuleva.onboarding.payment.provider.PaymentController
@@ -12,7 +13,6 @@ import ee.tuleva.onboarding.payment.provider.PaymentLink
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserRepository
 import org.mockserver.client.MockServerClient
-import org.mockserver.mock.Expectation
 import org.mockserver.springtest.MockServerTest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -33,6 +33,7 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowStatementFor3rdPillarPayment
+import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedCallbackFinalizedTokenWithCorrectIdCode
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.anInternalReference
@@ -70,16 +71,22 @@ class PaymentIntegrationSpec extends Specification {
   PaymentApplicationService paymentApplicationService
 
   @Value('${frontend.url}')
-  private String frontendUrl
+  String frontendUrl
 
-  private MockServerClient mockServerClient
+  MockServerClient mockServerClient
+
+  ObjectMapper mapper = JsonMapper.builder()
+      .addModule(new JavaTimeModule())
+      .build()
+
+  String aToken = "token-string"
 
   def setup() {
     SecurityContext sc = SecurityContextHolder.createEmptyContext()
     TestingAuthenticationToken authentication = new TestingAuthenticationToken("test", "password")
     OAuth2AuthenticationDetails details = Mock(OAuth2AuthenticationDetails)
     authentication.details = details
-    details.getTokenValue() >> "dummy"
+    details.getTokenValue() >> aToken
     sc.authentication = authentication
     SecurityContextHolder.context = sc
   }
@@ -97,15 +104,18 @@ class PaymentIntegrationSpec extends Specification {
     AuthenticatedPerson anAuthenticatedPerson = authenticatedPersonFromUser(aUser).build()
 
     mockEpisContactDetails()
+    mockEpisTransactions()
+    mockEpisApplications()
+    mockEpisAccountStatement()
 
     expect:
     expectAPaymentLink(anAuthenticatedPerson)
     expectNoPaymentsStored()
     expectThatPaymentCallbackRedirectsUser()
     expectThatPaymentCallbackCreatedAPendingPayment()
+    mockEpisTransactionsForPayment()
     expectToBeAbleToReceivePaymentNotification()
     expectThatPaymentStatusIsStillPending(aUser)
-    mockEpisTransactions()
     expectLinkedPaymentAndTransactions(anAuthenticatedPerson)
   }
 
@@ -160,14 +170,10 @@ class PaymentIntegrationSpec extends Specification {
     paymentLink.url().startsWith('https://')
   }
 
-  private void mockEpisTransactions() {
-    ObjectMapper mapper = JsonMapper.builder()
-        .addModule(new JavaTimeModule())
-        .build()
-
+  private void mockEpisTransactionsForPayment() {
     mockServerClient
         .when(request("/account-cash-flow-statement")
-            .withHeader("Authorization", "Bearer dummy"))
+            .withHeader("Authorization", "Bearer $aToken"))
         .respond(response()
             .withContentType(APPLICATION_JSON)
             .withBody((mapper.writeValueAsString(cashFlowStatementFor3rdPillarPayment(
@@ -176,13 +182,45 @@ class PaymentIntegrationSpec extends Specification {
         )
   }
 
-  private Expectation[] mockEpisContactDetails() {
+  private void mockEpisTransactions() {
     mockServerClient
-        .when(request("/contact-details")
-            .withHeader("Authorization", "Bearer dummy"))
+        .when(request("/account-cash-flow-statement")
+            .withHeader("Authorization", "Bearer $aToken"))
         .respond(response()
             .withContentType(APPLICATION_JSON)
-            .withBody(((new ObjectMapper()).writeValueAsString(contactDetailsFixture())))
+            .withBody((mapper.writeValueAsString(cashFlowFixture())))
+        )
+  }
+
+  private void mockEpisApplications() {
+    mockServerClient
+        .when(request("/applications")
+            .withHeader("Authorization", "Bearer $aToken"))
+        .respond(response()
+            .withContentType(APPLICATION_JSON)
+            .withBody((mapper.writeValueAsString(List.of())))
+        )
+  }
+
+  private void mockEpisContactDetails() {
+    mockServerClient
+        .when(request("/contact-details")
+            .withHeader("Authorization", "Bearer $aToken"))
+        .respond(response()
+            .withContentType(APPLICATION_JSON)
+            .withBody((mapper.writeValueAsString(contactDetailsFixture())))
+        )
+  }
+
+  private void mockEpisAccountStatement() {
+    mockServerClient
+        .when(request("/account-statement")
+            .withHeader("Authorization", "Bearer $aToken"))
+        .respond(response()
+            .withContentType(APPLICATION_JSON)
+            .withBody((mapper.writeValueAsString(
+                List.of(FundBalanceDto.builder().isin(TULEVA_3RD_PILLAR_FUND_ISIN).build())
+            )))
         )
   }
 }

@@ -3,14 +3,12 @@ package ee.tuleva.onboarding.payment
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
-import ee.tuleva.onboarding.mandate.application.Application
-import ee.tuleva.onboarding.mandate.application.PaymentApplicationDetails
 import ee.tuleva.onboarding.mandate.application.PaymentApplicationService
 import ee.tuleva.onboarding.payment.provider.PaymentController
+import ee.tuleva.onboarding.payment.provider.PaymentLink
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserRepository
 import org.mockserver.client.MockServerClient
@@ -29,34 +27,29 @@ import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails
 import org.springframework.test.context.TestPropertySource
-import org.springframework.test.web.servlet.MockMvc
-import org.springframework.test.web.servlet.MvcResult
-import org.springframework.test.web.servlet.ResultActions
+import org.springframework.web.servlet.view.RedirectView
+import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
-import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixtureThatMatchesPayment
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
+import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowStatementFor3rdPillarPayment
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedCallbackFinalizedTokenWithCorrectIdCode
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.anInternalReference
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aPaymentAmount
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aPaymentCurrency
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aPaymentBank
 import static ee.tuleva.onboarding.mandate.application.PaymentApplicationService.TULEVA_3RD_PILLAR_FUND_ISIN
-import static org.hamcrest.Matchers.startsWith
 import static org.mockserver.model.HttpRequest.request
 import static org.mockserver.model.HttpResponse.response
 import static org.mockserver.model.MediaType.APPLICATION_JSON
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @MockServerTest("epis.service.url=http://localhost:\${mockServerPort}")
-@TestPropertySource(properties = "spring.cache.type=ehcache")
 @Import(Config.class)
 @TestPropertySource(properties = "PAYMENT_SECRET_LHV=exampleSecretKeyexampleSecretKeyexampleSecretKey")
 @TestPropertySource(properties = "payment-provider.banks.lhv.access-key=exampleAccessKey")
-class PaymentIntegrationSpec extends BaseControllerSpec {
+class PaymentIntegrationSpec extends Specification {
 
   static class Config {
     @Bean
@@ -81,8 +74,6 @@ class PaymentIntegrationSpec extends BaseControllerSpec {
 
   private MockServerClient mockServerClient
 
-  AuthenticatedPerson anAuthenticatedPerson
-  User aUser
   def setup() {
     SecurityContext sc = SecurityContextHolder.createEmptyContext()
     TestingAuthenticationToken authentication = new TestingAuthenticationToken("test", "password")
@@ -91,40 +82,36 @@ class PaymentIntegrationSpec extends BaseControllerSpec {
     details.getTokenValue() >> "dummy"
     sc.authentication = authentication
     SecurityContextHolder.context = sc
-    aUser = userRepository.save(sampleUserNonMember().id(null).build())
-    anAuthenticatedPerson = AuthenticatedPerson.builder()
-        .firstName("Jordan")
-        .lastName("Valdma")
-        .personalCode(aUser.getPersonalCode())
-        .userId(aUser.id)
-        .build()
   }
 
   def cleanup() {
     SecurityContextHolder.clearContext()
+    paymentRepository.deleteAll()
+    userRepository.deleteAll()
   }
-
 
   def "Payment happy flow"() {
     given:
 
-    mockEpisContactDetails()
-    mockEpisTransactions()
+    User aUser = userRepository.save(sampleUserNonMember().id(null).build())
+    AuthenticatedPerson anAuthenticatedPerson = authenticatedPersonFromUser(aUser).build()
 
-    def mvc = mockMvcWithAuthenticationPrincipal(anAuthenticatedPerson, paymentController)
+    mockEpisContactDetails()
 
     expect:
-    expectAPaymentLink(mvc)
+    expectAPaymentLink(anAuthenticatedPerson)
     expectNoPaymentsStored()
-    expectThatPaymentCallbackRedirectsUser(mvc)
+    expectThatPaymentCallbackRedirectsUser()
     expectThatPaymentCallbackCreatedAPendingPayment()
-    expectToBeAbleToReceivePaymentNotification(mvc)
-    expectThatPaymentStatusIsStillPending()
-    expectLinkedPaymentAndTransactions()
+    expectToBeAbleToReceivePaymentNotification()
+    expectThatPaymentStatusIsStillPending(aUser)
+    mockEpisTransactions()
+    expectLinkedPaymentAndTransactions(anAuthenticatedPerson)
   }
 
-  private void expectLinkedPaymentAndTransactions() {
-    def applications = paymentApplicationService.getPaymentApplications(anAuthenticatedPerson)
+  private void expectLinkedPaymentAndTransactions(AuthenticatedPerson anAuthenticatedPerson) {
+    def applications = paymentApplicationService
+        .getPaymentApplications(anAuthenticatedPerson)
     applications.size() == 1
     def application = applications.first()
 
@@ -139,7 +126,7 @@ class PaymentIntegrationSpec extends BaseControllerSpec {
     paymentRepository.findAll().isEmpty()
   }
 
-  private void expectThatPaymentStatusIsStillPending() {
+  private void expectThatPaymentStatusIsStillPending(User aUser) {
     paymentRepository.findAll().size() == 1
     def payment = paymentRepository.findAll().asList().first()
     payment.status == PaymentStatus.PENDING
@@ -148,10 +135,9 @@ class PaymentIntegrationSpec extends BaseControllerSpec {
     payment.user.id == aUser.id
   }
 
-  private ResultActions expectToBeAbleToReceivePaymentNotification(MockMvc mvc) {
-    mvc.perform(post("/v1/payments/notifications")
-        .param("payment_token", aSerializedCallbackFinalizedTokenWithCorrectIdCode))
-        .andExpect(status().isOk())
+  private Boolean expectToBeAbleToReceivePaymentNotification() {
+    paymentController.paymentCallback(aSerializedCallbackFinalizedTokenWithCorrectIdCode)
+    true
   }
 
   private void expectThatPaymentCallbackCreatedAPendingPayment() {
@@ -159,17 +145,19 @@ class PaymentIntegrationSpec extends BaseControllerSpec {
     paymentRepository.findAll().asList().first().status == PaymentStatus.PENDING
   }
 
-  private ResultActions expectThatPaymentCallbackRedirectsUser(MockMvc mvc) {
-    mvc.perform(get("/v1/payments/success")
-        .param("payment_token", aSerializedCallbackFinalizedTokenWithCorrectIdCode))
-        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/success"))
+  private Boolean expectThatPaymentCallbackRedirectsUser() {
+    RedirectView result = paymentController.getPaymentSuccessRedirect(aSerializedCallbackFinalizedTokenWithCorrectIdCode)
+    result.url == frontendUrl + "/3rd-pillar-flow/success"
   }
 
-  private MvcResult expectAPaymentLink(MockMvc mvc) {
-    mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&bank=LHV"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath('$.url', startsWith('https://')))
-        .andReturn()
+  private boolean expectAPaymentLink(AuthenticatedPerson anAuthenticatedPerson) {
+    PaymentLink paymentLink = paymentController.createPayment(
+        anAuthenticatedPerson,
+        aPaymentCurrency,
+        aPaymentAmount,
+        aPaymentBank
+    )
+    paymentLink.url().startsWith('https://')
   }
 
   private void mockEpisTransactions() {
@@ -182,7 +170,9 @@ class PaymentIntegrationSpec extends BaseControllerSpec {
             .withHeader("Authorization", "Bearer dummy"))
         .respond(response()
             .withContentType(APPLICATION_JSON)
-            .withBody((mapper.writeValueAsString(cashFlowFixtureThatMatchesPayment())))
+            .withBody((mapper.writeValueAsString(cashFlowStatementFor3rdPillarPayment(
+                paymentRepository.findAll().asList().first()
+            ))))
         )
   }
 

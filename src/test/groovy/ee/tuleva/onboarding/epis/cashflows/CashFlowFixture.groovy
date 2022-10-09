@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.epis.cashflows
 
+import ee.tuleva.onboarding.payment.Payment
+
 import java.time.Instant
 
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH
 import static ee.tuleva.onboarding.mandate.application.PaymentApplicationService.TULEVA_3RD_PILLAR_FUND_ISIN
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aPaymentAmount
 
 class CashFlowFixture {
 
@@ -31,20 +32,21 @@ class CashFlowFixture {
         ]).build()
   }
 
-  static CashFlowStatement cashFlowFixtureThatMatchesPayment() {
-    def time = Instant.now().plus(60)
+  static CashFlowStatement cashFlowStatementFor3rdPillarPayment(Payment payment) {
+    def time = payment.createdTime.plus(60)
+    def amount = payment.amount
+    def currency = payment.currency.toString()
     return CashFlowStatement.builder()
         .startBalance([
-            "1": CashFlow.builder().time(time).priceTime(time).amount(1000.0).currency("EUR").isin("1").build(),
-
+            "1": CashFlow.builder().time(time).priceTime(time).amount(0.0).currency(currency).isin(null).build()
         ])
         .endBalance([
-            "1": CashFlow.builder().time(time).priceTime(time).amount(1010.0).currency("EUR").isin("1").build(),
+            "1": CashFlow.builder().time(time).priceTime(time).amount(0.0).currency(currency).isin(null).build()
         ])
         .transactions([
-            CashFlow.builder().time(time).priceTime(time).amount(aPaymentAmount).currency("EUR").isin(null).type(CASH).build(),
-            CashFlow.builder().time(time.plus(1)).priceTime(time.plus(1)).amount(aPaymentAmount.negate()).currency("EUR").isin(null).type(CASH).build(),
-            CashFlow.builder().time(time.plus(1)).priceTime(time.plus(1)).amount(10.01).currency("EUR").isin(TULEVA_3RD_PILLAR_FUND_ISIN).type(CONTRIBUTION_CASH).build(),
+            CashFlow.builder().time(time).priceTime(time).amount(amount).currency(currency).isin(null).type(CASH).build(),
+            CashFlow.builder().time(time.plus(1)).priceTime(time.plus(1)).amount(amount.negate()).currency(currency).isin(null).type(CASH).build(),
+            CashFlow.builder().time(time.plus(1)).priceTime(time.plus(1)).amount(10.01).currency(currency).isin(TULEVA_3RD_PILLAR_FUND_ISIN).type(CONTRIBUTION_CASH).build(),
         ]).build()
   }
 }

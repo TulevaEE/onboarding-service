@@ -119,54 +119,53 @@ class PaymentIntegrationSpec extends Specification {
     expectLinkedPaymentAndTransactions(anAuthenticatedPerson)
   }
 
-  private Boolean expectLinkedPaymentAndTransactions(AuthenticatedPerson anAuthenticatedPerson) {
+  private void expectLinkedPaymentAndTransactions(AuthenticatedPerson anAuthenticatedPerson) {
     def applications = paymentApplicationService
         .getPaymentApplications(anAuthenticatedPerson)
     def application = applications.first()
-    applications.size() == 1 &&
-    application.status == ApplicationStatus.PENDING &&
-    application.details.amount == aPaymentAmount &&
-    application.details.currency == Currency.EUR &&
-    application.details.targetFund.pillar == 3 &&
-    application.details.targetFund.isin == TULEVA_3RD_PILLAR_FUND_ISIN
+    assert applications.size() == 1
+    assert application.status == ApplicationStatus.PENDING
+    assert application.details.amount == aPaymentAmount
+    assert application.details.currency == Currency.EUR
+    assert application.details.targetFund.pillar == 3
+    assert application.details.targetFund.isin == TULEVA_3RD_PILLAR_FUND_ISIN
   }
 
-  private boolean expectNoPaymentsStored() {
-    paymentRepository.findAll().isEmpty()
+  private void expectNoPaymentsStored() {
+    assert paymentRepository.findAll().isEmpty()
   }
 
   private void expectThatPaymentStatusIsStillPending(User aUser) {
-    paymentRepository.findAll().size() == 1
+    assert paymentRepository.findAll().size() == 1
     def payment = paymentRepository.findAll().asList().first()
-    payment.status == PaymentStatus.PENDING &&
-    payment.internalReference == anInternalReference.uuid &&
-    payment.amount == aPaymentAmount &&
-    payment.user.id == aUser.id
+    assert payment.status == PaymentStatus.PENDING
+    assert payment.internalReference == anInternalReference.uuid
+    assert payment.amount == aPaymentAmount
+    assert payment.user.id == aUser.id
   }
 
-  private Boolean expectToBeAbleToReceivePaymentNotification() {
+  private void expectToBeAbleToReceivePaymentNotification() {
     paymentController.paymentCallback(aSerializedCallbackFinalizedTokenWithCorrectIdCode)
-    true
   }
 
-  private Boolean expectThatPaymentCallbackCreatedAPendingPayment() {
-    paymentRepository.findAll().size() == 1 &&
-    paymentRepository.findAll().asList().first().status == PaymentStatus.PENDING
+  private void expectThatPaymentCallbackCreatedAPendingPayment() {
+    assert paymentRepository.findAll().size() == 1
+    assert paymentRepository.findAll().asList().first().status == PaymentStatus.PENDING
   }
 
-  private Boolean expectThatPaymentCallbackRedirectsUser() {
+  private void expectThatPaymentCallbackRedirectsUser() {
     RedirectView result = paymentController.getPaymentSuccessRedirect(aSerializedCallbackFinalizedTokenWithCorrectIdCode)
-    result.url == frontendUrl + "/3rd-pillar-flow/success"
+    assert result.url == frontendUrl + "/3rd-pillar-flow/success"
   }
 
-  private Boolean expectAPaymentLink(AuthenticatedPerson anAuthenticatedPerson) {
+  private void expectAPaymentLink(AuthenticatedPerson anAuthenticatedPerson) {
     PaymentLink paymentLink = paymentController.createPayment(
         anAuthenticatedPerson,
         aPaymentCurrency,
         aPaymentAmount,
         aPaymentBank
     )
-    paymentLink.url().startsWith('https://')
+    assert paymentLink.url().startsWith('https://')
   }
 
   private void mockEpisTransactionsForPayment() {

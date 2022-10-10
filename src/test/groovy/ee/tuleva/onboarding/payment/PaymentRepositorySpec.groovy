@@ -68,7 +68,7 @@ class PaymentRepositorySpec extends Specification {
     }
   }
 
-  def "can find by user"() {
+  def "can find by personal code"() {
     given:
     User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
     Payment payment = aNewPayment().tap {

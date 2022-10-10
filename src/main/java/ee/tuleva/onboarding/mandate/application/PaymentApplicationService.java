@@ -50,10 +50,6 @@ public class PaymentApplicationService {
 
     val applications = new ArrayList<Application<PaymentApplicationDetails>>();
 
-    log.info("Payments: {}", payments);
-
-    log.info("Cash flow statement: {}", cashFlowStatement);
-
     val linkedCashFlow = getLinkedCashFlow(payments, cashFlowStatement.getTransactions());
 
     log.info("Linked cash flow: {}", linkedCashFlow);
@@ -62,8 +58,13 @@ public class PaymentApplicationService {
       val payment = entry.getKey();
       val linkedCash = entry.getValue();
       if (linkedCash.isEmpty() || !cashIsBalanced(linkedCash)) {
-        log.info("Cash is not balanced or no cash entries for {}", payment.getId());
-        applications.add(createApplication(payment, apiFund, ApplicationStatus.PENDING));
+        if (hasRefund(linkedCash)) {
+          log.info("Payment {} has a refund", payment.getId());
+          applications.add(createApplication(payment, apiFund, ApplicationStatus.FAILED));
+        } else {
+          log.info("Cash is not balanced or no cash entries for {}", payment.getId());
+          applications.add(createApplication(payment, apiFund, ApplicationStatus.PENDING));
+        }
       } else if (cashIsBalanced(linkedCash)) {
         if (hasTulevaContribution(linkedCash)) {
           log.info("Payment {} has Tuleva fund contribution, marking as complete", payment.getId());
@@ -75,6 +76,10 @@ public class PaymentApplicationService {
       }
     }
     return applications;
+  }
+
+  private boolean hasRefund(List<CashFlow> linkedCash) {
+    return linkedCash.stream().anyMatch(CashFlow::isRefund);
   }
 
   private boolean hasTulevaContribution(List<CashFlow> linkedCash) {
@@ -98,11 +103,12 @@ public class PaymentApplicationService {
     val linkedCashFlow = new TreeMap<Payment, List<CashFlow>>();
     for (Payment payment : payments.stream().sorted().toList()) {
       val payIn = linkedPayIn(remainingCashFlow, payment);
+      val refund = linkedRefund(remainingCashFlow, payIn);
       val payOut = linkedPayOut(remainingCashFlow, payIn);
       val contribution = linkedContribution(remainingCashFlow, payOut);
 
       val paymentCashFlow =
-          Stream.of(payIn, payOut, contribution)
+          Stream.of(payIn, refund, payOut, contribution)
               .filter(Optional::isPresent)
               .map(Optional::get)
               .toList();
@@ -113,6 +119,23 @@ public class PaymentApplicationService {
       linkedCashFlow.put(payment, paymentCashFlow);
     }
     return linkedCashFlow;
+  }
+
+  private Optional<CashFlow> linkedRefund(
+      List<CashFlow> remainingCashFlow, Optional<CashFlow> payIn) {
+    return payIn.flatMap(
+        cashFlow ->
+            remainingCashFlow.stream()
+                .filter(
+                    isRefundOnOrAfterTimeWithAmount(
+                        cashFlow.getTime(), cashFlow.getAmount().negate()))
+                .findFirst());
+  }
+
+  private Predicate<CashFlow> isRefundOnOrAfterTimeWithAmount(Instant time, BigDecimal amount) {
+    return ((Predicate<CashFlow>) CashFlow::isRefund)
+        .and((cashFlow -> !cashFlow.getTime().isBefore(time)))
+        .and(hasSameAmount(amount));
   }
 
   private Optional<CashFlow> linkedContribution(

@@ -56,6 +56,10 @@ public class CashFlow implements Comparable<CashFlow> {
     return type == CASH;
   }
 
+  public boolean isRefund() {
+    return type == REFUND;
+  }
+
   @Override
   public int compareTo(@NotNull CashFlow other) {
     return comparing(CashFlow::getTime)
@@ -71,6 +75,7 @@ public class CashFlow implements Comparable<CashFlow> {
     CONTRIBUTION,
     SUBTRACTION,
     CASH,
+    REFUND,
     OTHER
   }
 }

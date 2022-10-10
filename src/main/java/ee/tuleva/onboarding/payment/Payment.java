@@ -50,6 +50,10 @@ public class Payment implements Comparable<Payment> {
     createdTime = Instant.now();
   }
 
+  public String getPersonalCode() {
+    return user.getPersonalCode();
+  }
+
   @Override
   public int compareTo(@org.jetbrains.annotations.NotNull Payment other) {
     return Comparator.comparing(Payment::getCreatedTime, Comparator.nullsLast(Instant::compareTo))

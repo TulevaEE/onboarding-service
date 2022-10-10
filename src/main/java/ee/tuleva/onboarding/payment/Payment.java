@@ -43,10 +43,6 @@ public class Payment implements Comparable<Payment> {
   @Enumerated(STRING)
   private Currency currency = EUR;
 
-  @NotNull
-  @Enumerated(STRING)
-  private PaymentStatus status;
-
   private Instant createdTime;
 
   @PrePersist
@@ -59,7 +55,6 @@ public class Payment implements Comparable<Payment> {
     return Comparator.comparing(Payment::getCreatedTime, Comparator.nullsLast(Instant::compareTo))
         .thenComparing(Payment::getAmount)
         .thenComparing(Payment::getCurrency)
-        .thenComparing(Payment::getStatus)
         .thenComparing(Payment::getInternalReference)
         .thenComparing(Payment::getId, Comparator.nullsLast(Long::compareTo))
         .compare(this, other);

@@ -11,7 +11,7 @@ public class PaymentService {
 
   private final PaymentRepository paymentRepository;
 
-  public List<Payment> getPayments(Person person, PaymentStatus status) {
-    return paymentRepository.findAllByUserPersonalCodeAndStatus(person.getPersonalCode(), status);
+  public List<Payment> getPayments(Person person) {
+    return paymentRepository.findAllByUserPersonalCode(person.getPersonalCode());
   }
 }

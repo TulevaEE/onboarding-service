@@ -7,7 +7,6 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
-import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
 
 @DataJpaTest
@@ -65,12 +64,11 @@ class PaymentRepositorySpec extends Specification {
       user == sampleUser
       amount == paymentToBeSaved.amount
       internalReference == paymentToBeSaved.internalReference
-      status == paymentToBeSaved.status
       createdTime != null
     }
   }
 
-  def "can find by user and status"() {
+  def "can find by user"() {
     given:
     User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
     Payment payment = aNewPayment().tap {
@@ -81,7 +79,7 @@ class PaymentRepositorySpec extends Specification {
     entityManager.flush()
 
     when:
-    def payments = paymentRepository.findAllByUserPersonalCodeAndStatus(sampleUser.personalCode, PENDING)
+    def payments = paymentRepository.findAllByUserPersonalCode(sampleUser.personalCode)
 
     then:
     payments.size() == 1

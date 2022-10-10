@@ -20,11 +20,10 @@ import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarApiFundResponse
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva3rdPillarFund
 import static ee.tuleva.onboarding.mandate.application.PaymentApplicationService.TULEVA_3RD_PILLAR_FUND_ISIN
-import static ee.tuleva.onboarding.payment.PaymentFixture.aPendingPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.aPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.contributionAmountHigh
 import static ee.tuleva.onboarding.payment.PaymentFixture.contributionAmountLow
-import static ee.tuleva.onboarding.payment.PaymentFixture.pendingPaymentAmount
-import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING
+import static ee.tuleva.onboarding.payment.PaymentFixture.paymentAmount
 
 class PaymentApplicationServiceSpec extends Specification {
 
@@ -38,7 +37,7 @@ class PaymentApplicationServiceSpec extends Specification {
   def "can get payment applications"() {
     given:
     def person = samplePerson()
-    paymentService.getPayments(person, PENDING) >> pendingPayments
+    paymentService.getPayments(person) >> payments
     cashFlowService.getCashFlowStatement(person) >> CashFlowStatement.builder()
         .transactions(transactions)
         .build()
@@ -51,26 +50,26 @@ class PaymentApplicationServiceSpec extends Specification {
     paymentApplications == pendingPaymentApplications
 
     where:
-    transactions                                                                                                                     | pendingPayments                                | pendingPaymentApplications
-    [transaction(), negativeTransaction()]                                                                                           | [aPendingPayment()]                            | [pendingPayment()]
-    []                                                                                                                               | [aPendingPayment()]                            | [pendingPayment()]
-    [transaction(), negativeTransaction(), tulevaContributionHigh()]                                                                 | [aPendingPayment()]                            | [completePayment()]
-    [transaction(), negativeTransaction(), tulevaContributionLow()]                                                                  | [aPendingPayment()]                            | [completePayment()]
-    [transaction(), negativeTransaction(), foreignContribution()]                                                                    | [aPendingPayment()]                            | [pendingPayment()]
-    []                                                                                                                               | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
-    [transaction()]                                                                                                                  | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
-    [transaction(), transaction()]                                                                                                   | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
-    [transaction(), transaction(), negativeTransaction()]                                                                            | [aPendingPayment(456L), aPendingPayment(123L)] | [pendingPayment(123L), pendingPayment(456L)]
-    [transaction(), transaction(), negativeTransaction(), tulevaContributionHigh()]                                                  | [aPendingPayment(456L), aPendingPayment(123L)] | [completePayment(123L), pendingPayment(456L)]
-    [transaction(), transaction(), negativeTransaction(), tulevaContributionHigh(), negativeTransaction(), tulevaContributionHigh()] | [aPendingPayment(456L), aPendingPayment(123L)] | [completePayment(123L), completePayment(456L)]
+    transactions                                                                                                                     | payments | pendingPaymentApplications
+    [transaction(), negativeTransaction()]                                                                                           | [aPayment()]                     | [aPaymentWithPendingApplication()]
+    []                                                                                                                               | [aPayment()]                     | [aPaymentWithPendingApplication()]
+    [transaction(), negativeTransaction(), tulevaContributionHigh()]                                                                 | [aPayment()]                     | [completePayment()]
+    [transaction(), negativeTransaction(), tulevaContributionLow()]                                                                  | [aPayment()]                     | [completePayment()]
+    [transaction(), negativeTransaction(), foreignContribution()]                                                                    | [aPayment()]                     | [aPaymentWithPendingApplication()]
+    []                                                                                                                               | [aPayment(456L), aPayment(123L)] | [aPaymentWithPendingApplication(123L), aPaymentWithPendingApplication(456L)]
+    [transaction()]                                                                                                                  | [aPayment(456L), aPayment(123L)] | [aPaymentWithPendingApplication(123L), aPaymentWithPendingApplication(456L)]
+    [transaction(), transaction()]                                                                                                   | [aPayment(456L), aPayment(123L)] | [aPaymentWithPendingApplication(123L), aPaymentWithPendingApplication(456L)]
+    [transaction(), transaction(), negativeTransaction()]                                                                            | [aPayment(456L), aPayment(123L)] | [aPaymentWithPendingApplication(123L), aPaymentWithPendingApplication(456L)]
+    [transaction(), transaction(), negativeTransaction(), tulevaContributionHigh()]                                                  | [aPayment(456L), aPayment(123L)] | [completePayment(123L), aPaymentWithPendingApplication(456L)]
+    [transaction(), transaction(), negativeTransaction(), tulevaContributionHigh(), negativeTransaction(), tulevaContributionHigh()] | [aPayment(456L), aPayment(123L)] | [completePayment(123L), completePayment(456L)]
   }
 
   private CashFlow transaction() {
-    return new CashFlow(null, Instant.parse("2022-09-29T10:25:30Z"), null, pendingPaymentAmount, "EUR", CASH)
+    return new CashFlow(null, Instant.parse("2022-09-29T10:25:30Z"), null, paymentAmount, "EUR", CASH)
   }
 
   private CashFlow negativeTransaction() {
-    return new CashFlow(null, Instant.parse("2022-09-29T10:35:30Z"), null, -pendingPaymentAmount, "EUR", CASH)
+    return new CashFlow(null, Instant.parse("2022-09-29T10:35:30Z"), null, -paymentAmount, "EUR", CASH)
   }
 
   private CashFlow tulevaContributionHigh() {
@@ -86,14 +85,14 @@ class PaymentApplicationServiceSpec extends Specification {
   }
 
   private Application<PaymentApplicationDetails> completePayment(Long id = 123L) {
-    return pendingPayment(id, COMPLETE)
+    return aPaymentWithPendingApplication(id, COMPLETE)
   }
 
-  private Application<PaymentApplicationDetails> pendingPayment(Long id = 123L, ApplicationStatus status = ApplicationStatus.PENDING) {
+  private Application<PaymentApplicationDetails> aPaymentWithPendingApplication(Long id = 123L, ApplicationStatus status = ApplicationStatus.PENDING) {
     return new Application<PaymentApplicationDetails>(
         id, Instant.parse("2022-09-29T10:15:30Z"), status,
         new PaymentApplicationDetails(
-            pendingPaymentAmount, EUR, tuleva3rdPillarApiFundResponse(), ApplicationType.PAYMENT,
+            paymentAmount, EUR, tuleva3rdPillarApiFundResponse(), ApplicationType.PAYMENT,
         )
     )
   }

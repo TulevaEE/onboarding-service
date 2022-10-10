@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.payment.provider;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static ee.tuleva.onboarding.payment.PaymentStatus.PENDING;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JWSObject;
@@ -63,7 +62,6 @@ class PaymentProviderCallbackService {
             .currency(EUR)
             .internalReference(internalReference.getUuid())
             .user(user)
-            .status(PENDING)
             .build();
 
     Payment payment = paymentRepository.save(paymentToBeSaved);

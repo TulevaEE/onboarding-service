@@ -21,7 +21,7 @@ public class PaymentEmailSender {
   @EventListener
   public void sendEmails(PaymentCreatedEvent event) {
     emailService.sendThirdPillarPaymentSuccessEmail(event.getUser(), event.getLocale());
-    scheduleThirdPillarSuggestSecondEmail(event);
+    // scheduleThirdPillarSuggestSecondEmail(event);
   }
 
   private void scheduleThirdPillarSuggestSecondEmail(PaymentCreatedEvent event) {

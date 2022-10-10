@@ -119,7 +119,7 @@ class PaymentIntegrationSpec extends Specification {
     expectLinkedPaymentAndTransactions(anAuthenticatedPerson)
   }
 
-  private void expectLinkedPaymentAndTransactions(AuthenticatedPerson anAuthenticatedPerson) {
+  private Boolean expectLinkedPaymentAndTransactions(AuthenticatedPerson anAuthenticatedPerson) {
     def applications = paymentApplicationService
         .getPaymentApplications(anAuthenticatedPerson)
     applications.size() == 1
@@ -150,9 +150,10 @@ class PaymentIntegrationSpec extends Specification {
     true
   }
 
-  private void expectThatPaymentCallbackCreatedAPendingPayment() {
+  private Boolean expectThatPaymentCallbackCreatedAPendingPayment() {
     paymentRepository.findAll().size() == 1
     paymentRepository.findAll().asList().first().status == PaymentStatus.PENDING
+    true
   }
 
   private Boolean expectThatPaymentCallbackRedirectsUser() {
@@ -160,7 +161,7 @@ class PaymentIntegrationSpec extends Specification {
     result.url == frontendUrl + "/3rd-pillar-flow/success"
   }
 
-  private boolean expectAPaymentLink(AuthenticatedPerson anAuthenticatedPerson) {
+  private Boolean expectAPaymentLink(AuthenticatedPerson anAuthenticatedPerson) {
     PaymentLink paymentLink = paymentController.createPayment(
         anAuthenticatedPerson,
         aPaymentCurrency,

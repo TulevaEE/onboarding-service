@@ -27,15 +27,15 @@ class PaymentEmailSenderSpec extends Specification {
     def user = sampleUser().build()
     def locale = ENGLISH
     def paymentCreatedEvent = new PaymentCreatedEvent(this, user, aNewPayment(), locale)
-    1 * episService.getContactDetails(user) >> new ContactDetails()
-    1 * conversionService.getConversion(user) >> notFullyConverted()
+    // 1 * episService.getContactDetails(user) >> new ContactDetails()
+    // 1 * conversionService.getConversion(user) >> notFullyConverted()
 
     when:
     paymentEmailSender.sendEmails(paymentCreatedEvent)
 
     then:
     1 * paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, locale)
-    1 * paymentEmailService.scheduleThirdPillarSuggestSecondEmail(user, locale)
+    // 1 * paymentEmailService.scheduleThirdPillarSuggestSecondEmail(user, locale)
   }
 
   def "does not schedule suggestion email when fully converted"() {
@@ -43,8 +43,8 @@ class PaymentEmailSenderSpec extends Specification {
     def user = sampleUser().build()
     def locale = ENGLISH
     def paymentCreatedEvent = new PaymentCreatedEvent(this, user, aNewPayment(), locale)
-    1 * episService.getContactDetails(user) >> contactDetailsFixture()
-    1 * conversionService.getConversion(user) >> fullyConverted()
+    // 1 * episService.getContactDetails(user) >> contactDetailsFixture()
+    // 1 * conversionService.getConversion(user) >> fullyConverted()
 
     when:
     paymentEmailSender.sendEmails(paymentCreatedEvent)

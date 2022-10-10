@@ -122,13 +122,12 @@ class PaymentIntegrationSpec extends Specification {
   private Boolean expectLinkedPaymentAndTransactions(AuthenticatedPerson anAuthenticatedPerson) {
     def applications = paymentApplicationService
         .getPaymentApplications(anAuthenticatedPerson)
-    applications.size() == 1
     def application = applications.first()
-
-    application.status == ApplicationStatus.COMPLETE
-    application.details.amount == aPaymentAmount
-    application.details.currency == Currency.EUR
-    application.details.targetFund.pillar == 3
+    applications.size() == 1 &&
+    application.status == ApplicationStatus.PENDING &&
+    application.details.amount == aPaymentAmount &&
+    application.details.currency == Currency.EUR &&
+    application.details.targetFund.pillar == 3 &&
     application.details.targetFund.isin == TULEVA_3RD_PILLAR_FUND_ISIN
   }
 
@@ -139,9 +138,9 @@ class PaymentIntegrationSpec extends Specification {
   private void expectThatPaymentStatusIsStillPending(User aUser) {
     paymentRepository.findAll().size() == 1
     def payment = paymentRepository.findAll().asList().first()
-    payment.status == PaymentStatus.PENDING
-    payment.internalReference.equals(anInternalReference.uuid)
-    payment.amount == aPaymentAmount
+    payment.status == PaymentStatus.PENDING &&
+    payment.internalReference == anInternalReference.uuid &&
+    payment.amount == aPaymentAmount &&
     payment.user.id == aUser.id
   }
 
@@ -151,9 +150,8 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private Boolean expectThatPaymentCallbackCreatedAPendingPayment() {
-    paymentRepository.findAll().size() == 1
+    paymentRepository.findAll().size() == 1 &&
     paymentRepository.findAll().asList().first().status == PaymentStatus.PENDING
-    true
   }
 
   private Boolean expectThatPaymentCallbackRedirectsUser() {

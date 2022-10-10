@@ -146,6 +146,7 @@ class PaymentIntegrationSpec extends Specification {
 
   private void expectToBeAbleToReceivePaymentNotification() {
     paymentController.paymentCallback(aSerializedCallbackFinalizedTokenWithCorrectIdCode)
+    assert paymentRepository.findAll().size() == 1
   }
 
   private void expectThatPaymentCallbackCreatedAPendingPayment() {

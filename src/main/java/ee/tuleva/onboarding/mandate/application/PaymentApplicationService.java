@@ -11,7 +11,7 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentService;
-import ee.tuleva.onboarding.payment.PaymentStatus;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
@@ -43,7 +43,7 @@ class PaymentApplicationService {
   private final LocaleService localeService;
 
   public List<Application<PaymentApplicationDetails>> getPaymentApplications(Person person) {
-    val pendingPayments = paymentService.getPayments(person, PaymentStatus.PENDING);
+    val payments = paymentService.getPayments(person);
     val cashFlowStatement = cashFlowService.getCashFlowStatement(person);
     val locale = localeService.getCurrentLocale();
     val fund = fundRepository.findByIsin(TULEVA_3RD_PILLAR_FUND_ISIN);
@@ -51,11 +51,11 @@ class PaymentApplicationService {
 
     val applications = new ArrayList<Application<PaymentApplicationDetails>>();
 
-    log.info("Pending payments: {}", pendingPayments);
+    log.info("Payments: {}", payments);
 
     log.info("Cash flow statement: {}", cashFlowStatement);
 
-    val linkedCashFlow = getLinkedCashFlow(pendingPayments, cashFlowStatement.getTransactions());
+    val linkedCashFlow = getLinkedCashFlow(payments, cashFlowStatement.getTransactions());
 
     log.info("Linked cash flow: {}", linkedCashFlow);
 

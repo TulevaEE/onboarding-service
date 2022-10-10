@@ -112,10 +112,9 @@ class PaymentIntegrationSpec extends Specification {
     expectAPaymentLink(anAuthenticatedPerson)
     expectNoPaymentsStored()
     expectThatPaymentCallbackRedirectsUser()
-    expectThatPaymentCallbackCreatedAPendingPayment()
+    expectThatPaymentCallbackCreatedOnePayment(aUser)
     mockEpisTransactionsForPayment()
     expectToBeAbleToReceivePaymentNotification()
-    expectThatPaymentStatusIsStillPending(aUser)
     expectLinkedPaymentAndTransactions(anAuthenticatedPerson)
   }
 
@@ -135,23 +134,17 @@ class PaymentIntegrationSpec extends Specification {
     assert paymentRepository.findAll().isEmpty()
   }
 
-  private void expectThatPaymentStatusIsStillPending(User aUser) {
-    assert paymentRepository.findAll().size() == 1
-    def payment = paymentRepository.findAll().asList().first()
-    assert payment.status == PaymentStatus.PENDING
-    assert payment.internalReference == anInternalReference.uuid
-    assert payment.amount == aPaymentAmount
-    assert payment.user.id == aUser.id
-  }
-
   private void expectToBeAbleToReceivePaymentNotification() {
     paymentController.paymentCallback(aSerializedCallbackFinalizedTokenWithCorrectIdCode)
     assert paymentRepository.findAll().size() == 1
   }
 
-  private void expectThatPaymentCallbackCreatedAPendingPayment() {
+  private void expectThatPaymentCallbackCreatedOnePayment(User aUser) {
     assert paymentRepository.findAll().size() == 1
-    assert paymentRepository.findAll().asList().first().status == PaymentStatus.PENDING
+    def payment = paymentRepository.findAll().asList().first()
+    assert payment.internalReference == anInternalReference.uuid
+    assert payment.amount == aPaymentAmount
+    assert payment.user.id == aUser.id
   }
 
   private void expectThatPaymentCallbackRedirectsUser() {

@@ -11,7 +11,6 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentService;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;

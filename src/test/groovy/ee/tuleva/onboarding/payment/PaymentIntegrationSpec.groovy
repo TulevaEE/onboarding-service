@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.mandate.application.PaymentApplicationService
 import ee.tuleva.onboarding.payment.provider.PaymentController
 import ee.tuleva.onboarding.payment.provider.PaymentLink
+import ee.tuleva.onboarding.payment.provider.PaymentProviderFixture
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserRepository
 import org.mockserver.client.MockServerClient
@@ -35,7 +36,6 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticated
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowStatementFor3rdPillarPayment
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedCallbackFinalizedTokenWithCorrectIdCode
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.anInternalReference
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aPaymentAmount
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aPaymentCurrency
@@ -135,7 +135,7 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private void expectToBeAbleToReceivePaymentNotification() {
-    paymentController.paymentCallback(aSerializedCallbackFinalizedTokenWithCorrectIdCode)
+    paymentController.paymentCallback(PaymentProviderFixture.aSerializedCallbackFinalizedToken)
     assert paymentRepository.findAll().size() == 1
   }
 
@@ -148,7 +148,7 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private void expectThatPaymentCallbackRedirectsUser() {
-    RedirectView result = paymentController.getPaymentSuccessRedirect(aSerializedCallbackFinalizedTokenWithCorrectIdCode)
+    RedirectView result = paymentController.getPaymentSuccessRedirect(PaymentProviderFixture.aSerializedCallbackFinalizedToken)
     assert result.url == frontendUrl + "/3rd-pillar-flow/success"
   }
 

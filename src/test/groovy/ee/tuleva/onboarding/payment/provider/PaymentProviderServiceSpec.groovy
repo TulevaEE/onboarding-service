@@ -53,7 +53,7 @@ class PaymentProviderServiceSpec extends Specification {
     PaymentLink paymentLink = paymentLinkService.getPaymentLink(paymentData)
 
     then:
-    paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedToken
+    paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderToken
   }
 
   AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()

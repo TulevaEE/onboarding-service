@@ -65,20 +65,20 @@ class PaymentControllerSpec extends BaseControllerSpec {
   def "GET /success redirects to success screen on successful payment"() {
     given:
     def mvc = mockMvc(paymentController)
-    1 * paymentProviderCallbackService.processToken(aSerializedToken) >> Optional.of(aNewPayment())
+    1 * paymentProviderCallbackService.processToken(aSerializedPaymentProviderToken) >> Optional.of(aNewPayment())
     expect:
     mvc.perform(get("/v1/payments/success")
-        .param("payment_token", aSerializedToken))
+        .param("payment_token", aSerializedPaymentProviderToken))
         .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/success"))
   }
 
   def "GET /success redirects back to payment screen on cancelled payment"() {
     given:
     def mvc = mockMvc(paymentController)
-    1 * paymentProviderCallbackService.processToken(aSerializedToken) >> Optional.empty()
+    1 * paymentProviderCallbackService.processToken(aSerializedPaymentProviderToken) >> Optional.empty()
     expect:
     mvc.perform(get("/v1/payments/success")
-        .param("payment_token", aSerializedToken))
+        .param("payment_token", aSerializedPaymentProviderToken))
         .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/payment"))
   }
 
@@ -86,10 +86,10 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentProviderCallbackService.processToken(aSerializedToken)
+    1 * paymentProviderCallbackService.processToken(aSerializedPaymentProviderToken)
     expect:
     mvc.perform(post("/v1/payments/notifications")
-        .param("payment_token", aSerializedToken))
+        .param("payment_token", aSerializedPaymentProviderToken))
         .andExpect(status().isOk())
   }
 

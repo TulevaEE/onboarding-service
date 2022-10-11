@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.error.converter.InputErrorsConverter
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
+import ee.tuleva.onboarding.payment.provider.PaymentProviderCallbackService
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.boot.test.context.TestConfiguration
@@ -18,6 +19,9 @@ import org.springframework.boot.web.servlet.error.ErrorAttributes
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Import
 import org.springframework.http.MediaType
+import org.springframework.security.authentication.AuthenticationManager
+import org.springframework.security.oauth2.provider.token.DefaultTokenServices
+import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore
 import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
 import spock.lang.Specification
@@ -32,11 +36,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(ErrorHandlingController)
 @WithMockUser
 @Import([ErrorResponseEntityFactory, InputErrorsConverter, ErrorAttributesConverter,
-    OAuthConfiguration.ResourceServerPathConfiguration, SecurityConfiguration, ConversionDecorator])
+    OAuthConfiguration.ResourceServerPathConfiguration, SecurityConfiguration])
 class ErrorHandlingControllerSpec extends Specification {
 
   @MockBean
   CashFlowService cashFlowService
+
+  @MockBean
+  AuthenticationManager authenticationManager
+
+  @MockBean
+  PaymentProviderCallbackService paymentProviderCallbackService
+
+  @MockBean
+  JdbcTokenStore jdbcTokenStore
+
+  @MockBean
+  DefaultTokenServices defaultTokenServices
+
+  @MockBean
+  ConversionDecorator conversionDecorator
 
   @TestConfiguration
   static class ErrorAttributesConfiguration {

@@ -15,27 +15,30 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
+import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
 import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
-import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
+import org.springframework.stereotype.Component;
 
 @Slf4j
+@Component
 public class PaymentProviderCallbackJwtFilter extends BasicAuthenticationFilter {
-
-  private final AuthenticationManager authenticationManager;
 
   private final PaymentProviderCallbackService paymentProviderCallbackService;
 
   private final JdbcTokenStore tokenStore;
 
+  private final DefaultTokenServices tokenServices;
+
   public PaymentProviderCallbackJwtFilter(
       AuthenticationManager authenticationManager,
       PaymentProviderCallbackService paymentProviderCallbackService,
-      JdbcTokenStore tokenStore) {
+      JdbcTokenStore tokenStore,
+      DefaultTokenServices tokenServices) {
     super(authenticationManager);
-    this.authenticationManager = authenticationManager;
     this.paymentProviderCallbackService = paymentProviderCallbackService;
     this.tokenStore = tokenStore;
+    this.tokenServices = tokenServices;
   }
 
   @Override
@@ -73,9 +76,10 @@ public class PaymentProviderCallbackJwtFilter extends BasicAuthenticationFilter 
       return null;
     }
 
-    val oAuth2AccessToken = tokens.stream().findFirst().get();
+    val accessToken = tokens.stream().findFirst().get();
 
-    Authentication authentication = new PreAuthenticatedAuthenticationToken(oAuth2AccessToken, "");
-    return authenticationManager.authenticate(authentication);
+    Authentication authentication = tokenServices.loadAuthentication(accessToken.getValue());
+
+    return authentication;
   }
 }

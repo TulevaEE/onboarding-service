@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService;
 import ee.tuleva.onboarding.auth.smartid.SmartIdTokenGranter;
+import ee.tuleva.onboarding.payment.provider.PaymentProviderCallbackJwtFilterConfiguration;
 import javax.sql.DataSource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,9 +37,7 @@ import org.springframework.security.oauth2.provider.ClientDetailsService;
 import org.springframework.security.oauth2.provider.CompositeTokenGranter;
 import org.springframework.security.oauth2.provider.TokenGranter;
 import org.springframework.security.oauth2.provider.client.ClientCredentialsTokenGranter;
-import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
 import org.springframework.security.oauth2.provider.token.DefaultTokenServices;
-import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -65,7 +64,9 @@ public class OAuthConfiguration {
     private static final String RESOURCE_ID = "onboarding-service";
 
     @Qualifier(RESOURCE_REQUEST_MATCHER_BEAN)
-    final RequestMatcher resources;
+    private final RequestMatcher resources;
+
+    private final PaymentProviderCallbackJwtFilterConfiguration jwtFilterConfiguration;
 
     @Override
     public void configure(ResourceServerSecurityConfigurer resources) {
@@ -90,7 +91,9 @@ public class OAuthConfiguration {
           .hasAuthority(Authority.USER)
           .and()
           .csrf()
-          .ignoringAntMatchers("/v1/**");
+          .ignoringAntMatchers("/v1/**")
+          .and()
+          .apply(jwtFilterConfiguration);
     }
   }
 
@@ -118,13 +121,13 @@ public class OAuthConfiguration {
     @Autowired private ClientDetailsService clientDetailsService;
 
     @Bean
-    public TokenStore tokenStore() {
+    public JdbcTokenStore tokenStore() {
       return new JdbcTokenStore(dataSource);
     }
 
     @Bean
     @Primary
-    public AuthorizationServerTokenServices tokenServices() {
+    public DefaultTokenServices tokenServices() {
       DefaultTokenServices tokenServices = new DefaultTokenServices();
       tokenServices.setTokenStore(tokenStore());
       tokenServices.setAccessTokenValiditySeconds(60 * 30);

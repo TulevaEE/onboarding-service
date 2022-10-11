@@ -21,7 +21,7 @@ import org.springframework.web.servlet.view.RedirectView;
 @RequestMapping("/v1/payments")
 @Slf4j
 @RequiredArgsConstructor
-class PaymentController {
+public class PaymentController {
 
   @Value("${frontend.url}")
   private String frontendUrl;

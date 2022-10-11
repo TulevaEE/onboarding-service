@@ -31,7 +31,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-class PaymentApplicationService {
+public class PaymentApplicationService {
 
   private static final String TULEVA_3RD_PILLAR_FUND_ISIN = "EE3600001707";
   private static final Duration GRACE_PERIOD = Duration.ofMinutes(30);

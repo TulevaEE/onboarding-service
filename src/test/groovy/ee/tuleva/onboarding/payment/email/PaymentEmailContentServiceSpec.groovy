@@ -8,6 +8,8 @@ import org.springframework.boot.test.context.SpringBootTest
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
 
 @SpringBootTest
 @EnableSnapshots
@@ -22,9 +24,13 @@ class PaymentEmailContentServiceSpec extends Specification {
   def "#language: renders the third pillar payment success email correctly"() {
     given:
     def user = sampleUser().build()
+    def payment = aNewPayment()
+    def contactDetails = contactDetailsFixture()
+    def locale = Locale.forLanguageTag(language)
 
     when:
-    String html = emailContentService.getThirdPillarPaymentSuccessHtml(user, Locale.forLanguageTag(language))
+    String html =
+        emailContentService.getThirdPillarPaymentSuccessHtml(user, payment, contactDetails, locale)
 
     then:
     expect.scenario(language).toMatchSnapshot(html)
@@ -39,9 +45,10 @@ class PaymentEmailContentServiceSpec extends Specification {
   def "#language: renders the third pillar suggest second email correctly"() {
     given:
     def user = sampleUser().build()
+    def locale = Locale.forLanguageTag(language)
 
     when:
-    String html = emailContentService.getThirdPillarSuggestSecondHtml(user, Locale.forLanguageTag(language))
+    String html = emailContentService.getThirdPillarSuggestSecondHtml(user, locale)
 
     then:
     expect.scenario(language).toMatchSnapshot(html)

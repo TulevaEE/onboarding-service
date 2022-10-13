@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.payment.email;
 
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.user.User;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -14,10 +16,14 @@ import org.thymeleaf.context.Context;
 public class PaymentEmailContentService {
   private final TemplateEngine templateEngine;
 
-  public String getThirdPillarPaymentSuccessHtml(User user, Locale locale) {
+  public String getThirdPillarPaymentSuccessHtml(
+      User user, Payment payment, ContactDetails contactDetails, Locale locale) {
     Context ctx = new Context();
     ctx.setLocale(locale);
     ctx.setVariable("firstName", user.getFirstName());
+    ctx.setVariable("paymentAmount", payment.getAmount().toString());
+    ctx.setVariable("pensionAccountNumber", contactDetails.getPensionAccountNumber());
+
     return templateEngine.process("third_pillar_payment_success_mandate", ctx);
   }
 

@@ -20,12 +20,14 @@ public class PaymentEmailSender {
 
   @EventListener
   public void sendEmails(PaymentCreatedEvent event) {
-    emailService.sendThirdPillarPaymentSuccessEmail(event.getUser(), event.getLocale());
-    // scheduleThirdPillarSuggestSecondEmail(event);
+    ContactDetails contactDetails = episService.getContactDetails(event.getUser());
+    emailService.sendThirdPillarPaymentSuccessEmail(
+        event.getUser(), event.getPayment(), contactDetails, event.getLocale());
+    // scheduleThirdPillarSuggestSecondEmail(event, contactDetails);
   }
 
-  private void scheduleThirdPillarSuggestSecondEmail(PaymentCreatedEvent event) {
-    ContactDetails contactDetails = episService.getContactDetails(event.getUser());
+  private void scheduleThirdPillarSuggestSecondEmail(
+      PaymentCreatedEvent event, ContactDetails contactDetails) {
     ConversionResponse conversion = conversionService.getConversion(event.getUser());
     PillarSuggestion pillarSuggestion =
         new PillarSuggestion(3, event.getUser(), contactDetails, conversion);

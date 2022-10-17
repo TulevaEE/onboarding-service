@@ -22,7 +22,7 @@ class ErrorHandlingControllerAdviceSpec extends BaseControllerSpec {
   LocaleResolver localeResolver = Mock()
 
   MandateController controller =
-    new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver, mandateFileService, localeResolver)
+      new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver, mandateFileService, localeResolver)
 
   MockMvc mvc = mockMvc(controller)
 
@@ -31,13 +31,18 @@ class ErrorHandlingControllerAdviceSpec extends BaseControllerSpec {
 
     expect:
     mvc
-      .perform(post("/v1/mandates/").content(
-        mapper.writeValueAsString(
-          invalidCreateMandateCommand
-        ))
-        .contentType(MediaType.APPLICATION_JSON))
-      .andExpect(status().isBadRequest())
-      .andExpect(content().json('{"errors":[{"code":"NotNull","message":"must not be null","path":"fundTransferExchanges","arguments":[]}]}'))
+        .perform(post("/v1/mandates/").content(
+            mapper.writeValueAsString(
+                invalidCreateMandateCommand
+            ))
+            .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().json('''
+        {"errors":[
+          {"code":"NotNull","message":"must not be null","path":"fundTransferExchanges","arguments":[]},
+          {"code":"NotNull","message":"must not be null","path":"address","arguments":[]}
+        ]}
+      '''))
   }
 
 }

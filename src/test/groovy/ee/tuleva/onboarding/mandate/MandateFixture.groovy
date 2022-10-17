@@ -189,6 +189,7 @@ class MandateFixture {
 
         ])
         .futureContributionFundIsin(futureContibutionFundIsin)
+        .address(addressFixture().build())
         .build()
 
     mandate.setId(123)
@@ -220,6 +221,7 @@ class MandateFixture {
                 .build()
         ])
         .futureContributionFundIsin(futureContibutionFundIsin)
+        .address(addressFixture().build())
         .build()
 
     mandate.setId(123)

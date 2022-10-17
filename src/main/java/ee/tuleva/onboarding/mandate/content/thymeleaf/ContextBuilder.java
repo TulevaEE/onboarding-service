@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.address.Address;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -87,15 +88,17 @@ public class ContextBuilder {
 
   public ContextBuilder contactDetails(ContactDetails contactDetails) {
     ctx.setVariable("contactDetails", contactDetails);
-
-    ctx.setVariable("addressLine1", contactDetails.getAddressRow1());
-    ctx.setVariable("addressLine2", contactDetails.getAddressRow2());
-    ctx.setVariable("countryCode", contactDetails.getCountry());
-    ctx.setVariable("postCode", contactDetails.getPostalIndex());
-    ctx.setVariable("districtName", contactDetails.getDistrictName());
     if (ctx.getVariable("email") == null) {
       ctx.setVariable("email", contactDetails.getEmail());
     }
+    return this;
+  }
+
+  public ContextBuilder address(Address address) {
+    ctx.setVariable("addressLine1", address.getStreet());
+    ctx.setVariable("countryCode", address.getCountryCode());
+    ctx.setVariable("postCode", address.getPostalCode());
+    ctx.setVariable("districtName", address.getDistrictCode());
     return this;
   }
 }

@@ -15,22 +15,9 @@ import org.springframework.stereotype.Component;
 public class PaymentEmailSender {
 
   private final PaymentEmailService emailService;
-  private final EpisService episService;
-  private final UserConversionService conversionService;
 
   @EventListener
   public void sendEmails(PaymentCreatedEvent event) {
     emailService.sendThirdPillarPaymentSuccessEmail(event.getUser(), event.getLocale());
-    // scheduleThirdPillarSuggestSecondEmail(event);
-  }
-
-  private void scheduleThirdPillarSuggestSecondEmail(PaymentCreatedEvent event) {
-    ContactDetails contactDetails = episService.getContactDetails(event.getUser());
-    ConversionResponse conversion = conversionService.getConversion(event.getUser());
-    PillarSuggestion pillarSuggestion =
-        new PillarSuggestion(3, event.getUser(), contactDetails, conversion);
-    if (pillarSuggestion.isSuggestPillar()) {
-      emailService.scheduleThirdPillarSuggestSecondEmail(event.getUser(), event.getLocale());
-    }
   }
 }

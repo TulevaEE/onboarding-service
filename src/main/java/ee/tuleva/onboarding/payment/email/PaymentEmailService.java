@@ -29,7 +29,6 @@ public class PaymentEmailService {
   private final ScheduledEmailService scheduledEmailService;
   private final PaymentEmailContentService emailContentService;
   private final MandateEmailService mandateEmailService;
-  private final Clock clock;
   private final MessageSource messageSource;
 
   void sendThirdPillarPaymentSuccessEmail(User user, Locale locale) {
@@ -57,26 +56,5 @@ public class PaymentEmailService {
 
     ScheduledEmail latestScheduledEmail = cancelledEmails.get(0);
     return mandateEmailService.getMandateAttachments(user, latestScheduledEmail.getMandate());
-  }
-
-  void scheduleThirdPillarSuggestSecondEmail(User user, Locale locale) {
-    String subject =
-        messageSource.getMessage("mandate.email.thirdPillar.suggestSecond.subject", null, locale);
-    String content = emailContentService.getThirdPillarSuggestSecondHtml(user, locale);
-    Instant sendAt = Instant.now(clock).plus(3, DAYS);
-
-    MandrillMessage message =
-        emailService.newMandrillMessage(
-            emailService.getRecipients(user),
-            subject,
-            content,
-            List.of("pillar_3.1", "suggest_2"),
-            null);
-    emailService
-        .send(user, message, sendAt)
-        .ifPresent(
-            messageId ->
-                scheduledEmailService.create(
-                    user, messageId, ScheduledEmailType.SUGGEST_SECOND_PILLAR));
   }
 }

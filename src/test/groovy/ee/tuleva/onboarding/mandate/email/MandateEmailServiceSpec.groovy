@@ -19,7 +19,9 @@ import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFully
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
+import static ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType.SUGGEST_SECOND_PILLAR
 import static java.time.ZoneOffset.UTC
+import static java.time.temporal.ChronoUnit.DAYS
 import static java.time.temporal.ChronoUnit.HOURS
 
 class MandateEmailServiceSpec extends Specification {
@@ -111,6 +113,81 @@ class MandateEmailServiceSpec extends Specification {
     1 * emailService.newMandrillMessage(recipients, subject, html, tags, !null) >> message
     1 * emailService.send(user, message, sendAt) >> Optional.of("123")
     1 * scheduledEmailService.create(user, "123", ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT, mandate)
+  }
+
+  def "schedule third pillar suggest second pillar email"() {
+    given:
+    def user = sampleUser().build()
+    def recipients = [new Recipient()]
+    def message = new MandrillMessage()
+    def html = "suggest second html"
+    def tags = ["pillar_3.1", "suggest_2"]
+    def locale = Locale.ENGLISH
+    def sendAt = now.plus(3, DAYS)
+
+    emailContentService.getThirdPillarSuggestSecondHtml(user, locale) >> html
+    emailService.getRecipients(user) >> recipients
+
+    when:
+    mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, locale)
+
+    then:
+    1 * emailService.newMandrillMessage(recipients, subject, html, tags, null) >> message
+    1 * emailService.send(user, message, sendAt) >> Optional.of("123")
+    1 * scheduledEmailService.create(user, "123", SUGGEST_SECOND_PILLAR)
+  }
+
+  def "Send third pillar suggest second pillar email"() {
+    given:
+    def user = sampleUser().build()
+
+    PillarSuggestion pillarSuggestion = Mock()
+    pillarSuggestion.isSuggestPillar() >> suggestPillar
+
+    def mandate = thirdPillarMandate()
+    def recipients = [new Recipient()]
+    def paymentReminder = new MandrillMessage()
+    def suggestSecond = new MandrillMessage()
+    def paymentReminderHtml = "payment reminder html"
+    def suggestSecondHtml = "suggest second html"
+    def locale = Locale.ENGLISH
+    1 * emailContentService.getThirdPillarPaymentReminderHtml(user, locale) >> paymentReminderHtml
+    emailService.getRecipients(user) >> recipients
+    1 * emailService.newMandrillMessage(
+        recipients, subject, paymentReminderHtml, ["pillar_3.1", "reminder"], !null) >> paymentReminder
+    1 * emailService.send(user, paymentReminder, now.plus(1, HOURS)) >> Optional.of("123")
+    1 * scheduledEmailService.create(user, "123", ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT, mandate)
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, locale)
+
+    then:
+    callCount * emailContentService.getThirdPillarSuggestSecondHtml(user, locale) >> suggestSecondHtml
+    callCount * emailService.newMandrillMessage(recipients, subject, suggestSecondHtml, ["pillar_3.1", "suggest_2"], null) >> suggestSecond
+    callCount * emailService.send(user, suggestSecond, now.plus(3, DAYS)) >> Optional.of("234")
+    callCount * scheduledEmailService.create(user, "234", ScheduledEmailType.SUGGEST_SECOND_PILLAR)
+
+    where:
+    suggestPillar | callCount
+    true          | 1
+    false         | 0
+  }
+
+  def "Sends two third pillar emails"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = notFullyConverted()
+    def contactDetails = contactDetailsFixture()
+    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
+    emailContentService.getThirdPillarPaymentReminderHtml(*_) >> "html"
+    emailService.getRecipients(user) >> [new Recipient()]
+    emailService.newMandrillMessage(*_) >> new MandrillMessage()
+
+    when:
+    mandateEmailService.sendMandate(user, thirdPillarMandate(), pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    2 * emailService.send(*_) >> Optional.of("123")
   }
 
 }

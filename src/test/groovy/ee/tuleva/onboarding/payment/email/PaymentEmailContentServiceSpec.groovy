@@ -34,21 +34,4 @@ class PaymentEmailContentServiceSpec extends Specification {
     'en'     | _
     'et'     | _
   }
-
-  @SnapshotName("third_pillar_suggest_second")
-  def "#language: renders the third pillar suggest second email correctly"() {
-    given:
-    def user = sampleUser().build()
-
-    when:
-    String html = emailContentService.getThirdPillarSuggestSecondHtml(user, Locale.forLanguageTag(language))
-
-    then:
-    expect.scenario(language).toMatchSnapshot(html)
-
-    where:
-    language | _
-    'en'     | _
-    'et'     | _
-  }
 }

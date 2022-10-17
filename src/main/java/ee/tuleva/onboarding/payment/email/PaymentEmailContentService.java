@@ -12,6 +12,7 @@ import org.thymeleaf.context.Context;
 @RequiredArgsConstructor
 @Slf4j
 public class PaymentEmailContentService {
+
   private final TemplateEngine templateEngine;
 
   public String getThirdPillarPaymentSuccessHtml(User user, Locale locale) {
@@ -19,12 +20,5 @@ public class PaymentEmailContentService {
     ctx.setLocale(locale);
     ctx.setVariable("firstName", user.getFirstName());
     return templateEngine.process("third_pillar_payment_success_mandate", ctx);
-  }
-
-  public String getThirdPillarSuggestSecondHtml(User user, Locale locale) {
-    Context ctx = new Context();
-    ctx.setLocale(locale);
-    ctx.setVariable("firstName", user.getFirstName());
-    return templateEngine.process("third_pillar_suggest_second", ctx);
   }
 }

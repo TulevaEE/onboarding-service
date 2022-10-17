@@ -26,7 +26,6 @@ class PaymentEmailServiceSpec extends Specification {
   EmailService emailService = Mock()
   ScheduledEmailService scheduledEmailService = Mock()
   MandateEmailService mandateEmailService = Mock()
-  def now = Instant.parse("2021-09-01T10:06:01Z")
 
   def subject = "subject";
   MessageSource messageSource = new AbstractMessageSource() {
@@ -39,7 +38,6 @@ class PaymentEmailServiceSpec extends Specification {
       scheduledEmailService,
       emailContentService,
       mandateEmailService,
-      Clock.fixed(now, UTC),
       messageSource)
 
   def "send third pillar payment success email"() {
@@ -68,27 +66,5 @@ class PaymentEmailServiceSpec extends Specification {
     then:
     1 * emailService.newMandrillMessage(recipients, subject, html, tags, [mandateAttachment]) >> message
     1 * emailService.send(user, message) >> Optional.of("123")
-  }
-
-  def "schedule third pillar suggest second pillar email"() {
-    given:
-    def user = sampleUser().build()
-    def recipients = [new MandrillMessage.Recipient()]
-    def message = new MandrillMessage()
-    def html = "suggest second html"
-    def tags = ["pillar_3.1", "suggest_2"]
-    def locale = Locale.ENGLISH
-    def sendAt = now.plus(3, ChronoUnit.DAYS)
-
-    emailContentService.getThirdPillarSuggestSecondHtml(user, locale) >> html
-    emailService.getRecipients(user) >> recipients
-
-    when:
-    paymentEmailService.scheduleThirdPillarSuggestSecondEmail(user, locale)
-
-    then:
-    1 * emailService.newMandrillMessage(recipients, subject, html, tags, null) >> message
-    1 * emailService.send(user, message, sendAt) >> Optional.of("123")
-    1 * scheduledEmailService.create(user, "123", SUGGEST_SECOND_PILLAR)
   }
 }

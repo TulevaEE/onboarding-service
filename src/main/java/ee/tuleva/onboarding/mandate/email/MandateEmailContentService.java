@@ -64,11 +64,11 @@ public class MandateEmailContentService {
     ctx.setVariable("firstName", user.getFirstName());
     return templateEngine.process("third_pillar_payment_reminder_mandate", ctx);
   }
+
   public String getThirdPillarSuggestSecondHtml(User user, Locale locale) {
     Context ctx = new Context();
     ctx.setLocale(locale);
     ctx.setVariable("firstName", user.getFirstName());
     return templateEngine.process("third_pillar_suggest_second", ctx);
   }
-
 }

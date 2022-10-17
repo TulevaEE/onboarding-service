@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.payment.email;
 
-import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.Collections.emptyList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -11,8 +10,6 @@ import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
-import java.time.Clock;
-import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;

@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 public class MandateEmailSender {
+
   private final MandateEmailService emailService;
   private final EpisService episService;
   private final UserConversionService conversionService;

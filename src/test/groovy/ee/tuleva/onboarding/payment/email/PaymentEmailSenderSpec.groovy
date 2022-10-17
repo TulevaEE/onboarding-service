@@ -17,41 +17,19 @@ import static java.util.Locale.ENGLISH
 class PaymentEmailSenderSpec extends Specification {
 
   PaymentEmailService paymentEmailService = Mock()
-  EpisService episService = Mock()
-  UserConversionService conversionService = Mock()
 
-  def paymentEmailSender = new PaymentEmailSender(paymentEmailService, episService, conversionService)
+  def paymentEmailSender = new PaymentEmailSender(paymentEmailService)
 
   def "send emails on payment creation"() {
     given:
     def user = sampleUser().build()
     def locale = ENGLISH
     def paymentCreatedEvent = new PaymentCreatedEvent(this, user, aNewPayment(), locale)
-    // 1 * episService.getContactDetails(user) >> new ContactDetails()
-    // 1 * conversionService.getConversion(user) >> notFullyConverted()
 
     when:
     paymentEmailSender.sendEmails(paymentCreatedEvent)
 
     then:
     1 * paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, locale)
-    // 1 * paymentEmailService.scheduleThirdPillarSuggestSecondEmail(user, locale)
   }
-
-  def "does not schedule suggestion email when fully converted"() {
-    given:
-    def user = sampleUser().build()
-    def locale = ENGLISH
-    def paymentCreatedEvent = new PaymentCreatedEvent(this, user, aNewPayment(), locale)
-    // 1 * episService.getContactDetails(user) >> contactDetailsFixture()
-    // 1 * conversionService.getConversion(user) >> fullyConverted()
-
-    when:
-    paymentEmailSender.sendEmails(paymentCreatedEvent)
-
-    then:
-    1 * paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, locale)
-    0 * paymentEmailService.scheduleThirdPillarSuggestSecondEmail(user, locale)
-  }
-
 }

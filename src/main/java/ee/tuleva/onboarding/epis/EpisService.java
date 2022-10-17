@@ -51,7 +51,7 @@ public class EpisService {
   @Value("${epis.service.url}")
   String episServiceUrl;
 
-  @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode")
+  @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode", sync = true)
   public List<ApplicationDTO> getApplications(Person person) {
     String url = episServiceUrl + "/applications";
 
@@ -65,7 +65,8 @@ public class EpisService {
 
   @Cacheable(
       value = CASH_FLOW_STATEMENT_CACHE_NAME,
-      key = "{ #person.personalCode, #fromDate, #toDate }")
+      key = "{ #person.personalCode, #fromDate, #toDate }",
+      sync = true)
   public CashFlowStatement getCashFlowStatement(
       Person person, LocalDate fromDate, LocalDate toDate) {
     String url =

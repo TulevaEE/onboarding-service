@@ -7,7 +7,6 @@ import javax.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.jetbrains.annotations.Nullable;
 
 @Getter
 @Setter
@@ -18,5 +17,5 @@ public class CreateMandateCommand {
 
   @Valid @NotNull private List<MandateFundTransferExchangeCommand> fundTransferExchanges;
 
-  @Valid @Nullable private Address address;
+  @Valid @NotNull private Address address;
 }

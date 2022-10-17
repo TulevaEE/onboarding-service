@@ -52,9 +52,10 @@ public class Mandate implements Serializable {
   @JsonView(MandateView.Default.class)
   private Long id;
 
-  @ManyToOne private User user;
+  @ManyToOne @NotNull private User user;
 
   @JsonView(MandateView.Default.class)
+  @Nullable
   private String futureContributionFundIsin;
 
   @NotNull
@@ -77,17 +78,19 @@ public class Mandate implements Serializable {
       cascade = {CascadeType.ALL},
       mappedBy = "mandate")
   @JsonView(MandateView.Default.class)
-  List<FundTransferExchange> fundTransferExchanges;
+  @Nullable
+  private List<FundTransferExchange> fundTransferExchanges;
 
   @Type(type = "jsonb")
   @Column(columnDefinition = "jsonb")
-  @Nullable
+  @NotNull
   @JsonView(MandateView.Default.class)
   private Address address;
 
   @Type(type = "jsonb")
   @Column(columnDefinition = "jsonb")
   @Convert(disableConversion = true)
+  @NotNull
   private Map<String, Object> metadata = new HashMap<>();
 
   @Builder

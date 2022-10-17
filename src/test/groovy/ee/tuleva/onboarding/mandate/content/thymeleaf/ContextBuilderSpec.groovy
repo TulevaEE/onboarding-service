@@ -14,6 +14,7 @@ import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDet
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
+import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class ContextBuilderSpec extends Specification {
 
@@ -136,13 +137,7 @@ class ContextBuilderSpec extends Specification {
         .contactDetails(dummyContactDetails)
         .build()
     then:
-    ContactDetails contactDetails = context.getVariable("contactDetails")
-    contactDetails.country == dummyContactDetails.country
-    context.getVariable("addressLine1") == dummyContactDetails.addressRow1
-    context.getVariable("addressLine2") == dummyContactDetails.addressRow2
-    context.getVariable("countryCode") == dummyContactDetails.country
-    context.getVariable("postCode") == dummyContactDetails.postalIndex
-    context.getVariable("districtName") == dummyContactDetails.districtName
+    context.getVariable("contactDetails") == dummyContactDetails
     context.getVariable("email") == dummyContactDetails.email
   }
 
@@ -157,5 +152,19 @@ class ContextBuilderSpec extends Specification {
         .build()
     then:
     context.getVariable("email") == user.email
+  }
+
+  def "address"() {
+    def address = addressFixture().build()
+    when:
+    Context context = ContextBuilder.builder()
+        .address(address)
+        .build()
+    then:
+    context.getVariable("addressLine1") == address.street
+    context.getVariable("addressLine2") == null
+    context.getVariable("countryCode") == address.countryCode
+    context.getVariable("postCode") == address.postalCode
+    context.getVariable("districtName") == address.districtCode
   }
 }

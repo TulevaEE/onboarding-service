@@ -20,16 +20,8 @@ class MandateContentCreatorIntSpec extends Specification {
   @Autowired
   ITemplateEngine templateEngine
 
+  @Autowired
   MandateContentCreator mandateContentCreator
-
-  def setup() {
-    mandateContentCreator = new HtmlMandateContentCreator(templateEngine)
-  }
-
-  def "template engine is autowired"() {
-    expect:
-    templateEngine != null
-  }
 
   def "mandate can be generated from template"() {
     given:
@@ -54,8 +46,8 @@ class MandateContentCreatorIntSpec extends Specification {
     mandateContentFiles[1].name == "vahetuseavaldus_1234.html"
     mandateContentFiles[1].mimeType == "text/html"
 
-    DigestUtils.md5Hex(mandateContentFiles[0].content) == "c19c63b1663b629731ba773c2ecc0154"
-    DigestUtils.md5Hex(mandateContentFiles[1].content) == "3f4e933db3f5be2b8edc646827df3fdd"
+    DigestUtils.md5Hex(mandateContentFiles[0].content) == "00228f9fa7d844e547802a08ac1facda"
+    DigestUtils.md5Hex(mandateContentFiles[1].content) == "fe9877bb90cab772e7a21c5a574c3b7b"
   }
 
   def "mandate cancellation mandate can be generated from template"() {
@@ -75,7 +67,7 @@ class MandateContentCreatorIntSpec extends Specification {
     then:
     mandateContentFiles[3].name == "avalduse_tyhistamise_avaldus_123.html"
     mandateContentFiles[3].mimeType == "text/html"
-    DigestUtils.md5Hex(mandateContentFiles[3].content) == "9acc148aceb8f4c00f5d4dbcb1e7aa26"
+    DigestUtils.md5Hex(mandateContentFiles[3].content) == "361ea975215b3e4b7eafb9951605ccbd"
   }
 
   def "mandate transfer cancellation mandate can be generated from template"() {
@@ -100,7 +92,7 @@ class MandateContentCreatorIntSpec extends Specification {
     mandateContentFiles.size() == 1
     mandateContentFiles[0].name == "vahetuseavaldus_1234.html"
     mandateContentFiles[0].mimeType == "text/html"
-    DigestUtils.md5Hex(mandateContentFiles[0].content) == "06fc9116138a6471fbc0040c64ff5928"
+    DigestUtils.md5Hex(mandateContentFiles[0].content) == "ebef404933a92df518e55067ca4bdf79"
   }
 
   @Unroll

@@ -82,6 +82,10 @@ class PaymentIntegrationSpec extends Specification {
   String aToken = "token-string"
 
   def setup() {
+    mockSecurityContext()
+  }
+
+  def mockSecurityContext() {
     SecurityContext sc = SecurityContextHolder.createEmptyContext()
     TestingAuthenticationToken authentication = new TestingAuthenticationToken("test", "password")
     OAuth2AuthenticationDetails details = Mock(OAuth2AuthenticationDetails)
@@ -111,10 +115,12 @@ class PaymentIntegrationSpec extends Specification {
     expect:
     expectAPaymentLink(anAuthenticatedPerson)
     expectNoPaymentsStored()
+    SecurityContextHolder.clearContext()
     expectThatPaymentCallbackRedirectsUser()
     expectThatPaymentCallbackCreatedOnePayment(aUser)
     mockEpisTransactionsForPayment()
     expectToBeAbleToReceivePaymentNotification()
+    mockSecurityContext()
     expectLinkedPaymentAndTransactions(anAuthenticatedPerson)
   }
 

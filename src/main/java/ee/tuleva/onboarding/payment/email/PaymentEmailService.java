@@ -5,11 +5,13 @@ import static java.util.Collections.emptyList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
+import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.mandate.email.MandateEmailService;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmail;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.user.User;
 import java.time.Clock;
 import java.time.Instant;
@@ -32,10 +34,12 @@ public class PaymentEmailService {
   private final Clock clock;
   private final MessageSource messageSource;
 
-  void sendThirdPillarPaymentSuccessEmail(User user, Locale locale) {
+  void sendThirdPillarPaymentSuccessEmail(
+      User user, Payment payment, ContactDetails contactDetails, Locale locale) {
     String subject =
         messageSource.getMessage("mandate.email.thirdPillar.paymentSuccess.subject", null, locale);
-    String content = emailContentService.getThirdPillarPaymentSuccessHtml(user, locale);
+    String content =
+        emailContentService.getThirdPillarPaymentSuccessHtml(user, payment, contactDetails, locale);
 
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(

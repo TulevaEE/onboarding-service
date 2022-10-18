@@ -16,8 +16,10 @@ import java.time.Instant
 import java.time.temporal.ChronoUnit
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT
 import static ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType.SUGGEST_SECOND_PILLAR
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
 import static java.time.ZoneOffset.UTC
 
 class PaymentEmailServiceSpec extends Specification {
@@ -45,6 +47,8 @@ class PaymentEmailServiceSpec extends Specification {
   def "send third pillar payment success email"() {
     given:
     def user = sampleUser().build()
+    def payment = aNewPayment()
+    def contactDetails = contactDetailsFixture()
     def recipients = [new MandrillMessage.Recipient()]
     def message = new MandrillMessage()
     def html = "payment success html"
@@ -54,7 +58,7 @@ class PaymentEmailServiceSpec extends Specification {
     def mandateAttachment = new MandrillMessage.MessageContent()
     def mandate = new Mandate(mandate: new byte[0])
 
-    emailContentService.getThirdPillarPaymentSuccessHtml(user, locale) >> html
+    emailContentService.getThirdPillarPaymentSuccessHtml(user, payment, contactDetails, locale) >> html
     emailService.getRecipients(user) >> recipients
     scheduledEmailService.cancel(user, REMIND_THIRD_PILLAR_PAYMENT) >> [new ScheduledEmail(
         userId: user.id, mandrillMessageId: mandrillMessageId,
@@ -63,7 +67,7 @@ class PaymentEmailServiceSpec extends Specification {
     mandateEmailService.getMandateAttachments(user, mandate) >> [mandateAttachment]
 
     when:
-    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, locale)
+    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, contactDetails, locale)
 
     then:
     1 * emailService.newMandrillMessage(recipients, subject, html, tags, [mandateAttachment]) >> message

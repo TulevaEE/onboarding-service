@@ -4,6 +4,8 @@ import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
+import ee.tuleva.onboarding.payment.Payment
+import ee.tuleva.onboarding.payment.PaymentFixture
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
 import spock.lang.Specification
 
@@ -25,32 +27,36 @@ class PaymentEmailSenderSpec extends Specification {
   def "send emails on payment creation"() {
     given:
     def user = sampleUser().build()
+    def payment = aNewPayment()
+    def contactDetails = contactDetailsFixture()
     def locale = ENGLISH
-    def paymentCreatedEvent = new PaymentCreatedEvent(this, user, aNewPayment(), locale)
-    // 1 * episService.getContactDetails(user) >> new ContactDetails()
+    def paymentCreatedEvent = new PaymentCreatedEvent(this, user, payment, locale)
+     1 * episService.getContactDetails(user) >> contactDetails
     // 1 * conversionService.getConversion(user) >> notFullyConverted()
 
     when:
     paymentEmailSender.sendEmails(paymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, locale)
+    1 * paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, contactDetails, locale)
     // 1 * paymentEmailService.scheduleThirdPillarSuggestSecondEmail(user, locale)
   }
 
   def "does not schedule suggestion email when fully converted"() {
     given:
     def user = sampleUser().build()
+    def payment = aNewPayment()
+    def contactDetails = contactDetailsFixture()
     def locale = ENGLISH
-    def paymentCreatedEvent = new PaymentCreatedEvent(this, user, aNewPayment(), locale)
-    // 1 * episService.getContactDetails(user) >> contactDetailsFixture()
+    def paymentCreatedEvent = new PaymentCreatedEvent(this, user, payment, locale)
+     1 * episService.getContactDetails(user) >> contactDetails
     // 1 * conversionService.getConversion(user) >> fullyConverted()
 
     when:
     paymentEmailSender.sendEmails(paymentCreatedEvent)
 
     then:
-    1 * paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, locale)
+    1 * paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, contactDetails, locale)
     0 * paymentEmailService.scheduleThirdPillarSuggestSecondEmail(user, locale)
   }
 

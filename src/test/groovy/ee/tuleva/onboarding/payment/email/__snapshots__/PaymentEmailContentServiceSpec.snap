@@ -4,8 +4,43 @@ third_pillar_payment_success[en]=[
   <body>
     <p>Hi Jordan,</p>
     <p>I’m glad you’re saving in the third pillar with us.</p>
-    <p>Your payment has successfully arrived at the Estonian Pension Registry. Your new contribution will appear on your pension account by the end of the next working day.</p>
+    <p>Your payment of 10.00 EUR has successfully arrived at the Estonian Pension Registry. Your new contribution will appear on your pension account in the next 2 working days.</p>
 
+    <br/>
+    <strong>It makes sense to automate your savings.</strong>
+    <p>If you haven’t yet, set up automatic recurring payments in your internet bank, so you can be certain that you are always taking care of your future self. By spreading your purchases over the year, you are reducing the risk of buying stocks when they are at peak prices.</p>
+
+    <br/>
+    <strong>Calculate your maximum tax break and if needed, start small.</strong>
+    <p>You will get the highest tax break if you contribute 15% of your gross income (but no more than 6,000 euros per year). <a href="https://tuleva.ee/en/iii-pillar/?utm_source=autoemail&utm_medium=clients&utm_campaign=payment_details&utm_content=kalkulaator">Here is a calculator to help with deciding.</a><br><br>Don’t be afraid if the amount seems too high at first. Start with a contribution that you are comfortable with: the sooner you begin, the bigger the impact of compound returns. You can always cancel your contributions if something unexpected happens.</p>
+
+    <br/>
+    <p>To set up a recurring payment, log into <b>your internet bank</b> and create a <b>standing order</b>:</p>
+    <p>
+      <span>Payee</span>:
+      <strong>AS Pensionikeskus</strong>
+    </p>
+    <p>
+      <span>Account number</span>:
+      <br/>
+      <strong>EE362200221067235244</strong> - Swedbank*
+      <br/>
+      <strong>EE141010220263146225</strong> - SEB
+      <br/>
+      <strong>EE961700017004379157</strong> - Luminor
+      <br/>
+      <strong>EE547700771002908125</strong> - LHV
+    </p>
+    <p>
+      <span>Payment details</span>:
+      <strong>30101119828</strong>
+    </p>
+    <p>
+      <span>Reference number</span>:
+      <strong>993432432</strong>
+    </p>
+
+    <p><strong>*Attention!</strong> If you are making a deposit through Swedbank, you will see a message “Contributions to the third pillar fund can be made here”. Click the link, permit the bank to fetch your account data from Pensionikeskus and you will receive a pre-filled third pillar payment form. Choose the “According to the choice application” fund option and enter your desired purchase amount. You can then make a single contribution or set up a recurring payment.</p>
     <p>If you have any questions please contact us via <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or 644 5100.</p>
     <br/>
     <p>Tõnu Pekk<br>Fund manager<br>Tuleva</p>
@@ -21,8 +56,43 @@ third_pillar_payment_success[et]=[
   <body>
     <p>Tere, Jordan.</p>
     <p>Mul on hea meel, et kogud meiega koos kolmandasse sambasse.</p>
-    <p>Sinu sissemakse on edukalt Pensionikeskusesse jõudnud. Uued osakud jõuavad sinu pensionikontole järgmise tööpäeva lõpuks.</p>
+    <p>Sinu sissemakse summas 10.00 EUR on edukalt Pensionikeskusesse jõudnud. Uued osakud jõuavad sinu pensionikontole kahe tööpäeva jooksul.</p>
 
+    <br/>
+    <strong>Kõige kavalam on teha säästmine automaatseks.</strong>
+    <p>Kui sa veel pole jõudnud, sea internetipangas üles igakuine püsimakse. Nii on kindel, et sa kiires elurütmis oma tuleviku-mina eest hoolitsemist ära unustama ei kipu. Fondiosakute ostusid ajas hajutades maandad ka riski, et korraga suuremat summat investeerides satud ostma aktsiaid just turu tipphetkel.</p>
+
+    <br/>
+    <strong>Arvuta välja maksimaalne maksuvõit ja kui vaja, alusta tagasihoidlikumalt.</strong>
+    <p>Kõige rohkem võidad, kui paigutad kolmandasse sambasse 15% oma brutosissetulekust (ja mitte rohkem kui 6000 eurot aastas). <a href="https://tuleva.ee/iii-sammas/?utm_source=autoemail&utm_medium=clients&utm_campaign=payment_details&utm_content=kalkulaator">Võta arvutamisel appi kalkulaator</a>.<br><br>Kui esialgu nii palju kõrvale panna pole võimalik, ära heitu! Alusta täna ükskõik kui tillukese igakuise säästuga: varem alustajal on tänu liit-tulule investeerimisel suur eelis. Kui midagi ootamatut juhtub, saad maksed alati vajadusel katkestada.</p>
+
+    <br/>
+    <p>Püsimakse üles seadmiseks logi sisse <b>oma internetipanka</b> ja sõlmi <b>püsikorralduse leping</b>:</p>
+    <p>
+      <span>Makse saaja</span>:
+      <strong>AS Pensionikeskus</strong>
+    </p>
+    <p>
+      <span>Arve number</span>:
+      <br/>
+      <strong>EE362200221067235244</strong> - Swedbank*
+      <br/>
+      <strong>EE141010220263146225</strong> - SEB
+      <br/>
+      <strong>EE961700017004379157</strong> - Luminor
+      <br/>
+      <strong>EE547700771002908125</strong> - LHV
+    </p>
+    <p>
+      <span>Makse selgitus</span>:
+      <strong>30101119828</strong>
+    </p>
+    <p>
+      <span>Viitenumber</span>:
+      <strong>993432432</strong>
+    </p>
+
+    <p><strong>*Tähelepanu!</strong> Kui teed sissemakse Swedbanki internetipanga kaudu, näed makseinfo sisestamisel teadet: “Sissemakseid III samba fondi saab teha siin”. Klõpsa julgelt panga pakutud lingil, anna pangale volitus küsida Pensionikeskusest sinu konto andmed ja sind ootab ees kolmanda samba fondi ostukorraldus, milles on vajalikud andmed juba olemas. Vali soovitud fondiks “Vastavalt valikuavaldusele” ning märgi investeeritav summa. Soovi korral saad nii teha ühekordse makse või üles seada püsimakse.</p>
     <p>Kui sul tekib ükskõik milliseid küsimusi, võta kõhklemata ühendust: e-post <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a>, tel 644 5100.</p>
     <br/>
     <p>Tõnu Pekk<br>Fondijuht<br>Tuleva</p>

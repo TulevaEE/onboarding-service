@@ -22,7 +22,7 @@ public class CashFlow implements Comparable<CashFlow> {
   private Instant time;
   private Instant priceTime;
   private BigDecimal amount;
-  private String currency;
+  private String currency; // TODO: use Currency class
   private Type type;
 
   public Instant getPriceTime() {

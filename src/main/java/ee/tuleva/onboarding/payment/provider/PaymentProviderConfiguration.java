@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment.provider;
 
 import static java.util.stream.Collectors.toMap;
 
+import ee.tuleva.onboarding.payment.PaymentData.Bank;
 import java.util.Map;
 import java.util.Map.Entry;
 import javax.annotation.PostConstruct;

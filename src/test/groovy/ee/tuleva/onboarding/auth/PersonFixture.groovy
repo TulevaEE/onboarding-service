@@ -5,26 +5,24 @@ import groovy.transform.ToString
 
 class PersonFixture {
 
-    public static Person samplePerson =
-        new PersonImpl(
-            personalCode: "38812121215",
-            firstName: "Jordan",
-            lastName: "Valdma"
-        )
+  public static Person samplePerson =
+      new PersonImpl(
+          personalCode: "38812121215",
+          firstName: "Jordan",
+          lastName: "Valdma"
+      )
 
-    static Person samplePerson() {
-        return samplePerson
-    }
+  static Person samplePerson() {
+    return samplePerson
+  }
 
-    @ToString
-    static class PersonImpl implements Person {
+  @ToString
+  static class PersonImpl implements Person {
+    String personalCode
+    String firstName
+    String lastName
+  }
 
-        String personalCode
-
-        String firstName
-
-        String lastName
-
-    }
+  static String sampleToken = "123"
 
 }

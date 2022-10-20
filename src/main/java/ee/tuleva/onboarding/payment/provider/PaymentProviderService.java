@@ -5,9 +5,13 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.MACSigner;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.locale.LocaleService;
+import ee.tuleva.onboarding.payment.PaymentData;
+import ee.tuleva.onboarding.payment.PaymentLink;
+import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
 import java.net.URL;
 import java.time.Clock;
 import java.util.HashMap;
@@ -23,7 +27,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-class PaymentProviderService {
+public class PaymentProviderService implements PaymentLinkGenerator {
 
   private final Clock clock;
 
@@ -41,9 +45,9 @@ class PaymentProviderService {
   @Value("${api.url}")
   private String apiUrl;
 
-  public PaymentLink getPaymentLink(PaymentData paymentData) {
+  public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
 
-    ContactDetails contactDetails = episService.getContactDetails(paymentData.getPerson());
+    ContactDetails contactDetails = episService.getContactDetails(person);
 
     Map<String, Object> payload = new HashMap<>();
     PaymentProviderBank bankConfiguration =
@@ -52,17 +56,15 @@ class PaymentProviderService {
     payload.put("currency", paymentData.getCurrency());
     payload.put("amount", paymentData.getAmount());
     payload.put("access_key", bankConfiguration.getAccessKey());
-    payload.put(
-        "merchant_reference",
-        paymentInternalReferenceService.getPaymentReference(paymentData.getPerson()));
+    payload.put("merchant_reference", paymentInternalReferenceService.getPaymentReference(person));
     payload.put("merchant_return_url", apiUrl + "/payments/success");
     payload.put("merchant_notification_url", apiUrl + "/payments/notification");
     payload.put("payment_information_unstructured", "30101119828");
     payload.put("payment_information_structured", contactDetails.getPensionAccountNumber());
     payload.put("preselected_locale", getLanguage());
     payload.put("exp", clock.instant().getEpochSecond() + 600);
-    payload.put("checkout_first_name", paymentData.getPerson().getFirstName());
-    payload.put("checkout_last_name", paymentData.getPerson().getLastName());
+    payload.put("checkout_first_name", person.getFirstName());
+    payload.put("checkout_last_name", person.getLastName());
     payload.put("preselected_aspsp", bankConfiguration.getBic());
 
     JWSObject jwsObject = getSignedJws(payload, bankConfiguration);

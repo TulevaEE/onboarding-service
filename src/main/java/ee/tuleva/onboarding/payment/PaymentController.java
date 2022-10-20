@@ -1,10 +1,10 @@
-package ee.tuleva.onboarding.payment.provider;
+package ee.tuleva.onboarding.payment;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.currency.Currency;
-import ee.tuleva.onboarding.payment.Payment;
+import ee.tuleva.onboarding.payment.provider.PaymentProviderCallbackService;
+import ee.tuleva.onboarding.payment.provider.PaymentProviderService;
+import ee.tuleva.onboarding.payment.recurring.RecurringPaymentService;
 import io.swagger.v3.oas.annotations.Operation;
-import java.math.BigDecimal;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,23 +30,16 @@ public class PaymentController {
 
   private final PaymentProviderCallbackService paymentProviderCallbackService;
 
+  private final RecurringPaymentService recurringPaymentService;
+
   @GetMapping("/link")
-  @Operation(summary = "Create a payment")
-  public PaymentLink createPayment(
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      @RequestParam Currency currency,
-      @RequestParam BigDecimal amount,
-      @RequestParam Bank bank) {
-
-    PaymentData paymentData =
-        PaymentData.builder()
-            .person(authenticatedPerson)
-            .currency(currency)
-            .amount(amount)
-            .bank(bank)
-            .build();
-
-    return paymentProviderService.getPaymentLink(paymentData);
+  @Operation(summary = "Get a payment link")
+  public PaymentLink getPaymentLink(
+      PaymentData paymentData, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    if (paymentData.isRecurring()) {
+      return recurringPaymentService.getPaymentLink(paymentData, authenticatedPerson);
+    }
+    return paymentProviderService.getPaymentLink(paymentData, authenticatedPerson);
   }
 
   @GetMapping("/success")

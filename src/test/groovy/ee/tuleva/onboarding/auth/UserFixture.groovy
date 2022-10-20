@@ -23,6 +23,8 @@ class UserFixture {
                 .member(sampleMember)
     }
 
+  static sampleUser = sampleUser().build()
+
     static UserBuilder sampleUserNonMember() {
         return builder()
                 .id(999)

@@ -5,6 +5,8 @@ import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.locale.MockLocaleService
+import ee.tuleva.onboarding.payment.PaymentData
+import ee.tuleva.onboarding.payment.PaymentLink
 import spock.lang.Specification
 
 import java.time.Clock
@@ -12,7 +14,8 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.payment.provider.Bank.LHV
+import static ee.tuleva.onboarding.payment.PaymentData.Bank.LHV
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 import static java.time.ZoneOffset.UTC
 
@@ -41,16 +44,16 @@ class PaymentProviderServiceSpec extends Specification {
     given:
     String internalReference = anInternalReferenceSerialized
     PaymentData paymentData = PaymentData.builder()
-        .person(sampleAuthenticatedPerson)
         .currency(EUR)
         .amount(BigDecimal.TEN)
+        .type(SINGLE)
         .bank(LHV)
         .build()
 
     1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson as Person) >> internalReference
     1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetailsFixture()
     when:
-    PaymentLink paymentLink = paymentLinkService.getPaymentLink(paymentData)
+    PaymentLink paymentLink = paymentLinkService.getPaymentLink(paymentData, sampleAuthenticatedPerson)
 
     then:
     paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderToken

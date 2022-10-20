@@ -13,41 +13,50 @@ import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class ContactDetailsServiceSpec extends Specification {
 
-    def episService = Mock(EpisService)
-    def eventPublisher = Mock(ApplicationEventPublisher)
+  def episService = Mock(EpisService)
+  def eventPublisher = Mock(ApplicationEventPublisher)
 
-    def contactDetailsService = new ContactDetailsService(episService, eventPublisher)
+  def contactDetailsService = new ContactDetailsService(episService, eventPublisher)
 
-    def "Can update contact details"() {
-        given:
-        def user = sampleUser().build()
-        def address = addressFixture().build()
-        episService.getContactDetails(user) >> contactDetailsFixture()
+  def "Can update contact details"() {
+    given:
+    def user = sampleUser().build()
+    def address = addressFixture().build()
+    episService.getContactDetails(user) >> contactDetailsFixture()
 
-        when:
-        contactDetailsService.updateContactDetails(user, address)
+    when:
+    contactDetailsService.updateContactDetails(user, address)
 
-        then:
-        1 * episService.updateContactDetails({ person ->
-            person == user
-        }, { contactDetails ->
-            contactDetails.email == user.email
-            contactDetails.phoneNumber == user.phoneNumber
-            contactDetails.addressRow1 == address.street
-            contactDetails.country == address.countryCode
-            contactDetails.districtCode == address.districtCode
-            contactDetails.postalIndex == address.postalCode
-        })
-        1 * eventPublisher.publishEvent(_ as ContactDetailsUpdatedEvent)
-    }
+    then:
+    1 * episService.updateContactDetails({ person ->
+      person == user
+    }, { contactDetails ->
+      contactDetails.email == user.email
+      contactDetails.phoneNumber == user.phoneNumber
+      contactDetails.addressRow1 == address.street
+      contactDetails.country == address.countryCode
+      contactDetails.districtCode == address.districtCode
+      contactDetails.postalIndex == address.postalCode
+    })
+    1 * eventPublisher.publishEvent(_ as ContactDetailsUpdatedEvent)
+  }
 
-    def "can get contact details"() {
-        given:
-        def person = samplePerson()
-        def token = "123"
-        when:
-        contactDetailsService.getContactDetails(person, token)
-        then:
-        1 * episService.getContactDetails(person, token)
-    }
+  def "can get contact details with token"() {
+    given:
+    def person = samplePerson()
+    def token = "123"
+    when:
+    contactDetailsService.getContactDetails(person, token)
+    then:
+    1 * episService.getContactDetails(person, token)
+  }
+
+  def "can get contact details with no token"() {
+    given:
+    def person = samplePerson()
+    when:
+    contactDetailsService.getContactDetails(person)
+    then:
+    1 * episService.getContactDetails(person)
+  }
 }

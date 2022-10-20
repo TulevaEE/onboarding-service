@@ -1,32 +1,36 @@
-package ee.tuleva.onboarding.payment.provider
+package ee.tuleva.onboarding.payment
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
-import ee.tuleva.onboarding.currency.Currency
+import ee.tuleva.onboarding.payment.provider.PaymentProviderCallbackService
+import ee.tuleva.onboarding.payment.provider.PaymentProviderService
+import ee.tuleva.onboarding.payment.recurring.RecurringPaymentService
 import org.springframework.http.MediaType
 
+import static ee.tuleva.onboarding.currency.Currency.EUR
+import static ee.tuleva.onboarding.payment.PaymentData.Bank.LHV
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedPaymentProviderToken
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
 class PaymentControllerSpec extends BaseControllerSpec {
 
   PaymentProviderService paymentProviderService = Mock()
-    PaymentProviderCallbackService paymentProviderCallbackService = Mock()
+  PaymentProviderCallbackService paymentProviderCallbackService = Mock()
+  RecurringPaymentService recurringPaymentService = Mock()
 
-    PaymentController paymentController
+  PaymentController paymentController
   String frontendUrl = "https://frontend.url"
 
   def setup() {
     paymentController = new PaymentController(
         paymentProviderService,
-        paymentProviderCallbackService
+        paymentProviderCallbackService,
+        recurringPaymentService
     )
     paymentController.frontendUrl = frontendUrl
   }
@@ -42,21 +46,22 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
   def "GET /payments/link"() {
     given:
-    def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
+    def person = sampleAuthenticatedPerson
+    def mvc = mockMvcWithAuthenticationPrincipal(person, paymentController)
 
     PaymentLink paymentLink = new PaymentLink("https://some.url?payment_token=23948h3t9gfd")
 
     PaymentData paymentData = PaymentData.builder()
-      .person(sampleAuthenticatedPerson)
-      .currency(Currency.EUR)
-      .amount(100.22)
-      .bank(Bank.LHV)
-      .build()
+        .amount(100.22)
+        .currency(EUR)
+        .type(SINGLE)
+        .bank(LHV)
+        .build()
 
-    1 * paymentProviderService.getPaymentLink(paymentData) >> paymentLink
+    1 * paymentProviderService.getPaymentLink(paymentData, person) >> paymentLink
 
     expect:
-    mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&bank=LHV"))
+    mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&type=SINGLE&bank=LHV"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.url', is(paymentLink.url())))

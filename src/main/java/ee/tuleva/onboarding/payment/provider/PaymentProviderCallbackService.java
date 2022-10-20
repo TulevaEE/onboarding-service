@@ -23,7 +23,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-class PaymentProviderCallbackService {
+public class PaymentProviderCallbackService {
 
   private final PaymentProviderConfiguration paymentProviderConfiguration;
   private final UserService userService;

@@ -31,4 +31,8 @@ public class ContactDetailsService {
   public ContactDetails getContactDetails(Person person, String token) {
     return episService.getContactDetails(person, token);
   }
+
+  public ContactDetails getContactDetails(Person person) {
+    return episService.getContactDetails(person);
+  }
 }

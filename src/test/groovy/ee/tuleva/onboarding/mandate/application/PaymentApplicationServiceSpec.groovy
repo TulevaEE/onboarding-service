@@ -25,7 +25,7 @@ import static ee.tuleva.onboarding.mandate.application.PaymentApplicationService
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.contributionAmountHigh
 import static ee.tuleva.onboarding.payment.PaymentFixture.contributionAmountLow
-import static ee.tuleva.onboarding.payment.PaymentFixture.paymentAmount
+import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentAmount
 
 class PaymentApplicationServiceSpec extends Specification {
 
@@ -68,15 +68,15 @@ class PaymentApplicationServiceSpec extends Specification {
   }
 
   private CashFlow transaction() {
-    return new CashFlow(null, Instant.parse("2022-09-29T10:25:30Z"), null, paymentAmount, "EUR", CASH)
+    return new CashFlow(null, Instant.parse("2022-09-29T10:25:30Z"), null, aPaymentAmount, "EUR", CASH)
   }
 
   private CashFlow negativeTransaction() {
-    return new CashFlow(null, Instant.parse("2022-09-29T10:35:30Z"), null, -paymentAmount, "EUR", CASH)
+    return new CashFlow(null, Instant.parse("2022-09-29T10:35:30Z"), null, -aPaymentAmount, "EUR", CASH)
   }
 
   private CashFlow refundTransaction() {
-    return new CashFlow(null, Instant.parse("2022-09-29T10:35:30Z"), null, -paymentAmount, "EUR", REFUND)
+    return new CashFlow(null, Instant.parse("2022-09-29T10:35:30Z"), null, -aPaymentAmount, "EUR", REFUND)
   }
 
   private CashFlow tulevaContributionHigh() {
@@ -103,7 +103,7 @@ class PaymentApplicationServiceSpec extends Specification {
     return new Application<PaymentApplicationDetails>(
         id, Instant.parse("2022-09-29T10:15:30Z"), status,
         new PaymentApplicationDetails(
-            paymentAmount, EUR, tuleva3rdPillarApiFundResponse(), ApplicationType.PAYMENT,
+            aPaymentAmount, EUR, tuleva3rdPillarApiFundResponse(), ApplicationType.PAYMENT,
         )
     )
   }

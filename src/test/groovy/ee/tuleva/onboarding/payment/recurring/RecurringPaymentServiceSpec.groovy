@@ -1,8 +1,9 @@
 package ee.tuleva.onboarding.payment.recurring
 
-
 import ee.tuleva.onboarding.payment.PaymentData
 import spock.lang.Specification
+
+import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
@@ -32,8 +33,21 @@ class RecurringPaymentServiceSpec extends Specification {
     SWEDBANK | "https://www.swedbank.ee/private/pensions/pillar3/orderp3p"
     LHV      | "https://www.lhv.ee/portfolio/payment_standing_add.cfm?i_receiver_name=AS%20Pensionikeskus" +
         "&i_receiver_account_no=EE547700771002908125&i_payment_desc=30101119828&i_payment_clirefno=993432432" +
-        "&i_amount=12.34&i_currency_id=38&i_interval_type=K&i_date_first_payment=01.02.2020"
-    SEB      | "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM&saajakonto=EE141010220263146225&saajanimi=AS%20Pensionikeskus&selgitus=30101119828&viitenr=993432432&summa=12.34&alguskuup=01.02.2020"
+        "&i_amount=12.34&i_currency_id=38&i_interval_type=K&i_date_first_payment=10.01.2020"
+    SEB      | "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM&saajakonto=EE141010220263146225&saajanimi=" +
+        "AS%20Pensionikeskus&selgitus=30101119828&viitenr=993432432&summa=12.34&alguskuup=10.01.2020&sagedus=M"
     LUMINOR  | "https://luminor.ee/auth/#/web/view/autopilot/newpayment"
+  }
+
+  def "chooses the 10th day of month for recurring payment"() {
+    when:
+    def date = recurringPaymentService.tenthDayOfMonth(now)
+    then:
+    date == expectedPaymentDate
+    where:
+    now                       | expectedPaymentDate
+    LocalDate.of(2022, 3, 9)  | "10.03.2022"
+    LocalDate.of(2022, 3, 10) | "10.03.2022"
+    LocalDate.of(2022, 3, 11) | "10.04.2022"
   }
 }

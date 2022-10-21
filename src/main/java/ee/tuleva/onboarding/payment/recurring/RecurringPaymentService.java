@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
 import java.time.Clock;
 import java.time.LocalDate;
-import java.time.temporal.TemporalAdjusters;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -37,7 +36,7 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
               + "&summa="
               + paymentData.getAmount()
               + "&alguskuup="
-              + firstDayOfNextMonth()
+              + tenthDayOfMonth(LocalDate.now(clock))
               + "&sagedus=M"; // Monthly
           case LHV -> "https://www.lhv.ee/portfolio/payment_standing_add.cfm"
               + "?i_receiver_name=AS%20Pensionikeskus"
@@ -50,15 +49,19 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
               + "&i_currency_id=38" // EUR
               + "&i_interval_type=K" // Kuu
               + "&i_date_first_payment="
-              + firstDayOfNextMonth();
+              + tenthDayOfMonth(LocalDate.now(clock));
           case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
         };
     return new PaymentLink(url);
   }
 
-  private String firstDayOfNextMonth() {
-    return LocalDate.now(clock)
-        .with(TemporalAdjusters.firstDayOfNextMonth())
-        .format(ofPattern("dd.MM.yyyy"));
+  private String tenthDayOfMonth(LocalDate now) {
+    LocalDate date = now.withDayOfMonth(10);
+
+    if (now.getDayOfMonth() > 10) {
+      date = date.plusMonths(1);
+    }
+
+    return date.format(ofPattern("dd.MM.yyyy"));
   }
 }

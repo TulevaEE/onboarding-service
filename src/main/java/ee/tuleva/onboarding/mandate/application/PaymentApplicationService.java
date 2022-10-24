@@ -50,6 +50,8 @@ public class PaymentApplicationService {
 
     val applications = new ArrayList<Application<PaymentApplicationDetails>>();
 
+    log.info("All cash flow transactions: {}", cashFlowStatement.getTransactions());
+
     val linkedCashFlow = getLinkedCashFlow(payments, cashFlowStatement.getTransactions());
 
     log.info("Linked cash flow: {}", linkedCashFlow);

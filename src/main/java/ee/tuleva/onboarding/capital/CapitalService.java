@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
+import ee.tuleva.onboarding.currency.Currency;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -30,6 +31,7 @@ public class CapitalService {
     return new CapitalStatement(
         getCapitalAmount(events, List.of(MEMBERSHIP_BONUS)),
         getCapitalAmount(events, List.of(CAPITAL_PAYMENT, CAPITAL_PAYOUT)),
+        Currency.EUR,
         getCapitalAmount(events, List.of(UNVESTED_WORK_COMPENSATION)),
         getCapitalAmount(events, List.of(WORK_COMPENSATION)),
         getProfit(events));

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.capital;
 
+import ee.tuleva.onboarding.currency.Currency;
 import java.math.BigDecimal;
 import lombok.Builder;
 import lombok.Data;
@@ -9,6 +10,9 @@ import lombok.Data;
 public class CapitalStatement {
   private BigDecimal membershipBonus;
   private BigDecimal capitalPayment;
+
+  private Currency currency;
+
   private BigDecimal unvestedWorkCompensation;
   private BigDecimal workCompensation;
   private BigDecimal profit;

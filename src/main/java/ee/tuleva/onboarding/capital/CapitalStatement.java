@@ -11,8 +11,6 @@ public class CapitalStatement {
   private BigDecimal membershipBonus;
   private BigDecimal capitalPayment;
 
-  private Currency currency;
-
   private BigDecimal unvestedWorkCompensation;
   private BigDecimal workCompensation;
   private BigDecimal profit;

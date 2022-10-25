@@ -31,7 +31,6 @@ public class CapitalService {
     return new CapitalStatement(
         getCapitalAmount(events, List.of(MEMBERSHIP_BONUS)),
         getCapitalAmount(events, List.of(CAPITAL_PAYMENT, CAPITAL_PAYOUT)),
-        Currency.EUR,
         getCapitalAmount(events, List.of(UNVESTED_WORK_COMPENSATION)),
         getCapitalAmount(events, List.of(WORK_COMPENSATION)),
         getProfit(events));

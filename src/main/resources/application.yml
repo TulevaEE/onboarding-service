@@ -236,3 +236,6 @@ payment-provider:
       access-key: 955bc96c-aa71-4ff3-bea9-c8a429168c1d
       secret-key: ${PAYMENT_SECRET_LHV}
       bic: LHVBEE22
+
+sentry:
+  traces-sample-rate: 1.0

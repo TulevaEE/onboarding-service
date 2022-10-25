@@ -1,6 +1,10 @@
 package ee.tuleva.onboarding.capital;
 
-import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT;
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYOUT;
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS;
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION;
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.WORK_COMPENSATION;
 import static java.math.BigDecimal.ROUND_HALF_DOWN;
 import static java.math.BigDecimal.ZERO;
 
@@ -9,6 +13,7 @@ import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
+import ee.tuleva.onboarding.currency.Currency;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -32,7 +37,8 @@ public class CapitalService {
         getCapitalAmount(events, List.of(CAPITAL_PAYMENT, CAPITAL_PAYOUT)),
         getCapitalAmount(events, List.of(UNVESTED_WORK_COMPENSATION)),
         getCapitalAmount(events, List.of(WORK_COMPENSATION)),
-        getProfit(events));
+        getProfit(events),
+        Currency.EUR);
   }
 
   @NotNull

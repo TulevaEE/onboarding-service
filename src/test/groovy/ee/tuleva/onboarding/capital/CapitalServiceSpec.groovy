@@ -11,6 +11,7 @@ import java.time.LocalDate
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventFixture.memberCapitalEventFixture
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*
+import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture
 
 class CapitalServiceSpec extends Specification {
@@ -56,6 +57,8 @@ class CapitalServiceSpec extends Specification {
         capitalStatement.unvestedWorkCompensation == 3000.35
         capitalStatement.workCompensation == 4000.46
         capitalStatement.profit == 4940.67
+        capitalStatement.total == 500.12 + 2000.23 + 3000.35 + 4000.46 + 4940.67
+        capitalStatement.currency == EUR
     }
 
     def "works with no capital"() {
@@ -73,6 +76,8 @@ class CapitalServiceSpec extends Specification {
         capitalStatement.unvestedWorkCompensation == 0
         capitalStatement.workCompensation == 0
         capitalStatement.profit == 0
+        capitalStatement.total == 0
+        capitalStatement.currency == EUR
     }
 
     private AggregatedCapitalEvent getAggregatedCapitalEvent(BigDecimal ownershipUnitPrice) {

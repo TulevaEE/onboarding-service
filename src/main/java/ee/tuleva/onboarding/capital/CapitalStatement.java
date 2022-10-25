@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.capital;
 
-import ee.tuleva.onboarding.currency.Currency;
 import java.math.BigDecimal;
 import lombok.Builder;
 import lombok.Data;

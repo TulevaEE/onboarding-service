@@ -37,9 +37,9 @@ class LoginEventBroadcasterSpec extends Specification {
 
         then:
         if (document != null) {
-            1 * trackableEventPublisher.publish(samplePerson.personalCode, TrackableEventType.LOGIN, "method=$grantType", "document=$document")
+            1 * trackableEventPublisher.publish(samplePerson, TrackableEventType.LOGIN, "method=$grantType", "document=$document")
         } else {
-            1 * trackableEventPublisher.publish(samplePerson.personalCode, TrackableEventType.LOGIN, "method=$grantType")
+            1 * trackableEventPublisher.publish(samplePerson, TrackableEventType.LOGIN, "method=$grantType")
         }
 
         where:

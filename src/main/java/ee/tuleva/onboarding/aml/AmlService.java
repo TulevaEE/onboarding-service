@@ -183,7 +183,7 @@ public class AmlService {
       }
     }
     log.error("All necessary AML checks not passed for user {}!", user.getId());
-    trackableEventPublisher.publish(user.getEmail(), TrackableEventType.MANDATE_DENIED);
+    trackableEventPublisher.publish(user, TrackableEventType.MANDATE_DENIED);
     return false;
   }
 

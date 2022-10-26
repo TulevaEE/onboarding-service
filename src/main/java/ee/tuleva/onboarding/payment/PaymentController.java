@@ -1,9 +1,6 @@
 package ee.tuleva.onboarding.payment;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.payment.provider.PaymentProviderCallbackService;
-import ee.tuleva.onboarding.payment.provider.PaymentProviderService;
-import ee.tuleva.onboarding.payment.recurring.RecurringPaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -26,27 +23,20 @@ public class PaymentController {
   @Value("${frontend.url}")
   private String frontendUrl;
 
-  private final PaymentProviderService paymentProviderService;
-
-  private final PaymentProviderCallbackService paymentProviderCallbackService;
-
-  private final RecurringPaymentService recurringPaymentService;
+  private final PaymentService paymentService;
 
   @GetMapping("/link")
   @Operation(summary = "Get a payment link")
   public PaymentLink getPaymentLink(
       PaymentData paymentData, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    if (paymentData.isRecurring()) {
-      return recurringPaymentService.getPaymentLink(paymentData, authenticatedPerson);
-    }
-    return paymentProviderService.getPaymentLink(paymentData, authenticatedPerson);
+    return paymentService.getLink(paymentData, authenticatedPerson);
   }
 
   @GetMapping("/success")
   @Operation(summary = "Redirects user to payment success")
   public RedirectView getPaymentSuccessRedirect(
       @RequestParam("payment_token") String serializedToken) {
-    Optional<Payment> payment = paymentProviderCallbackService.processToken(serializedToken);
+    Optional<Payment> payment = paymentService.processToken(serializedToken);
     if (payment.isPresent()) {
       return new RedirectView(frontendUrl + "/3rd-pillar-flow/success");
     }
@@ -56,6 +46,6 @@ public class PaymentController {
   @PostMapping("/notifications")
   @Operation(summary = "Payment callback")
   public void paymentCallback(@RequestParam("payment_token") String serializedToken) {
-    paymentProviderCallbackService.processToken(serializedToken);
+    paymentService.processToken(serializedToken);
   }
 }

@@ -18,13 +18,12 @@ public class AuditEventBroadcaster {
   @Before(
       "execution(* ee.tuleva.onboarding.account.AccountStatementService.getAccountStatement(..)) && args(person)")
   public void logServiceAccess(Person person) {
-    trackableEventPublisher.publish(
-        person.getPersonalCode(), TrackableEventType.GET_ACCOUNT_STATEMENT);
+    trackableEventPublisher.publish(person, TrackableEventType.GET_ACCOUNT_STATEMENT);
   }
 
   @Before(
       "execution(* ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider.getAccountOverview(..)) && args(person, ..)")
   public void logCashFlowAccess(Person person) {
-    trackableEventPublisher.publish(person.getPersonalCode(), TrackableEventType.GET_CASH_FLOWS);
+    trackableEventPublisher.publish(person, TrackableEventType.GET_CASH_FLOWS);
   }
 }

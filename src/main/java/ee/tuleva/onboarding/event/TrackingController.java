@@ -26,8 +26,6 @@ public class TrackingController {
       @Valid @RequestBody TrackedEventCommand command) {
 
     trackableEventPublisher.publish(
-        authenticatedPerson.getPersonalCode(),
-        TrackableEventType.valueOf(command.getType()),
-        command.getData());
+        authenticatedPerson, TrackableEventType.valueOf(command.getType()), command.getData());
   }
 }

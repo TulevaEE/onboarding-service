@@ -29,13 +29,13 @@ public class LoginEventBroadcaster {
     if (GrantType.ID_CARD.equals(event.getGrantType())) {
       val idCardSession = (IdCardSession) credentials;
       trackableEventPublisher.publish(
-          person.getPersonalCode(),
+          person,
           TrackableEventType.LOGIN,
           "method=" + event.getGrantType(),
           "document=" + idCardSession.documentType);
     } else {
       trackableEventPublisher.publish(
-          person.getPersonalCode(), TrackableEventType.LOGIN, "method=" + event.getGrantType());
+          person, TrackableEventType.LOGIN, "method=" + event.getGrantType());
     }
   }
 }

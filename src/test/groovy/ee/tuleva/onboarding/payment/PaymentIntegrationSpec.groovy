@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
+import ee.tuleva.onboarding.event.EventLogRepository
 import ee.tuleva.onboarding.mandate.application.PaymentApplicationService
 import ee.tuleva.onboarding.payment.provider.PaymentProviderFixture
 import ee.tuleva.onboarding.user.User
@@ -57,12 +58,10 @@ class PaymentIntegrationSpec extends Specification {
     }
   }
 
-  @Autowired
-  PaymentController paymentController
-  @Autowired
-  UserRepository userRepository
-  @Autowired
-  PaymentRepository paymentRepository
+  @Autowired PaymentController paymentController
+  @Autowired UserRepository userRepository
+  @Autowired PaymentRepository paymentRepository
+  @Autowired EventLogRepository eventLogRepository
 
   @Autowired
   PaymentApplicationService paymentApplicationService
@@ -95,6 +94,7 @@ class PaymentIntegrationSpec extends Specification {
   def cleanup() {
     SecurityContextHolder.clearContext()
     paymentRepository.deleteAll()
+    eventLogRepository.deleteAll()
     userRepository.deleteAll()
   }
 

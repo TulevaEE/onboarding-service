@@ -19,19 +19,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class PaymentControllerSpec extends BaseControllerSpec {
 
-  PaymentProviderService paymentProviderService = Mock()
-  PaymentProviderCallbackService paymentProviderCallbackService = Mock()
-  RecurringPaymentService recurringPaymentService = Mock()
+  PaymentService paymentService = Mock()
 
   PaymentController paymentController
   String frontendUrl = "https://frontend.url"
 
   def setup() {
-    paymentController = new PaymentController(
-        paymentProviderService,
-        paymentProviderCallbackService,
-        recurringPaymentService
-    )
+    paymentController = new PaymentController(paymentService)
     paymentController.frontendUrl = frontendUrl
   }
 
@@ -58,7 +52,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .bank(LHV)
         .build()
 
-    1 * paymentProviderService.getPaymentLink(paymentData, person) >> paymentLink
+    1 * paymentService.getLink(paymentData, person) >> paymentLink
 
     expect:
     mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&type=SINGLE&bank=LHV"))
@@ -70,7 +64,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
   def "GET /success redirects to success screen on successful payment"() {
     given:
     def mvc = mockMvc(paymentController)
-    1 * paymentProviderCallbackService.processToken(aSerializedPaymentProviderToken) >> Optional.of(aNewPayment())
+    1 * paymentService.processToken(aSerializedPaymentProviderToken) >> Optional.of(aNewPayment())
     expect:
     mvc.perform(get("/v1/payments/success")
         .param("payment_token", aSerializedPaymentProviderToken))
@@ -80,7 +74,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
   def "GET /success redirects back to payment screen on cancelled payment"() {
     given:
     def mvc = mockMvc(paymentController)
-    1 * paymentProviderCallbackService.processToken(aSerializedPaymentProviderToken) >> Optional.empty()
+    1 * paymentService.processToken(aSerializedPaymentProviderToken) >> Optional.empty()
     expect:
     mvc.perform(get("/v1/payments/success")
         .param("payment_token", aSerializedPaymentProviderToken))
@@ -91,7 +85,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentProviderCallbackService.processToken(aSerializedPaymentProviderToken)
+    1 * paymentService.processToken(aSerializedPaymentProviderToken)
     expect:
     mvc.perform(post("/v1/payments/notifications")
         .param("payment_token", aSerializedPaymentProviderToken))

@@ -15,7 +15,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
-import ee.tuleva.onboarding.event.TrackableEventPublisher;
+import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.user.User;
 import java.time.Clock;
@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -34,7 +35,7 @@ import org.springframework.stereotype.Service;
 public class AmlService {
 
   private final AmlCheckRepository amlCheckRepository;
-  private final TrackableEventPublisher trackableEventPublisher;
+  private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
   private final List<List<AmlCheckType>> allowedCombinations =
       ImmutableList.of(
@@ -183,7 +184,8 @@ public class AmlService {
       }
     }
     log.error("All necessary AML checks not passed for user {}!", user.getId());
-    trackableEventPublisher.publish(user, TrackableEventType.MANDATE_DENIED);
+    eventPublisher.publishEvent(new TrackableEvent(user, TrackableEventType.MANDATE_DENIED));
+
     return false;
   }
 

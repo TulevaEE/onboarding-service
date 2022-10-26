@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.aml
 
-import ee.tuleva.onboarding.event.TrackableEventPublisher
-import ee.tuleva.onboarding.event.TrackableEventType
 import ee.tuleva.onboarding.epis.contact.ContactDetails
+import ee.tuleva.onboarding.event.TrackableEvent
+import ee.tuleva.onboarding.event.TrackableEventType
 import ee.tuleva.onboarding.user.User
+import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -19,9 +20,9 @@ import static java.time.temporal.ChronoUnit.DAYS
 class AmlServiceSpec extends Specification {
 
   AmlCheckRepository amlCheckRepository = Mock()
-  TrackableEventPublisher trackableEventPublisher = Mock()
+  ApplicationEventPublisher eventPublisher = Mock()
   Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
-  AmlService amlService = new AmlService(amlCheckRepository, trackableEventPublisher, clock)
+  AmlService amlService = new AmlService(amlCheckRepository, eventPublisher, clock)
 
   def aYearAgo = Instant.now(clock).minus(365, DAYS)
 
@@ -155,7 +156,7 @@ class AmlServiceSpec extends Specification {
     actual == result
     1 * amlCheckRepository.findAllByUserAndCreatedTimeAfter(user, aYearAgo) >> checks
     if (!result) {
-      1 * trackableEventPublisher.publish(user, TrackableEventType.MANDATE_DENIED)
+      1 * eventPublisher.publishEvent(new TrackableEvent(user, TrackableEventType.MANDATE_DENIED))
     }
     where:
     checks                                                                                                      | result

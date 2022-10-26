@@ -5,7 +5,7 @@ import static java.util.stream.Collectors.toMap;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.event.TrackableEventPublisher;
+import ee.tuleva.onboarding.event.TrackableEvent;
 import java.util.Map;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +13,7 @@ import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Before;
 import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 @Aspect
@@ -20,7 +21,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class TrackableAspect {
 
-  private final TrackableEventPublisher trackableEventPublisher;
+  private final ApplicationEventPublisher eventPublisher;
 
   private final ObjectMapper objectMapper;
 
@@ -35,6 +36,7 @@ public class TrackableAspect {
     JavaType type =
         objectMapper.getTypeFactory().constructMapType(Map.class, String.class, Object.class);
     Map<String, Object> data = objectMapper.convertValue(params, type);
-    trackableEventPublisher.publish(person, trackable.value(), data);
+
+    eventPublisher.publishEvent(new TrackableEvent(person, trackable.value(), data));
   }
 }

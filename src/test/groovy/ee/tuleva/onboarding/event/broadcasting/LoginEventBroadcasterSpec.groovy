@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.event.broadcasting
 
-import ee.tuleva.onboarding.auth.GrantType
+
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType
-import ee.tuleva.onboarding.event.TrackableEventPublisher
+import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.event.TrackableEventType
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.core.Authentication
 import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
@@ -17,10 +18,10 @@ import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sampleSmartIdSess
 
 class LoginEventBroadcasterSpec extends Specification {
 
-    TrackableEventPublisher trackableEventPublisher = Mock(TrackableEventPublisher)
-    LoginEventBroadcaster service = new LoginEventBroadcaster(trackableEventPublisher)
+    ApplicationEventPublisher eventPublisher = Mock()
+    LoginEventBroadcaster service = new LoginEventBroadcaster(eventPublisher)
 
-    def "OnBeforeTokenGrantedEvent: Broadcast login event"(GrantType grantType, String document, Object credentials) {
+    def "OnBeforeTokenGrantedEvent: Broadcast login event"() {
         given:
         def samplePerson = samplePerson()
 
@@ -37,9 +38,9 @@ class LoginEventBroadcasterSpec extends Specification {
 
         then:
         if (document != null) {
-            1 * trackableEventPublisher.publish(samplePerson, TrackableEventType.LOGIN, "method=$grantType", "document=$document")
+            1 * eventPublisher.publishEvent(new TrackableEvent(samplePerson, TrackableEventType.LOGIN, "method=$grantType", "document=$document"))
         } else {
-            1 * trackableEventPublisher.publish(samplePerson, TrackableEventType.LOGIN, "method=$grantType")
+            1 * eventPublisher.publishEvent(new TrackableEvent(samplePerson, TrackableEventType.LOGIN, "method=$grantType"))
         }
 
         where:

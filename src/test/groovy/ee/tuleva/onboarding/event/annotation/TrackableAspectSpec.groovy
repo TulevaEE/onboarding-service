@@ -2,17 +2,18 @@ package ee.tuleva.onboarding.event.annotation
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.auth.principal.Person
-import ee.tuleva.onboarding.event.TrackableEventPublisher
+import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.event.TrackableEventType
 import org.aspectj.lang.JoinPoint
 import org.aspectj.lang.reflect.MethodSignature
+import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 
 class TrackableAspectSpec extends Specification {
 
-  TrackableEventPublisher eventPublisher = Mock()
+  ApplicationEventPublisher eventPublisher = Mock()
   TrackableAspect trackableAspect = new TrackableAspect(eventPublisher, new ObjectMapper())
 
   def "tracks methods annotated with @Trackable annotation"() {
@@ -35,6 +36,6 @@ class TrackableAspectSpec extends Specification {
     trackableAspect.track(joinPoint, trackable, person)
     
     then:
-    1 * eventPublisher.publish(person, eventType, [methodParameterName1: methodParameter1])
+    1 * eventPublisher.publishEvent(new TrackableEvent(person, eventType, [methodParameterName1: methodParameter1]))
   }
 }

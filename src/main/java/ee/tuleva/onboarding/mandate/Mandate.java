@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
-import ee.tuleva.onboarding.config.JsonbType;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
@@ -34,17 +33,12 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Type;
-import org.hibernate.annotations.TypeDef;
-import org.hibernate.annotations.TypeDefs;
 import org.jetbrains.annotations.Nullable;
 
 @Data
 @Entity
 @Table(name = "mandate")
 @NoArgsConstructor
-@TypeDefs({
-  @TypeDef(name = "jsonb", typeClass = JsonbType.class),
-})
 public class Mandate implements Serializable {
 
   @Id

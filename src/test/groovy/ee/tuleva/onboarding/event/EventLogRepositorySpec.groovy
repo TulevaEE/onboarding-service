@@ -22,7 +22,7 @@ class EventLogRepositorySpec extends Specification {
         .type("LOGIN")
         .principal("38501010002")
         .timestamp(Instant.parse("2022-08-15T10:00:00Z"))
-        .data([data: true])
+        .data([data: [subdata: true]])
         .build()
     entityManager.persist(event)
     entityManager.flush()

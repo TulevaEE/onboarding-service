@@ -18,8 +18,6 @@ public class MandateSuccessfulEventBroadcaster {
   @EventListener
   public void publishMandateSuccessfulEvent(AfterMandateSignedEvent event) {
     trackableEventPublisher.publish(
-        event.getUser().getPersonalCode(),
-        TrackableEventType.MANDATE_SUCCESSFUL,
-        "pillar=" + event.getPillar());
+        event.getUser(), TrackableEventType.MANDATE_SUCCESSFUL, "pillar=" + event.getPillar());
   }
 }

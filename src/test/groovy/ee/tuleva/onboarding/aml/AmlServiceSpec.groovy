@@ -155,7 +155,7 @@ class AmlServiceSpec extends Specification {
     actual == result
     1 * amlCheckRepository.findAllByUserAndCreatedTimeAfter(user, aYearAgo) >> checks
     if (!result) {
-      1 * trackableEventPublisher.publish(user.getEmail(), TrackableEventType.MANDATE_DENIED)
+      1 * trackableEventPublisher.publish(user, TrackableEventType.MANDATE_DENIED)
     }
     where:
     checks                                                                                                      | result

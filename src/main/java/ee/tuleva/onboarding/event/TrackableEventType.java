@@ -6,5 +6,6 @@ public enum TrackableEventType {
   GET_CASH_FLOWS,
   MANDATE_SUCCESSFUL,
   MANDATE_DENIED,
-  PAGE_VIEW
+  PAGE_VIEW,
+  PAYMENT_LINK,
 }

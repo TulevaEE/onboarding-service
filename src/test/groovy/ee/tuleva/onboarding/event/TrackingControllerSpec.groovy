@@ -16,7 +16,7 @@ class TrackingControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, trackingController)
     def data = ["1":2]
-    1 * trackableEventPublisher.publish(sampleAuthenticatedPerson.personalCode, TrackableEventType.PAGE_VIEW, data)
+    1 * trackableEventPublisher.publish(sampleAuthenticatedPerson, TrackableEventType.PAGE_VIEW, data)
     expect:
     mvc.perform(post("/v1/t")
         .content("""{"type": "PAGE_VIEW", "data": {"1": 2}}""")

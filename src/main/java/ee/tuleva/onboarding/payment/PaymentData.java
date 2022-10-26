@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment;
 
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.currency.Currency;
 import java.math.BigDecimal;
 import javax.validation.constraints.NotNull;
@@ -17,6 +18,7 @@ public class PaymentData {
   @NotNull private PaymentType type;
   @NotNull private Bank bank;
 
+  @JsonIgnore
   public boolean isRecurring() {
     return type == RECURRING;
   }

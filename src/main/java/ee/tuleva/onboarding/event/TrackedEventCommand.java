@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class TrackedEventCommand {
 
-  private String type;
+  private TrackableEventType type;
 
   @Builder.Default private Map<String, Object> data = new HashMap<>();
 }

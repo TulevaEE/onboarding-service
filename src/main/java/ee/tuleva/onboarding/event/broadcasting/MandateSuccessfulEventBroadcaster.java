@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.event.broadcasting;
 
-import ee.tuleva.onboarding.event.TrackableEventPublisher;
+import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -13,11 +14,12 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class MandateSuccessfulEventBroadcaster {
 
-  private final TrackableEventPublisher trackableEventPublisher;
+  private final ApplicationEventPublisher eventPublisher;
 
   @EventListener
   public void publishMandateSuccessfulEvent(AfterMandateSignedEvent event) {
-    trackableEventPublisher.publish(
-        event.getUser(), TrackableEventType.MANDATE_SUCCESSFUL, "pillar=" + event.getPillar());
+    eventPublisher.publishEvent(
+        new TrackableEvent(
+            event.getUser(), TrackableEventType.MANDATE_SUCCESSFUL, "pillar=" + event.getPillar()));
   }
 }

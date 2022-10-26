@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.event
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.http.MediaType
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -9,14 +10,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class TrackingControllerSpec extends BaseControllerSpec {
 
-  TrackableEventPublisher trackableEventPublisher = Mock()
-  TrackingController trackingController = new TrackingController(trackableEventPublisher)
+  ApplicationEventPublisher eventPublisher = Mock()
+  TrackingController trackingController = new TrackingController(eventPublisher)
 
   def "POST /t adds tracks an event"() {
     given:
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, trackingController)
-    def data = ["1":2]
-    1 * trackableEventPublisher.publish(sampleAuthenticatedPerson, TrackableEventType.PAGE_VIEW, data)
+    def data = ["1": 2]
+    1 * eventPublisher.publishEvent(new TrackableEvent(sampleAuthenticatedPerson, TrackableEventType.PAGE_VIEW, data))
     expect:
     mvc.perform(post("/v1/t")
         .content("""{"type": "PAGE_VIEW", "data": {"1": 2}}""")

@@ -1,10 +1,8 @@
 package ee.tuleva.onboarding.event;
 
-import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.actuate.audit.AuditEvent;
-import org.springframework.boot.actuate.security.AuthenticationAuditListener;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -18,10 +16,6 @@ public class TrackableEventLogger {
   @EventListener
   public void onTrackableEvent(TrackableEvent trackableEvent) {
     AuditEvent event = trackableEvent.getAuditEvent();
-
-    if (Objects.equals(event.getType(), AuthenticationAuditListener.AUTHENTICATION_SUCCESS)) {
-      return;
-    }
 
     log.info(
         "Logging event: timestamp={}, principal={}, type={}, data={}",

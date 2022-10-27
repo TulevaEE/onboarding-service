@@ -6,11 +6,13 @@ import static java.util.Comparator.nullsLast;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Comparator;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.lang.NonNull;
 
 @Data
 @Builder
@@ -68,6 +70,11 @@ public class CashFlow implements Comparable<CashFlow> {
         .thenComparing(CashFlow::getCurrency)
         .thenComparing(CashFlow::getType)
         .compare(this, other);
+  }
+
+  @Override
+  public String toString() {
+    return "{%s, %s, %s, %s}".formatted(isin, time, amount, type);
   }
 
   public enum Type {

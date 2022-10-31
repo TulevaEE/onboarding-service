@@ -41,6 +41,7 @@ public class Payment implements Comparable<Payment> {
 
   @NotNull
   @Enumerated(STRING)
+  @Builder.Default
   private Currency currency = EUR;
 
   private Instant createdTime;

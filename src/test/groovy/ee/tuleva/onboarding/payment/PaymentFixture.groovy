@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.payment
 
 import ee.tuleva.onboarding.currency.Currency
+import ee.tuleva.onboarding.time.TestClockHolder
 
+import java.time.Duration
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -17,16 +19,17 @@ class PaymentFixture {
   static PaymentType aPaymentType = PaymentType.SINGLE
   static Bank aPaymentBank = Bank.LHV
   static PaymentData aPaymentData = new PaymentData(aPaymentAmount, aPaymentCurrency, aPaymentType, aPaymentBank)
+  static aPaymentCreationTime = TestClockHolder.now - Duration.ofDays(1)
 
   static Payment aNewPayment() {
     return new Payment(
         null, sampleUser().build(), UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), aPaymentAmount, Currency.EUR, null)
   }
 
-  static Payment aPayment(Long id = 123L) {
+  static Payment aPayment(Long id = 123L, Instant createdTime = aPaymentCreationTime) {
     return aNewPayment().tap {
       it.id = id
-      createdTime = Instant.parse("2022-09-29T10:15:30Z")
+      it.createdTime = createdTime
     }
   }
 

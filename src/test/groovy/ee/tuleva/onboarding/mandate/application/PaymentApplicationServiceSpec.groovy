@@ -1,19 +1,20 @@
 package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.account.CashFlowService
+import ee.tuleva.onboarding.deadline.PublicHolidays
 import ee.tuleva.onboarding.epis.cashflows.CashFlow
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.locale.MockLocaleService
+import ee.tuleva.onboarding.payment.PaymentFixture
 import ee.tuleva.onboarding.payment.PaymentService
+import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
 import java.time.Duration
 import java.time.Instant
-import java.time.temporal.ChronoUnit
-import java.time.temporal.TemporalAmount
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
@@ -29,14 +30,13 @@ import static ee.tuleva.onboarding.payment.PaymentFixture.aPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.contributionAmountHigh
 import static ee.tuleva.onboarding.payment.PaymentFixture.contributionAmountLow
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentAmount
-import static java.time.temporal.ChronoUnit.DAYS
 
 class PaymentApplicationServiceSpec extends Specification {
 
-  static final Duration threeDays = Duration.ofDays(3)
+  static final Duration fiveDays = Duration.ofDays(7)
   static final Duration tenMinutes = Duration.ofMinutes(10)
-  static final defaultPriceTime = Instant.parse("2022-09-28T00:00:00Z")
-  static final defaultPaymentTime = Instant.parse("2022-09-29T10:15:30Z")
+  static final defaultPriceTime = PaymentFixture.aPaymentCreationTime - Duration.ofMinutes(15)
+  static final defaultPaymentTime = PaymentFixture.aPaymentCreationTime
   static final defaultTransactionTime = defaultPaymentTime + tenMinutes
   static final defaultNegativeTransactionTime = defaultTransactionTime + tenMinutes
   static final defaultRefundTransactionTime = defaultNegativeTransactionTime + tenMinutes
@@ -45,9 +45,10 @@ class PaymentApplicationServiceSpec extends Specification {
   PaymentService paymentService = Mock()
   CashFlowService cashFlowService = Mock()
   FundRepository fundRepository = Mock()
+  PublicHolidays publicHolidays = new PublicHolidays(TestClockHolder.clock)
   LocaleService localeService = new MockLocaleService()
   PaymentApplicationService paymentApplicationService =
-      new PaymentApplicationService(paymentService, cashFlowService, fundRepository, localeService)
+      new PaymentApplicationService(paymentService, cashFlowService, fundRepository, localeService, TestClockHolder.clock, publicHolidays)
 
   def "can get payment applications"() {
     given:
@@ -65,21 +66,23 @@ class PaymentApplicationServiceSpec extends Specification {
     paymentApplications == pendingPaymentApplications
 
     where:
-    transactions                                                                                                                                                                    | payments                         | pendingPaymentApplications
-    [transaction(), negativeTransaction()]                                                                                                                                          | [aPayment()]                     | [aPendingPaymentApplication()]
-    [transaction(), refundTransaction()]                                                                                                                                            | [aPayment()]                     | [aFailedPaymentApplication()]
-    []                                                                                                                                                                              | [aPayment()]                     | [aPendingPaymentApplication()]
-    [transaction(), negativeTransaction(), tulevaContributionHigh()]                                                                                                                | [aPayment()]                     | [aCompletePaymentApplication()]
-    [transaction(), negativeTransaction(), tulevaContributionLow()]                                                                                                                 | [aPayment()]                     | [aCompletePaymentApplication()]
-    [transaction(), negativeTransaction(), foreignContribution()]                                                                                                                   | [aPayment()]                     | [aPendingPaymentApplication()]
-    []                                                                                                                                                                              | [aPayment(456L), aPayment(123L)] | [aPendingPaymentApplication(123L), aPendingPaymentApplication(456L)]
-    [transaction()]                                                                                                                                                                 | [aPayment(456L), aPayment(123L)] | [aPendingPaymentApplication(123L), aPendingPaymentApplication(456L)]
-    [transaction(), transaction()]                                                                                                                                                  | [aPayment(456L), aPayment(123L)] | [aPendingPaymentApplication(123L), aPendingPaymentApplication(456L)]
-    [transaction(), transaction(), negativeTransaction()]                                                                                                                           | [aPayment(456L), aPayment(123L)] | [aPendingPaymentApplication(123L), aPendingPaymentApplication(456L)]
-    [transaction(), transaction(), negativeTransaction(), tulevaContributionHigh()]                                                                                                 | [aPayment(456L), aPayment(123L)] | [aCompletePaymentApplication(123L), aPendingPaymentApplication(456L)]
-    [transaction(), transaction(), negativeTransaction(), tulevaContributionHigh(), negativeTransaction(), tulevaContributionHigh()]                                                | [aPayment(456L), aPayment(123L)] | [aCompletePaymentApplication(123L), aCompletePaymentApplication(456L)]
-    and: 'Does not link with cash flows newer than 3 days'
-    [transaction(defaultTransactionTime + threeDays), negativeTransaction(defaultNegativeTransactionTime + threeDays), tulevaContributionHigh(defaultContributionTime + threeDays)] | [aPayment()]                     | [aPendingPaymentApplication()]
+    transactions                                                                                                                     | payments                                            | pendingPaymentApplications
+    [transaction(), negativeTransaction()]                                                                                           | [aPayment()]                                        | [aPendingPaymentApplication()]
+    [transaction(), refundTransaction()]                                                                                             | [aPayment()]                                        | [aFailedPaymentApplication()]
+    []                                                                                                                               | [aPayment()]                                        | [aPendingPaymentApplication()]
+    [transaction(), negativeTransaction(), tulevaContributionHigh()]                                                                 | [aPayment()]                                        | [aCompletePaymentApplication()]
+    [transaction(), negativeTransaction(), tulevaContributionLow()]                                                                  | [aPayment()]                                        | [aCompletePaymentApplication()]
+    [transaction(), negativeTransaction(), foreignContribution()]                                                                    | [aPayment()]                                        | [aPendingPaymentApplication()]
+    []                                                                                                                               | [aPayment(456L), aPayment(123L)]                    | [aPendingPaymentApplication(123L), aPendingPaymentApplication(456L)]
+    [transaction()]                                                                                                                  | [aPayment(456L), aPayment(123L)]                    | [aPendingPaymentApplication(123L), aPendingPaymentApplication(456L)]
+    [transaction(), transaction()]                                                                                                   | [aPayment(456L), aPayment(123L)]                    | [aPendingPaymentApplication(123L), aPendingPaymentApplication(456L)]
+    [transaction(), transaction(), negativeTransaction()]                                                                            | [aPayment(456L), aPayment(123L)]                    | [aPendingPaymentApplication(123L), aPendingPaymentApplication(456L)]
+    [transaction(), transaction(), negativeTransaction(), tulevaContributionHigh()]                                                  | [aPayment(456L), aPayment(123L)]                    | [aCompletePaymentApplication(123L), aPendingPaymentApplication(456L)]
+    [transaction(), transaction(), negativeTransaction(), tulevaContributionHigh(), negativeTransaction(), tulevaContributionHigh()] | [aPayment(456L), aPayment(123L)]                    | [aCompletePaymentApplication(123L), aCompletePaymentApplication(456L)]
+    and: 'Does not link with cash flows newer than 3 working days (five days), shows as failed'
+    [transaction()]                                                                                                                  | [aPayment(123L, defaultTransactionTime - fiveDays)] | [aFailedPaymentApplication(123L, defaultTransactionTime - fiveDays)]
+    and: 'If no transaction in three working days (five days), mark as failed'
+    []                                                                                                                               | [aPayment(123L, defaultTransactionTime - fiveDays)] | [aFailedPaymentApplication(123L, defaultTransactionTime - fiveDays)]
   }
 
   private CashFlow transaction(Instant createdTime = defaultTransactionTime) {
@@ -106,12 +109,12 @@ class PaymentApplicationServiceSpec extends Specification {
     return new CashFlow("OTHERISIN", createdTime, defaultPriceTime, contributionAmountHigh, "EUR", CONTRIBUTION_CASH)
   }
 
-  private Application<PaymentApplicationDetails> aCompletePaymentApplication(Long id = 123L) {
-    return aPendingPaymentApplication(id, COMPLETE)
+  private Application<PaymentApplicationDetails> aCompletePaymentApplication(Long id = 123L, Instant createdTime = defaultPaymentTime) {
+    return aPendingPaymentApplication(id, COMPLETE, createdTime)
   }
 
-  private Application<PaymentApplicationDetails> aFailedPaymentApplication(Long id = 123L) {
-    return aPendingPaymentApplication(id, FAILED)
+  private Application<PaymentApplicationDetails> aFailedPaymentApplication(Long id = 123L, Instant createdTime = defaultPaymentTime) {
+    return aPendingPaymentApplication(id, FAILED, createdTime)
   }
 
   private Application<PaymentApplicationDetails> aPendingPaymentApplication(Long id = 123L, ApplicationStatus status = ApplicationStatus.PENDING, Instant createdTime = defaultPaymentTime) {

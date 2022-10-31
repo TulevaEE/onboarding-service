@@ -90,10 +90,10 @@ public class PaymentApplicationService {
 
   private static boolean cashIsBalanced(List<CashFlow> linkedCash) {
     return linkedCash.stream()
-            .filter(CashFlow::isCash)
-            .map(CashFlow::getAmount)
-            .reduce(BigDecimal.ZERO, BigDecimal::add)
-            .compareTo(BigDecimal.ZERO)
+        .filter(CashFlow::isCash)
+        .map(CashFlow::getAmount)
+        .reduce(BigDecimal.ZERO, BigDecimal::add)
+        .compareTo(BigDecimal.ZERO)
         == 0;
   }
 
@@ -169,7 +169,12 @@ public class PaymentApplicationService {
   private Predicate<CashFlow> isCashAfterGraceTimeWithAmount(Instant time, BigDecimal amount) {
     return ((Predicate<CashFlow>) CashFlow::isCash)
         .and(isAfterTimeWithGrace(time))
+        .and(isLessThanThreeDaysAfter(time))
         .and(hasSameAmount(amount));
+  }
+
+  private Predicate<CashFlow> isLessThanThreeDaysAfter(Instant time) {
+    return cashFlow -> cashFlow.getTime().minus(Duration.ofDays(3)).isBefore(time);
   }
 
   private Predicate<CashFlow> isCashAfterTimeWithAmount(Instant time, BigDecimal amount) {
@@ -188,11 +193,11 @@ public class PaymentApplicationService {
   private Predicate<CashFlow> hasSameAmount(BigDecimal amount) {
     return (cashFlow) ->
         cashFlow
-                .getAmount()
-                .setScale(2, RoundingMode.HALF_UP)
-                .subtract(amount)
-                .abs()
-                .compareTo(new BigDecimal("0.01"))
+            .getAmount()
+            .setScale(2, RoundingMode.HALF_UP)
+            .subtract(amount)
+            .abs()
+            .compareTo(new BigDecimal("0.01"))
             <= 0;
   }
 

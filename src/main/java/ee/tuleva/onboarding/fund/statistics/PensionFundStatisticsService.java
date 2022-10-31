@@ -2,9 +2,11 @@ package ee.tuleva.onboarding.fund.statistics;
 
 import static java.time.Duration.ofSeconds;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.cache.annotation.CachePut;
@@ -54,14 +56,22 @@ public class PensionFundStatisticsService {
 
   List<PensionFundStatistics> getPensionFundStatistics(String endpoint) {
     try {
-      PensionFundStatisticsResponse response =
-          restTemplate.getForObject(endpoint, PensionFundStatisticsResponse.class);
-      List<PensionFundStatistics> result = response.getPensionFundStatistics();
-
-      if (result == null) {
-        log.info("Pension fund statistics is empty");
-        return new ArrayList<>();
-      }
+//      PensionFundStatisticsResponse response =
+//          restTemplate.getForObject(endpoint, PensionFundStatisticsResponse.class);
+//      List<PensionFundStatistics> result = response.getPensionFundStatistics();
+//
+//      if (result == null) {
+//        log.info("Pension fund statistics is empty");
+//        return new ArrayList<>();
+//      }
+      val result = List.of(
+          new PensionFundStatistics(
+              "EE3600019717",
+              BigDecimal.valueOf(59_899_459.39470),
+              BigDecimal.valueOf(0.91511),
+              12_614
+          )
+      );
       return result;
     } catch (Exception e) {
       log.error("Error getting pension fund statistics");

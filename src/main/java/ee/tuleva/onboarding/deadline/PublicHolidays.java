@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.deadline;
 
+import static java.time.DayOfWeek.SATURDAY;
+import static java.time.DayOfWeek.SUNDAY;
+
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -27,6 +30,20 @@ public class PublicHolidays {
             christmasDay(),
             boxingDay())
         .contains(date);
+  }
+
+  public LocalDate nextWorkingDay(LocalDate to) {
+    LocalDate date = to.plusDays(1);
+    while (!isWorkingDay(date)) {
+      date = date.plusDays(1);
+    }
+    return date;
+  }
+
+  public boolean isWorkingDay(LocalDate date) {
+    return !(date.getDayOfWeek() == SATURDAY
+        || date.getDayOfWeek() == SUNDAY
+        || isPublicHoliday(date));
   }
 
   LocalDate newYearsDay() {
@@ -97,5 +114,12 @@ public class PublicHolidays {
     int month = (h + l - 7 * m + 114) / 31;
     int day = ((h + l - 7 * m + 114) % 31) + 1;
     return LocalDate.of(year, month, day);
+  }
+
+  public LocalDate addWorkingDays(LocalDate date, int workingDays) {
+    if (workingDays == 0) {
+      return date;
+    }
+    return addWorkingDays(nextWorkingDay(date), --workingDays);
   }
 }

@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.currency.Currency.EUR;
 
 import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
@@ -13,8 +14,10 @@ import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +44,10 @@ public class PaymentApplicationService {
   private final FundRepository fundRepository;
   private final LocaleService localeService;
 
+  private final Clock clock;
+
+  private final PublicHolidays publicHolidays;
+
   public List<Application<PaymentApplicationDetails>> getPaymentApplications(Person person) {
     val payments = paymentService.getPayments(person);
     val cashFlowStatement = cashFlowService.getCashFlowStatement(person);
@@ -61,6 +68,10 @@ public class PaymentApplicationService {
         if (hasRefund(linkedCash)) {
           log.info("Payment {} has a refund", payment.getId());
           applications.add(createApplication(payment, apiFund, ApplicationStatus.FAILED));
+        } else if (isTimeMoreThanThreeDaysEarlierThanReference(
+            LocalDate.now(clock), payment.getCreatedTime())) {
+          log.info("Payment is older than three working days {}", payment.getId());
+          applications.add(createApplication(payment, apiFund, ApplicationStatus.FAILED));
         } else {
           log.info("Cash is not balanced or no cash entries for {}", payment.getId());
           applications.add(createApplication(payment, apiFund, ApplicationStatus.PENDING));
@@ -78,6 +89,13 @@ public class PaymentApplicationService {
     return applications;
   }
 
+  private boolean isTimeMoreThanThreeDaysEarlierThanReference(
+      LocalDate referencePoint, Instant timeToCheck) {
+    val timeToCheckPlusThreeWorkingDays =
+        publicHolidays.addWorkingDays(LocalDate.ofInstant(timeToCheck, clock.getZone()), 3);
+    return !timeToCheckPlusThreeWorkingDays.isAfter(referencePoint);
+  }
+
   private boolean hasRefund(List<CashFlow> linkedCash) {
     return linkedCash.stream().anyMatch(CashFlow::isRefund);
   }
@@ -90,10 +108,10 @@ public class PaymentApplicationService {
 
   private static boolean cashIsBalanced(List<CashFlow> linkedCash) {
     return linkedCash.stream()
-        .filter(CashFlow::isCash)
-        .map(CashFlow::getAmount)
-        .reduce(BigDecimal.ZERO, BigDecimal::add)
-        .compareTo(BigDecimal.ZERO)
+            .filter(CashFlow::isCash)
+            .map(CashFlow::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add)
+            .compareTo(BigDecimal.ZERO)
         == 0;
   }
 
@@ -166,15 +184,21 @@ public class PaymentApplicationService {
         .findFirst();
   }
 
-  private Predicate<CashFlow> isCashAfterGraceTimeWithAmount(Instant time, BigDecimal amount) {
+  private Predicate<CashFlow> isCashAfterGraceTimeWithAmount(
+      Instant paymentTime, BigDecimal amount) {
     return ((Predicate<CashFlow>) CashFlow::isCash)
-        .and(isAfterTimeWithGrace(time))
-        .and(isLessThanThreeDaysAfter(time))
+        .and(isAfterTimeWithGrace(paymentTime))
+        .and(isLessThanThreeWorkingDaysAfter(paymentTime))
         .and(hasSameAmount(amount));
   }
 
-  private Predicate<CashFlow> isLessThanThreeDaysAfter(Instant time) {
-    return cashFlow -> cashFlow.getTime().minus(Duration.ofDays(3)).isBefore(time);
+  private Predicate<CashFlow> isLessThanThreeWorkingDaysAfter(Instant paymentTime) {
+    return cashFlow -> {
+      val timeToCheckPlusThreeWorkingDays =
+          publicHolidays.addWorkingDays(LocalDate.ofInstant(paymentTime, clock.getZone()), 3);
+      return !timeToCheckPlusThreeWorkingDays.isBefore(
+          LocalDate.ofInstant(cashFlow.getTime(), clock.getZone()));
+    };
   }
 
   private Predicate<CashFlow> isCashAfterTimeWithAmount(Instant time, BigDecimal amount) {
@@ -193,11 +217,11 @@ public class PaymentApplicationService {
   private Predicate<CashFlow> hasSameAmount(BigDecimal amount) {
     return (cashFlow) ->
         cashFlow
-            .getAmount()
-            .setScale(2, RoundingMode.HALF_UP)
-            .subtract(amount)
-            .abs()
-            .compareTo(new BigDecimal("0.01"))
+                .getAmount()
+                .setScale(2, RoundingMode.HALF_UP)
+                .subtract(amount)
+                .abs()
+                .compareTo(new BigDecimal("0.01"))
             <= 0;
   }
 

@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.deadline;
 
-import static java.time.DayOfWeek.SATURDAY;
-import static java.time.DayOfWeek.SUNDAY;
 import static java.time.temporal.TemporalAdjusters.lastDayOfMonth;
 
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
@@ -52,7 +50,8 @@ public class MandateDeadlines {
   }
 
   public LocalDate getTransferMandateFulfillmentDate() {
-    return nextWorkingDay(periodEnding().plusMonths(1).with(lastDayOfMonth()).toLocalDate());
+    return publicHolidays.nextWorkingDay(
+        periodEnding().plusMonths(1).with(lastDayOfMonth()).toLocalDate());
   }
 
   public Instant getEarlyWithdrawalCancellationDeadline() {
@@ -64,7 +63,7 @@ public class MandateDeadlines {
   }
 
   public LocalDate getEarlyWithdrawalFulfillmentDate() {
-    return nextWorkingDay(
+    return publicHolidays.nextWorkingDay(
         earlyWithdrawalCancellationDeadline().plusMonths(1).with(lastDayOfMonth()).toLocalDate());
   }
 
@@ -80,7 +79,8 @@ public class MandateDeadlines {
   }
 
   public LocalDate getWithdrawalFulfillmentDate() {
-    return nextWorkingDay(withdrawalCancellationDeadline().plusDays(15).toLocalDate());
+    return publicHolidays.nextWorkingDay(
+        withdrawalCancellationDeadline().plusDays(15).toLocalDate());
   }
 
   public LocalDate getFulfillmentDate(ApplicationType applicationType) {
@@ -99,23 +99,5 @@ public class MandateDeadlines {
       case EARLY_WITHDRAWAL -> getEarlyWithdrawalCancellationDeadline();
       default -> throw new IllegalArgumentException("Unknown application type: " + applicationType);
     };
-  }
-
-  private LocalDate nextWorkingDay(LocalDate to) {
-    LocalDate date = to.plusDays(1);
-    while (!isWorkingDay(date)) {
-      date = date.plusDays(1);
-    }
-    return date;
-  }
-
-  private boolean isWorkingDay(LocalDate date) {
-    return !(date.getDayOfWeek() == SATURDAY
-        || date.getDayOfWeek() == SUNDAY
-        || publicHolidays.isPublicHoliday(date));
-  }
-
-  private ZonedDateTime now() {
-    return ZonedDateTime.now(estonianClock);
   }
 }

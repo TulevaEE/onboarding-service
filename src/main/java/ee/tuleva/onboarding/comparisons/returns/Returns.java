@@ -12,6 +12,8 @@ public class Returns {
   LocalDate from;
   List<Return> returns;
 
+  Boolean notEnoughHistory;
+
   @Value
   @Builder
   public static class Return {

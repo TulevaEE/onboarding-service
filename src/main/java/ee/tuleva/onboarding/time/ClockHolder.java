@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.time;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.ZoneId;
+
+import static java.time.temporal.ChronoUnit.DAYS;
 
 public class ClockHolder {
 
@@ -15,6 +18,11 @@ public class ClockHolder {
   public static Clock clock() {
     return clock;
   }
+
+  public static Instant aYearAgo() {
+    return Instant.now(clock).minus(365, DAYS);
+  }
+
 
   public static Clock clock(ZoneId zone) {
     return Clock.system(zone);

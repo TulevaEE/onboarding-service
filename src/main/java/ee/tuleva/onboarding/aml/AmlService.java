@@ -18,8 +18,6 @@ import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.user.User;
-import java.time.Clock;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +26,7 @@ import lombok.val;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 
 @Slf4j
 @Service
@@ -36,7 +35,6 @@ public class AmlService {
 
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
-  private final Clock clock;
   private final List<List<AmlCheckType>> allowedCombinations =
       ImmutableList.of(
           ImmutableList.of(
@@ -187,9 +185,5 @@ public class AmlService {
     eventPublisher.publishEvent(new TrackableEvent(user, TrackableEventType.MANDATE_DENIED));
 
     return false;
-  }
-
-  private Instant aYearAgo() {
-    return Instant.now(clock).minus(365, DAYS);
   }
 }

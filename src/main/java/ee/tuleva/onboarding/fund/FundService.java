@@ -6,7 +6,6 @@ import static java.util.stream.StreamSupport.stream;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.locale.LocaleService;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -29,10 +28,7 @@ class FundService {
         .map(
             fund ->
                 new ExtendedApiFundResponse(
-                    fund,
-                    new PensionFundStatistics(
-                        fund.getIsin(), BigDecimal.valueOf(10000), BigDecimal.valueOf(40), 1000),
-                    localeService.getCurrentLocale()))
+                    fund, getStatistics(fund), localeService.getCurrentLocale()))
         .collect(toList());
   }
 

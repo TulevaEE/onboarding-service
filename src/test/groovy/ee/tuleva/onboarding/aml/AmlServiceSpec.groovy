@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.aml
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.event.TrackableEventType
+import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.user.User
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
@@ -21,10 +22,20 @@ class AmlServiceSpec extends Specification {
 
   AmlCheckRepository amlCheckRepository = Mock()
   ApplicationEventPublisher eventPublisher = Mock()
+
   Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
-  AmlService amlService = new AmlService(amlCheckRepository, eventPublisher, clock)
+
+  AmlService amlService = new AmlService(amlCheckRepository, eventPublisher)
 
   def aYearAgo = Instant.now(clock).minus(365, DAYS)
+
+  def setup() {
+    ClockHolder.setClock(clock)
+  }
+
+  def cleanup() {
+    ClockHolder.setDefaultClock()
+  }
 
   def "adds aml checks after login"() {
     given:

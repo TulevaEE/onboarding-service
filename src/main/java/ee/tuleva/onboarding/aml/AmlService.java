@@ -8,7 +8,6 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON;
 import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_AUTO;
 import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_MANUAL;
 import static ee.tuleva.onboarding.aml.AmlCheckType.SK_NAME;
-import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.stream.Collectors.toSet;
 
 import com.google.common.collect.ImmutableList;

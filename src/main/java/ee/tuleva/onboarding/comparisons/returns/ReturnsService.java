@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR;
+import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -15,7 +16,6 @@ import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 
 @Service
 @RequiredArgsConstructor
@@ -28,10 +28,9 @@ public class ReturnsService {
     int pillar = getPillar(keys);
     Instant fromTime = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC);
 
-    if(pillar == 3) {
-      if(!isAnyTransactionsBeforeAYear(person, pillar, fromTime)) {
-        return Returns.builder().from(fromDate)
-            .notEnoughHistory(true).build();
+    if (pillar == 3) {
+      if (!isAnyTransactionsBeforeAYear(person, pillar, fromTime)) {
+        return Returns.builder().from(fromDate).notEnoughHistory(true).build();
       }
     }
 
@@ -51,9 +50,10 @@ public class ReturnsService {
   private boolean isAnyTransactionsBeforeAYear(Person person, int pillar, Instant fromTime) {
     AccountOverview accountOverview =
         accountOverviewProvider.getAccountOverview(person, fromTime, pillar);
-    return accountOverview.getTransactions().stream().filter(
-        transaction -> transaction.time().isBefore(aYearAgo())
-    ).count() > 0;
+    return accountOverview.getTransactions().stream()
+            .filter(transaction -> transaction.time().isBefore(aYearAgo()))
+            .count()
+        > 0;
   }
 
   private Integer getPillar(List<String> keys) {

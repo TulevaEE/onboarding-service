@@ -56,22 +56,21 @@ public class PensionFundStatisticsService {
 
   List<PensionFundStatistics> getPensionFundStatistics(String endpoint) {
     try {
-//      PensionFundStatisticsResponse response =
-//          restTemplate.getForObject(endpoint, PensionFundStatisticsResponse.class);
-//      List<PensionFundStatistics> result = response.getPensionFundStatistics();
-//
-//      if (result == null) {
-//        log.info("Pension fund statistics is empty");
-//        return new ArrayList<>();
-//      }
-      val result = List.of(
-          new PensionFundStatistics(
-              "EE3600019717",
-              BigDecimal.valueOf(59_899_459.39470),
-              BigDecimal.valueOf(0.91511),
-              12_614
-          )
-      );
+      //      PensionFundStatisticsResponse response =
+      //          restTemplate.getForObject(endpoint, PensionFundStatisticsResponse.class);
+      //      List<PensionFundStatistics> result = response.getPensionFundStatistics();
+      //
+      //      if (result == null) {
+      //        log.info("Pension fund statistics is empty");
+      //        return new ArrayList<>();
+      //      }
+      val result =
+          List.of(
+              new PensionFundStatistics(
+                  "EE3600019717",
+                  BigDecimal.valueOf(59_899_459.39470),
+                  BigDecimal.valueOf(0.91511),
+                  12_614));
       return result;
     } catch (Exception e) {
       log.error("Error getting pension fund statistics");

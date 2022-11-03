@@ -1,5 +1,10 @@
 package ee.tuleva.onboarding.epis;
 
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
+import static java.time.LocalDate.parse;
+
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
@@ -17,6 +22,11 @@ import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,17 +43,6 @@ import org.springframework.security.oauth2.provider.authentication.OAuth2Authent
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestOperations;
 
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH;
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
-import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
-import static java.time.LocalDate.parse;
-
 @Service
 @Slf4j
 @Profile("mock")
@@ -59,7 +58,8 @@ public class MockEpisService extends EpisService {
   @Value("${epis.service.url}")
   String episServiceUrl;
 
-  public MockEpisService(RestOperations userTokenRestTemplate, OAuth2RestOperations clientCredentialsRestTemplate) {
+  public MockEpisService(
+      RestOperations userTokenRestTemplate, OAuth2RestOperations clientCredentialsRestTemplate) {
     super(userTokenRestTemplate, clientCredentialsRestTemplate);
   }
 
@@ -73,8 +73,7 @@ public class MockEpisService extends EpisService {
             .id(123L)
             .currency("EUR")
             .sourceFundIsin("source")
-        .build()
-    );
+            .build());
   }
 
   @Cacheable(
@@ -89,34 +88,79 @@ public class MockEpisService extends EpisService {
     val amount = new BigDecimal("2000");
 
     return CashFlowStatement.builder()
-        .startBalance(Map.of(
-        "1", CashFlow.builder().time(time).priceTime(time).amount(new BigDecimal("1000.0")).currency(currency).isin(null).build()
-        ))
-        .endBalance(Map.of(
-        "1", CashFlow.builder().time(time).priceTime(time).amount(new BigDecimal("1100.0")).currency(currency).isin(null).build()
-        ))
-        .transactions(List.of(
-        CashFlow.builder().time(time).priceTime(time).amount(new BigDecimal("2000.0")).currency(currency).isin(null).type(CASH).build(),
-        CashFlow.builder().time(time.plusSeconds(1)).priceTime(time.plusSeconds(1)).amount(amount.negate()).currency(currency).isin(null).type(CASH).build(),
-        CashFlow.builder().time(time.plusSeconds(1)).priceTime(time.plusSeconds(1)).amount(BigDecimal.valueOf(10.01)).currency(currency).isin("EE3600001707").type(CONTRIBUTION_CASH).build()
-      )).build();
+        .startBalance(
+            Map.of(
+                "1",
+                CashFlow.builder()
+                    .time(time)
+                    .priceTime(time)
+                    .amount(new BigDecimal("1000.0"))
+                    .currency(currency)
+                    .isin(null)
+                    .build()))
+        .endBalance(
+            Map.of(
+                "1",
+                CashFlow.builder()
+                    .time(time)
+                    .priceTime(time)
+                    .amount(new BigDecimal("1100.0"))
+                    .currency(currency)
+                    .isin(null)
+                    .build()))
+        .transactions(
+            List.of(
+                CashFlow.builder()
+                    .time(time)
+                    .priceTime(time)
+                    .amount(new BigDecimal("2000.0"))
+                    .currency(currency)
+                    .isin(null)
+                    .type(CASH)
+                    .build(),
+                CashFlow.builder()
+                    .time(time.plusSeconds(1))
+                    .priceTime(time.plusSeconds(1))
+                    .amount(amount.negate())
+                    .currency(currency)
+                    .isin(null)
+                    .type(CASH)
+                    .build(),
+                CashFlow.builder()
+                    .time(time.plusSeconds(1))
+                    .priceTime(time.plusSeconds(1))
+                    .amount(BigDecimal.valueOf(10.01))
+                    .currency(currency)
+                    .isin("EE3600001707")
+                    .type(CONTRIBUTION_CASH)
+                    .build()))
+        .build();
 
-//    return CashFlowStatement.builder()
-//        .startBalance(Map.of(
-//        "1", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new BigDecimal("1000.0")).currency("EUR").isin("EE3600001707").build(),
-//        "2", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new BigDecimal("115.0")).currency("EUR").isin("2").build(),
-//        "3", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new BigDecimal("225.0")).currency("EUR").isin("3").build()
-//        ))
-//        .endBalance(Map.of(
-//        "1", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new BigDecimal("1100.0")).currency("EUR").isin("EE3600001707").build(),
-//        "2", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new BigDecimal("125.0")).currency("EUR").isin("2").build(),
-//        "3", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new BigDecimal("250.0")).currency("EUR").isin("3").build()
-//        ))
-//        .transactions(List.of(
-//        CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new BigDecimal("-100.0")).currency("EUR").isin("EE3600001707").build(),
-//        CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new BigDecimal("-20.0")).currency("EUR").isin("2").build(),
-//        CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new BigDecimal("-25.0")).currency("EUR").isin("").build()
-//            )).build();
+    //    return CashFlowStatement.builder()
+    //        .startBalance(Map.of(
+    //        "1", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
+    // BigDecimal("1000.0")).currency("EUR").isin("EE3600001707").build(),
+    //        "2", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
+    // BigDecimal("115.0")).currency("EUR").isin("2").build(),
+    //        "3", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
+    // BigDecimal("225.0")).currency("EUR").isin("3").build()
+    //        ))
+    //        .endBalance(Map.of(
+    //        "1", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
+    // BigDecimal("1100.0")).currency("EUR").isin("EE3600001707").build(),
+    //        "2", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
+    // BigDecimal("125.0")).currency("EUR").isin("2").build(),
+    //        "3", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
+    // BigDecimal("250.0")).currency("EUR").isin("3").build()
+    //        ))
+    //        .transactions(List.of(
+    //        CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
+    // BigDecimal("-100.0")).currency("EUR").isin("EE3600001707").build(),
+    //        CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
+    // BigDecimal("-20.0")).currency("EUR").isin("2").build(),
+    //        CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
+    // BigDecimal("-25.0")).currency("EUR").isin("").build()
+    //            )).build();
   }
 
   @Caching(
@@ -181,14 +225,14 @@ public class MockEpisService extends EpisService {
             .nav(BigDecimal.valueOf(0.12345))
             .currency("EUR")
             .activeContributions(true)
-            .build()
-    );
+            .build());
   }
 
   @Cacheable(value = FUNDS_CACHE_NAME, unless = "#result.isEmpty()")
   public List<FundDto> getFunds() {
-    return List.of(new FundDto("EE3600109435", "Tuleva Maailma Aktsiate Pensionifond", "TUK75", 2, ACTIVE));
-//    return sampleFunds();
+    return List.of(
+        new FundDto("EE3600109435", "Tuleva Maailma Aktsiate Pensionifond", "TUK75", 2, ACTIVE));
+    //    return sampleFunds();
   }
 
   public NavDto getNav(String isin, LocalDate date) {
@@ -201,10 +245,10 @@ public class MockEpisService extends EpisService {
 
   public ApplicationResponse sendCancellation(CancellationDto cancellation) {
     return new ApplicationResponse();
-//    String url = episServiceUrl + "/cancellations";
-//
-//    return userTokenRestTemplate.postForObject(
-//        url, new HttpEntity<>(cancellation, getHeaders()), ApplicationResponse.class);
+    //    String url = episServiceUrl + "/cancellations";
+    //
+    //    return userTokenRestTemplate.postForObject(
+    //        url, new HttpEntity<>(cancellation, getHeaders()), ApplicationResponse.class);
   }
 
   @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
@@ -252,12 +296,7 @@ public class MockEpisService extends EpisService {
             .nameEnglish("Tuleva World Stock Fund")
             .shortName("TUK75")
             .id(123L)
-            .fundManager(
-                FundManager.builder()
-                    .id(123L)
-                    .name("Tuleva")
-                    .build()
-            )
+            .fundManager(FundManager.builder().id(123L).name("Tuleva").build())
             .pillar(2)
             .build(),
         Fund.builder()
@@ -266,12 +305,7 @@ public class MockEpisService extends EpisService {
             .nameEnglish("Tuleva World Bonds Pension Fund")
             .shortName("TUK00")
             .id(234L)
-            .fundManager(
-                FundManager.builder()
-                    .id(123L)
-                    .name("Tuleva")
-                    .build()
-            )
+            .fundManager(FundManager.builder().id(123L).name("Tuleva").build())
             .pillar(2)
             .build(),
         Fund.builder()
@@ -279,12 +313,7 @@ public class MockEpisService extends EpisService {
             .nameEstonian("SEB fond")
             .nameEnglish("SEB fund")
             .shortName("SEB123")
-            .fundManager(
-                FundManager.builder()
-                    .id(124L)
-                    .name("SEB")
-                    .build()
-            )
+            .fundManager(FundManager.builder().id(124L).name("SEB").build())
             .pillar(2)
             .build(),
         Fund.builder()
@@ -292,12 +321,7 @@ public class MockEpisService extends EpisService {
             .nameEstonian("LHV XL")
             .nameEnglish("LHV XL eng")
             .shortName("LXK75")
-            .fundManager(
-                FundManager.builder()
-                    .id(125L)
-                    .name("LHV")
-                    .build()
-            )
+            .fundManager(FundManager.builder().id(125L).name("LHV").build())
             .pillar(2)
             .build(),
         Fund.builder()
@@ -305,12 +329,7 @@ public class MockEpisService extends EpisService {
             .nameEstonian("Swedbänk fond")
             .nameEnglish("Swedbank fund")
             .shortName("SWE123")
-            .fundManager(
-                FundManager.builder()
-                    .id(126L)
-                    .name("Swedbank")
-                    .build()
-            )
+            .fundManager(FundManager.builder().id(126L).name("Swedbank").build())
             .pillar(2)
             .build(),
         Fund.builder()
@@ -318,12 +337,7 @@ public class MockEpisService extends EpisService {
             .nameEstonian("Nordea fond")
             .nameEnglish("Nordea fund")
             .shortName("ND123")
-            .fundManager(
-                FundManager.builder()
-                    .id(127L)
-                    .name("Nordea")
-                    .build()
-            )
+            .fundManager(FundManager.builder().id(127L).name("Nordea").build())
             .pillar(2)
             .build(),
         Fund.builder()
@@ -331,15 +345,8 @@ public class MockEpisService extends EpisService {
             .nameEstonian("LHV S")
             .nameEnglish("LHV S eng")
             .shortName("LXK00")
-            .fundManager(
-                FundManager.builder()
-                    .id(125L)
-                    .name("LHV")
-                    .build()
-            )
+            .fundManager(FundManager.builder().id(125L).name("LHV").build())
             .pillar(2)
-            .build()
-    );
+            .build());
   }
-
 }

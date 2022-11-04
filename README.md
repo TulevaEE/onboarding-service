@@ -84,7 +84,7 @@ Code style:
 [Kotlin](https://github.com/pinterest/ktlint#-with-intellij-idea)
 
 If you don't want to run epis-service,
-then you can mock use `mock` spring profile, and adjust `MockEpisService` to your needs.
+then you can use `mock` spring profile to mock EpisService, and adjust `MockEpisService` to your needs.
 
 ### Common Issues
 

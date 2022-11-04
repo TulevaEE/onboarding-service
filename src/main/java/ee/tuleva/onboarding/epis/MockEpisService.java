@@ -18,8 +18,6 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
-import ee.tuleva.onboarding.fund.Fund;
-import ee.tuleva.onboarding.fund.manager.FundManager;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,12 +31,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.context.annotation.Profile;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2RestOperations;
-import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestOperations;
 
@@ -222,99 +215,5 @@ public class MockEpisService extends EpisService {
   @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
   public ContactDetails updateContactDetails(Person person, ContactDetails contactDetails) {
     return mockContactDetails();
-  }
-
-  private HttpEntity<String> getHeadersEntity() {
-    return getHeadersEntity(getToken());
-  }
-
-  private HttpEntity<String> getHeadersEntity(String token) {
-    return new HttpEntity<>(getHeaders(token));
-  }
-
-  private HttpHeaders getHeaders() {
-    return getHeaders(getToken());
-  }
-
-  private HttpHeaders getHeaders(String token) {
-    HttpHeaders headers = createJsonHeaders();
-    headers.add("Authorization", "Bearer " + token);
-    return headers;
-  }
-
-  private HttpHeaders createJsonHeaders() {
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_JSON);
-    return headers;
-  }
-
-  private String getToken() {
-    OAuth2AuthenticationDetails details =
-        (OAuth2AuthenticationDetails)
-            SecurityContextHolder.getContext().getAuthentication().getDetails();
-
-    return details.getTokenValue();
-  }
-
-  List<Fund> sampleFunds() {
-    return List.of(
-        Fund.builder()
-            .isin("AE123232334")
-            .nameEstonian("Tuleva maailma aktsiate pensionifond")
-            .nameEnglish("Tuleva World Stock Fund")
-            .shortName("TUK75")
-            .id(123L)
-            .fundManager(FundManager.builder().id(123L).name("Tuleva").build())
-            .pillar(2)
-            .build(),
-        Fund.builder()
-            .isin("EE3600109443")
-            .nameEstonian("Tuleva maailma võlakirjade pensionifond")
-            .nameEnglish("Tuleva World Bonds Pension Fund")
-            .shortName("TUK00")
-            .id(234L)
-            .fundManager(FundManager.builder().id(123L).name("Tuleva").build())
-            .pillar(2)
-            .build(),
-        Fund.builder()
-            .isin("EE3600019775")
-            .nameEstonian("SEB fond")
-            .nameEnglish("SEB fund")
-            .shortName("SEB123")
-            .fundManager(FundManager.builder().id(124L).name("SEB").build())
-            .pillar(2)
-            .build(),
-        Fund.builder()
-            .isin("EE3600019776")
-            .nameEstonian("LHV XL")
-            .nameEnglish("LHV XL eng")
-            .shortName("LXK75")
-            .fundManager(FundManager.builder().id(125L).name("LHV").build())
-            .pillar(2)
-            .build(),
-        Fund.builder()
-            .isin("EE3600019777")
-            .nameEstonian("Swedbänk fond")
-            .nameEnglish("Swedbank fund")
-            .shortName("SWE123")
-            .fundManager(FundManager.builder().id(126L).name("Swedbank").build())
-            .pillar(2)
-            .build(),
-        Fund.builder()
-            .isin("AE123232331")
-            .nameEstonian("Nordea fond")
-            .nameEnglish("Nordea fund")
-            .shortName("ND123")
-            .fundManager(FundManager.builder().id(127L).name("Nordea").build())
-            .pillar(2)
-            .build(),
-        Fund.builder()
-            .isin("AE123232337")
-            .nameEstonian("LHV S")
-            .nameEnglish("LHV S eng")
-            .shortName("LXK00")
-            .fundManager(FundManager.builder().id(125L).name("LHV").build())
-            .pillar(2)
-            .build());
   }
 }

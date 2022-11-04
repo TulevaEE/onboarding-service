@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.application.ApplicationResponse;
-import ee.tuleva.onboarding.epis.cancellation.CancellationDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlow;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
@@ -135,32 +134,6 @@ public class MockEpisService extends EpisService {
                     .type(CONTRIBUTION_CASH)
                     .build()))
         .build();
-
-    //    return CashFlowStatement.builder()
-    //        .startBalance(Map.of(
-    //        "1", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
-    // BigDecimal("1000.0")).currency("EUR").isin("EE3600001707").build(),
-    //        "2", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
-    // BigDecimal("115.0")).currency("EUR").isin("2").build(),
-    //        "3", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
-    // BigDecimal("225.0")).currency("EUR").isin("3").build()
-    //        ))
-    //        .endBalance(Map.of(
-    //        "1", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
-    // BigDecimal("1100.0")).currency("EUR").isin("EE3600001707").build(),
-    //        "2", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
-    // BigDecimal("125.0")).currency("EUR").isin("2").build(),
-    //        "3", CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
-    // BigDecimal("250.0")).currency("EUR").isin("3").build()
-    //        ))
-    //        .transactions(List.of(
-    //        CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
-    // BigDecimal("-100.0")).currency("EUR").isin("EE3600001707").build(),
-    //        CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
-    // BigDecimal("-20.0")).currency("EUR").isin("2").build(),
-    //        CashFlow.builder().time(randomTime).priceTime(priceTime).amount(new
-    // BigDecimal("-25.0")).currency("EUR").isin("").build()
-    //            )).build();
   }
 
   @Caching(
@@ -232,7 +205,6 @@ public class MockEpisService extends EpisService {
   public List<FundDto> getFunds() {
     return List.of(
         new FundDto("EE3600109435", "Tuleva Maailma Aktsiate Pensionifond", "TUK75", 2, ACTIVE));
-    //    return sampleFunds();
   }
 
   public NavDto getNav(String isin, LocalDate date) {
@@ -243,12 +215,8 @@ public class MockEpisService extends EpisService {
     return new ApplicationResponseDTO();
   }
 
-  public ApplicationResponse sendCancellation(CancellationDto cancellation) {
+  public ApplicationResponse sendCancellation(ApplicationResponse cancellation) {
     return new ApplicationResponse();
-    //    String url = episServiceUrl + "/cancellations";
-    //
-    //    return userTokenRestTemplate.postForObject(
-    //        url, new HttpEntity<>(cancellation, getHeaders()), ApplicationResponse.class);
   }
 
   @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")

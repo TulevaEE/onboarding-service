@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR;
-import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -9,6 +8,7 @@ import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnProvider;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -50,10 +50,7 @@ public class ReturnsService {
   private boolean isAnyTransactionsBeforeAYear(Person person, int pillar, Instant fromTime) {
     AccountOverview accountOverview =
         accountOverviewProvider.getAccountOverview(person, fromTime, pillar);
-    return accountOverview.getTransactions().stream()
-            .filter(transaction -> transaction.time().isBefore(aYearAgo()))
-            .count()
-        > 0;
+    return accountOverview.getBeginningBalance().compareTo(BigDecimal.ZERO) > 0;
   }
 
   private Integer getPillar(List<String> keys) {

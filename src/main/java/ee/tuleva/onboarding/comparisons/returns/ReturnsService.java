@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR;
+import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -29,7 +31,7 @@ public class ReturnsService {
     Instant fromTime = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC);
 
     if (pillar == 3) {
-      if (!isAnyTransactionsBeforeAYear(person, pillar, fromTime)) {
+      if (!wasThereABalanceAYearAgo(person, pillar, fromTime)) {
         return Returns.builder().from(fromDate).notEnoughHistory(true).build();
       }
     }
@@ -47,9 +49,9 @@ public class ReturnsService {
     return Returns.builder().from(fromDate).returns(returns).notEnoughHistory(false).build();
   }
 
-  private boolean isAnyTransactionsBeforeAYear(Person person, int pillar, Instant fromTime) {
+  private boolean wasThereABalanceAYearAgo(Person person, int pillar, Instant fromTime) {
     AccountOverview accountOverview =
-        accountOverviewProvider.getAccountOverview(person, fromTime, pillar);
+        accountOverviewProvider.getAccountOverview(person, aYearAgo().truncatedTo(DAYS), pillar);
     return accountOverview.getBeginningBalance().compareTo(BigDecimal.ZERO) > 0;
   }
 

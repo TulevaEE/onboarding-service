@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetri
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.overview.Transaction
-import ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnProvider
 import ee.tuleva.onboarding.time.ClockHolder
 import spock.lang.Specification
@@ -102,7 +101,7 @@ class ReturnsServiceSpec extends Specification {
     def overview = new AccountOverview([
         new Transaction(BigDecimal.ONE, aYearAgo().plus(1, DAYS))
     ], 0.0, BigDecimal.TEN, startTime, Instant.now(ClockHolder.clock()), 3)
-    accountOverviewProvider.getAccountOverview(person, startTime, 3) >> overview
+    accountOverviewProvider.getAccountOverview(person, aYearAgo().truncatedTo(DAYS), 3) >> overview
 
     when:
     def theReturns = returnsService.get(person, fromDate, [return1.key])
@@ -152,7 +151,7 @@ class ReturnsServiceSpec extends Specification {
     def overview = new AccountOverview([
         new Transaction(BigDecimal.ONE, aYearAgo().minus(1, DAYS))
     ], BigDecimal.ONE, BigDecimal.TEN, startTime, Instant.now(ClockHolder.clock()), 3)
-    accountOverviewProvider.getAccountOverview(person, startTime, 3) >> overview
+    accountOverviewProvider.getAccountOverview(person, aYearAgo().truncatedTo(DAYS), 3) >> overview
 
     when:
     def theReturns = returnsService.get(person, fromDate, [return1.key, return2.key])
@@ -169,7 +168,6 @@ class ReturnsServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def fromDate = LocalDate.ofInstant(aYearAgo(), ZoneOffset.UTC)
-//    def fromDate = LocalDate.parse("2000-01-01")
     def startTime = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC)
     def pillar = 3
 
@@ -201,7 +199,6 @@ class ReturnsServiceSpec extends Specification {
     returnProvider2.getKeys() >> [return2.key]
 
     def overview = new AccountOverview([
-//        new Transaction(BigDecimal.ONE, aYearAgo().minus(3, DAYS))
     ], 100.0, 120.0, startTime, Instant.now(ClockHolder.clock()), 3)
     accountOverviewProvider.getAccountOverview(person, startTime, 3) >> overview
 

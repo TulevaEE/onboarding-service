@@ -41,7 +41,7 @@ class ReturnsServiceSpec extends Specification {
     def return1 = Return.builder()
         .key(UnionStockIndexRetriever.KEY)
         .type(INDEX)
-        .value(0.0123)
+        .rate(0.0123)
         .build()
 
     def returns1 = Returns.builder()
@@ -52,7 +52,7 @@ class ReturnsServiceSpec extends Specification {
     def return2 = Return.builder()
         .key(EPIFundValueRetriever.KEY)
         .type(INDEX)
-        .value(0.0234)
+        .rate(0.0234)
         .build()
 
     def returns2 = Returns.builder()
@@ -86,7 +86,7 @@ class ReturnsServiceSpec extends Specification {
     def return1 = Return.builder()
         .key(THIRD_PILLAR)
         .type(INDEX)
-        .value(0.0123)
+        .rate(0.0123)
         .build()
 
     def returns1 = Returns.builder()
@@ -124,7 +124,7 @@ class ReturnsServiceSpec extends Specification {
     def return1 = Return.builder()
         .key(THIRD_PILLAR)
         .type(INDEX)
-        .value(0.0123)
+        .rate(0.0123)
         .build()
 
     def returns1 = Returns.builder()
@@ -135,7 +135,7 @@ class ReturnsServiceSpec extends Specification {
     def return2 = Return.builder()
         .key(EPIFundValueRetriever.KEY)
         .type(INDEX)
-        .value(0.0234)
+        .rate(0.0234)
         .build()
 
     def returns2 = Returns.builder()
@@ -174,7 +174,7 @@ class ReturnsServiceSpec extends Specification {
     def return1 = Return.builder()
         .key(THIRD_PILLAR)
         .type(INDEX)
-        .value(0.0123)
+        .rate(0.0123)
         .build()
 
     def returns1 = Returns.builder()
@@ -185,7 +185,7 @@ class ReturnsServiceSpec extends Specification {
     def return2 = Return.builder()
         .key(EPIFundValueRetriever.KEY)
         .type(INDEX)
-        .value(0.0234)
+        .rate(0.0234)
         .build()
 
     def returns2 = Returns.builder()
@@ -223,7 +223,7 @@ class ReturnsServiceSpec extends Specification {
     def return1 = Return.builder()
         .key(UnionStockIndexRetriever.KEY)
         .type(INDEX)
-        .value(0.0123)
+        .rate(0.0123)
         .build()
 
     def returns1 = Returns.builder()
@@ -234,7 +234,7 @@ class ReturnsServiceSpec extends Specification {
     def return2 = Return.builder()
         .key(EPIFundValueRetriever.KEY)
         .type(INDEX)
-        .value(0.0234)
+        .rate(0.0234)
         .build()
 
     def returns2 = Returns.builder()
@@ -268,13 +268,13 @@ class ReturnsServiceSpec extends Specification {
     def return1 = Return.builder()
         .key("EE123")
         .type(FUND)
-        .value(0.0123)
+        .rate(0.0123)
         .build()
 
     def return2 = Return.builder()
         .key("EE234")
         .type(FUND)
-        .value(0.0234)
+        .rate(0.0234)
         .build()
 
     def allReturns = Returns.builder()

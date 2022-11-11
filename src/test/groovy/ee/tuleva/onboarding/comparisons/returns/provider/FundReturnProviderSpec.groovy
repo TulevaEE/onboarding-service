@@ -4,6 +4,7 @@ package ee.tuleva.onboarding.comparisons.returns.provider
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator
+import ee.tuleva.onboarding.comparisons.returns.ReturnRateAndAmount
 import spock.lang.Specification
 
 import java.time.Instant
@@ -25,19 +26,22 @@ class FundReturnProviderSpec extends Specification {
         def endTime = Instant.now()
         def pillar = 2
         def overview = new AccountOverview([], 0.0, 0.0, startTime, endTime, pillar)
-        def expectedReturn = 0.00123.doubleValue()
+        def expectedReturn = 0.00123
+        def returnAsAmount = 123.12
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
-        rateOfReturnCalculator.getRateOfReturn(overview, _ as String) >> expectedReturn
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, _ as String) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
 
         when:
         def returns = returnProvider.getReturns(person, startTime, pillar)
 
         then:
         with(returns.returns[0]) {
-            key == returnProvider.getKeys()[0]
-            type == FUND
-            value == expectedReturn
+          key == returnProvider.getKeys()[0]
+          type == FUND
+          rate == expectedReturn
+          amount == returnAsAmount
         }
         returns.returns.size() == returnProvider.getKeys().size()
     }

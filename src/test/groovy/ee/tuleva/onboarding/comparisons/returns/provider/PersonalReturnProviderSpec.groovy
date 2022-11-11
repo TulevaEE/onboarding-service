@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.comparisons.returns.provider
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator
+import ee.tuleva.onboarding.comparisons.returns.ReturnRateAndAmount
 import spock.lang.Specification
 
 import java.time.Instant
@@ -26,10 +27,12 @@ class PersonalReturnProviderSpec extends Specification {
         def endTime = Instant.now()
         def pillar = 2
         def overview = new AccountOverview([], 0.0, 0.0, startTime, endTime, pillar)
-        def expectedReturn = 0.00123.doubleValue()
+        def expectedReturn = 0.00123
+        def returnAsAmount = 123.12
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
-        rateOfReturnCalculator.getRateOfReturn(overview) >> expectedReturn
+        rateOfReturnCalculator.getReturnRateAndAmount(overview) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
 
         when:
         def returns = returnProvider.getReturns(person, startTime, pillar)
@@ -38,7 +41,8 @@ class PersonalReturnProviderSpec extends Specification {
         with(returns.returns[0]) {
             key == SECOND_PILLAR
             type == PERSONAL
-            value == expectedReturn
+            rate == expectedReturn
+            amount == returnAsAmount
         }
     }
 
@@ -49,19 +53,22 @@ class PersonalReturnProviderSpec extends Specification {
         def endTime = Instant.now()
         def pillar = 3
         def overview = new AccountOverview([], 0.0, 0.0, startTime, endTime, pillar)
-        def expectedReturn = 0.00123.doubleValue()
+        def expectedReturn = 0.00123
+        def returnAsAmount = 123.21
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
-        rateOfReturnCalculator.getRateOfReturn(overview) >> expectedReturn
+        rateOfReturnCalculator.getReturnRateAndAmount(overview) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
 
         when:
         def returns = returnProvider.getReturns(person, startTime, pillar)
 
         then:
         with(returns.returns[0]) {
-            key == THIRD_PILLAR
-            type == PERSONAL
-            value == expectedReturn
+          key == THIRD_PILLAR
+          type == PERSONAL
+          rate == expectedReturn
+          amount == returnAsAmount
         }
     }
 }

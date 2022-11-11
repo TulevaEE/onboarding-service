@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetri
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator
+import ee.tuleva.onboarding.comparisons.returns.ReturnRateAndAmount
 import spock.lang.Specification
 
 import java.time.Instant
@@ -27,31 +28,37 @@ class IndexReturnProviderSpec extends Specification {
         def endTime = Instant.now()
         def pillar = 2
         def overview = new AccountOverview([], 0.0, 0.0, startTime, endTime, pillar)
-        def expectedReturn = 0.00123.doubleValue()
+        def expectedReturn = 0.00123
+        def returnAsAmount = 123.12
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
-        rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY) >> expectedReturn
-        rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY) >> expectedReturn
-        rateOfReturnCalculator.getRateOfReturn(overview, CPIValueRetriever.KEY) >> expectedReturn
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, CPIValueRetriever.KEY) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
+
 
         when:
         def returns = returnProvider.getReturns(person, startTime, pillar)
 
         then:
         with(returns.returns[0]) {
-            key == EPIFundValueRetriever.KEY
-            type == INDEX
-            value == expectedReturn
+          key == EPIFundValueRetriever.KEY
+          type == INDEX
+          rate == expectedReturn
+          amount == returnAsAmount
         }
         with(returns.returns[1]) {
             key == UnionStockIndexRetriever.KEY
             type == INDEX
-            value == expectedReturn
+            rate == expectedReturn
         }
         with(returns.returns[2]) {
             key == CPIValueRetriever.KEY
             type == INDEX
-            value == expectedReturn
+            rate == expectedReturn
         }
     }
 }

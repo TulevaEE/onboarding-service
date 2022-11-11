@@ -9,7 +9,7 @@ import org.springframework.security.oauth2.client.OAuth2RestTemplate;
 import org.springframework.security.oauth2.client.token.grant.client.ClientCredentialsResourceDetails;
 
 @Configuration
-public class Oauth2RestTemplateConfiguration {
+public class OAuth2RestTemplateConfiguration {
 
   @Bean
   @ConfigurationProperties("epis.service.client")

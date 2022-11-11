@@ -18,6 +18,7 @@ import ee.sk.smartid.rest.dao.SemanticsIdentifier.IdentityType;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -44,7 +45,7 @@ public class SmartIdAuthService {
     SmartIdException error;
   }
 
-  private final Map<AuthenticationHash, SmartIdResult> smartIdResults =
+  private final Map<String, SmartIdResult> smartIdResults =
       Collections.synchronizedMap(new LRUMap<>());
   private final ExecutorService poller = Executors.newFixedThreadPool(20);
 
@@ -66,23 +67,22 @@ public class SmartIdAuthService {
   }
 
   public SmartIdSession startLogin(String personalCode) {
-    AuthenticationHash authenticationHash = hashGenerator.generateHash();
+    var authenticationHash = hashGenerator.generateHash();
     String verificationCode = authenticationHash.calculateVerificationCode();
     SmartIdSession session = new SmartIdSession(verificationCode, personalCode, authenticationHash);
     poll(session);
     return session;
   }
 
-  public boolean isLoginComplete(SmartIdSession session) {
-    val result = smartIdResults.remove(session.getAuthenticationHash());
+  public Optional<AuthenticationIdentity> getAuthenticationIdentity(String authenticationHash) {
+    var result = smartIdResults.remove(authenticationHash);
     if (result == null) {
-      return false;
+      return Optional.empty();
     }
     if (result.error != null) {
       throw result.error;
     }
-    session.setAuthenticationIdentity(result.getAuthenticationIdentity());
-    return true;
+    return Optional.ofNullable(result.getAuthenticationIdentity());
   }
 
   private void poll(SmartIdSession session) {
@@ -120,7 +120,8 @@ public class SmartIdAuthService {
                     ofSingleError("smart.id.technical.error", "Smart ID technical error")));
           } finally {
             log.info("Smart ID authentication ended");
-            smartIdResults.put(session.getAuthenticationHash(), resultBuilder.build());
+            smartIdResults.put(
+                session.getAuthenticationHash().getHashInBase64(), resultBuilder.build());
           }
         });
   }

@@ -32,25 +32,19 @@ class RateOfReturnCalculatorSpec extends Specification {
         new Transaction(100.0, startTime),
     ], 0.0, 200.0, startTime, endTime, 2)
     when:
-    double actualRateOfReturn = rateOfReturnCalculator.getRateOfReturn(overview)
-    double estonianAverageRateOfReturn =
-        rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY)
-    double marketAverageRateOfReturn =
-        rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY)
-
-    BigDecimal cashReturn = rateOfReturnCalculator.getCashReturn(overview)
-    BigDecimal cashReturnWhenInvestingInEstonianAverageFund =
-        rateOfReturnCalculator.getCashReturn(overview, EPIFundValueRetriever.KEY).orElseThrow()
-    BigDecimal cashReturnWhenInvestingInTheWorldMarket =
-        rateOfReturnCalculator.getCashReturn(overview, UnionStockIndexRetriever.KEY).orElseThrow()
+    def returnRateAndAmount = rateOfReturnCalculator.getReturnRateAndAmount(overview)
+    def estonianAverageReturnRateAndAmount =
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY)
+    def marketAverageReturnRateAndAmount =
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    actualRateOfReturn == 0
-    estonianAverageRateOfReturn == 0
-    marketAverageRateOfReturn == 0
-    cashReturn == 0
-    cashReturnWhenInvestingInEstonianAverageFund == 0
-    cashReturnWhenInvestingInTheWorldMarket == 0
+    returnRateAndAmount.rate() == 0
+    estonianAverageReturnRateAndAmount.rate() == 0
+    marketAverageReturnRateAndAmount.rate() == 0
+    returnRateAndAmount.amount() == 0
+    estonianAverageReturnRateAndAmount.amount() == 0
+    marketAverageReturnRateAndAmount.amount() == 0
   }
 
   def "it successfully calculates a return for 0-valued transactions"() {
@@ -63,23 +57,20 @@ class RateOfReturnCalculatorSpec extends Specification {
         new Transaction(secondTransaction, startTime),
     ], beginningBalance, endingBalance, startTime, endTime, 2)
     when:
-    double actualRateOfReturn = rateOfReturnCalculator.getRateOfReturn(overview)
-    double estonianAverageRateOfReturn =
-        rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY)
-    double marketAverageRateOfReturn =
-        rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY)
-    BigDecimal cashReturn = rateOfReturnCalculator.getCashReturn(overview)
-    BigDecimal cashReturnWhenInvestingInEstonianAverageFund =
-        rateOfReturnCalculator.getCashReturn(overview, EPIFundValueRetriever.KEY).orElseThrow()
-    BigDecimal cashReturnWhenInvestingInTheWorldMarket =
-        rateOfReturnCalculator.getCashReturn(overview, UnionStockIndexRetriever.KEY).orElseThrow()
+    def returnRateAndAmount = rateOfReturnCalculator.getReturnRateAndAmount(overview)
+    def estonianAverageReturnRateAndAmount =
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY)
+    def marketAverageReturnRateAndAmount =
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY)
+
     then:
-    actualRateOfReturn == xirr.doubleValue()
-    estonianAverageRateOfReturn == 0
-    marketAverageRateOfReturn == 0
-    cashReturn == 0
-    cashReturnWhenInvestingInEstonianAverageFund == 0
-    cashReturnWhenInvestingInTheWorldMarket == 0
+    returnRateAndAmount.rate() == BigDecimal.valueOf(xirr)
+    estonianAverageReturnRateAndAmount.rate() == 0
+    marketAverageReturnRateAndAmount.rate() == 0
+    returnRateAndAmount.amount() == 0
+    estonianAverageReturnRateAndAmount.amount() == 0
+    marketAverageReturnRateAndAmount.amount() == 0
+
     where:
     firstTransaction | secondTransaction | beginningBalance | endingBalance || xirr
     0.0              | 0.0               | 0.0              | 0.0           || 0.0
@@ -95,24 +86,19 @@ class RateOfReturnCalculatorSpec extends Specification {
     Instant endTime = parseInstant("2018-07-18")
     def overview = new AccountOverview(exampleTransactions, 30.0, 620.0, startTime, endTime, 2)
     when:
-    double actualRateOfReturn = rateOfReturnCalculator.getRateOfReturn(overview)
-    double estonianAverageRateOfReturn =
-        rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY)
-    double marketAverageRateOfReturn =
-        rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY)
+    def returnRateAndAmount = rateOfReturnCalculator.getReturnRateAndAmount(overview)
+    def estonianAverageReturnRateAndAmount =
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY)
+    def marketAverageReturnRateAndAmount =
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY)
 
-    BigDecimal cashReturn = rateOfReturnCalculator.getCashReturn(overview)
-    BigDecimal cashReturnWhenInvestingInEstonianAverageFund =
-        rateOfReturnCalculator.getCashReturn(overview, EPIFundValueRetriever.KEY).orElseThrow()
-    BigDecimal cashReturnWhenInvestingInTheWorldMarket =
-        rateOfReturnCalculator.getCashReturn(overview, UnionStockIndexRetriever.KEY).orElseThrow()
     then:
-    actualRateOfReturn == 0.0427.doubleValue()
-    estonianAverageRateOfReturn == 0
-    marketAverageRateOfReturn == 0
-    cashReturn == 110
-    cashReturnWhenInvestingInEstonianAverageFund == 0
-    cashReturnWhenInvestingInTheWorldMarket == 0
+    returnRateAndAmount.rate() == 0.0427
+    estonianAverageReturnRateAndAmount.rate() == 0
+    marketAverageReturnRateAndAmount.rate() == 0
+    returnRateAndAmount.amount() == 110
+    estonianAverageReturnRateAndAmount.amount() == 0
+    marketAverageReturnRateAndAmount.amount() == 0
   }
 
   def "it correctly calculates simulated return using a different fund taking into account the beginning balance"() {
@@ -125,21 +111,16 @@ class RateOfReturnCalculatorSpec extends Specification {
     }
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
     when:
-    double estonianAverageRateOfReturn =
-        rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY)
-    double marketAverageRateOfReturn =
-        rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY)
-
-    BigDecimal cashReturnWhenInvestingInEstonianAverageFund =
-        rateOfReturnCalculator.getCashReturn(overview, EPIFundValueRetriever.KEY).orElseThrow()
-    BigDecimal cashReturnWhenInvestingInTheWorldMarket =
-        rateOfReturnCalculator.getCashReturn(overview, UnionStockIndexRetriever.KEY).orElseThrow()
+    def estonianAverageReturnRateAndAmount =
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY)
+    def marketAverageReturnRateAndAmount =
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    estonianAverageRateOfReturn == 0.0326.doubleValue()
-    marketAverageRateOfReturn == 0
-    cashReturnWhenInvestingInEstonianAverageFund.round(2) == 81.76
-    cashReturnWhenInvestingInTheWorldMarket.round(2) == 0
+    estonianAverageReturnRateAndAmount.rate() == 0.0326
+    marketAverageReturnRateAndAmount.rate() == 0
+    estonianAverageReturnRateAndAmount.amount().trunc(2) == 81.76
+    marketAverageReturnRateAndAmount.amount().trunc(2) == 0
   }
 
   def "it handles missing fund values"() {
@@ -149,21 +130,16 @@ class RateOfReturnCalculatorSpec extends Specification {
     fundValueProvider.getLatestValue(_, _) >> Optional.empty()
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
     when:
-    double estonianAverageRateOfReturn =
-        rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY)
-    double marketAverageRateOfReturn =
-        rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY)
-
-    def cashReturnWhenInvestingInEstonianAverageFund =
-        rateOfReturnCalculator.getCashReturn(overview, EPIFundValueRetriever.KEY)
-    def cashReturnWhenInvestingInTheWorldMarket =
-        rateOfReturnCalculator.getCashReturn(overview, UnionStockIndexRetriever.KEY)
+    def estonianAverageReturnRateAndAmount =
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY)
+    def marketAverageReturnRateAndAmount =
+        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    estonianAverageRateOfReturn == 0
-    marketAverageRateOfReturn == 0
-    cashReturnWhenInvestingInEstonianAverageFund == Optional.empty()
-    cashReturnWhenInvestingInTheWorldMarket == Optional.empty()
+    estonianAverageReturnRateAndAmount.rate() == 0
+    marketAverageReturnRateAndAmount.rate() == 0
+    estonianAverageReturnRateAndAmount.amount() == 0
+    marketAverageReturnRateAndAmount.amount() == 0
   }
 
   private static Map<String, BigDecimal> epiFundValues() {

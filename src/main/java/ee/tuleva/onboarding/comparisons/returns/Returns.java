@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.Builder;
@@ -19,7 +20,9 @@ public class Returns {
   public static class Return {
 
     String key;
-    double value; // TODO: migrate to BigDecimal
+    BigDecimal rate;
+
+    BigDecimal amount;
     Type type;
 
     public enum Type {

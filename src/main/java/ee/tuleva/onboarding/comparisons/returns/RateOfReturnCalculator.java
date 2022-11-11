@@ -31,23 +31,41 @@ public class RateOfReturnCalculator {
 
   private final FundValueProvider fundValueProvider;
 
-  public double getRateOfReturn(AccountOverview accountOverview) {
-    List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
-
-    return calculateReturn(
-        purchaseTransactions, accountOverview.getEndingBalance(), accountOverview.getEndTime());
+  public ReturnRateAndAmount getReturnRateAndAmount(AccountOverview accountOverview) {
+    return new ReturnRateAndAmount(
+        getRateOfReturn(accountOverview), getCashReturn(accountOverview));
   }
 
-  public double getRateOfReturn(AccountOverview accountOverview, String comparisonFund) {
+  public ReturnRateAndAmount getReturnRateAndAmount(
+      AccountOverview accountOverview, String comparisonFund) {
+    return new ReturnRateAndAmount(
+        getRateOfReturn(accountOverview, comparisonFund).orElse(ZERO),
+        getCashReturn(accountOverview, comparisonFund).orElse(ZERO));
+  }
+
+  private BigDecimal getRateOfReturn(AccountOverview accountOverview) {
+    List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
+
+    return BigDecimal.valueOf(
+        calculateReturn(
+            purchaseTransactions,
+            accountOverview.getEndingBalance(),
+            accountOverview.getEndTime()));
+  }
+
+  private Optional<BigDecimal> getRateOfReturn(
+      AccountOverview accountOverview, String comparisonFund) {
     List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
     val sellAmount =
         getSimulatedEndingBalanceForAFund(accountOverview, comparisonFund, purchaseTransactions);
 
-    if (sellAmount.isEmpty()) return 0;
+    if (sellAmount.isEmpty()) return Optional.empty();
     else
-      return calculateReturn(
-          purchaseTransactions, sellAmount.orElseThrow(), accountOverview.getEndTime());
+      return Optional.of(
+          BigDecimal.valueOf(
+              calculateReturn(
+                  purchaseTransactions, sellAmount.orElseThrow(), accountOverview.getEndTime())));
   }
 
   private Optional<BigDecimal> getSimulatedEndingBalanceForAFund(
@@ -77,7 +95,7 @@ public class RateOfReturnCalculator {
     return Optional.of(sellAmount);
   }
 
-  public BigDecimal getCashReturn(AccountOverview accountOverview) {
+  private BigDecimal getCashReturn(AccountOverview accountOverview) {
     val paymentsSum =
         accountOverview.getTransactions().stream()
             .map(Transaction::amount)
@@ -90,7 +108,7 @@ public class RateOfReturnCalculator {
         .subtract(paymentsSum);
   }
 
-  public Optional<BigDecimal> getCashReturn(
+  private Optional<BigDecimal> getCashReturn(
       AccountOverview accountOverview, String comparisonFund) {
     List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 

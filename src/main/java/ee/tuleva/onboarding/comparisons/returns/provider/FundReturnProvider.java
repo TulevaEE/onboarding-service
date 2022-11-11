@@ -35,10 +35,15 @@ public class FundReturnProvider implements ReturnProvider {
             .map(
                 key ->
                     new SimpleEntry<>(
-                        key, rateOfReturnCalculator.getRateOfReturn(accountOverview, key)))
+                        key, rateOfReturnCalculator.getReturnRateAndAmount(accountOverview, key)))
             .map(
                 tuple ->
-                    Return.builder().key(tuple.getKey()).type(FUND).value(tuple.getValue()).build())
+                    Return.builder()
+                        .key(tuple.getKey())
+                        .type(FUND)
+                        .rate(tuple.getValue().rate())
+                        .amount(tuple.getValue().amount())
+                        .build())
             .collect(toList());
 
     return Returns.builder()

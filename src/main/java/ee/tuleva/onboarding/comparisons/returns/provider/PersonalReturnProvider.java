@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator;
+import ee.tuleva.onboarding.comparisons.returns.ReturnRateAndAmount;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.time.Instant;
@@ -31,10 +32,16 @@ public class PersonalReturnProvider implements ReturnProvider {
   public Returns getReturns(Person person, Instant startTime, Integer pillar) {
     AccountOverview accountOverview =
         accountOverviewProvider.getAccountOverview(person, startTime, pillar);
-    double rateOfReturn = rateOfReturnCalculator.getRateOfReturn(accountOverview);
+    ReturnRateAndAmount returnRateAndAmount =
+        rateOfReturnCalculator.getReturnRateAndAmount(accountOverview);
 
     Return aReturn =
-        Return.builder().key(getKey(pillar)).type(PERSONAL).value(rateOfReturn).build();
+        Return.builder()
+            .key(getKey(pillar))
+            .type(PERSONAL)
+            .rate(returnRateAndAmount.rate())
+            .amount(returnRateAndAmount.amount())
+            .build();
 
     return Returns.builder()
         .from(startTime.atZone(ZoneOffset.UTC).toLocalDate()) // TODO: Get real start time

@@ -32,10 +32,11 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def fromDate = "2017-01-01"
         def type = FUND
         def key = "EE123"
-        def value = 1.0
+        BigDecimal rate = 1.0
+        BigDecimal amount = 30.03
         def returns = Returns.builder()
             .from(LocalDate.parse(fromDate))
-            .returns([Return.builder().key(key).type(type).value(value).build()])
+            .returns([Return.builder().key(key).type(type).rate(rate).amount(amount).build()])
             .build()
         returnsService.get(_ as Person, LocalDate.parse(fromDate), null) >> returns
 
@@ -47,17 +48,19 @@ class ReturnsControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.from', is(fromDate)))
             .andExpect(jsonPath('$.returns[0].type', is(type.toString())))
             .andExpect(jsonPath('$.returns[0].key', is(key)))
-            .andExpect(jsonPath('$.returns[0].value', is(value.toDouble())))
+            .andExpect(jsonPath('$.returns[0].rate', is(rate.toDouble())))
+            .andExpect(jsonPath('$.returns[0].amount', is(amount.toDouble())))
     }
 
     def "can GET /returns without specifying fromDate"() {
         given:
         def type = FUND
         def key = "EE123"
-        def value = 1.0
+        def rate = 1.0
+        def amount = 30.03
         def returns = Returns.builder()
             .from(BEGINNING_OF_TIMES)
-            .returns([Return.builder().key(key).type(type).value(value).build()])
+            .returns([Return.builder().key(key).type(type).rate(rate).amount(amount).build()])
             .build()
         returnsService.get(_ as Person, BEGINNING_OF_TIMES, null) >> returns
 
@@ -68,7 +71,8 @@ class ReturnsControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.from', is(BEGINNING_OF_TIMES.toString())))
             .andExpect(jsonPath('$.returns[0].type', is(type.toString())))
             .andExpect(jsonPath('$.returns[0].key', is(key)))
-            .andExpect(jsonPath('$.returns[0].value', is(value.toDouble())))
+            .andExpect(jsonPath('$.returns[0].rate', is(rate.toDouble())))
+            .andExpect(jsonPath('$.returns[0].amount', is(amount.toDouble())))
     }
 
     def "can GET /returns by specifying keys"() {
@@ -77,13 +81,14 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def key1 = "SECOND_PILLAR"
         def key2 = "EE123"
         def key3 = "EPI"
-        def value = 1.0
+        def rate = 1.0
+        def amount = 30.03
         def returns = Returns.builder()
             .from(LocalDate.parse(fromDate))
             .returns([
-                Return.builder().key(key1).type(PERSONAL).value(value).build(),
-                Return.builder().key(key2).type(FUND).value(value).build(),
-                Return.builder().key(key3).type(INDEX).value(value).build(),
+                    Return.builder().key(key1).type(PERSONAL).rate(rate).amount(amount).build(),
+                    Return.builder().key(key2).type(FUND).rate(rate).amount(amount).build(),
+                    Return.builder().key(key3).type(INDEX).rate(rate).amount(amount).build(),
             ])
             .build()
         returnsService.get(_ as Person, LocalDate.parse(fromDate), [key1, key2, key3]) >> returns
@@ -100,15 +105,18 @@ class ReturnsControllerSpec extends BaseControllerSpec {
 
             .andExpect(jsonPath('$.returns[0].type', is(PERSONAL.toString())))
             .andExpect(jsonPath('$.returns[0].key', is(key1)))
-            .andExpect(jsonPath('$.returns[0].value', is(value.toDouble())))
+            .andExpect(jsonPath('$.returns[0].rate', is(rate.toDouble())))
+            .andExpect(jsonPath('$.returns[0].amount', is(amount.toDouble())))
 
             .andExpect(jsonPath('$.returns[1].type', is(FUND.toString())))
             .andExpect(jsonPath('$.returns[1].key', is(key2)))
-            .andExpect(jsonPath('$.returns[1].value', is(value.toDouble())))
+            .andExpect(jsonPath('$.returns[1].rate', is(rate.toDouble())))
+            .andExpect(jsonPath('$.returns[1].amount', is(amount.toDouble())))
 
             .andExpect(jsonPath('$.returns[2].type', is(INDEX.toString())))
             .andExpect(jsonPath('$.returns[2].key', is(key3)))
-            .andExpect(jsonPath('$.returns[2].value', is(value.toDouble())))
+            .andExpect(jsonPath('$.returns[2].rate', is(rate.toDouble())))
+            .andExpect(jsonPath('$.returns[2].amount', is(amount.toDouble())))
     }
 
 }

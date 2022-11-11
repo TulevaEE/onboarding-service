@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.Transaction;
 import java.math.BigDecimal;
 import java.math.MathContext;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Date;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import lombok.val;
 import org.decampo.xirr.Xirr;
 import org.springframework.stereotype.Service;
 
@@ -39,12 +41,25 @@ public class RateOfReturnCalculator {
   public double getRateOfReturn(AccountOverview accountOverview, String comparisonFund) {
     List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
+    val sellAmount =
+        getSimulatedEndingBalanceForAFund(accountOverview, comparisonFund, purchaseTransactions);
+
+    if (sellAmount.isEmpty()) return 0;
+    else
+      return calculateReturn(
+          purchaseTransactions, sellAmount.orElseThrow(), accountOverview.getEndTime());
+  }
+
+  private Optional<BigDecimal> getSimulatedEndingBalanceForAFund(
+      AccountOverview accountOverview,
+      String comparisonFund,
+      List<Transaction> purchaseTransactions) {
     BigDecimal virtualFundUnitsBought = ZERO;
     for (Transaction transaction : purchaseTransactions) {
       Optional<FundValue> fundValueAtTime =
           fundValueProvider.getLatestValue(comparisonFund, transaction.date());
-      if (!fundValueAtTime.isPresent()) {
-        return 0;
+      if (fundValueAtTime.isEmpty()) {
+        return Optional.empty();
       }
       BigDecimal fundPriceAtTime = fundValueAtTime.get().getValue();
       BigDecimal currentlyBoughtVirtualFundUnits =
@@ -54,13 +69,46 @@ public class RateOfReturnCalculator {
     Optional<FundValue> finalVirtualFundValue =
         fundValueProvider.getLatestValue(
             comparisonFund, accountOverview.getEndTime().atZone(systemDefault()).toLocalDate());
-    if (!finalVirtualFundValue.isPresent()) {
-      return 0;
+    if (finalVirtualFundValue.isEmpty()) {
+      return Optional.empty();
     }
     BigDecimal finalVirtualFundPrice = finalVirtualFundValue.get().getValue();
     BigDecimal sellAmount = finalVirtualFundPrice.multiply(virtualFundUnitsBought);
+    return Optional.of(sellAmount);
+  }
 
-    return calculateReturn(purchaseTransactions, sellAmount, accountOverview.getEndTime());
+  public BigDecimal getCashReturn(AccountOverview accountOverview) {
+    val paymentsSum =
+        accountOverview.getTransactions().stream()
+            .map(Transaction::amount)
+            .reduce(BigDecimal::add)
+            .orElse(BigDecimal.ZERO);
+
+    return accountOverview
+        .getEndingBalance()
+        .subtract(accountOverview.getBeginningBalance())
+        .subtract(paymentsSum);
+  }
+
+  public Optional<BigDecimal> getCashReturn(
+      AccountOverview accountOverview, String comparisonFund) {
+    List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
+
+    val endingBalance =
+        getSimulatedEndingBalanceForAFund(accountOverview, comparisonFund, purchaseTransactions);
+    if (endingBalance.isEmpty()) return Optional.empty();
+
+    val paymentsSum =
+        accountOverview.getTransactions().stream()
+            .map(Transaction::amount)
+            .reduce(BigDecimal::add)
+            .orElse(BigDecimal.ZERO);
+
+    return Optional.of(
+        endingBalance
+            .orElseThrow()
+            .subtract(accountOverview.getBeginningBalance())
+            .subtract(paymentsSum));
   }
 
   private List<Transaction> getPurchaseTransactions(AccountOverview accountOverview) {
@@ -92,8 +140,7 @@ public class RateOfReturnCalculator {
     List<Transaction> negatedTransactions = negateTransactionAmounts(purchaseTransactions);
     Transaction endingTransaction = new Transaction(endingBalance, endTime);
 
-    List<Transaction> internalTransactions = new ArrayList<>();
-    internalTransactions.addAll(negatedTransactions);
+    List<Transaction> internalTransactions = new ArrayList<>(negatedTransactions);
     internalTransactions.add(endingTransaction);
 
     return calculateInternalRateOfReturn(internalTransactions);
@@ -125,7 +172,7 @@ public class RateOfReturnCalculator {
   private double roundPercentage(double percentage) {
     // ok to lose the precision here, doing presentational formatting here.
     return BigDecimal.valueOf(percentage)
-        .setScale(OUTPUT_SCALE, BigDecimal.ROUND_HALF_UP)
+        .setScale(OUTPUT_SCALE, RoundingMode.HALF_UP)
         .doubleValue();
   }
 

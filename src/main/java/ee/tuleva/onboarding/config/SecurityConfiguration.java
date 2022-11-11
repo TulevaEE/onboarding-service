@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.config;
 
-import static ee.tuleva.onboarding.config.OAuthConfiguration.ResourceServerPathConfiguration.RESOURCE_REQUEST_MATCHER_BEAN;
+import static ee.tuleva.onboarding.config.OAuthConfiguration.ResourceServerPathConfiguration.API_RESOURCES_REQUEST_MATCHER_BEAN;
 import static org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest.to;
 import static org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest.toAnyEndpoint;
 
@@ -18,6 +18,7 @@ import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
@@ -85,7 +86,7 @@ public class SecurityConfiguration {
   @RequiredArgsConstructor
   static class WebSecurityConfiguration extends WebSecurityConfigurerAdapter {
 
-    @Qualifier(RESOURCE_REQUEST_MATCHER_BEAN)
+    @Qualifier(API_RESOURCES_REQUEST_MATCHER_BEAN)
     final RequestMatcher resources;
 
     final DaoAuthenticationProvider authenticationProvider;
@@ -107,23 +108,17 @@ public class SecurityConfiguration {
               "/v3/api-docs/**",
               "/authenticate",
               "/idLogin",
-              "/oauth/token",
               "/notifications/payments")
           .permitAll()
           .anyRequest()
           .authenticated()
           .and()
-          .httpBasic()
-          .and()
           .csrf()
-          .ignoringAntMatchers(
-              "/authenticate",
-              "/idLogin",
-              "/oauth/token",
-              "/notifications/payments",
-              "/actuator/**")
+          .ignoringAntMatchers("/authenticate", "/idLogin", "/notifications/payments")
           .and()
-          .authenticationProvider(authenticationProvider);
+          .authenticationProvider(authenticationProvider)
+          .sessionManagement()
+          .sessionCreationPolicy(SessionCreationPolicy.NEVER);
     }
   }
 }

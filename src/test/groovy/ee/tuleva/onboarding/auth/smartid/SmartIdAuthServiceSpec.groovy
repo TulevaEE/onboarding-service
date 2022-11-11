@@ -117,7 +117,7 @@ class SmartIdAuthServiceSpec extends Specification {
   private boolean waitForLoginComplete(SmartIdSession session) {
     int pollCount = 0
     while (true) {
-      if (smartIdAuthService.isLoginComplete(session)) {
+      if (smartIdAuthService.getAuthenticationIdentity(session.authenticationHash.hashInBase64).isPresent()) {
         return true
       }
       pollCount++

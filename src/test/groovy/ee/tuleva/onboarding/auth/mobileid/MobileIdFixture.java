@@ -2,7 +2,10 @@ package ee.tuleva.onboarding.auth.mobileid;
 
 import ee.sk.mid.MidAuthenticationIdentity;
 import ee.sk.mid.MidAuthenticationResult;
+import ee.sk.mid.MidHashToSign;
+import ee.sk.mid.MidHashType;
 import ee.sk.mid.rest.dao.MidSessionStatus;
+import ee.sk.smartid.AuthenticationHash;
 
 public class MobileIdFixture {
 
@@ -12,8 +15,13 @@ public class MobileIdFixture {
   public static String sampleLongLithuanianPhoneNumber = "+37086532522";
   public static String sampleIdCode = "38812121215";
   public static String sampleSessionId = "12345";
+
+  public static MidHashToSign hash = MidHashToSign.newBuilder()
+      .withHashType(MidHashType.SHA256)
+      .withDataToHash("data".getBytes())
+      .build();
   public static MobileIDSession sampleMobileIdSession =
-      new MobileIDSession(sampleSessionId, "challenge", null, samplePhoneNumber);
+      new MobileIDSession(sampleSessionId, "challenge", hash, samplePhoneNumber);
 
   public static MidSessionStatus getSampleMidSessionComplete() {
     MidSessionStatus status = new MidSessionStatus();

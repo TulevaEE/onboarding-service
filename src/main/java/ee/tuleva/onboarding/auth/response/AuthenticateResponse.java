@@ -12,12 +12,16 @@ import lombok.Setter;
 public class AuthenticateResponse {
 
   private final String challengeCode;
+  private final String authenticationHash;
 
   public static AuthenticateResponse fromMobileIdSession(MobileIDSession mobileIDSession) {
-    return new AuthenticateResponse(mobileIDSession.getChallenge());
+    return new AuthenticateResponse(
+        mobileIDSession.getChallenge(), mobileIDSession.getAuthenticationHash().getHashInBase64());
   }
 
   public static AuthenticateResponse fromSmartIdSession(SmartIdSession smartIdSession) {
-    return new AuthenticateResponse(smartIdSession.getVerificationCode());
+    return new AuthenticateResponse(
+        smartIdSession.getVerificationCode(),
+        smartIdSession.getAuthenticationHash().getHashInBase64());
   }
 }

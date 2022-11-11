@@ -1,33 +1,49 @@
 package ee.tuleva.onboarding.auth.session;
 
-import java.io.Serial;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import javax.servlet.http.HttpSession;
 import org.springframework.stereotype.Component;
-import org.springframework.web.context.annotation.SessionScope;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Component
-@SessionScope
-public class GenericSessionStore implements Serializable {
+public class GenericSessionStore {
 
-  @Serial private static final long serialVersionUID = -648103071415508424L;
-
-  private final Map<String, Object> sessionAttributes = new HashMap<>();
+  private static final String GENERIC_SESSION_STORE_ATTRIBUTES =
+      GenericSessionStore.class.getName() + ".attributes";
 
   public <T extends Serializable> void save(T sessionAttribute) {
-    sessionAttributes.put(sessionAttribute.getClass().getName(), sessionAttribute);
+    getSessionAttributes().put(sessionAttribute.getClass().getName(), sessionAttribute);
   }
 
-  public <T extends Serializable> Optional<T> get(Class clazz) {
+  public <T extends Serializable> Optional<T> get(Class<?> clazz) {
     @SuppressWarnings("unchecked")
-    T sessionAttribute = (T) sessionAttributes.get(clazz.getName());
+    T sessionAttribute = (T) getSessionAttributes().get(clazz.getName());
 
     if (sessionAttribute == null) {
       return Optional.empty();
     }
 
     return Optional.of(sessionAttribute);
+  }
+
+  private static <T extends Serializable> Map<String, T> getSessionAttributes() {
+    @SuppressWarnings("unchecked")
+    Map<String, T> attributes =
+        (Map<String, T>) getSession().getAttribute(GENERIC_SESSION_STORE_ATTRIBUTES);
+    if (attributes == null) {
+      attributes = new HashMap<>();
+      getSession().setAttribute(GENERIC_SESSION_STORE_ATTRIBUTES, attributes);
+    }
+    return attributes;
+  }
+
+  private static HttpSession getSession() {
+    ServletRequestAttributes attr =
+        (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+    return attr.getRequest().getSession(true);
   }
 }

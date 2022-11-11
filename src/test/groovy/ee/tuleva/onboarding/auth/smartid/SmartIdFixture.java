@@ -26,6 +26,5 @@ public class SmartIdFixture {
     anAuthenticationIdentity.setIdentityCode(personalCode);
     anAuthenticationIdentity.setGivenName(firstName);
     anAuthenticationIdentity.setSurname(lastName);
-    sampleFinalSmartIdSession.setAuthenticationIdentity(anAuthenticationIdentity);
   }
 }

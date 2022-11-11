@@ -38,10 +38,19 @@ class RateOfReturnCalculatorSpec extends Specification {
     double marketAverageRateOfReturn =
         rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY)
 
+    BigDecimal cashReturn = rateOfReturnCalculator.getCashReturn(overview)
+    BigDecimal cashReturnWhenInvestingInEstonianAverageFund =
+        rateOfReturnCalculator.getCashReturn(overview, EPIFundValueRetriever.KEY).orElseThrow()
+    BigDecimal cashReturnWhenInvestingInTheWorldMarket =
+        rateOfReturnCalculator.getCashReturn(overview, UnionStockIndexRetriever.KEY).orElseThrow()
+
     then:
     actualRateOfReturn == 0
     estonianAverageRateOfReturn == 0
     marketAverageRateOfReturn == 0
+    cashReturn == 0
+    cashReturnWhenInvestingInEstonianAverageFund == 0
+    cashReturnWhenInvestingInTheWorldMarket == 0
   }
 
   def "it successfully calculates a return for 0-valued transactions"() {
@@ -59,10 +68,18 @@ class RateOfReturnCalculatorSpec extends Specification {
         rateOfReturnCalculator.getRateOfReturn(overview, EPIFundValueRetriever.KEY)
     double marketAverageRateOfReturn =
         rateOfReturnCalculator.getRateOfReturn(overview, UnionStockIndexRetriever.KEY)
+    BigDecimal cashReturn = rateOfReturnCalculator.getCashReturn(overview)
+    BigDecimal cashReturnWhenInvestingInEstonianAverageFund =
+        rateOfReturnCalculator.getCashReturn(overview, EPIFundValueRetriever.KEY).orElseThrow()
+    BigDecimal cashReturnWhenInvestingInTheWorldMarket =
+        rateOfReturnCalculator.getCashReturn(overview, UnionStockIndexRetriever.KEY).orElseThrow()
     then:
     actualRateOfReturn == xirr.doubleValue()
     estonianAverageRateOfReturn == 0
     marketAverageRateOfReturn == 0
+    cashReturn == 0
+    cashReturnWhenInvestingInEstonianAverageFund == 0
+    cashReturnWhenInvestingInTheWorldMarket == 0
     where:
     firstTransaction | secondTransaction | beginningBalance | endingBalance || xirr
     0.0              | 0.0               | 0.0              | 0.0           || 0.0

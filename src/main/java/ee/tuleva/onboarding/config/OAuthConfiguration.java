@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.config;
 
 import static ee.tuleva.onboarding.capital.CapitalController.CAPITAL_URI;
-import static ee.tuleva.onboarding.config.OAuthConfiguration.ResourceServerPathConfiguration.RESOURCE_REQUEST_MATCHER_BEAN;
+import static ee.tuleva.onboarding.config.OAuthConfiguration.ResourceServerPathConfiguration.API_RESOURCES_REQUEST_MATCHER_BEAN;
 import static java.util.Arrays.asList;
 
 import ee.tuleva.onboarding.auth.authority.Authority;
@@ -49,10 +49,10 @@ public class OAuthConfiguration {
   @Configuration
   public static class ResourceServerPathConfiguration {
 
-    public static final String RESOURCE_REQUEST_MATCHER_BEAN = "resourceServerRequestMatcher";
+    public static final String API_RESOURCES_REQUEST_MATCHER_BEAN = "apiPathRequestMatcher";
 
-    @Bean(RESOURCE_REQUEST_MATCHER_BEAN)
-    public RequestMatcher resources() {
+    @Bean(API_RESOURCES_REQUEST_MATCHER_BEAN)
+    public RequestMatcher apiResources() {
       return new AntPathRequestMatcher("/v1/**");
     }
   }
@@ -64,8 +64,8 @@ public class OAuthConfiguration {
 
     private static final String RESOURCE_ID = "onboarding-service";
 
-    @Qualifier(RESOURCE_REQUEST_MATCHER_BEAN)
-    final RequestMatcher resources;
+    @Qualifier(API_RESOURCES_REQUEST_MATCHER_BEAN)
+    final RequestMatcher apiResources;
 
     @Override
     public void configure(ResourceServerSecurityConfigurer resources) {
@@ -74,7 +74,7 @@ public class OAuthConfiguration {
 
     @Override
     public void configure(HttpSecurity http) throws Exception {
-      http.requestMatcher(resources)
+      http.requestMatcher(apiResources)
           .authorizeRequests()
           .regexMatchers("/v1" + CAPITAL_URI)
           .hasAuthority(Authority.MEMBER)
@@ -187,7 +187,6 @@ public class OAuthConfiguration {
           endpoints.getOAuth2RequestFactory(),
           smartIdAuthService,
           principalService,
-          genericSessionStore,
           grantedAuthorityFactory,
           applicationEventPublisher);
     }

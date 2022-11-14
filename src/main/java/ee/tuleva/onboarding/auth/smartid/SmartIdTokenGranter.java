@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
-import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -26,11 +25,11 @@ import org.springframework.security.oauth2.provider.token.AuthorizationServerTok
 
 @Slf4j
 public class SmartIdTokenGranter extends AbstractTokenGranter {
+
   private static final GrantType GRANT_TYPE = GrantType.SMART_ID;
 
   private final SmartIdAuthService smartIdAuthService;
   private final PrincipalService principalService;
-  private final GenericSessionStore genericSessionStore;
   private final GrantedAuthorityFactory grantedAuthorityFactory;
   private final ApplicationEventPublisher eventPublisher;
 
@@ -40,19 +39,16 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
       OAuth2RequestFactory requestFactory,
       SmartIdAuthService smartIdAuthService,
       PrincipalService principalService,
-      GenericSessionStore genericSessionStore,
       GrantedAuthorityFactory grantedAuthorityFactory,
       ApplicationEventPublisher applicationEventPublisher) {
     super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE.name().toLowerCase());
 
     assert smartIdAuthService != null;
     assert principalService != null;
-    assert genericSessionStore != null;
     assert grantedAuthorityFactory != null;
 
     this.smartIdAuthService = smartIdAuthService;
     this.principalService = principalService;
-    this.genericSessionStore = genericSessionStore;
     this.grantedAuthorityFactory = grantedAuthorityFactory;
     this.eventPublisher = applicationEventPublisher;
   }
@@ -66,23 +62,23 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
       throw new InvalidRequestException("Unknown Client ID.");
     }
 
-    Optional<SmartIdSession> session = genericSessionStore.get(SmartIdSession.class);
-    if (!session.isPresent()) {
+    var authenticationHash = tokenRequest.getRequestParameters().get("authenticationHash");
+    if (authenticationHash == null) {
       throw new SmartIdSessionNotFoundException();
     }
-    SmartIdSession smartIdSession = session.get();
 
-    boolean isComplete = smartIdAuthService.isLoginComplete(smartIdSession);
-    if (!isComplete) {
+    var identity = smartIdAuthService.getAuthenticationIdentity(authenticationHash);
+    if (identity.isEmpty()) {
       throw new AuthNotCompleteException();
     }
+    var smartIdPerson = new SmartIdPerson(identity.get());
 
     AuthenticatedPerson authenticatedPerson =
-        principalService.getFrom(smartIdSession, Optional.empty());
+        principalService.getFrom(smartIdPerson, Optional.empty());
 
     Authentication userAuthentication =
         new PersonalCodeAuthentication<>(
-            authenticatedPerson, smartIdSession, grantedAuthorityFactory.from(authenticatedPerson));
+            authenticatedPerson, smartIdPerson, grantedAuthorityFactory.from(authenticatedPerson));
 
     userAuthentication.setAuthenticated(true);
 

@@ -65,7 +65,6 @@ public class AuthController {
     if (SMART_ID == authenticateCommand.getType()) {
       SmartIdSession loginSession =
           smartIdAuthService.startLogin(authenticateCommand.getPersonalCode());
-      genericSessionStore.save(loginSession);
       return new ResponseEntity<>(
           AuthenticateResponse.fromSmartIdSession(loginSession), HttpStatus.OK);
     }

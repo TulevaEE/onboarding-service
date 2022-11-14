@@ -40,6 +40,7 @@ spring:
     store-type: none
     jdbc:
       initialize-schema: never
+  cloud.mvc.token-relay.enabled: false
 
 mobile-id:
   # use "https://mid.sk.ee/mid-api" for testing signing

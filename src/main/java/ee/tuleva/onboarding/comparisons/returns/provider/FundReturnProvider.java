@@ -34,8 +34,7 @@ public class FundReturnProvider implements ReturnProvider {
         getKeys().stream()
             .map(
                 key ->
-                    new SimpleEntry<>(
-                        key, rateOfReturnCalculator.getReturnRateAndAmount(accountOverview, key)))
+                    new SimpleEntry<>(key, rateOfReturnCalculator.getReturn(accountOverview, key)))
             .map(
                 tuple ->
                     Return.builder()
@@ -43,6 +42,7 @@ public class FundReturnProvider implements ReturnProvider {
                         .type(FUND)
                         .rate(tuple.getValue().rate())
                         .amount(tuple.getValue().amount())
+                        .currency(tuple.getValue().currency())
                         .build())
             .collect(toList());
 

@@ -32,16 +32,19 @@ class RateOfReturnCalculatorSpec extends Specification {
         new Transaction(100.0, startTime),
     ], 0.0, 200.0, startTime, endTime, 2)
     when:
-    def returnRateAndAmount = rateOfReturnCalculator.getReturnRateAndAmount(overview)
+    def returnRateAndAmount = rateOfReturnCalculator.getReturn(overview)
     def estonianAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY)
+        rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
     def marketAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY)
+        rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
     returnRateAndAmount.rate() == 0
     estonianAverageReturnRateAndAmount.rate() == 0
     marketAverageReturnRateAndAmount.rate() == 0
+    returnRateAndAmount.amount() == 0
+    estonianAverageReturnRateAndAmount.amount() == 0
+    marketAverageReturnRateAndAmount.amount() == 0
     returnRateAndAmount.amount() == 0
     estonianAverageReturnRateAndAmount.amount() == 0
     marketAverageReturnRateAndAmount.amount() == 0
@@ -57,11 +60,11 @@ class RateOfReturnCalculatorSpec extends Specification {
         new Transaction(secondTransaction, startTime),
     ], beginningBalance, endingBalance, startTime, endTime, 2)
     when:
-    def returnRateAndAmount = rateOfReturnCalculator.getReturnRateAndAmount(overview)
+    def returnRateAndAmount = rateOfReturnCalculator.getReturn(overview)
     def estonianAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY)
+        rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
     def marketAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY)
+        rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
     returnRateAndAmount.rate() == BigDecimal.valueOf(xirr)
@@ -86,11 +89,11 @@ class RateOfReturnCalculatorSpec extends Specification {
     Instant endTime = parseInstant("2018-07-18")
     def overview = new AccountOverview(exampleTransactions, 30.0, 620.0, startTime, endTime, 2)
     when:
-    def returnRateAndAmount = rateOfReturnCalculator.getReturnRateAndAmount(overview)
+    def returnRateAndAmount = rateOfReturnCalculator.getReturn(overview)
     def estonianAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY)
+        rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
     def marketAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY)
+        rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
     returnRateAndAmount.rate() == 0.0427
@@ -112,9 +115,9 @@ class RateOfReturnCalculatorSpec extends Specification {
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
     when:
     def estonianAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY)
+        rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
     def marketAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY)
+        rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
     estonianAverageReturnRateAndAmount.rate() == 0.0326
@@ -131,9 +134,9 @@ class RateOfReturnCalculatorSpec extends Specification {
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
     when:
     def estonianAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY)
+        rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
     def marketAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY)
+        rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
     estonianAverageReturnRateAndAmount.rate() == 0

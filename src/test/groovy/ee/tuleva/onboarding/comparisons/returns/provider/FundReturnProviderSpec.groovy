@@ -5,12 +5,14 @@ import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator
 import ee.tuleva.onboarding.comparisons.returns.ReturnRateAndAmount
+import ee.tuleva.onboarding.currency.Currency
 import spock.lang.Specification
 
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND
+import static ee.tuleva.onboarding.currency.Currency.*
 
 class FundReturnProviderSpec extends Specification {
 
@@ -30,8 +32,8 @@ class FundReturnProviderSpec extends Specification {
         def returnAsAmount = 123.12
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, _ as String) >>
-            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
+        rateOfReturnCalculator.getReturn(overview, _ as String) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount, EUR)
 
         when:
         def returns = returnProvider.getReturns(person, startTime, pillar)
@@ -42,6 +44,7 @@ class FundReturnProviderSpec extends Specification {
           type == FUND
           rate == expectedReturn
           amount == returnAsAmount
+          currency == EUR
         }
         returns.returns.size() == returnProvider.getKeys().size()
     }

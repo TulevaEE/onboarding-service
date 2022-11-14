@@ -13,6 +13,7 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.INDEX
+import static ee.tuleva.onboarding.currency.Currency.EUR
 
 class IndexReturnProviderSpec extends Specification {
 
@@ -32,12 +33,12 @@ class IndexReturnProviderSpec extends Specification {
         def returnAsAmount = 123.12
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, EPIFundValueRetriever.KEY) >>
-            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, UnionStockIndexRetriever.KEY) >>
-            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
-        rateOfReturnCalculator.getReturnRateAndAmount(overview, CPIValueRetriever.KEY) >>
-            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
+        rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount, EUR)
+        rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount, EUR)
+        rateOfReturnCalculator.getReturn(overview, CPIValueRetriever.KEY) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount, EUR)
 
 
         when:
@@ -49,16 +50,19 @@ class IndexReturnProviderSpec extends Specification {
           type == INDEX
           rate == expectedReturn
           amount == returnAsAmount
+          currency == EUR
         }
         with(returns.returns[1]) {
-            key == UnionStockIndexRetriever.KEY
-            type == INDEX
-            rate == expectedReturn
+          key == UnionStockIndexRetriever.KEY
+          type == INDEX
+          rate == expectedReturn
+          currency == EUR
         }
         with(returns.returns[2]) {
-            key == CPIValueRetriever.KEY
-            type == INDEX
-            rate == expectedReturn
+          key == CPIValueRetriever.KEY
+          type == INDEX
+          rate == expectedReturn
+          currency == EUR
         }
     }
 }

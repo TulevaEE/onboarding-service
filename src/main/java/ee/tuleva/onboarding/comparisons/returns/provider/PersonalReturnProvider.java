@@ -32,8 +32,7 @@ public class PersonalReturnProvider implements ReturnProvider {
   public Returns getReturns(Person person, Instant startTime, Integer pillar) {
     AccountOverview accountOverview =
         accountOverviewProvider.getAccountOverview(person, startTime, pillar);
-    ReturnRateAndAmount returnRateAndAmount =
-        rateOfReturnCalculator.getReturnRateAndAmount(accountOverview);
+    ReturnRateAndAmount returnRateAndAmount = rateOfReturnCalculator.getReturn(accountOverview);
 
     Return aReturn =
         Return.builder()
@@ -41,6 +40,7 @@ public class PersonalReturnProvider implements ReturnProvider {
             .type(PERSONAL)
             .rate(returnRateAndAmount.rate())
             .amount(returnRateAndAmount.amount())
+            .currency(returnRateAndAmount.currency())
             .build();
 
     return Returns.builder()

@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.PERSONAL
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.SECOND_PILLAR
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR
+import static ee.tuleva.onboarding.currency.Currency.EUR
 
 class PersonalReturnProviderSpec extends Specification {
 
@@ -31,18 +32,19 @@ class PersonalReturnProviderSpec extends Specification {
         def returnAsAmount = 123.12
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
-        rateOfReturnCalculator.getReturnRateAndAmount(overview) >>
-            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
+        rateOfReturnCalculator.getReturn(overview) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount, EUR)
 
         when:
         def returns = returnProvider.getReturns(person, startTime, pillar)
 
         then:
         with(returns.returns[0]) {
-            key == SECOND_PILLAR
-            type == PERSONAL
-            rate == expectedReturn
-            amount == returnAsAmount
+          key == SECOND_PILLAR
+          type == PERSONAL
+          rate == expectedReturn
+          amount == returnAsAmount
+          currency == EUR
         }
     }
 
@@ -57,8 +59,8 @@ class PersonalReturnProviderSpec extends Specification {
         def returnAsAmount = 123.21
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
-        rateOfReturnCalculator.getReturnRateAndAmount(overview) >>
-            new ReturnRateAndAmount(expectedReturn, returnAsAmount)
+        rateOfReturnCalculator.getReturn(overview) >>
+            new ReturnRateAndAmount(expectedReturn, returnAsAmount, EUR)
 
         when:
         def returns = returnProvider.getReturns(person, startTime, pillar)
@@ -69,6 +71,7 @@ class PersonalReturnProviderSpec extends Specification {
           type == PERSONAL
           rate == expectedReturn
           amount == returnAsAmount
+          currency == EUR
         }
     }
 }

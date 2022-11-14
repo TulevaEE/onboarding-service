@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
+import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static java.math.BigDecimal.ZERO;
 import static java.time.ZoneId.systemDefault;
 import static java.util.stream.Collectors.toList;
@@ -31,16 +32,16 @@ public class RateOfReturnCalculator {
 
   private final FundValueProvider fundValueProvider;
 
-  public ReturnRateAndAmount getReturnRateAndAmount(AccountOverview accountOverview) {
+  public ReturnRateAndAmount getReturn(AccountOverview accountOverview) {
     return new ReturnRateAndAmount(
-        getRateOfReturn(accountOverview), getCashReturn(accountOverview));
+        getRateOfReturn(accountOverview), getCashReturn(accountOverview), EUR);
   }
 
-  public ReturnRateAndAmount getReturnRateAndAmount(
-      AccountOverview accountOverview, String comparisonFund) {
+  public ReturnRateAndAmount getReturn(AccountOverview accountOverview, String comparisonFund) {
     return new ReturnRateAndAmount(
         getRateOfReturn(accountOverview, comparisonFund).orElse(ZERO),
-        getCashReturn(accountOverview, comparisonFund).orElse(ZERO));
+        getCashReturn(accountOverview, comparisonFund).orElse(ZERO),
+        EUR);
   }
 
   private BigDecimal getRateOfReturn(AccountOverview accountOverview) {

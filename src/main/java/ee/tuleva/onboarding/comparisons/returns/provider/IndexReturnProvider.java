@@ -44,7 +44,7 @@ public class IndexReturnProvider implements ReturnProvider {
             .map(
                 key ->
                     new AbstractMap.SimpleEntry<>(
-                        key, rateOfReturnCalculator.getReturnRateAndAmount(accountOverview, key)))
+                        key, rateOfReturnCalculator.getReturn(accountOverview, key)))
             .map(
                 tuple ->
                     Return.builder()
@@ -52,6 +52,7 @@ public class IndexReturnProvider implements ReturnProvider {
                         .type(INDEX)
                         .rate(tuple.getValue().rate())
                         .amount(tuple.getValue().amount())
+                        .currency(tuple.getValue().currency())
                         .build())
             .collect(toList());
 

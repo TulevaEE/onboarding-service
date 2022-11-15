@@ -6,8 +6,8 @@ import static java.util.Collections.singletonList;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
-import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator;
-import ee.tuleva.onboarding.comparisons.returns.ReturnRateAndAmount;
+import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator;
+import ee.tuleva.onboarding.comparisons.returns.ReturnDto;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.time.Instant;
@@ -26,13 +26,13 @@ public class PersonalReturnProvider implements ReturnProvider {
 
   private final AccountOverviewProvider accountOverviewProvider;
 
-  private final RateOfReturnCalculator rateOfReturnCalculator;
+  private final ReturnCalculator rateOfReturnCalculator;
 
   @Override
   public Returns getReturns(Person person, Instant startTime, Integer pillar) {
     AccountOverview accountOverview =
         accountOverviewProvider.getAccountOverview(person, startTime, pillar);
-    ReturnRateAndAmount returnRateAndAmount = rateOfReturnCalculator.getReturn(accountOverview);
+    ReturnDto returnRateAndAmount = rateOfReturnCalculator.getReturn(accountOverview);
 
     Return aReturn =
         Return.builder()

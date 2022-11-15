@@ -15,11 +15,11 @@ import java.time.ZoneOffset
 class RateOfReturnCalculatorSpec extends Specification {
 
   FundValueProvider fundValueProvider
-  RateOfReturnCalculator rateOfReturnCalculator
+  ReturnCalculator rateOfReturnCalculator
 
   void setup() {
     fundValueProvider = Mock(FundValueProvider)
-    rateOfReturnCalculator = new RateOfReturnCalculator(fundValueProvider)
+    rateOfReturnCalculator = new ReturnCalculator(fundValueProvider)
   }
 
   def "it successfully calculates a return of 0%"() {

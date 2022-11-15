@@ -9,7 +9,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetrieve
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
-import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator;
+import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.time.Instant;
@@ -32,7 +32,7 @@ public class IndexReturnProvider implements ReturnProvider {
 
   private final AccountOverviewProvider accountOverviewProvider;
 
-  private final RateOfReturnCalculator rateOfReturnCalculator;
+  private final ReturnCalculator rateOfReturnCalculator;
 
   @Override
   public Returns getReturns(Person person, Instant startTime, Integer pillar) {

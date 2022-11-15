@@ -26,19 +26,18 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class RateOfReturnCalculator {
+public class ReturnCalculator {
 
   private static final int OUTPUT_SCALE = 4;
 
   private final FundValueProvider fundValueProvider;
 
-  public ReturnRateAndAmount getReturn(AccountOverview accountOverview) {
-    return new ReturnRateAndAmount(
-        getRateOfReturn(accountOverview), getCashReturn(accountOverview), EUR);
+  public ReturnDto getReturn(AccountOverview accountOverview) {
+    return new ReturnDto(getRateOfReturn(accountOverview), getCashReturn(accountOverview), EUR);
   }
 
-  public ReturnRateAndAmount getReturn(AccountOverview accountOverview, String comparisonFund) {
-    return new ReturnRateAndAmount(
+  public ReturnDto getReturn(AccountOverview accountOverview, String comparisonFund) {
+    return new ReturnDto(
         getRateOfReturn(accountOverview, comparisonFund).orElse(ZERO),
         getCashReturn(accountOverview, comparisonFund).orElse(ZERO),
         EUR);
@@ -145,9 +144,7 @@ public class RateOfReturnCalculator {
   }
 
   private List<Transaction> negateTransactionAmounts(List<Transaction> transactions) {
-    return transactions.stream()
-        .map(RateOfReturnCalculator::negateTransactionAmount)
-        .collect(toList());
+    return transactions.stream().map(ReturnCalculator::negateTransactionAmount).collect(toList());
   }
 
   private static Transaction negateTransactionAmount(Transaction transaction) {
@@ -173,7 +170,7 @@ public class RateOfReturnCalculator {
     try {
       List<org.decampo.xirr.Transaction> xirrInternalTransactions =
           transactions.stream()
-              .map(RateOfReturnCalculator::xirrTransactionFromInternalTransaction)
+              .map(ReturnCalculator::xirrTransactionFromInternalTransaction)
               .collect(toList());
 
       double result = new Xirr(xirrInternalTransactions).xirr();

@@ -5,8 +5,8 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetrieve
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
-import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator
-import ee.tuleva.onboarding.comparisons.returns.ReturnRateAndAmount
+import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator
+import ee.tuleva.onboarding.comparisons.returns.ReturnDto
 import spock.lang.Specification
 
 import java.time.Instant
@@ -18,7 +18,7 @@ import static ee.tuleva.onboarding.currency.Currency.EUR
 class IndexReturnProviderSpec extends Specification {
 
     def accountOverviewProvider = Mock(AccountOverviewProvider)
-    def rateOfReturnCalculator = Mock(RateOfReturnCalculator)
+    def rateOfReturnCalculator = Mock(ReturnCalculator)
 
     def returnProvider = new IndexReturnProvider(accountOverviewProvider, rateOfReturnCalculator)
 
@@ -34,11 +34,11 @@ class IndexReturnProviderSpec extends Specification {
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
         rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY) >>
-            new ReturnRateAndAmount(expectedReturn, returnAsAmount, EUR)
+            new ReturnDto(expectedReturn, returnAsAmount, EUR)
         rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY) >>
-            new ReturnRateAndAmount(expectedReturn, returnAsAmount, EUR)
+            new ReturnDto(expectedReturn, returnAsAmount, EUR)
         rateOfReturnCalculator.getReturn(overview, CPIValueRetriever.KEY) >>
-            new ReturnRateAndAmount(expectedReturn, returnAsAmount, EUR)
+            new ReturnDto(expectedReturn, returnAsAmount, EUR)
 
 
         when:

@@ -3,9 +3,8 @@ package ee.tuleva.onboarding.comparisons.returns.provider
 
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
-import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator
-import ee.tuleva.onboarding.comparisons.returns.ReturnRateAndAmount
-import ee.tuleva.onboarding.currency.Currency
+import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator
+import ee.tuleva.onboarding.comparisons.returns.ReturnDto
 import spock.lang.Specification
 
 import java.time.Instant
@@ -17,7 +16,7 @@ import static ee.tuleva.onboarding.currency.Currency.*
 class FundReturnProviderSpec extends Specification {
 
     def accountOverviewProvider = Mock(AccountOverviewProvider)
-    def rateOfReturnCalculator = Mock(RateOfReturnCalculator)
+    def rateOfReturnCalculator = Mock(ReturnCalculator)
 
     def returnProvider = new FundReturnProvider(accountOverviewProvider, rateOfReturnCalculator)
 
@@ -33,7 +32,7 @@ class FundReturnProviderSpec extends Specification {
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
         rateOfReturnCalculator.getReturn(overview, _ as String) >>
-            new ReturnRateAndAmount(expectedReturn, returnAsAmount, EUR)
+            new ReturnDto(expectedReturn, returnAsAmount, EUR)
 
         when:
         def returns = returnProvider.getReturns(person, startTime, pillar)

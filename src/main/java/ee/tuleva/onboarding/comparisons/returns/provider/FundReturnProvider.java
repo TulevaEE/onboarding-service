@@ -6,7 +6,7 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
-import ee.tuleva.onboarding.comparisons.returns.RateOfReturnCalculator;
+import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.time.Instant;
@@ -23,7 +23,7 @@ public class FundReturnProvider implements ReturnProvider {
 
   private final AccountOverviewProvider accountOverviewProvider;
 
-  private final RateOfReturnCalculator rateOfReturnCalculator;
+  private final ReturnCalculator rateOfReturnCalculator;
 
   @Override
   public Returns getReturns(Person person, Instant startTime, Integer pillar) {

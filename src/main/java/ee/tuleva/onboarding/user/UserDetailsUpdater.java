@@ -44,16 +44,15 @@ public class UserDetailsUpdater {
   @EventListener
   public void onAfterTokenGrantedEvent(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
-    String token = event.getAccessToken().getValue();
 
     userService
         .findByPersonalCode(person.getPersonalCode())
-        .ifPresent(user -> updateContactDetails(person, token, user));
+        .ifPresent(user -> updateContactDetails(person, user));
   }
 
-  private void updateContactDetails(Person person, String token, User user) {
+  private void updateContactDetails(Person person, User user) {
     if (!user.hasContactDetails()) {
-      ContactDetails contactDetails = contactDetailsService.getContactDetails(person, token);
+      ContactDetails contactDetails = contactDetailsService.getContactDetails(person);
       String phoneNumber = StringUtils.trim(contactDetails.getPhoneNumber());
 
       Optional<String> email =

@@ -17,6 +17,7 @@ import org.mockserver.springtest.MockServerTest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
+import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.web.servlet.error.DefaultErrorAttributes
 import org.springframework.boot.web.servlet.error.ErrorAttributes
@@ -25,7 +26,10 @@ import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.TestingAuthenticationToken
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
+import org.springframework.security.oauth2.core.OAuth2AccessToken
 import org.springframework.test.context.TestPropertySource
 import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Specification
@@ -40,13 +44,16 @@ import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentAmount
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedCallbackFinalizedToken
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.getAnInternalReference
+import static ee.tuleva.onboarding.time.TestClockHolder.now
+import static ee.tuleva.onboarding.time.TestClockHolder.now
 import static org.mockserver.model.HttpRequest.request
 import static org.mockserver.model.HttpResponse.response
 import static org.mockserver.model.MediaType.APPLICATION_JSON
+import static org.springframework.security.oauth2.core.OAuth2AccessToken.TokenType.BEARER
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @MockServerTest("epis.service.url=http://localhost:\${mockServerPort}")
-@Import(Config.class)
+@Import([Config.class, OAuth2ClientAutoConfiguration.class])
 @TestPropertySource(properties = "PAYMENT_SECRET_LHV=exampleSecretKeyexampleSecretKeyexampleSecretKey")
 @TestPropertySource(properties = "payment-provider.banks.lhv.access-key=exampleAccessKey")
 class PaymentIntegrationSpec extends Specification {
@@ -67,6 +74,12 @@ class PaymentIntegrationSpec extends Specification {
   @Autowired
   PaymentLinkingService paymentApplicationService
 
+  @Autowired
+  ClientRegistrationRepository clientRegistrationRepository
+
+  @Autowired
+  OAuth2AuthorizedClientService authorizedClientService
+
   @Value('${frontend.url}')
   String frontendUrl
 
@@ -85,11 +98,18 @@ class PaymentIntegrationSpec extends Specification {
   def mockSecurityContext() {
     SecurityContext sc = SecurityContextHolder.createEmptyContext()
     TestingAuthenticationToken authentication = new TestingAuthenticationToken("test", "password")
-    OAuth2AuthenticationDetails details = Mock(OAuth2AuthenticationDetails)
-    authentication.details = details
-    details.getTokenValue() >> aToken
     sc.authentication = authentication
     SecurityContextHolder.context = sc
+
+    OAuth2AccessToken accessToken = new OAuth2AccessToken(BEARER, aToken, now, now.plusSeconds(3600))
+    OAuth2AuthorizedClient authorizedClient =
+        new OAuth2AuthorizedClient(
+            clientRegistrationRepository.findByRegistrationId("onboarding-client"),
+            "38812121215",
+            accessToken,
+            null)
+    authorizedClientService.saveAuthorizedClient(authorizedClient, authentication)
+    return true
   }
 
   def cleanup() {
@@ -116,9 +136,9 @@ class PaymentIntegrationSpec extends Specification {
     SecurityContextHolder.clearContext()
     expectThatPaymentCallbackRedirectsUser()
     expectThatPaymentCallbackCreatedOnePayment(aUser)
+    mockSecurityContext()
     mockEpisTransactionsForPayment()
     expectToBeAbleToReceivePaymentNotification()
-    mockSecurityContext()
     expectLinkedPaymentAndTransactions(anAuthenticatedPerson)
   }
 

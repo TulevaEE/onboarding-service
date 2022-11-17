@@ -1,19 +1,14 @@
 package ee.tuleva.onboarding.auth.response;
 
-import org.springframework.security.oauth2.common.exceptions.ClientAuthenticationException;
+import java.io.Serial;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
 
-public class AuthNotCompleteException extends ClientAuthenticationException {
+public class AuthNotCompleteException extends OAuth2AuthenticationException {
+
+  @Serial private static final long serialVersionUID = -7114237655758069952L;
+
   public AuthNotCompleteException() {
-    super("Please keep polling.");
-  }
-
-  @Override
-  public String getOAuth2ErrorCode() {
-    return "AUTHENTICATION_NOT_COMPLETE";
-  }
-
-  @Override
-  public int getHttpErrorCode() {
-    return 200; // TODO: change to something else
+    super(new OAuth2Error("AUTHENTICATION_NOT_COMPLETE"), "Please keep polling.");
   }
 }

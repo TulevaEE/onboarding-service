@@ -31,9 +31,8 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.context.annotation.Profile;
-import org.springframework.security.oauth2.client.OAuth2RestOperations;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestOperations;
+import org.springframework.web.client.RestTemplate;
 
 @Service
 @Slf4j
@@ -51,7 +50,7 @@ public class MockEpisService extends EpisService {
   String episServiceUrl;
 
   public MockEpisService(
-      RestOperations userTokenRestTemplate, OAuth2RestOperations clientCredentialsRestTemplate) {
+      RestTemplate userTokenRestTemplate, RestTemplate clientCredentialsRestTemplate) {
     super(userTokenRestTemplate, clientCredentialsRestTemplate);
   }
 

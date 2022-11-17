@@ -40,7 +40,25 @@ spring:
     store-type: none
     jdbc:
       initialize-schema: never
-  cloud.mvc.token-relay.enabled: false
+  security:
+    oauth2:
+      client:
+        provider:
+          tuleva:
+            token-uri: http://localhost:${server.port}/oauth/token
+            authorization-uri: http://localhost:${server.port}/oauth2/authorization
+        registration:
+          onboarding-service:
+            provider: tuleva
+            client-id: onboarding-service
+            client-secret: "OnboardingServiceSecret"
+            authorization-grant-type: client_credentials
+          onboarding-client:
+            provider: tuleva
+            client-id: onboarding-client
+            client-secret: "onboarding-client"
+            redirect-uri: https://pension.tuleva.ee # Not used
+            authorization-grant-type: authorization_code
 
 mobile-id:
   # use "https://mid.sk.ee/mid-api" for testing signing

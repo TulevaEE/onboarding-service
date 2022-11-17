@@ -21,94 +21,98 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 
 class AuthControllerSpec extends BaseControllerSpec {
 
-    MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
-    SmartIdAuthService smartIdAuthService = Mock(SmartIdAuthService)
-    GenericSessionStore sessionStore = Mock(GenericSessionStore)
-    IdCardAuthService idCardAuthService = Mock(IdCardAuthService)
-    AuthController controller = new AuthController(mobileIdAuthService, smartIdAuthService, idCardAuthService, sessionStore)
-    private MockMvc mockMvc
+  MobileIdAuthService mobileIdAuthService = Mock(MobileIdAuthService)
+  SmartIdAuthService smartIdAuthService = Mock(SmartIdAuthService)
+  GenericSessionStore sessionStore = Mock(GenericSessionStore)
+  IdCardAuthService idCardAuthService = Mock(IdCardAuthService)
+  AuthController controller = new AuthController(mobileIdAuthService, smartIdAuthService, idCardAuthService, sessionStore)
+  private MockMvc mockMvc
 
-    def setup() {
-        mockMvc = mockMvc(controller)
-    }
+  def setup() {
+    mockMvc = mockMvc(controller)
+  }
 
-    def "Authenticate: Initiate mobile id authentication"() {
-        given:
-        1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
-        1 * sessionStore.save(_ as MobileIDSession)
-        when:
-        MockHttpServletResponse response = mockMvc
-            .perform(post("/authenticate")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(sampleMobileIdAuthenticateCommand()))).andReturn().response
-        then:
-        response.status == HttpStatus.OK.value()
-    }
+  def "Authenticate: Initiate mobile id authentication"() {
+    given:
+    1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
+    1 * sessionStore.save(_ as MobileIDSession)
+    when:
+    MockHttpServletResponse response = mockMvc
+        .perform(post("/authenticate")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(sampleMobileIdAuthenticateCommand()))).andReturn().response
+    then:
+    response.status == HttpStatus.OK.value()
+  }
 
-    def "Authenticate: Initiate smart id authentication"() {
-        given:
-        1 * smartIdAuthService.startLogin(SmartIdFixture.personalCode) >> SmartIdFixture.sampleSmartIdSession
-        when:
-        MockHttpServletResponse response = mockMvc
-            .perform(post("/authenticate")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(mapper.writeValueAsString(sampleSmartIdAuthenticateCommand()))).andReturn().response
-        then:
-        response.status == HttpStatus.OK.value()
-    }
+  def "Authenticate: Initiate smart id authentication"() {
+    given:
+    1 * smartIdAuthService.startLogin(SmartIdFixture.personalCode) >> SmartIdFixture.sampleSmartIdSession
+    when:
+    MockHttpServletResponse response = mockMvc
+        .perform(post("/authenticate")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(mapper.writeValueAsString(sampleSmartIdAuthenticateCommand()))).andReturn().response
+    then:
+    response.status == HttpStatus.OK.value()
+  }
 
-    def "Authenticate: throw exception when no cert sent"() {
-        when:
-        MockHttpServletResponse response = mockMvc
-            .perform(post("/idLogin")
-                .header("ssl-client-verify", "NONE")).andReturn().response
-        then:
-        response.status == HttpStatus.BAD_REQUEST.value()
-        0 * idCardAuthService.checkCertificate(_)
-    }
+  def "Authenticate: throw exception when no cert sent"() {
+    when:
+    MockHttpServletResponse response = mockMvc
+        .perform(post("/idLogin")
+            .header("ssl-client-verify", "NONE")).andReturn().response
+    then:
+    response.status == HttpStatus.BAD_REQUEST.value()
+    0 * idCardAuthService.checkCertificate(_)
+  }
 
-    def "Authenticate: check successfully verified id card certificate"() {
-        when:
-        MockHttpServletResponse response = mockMvc
-            .perform(post("/idLogin")
-                .header("ssl-client-verify", "SUCCESS")
-                .header("ssl-client-cert", "test_cert")).andReturn().response
-        then:
-        response.status == HttpStatus.OK.value()
-        1 * idCardAuthService.checkCertificate("test_cert")
-    }
+  def "Authenticate: check successfully verified id card certificate"() {
+    when:
+    MockHttpServletResponse response = mockMvc
+        .perform(post("/idLogin")
+            .header("ssl-client-verify", "SUCCESS")
+            .header("ssl-client-cert", "test_cert")).andReturn().response
+    then:
+    response.status == HttpStatus.OK.value()
+    1 * idCardAuthService.checkCertificate("test_cert")
+  }
 
-    def "Authenticate: redirect successful id card login back to the app when using the GET method"() {
-        when:
-        MockHttpServletResponse response = mockMvc
-            .perform(get("/idLogin")
-                .header("ssl-client-verify", "SUCCESS")
-                .header("ssl-client-cert", "test_cert")).andReturn().response
-        then:
-        response.status == HttpStatus.FOUND.value()
-        1 * idCardAuthService.checkCertificate("test_cert")
-    }
+  def "Authenticate: throw exception when cert verification not successful"() {
+    when:
+    MockHttpServletResponse response = mockMvc
+        .perform(post("/idLogin")
+            .header("ssl-client-verify", "NONE")
+            .header("ssl-client-cert", "test_cert")).andReturn().response
+    then:
+    response.status == HttpStatus.BAD_REQUEST.value()
+    0 * idCardAuthService.checkCertificate("test_cert")
+  }
 
-    private static sampleDeprecatedAuthenticateCommand() {
-        [
-            phoneNumber : MobileIdFixture.samplePhoneNumber,
-            personalCode: MobileIdFixture.sampleIdCode
-        ]
-    }
+  def "Authenticate: redirect successful id card login back to the app when using the GET method"() {
+    when:
+    MockHttpServletResponse response = mockMvc
+        .perform(get("/idLogin")
+            .header("ssl-client-verify", "SUCCESS")
+            .header("ssl-client-cert", "test_cert")).andReturn().response
+    then:
+    response.status == HttpStatus.FOUND.value()
+    1 * idCardAuthService.checkCertificate("test_cert")
+  }
 
-    private static sampleMobileIdAuthenticateCommand() {
-        [
-            phoneNumber : MobileIdFixture.samplePhoneNumber,
-            personalCode: MobileIdFixture.sampleIdCode,
-            type        : AuthenticationType.MOBILE_ID.toString()
-        ]
-    }
+  private static sampleMobileIdAuthenticateCommand() {
+    [
+        phoneNumber : MobileIdFixture.samplePhoneNumber,
+        personalCode: MobileIdFixture.sampleIdCode,
+        type        : AuthenticationType.MOBILE_ID.toString()
+    ]
+  }
 
-    private static sampleSmartIdAuthenticateCommand() {
-        [
-            personalCode: SmartIdFixture.personalCode,
-            type        : AuthenticationType.SMART_ID.toString()
-        ]
-    }
+  private static sampleSmartIdAuthenticateCommand() {
+    [
+        personalCode: SmartIdFixture.personalCode,
+        type        : AuthenticationType.SMART_ID.toString()
+    ]
+  }
 
 }

@@ -28,7 +28,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.oauth2.common.exceptions.UnauthorizedClientException;
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -83,13 +82,14 @@ public class AuthController {
       method = {GET, POST},
       value = "/idLogin")
   @ResponseBody
-  public IdCardLoginResponse idLogin(
+  public ResponseEntity<IdCardLoginResponse> idLogin(
       @RequestHeader(value = "ssl-client-verify") String clientCertificateVerification,
       @RequestHeader(value = "ssl-client-cert") String clientCertificate,
       @Parameter(hidden = true) HttpServletResponse response,
       @Parameter(hidden = true) HttpMethod httpMethod) {
     if (!"SUCCESS".equals(clientCertificateVerification)) {
-      throw new UnauthorizedClientException("Client certificate not verified");
+      log.error("Client certificate not verified");
+      return ResponseEntity.badRequest().build();
     }
 
     idCardAuthService.checkCertificate(URLDecoder.decode(clientCertificate, UTF_8.name()));
@@ -97,6 +97,6 @@ public class AuthController {
     if (httpMethod.equals(HttpMethod.GET)) {
       response.sendRedirect(frontendUrl + "/?login=idCard");
     }
-    return IdCardLoginResponse.success();
+    return ResponseEntity.ok(IdCardLoginResponse.success());
   }
 }

@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.auth.principal
 
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
-import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -13,6 +13,9 @@ class PrincipalServiceSpec extends Specification {
   PrincipalService service = new PrincipalService(userService)
 
   User sampleUser = User.builder()
+  .firstName("Jordan")
+  .lastName("Valdma")
+  .personalCode("38812121215")
       .active(true)
       .build()
 
@@ -73,7 +76,7 @@ class PrincipalServiceSpec extends Specification {
     service.getFrom(person, Optional.empty())
 
     then:
-    thrown InvalidRequestException
+    thrown OAuth2AuthenticationException
   }
 
 }

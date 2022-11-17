@@ -11,10 +11,6 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.Authentication
-import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.security.oauth2.client.OAuth2RestOperations
-import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
@@ -26,27 +22,16 @@ import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixtur
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
-import static org.springframework.http.HttpMethod.GET
 import static org.springframework.http.HttpStatus.OK
 
 class EpisServiceSpec extends Specification {
 
   RestTemplate restTemplate = Mock(RestTemplate)
-  OAuth2RestOperations clientCredentialsRestTemplate = Mock(OAuth2RestOperations)
+  RestTemplate clientCredentialsRestTemplate = Mock(RestTemplate)
   EpisService service = new EpisService(restTemplate, clientCredentialsRestTemplate)
-
-  String sampleToken = "123"
 
   def setup() {
     service.episServiceUrl = "http://epis"
-
-    OAuth2AuthenticationDetails sampleDetails = Mock(OAuth2AuthenticationDetails)
-    sampleDetails.getTokenValue() >> sampleToken
-
-    Authentication sampleAuthentication = Mock(Authentication)
-    sampleAuthentication.getDetails() >> sampleDetails
-
-    SecurityContextHolder.getContext().setAuthentication(sampleAuthentication)
   }
 
   def "Send mandate: "() {
@@ -56,9 +41,8 @@ class EpisServiceSpec extends Specification {
         .id(sampleMandate.id)
         .build()
 
-    1 * restTemplate.postForObject(_ as String, {HttpEntity httpEntity ->
-      doesHttpEntityContainToken(httpEntity, sampleToken) &&
-          httpEntity.body.id == sampleMandate.id
+    1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
+      httpEntity.body.id == sampleMandate.id
     }, ApplicationResponseDTO.class)
 
     when:
@@ -74,10 +58,8 @@ class EpisServiceSpec extends Specification {
     ResponseEntity<ApplicationDTO[]> result =
         new ResponseEntity(responseBody, OK)
 
-    1 * restTemplate.exchange(
-        "http://epis/applications", GET, {HttpEntity httpEntity ->
-      doesHttpEntityContainToken(httpEntity, sampleToken)
-    }, ApplicationDTO[].class) >> result
+    1 * restTemplate.getForEntity(
+        "http://epis/applications", ApplicationDTO[].class) >> result
 
     when:
     List<ApplicationDTO> transferApplicationDTOList =
@@ -92,11 +74,8 @@ class EpisServiceSpec extends Specification {
     def fixture = contactDetailsFixture()
     ResponseEntity<ContactDetails> response = new ResponseEntity(fixture, OK)
 
-    1 * restTemplate.exchange(
+    1 * restTemplate.getForEntity(
         _ as String,
-        GET,
-        {HttpEntity httpEntity -> doesHttpEntityContainToken(httpEntity, sampleToken)
-        },
         ContactDetails.class
     ) >> response
     when:
@@ -114,10 +93,8 @@ class EpisServiceSpec extends Specification {
     LocalDate fromDate = LocalDate.parse("2001-01-01")
     LocalDate toDate = LocalDate.parse("2018-01-01")
 
-    1 * restTemplate.exchange(
-        "http://epis/account-cash-flow-statement?from-date=2001-01-01&to-date=2018-01-01", GET, {
-      HttpEntity httpEntity -> doesHttpEntityContainToken(httpEntity, sampleToken)
-    }, CashFlowStatement.class) >> response
+    1 * restTemplate.getForEntity(
+        "http://epis/account-cash-flow-statement?from-date=2001-01-01&to-date=2018-01-01", CashFlowStatement.class) >> response
 
     when:
     CashFlowStatement responseDto = service.getCashFlowStatement(samplePerson(), fromDate, toDate)
@@ -131,10 +108,8 @@ class EpisServiceSpec extends Specification {
     FundBalanceDto fundBalanceDto = FundBalanceDto.builder().isin("someIsin").build()
     FundBalanceDto[] response = [fundBalanceDto]
 
-    1 * restTemplate.exchange(
-        _ as String, GET, {HttpEntity httpEntity ->
-      doesHttpEntityContainToken(httpEntity, sampleToken)
-    }, FundBalanceDto[].class) >> new ResponseEntity(response, OK)
+    1 * restTemplate.getForEntity(
+        _ as String, FundBalanceDto[].class) >> new ResponseEntity(response, OK)
 
     when:
     List<FundBalanceDto> fundBalances = service.getAccountStatement(samplePerson())
@@ -148,10 +123,8 @@ class EpisServiceSpec extends Specification {
 
     FundDto[] sampleFunds = [new FundDto("EE3600109435", "Tuleva Maailma Aktsiate Pensionifond", "TUK75", 2, ACTIVE)]
 
-    1 * restTemplate.exchange(
-        _ as String, GET, {HttpEntity httpEntity ->
-      doesHttpEntityContainToken(httpEntity, sampleToken)
-    }, FundDto[].class) >> new ResponseEntity(sampleFunds, OK)
+    1 * restTemplate.getForEntity(
+        _ as String, FundDto[].class) >> new ResponseEntity(sampleFunds, OK)
 
     when:
     List<FundDto> funds = service.getFunds()
@@ -164,9 +137,8 @@ class EpisServiceSpec extends Specification {
     given:
     def contactDetails = contactDetailsFixture()
 
-    1 * restTemplate.postForObject(_ as String, {HttpEntity httpEntity ->
-      doesHttpEntityContainToken(httpEntity, sampleToken) &&
-          httpEntity.body.personalCode == contactDetails.personalCode
+    1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
+      httpEntity.body.personalCode == contactDetails.personalCode
     }, ContactDetails.class)
 
     when:
@@ -179,8 +151,8 @@ class EpisServiceSpec extends Specification {
   def "gets nav"() {
     given:
     def navDto = Mock(NavDto)
-    1 * clientCredentialsRestTemplate.exchange("http://epis/navs/EE666?date=2018-10-20", GET, _, NavDto.class) >>
-        new ResponseEntity<NavDto>(navDto, OK);
+    1 * clientCredentialsRestTemplate.getForEntity("http://epis/navs/EE666?date=2018-10-20", NavDto.class) >>
+        new ResponseEntity<NavDto>(navDto, OK)
     when:
     def result = service.getNav("EE666", LocalDate.parse("2018-10-20"))
     then:
@@ -191,9 +163,8 @@ class EpisServiceSpec extends Specification {
     given:
     def sampleCancellation = sampleCancellation()
 
-    1 * restTemplate.postForObject(_ as String, {HttpEntity httpEntity ->
-      doesHttpEntityContainToken(httpEntity, sampleToken) &&
-          httpEntity.body.id == sampleCancellation.id
+    1 * restTemplate.postForObject(_ as String, { HttpEntity httpEntity ->
+      httpEntity.body.id == sampleCancellation.id
     }, ApplicationResponse.class)
 
     when:
@@ -201,9 +172,5 @@ class EpisServiceSpec extends Specification {
 
     then:
     true
-  }
-
-  boolean doesHttpEntityContainToken(HttpEntity httpEntity, String sampleToken) {
-    httpEntity.headers.getFirst("authorization") == ("Bearer " + sampleToken)
   }
 }

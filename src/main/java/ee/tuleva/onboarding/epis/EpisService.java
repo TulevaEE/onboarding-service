@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.epis;
 
+import static ee.tuleva.onboarding.config.OAuth2RestTemplateConfiguration.CLIENT_CREDENTIALS_REST_TEMPLATE;
+import static ee.tuleva.onboarding.config.OAuth2RestTemplateConfiguration.USER_TOKEN_REST_TEMPLATE;
 import static java.util.Arrays.asList;
-import static org.springframework.http.HttpMethod.GET;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.contribution.Contribution;
@@ -17,6 +18,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import java.time.LocalDate;
 import java.util.List;
+import javax.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,14 +27,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.client.OAuth2RestOperations;
-import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestOperations;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
@@ -49,8 +46,11 @@ public class EpisService {
   private final String FUNDS_CACHE_NAME = "funds";
   private final String CONTRIBUTIONS_CACHE_NAME = "contributions";
 
-  private final RestOperations userTokenRestTemplate;
-  private final OAuth2RestOperations clientCredentialsRestTemplate;
+  @Resource(name = USER_TOKEN_REST_TEMPLATE)
+  private final RestTemplate userTokenRestTemplate;
+
+  @Resource(name = CLIENT_CREDENTIALS_REST_TEMPLATE)
+  private final RestTemplate clientCredentialsRestTemplate;
 
   @Value("${epis.service.url}")
   String episServiceUrl;
@@ -62,7 +62,7 @@ public class EpisService {
     log.info("Getting applications from {} for {}", url, person.getPersonalCode());
 
     ResponseEntity<ApplicationDTO[]> response =
-        userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), ApplicationDTO[].class);
+        userTokenRestTemplate.getForEntity(url, ApplicationDTO[].class);
 
     return asList(response.getBody());
   }
@@ -81,9 +81,7 @@ public class EpisService {
             .toUriString();
 
     log.info("Getting cash flows from {}", url);
-    return userTokenRestTemplate
-        .exchange(url, GET, getHeadersEntity(), CashFlowStatement.class)
-        .getBody();
+    return userTokenRestTemplate.getForEntity(url, CashFlowStatement.class).getBody();
   }
 
   @Caching(
@@ -99,17 +97,12 @@ public class EpisService {
 
   @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
   public ContactDetails getContactDetails(Person person) {
-    return getContactDetails(person, getToken());
-  }
-
-  @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
-  public ContactDetails getContactDetails(Person person, String token) {
     String url = episServiceUrl + "/contact-details";
 
     log.info("Getting contact details from {} for {}", url, person.getPersonalCode());
 
     ResponseEntity<ContactDetails> response =
-        userTokenRestTemplate.exchange(url, GET, getHeadersEntity(token), ContactDetails.class);
+        userTokenRestTemplate.getForEntity(url, ContactDetails.class);
 
     return response.getBody();
   }
@@ -121,7 +114,7 @@ public class EpisService {
     log.info("Getting account statement from {} for {}", url, person.getPersonalCode());
 
     ResponseEntity<FundBalanceDto[]> response =
-        userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), FundBalanceDto[].class);
+        userTokenRestTemplate.getForEntity(url, FundBalanceDto[].class);
 
     return asList(response.getBody());
   }
@@ -144,8 +137,7 @@ public class EpisService {
 
     log.info("Getting funds from {}", url);
 
-    ResponseEntity<FundDto[]> response =
-        userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), FundDto[].class);
+    ResponseEntity<FundDto[]> response = userTokenRestTemplate.getForEntity(url, FundDto[].class);
 
     return asList(response.getBody());
   }
@@ -153,23 +145,21 @@ public class EpisService {
   public NavDto getNav(String isin, LocalDate date) {
     log.info("Fetching NAV for fund from EPIS service: isin={}, date={}", isin, date);
     String url = episServiceUrl + "/navs/" + isin + "?date=" + date;
-    return clientCredentialsRestTemplate
-        .exchange(url, GET, new HttpEntity<>(createJsonHeaders()), NavDto.class)
-        .getBody();
+    return clientCredentialsRestTemplate.getForEntity(url, NavDto.class).getBody();
   }
 
   public ApplicationResponseDTO sendMandate(MandateDto mandate) {
     String url = episServiceUrl + "/mandates";
 
     return userTokenRestTemplate.postForObject(
-        url, new HttpEntity<>(mandate, getHeaders()), ApplicationResponseDTO.class);
+        url, new HttpEntity<>(mandate), ApplicationResponseDTO.class);
   }
 
   public ApplicationResponse sendCancellation(CancellationDto cancellation) {
     String url = episServiceUrl + "/cancellations";
 
     return userTokenRestTemplate.postForObject(
-        url, new HttpEntity<>(cancellation, getHeaders()), ApplicationResponse.class);
+        url, new HttpEntity<>(cancellation), ApplicationResponse.class);
   }
 
   @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
@@ -179,38 +169,6 @@ public class EpisService {
     log.info("Updating contact details for {}", contactDetails.getPersonalCode());
 
     return userTokenRestTemplate.postForObject(
-        url, new HttpEntity<>(contactDetails, getHeaders()), ContactDetails.class);
-  }
-
-  private HttpEntity<String> getHeadersEntity() {
-    return getHeadersEntity(getToken());
-  }
-
-  private HttpEntity<String> getHeadersEntity(String token) {
-    return new HttpEntity<>(getHeaders(token));
-  }
-
-  private HttpHeaders getHeaders() {
-    return getHeaders(getToken());
-  }
-
-  private HttpHeaders getHeaders(String token) {
-    HttpHeaders headers = createJsonHeaders();
-    headers.add("Authorization", "Bearer " + token);
-    return headers;
-  }
-
-  private HttpHeaders createJsonHeaders() {
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(MediaType.APPLICATION_JSON);
-    return headers;
-  }
-
-  private String getToken() {
-    OAuth2AuthenticationDetails details =
-        (OAuth2AuthenticationDetails)
-            SecurityContextHolder.getContext().getAuthentication().getDetails();
-
-    return details.getTokenValue();
+        url, new HttpEntity<>(contactDetails), ContactDetails.class);
   }
 }

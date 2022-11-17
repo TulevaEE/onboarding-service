@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user;
 
+import ee.tuleva.onboarding.auth.AuthenticatedPersonPrincipal;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
@@ -13,7 +14,6 @@ import io.swagger.v3.oas.annotations.Parameter;
 import java.util.Optional;
 import javax.validation.Valid;
 import lombok.AllArgsConstructor;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -32,7 +32,7 @@ public class UserController {
 
   @Operation(summary = "Get info about the current user")
   @GetMapping("/me")
-  public UserResponse me(@AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+  public UserResponse me(@AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();
     User user = userService.getById(userId);
     ContactDetails contactDetails = episService.getContactDetails(authenticatedPerson);
@@ -40,14 +40,15 @@ public class UserController {
   }
 
   @GetMapping("/me/principal")
-  public Person getPrincipal(@AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+  public Person getPrincipal(
+      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson) {
     return authenticatedPerson;
   }
 
   @Operation(summary = "Update the current user")
   @PatchMapping("/me")
   public UserResponse patchMe(
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody UpdateUserCommand cmd,
       @Parameter(hidden = true) Errors errors) {
 

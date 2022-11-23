@@ -26,8 +26,7 @@ public class OAuth2RestTemplateConfiguration {
 
   @Bean(CLIENT_CREDENTIALS_REST_TEMPLATE)
   public RestTemplate clientCredentialsRestTemplate() {
-    var clientRegistration =
-        clientRegistrationRepository.findByRegistrationId("onboarding-service");
+    var clientRegistration = clientRegistrationRepository.findByRegistrationId("epis-service");
 
     return restTemplateBuilder
         .additionalInterceptors(

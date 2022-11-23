@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.auth.PersonalCodeTokenIntrospector;
 import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
@@ -31,12 +32,14 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepo
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.server.authorization.JdbcOAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientCredentialsAuthenticationProvider;
 import org.springframework.security.oauth2.server.authorization.client.JdbcRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2AccessTokenGenerator;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.security.oauth2.server.authorization.web.authentication.DelegatingAuthenticationConverter;
+import org.springframework.security.oauth2.server.authorization.web.authentication.OAuth2ClientCredentialsAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationConverter;
 import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
@@ -74,15 +77,22 @@ public class OAuth2AuthorizationServerConfiguration {
         .csrf(csrf -> csrf.ignoringRequestMatchers(endpointsMatcher))
         .apply(authorizationServerConfigurer);
 
+    var clientCredentialsConverter = new OAuth2ClientCredentialsAuthenticationConverter();
+    var allConverters = new ArrayList<>(authenticationConverters);
+    allConverters.add(clientCredentialsConverter);
+
     authorizationServerConfigurer
         .authorizationService(oAuth2AuthorizationService())
         .tokenEndpoint(
             oAuth2TokenEndpointConfigurer ->
                 oAuth2TokenEndpointConfigurer
                     .accessTokenRequestConverter(
-                        new DelegatingAuthenticationConverter(authenticationConverters))
+                        new DelegatingAuthenticationConverter(allConverters))
                     .errorResponseHandler(new AuthNotCompleteHandler())
-                    .authenticationProvider(authenticationProvider()));
+                    .authenticationProvider(authenticationProvider())
+                    .authenticationProvider(
+                        new OAuth2ClientCredentialsAuthenticationProvider(
+                            oAuth2AuthorizationService(), tokenGenerator())));
 
     return http.build();
   }
@@ -186,6 +196,9 @@ public class OAuth2AuthorizationServerConfiguration {
 
   @Bean
   public ProviderSettings providerSettings() {
-    return ProviderSettings.builder().tokenEndpoint("/oauth/token").build();
+    return ProviderSettings.builder()
+        .tokenEndpoint("/oauth/token")
+        .tokenIntrospectionEndpoint("/oauth/check_token")
+        .build();
   }
 }

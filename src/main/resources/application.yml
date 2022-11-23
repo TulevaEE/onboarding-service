@@ -48,10 +48,10 @@ spring:
             token-uri: http://localhost:${server.port}/oauth/token
             authorization-uri: http://localhost:${server.port}/oauth2/authorization
         registration:
-          onboarding-service:
+          epis-service:
             provider: tuleva
-            client-id: onboarding-service
-            client-secret: "OnboardingServiceSecret"
+            client-id: epis-service
+            client-secret: "epis-service"
             authorization-grant-type: client_credentials
           onboarding-client:
             provider: tuleva

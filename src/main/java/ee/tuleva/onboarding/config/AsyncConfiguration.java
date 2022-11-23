@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.config;
 
+import static ee.tuleva.onboarding.auth.principal.ServiceSecurityContextUtil.createServiceSecurityContext;
+
 import java.util.concurrent.Executor;
 import org.springframework.aop.interceptor.AsyncUncaughtExceptionHandler;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -7,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutor;
 
 @EnableAsync
 @Configuration
@@ -21,7 +24,7 @@ public class AsyncConfiguration implements AsyncConfigurer {
     executor.setQueueCapacity(500);
     executor.setThreadNamePrefix("AsyncProcess-");
     executor.initialize();
-    return executor;
+    return new DelegatingSecurityContextExecutor(executor, createServiceSecurityContext());
   }
 
   @Override

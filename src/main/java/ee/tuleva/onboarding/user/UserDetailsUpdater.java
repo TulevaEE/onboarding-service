@@ -35,8 +35,8 @@ public class UserDetailsUpdater {
         .findByPersonalCode(person.getPersonalCode())
         .ifPresent(
             user -> {
-              user.setFirstName(capitalizeFully(person.getFirstName()));
-              user.setLastName(capitalizeFully(person.getLastName()));
+              user.setFirstName(capitalizeFully(person.getFirstName(), ' ', '-'));
+              user.setLastName(capitalizeFully(person.getLastName(), ' ', '-'));
               userService.save(user);
             });
   }

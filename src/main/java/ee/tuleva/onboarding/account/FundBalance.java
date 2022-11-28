@@ -42,8 +42,8 @@ public class FundBalance {
         .add(unavailableValue == null ? ZERO : unavailableValue);
   }
 
-  public boolean isConverted() {
-    return fund.isConverted();
+  public boolean isOwnFund() {
+    return fund.isOwnFund();
   }
 
   public boolean isExitRestricted() {

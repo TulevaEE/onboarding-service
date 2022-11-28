@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.user.response;
 
+import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
+
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
@@ -8,7 +10,6 @@ import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.commons.lang3.text.WordUtils;
 import org.jetbrains.annotations.NotNull;
 
 @Builder
@@ -61,7 +62,7 @@ public class UserResponse {
   }
 
   private static String capitalize(String string) {
-    return WordUtils.capitalizeFully(string, ' ', '-');
+    return capitalizeFully(string, ' ', '-');
   }
 
   public int getAge() {

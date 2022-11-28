@@ -149,7 +149,7 @@ public class UserConversionService {
         && filter(fundBalances, pillar).anyMatch(FundBalance::isActiveContributions)
         && filter(fundBalances, pillar)
             .filter(FundBalance::isActiveContributions)
-            .allMatch(FundBalance::isConverted);
+            .allMatch(FundBalance::isOwnFund);
   }
 
   private Stream<FundBalance> filter(List<FundBalance> fundBalances, Integer pillar) {
@@ -196,7 +196,7 @@ public class UserConversionService {
         .filter(fundBalance -> pillar.equals(fundBalance.getPillar()))
         .filter(
             fundBalance ->
-                !fundBalance.isConverted()
+                !fundBalance.isOwnFund()
                     && fundBalance.getValue().compareTo(ZERO) > 0
                     && !fundBalance.isExitRestricted())
         .map(fundBalance -> fundBalance.getFund().getIsin())

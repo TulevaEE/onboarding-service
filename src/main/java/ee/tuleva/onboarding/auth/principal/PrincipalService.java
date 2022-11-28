@@ -40,8 +40,8 @@ public class PrincipalService {
   private User createUser(Person person) {
     return userService.createNewUser(
         User.builder()
-            .firstName(capitalizeFully(person.getFirstName()))
-            .lastName(capitalizeFully(person.getLastName()))
+            .firstName(capitalizeFully(person.getFirstName(), ' ', '-'))
+            .lastName(capitalizeFully(person.getLastName(), ' ', '-'))
             .personalCode(person.getPersonalCode())
             .active(true)
             .build());

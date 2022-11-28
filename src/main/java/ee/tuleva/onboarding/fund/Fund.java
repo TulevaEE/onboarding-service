@@ -73,7 +73,7 @@ public class Fund implements Comparable<Fund> {
     return Locale.ENGLISH.getLanguage().equals(locale.getLanguage()) ? nameEnglish : nameEstonian;
   }
 
-  public boolean isConverted() {
+  public boolean isOwnFund() {
     return fundManager.isTuleva();
   }
 

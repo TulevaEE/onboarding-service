@@ -13,15 +13,15 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2021.0.4"
+val springCloudVersion = "2021.0.5"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.7.5"
+    id("org.springframework.boot") version "2.7.6"
     id("io.spring.dependency-management") version "1.1.0"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
-    id("com.diffplug.spotless") version "6.11.0"
+    id("com.diffplug.spotless") version "6.12.0"
     jacoco
 }
 
@@ -70,8 +70,8 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:9.25.6")
 
-    implementation("org.springdoc:springdoc-openapi-ui:1.6.12")
-    implementation("org.springdoc:springdoc-openapi-security:1.6.12")
+    implementation("org.springdoc:springdoc-openapi-ui:1.6.13")
+    implementation("org.springdoc:springdoc-openapi-security:1.6.13")
 
     runtimeOnly("org.postgresql:postgresql")
 
@@ -90,8 +90,8 @@ dependencies {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
-    implementation("io.sentry:sentry-spring-boot-starter:6.6.0")
-    implementation("io.sentry:sentry-logback:6.6.0")
+    implementation("io.sentry:sentry-spring-boot-starter:6.9.1")
+    implementation("io.sentry:sentry-logback:6.9.1")
 
     implementation("com.vladmihalcea:hibernate-types-55:2.20.0")
 
@@ -123,8 +123,8 @@ dependencies {
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.14.0")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.1.0")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:3.5.0")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:3.5.0")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.1")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.1")
 }
 
 dependencyManagement {

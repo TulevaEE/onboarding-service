@@ -181,22 +181,22 @@ public class UserConversionService {
   }
 
   private boolean hasAnyPendingTransfersToOwnFunds(Person person, Integer pillar) {
-    var pendingTransferApplications = applicationService.getTransferApplications(PENDING, person);
-    return pendingTransferApplications.stream()
-        .filter(application -> pillar.equals(application.getPillar()))
-        .flatMap(application -> application.getDetails().getExchanges().stream())
-        .anyMatch(Exchange::isToOwnFund);
+    return getPendingExchanges(pillar, person).anyMatch(Exchange::isToOwnFund);
   }
 
   private Set<String> getIsinsOfFullPendingTransfersToConvertedFundManager(
       Person person, List<FundBalance> fundBalances, Integer pillar) {
-    var pendingTransferApplications = applicationService.getTransferApplications(PENDING, person);
-    return pendingTransferApplications.stream()
-        .filter(application -> pillar.equals(application.getPillar()))
-        .flatMap(application -> application.getDetails().getExchanges().stream())
+    return getPendingExchanges(pillar, person)
         .filter(exchange -> exchange.isToOwnFund() && amountMatches(exchange, fundBalances))
         .map(exchange -> exchange.getSourceFund().getIsin())
         .collect(toSet());
+  }
+
+  private Stream<Exchange> getPendingExchanges(Integer pillar, Person person) {
+    var pendingTransferApplications = applicationService.getTransferApplications(PENDING, person);
+    return pendingTransferApplications.stream()
+        .filter(application -> pillar.equals(application.getPillar()))
+        .flatMap(application -> application.getDetails().getExchanges().stream());
   }
 
   private boolean amountMatches(Exchange exchange, List<FundBalance> fundBalances) {

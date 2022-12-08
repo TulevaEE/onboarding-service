@@ -50,6 +50,10 @@ public class FundBalance {
     return fund.isExitRestricted();
   }
 
+  public boolean hasValue() {
+    return value != null && value.compareTo(ZERO) > 0;
+  }
+
   BigDecimal getContributionSum() {
     BigDecimal sum =
         ZERO.add(contributions == null ? ZERO : contributions)

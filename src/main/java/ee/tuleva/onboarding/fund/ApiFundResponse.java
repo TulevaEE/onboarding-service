@@ -30,7 +30,7 @@ public class ApiFundResponse {
   }
 
   @JsonIgnore
-  public boolean isConverted() {
+  public boolean isOwnFund() {
     return fundManager.isTuleva();
   }
 }

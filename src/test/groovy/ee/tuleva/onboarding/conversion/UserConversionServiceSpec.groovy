@@ -16,7 +16,6 @@ import spock.lang.Specification
 
 import java.time.Clock
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneOffset
 
 import static ee.tuleva.onboarding.account.AccountStatementFixture.*
@@ -68,11 +67,37 @@ class UserConversionServiceSpec extends Specification {
     !response.thirdPillar.pendingWithdrawal
 
     where:
-    accountBalanceResponse             | secondPillarSelectionComplete | secondPillarTransfersComplete
-    activeTuleva2ndPillarFundBalance   | true                          | true
-    activeExternal2ndPillarFundBalance | false                         | false
-    inactiveTuleva2ndPillarFundBalance | false                         | true
-    []                                 | false                         | true
+    accountBalanceResponse               | secondPillarSelectionComplete | secondPillarTransfersComplete
+    activeTuleva2ndPillarFundBalance     | true                          | true
+    activeExternal2ndPillarFundBalance   | false                         | false
+    inactiveTuleva2ndPillarFundBalance   | false                         | true
+    inactiveExternal2ndPillarFundBalance | true                          | false
+    []                                   | false                         | true
+  }
+
+  def "get partial conversion info for 2nd pillar"() {
+    given:
+    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    applicationService.getTransferApplications(PENDING, samplePerson) >> []
+    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+
+    when:
+    ConversionResponse response = service.getConversion(samplePerson)
+
+    then:
+    response.secondPillar.selectionPartial == secondPillarSelectionPartial
+    response.secondPillar.transfersPartial == secondPillarTransfersPartial
+    !response.secondPillar.pendingWithdrawal
+
+    where:
+    accountBalanceResponse               | secondPillarSelectionPartial | secondPillarTransfersPartial
+    activeTuleva2ndPillarFundBalance     | true                         | true
+    activeExternal2ndPillarFundBalance   | false                        | true
+    inactiveTuleva2ndPillarFundBalance   | false                        | true
+    inactiveExternal2ndPillarFundBalance | true                         | true
+    fullyExternal2ndPillarFundBalance    | false                        | false
+    onlyActiveTuleva2ndPillarFundBalance | true                         | false
+    []                                   | false                        | true
   }
 
   def "GetConversion: Get conversion response for 3rd pillar selection and transfer"() {
@@ -92,12 +117,15 @@ class UserConversionServiceSpec extends Specification {
     response.secondPillar.transfersComplete
 
     where:
-    accountBalanceResponse             | thirdPillarSelectionComplete | thirdPillarTransfersComplete
-    activeTuleva3rdPillarFundBalance   | true                         | true
-    activeTuleva3rdPillarFund          | true                         | true
-    activeExternal3rdPillarFundBalance | false                        | false
-    inactiveTuleva3rdPillarFundBalance | false                        | true
-    []                                 | false                        | true
+    accountBalanceResponse               | thirdPillarSelectionComplete | thirdPillarTransfersComplete
+    activeTuleva3rdPillarFundBalance     | true                         | true
+    activeTuleva3rdPillarFund            | true                         | true
+    activeExternal3rdPillarFundBalance   | false                        | false
+    inactiveTuleva3rdPillarFundBalance   | false                        | true
+    inactiveExternal3rdPillarFundBalance | true                         | false
+    fullyExternal3rdPillarFundBalance    | false                        | false
+    onlyActiveTuleva3rdPillarFundBalance | true                         | false
+    []                                   | false                        | true
   }
 
   def "GetConversion: Get conversion response for 2nd pillar transfer given pending mandates cover the lack"() {
@@ -119,6 +147,44 @@ class UserConversionServiceSpec extends Specification {
     activeExternal2ndPillarFundBalance | false                         | true
   }
 
+  def "GetConversion 2nd pillar: only full value pending transfer will be marked as covering the lack"() {
+    given:
+    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    applicationService.getTransferApplications(PENDING, samplePerson) >> [partialPending2ndPillarApplication]
+    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+
+    when:
+    ConversionResponse response = service.getConversion(samplePerson)
+
+    then:
+    response.secondPillar.selectionComplete == secondPillarSelectionComplete
+    response.secondPillar.transfersComplete == secondPillarTransfersComplete
+
+    where:
+    accountBalanceResponse             | secondPillarSelectionComplete | secondPillarTransfersComplete
+    activeExternal2ndPillarFundBalance | false                         | false
+  }
+
+  def "get partial conversion for 2nd pillar given pending mandates cover the lack"() {
+    given:
+    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    applicationService.getTransferApplications(PENDING, samplePerson) >> [partialPending2ndPillarApplication]
+    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+
+    when:
+    ConversionResponse response = service.getConversion(samplePerson)
+
+    then:
+    response.secondPillar.selectionPartial == secondPillarSelectionPartial
+    response.secondPillar.transfersPartial == secondPillarTransfersPartial
+
+    where:
+    accountBalanceResponse               | secondPillarSelectionPartial | secondPillarTransfersPartial
+    inactiveExternal2ndPillarFundBalance | true                         | true
+    fullyExternal2ndPillarFundBalance    | false                        | true
+    []                                   | false                        | true
+  }
+
   def "GetConversion: Get conversion response for 2nd pillar PIK transfer"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
@@ -135,24 +201,6 @@ class UserConversionServiceSpec extends Specification {
     where:
     accountBalanceResponse             | secondPillarSelectionComplete | secondPillarTransfersComplete
     activeTuleva2ndPillarFundBalance   | true                          | true
-    activeExternal2ndPillarFundBalance | false                         | false
-  }
-
-  def "GetConversion 2nd pillar: only full value pending transfer will be marked as covering the lack"() {
-    given:
-    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
-    applicationService.getTransferApplications(PENDING, samplePerson) >> [partialPending2ndPillarApplication]
-    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
-
-    when:
-    ConversionResponse response = service.getConversion(samplePerson)
-
-    then:
-    response.secondPillar.selectionComplete == secondPillarSelectionComplete
-    response.secondPillar.transfersComplete == secondPillarTransfersComplete
-
-    where:
-    accountBalanceResponse             | secondPillarSelectionComplete | secondPillarTransfersComplete
     activeExternal2ndPillarFundBalance | false                         | false
   }
 
@@ -173,6 +221,26 @@ class UserConversionServiceSpec extends Specification {
     accountBalanceResponse             | thirdPillarSelectionComplete | thirdPillarTransfersComplete
     activeTuleva3rdPillarFundBalance   | true                         | true
     activeExternal3rdPillarFundBalance | false                        | true
+  }
+
+  def "get partial conversion for 3rd pillar given pending mandates cover the lack"() {
+    given:
+    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    applicationService.getTransferApplications(PENDING, samplePerson) >> [partialPending3rdPillarApplication]
+    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+
+    when:
+    ConversionResponse response = service.getConversion(samplePerson)
+
+    then:
+    response.thirdPillar.selectionPartial == thirdPillarSelectionPartial
+    response.thirdPillar.transfersPartial == thirdPillarTransfersPartial
+
+    where:
+    accountBalanceResponse               | thirdPillarSelectionPartial | thirdPillarTransfersPartial
+    inactiveExternal3rdPillarFundBalance | true                        | true
+    fullyExternal3rdPillarFundBalance    | false                       | true
+    []                                   | false                       | true
   }
 
   def "GetConversion 3rd pillar: only full value pending transfer will be marked as covering the lack"() {
@@ -202,19 +270,19 @@ class UserConversionServiceSpec extends Specification {
 
     cashFlowService.getCashFlowStatement(samplePerson) >> CashFlowStatement.builder()
         .transactions([
-            new CashFlow("EE123", Instant.parse("2018-12-31T00:00:00Z"),null, 100.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE123", Instant.parse("2019-01-01T00:00:00Z"),null,  1.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE123", Instant.parse("2019-11-20T00:00:00Z"),null,  1.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE123", Instant.parse("2019-12-20T00:00:00Z"),null,  1.0, "EUR", SUBTRACTION),
-            new CashFlow("EE123", Instant.parse("2019-12-21T00:00:00Z"),null,  1.0, "EUR", SUBTRACTION),
+            new CashFlow("EE123", Instant.parse("2018-12-31T00:00:00Z"), null, 100.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE123", Instant.parse("2019-01-01T00:00:00Z"), null, 1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE123", Instant.parse("2019-11-20T00:00:00Z"), null, 1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE123", Instant.parse("2019-12-20T00:00:00Z"), null, 1.0, "EUR", SUBTRACTION),
+            new CashFlow("EE123", Instant.parse("2019-12-21T00:00:00Z"), null, 1.0, "EUR", SUBTRACTION),
 
-            new CashFlow("EE234", Instant.parse("2018-12-31T00:00:00Z"),null,  100.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE234", Instant.parse("2019-01-01T00:00:00Z"),null,  1.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE234", Instant.parse("2019-01-02T00:00:00Z"),null,  1.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE234", Instant.parse("2019-11-20T00:00:00Z"),null,  1.0, "EUR", CONTRIBUTION_CASH),
-            new CashFlow("EE234", Instant.parse("2019-12-20T00:00:00Z"),null,  20.0, "EUR", CONTRIBUTION),
-            new CashFlow("EE234", Instant.parse("2019-12-20T00:00:00Z"),null,  1.0, "EUR", SUBTRACTION),
-            new CashFlow("EE234", Instant.parse("2019-12-21T00:00:00Z"),null,  1.0, "EUR", SUBTRACTION),
+            new CashFlow("EE234", Instant.parse("2018-12-31T00:00:00Z"), null, 100.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", Instant.parse("2019-01-01T00:00:00Z"), null, 1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", Instant.parse("2019-01-02T00:00:00Z"), null, 1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", Instant.parse("2019-11-20T00:00:00Z"), null, 1.0, "EUR", CONTRIBUTION_CASH),
+            new CashFlow("EE234", Instant.parse("2019-12-20T00:00:00Z"), null, 20.0, "EUR", CONTRIBUTION),
+            new CashFlow("EE234", Instant.parse("2019-12-20T00:00:00Z"), null, 1.0, "EUR", SUBTRACTION),
+            new CashFlow("EE234", Instant.parse("2019-12-21T00:00:00Z"), null, 1.0, "EUR", SUBTRACTION),
         ])
         .build()
 

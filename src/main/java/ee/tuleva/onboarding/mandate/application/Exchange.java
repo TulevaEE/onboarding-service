@@ -42,8 +42,8 @@ public class Exchange {
   }
 
   @JsonIgnore
-  public boolean isConverted() {
-    return targetFund != null && targetFund.isConverted();
+  public boolean isToOwnFund() {
+    return targetFund != null && targetFund.isOwnFund();
   }
 
   private Integer getTargetPillar() {

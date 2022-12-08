@@ -50,7 +50,9 @@ public class UserConversionService {
         .secondPillar(
             Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 2))
+                .selectionPartial(isSelectionPartial(fundBalances, 2))
                 .transfersComplete(isTransfersComplete(fundBalances, 2, person))
+                .transfersPartial(isTransfersPartial(fundBalances, 2, person))
                 .pendingWithdrawal(applicationService.hasPendingWithdrawals(person))
                 .contribution(
                     Amount.builder()
@@ -66,7 +68,9 @@ public class UserConversionService {
         .thirdPillar(
             Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 3))
+                .selectionPartial(isSelectionPartial(fundBalances, 3))
                 .transfersComplete(isTransfersComplete(fundBalances, 3, person))
+                .transfersPartial(isTransfersPartial(fundBalances, 3, person))
                 .contribution(
                     Amount.builder()
                         .yearToDate(yearToDateCashContributionSum(cashFlowStatement, 3))
@@ -152,6 +156,14 @@ public class UserConversionService {
             .allMatch(FundBalance::isOwnFund);
   }
 
+  private boolean isSelectionPartial(List<FundBalance> fundBalances, Integer pillar) {
+    return filter(fundBalances, pillar).findFirst().isPresent()
+        && filter(fundBalances, pillar).anyMatch(FundBalance::isActiveContributions)
+        && filter(fundBalances, pillar)
+            .filter(FundBalance::isActiveContributions)
+            .anyMatch(FundBalance::isOwnFund);
+  }
+
   private Stream<FundBalance> filter(List<FundBalance> fundBalances, Integer pillar) {
     return fundBalances.stream().filter(fundBalance -> pillar.equals(fundBalance.getPillar()));
   }
@@ -162,13 +174,29 @@ public class UserConversionService {
         .containsAll(unConvertedIsins(fundBalances, pillar));
   }
 
+  private boolean isTransfersPartial(
+      List<FundBalance> fundBalances, Integer pillar, Person person) {
+    return filter(fundBalances, pillar).findFirst().isEmpty()
+        || filter(fundBalances, pillar)
+            .anyMatch(fundBalance -> fundBalance.isOwnFund() && fundBalance.hasValue())
+        || hasAnyPendingTransfersToOwnFunds(person, pillar);
+  }
+
+  private boolean hasAnyPendingTransfersToOwnFunds(Person person, Integer pillar) {
+    var pendingTransferApplications = applicationService.getTransferApplications(PENDING, person);
+    return pendingTransferApplications.stream()
+        .filter(application -> pillar.equals(application.getPillar()))
+        .flatMap(application -> application.getDetails().getExchanges().stream())
+        .anyMatch(Exchange::isToOwnFund);
+  }
+
   private Set<String> getIsinsOfFullPendingTransfersToConvertedFundManager(
       Person person, List<FundBalance> fundBalances, Integer pillar) {
     var pendingTransferApplications = applicationService.getTransferApplications(PENDING, person);
     return pendingTransferApplications.stream()
         .filter(application -> pillar.equals(application.getPillar()))
         .flatMap(application -> application.getDetails().getExchanges().stream())
-        .filter(exchange -> exchange.isConverted() && amountMatches(exchange, fundBalances))
+        .filter(exchange -> exchange.isToOwnFund() && amountMatches(exchange, fundBalances))
         .map(exchange -> exchange.getSourceFund().getIsin())
         .collect(toSet());
   }
@@ -192,12 +220,11 @@ public class UserConversionService {
   }
 
   private List<String> unConvertedIsins(List<FundBalance> fundBalances, Integer pillar) {
-    return fundBalances.stream()
-        .filter(fundBalance -> pillar.equals(fundBalance.getPillar()))
+    return filter(fundBalances, pillar)
         .filter(
             fundBalance ->
                 !fundBalance.isOwnFund()
-                    && fundBalance.getValue().compareTo(ZERO) > 0
+                    && fundBalance.hasValue()
                     && !fundBalance.isExitRestricted())
         .map(fundBalance -> fundBalance.getFund().getIsin())
         .collect(toList());

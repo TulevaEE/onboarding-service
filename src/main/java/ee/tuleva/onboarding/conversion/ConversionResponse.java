@@ -31,7 +31,9 @@ public class ConversionResponse {
   @Data
   public static class Conversion {
 
+    private boolean transfersPartial;
     private boolean transfersComplete;
+    private boolean selectionPartial;
     private boolean selectionComplete;
     private boolean pendingWithdrawal;
     private Boolean paymentComplete;

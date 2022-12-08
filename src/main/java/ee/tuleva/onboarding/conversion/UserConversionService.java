@@ -157,11 +157,9 @@ public class UserConversionService {
   }
 
   private boolean isSelectionPartial(List<FundBalance> fundBalances, Integer pillar) {
-    return filter(fundBalances, pillar).findFirst().isPresent()
-        && filter(fundBalances, pillar).anyMatch(FundBalance::isActiveContributions)
-        && filter(fundBalances, pillar)
-            .filter(FundBalance::isActiveContributions)
-            .anyMatch(FundBalance::isOwnFund);
+    return filter(fundBalances, pillar)
+        .filter(FundBalance::isActiveContributions)
+        .anyMatch(FundBalance::isOwnFund);
   }
 
   private Stream<FundBalance> filter(List<FundBalance> fundBalances, Integer pillar) {

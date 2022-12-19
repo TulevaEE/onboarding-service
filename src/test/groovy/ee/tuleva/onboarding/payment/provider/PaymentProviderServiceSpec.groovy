@@ -40,7 +40,7 @@ class PaymentProviderServiceSpec extends Specification {
     paymentLinkService.apiUrl = "https://onboarding-service.tuleva.ee/v1"
   }
 
-  void create() {
+  def "can get a payment link"() {
     given:
     String internalReference = anInternalReferenceSerialized
     PaymentData paymentData = PaymentData.builder()

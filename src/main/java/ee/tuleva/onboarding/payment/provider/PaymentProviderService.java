@@ -59,7 +59,7 @@ public class PaymentProviderService implements PaymentLinkGenerator {
     payload.put("merchant_reference", paymentInternalReferenceService.getPaymentReference(person));
     payload.put("merchant_return_url", apiUrl + "/payments/success");
     payload.put("merchant_notification_url", apiUrl + "/payments/notification");
-    payload.put("payment_information_unstructured", "30101119828");
+    payload.put("payment_information_unstructured", "30101119828, EE3600001707");
     payload.put("payment_information_structured", contactDetails.getPensionAccountNumber());
     payload.put("preselected_locale", getLanguage());
     payload.put("exp", clock.instant().getEpochSecond() + 600);

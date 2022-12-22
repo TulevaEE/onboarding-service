@@ -30,7 +30,7 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
           case SEB -> "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM"
               + "&saajakonto=EE141010220263146225" // SEB account
               + "&saajanimi=AS%20Pensionikeskus"
-              + "&selgitus=30101119828,%20EE3600001707"
+              + "&selgitus=30101119828%2C%20EE3600001707"
               // 3rd pillar processing code and Tuleva 3rd pillar fund ISIN
               + "&viitenr="
               + contactDetails.getPensionAccountNumber()
@@ -42,7 +42,7 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
           case LHV -> "https://www.lhv.ee/portfolio/payment_standing_add.cfm"
               + "?i_receiver_name=AS%20Pensionikeskus"
               + "&i_receiver_account_no=EE547700771002908125" // LHV account
-              + "&i_payment_desc=30101119828,%20EE3600001707"
+              + "&i_payment_desc=30101119828%2C%20EE3600001707"
               // 3rd pillar processing code and Tuleva 3rd pillar fund ISIN
               + "&i_payment_clirefno="
               + contactDetails.getPensionAccountNumber()

@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import org.mockserver.client.MockServerClient
+import org.mockserver.matchers.MatchType
 import org.mockserver.model.MediaType
 import org.mockserver.springtest.MockServerTest
 import org.mockserver.verify.VerificationTimes
@@ -86,7 +87,7 @@ class EpisServiceIntSpec extends Specification {
             .withHeader("Authorization", "Bearer dummy"))
         .respond(response()
             .withContentType(MediaType.APPLICATION_JSON)
-            .withBody("""
+            .withBody(json("""
                         [{
                          "currency": "EUR",
                          "amount": 100.0,
@@ -95,7 +96,7 @@ class EpisServiceIntSpec extends Specification {
                          "id": 123,
                          "documentNumber": "123456"
                         }]
-                        """))
+                        """, MatchType.STRICT)))
     when:
     List<ApplicationDTO> applications = episService.getApplications(PersonFixture.samplePerson())
     then:
@@ -114,7 +115,7 @@ class EpisServiceIntSpec extends Specification {
         .respond(response()
             .withDelay(TimeUnit.MILLISECONDS, 500)
             .withContentType(MediaType.APPLICATION_JSON)
-            .withBody("""
+            .withBody(json("""
                         [{
                          "currency": "EUR",
                          "amount": 100.0,
@@ -123,7 +124,7 @@ class EpisServiceIntSpec extends Specification {
                          "id": 123,
                          "documentNumber": "123456"
                         }]
-                        """))
+                        """, MatchType.STRICT)))
     when:
     ExecutorService executor = Executors.newFixedThreadPool(2)
     with(executor) {
@@ -152,9 +153,9 @@ class EpisServiceIntSpec extends Specification {
         .respond(response()
             .withDelay(TimeUnit.MILLISECONDS, 500)
             .withContentType(MediaType.APPLICATION_JSON)
-            .withBody("""
+            .withBody(json("""
                         {"startBalance": {}, "endBalance": {}, "transactions": []}
-                        """))
+                        """, MatchType.STRICT)))
     when:
     ExecutorService executor = Executors.newFixedThreadPool(2)
     with(executor) {
@@ -195,6 +196,8 @@ class EpisServiceIntSpec extends Specification {
         .futureContributionFundIsin("EE345")
         .pillar(2)
         .address(address)
+        .email("email@override.ee")
+        .phoneNumber("+37288888888")
         .build()
 
     ApplicationResponseDTO expectedResponse = new ApplicationResponseDTO(
@@ -222,7 +225,8 @@ class EpisServiceIntSpec extends Specification {
                   "processId": "${fundsTransferExchange.processId}",
                   "amount": ${fundsTransferExchange.amount},
                   "sourceFundIsin": "${fundsTransferExchange.sourceFundIsin}",
-                  "targetFundIsin": "${fundsTransferExchange.targetFundIsin}"
+                  "targetFundIsin": "${fundsTransferExchange.targetFundIsin}",
+                  "targetPik": ${fundsTransferExchange.targetPik}
                 }
               ],
               "address": {
@@ -230,14 +234,16 @@ class EpisServiceIntSpec extends Specification {
                 "districtCode": "${address.districtCode}",
                 "postalCode": "${address.postalCode}",
                 "countryCode": "${address.countryCode}"
-              }
+              },
+              "email": "${mandate.email}",
+              "phoneNumber": "${mandate.phoneNumber}"
             }
-          """))
+          """, MatchType.STRICT))
         )
         .respond(
             response()
                 .withContentType(MediaType.APPLICATION_JSON)
-                .withBody(json(expectedResponse))
+                .withBody(json(expectedResponse, MatchType.STRICT))
         )
 
     when:

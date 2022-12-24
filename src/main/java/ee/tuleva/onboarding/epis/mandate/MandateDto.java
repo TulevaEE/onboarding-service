@@ -33,7 +33,11 @@ public class MandateDto {
 
   private List<MandateFundsTransferExchangeDTO> fundTransferExchanges;
 
-  @Nullable private Address address;
+  private Address address;
+
+  private String email;
+
+  private String phoneNumber;
 
   @AllArgsConstructor
   @NoArgsConstructor

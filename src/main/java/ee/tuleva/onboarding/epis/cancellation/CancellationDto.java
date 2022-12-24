@@ -22,4 +22,8 @@ public class CancellationDto {
   @NotNull private Instant createdDate;
 
   @Valid @Nullable private Address address;
+
+  private String email;
+
+  private String phoneNumber;
 }

@@ -163,4 +163,14 @@ public class Mandate implements Serializable {
         && fundTransferExchanges.get(0).getTargetFundIsin() == null
         && fundTransferExchanges.get(0).getAmount() == null;
   }
+
+  @JsonIgnore
+  public String getEmail() {
+    return user.getEmail();
+  }
+
+  @JsonIgnore
+  public String getPhoneNumber() {
+    return user.getPhoneNumber();
+  }
 }

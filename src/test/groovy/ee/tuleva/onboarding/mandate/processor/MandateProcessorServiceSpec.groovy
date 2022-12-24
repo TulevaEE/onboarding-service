@@ -35,6 +35,7 @@ class MandateProcessorServiceSpec extends Specification {
     Mandate mandate = sampleMandate()
     mandate.pillar = pillar
     mandate.address = address
+    mandate.user = sampleUser
     def mandateResponse = new ApplicationResponseDTO()
     def response = new ApplicationResponse()
     mandateResponse.mandateResponses = [response]
@@ -59,6 +60,7 @@ class MandateProcessorServiceSpec extends Specification {
     given:
     Mandate mandate = sampleCancellationMandate()
     mandate.address = addressFixture().build()
+    mandate.user = sampleUser
     def response = new ApplicationResponse()
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
     when:

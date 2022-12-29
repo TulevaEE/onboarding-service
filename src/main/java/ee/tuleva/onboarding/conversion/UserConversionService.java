@@ -175,8 +175,7 @@ public class UserConversionService {
   private boolean isTransfersPartial(
       List<FundBalance> fundBalances, Integer pillar, Person person) {
     return filter(fundBalances, pillar).findFirst().isEmpty()
-        || filter(fundBalances, pillar)
-            .anyMatch(fundBalance -> fundBalance.isOwnFund() && fundBalance.hasValue())
+        || filter(fundBalances, pillar).anyMatch(FundBalance::isOwnFund)
         || hasAnyPendingTransfersToOwnFunds(person, pillar);
   }
 

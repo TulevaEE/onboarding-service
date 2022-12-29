@@ -96,7 +96,7 @@ class UserConversionServiceSpec extends Specification {
     inactiveTuleva2ndPillarFundBalance   | false                        | true
     inactiveExternal2ndPillarFundBalance | true                         | true
     fullyExternal2ndPillarFundBalance    | false                        | false
-    onlyActiveTuleva2ndPillarFundBalance | true                         | false
+    onlyActiveTuleva2ndPillarFundBalance | true                         | true
     []                                   | false                        | true
   }
 
@@ -126,6 +126,32 @@ class UserConversionServiceSpec extends Specification {
     fullyExternal3rdPillarFundBalance    | false                        | false
     onlyActiveTuleva3rdPillarFundBalance | true                         | false
     []                                   | false                        | true
+  }
+
+  def "GetConversion: Get partial conversion response for 3rd pillar selection and transfer"() {
+    given:
+    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    applicationService.getTransferApplications(PENDING, samplePerson) >> []
+
+    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+
+    when:
+    ConversionResponse response = service.getConversion(samplePerson)
+
+    then:
+    response.thirdPillar.selectionPartial == thirdPillarSelectionPartial
+    response.thirdPillar.transfersPartial == thirdPillarTransfersPartial
+
+    where:
+    accountBalanceResponse               | thirdPillarSelectionPartial | thirdPillarTransfersPartial
+    activeTuleva3rdPillarFundBalance     | true                        | true
+    activeTuleva3rdPillarFund            | true                        | true
+    activeExternal3rdPillarFundBalance   | false                       | true
+    inactiveTuleva3rdPillarFundBalance   | false                       | true
+    inactiveExternal3rdPillarFundBalance | true                        | true
+    fullyExternal3rdPillarFundBalance    | false                       | false
+    onlyActiveTuleva3rdPillarFundBalance | true                        | true
+    []                                   | false                       | true
   }
 
   def "GetConversion: Get conversion response for 2nd pillar transfer given pending mandates cover the lack"() {

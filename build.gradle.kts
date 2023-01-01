@@ -68,7 +68,7 @@ dependencies {
     implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.25.6")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.26")
 
     implementation("org.springdoc:springdoc-openapi-ui:1.6.13")
     implementation("org.springdoc:springdoc-openapi-security:1.6.13")

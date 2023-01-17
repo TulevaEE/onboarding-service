@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.account;
 
-import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toList;
-import static org.apache.commons.lang3.ObjectUtils.compare;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;

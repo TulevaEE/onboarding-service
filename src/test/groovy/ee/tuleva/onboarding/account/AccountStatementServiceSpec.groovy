@@ -47,7 +47,7 @@ class AccountStatementServiceSpec extends Specification {
     0 * fundBalanceConverter.convert(fundBalanceDto, person)
   }
 
-  def "filters out non-active zero balance second pillar funds"() {
+  def "does not filter out non-active zero balance 2nd pillar funds"() {
     given:
     def person = samplePerson()
     def inactiveZeroFund = FundBalanceDto.builder().isin("1").value(ZERO).activeContributions(false).build()
@@ -71,13 +71,14 @@ class AccountStatementServiceSpec extends Specification {
     List<FundBalance> accountStatement = service.getAccountStatement(person)
 
     then:
-    with(accountStatement.get(0)) { isin == inactiveNonZeroFund.isin }
-    with(accountStatement.get(1)) { isin == activeZeroFund.isin }
-    with(accountStatement.get(2)) { isin == activeNonZeroFund.isin }
-    accountStatement.size() == 3
+    accountStatement.size() == 4
+    with(accountStatement.get(0)) { isin == inactiveZeroFund.isin }
+    with(accountStatement.get(1)) { isin == inactiveNonZeroFund.isin }
+    with(accountStatement.get(2)) { isin == activeZeroFund.isin }
+    with(accountStatement.get(3)) { isin == activeNonZeroFund.isin }
   }
 
-  def "does not filter out zero balance third pillar funds"() {
+  def "does not filter out zero balance 3rd pillar funds"() {
     given:
     def person = samplePerson()
     def inactiveZeroFund = FundBalanceDto.builder().isin("1").value(ZERO).activeContributions(false).build()
@@ -91,6 +92,7 @@ class AccountStatementServiceSpec extends Specification {
     List<FundBalance> accountStatement = service.getAccountStatement(person)
 
     then:
+    accountStatement.size() == 1
     with(accountStatement.get(0)) { isin == inactiveZeroFund.isin }
   }
 

@@ -52,8 +52,8 @@ public class FundBalance {
     return fund.isExitRestricted();
   }
 
-  public boolean hasValue() {
-    return value != null && value.compareTo(ZERO) > 0;
+  public boolean hasTotalValue() {
+    return getTotalValue().compareTo(ZERO) > 0;
   }
 
   BigDecimal getContributionSum() {

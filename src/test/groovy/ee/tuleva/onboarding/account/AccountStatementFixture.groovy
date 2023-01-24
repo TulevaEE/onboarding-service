@@ -167,10 +167,10 @@ class AccountStatementFixture {
 
   public static List<FundBalance> activeTuleva3rdPillarFund = Lists.asList(
       FundBalance.builder()
-          .value(0.0)
+          .value(100.0)
           .unavailableValue(0.0)
           .activeContributions(true)
-          .contributions(0.0)
+          .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
           .fund(tuleva3rdPillarFund)

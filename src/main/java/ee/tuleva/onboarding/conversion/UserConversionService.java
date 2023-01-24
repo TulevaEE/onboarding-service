@@ -175,7 +175,9 @@ public class UserConversionService {
   private boolean isTransfersPartial(
       List<FundBalance> fundBalances, Integer pillar, Person person) {
     return filter(fundBalances, pillar).findFirst().isEmpty()
-        || filter(fundBalances, pillar).anyMatch(FundBalance::isOwnFund)
+        || filter(fundBalances, pillar)
+            .filter(FundBalance::hasTotalValue)
+            .anyMatch(FundBalance::isOwnFund)
         || hasAnyPendingTransfersToOwnFunds(person, pillar);
   }
 
@@ -221,7 +223,7 @@ public class UserConversionService {
         .filter(
             fundBalance ->
                 !fundBalance.isOwnFund()
-                    && fundBalance.hasValue()
+                    && fundBalance.hasTotalValue()
                     && !fundBalance.isExitRestricted())
         .map(fundBalance -> fundBalance.getFund().getIsin())
         .collect(toList());

@@ -21,6 +21,9 @@ public class TransactionController {
   @Operation(summary = "Get a list of transactions")
   public List<Transaction> getTransactions(AuthenticatedPerson authenticatedPerson) {
     CashFlowStatement cashFlowStatement = cashFlowService.getCashFlowStatement(authenticatedPerson);
-    return cashFlowStatement.getTransactions().stream().map(Transaction::from).toList();
+    return cashFlowStatement.getTransactions().stream()
+        .filter(cashFlow -> cashFlow.isContribution() || cashFlow.isSubtraction())
+        .map(Transaction::from)
+        .toList();
   }
 }

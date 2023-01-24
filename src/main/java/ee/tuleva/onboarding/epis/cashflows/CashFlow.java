@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.nullsLast;
 
+import ee.tuleva.onboarding.currency.Currency;
 import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -22,7 +23,7 @@ public class CashFlow implements Comparable<CashFlow> {
   private Instant time;
   private Instant priceTime;
   private BigDecimal amount;
-  private String currency; // TODO: use Currency class
+  private Currency currency;
   private Type type;
 
   public Instant getPriceTime() {

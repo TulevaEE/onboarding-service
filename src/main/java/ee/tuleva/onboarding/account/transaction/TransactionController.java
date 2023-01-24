@@ -1,0 +1,26 @@
+package ee.tuleva.onboarding.account.transaction;
+
+import ee.tuleva.onboarding.account.CashFlowService;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
+import io.swagger.v3.oas.annotations.Operation;
+import java.util.List;
+import lombok.AllArgsConstructor;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/v1")
+@AllArgsConstructor
+public class TransactionController {
+
+  private final CashFlowService cashFlowService;
+
+  @GetMapping("/transactions")
+  @Operation(summary = "Get a list of transactions")
+  public List<Transaction> getTransactions(AuthenticatedPerson authenticatedPerson) {
+    CashFlowStatement cashFlowStatement = cashFlowService.getCashFlowStatement(authenticatedPerson);
+    return cashFlowStatement.getTransactions().stream().map(Transaction::from).toList();
+  }
+}

@@ -18,18 +18,13 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.REFUND
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.FAILED
 import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarApiFundResponse
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva3rdPillarFund
 import static ee.tuleva.onboarding.mandate.application.PaymentApplicationService.TULEVA_3RD_PILLAR_FUND_ISIN
-import static ee.tuleva.onboarding.payment.PaymentFixture.aPayment
-import static ee.tuleva.onboarding.payment.PaymentFixture.contributionAmountHigh
-import static ee.tuleva.onboarding.payment.PaymentFixture.contributionAmountLow
-import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentAmount
+import static ee.tuleva.onboarding.payment.PaymentFixture.*
 
 class PaymentApplicationServiceSpec extends Specification {
 
@@ -86,27 +81,27 @@ class PaymentApplicationServiceSpec extends Specification {
   }
 
   private CashFlow transaction(Instant createdTime = defaultTransactionTime) {
-    return new CashFlow(null, createdTime, null, aPaymentAmount, "EUR", CASH)
+    return new CashFlow(null, createdTime, null, aPaymentAmount, EUR, CASH)
   }
 
   private CashFlow negativeTransaction(Instant createdTime = defaultNegativeTransactionTime) {
-    return new CashFlow(null, createdTime, null, -aPaymentAmount, "EUR", CASH)
+    return new CashFlow(null, createdTime, null, -aPaymentAmount, EUR, CASH)
   }
 
   private CashFlow refundTransaction(Instant createdTime = defaultRefundTransactionTime) {
-    return new CashFlow(null, createdTime, null, -aPaymentAmount, "EUR", REFUND)
+    return new CashFlow(null, createdTime, null, -aPaymentAmount, EUR, REFUND)
   }
 
   private CashFlow tulevaContributionHigh(Instant createdTime = defaultContributionTime) {
-    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, createdTime, defaultPriceTime, contributionAmountHigh, "EUR", CONTRIBUTION_CASH)
+    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, createdTime, defaultPriceTime, contributionAmountHigh, EUR, CONTRIBUTION_CASH)
   }
 
   private CashFlow tulevaContributionLow(Instant createdTime = defaultContributionTime) {
-    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, createdTime, defaultPriceTime, contributionAmountLow, "EUR", CONTRIBUTION_CASH)
+    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, createdTime, defaultPriceTime, contributionAmountLow, EUR, CONTRIBUTION_CASH)
   }
 
   private CashFlow foreignContribution(Instant createdTime = defaultContributionTime) {
-    return new CashFlow("OTHERISIN", createdTime, defaultPriceTime, contributionAmountHigh, "EUR", CONTRIBUTION_CASH)
+    return new CashFlow("OTHERISIN", createdTime, defaultPriceTime, contributionAmountHigh, EUR, CONTRIBUTION_CASH)
   }
 
   private Application<PaymentApplicationDetails> aCompletePaymentApplication(Long id = 123L, Instant createdTime = defaultPaymentTime) {

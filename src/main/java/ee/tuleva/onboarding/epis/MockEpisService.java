@@ -76,7 +76,7 @@ public class MockEpisService extends EpisService {
       Person person, LocalDate fromDate, LocalDate toDate) {
 
     val time = Instant.parse("2022-01-02T01:23:45Z");
-    val currency = Currency.EUR.name();
+    val currency = Currency.EUR;
     val amount = new BigDecimal("2000");
 
     return CashFlowStatement.builder()

@@ -18,7 +18,7 @@ val springCloudVersion = "2021.0.5"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.7.7"
+    id("org.springframework.boot") version "2.7.8"
     id("io.spring.dependency-management") version "1.1.0"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.12.0"
@@ -68,7 +68,7 @@ dependencies {
     implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.28")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.29")
 
     implementation("org.springdoc:springdoc-openapi-ui:1.6.14")
     implementation("org.springdoc:springdoc-openapi-security:1.6.14")
@@ -93,7 +93,7 @@ dependencies {
     implementation("io.sentry:sentry-spring-boot-starter:6.12.1")
     implementation("io.sentry:sentry-logback:6.12.1")
 
-    implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-55:3.1.1")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 

@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
-class TransactionControllerSpec  extends BaseControllerSpec {
+class TransactionControllerSpec extends BaseControllerSpec {
 
   MockMvc mockMvc
 
@@ -32,25 +32,25 @@ class TransactionControllerSpec  extends BaseControllerSpec {
     mockMvc.perform(get("/v1/transactions"))
         .andExpect(status().isOk())
         .andExpect(jsonPath('$[0]', is([
-            amount: cashFlows[0].amount.doubleValue(),
+            amount  : cashFlows[0].amount.doubleValue(),
             currency: cashFlows[0].currency.name(),
-            time: cashFlows[0].time.toString(),
-            isin: cashFlows[0].isin,
-            type: cashFlows[0].type.toString()
+            time    : cashFlows[0].time.toString(),
+            isin    : cashFlows[0].isin,
+            type    : cashFlows[0].type.toString()
         ])))
         .andExpect(jsonPath('$[1]', is([
-            amount: cashFlows[1].amount.doubleValue(),
+            amount  : cashFlows[1].amount.doubleValue(),
             currency: cashFlows[1].currency.name(),
-            time: cashFlows[1].time.toString(),
-            isin: cashFlows[1].isin,
-            type: cashFlows[1].type.toString()
+            time    : cashFlows[1].time.toString(),
+            isin    : cashFlows[1].isin,
+            type    : cashFlows[1].type.toString()
         ])))
         .andExpect(jsonPath('$[2]', is([
-            amount: cashFlows[2].amount.doubleValue(),
+            amount  : cashFlows[2].amount.doubleValue(),
             currency: cashFlows[2].currency.name(),
-            time: cashFlows[2].time.toString(),
-            isin: cashFlows[2].isin,
-            type: cashFlows[2].type.toString()
+            time    : cashFlows[2].time.toString(),
+            isin    : cashFlows[2].isin,
+            type    : cashFlows[2].type.toString()
         ])))
         .andExpect(jsonPath('$', hasSize(3)))
   }

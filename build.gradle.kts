@@ -18,7 +18,7 @@ val springCloudVersion = "2021.0.5"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.7.8"
+    id("org.springframework.boot") version "2.7.6"
     id("io.spring.dependency-management") version "1.1.0"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.12.0"
@@ -68,10 +68,10 @@ dependencies {
     implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.29")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.25.6")
 
-    implementation("org.springdoc:springdoc-openapi-ui:1.6.14")
-    implementation("org.springdoc:springdoc-openapi-security:1.6.14")
+    implementation("org.springdoc:springdoc-openapi-ui:1.6.13")
+    implementation("org.springdoc:springdoc-openapi-security:1.6.13")
 
     runtimeOnly("org.postgresql:postgresql")
 
@@ -90,10 +90,10 @@ dependencies {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
-    implementation("io.sentry:sentry-spring-boot-starter:6.12.1")
-    implementation("io.sentry:sentry-logback:6.12.1")
+    implementation("io.sentry:sentry-spring-boot-starter:6.9.1")
+    implementation("io.sentry:sentry-logback:6.9.1")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-55:3.1.1")
+    implementation("com.vladmihalcea:hibernate-types-55:2.20.0")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
@@ -118,13 +118,13 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.3-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.7")
-    testImplementation("org.mock-server:mockserver-netty:5.15.0")
-    testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
+    testImplementation("org.apache.groovy:groovy-all:4.0.6")
+    testImplementation("org.mock-server:mockserver-netty:5.14.0")
+    testImplementation("org.mock-server:mockserver-spring-test-listener:5.14.0")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.1.0")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.2")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.2")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.1")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.1")
 }
 
 dependencyManagement {

@@ -6,7 +6,12 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 public record Transaction(
-    BigDecimal amount, Currency currency, Instant time, String isin, CashFlow.Type type) {
+    BigDecimal amount,
+    Currency currency,
+    Instant time,
+    String isin,
+    CashFlow.Type type,
+    String comment) {
 
   public static Transaction from(CashFlow cashFlow) {
     return new Transaction(
@@ -14,6 +19,7 @@ public record Transaction(
         cashFlow.getCurrency(),
         cashFlow.getTime(),
         cashFlow.getIsin(),
-        cashFlow.getType());
+        cashFlow.getType(),
+        cashFlow.getComment());
   }
 }

@@ -25,9 +25,9 @@ class CashFlowFixture {
             "3": CashFlow.builder().time(randomTime).priceTime(priceTime).amount(250.0).currency(EUR).isin("3").build(),
         ])
         .transactions([
-            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-100.0).currency(EUR).isin("1").type(SUBTRACTION).build(),
-            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-20.0).currency(EUR).isin("2").type(SUBTRACTION).build(),
-            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-25.0).currency(EUR).isin("3").type(SUBTRACTION).build(),
+            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-100.0).currency(EUR).isin("1").type(SUBTRACTION).comment("sub1").build(),
+            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-20.0).currency(EUR).isin("2").type(SUBTRACTION).comment("sub2").build(),
+            CashFlow.builder().time(randomTime).priceTime(priceTime).amount(-25.0).currency(EUR).isin("3").type(SUBTRACTION).comment("sub3").build(),
         ]).build()
   }
 

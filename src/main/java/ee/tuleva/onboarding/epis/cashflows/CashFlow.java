@@ -25,6 +25,7 @@ public class CashFlow implements Comparable<CashFlow> {
   private BigDecimal amount;
   private Currency currency;
   private Type type;
+  private String comment;
 
   public Instant getPriceTime() {
     if (priceTime != null) {
@@ -68,12 +69,13 @@ public class CashFlow implements Comparable<CashFlow> {
         .thenComparing(CashFlow::getAmount)
         .thenComparing(CashFlow::getCurrency)
         .thenComparing(CashFlow::getType)
+        .thenComparing(CashFlow::getComment)
         .compare(this, other);
   }
 
   @Override
   public String toString() {
-    return "{%s, %s, %s, %s}".formatted(isin, time, amount, type);
+    return "{%s, %s, %s, %s}".formatted(isin, time, amount, type, comment);
   }
 
   public enum Type {

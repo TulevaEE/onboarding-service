@@ -1,6 +1,10 @@
 package ee.tuleva.onboarding.epis.cashflows;
 
-import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.REFUND;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.nullsLast;
 
@@ -69,13 +73,13 @@ public class CashFlow implements Comparable<CashFlow> {
         .thenComparing(CashFlow::getAmount)
         .thenComparing(CashFlow::getCurrency)
         .thenComparing(CashFlow::getType)
-        .thenComparing(CashFlow::getComment)
+        .thenComparing(CashFlow::getComment, nullsLast(String::compareToIgnoreCase))
         .compare(this, other);
   }
 
   @Override
   public String toString() {
-    return "{%s, %s, %s, %s}".formatted(isin, time, amount, type, comment);
+    return "{%s, %s, %s, %s, %s}".formatted(isin, time, amount, type, comment);
   }
 
   public enum Type {

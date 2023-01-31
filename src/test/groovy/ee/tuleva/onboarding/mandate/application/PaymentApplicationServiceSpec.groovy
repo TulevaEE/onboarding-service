@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.locale.MockLocaleService
-import ee.tuleva.onboarding.payment.PaymentFixture
 import ee.tuleva.onboarding.payment.PaymentService
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
@@ -30,8 +29,8 @@ class PaymentApplicationServiceSpec extends Specification {
 
   static final Duration fiveDays = Duration.ofDays(7)
   static final Duration tenMinutes = Duration.ofMinutes(10)
-  static final defaultPriceTime = PaymentFixture.aPaymentCreationTime - Duration.ofMinutes(15)
-  static final defaultPaymentTime = PaymentFixture.aPaymentCreationTime
+  static final defaultPriceTime = aPaymentCreationTime - Duration.ofMinutes(15)
+  static final defaultPaymentTime = aPaymentCreationTime
   static final defaultTransactionTime = defaultPaymentTime + tenMinutes
   static final defaultNegativeTransactionTime = defaultTransactionTime + tenMinutes
   static final defaultRefundTransactionTime = defaultNegativeTransactionTime + tenMinutes
@@ -81,27 +80,27 @@ class PaymentApplicationServiceSpec extends Specification {
   }
 
   private CashFlow transaction(Instant createdTime = defaultTransactionTime) {
-    return new CashFlow(null, createdTime, null, aPaymentAmount, EUR, CASH)
+    return new CashFlow(null, createdTime, null, aPaymentAmount, EUR, CASH, null)
   }
 
   private CashFlow negativeTransaction(Instant createdTime = defaultNegativeTransactionTime) {
-    return new CashFlow(null, createdTime, null, -aPaymentAmount, EUR, CASH)
+    return new CashFlow(null, createdTime, null, -aPaymentAmount, EUR, CASH, null)
   }
 
   private CashFlow refundTransaction(Instant createdTime = defaultRefundTransactionTime) {
-    return new CashFlow(null, createdTime, null, -aPaymentAmount, EUR, REFUND)
+    return new CashFlow(null, createdTime, null, -aPaymentAmount, EUR, REFUND, null)
   }
 
   private CashFlow tulevaContributionHigh(Instant createdTime = defaultContributionTime) {
-    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, createdTime, defaultPriceTime, contributionAmountHigh, EUR, CONTRIBUTION_CASH)
+    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, createdTime, defaultPriceTime, contributionAmountHigh, EUR, CONTRIBUTION_CASH, null)
   }
 
   private CashFlow tulevaContributionLow(Instant createdTime = defaultContributionTime) {
-    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, createdTime, defaultPriceTime, contributionAmountLow, EUR, CONTRIBUTION_CASH)
+    return new CashFlow(TULEVA_3RD_PILLAR_FUND_ISIN, createdTime, defaultPriceTime, contributionAmountLow, EUR, CONTRIBUTION_CASH, null)
   }
 
   private CashFlow foreignContribution(Instant createdTime = defaultContributionTime) {
-    return new CashFlow("OTHERISIN", createdTime, defaultPriceTime, contributionAmountHigh, EUR, CONTRIBUTION_CASH)
+    return new CashFlow("OTHERISIN", createdTime, defaultPriceTime, contributionAmountHigh, EUR, CONTRIBUTION_CASH, null)
   }
 
   private Application<PaymentApplicationDetails> aCompletePaymentApplication(Long id = 123L, Instant createdTime = defaultPaymentTime) {

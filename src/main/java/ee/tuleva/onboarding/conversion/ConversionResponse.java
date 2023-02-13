@@ -52,5 +52,6 @@ public class ConversionResponse {
 
     private BigDecimal total;
     private BigDecimal yearToDate;
+    private BigDecimal lastYear;
   }
 }

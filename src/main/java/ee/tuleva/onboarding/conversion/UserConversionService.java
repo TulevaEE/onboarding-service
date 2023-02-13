@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.conversion;
 
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
 import static java.math.BigDecimal.ZERO;
-import static java.time.temporal.TemporalAdjusters.lastDayOfYear;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
 
@@ -39,7 +38,7 @@ public class UserConversionService {
   private final AccountStatementService accountStatementService;
   private final CashFlowService cashFlowService;
   private final FundRepository fundRepository;
-  private final Clock clock;
+  private final Clock estonianClock;
   private final ApplicationService applicationService;
 
   public ConversionResponse getConversion(Person person) {
@@ -56,12 +55,14 @@ public class UserConversionService {
                 .pendingWithdrawal(applicationService.hasPendingWithdrawals(person))
                 .contribution(
                     Amount.builder()
-                        .yearToDate(yearToDateCashContributionSum(cashFlowStatement, 2))
+                        .yearToDate(cashContributionSum(cashFlowStatement, 2, thisYear()))
+                        .lastYear(cashContributionSum(cashFlowStatement, 2, lastYear()))
                         .total(totalContributionSum(cashFlowStatement, 2))
                         .build())
                 .subtraction(
                     Amount.builder()
-                        .yearToDate(yearToDateSubtractionSum(cashFlowStatement, 2))
+                        .yearToDate(subtractionSum(cashFlowStatement, 2, thisYear()))
+                        .lastYear(subtractionSum(cashFlowStatement, 2, lastYear()))
                         .total(totalSubtractionSum(cashFlowStatement, 2))
                         .build())
                 .build())
@@ -73,12 +74,14 @@ public class UserConversionService {
                 .transfersPartial(isTransfersPartial(fundBalances, 3, person))
                 .contribution(
                     Amount.builder()
-                        .yearToDate(yearToDateCashContributionSum(cashFlowStatement, 3))
+                        .yearToDate(cashContributionSum(cashFlowStatement, 3, thisYear()))
+                        .lastYear(cashContributionSum(cashFlowStatement, 3, lastYear()))
                         .total(totalContributionSum(cashFlowStatement, 3))
                         .build())
                 .subtraction(
                     Amount.builder()
-                        .yearToDate(yearToDateSubtractionSum(cashFlowStatement, 3))
+                        .yearToDate(subtractionSum(cashFlowStatement, 3, thisYear()))
+                        .lastYear(subtractionSum(cashFlowStatement, 3, lastYear()))
                         .total(totalSubtractionSum(cashFlowStatement, 3))
                         .build())
                 .paymentComplete(paymentComplete(cashFlowStatement))
@@ -97,24 +100,25 @@ public class UserConversionService {
         > 0;
   }
 
-  private BigDecimal yearToDateCashContributionSum(
-      CashFlowStatement cashFlowStatement, int pillar) {
+  private BigDecimal cashContributionSum(
+      CashFlowStatement cashFlowStatement, int pillar, int year) {
     return sum(
         cashFlowStatement,
         pillar,
-        cashFlow ->
-            cashFlow.isCashContribution() && cashFlow.isPriceTimeAfter(lastDayOfLastYear()));
+        cashFlow -> cashFlow.isCashContribution() && year(cashFlow) == year);
   }
 
   private BigDecimal totalContributionSum(CashFlowStatement cashFlowStatement, int pillar) {
     return sum(cashFlowStatement, pillar, CashFlow::isContribution);
   }
 
-  private BigDecimal yearToDateSubtractionSum(CashFlowStatement cashFlowStatement, int pillar) {
+  private BigDecimal subtractionSum(CashFlowStatement cashFlowStatement, int pillar, int year) {
     return sum(
-        cashFlowStatement,
-        pillar,
-        cashFlow -> cashFlow.isSubtraction() && cashFlow.isPriceTimeAfter(lastDayOfLastYear()));
+        cashFlowStatement, pillar, cashFlow -> cashFlow.isSubtraction() && year(cashFlow) == year);
+  }
+
+  private int year(CashFlow cashFlow) {
+    return cashFlow.getPriceTime().atZone(estonianClock.getZone()).getYear();
   }
 
   private BigDecimal totalSubtractionSum(CashFlowStatement cashFlowStatement, int pillar) {
@@ -140,12 +144,16 @@ public class UserConversionService {
         .setScale(2, RoundingMode.HALF_UP);
   }
 
-  private Instant lastDayOfLastYear() {
-    return ZonedDateTime.now(clock).minusYears(1).with(lastDayOfYear()).toInstant();
+  private int thisYear() {
+    return ZonedDateTime.now(estonianClock).getYear();
+  }
+
+  private int lastYear() {
+    return thisYear() - 1;
   }
 
   private Instant sameTimeLastYear() {
-    return ZonedDateTime.now(clock).minusYears(1).toInstant();
+    return ZonedDateTime.now(estonianClock).minusYears(1).toInstant();
   }
 
   private boolean isSelectionComplete(List<FundBalance> fundBalances, Integer pillar) {

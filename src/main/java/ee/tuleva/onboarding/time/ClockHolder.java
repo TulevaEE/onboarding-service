@@ -8,8 +8,7 @@ import java.time.ZoneId;
 
 public class ClockHolder {
 
-  private static final ZoneId timeZone = ZoneId.systemDefault();
-  private static final Clock defaultClock = Clock.system(timeZone);
+  private static final Clock defaultClock = Clock.systemUTC();
   private static Clock clock = defaultClock;
 
   public static void setClock(Clock newClock) {

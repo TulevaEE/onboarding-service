@@ -292,24 +292,26 @@ class UserConversionServiceSpec extends Specification {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> []
     applicationService.getTransferApplications(PENDING, samplePerson) >> []
-    fundRepository.findByIsin("EE123") >> Fund.builder().pillar(2).build()
-    fundRepository.findByIsin("EE234") >> Fund.builder().pillar(3).build()
+    def secondPillar = "EE123"
+    def thirdPillar = "EE234"
+    fundRepository.findByIsin(secondPillar) >> Fund.builder().pillar(2).build()
+    fundRepository.findByIsin(thirdPillar) >> Fund.builder().pillar(3).build()
 
     cashFlowService.getCashFlowStatement(samplePerson) >> CashFlowStatement.builder()
         .transactions([
-            new CashFlow("EE123", Instant.parse("2018-12-31T00:00:00Z"), null, 100.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow("EE123", Instant.parse("2019-01-01T00:00:00Z"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow("EE123", Instant.parse("2019-11-20T00:00:00Z"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow("EE123", Instant.parse("2019-12-20T00:00:00Z"), null, 1.0, EUR, SUBTRACTION, null),
-            new CashFlow("EE123", Instant.parse("2019-12-21T00:00:00Z"), null, 1.0, EUR, SUBTRACTION, null),
+            new CashFlow(secondPillar, Instant.parse("2018-12-31T00:00:00+02:00"), null, 100.0, EUR, CONTRIBUTION_CASH, null),
+            new CashFlow(secondPillar, Instant.parse("2019-01-01T00:00:00+02:00"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
+            new CashFlow(secondPillar, Instant.parse("2019-11-20T00:00:00+02:00"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
+            new CashFlow(secondPillar, Instant.parse("2019-12-20T00:00:00+02:00"), null, 1.0, EUR, SUBTRACTION, null),
+            new CashFlow(secondPillar, Instant.parse("2019-12-21T00:00:00+02:00"), null, 1.0, EUR, SUBTRACTION, null),
 
-            new CashFlow("EE234", Instant.parse("2018-12-31T00:00:00Z"), null, 100.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow("EE234", Instant.parse("2019-01-01T00:00:00Z"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow("EE234", Instant.parse("2019-01-02T00:00:00Z"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow("EE234", Instant.parse("2019-11-20T00:00:00Z"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
-            new CashFlow("EE234", Instant.parse("2019-12-20T00:00:00Z"), null, 20.0, EUR, CONTRIBUTION, null),
-            new CashFlow("EE234", Instant.parse("2019-12-20T00:00:00Z"), null, 1.0, EUR, SUBTRACTION, null),
-            new CashFlow("EE234", Instant.parse("2019-12-21T00:00:00Z"), null, 1.0, EUR, SUBTRACTION, null),
+            new CashFlow(thirdPillar, Instant.parse("2018-12-31T00:00:00+02:00"), null, 100.0, EUR, CONTRIBUTION_CASH, null),
+            new CashFlow(thirdPillar, Instant.parse("2019-01-01T00:00:00+02:00"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
+            new CashFlow(thirdPillar, Instant.parse("2019-01-02T00:00:00+02:00"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
+            new CashFlow(thirdPillar, Instant.parse("2019-11-20T00:00:00+02:00"), null, 1.0, EUR, CONTRIBUTION_CASH, null),
+            new CashFlow(thirdPillar, Instant.parse("2019-12-20T00:00:00+02:00"), null, 20.0, EUR, CONTRIBUTION, null),
+            new CashFlow(thirdPillar, Instant.parse("2019-12-20T00:00:00+02:00"), null, 1.0, EUR, SUBTRACTION, null),
+            new CashFlow(thirdPillar, Instant.parse("2019-12-21T00:00:00+02:00"), null, 1.0, EUR, SUBTRACTION, null),
         ])
         .build()
 
@@ -318,21 +320,24 @@ class UserConversionServiceSpec extends Specification {
 
     then:
     with(response.secondPillar) {
-      contribution.yearToDate == 2.0
+      contribution.yearToDate == 1.0
+      contribution.lastYear == 101.0
       contribution.total == 102.0
       subtraction.yearToDate == 2.0
+      subtraction.lastYear == 0
       subtraction.total == 2.0
       paymentComplete == null
     }
     with(response.thirdPillar) {
+      contribution.yearToDate == 2.0
+      contribution.lastYear == 101.0
       contribution.total == 123.0
-      contribution.yearToDate == 3.0
       subtraction.yearToDate == 2.0
+      subtraction.lastYear == 0.0
       subtraction.total == 2.0
       paymentComplete
     }
   }
-
 
   Application<TransferApplicationDetails> fullPending2ndPillarApplication =
       Application.<TransferApplicationDetails> builder()

@@ -1,25 +1,16 @@
 package ee.tuleva.onboarding.fund;
 
+import ee.tuleva.onboarding.fund.Fund.FundStatus;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
-import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.CrudRepository;
-import org.springframework.data.repository.query.Param;
 
 public interface FundRepository extends CrudRepository<Fund, Long> {
 
-  @NotNull
-  @Override
-  @Query("select f from Fund f where f.status = 'ACTIVE'")
-  Iterable<Fund> findAll();
-
-  @Query(
-      "select f from Fund f where lower(f.fundManager.name) = lower(:fundManagerName) and f.status = 'ACTIVE'")
-  Iterable<Fund> findAllByFundManagerNameIgnoreCase(
-      @Param("fundManagerName") String fundManagerName);
+  Iterable<Fund> findAllByFundManagerNameIgnoreCase(String fundManagerName);
 
   Fund findByIsin(String isin);
 
-  @Query("select f from Fund f where f.pillar = :pillar and f.status = 'ACTIVE'")
-  List<Fund> findAllByPillar(@Param("pillar") Integer pillar);
+  List<Fund> findAllByPillar(Integer pillar);
+
+  List<Fund> findAllByPillarAndStatus(Integer pillar, FundStatus status);
 }

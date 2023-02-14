@@ -58,6 +58,9 @@ class FundRepositorySpec extends Specification {
         persistedFund.ongoingChargesFigure == fund.ongoingChargesFigure
         persistedFund.status == fund.status
         persistedFund.fundManager == fundManager
+
+        cleanup:
+        entityManager.clear()
     }
 
     def "finding by pillar works"() {
@@ -103,10 +106,10 @@ class FundRepositorySpec extends Specification {
         Iterable<Fund> thirdPillarFunds = repository.findAllByPillar(3)
 
         then:
-        thirdPillarFunds.size() == 19 // TODO: bad assert, depends on the flyway migrations
+        thirdPillarFunds.size() == 24 // TODO: bad assert, depends on flyway migrations
     }
 
-    def "ignores inactive funds"() {
+    def "does not ignore inactive funds"() {
         given:
         def fundManager = FundManager.builder()
             .id(1)
@@ -147,7 +150,7 @@ class FundRepositorySpec extends Specification {
             .collect(toList())
 
         then:
-        inactiveFunds == []
+        inactiveFunds.size() == 12 // TODO: bad assert, depends on flyway migrations
     }
 
     def "can find inactive funds by isin"() {

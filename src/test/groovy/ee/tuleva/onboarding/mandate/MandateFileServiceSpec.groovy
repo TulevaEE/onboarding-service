@@ -13,6 +13,7 @@ import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
 
 class MandateFileServiceSpec extends Specification {
 
@@ -55,7 +56,7 @@ class MandateFileServiceSpec extends Specification {
   def mockMandateFiles(User user, Long mandateId, ContactDetails contactDetails) {
     1 * userService.getById(user.id) >> user
     1 * mandateRepository.findByIdAndUserId(mandateId, user.id) >> Mandate.builder().pillar(2).build()
-    1 * fundRepository.findAllByPillar(mandate.pillar) >> [new Fund(), new Fund()]
+    1 * fundRepository.findAllByPillarAndStatus(mandate.pillar, ACTIVE) >> [new Fund(), new Fund()]
     1 * episService.getContactDetails(user) >> contactDetails
   }
 

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate;
 
+import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.epis.EpisService;
@@ -30,7 +31,7 @@ public class MandateFileService {
     User user = userService.getById(userId);
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
-    List<Fund> funds = fundRepository.findAllByPillar(mandate.getPillar());
+    List<Fund> funds = fundRepository.findAllByPillarAndStatus(mandate.getPillar(), ACTIVE);
 
     ContactDetails contactDetails = episService.getContactDetails(user);
 

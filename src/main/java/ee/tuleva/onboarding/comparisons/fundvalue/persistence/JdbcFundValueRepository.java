@@ -124,11 +124,6 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   }
 
   @Override
-  public List<String> findAllKeys() {
-    return jdbcTemplate.queryForList(ALL_KEYS_QUERY, ImmutableMap.of(), String.class);
-  }
-
-  @Override
   public Optional<FundValue> getLatestValue(String key, LocalDate date) {
     List<FundValue> result =
         jdbcTemplate.query(

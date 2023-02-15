@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class FundNavRetriever implements ComparisonIndexRetriever {
+
   private final EpisService episService;
   private final String isin;
 
@@ -27,7 +28,9 @@ public class FundNavRetriever implements ComparisonIndexRetriever {
     for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
       try {
         NavDto nav = episService.getNav(isin, date);
-        if (nav != null) result.add(toFundValue(nav));
+        if (nav != null) {
+          result.add(toFundValue(nav));
+        }
       } catch (ErrorsResponseException e) {
         log.info("No NAV for {} on {}: {}", isin, date, e.getMessage());
       }
@@ -37,5 +40,10 @@ public class FundNavRetriever implements ComparisonIndexRetriever {
 
   private FundValue toFundValue(NavDto nav) {
     return new FundValue(nav.getIsin(), nav.getDate(), nav.getValue());
+  }
+
+  @Override
+  public String toString() {
+    return "FundNavRetriever{isin=%s}".formatted(isin);
   }
 }

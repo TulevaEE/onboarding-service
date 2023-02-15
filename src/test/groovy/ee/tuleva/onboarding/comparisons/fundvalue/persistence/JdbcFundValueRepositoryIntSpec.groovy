@@ -87,20 +87,6 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         marketValue.get().getValue() == 204.12345
     }
 
-    def "it provides all keys"() {
-        given:
-        fundValueRepository.saveAll([
-            new FundValue("FOO", parse("1990-01-04"), 1.12345),
-            new FundValue("FOO", parse("1990-01-02"), 2.12345),
-            new FundValue("BAR", parse("1990-01-04"), 3.12345),
-            new FundValue("BAR", parse("1990-01-01"), 4.12345),
-        ])
-        when:
-        def keys = fundValueRepository.findAllKeys()
-        then:
-        keys == ['BAR', 'FOO']
-    }
-
     def "it can save and update values"() {
         given:
         def oldValue = new FundValue("FOO_BAR", parse("2020-04-30"), 1.12345)

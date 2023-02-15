@@ -12,5 +12,7 @@ public interface FundRepository extends CrudRepository<Fund, Long> {
 
   List<Fund> findAllByPillar(Integer pillar);
 
+  List<Fund> findAllByStatus(FundStatus status);
+
   List<Fund> findAllByPillarAndStatus(Integer pillar, FundStatus status);
 }

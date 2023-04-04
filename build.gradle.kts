@@ -65,7 +65,9 @@ dependencies {
 
     implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
     implementation("org.springframework.session:spring-session-jdbc")
-    implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8")
+    implementation(
+        "org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8",
+    )
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
 
     implementation("com.nimbusds:nimbus-jose-jwt:9.31")
@@ -142,7 +144,7 @@ tasks {
                 FAILED,
                 SKIPPED,
                 STANDARD_OUT,
-                STANDARD_ERROR
+                STANDARD_ERROR,
             )
             showCauses = true
             showExceptions = true

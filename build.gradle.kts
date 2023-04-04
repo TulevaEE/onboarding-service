@@ -119,7 +119,7 @@ dependencies {
         exclude(group = "org.apache.groovy")
     }
     testImplementation("org.apache.groovy:groovy-all:4.0.11")
-    testImplementation("org.mock-server:mockserver-netty:5.14.0")
+    testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.14.0")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.1.0")

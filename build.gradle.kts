@@ -101,11 +101,11 @@ dependencies {
 
     implementation("com.google.guava:guava:31.1-jre")
 
-    compileOnly("org.projectlombok:lombok:1.18.24")
-    annotationProcessor("org.projectlombok:lombok:1.18.24")
+    compileOnly("org.projectlombok:lombok:1.18.26")
+    annotationProcessor("org.projectlombok:lombok:1.18.26")
 
-    testCompileOnly("org.projectlombok:lombok:1.18.24")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.24")
+    testCompileOnly("org.projectlombok:lombok:1.18.26")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.26")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {

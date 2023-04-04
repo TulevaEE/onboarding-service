@@ -13,15 +13,15 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2021.0.5"
+val springCloudVersion = "2021.0.6"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.7.6"
+    id("org.springframework.boot") version "2.7.10"
     id("io.spring.dependency-management") version "1.1.0"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
-    id("com.diffplug.spotless") version "6.12.0"
+    id("com.diffplug.spotless") version "6.17.0"
     jacoco
 }
 
@@ -68,21 +68,21 @@ dependencies {
     implementation("org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8")
     implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.25.6")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.31")
 
-    implementation("org.springdoc:springdoc-openapi-ui:1.6.13")
-    implementation("org.springdoc:springdoc-openapi-security:1.6.13")
+    implementation("org.springdoc:springdoc-openapi-ui:1.6.15")
+    implementation("org.springdoc:springdoc-openapi-security:1.6.15")
 
     runtimeOnly("org.postgresql:postgresql")
 
     implementation("org.flywaydb:flyway-core")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.jsoup:jsoup:1.15.3")
+    implementation("org.jsoup:jsoup:1.15.4")
     implementation("commons-net:commons-net:3.9.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("net.sf.ehcache:ehcache:2.10.9.2")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.0")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.1")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.1.4")
@@ -90,10 +90,10 @@ dependencies {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
-    implementation("io.sentry:sentry-spring-boot-starter:6.9.1")
-    implementation("io.sentry:sentry-logback:6.9.1")
+    implementation("io.sentry:sentry-spring-boot-starter:6.17.0")
+    implementation("io.sentry:sentry-logback:6.17.0")
 
-    implementation("com.vladmihalcea:hibernate-types-55:2.20.0")
+    implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
@@ -101,11 +101,11 @@ dependencies {
 
     implementation("com.google.guava:guava:31.1-jre")
 
-    compileOnly("org.projectlombok:lombok:1.18.24")
-    annotationProcessor("org.projectlombok:lombok:1.18.24")
+    compileOnly("org.projectlombok:lombok:1.18.26")
+    annotationProcessor("org.projectlombok:lombok:1.18.26")
 
-    testCompileOnly("org.projectlombok:lombok:1.18.24")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.24")
+    testCompileOnly("org.projectlombok:lombok:1.18.26")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.26")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
@@ -119,12 +119,12 @@ dependencies {
         exclude(group = "org.apache.groovy")
     }
     testImplementation("org.apache.groovy:groovy-all:4.0.11")
-    testImplementation("org.mock-server:mockserver-netty:5.14.0")
-    testImplementation("org.mock-server:mockserver-spring-test-listener:5.14.0")
+    testImplementation("org.mock-server:mockserver-netty:5.15.0")
+    testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.1.0")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.1")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.1")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.5")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.5")
 }
 
 dependencyManagement {

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.account.transaction;
 
+import static java.util.Comparator.reverseOrder;
+
 import ee.tuleva.onboarding.account.CashFlowService;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
@@ -26,6 +28,7 @@ public class TransactionController {
     return cashFlowStatement.getTransactions().stream()
         .filter(cashFlow -> cashFlow.isContribution() || cashFlow.isSubtraction())
         .map(Transaction::from)
+        .sorted(reverseOrder())
         .toList();
   }
 }

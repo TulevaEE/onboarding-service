@@ -32,14 +32,6 @@ class TransactionControllerSpec extends BaseControllerSpec {
     mockMvc.perform(get("/v1/transactions"))
         .andExpect(status().isOk())
         .andExpect(jsonPath('$[0]', is([
-            amount  : cashFlows[0].amount.doubleValue(),
-            currency: cashFlows[0].currency.name(),
-            time    : cashFlows[0].time.toString(),
-            isin    : cashFlows[0].isin,
-            type    : cashFlows[0].type.toString(),
-            comment : cashFlows[0].comment.toString()
-        ])))
-        .andExpect(jsonPath('$[1]', is([
             amount  : cashFlows[1].amount.doubleValue(),
             currency: cashFlows[1].currency.name(),
             time    : cashFlows[1].time.toString(),
@@ -47,13 +39,21 @@ class TransactionControllerSpec extends BaseControllerSpec {
             type    : cashFlows[1].type.toString(),
             comment : cashFlows[1].comment.toString()
         ])))
-        .andExpect(jsonPath('$[2]', is([
+        .andExpect(jsonPath('$[1]', is([
             amount  : cashFlows[2].amount.doubleValue(),
             currency: cashFlows[2].currency.name(),
             time    : cashFlows[2].time.toString(),
             isin    : cashFlows[2].isin,
             type    : cashFlows[2].type.toString(),
             comment : cashFlows[2].comment.toString()
+        ])))
+        .andExpect(jsonPath('$[2]', is([
+            amount  : cashFlows[0].amount.doubleValue(),
+            currency: cashFlows[0].currency.name(),
+            time    : cashFlows[0].time.toString(),
+            isin    : cashFlows[0].isin,
+            type    : cashFlows[0].type.toString(),
+            comment : cashFlows[0].comment.toString()
         ])))
         .andExpect(jsonPath('$', hasSize(3)))
   }

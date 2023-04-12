@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.epis.cashflows;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.REFUND;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.SUBTRACTION;
 import static java.util.Comparator.comparing;
@@ -39,11 +40,11 @@ public class CashFlow implements Comparable<CashFlow> {
   }
 
   public boolean isContribution() {
-    return type == CONTRIBUTION_CASH || type == CONTRIBUTION;
+    return type == CONTRIBUTION_CASH || type == CONTRIBUTION_CASH_WORKPLACE || type == CONTRIBUTION;
   }
 
   public boolean isCashContribution() {
-    return type == CONTRIBUTION_CASH;
+    return type == CONTRIBUTION_CASH || type == CONTRIBUTION_CASH_WORKPLACE;
   }
 
   public boolean isSubtraction() {
@@ -84,6 +85,7 @@ public class CashFlow implements Comparable<CashFlow> {
 
   public enum Type {
     CONTRIBUTION_CASH,
+    CONTRIBUTION_CASH_WORKPLACE,
     CONTRIBUTION,
     SUBTRACTION,
     CASH,

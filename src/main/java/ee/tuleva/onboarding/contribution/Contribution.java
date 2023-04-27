@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.contribution;
 
 import ee.tuleva.onboarding.currency.Currency;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 

@@ -47,4 +47,10 @@
            eternal="true">
     </cache>
 
+  <cache name="contributions"
+         maxElementsInMemory="10000"
+         eternal="true"
+         memoryStoreEvictionPolicy="LRU">
+  </cache>
+
 </ehcache>

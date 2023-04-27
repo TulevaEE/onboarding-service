@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.epis
 
-import ee.tuleva.onboarding.auth.PersonFixture
+import ee.tuleva.onboarding.contribution.Contribution
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
@@ -32,6 +32,8 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 import static org.mockserver.model.HttpRequest.request
@@ -98,7 +100,7 @@ class EpisServiceIntSpec extends Specification {
                         }]
                         """, MatchType.STRICT)))
     when:
-    List<ApplicationDTO> applications = episService.getApplications(PersonFixture.samplePerson())
+    List<ApplicationDTO> applications = episService.getApplications(samplePerson())
     then:
     applications.size() == 1
     applications.first().status == ApplicationStatus.PENDING
@@ -130,12 +132,12 @@ class EpisServiceIntSpec extends Specification {
     with(executor) {
       submit({
         setUpSecurityContext()
-        episService.getApplications(PersonFixture.samplePerson())
+        episService.getApplications(samplePerson())
         SecurityContextHolder.clearContext()
       })
       submit({
         setUpSecurityContext()
-        episService.getApplications(PersonFixture.samplePerson())
+        episService.getApplications(samplePerson())
         SecurityContextHolder.clearContext()
       })
       shutdown()
@@ -161,12 +163,12 @@ class EpisServiceIntSpec extends Specification {
     with(executor) {
       submit({
         setUpSecurityContext()
-        episService.getCashFlowStatement(PersonFixture.samplePerson(), LocalDate.EPOCH, LocalDate.EPOCH)
+        episService.getCashFlowStatement(samplePerson(), LocalDate.EPOCH, LocalDate.EPOCH)
         SecurityContextHolder.clearContext()
       })
       submit({
         setUpSecurityContext()
-        episService.getCashFlowStatement(PersonFixture.samplePerson(), LocalDate.EPOCH, LocalDate.EPOCH)
+        episService.getCashFlowStatement(samplePerson(), LocalDate.EPOCH, LocalDate.EPOCH)
         SecurityContextHolder.clearContext()
       })
       shutdown()
@@ -178,7 +180,7 @@ class EpisServiceIntSpec extends Specification {
 
   def "clear cache does not fail"() {
     when:
-    episService.clearCache(PersonFixture.samplePerson())
+    episService.clearCache(samplePerson())
     then:
     noExceptionThrown()
   }
@@ -248,6 +250,37 @@ class EpisServiceIntSpec extends Specification {
 
     when:
     ApplicationResponseDTO response = episService.sendMandate(mandate)
+
+    then:
+    response == expectedResponse
+  }
+
+  def "can get contributions"() {
+    given:
+    def person = samplePerson()
+
+    def expectedResponse = [new Contribution(
+        Instant.parse("2023-04-26T10:00:00Z"),
+        "Tuleva Fondid AS",
+        12.34,
+        EUR,
+        2
+    )]
+
+    mockServerClient
+        .when(
+            request()
+                .withMethod("GET")
+                .withPath("/contributions")
+        )
+        .respond(
+            response()
+                .withContentType(MediaType.APPLICATION_JSON)
+                .withBody(json(expectedResponse, MatchType.STRICT))
+        )
+
+    when:
+    def response = episService.getContributions(person)
 
     then:
     response == expectedResponse

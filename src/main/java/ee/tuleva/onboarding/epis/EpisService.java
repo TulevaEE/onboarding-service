@@ -4,6 +4,7 @@ import static java.util.Arrays.asList;
 import static org.springframework.http.HttpMethod.GET;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.contribution.Contribution;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.application.ApplicationResponse;
 import ee.tuleva.onboarding.epis.cancellation.CancellationDto;
@@ -46,6 +47,7 @@ public class EpisService {
   private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
   private final String CASH_FLOW_STATEMENT_CACHE_NAME = "cashFlowStatement";
   private final String FUNDS_CACHE_NAME = "funds";
+  private final String CONTRIBUTIONS_CACHE_NAME = "contributions";
 
   private final RestOperations userTokenRestTemplate;
   private final OAuth2RestOperations clientCredentialsRestTemplate;
@@ -120,6 +122,18 @@ public class EpisService {
 
     ResponseEntity<FundBalanceDto[]> response =
         userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), FundBalanceDto[].class);
+
+    return asList(response.getBody());
+  }
+
+  @Cacheable(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.personalCode")
+  public List<Contribution> getContributions(Person person) {
+    String url = episServiceUrl + "/contributions";
+
+    log.info("Getting contributions for {}", person.getPersonalCode());
+
+    ResponseEntity<Contribution[]> response =
+        userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), Contribution[].class);
 
     return asList(response.getBody());
   }

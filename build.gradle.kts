@@ -21,7 +21,7 @@ plugins {
     id("org.springframework.boot") version "2.7.11"
     id("io.spring.dependency-management") version "1.1.0"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
-    id("com.diffplug.spotless") version "6.17.0"
+    id("com.diffplug.spotless") version "6.18.0"
     jacoco
 }
 

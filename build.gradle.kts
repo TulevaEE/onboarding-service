@@ -88,7 +88,7 @@ dependencies {
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.1.4")
-    implementation("org.digidoc4j:digidoc4j:5.0.0") {
+    implementation("org.digidoc4j:digidoc4j:5.1.0") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 

@@ -21,7 +21,7 @@ plugins {
     id("org.springframework.boot") version "2.7.11"
     id("io.spring.dependency-management") version "1.1.0"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
-    id("com.diffplug.spotless") version "6.17.0"
+    id("com.diffplug.spotless") version "6.18.0"
     jacoco
 }
 
@@ -72,14 +72,14 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:9.31")
 
-    implementation("org.springdoc:springdoc-openapi-ui:1.6.15")
-    implementation("org.springdoc:springdoc-openapi-security:1.6.15")
+    implementation("org.springdoc:springdoc-openapi-ui:1.7.0")
+    implementation("org.springdoc:springdoc-openapi-security:1.7.0")
 
     runtimeOnly("org.postgresql:postgresql")
 
     implementation("org.flywaydb:flyway-core")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.jsoup:jsoup:1.15.4")
+    implementation("org.jsoup:jsoup:1.16.1")
     implementation("commons-net:commons-net:3.9.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("net.sf.ehcache:ehcache:2.10.9.2")
@@ -88,12 +88,12 @@ dependencies {
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.1.4")
-    implementation("org.digidoc4j:digidoc4j:5.0.0") {
+    implementation("org.digidoc4j:digidoc4j:5.1.0") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
-    implementation("io.sentry:sentry-spring-boot-starter:6.17.0")
-    implementation("io.sentry:sentry-logback:6.17.0")
+    implementation("io.sentry:sentry-spring-boot-starter:6.18.1")
+    implementation("io.sentry:sentry-logback:6.18.1")
 
     implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
 
@@ -125,8 +125,8 @@ dependencies {
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.1.0")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.5")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.5")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.6")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.6")
 }
 
 dependencyManagement {

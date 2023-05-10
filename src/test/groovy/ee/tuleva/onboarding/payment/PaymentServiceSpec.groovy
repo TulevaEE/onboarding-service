@@ -26,7 +26,7 @@ class PaymentServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def payment = aNewPayment()
-    paymentRepository.findAllByUserPersonalCode(person.personalCode) >> [payment]
+    paymentRepository.findAllByRecipientPersonalCode(person.personalCode) >> [payment]
     when:
     def payments = paymentService.getPayments(person)
     then:

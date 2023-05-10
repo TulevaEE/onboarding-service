@@ -22,10 +22,10 @@ import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.FAILED
 import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarApiFundResponse
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva3rdPillarFund
-import static ee.tuleva.onboarding.mandate.application.PaymentApplicationService.TULEVA_3RD_PILLAR_FUND_ISIN
+import static PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
 import static ee.tuleva.onboarding.payment.PaymentFixture.*
 
-class PaymentApplicationServiceSpec extends Specification {
+class PaymentLinkingServiceSpec extends Specification {
 
   static final Duration fiveDays = Duration.ofDays(7)
   static final Duration tenMinutes = Duration.ofMinutes(10)
@@ -41,8 +41,8 @@ class PaymentApplicationServiceSpec extends Specification {
   FundRepository fundRepository = Mock()
   PublicHolidays publicHolidays = new PublicHolidays(TestClockHolder.clock)
   LocaleService localeService = new MockLocaleService()
-  PaymentApplicationService paymentApplicationService =
-      new PaymentApplicationService(paymentService, cashFlowService, fundRepository, localeService, TestClockHolder.clock, publicHolidays)
+  PaymentLinkingService paymentApplicationService =
+      new PaymentLinkingService(paymentService, cashFlowService, fundRepository, localeService, TestClockHolder.clock, publicHolidays)
 
   def "can get payment applications"() {
     given:

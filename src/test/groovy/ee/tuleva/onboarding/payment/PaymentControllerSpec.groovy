@@ -68,7 +68,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     expect:
     mvc.perform(get("/v1/payments/success")
         .param("payment_token", aSerializedPaymentProviderToken))
-        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/success"))
+        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-success"))
   }
 
   def "GET /success redirects back to payment screen on cancelled payment"() {
@@ -78,7 +78,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     expect:
     mvc.perform(get("/v1/payments/success")
         .param("payment_token", aSerializedPaymentProviderToken))
-        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-flow/payment"))
+        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-payment"))
   }
 
   def "POST /notifications"() {

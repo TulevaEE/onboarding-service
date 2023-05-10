@@ -9,5 +9,5 @@ public interface PaymentRepository extends CrudRepository<Payment, Long> {
 
   Optional<Payment> findByInternalReference(UUID internalReference);
 
-  List<Payment> findAllByUserPersonalCode(String personalCode);
+  List<Payment> findAllByRecipientPersonalCode(String personalCode);
 }

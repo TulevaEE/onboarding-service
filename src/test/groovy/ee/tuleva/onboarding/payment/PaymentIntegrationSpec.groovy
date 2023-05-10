@@ -8,7 +8,7 @@ import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.event.EventLogRepository
-import ee.tuleva.onboarding.mandate.application.PaymentApplicationService
+import ee.tuleva.onboarding.mandate.application.PaymentLinkingService
 import ee.tuleva.onboarding.payment.provider.PaymentProviderFixture
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserRepository
@@ -35,9 +35,10 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowStatementFor3rdPillarPayment
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.mandate.application.PaymentApplicationService.TULEVA_3RD_PILLAR_FUND_ISIN
+import static ee.tuleva.onboarding.mandate.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentAmount
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedCallbackFinalizedToken
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.getAnInternalReference
 import static org.mockserver.model.HttpRequest.request
 import static org.mockserver.model.HttpResponse.response
@@ -64,7 +65,7 @@ class PaymentIntegrationSpec extends Specification {
   @Autowired EventLogRepository eventLogRepository
 
   @Autowired
-  PaymentApplicationService paymentApplicationService
+  PaymentLinkingService paymentApplicationService
 
   @Value('${frontend.url}')
   String frontendUrl
@@ -138,7 +139,7 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private void expectToBeAbleToReceivePaymentNotification() {
-    paymentController.paymentCallback(PaymentProviderFixture.aSerializedCallbackFinalizedToken)
+    paymentController.paymentCallback(aSerializedCallbackFinalizedToken)
     assert paymentRepository.findAll().size() == 1
   }
 
@@ -151,8 +152,8 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private void expectThatPaymentCallbackRedirectsUser() {
-    RedirectView result = paymentController.getPaymentSuccessRedirect(PaymentProviderFixture.aSerializedCallbackFinalizedToken)
-    assert result.url == frontendUrl + "/3rd-pillar-flow/success"
+    RedirectView result = paymentController.getPaymentSuccessRedirect(aSerializedCallbackFinalizedToken)
+    assert result.url == frontendUrl + "/3rd-pillar-success"
   }
 
   private void expectAPaymentLink(AuthenticatedPerson anAuthenticatedPerson) {

@@ -13,6 +13,8 @@ class PaymentReference {
 
   private String personalCode;
 
+  private String recipientPersonalCode;
+
   private UUID uuid;
 
   private Locale locale;

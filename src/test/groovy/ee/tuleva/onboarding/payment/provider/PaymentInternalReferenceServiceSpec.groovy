@@ -6,6 +6,8 @@ import ee.tuleva.onboarding.locale.LocaleService
 import groovy.json.JsonSlurper
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
+
 class PaymentInternalReferenceServiceSpec extends Specification {
 
   ObjectMapper objectMapper = new ObjectMapper()
@@ -20,7 +22,7 @@ class PaymentInternalReferenceServiceSpec extends Specification {
   def "Creates a correct payment reference"() {
     when:
     1 * localeService.currentLocale >> Locale.ENGLISH
-    String referenceString = paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson)
+    String referenceString = paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, aPaymentData)
     def slurper = new JsonSlurper()
     def reference = slurper.parseText(referenceString)
     then:

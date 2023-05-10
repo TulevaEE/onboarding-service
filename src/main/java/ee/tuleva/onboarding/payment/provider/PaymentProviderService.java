@@ -6,8 +6,6 @@ import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentLink;
@@ -31,8 +29,6 @@ public class PaymentProviderService implements PaymentLinkGenerator {
 
   private final Clock clock;
 
-  private final EpisService episService;
-
   private final PaymentInternalReferenceService paymentInternalReferenceService;
 
   private final PaymentProviderConfiguration paymentProviderConfiguration;
@@ -46,9 +42,6 @@ public class PaymentProviderService implements PaymentLinkGenerator {
   private String apiUrl;
 
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
-
-    ContactDetails contactDetails = episService.getContactDetails(person);
-
     Map<String, Object> payload = new HashMap<>();
     PaymentProviderBank bankConfiguration =
         paymentProviderConfiguration.getPaymentProviderBank(paymentData.getBank());
@@ -56,11 +49,14 @@ public class PaymentProviderService implements PaymentLinkGenerator {
     payload.put("currency", paymentData.getCurrency());
     payload.put("amount", paymentData.getAmount());
     payload.put("access_key", bankConfiguration.getAccessKey());
-    payload.put("merchant_reference", paymentInternalReferenceService.getPaymentReference(person));
+    payload.put(
+        "merchant_reference",
+        paymentInternalReferenceService.getPaymentReference(person, paymentData));
     payload.put("merchant_return_url", apiUrl + "/payments/success");
     payload.put("merchant_notification_url", apiUrl + "/payments/notification");
-    payload.put("payment_information_unstructured", "30101119828, EE3600001707");
-    payload.put("payment_information_structured", contactDetails.getPensionAccountNumber());
+    payload.put(
+        "payment_information_unstructured",
+        "30101119828, IK:%s, EE3600001707".formatted(paymentData.getRecipientPersonalCode()));
     payload.put("preselected_locale", getLanguage());
     payload.put("exp", clock.instant().getEpochSecond() + 600);
     payload.put("checkout_first_name", person.getFirstName());

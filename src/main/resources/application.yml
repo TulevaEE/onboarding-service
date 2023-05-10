@@ -82,7 +82,7 @@ frontend:
   url: http://localhost:3000
 
 api:
-  url: http://localhost:8080/v1
+  url: http://localhost:9000/v1
 
 pensionikeskus:
   statistics:

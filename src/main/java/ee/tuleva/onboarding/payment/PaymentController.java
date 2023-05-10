@@ -38,9 +38,9 @@ public class PaymentController {
       @RequestParam("payment_token") String serializedToken) {
     Optional<Payment> payment = paymentService.processToken(serializedToken);
     if (payment.isPresent()) {
-      return new RedirectView(frontendUrl + "/3rd-pillar-flow/success");
+      return new RedirectView(frontendUrl + "/3rd-pillar-success");
     }
-    return new RedirectView(frontendUrl + "/3rd-pillar-flow/payment");
+    return new RedirectView(frontendUrl + "/3rd-pillar-payment");
   }
 
   @PostMapping("/notifications")

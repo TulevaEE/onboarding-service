@@ -62,6 +62,7 @@ public class PaymentProviderCallbackService {
             .currency(EUR)
             .internalReference(internalReference.getUuid())
             .user(user)
+            .recipientPersonalCode(internalReference.getRecipientPersonalCode())
             .build();
 
     Payment payment = paymentRepository.save(paymentToBeSaved);

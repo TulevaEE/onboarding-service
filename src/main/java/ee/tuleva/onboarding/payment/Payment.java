@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.payment;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static javax.persistence.EnumType.*;
+import static javax.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.user.User;
@@ -9,13 +9,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.UUID;
-import javax.persistence.Entity;
-import javax.persistence.Enumerated;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.PrePersist;
+import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -44,6 +38,8 @@ public class Payment implements Comparable<Payment> {
   @Builder.Default
   private Currency currency = EUR;
 
+  @NotNull private String recipientPersonalCode;
+
   private Instant createdTime;
 
   @PrePersist
@@ -56,6 +52,7 @@ public class Payment implements Comparable<Payment> {
     return Comparator.comparing(Payment::getCreatedTime, Comparator.nullsLast(Instant::compareTo))
         .thenComparing(Payment::getAmount)
         .thenComparing(Payment::getCurrency)
+        .thenComparing(Payment::getRecipientPersonalCode)
         .thenComparing(Payment::getInternalReference)
         .thenComparing(Payment::getId, Comparator.nullsLast(Long::compareTo))
         .compare(this, other);

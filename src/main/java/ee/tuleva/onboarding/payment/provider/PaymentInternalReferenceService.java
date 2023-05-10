@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.payment.provider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.locale.LocaleService;
+import ee.tuleva.onboarding.payment.PaymentData;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -17,10 +18,13 @@ class PaymentInternalReferenceService {
   private final LocaleService localeService;
 
   @SneakyThrows
-  public String getPaymentReference(Person person) {
+  public String getPaymentReference(Person person, PaymentData paymentData) {
     PaymentReference paymentReference =
         new PaymentReference(
-            person.getPersonalCode(), UUID.randomUUID(), localeService.getCurrentLocale());
+            person.getPersonalCode(),
+            paymentData.getRecipientPersonalCode(),
+            UUID.randomUUID(),
+            localeService.getCurrentLocale());
     return mapper.writeValueAsString(paymentReference);
   }
 }

@@ -22,15 +22,15 @@ public class PaymentService {
   private final PaymentProviderCallbackService paymentProviderCallbackService;
 
   public List<Payment> getPayments(Person person) {
-    return paymentRepository.findAllByUserPersonalCode(person.getPersonalCode());
+    return paymentRepository.findAllByRecipientPersonalCode(person.getPersonalCode());
   }
 
   @Trackable(PAYMENT_LINK)
   PaymentLink getLink(PaymentData paymentData, Person person) {
-    if (paymentData.isRecurring()) {
-      return recurringPaymentService.getPaymentLink(paymentData, person);
-    }
-    return paymentProviderService.getPaymentLink(paymentData, person);
+    return switch (paymentData.getType()) {
+      case SINGLE, GIFT -> paymentProviderService.getPaymentLink(paymentData, person);
+      case RECURRING -> recurringPaymentService.getPaymentLink(paymentData, person);
+    };
   }
 
   Optional<Payment> processToken(String serializedToken) {

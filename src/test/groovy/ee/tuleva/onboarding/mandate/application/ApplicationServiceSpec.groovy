@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
-import ee.tuleva.onboarding.auth.PersonFixture
-import ee.tuleva.onboarding.auth.principal.Person
-import ee.tuleva.onboarding.currency.Currency
+
 import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.epis.EpisService
@@ -29,7 +27,6 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WIT
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.PAYMENT
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
-import static java.util.Currency.*
 
 class ApplicationServiceSpec extends Specification {
 
@@ -37,7 +34,7 @@ class ApplicationServiceSpec extends Specification {
   LocaleService localeService = Mock()
   FundRepository fundRepository = Mock()
   MandateDeadlinesService mandateDeadlinesService = Mock()
-  PaymentApplicationService paymentApplicationService = Mock()
+  PaymentLinkingService paymentApplicationService = Mock()
 
   ApplicationService applicationService =
     new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService)

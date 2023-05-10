@@ -39,7 +39,7 @@ public class ApplicationService {
   private final LocaleService localeService;
   private final FundRepository fundRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
-  private final PaymentApplicationService paymentApplicationService;
+  private final PaymentLinkingService paymentLinkingService;
 
   public Application<?> getApplication(Long id, AuthenticatedPerson authenticatedPerson) {
     return getAllApplications(authenticatedPerson).stream()
@@ -56,7 +56,7 @@ public class ApplicationService {
     List<Application<?>> applications = new ArrayList<>();
     applications.addAll(getTransferApplications(person));
     applications.addAll(getWithdrawalApplications(person));
-    applications.addAll(paymentApplicationService.getPaymentApplications(person));
+    applications.addAll(paymentLinkingService.getPaymentApplications(person));
     Collections.sort(applications);
     return applications;
   }

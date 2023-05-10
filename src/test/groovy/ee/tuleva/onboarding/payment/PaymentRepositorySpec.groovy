@@ -75,12 +75,13 @@ class PaymentRepositorySpec extends Specification {
     Payment payment = aNewPayment().tap {
       id = null
       user = sampleUser
+      recipientPersonalCode = sampleUser.personalCode
     }
     entityManager.persist(payment)
     entityManager.flush()
 
     when:
-    def payments = paymentRepository.findAllByUserPersonalCode(sampleUser.personalCode)
+    def payments = paymentRepository.findAllByRecipientPersonalCode(sampleUser.personalCode)
 
     then:
     payments.size() == 1

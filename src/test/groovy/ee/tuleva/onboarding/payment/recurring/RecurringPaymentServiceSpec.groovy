@@ -19,8 +19,8 @@ class RecurringPaymentServiceSpec extends Specification {
 
   def "can get a recurring payment link"() {
     given:
-    def paymentData = new PaymentData(12.34, EUR, RECURRING, bank)
     def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, 12.34, EUR, RECURRING, bank)
 
     when:
     def link = recurringPaymentService.getPaymentLink(paymentData, person)

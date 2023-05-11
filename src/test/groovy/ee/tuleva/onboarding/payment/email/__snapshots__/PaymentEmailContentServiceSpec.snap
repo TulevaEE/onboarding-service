@@ -4,7 +4,7 @@ third_pillar_payment_success[en]=[
   <body>
     <p>Hi Jordan,</p>
     <p>I’m glad you’re saving in the third pillar with us.</p>
-    <p>Your payment has successfully arrived at the Estonian Pension Registry. Your new contribution will appear on your pension account by the end of the next working day.</p>
+    <p>Your payment has successfully arrived at the Estonian Pension Registry. Your new contribution will appear on the pension account by the end of the next working day.</p>
 
     <p>If you have any questions please contact us via <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a> or 644 5100.</p>
     <br/>
@@ -21,7 +21,7 @@ third_pillar_payment_success[et]=[
   <body>
     <p>Tere, Jordan.</p>
     <p>Mul on hea meel, et kogud meiega koos kolmandasse sambasse.</p>
-    <p>Sinu sissemakse on edukalt Pensionikeskusesse jõudnud. Uued osakud jõuavad sinu pensionikontole järgmise tööpäeva lõpuks.</p>
+    <p>Sinu sissemakse on edukalt Pensionikeskusesse jõudnud. Uued osakud jõuavad pensionikontole järgmise tööpäeva lõpuks.</p>
 
     <p>Kui sul tekib ükskõik milliseid küsimusi, võta kõhklemata ühendust: e-post <a href="mailto:tuleva@tuleva.ee">tuleva@tuleva.ee</a>, tel 644 5100.</p>
     <br/>

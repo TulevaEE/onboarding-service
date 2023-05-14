@@ -31,6 +31,9 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
     fundData | expectedWeightedAverageFee
     [] | BigDecimal.ZERO
     [
+        [value: new BigDecimal("0"), ongoingChargesFigure: new BigDecimal("0.01"), unavailableValue: BigDecimal.ZERO]
+    ] | new BigDecimal("0.0100")
+    [
         [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.01"), unavailableValue: BigDecimal.ZERO]
     ] | new BigDecimal("0.0100")
     [

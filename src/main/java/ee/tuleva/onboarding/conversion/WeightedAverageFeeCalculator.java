@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.conversion;
 
 import ee.tuleva.onboarding.account.FundBalance;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
@@ -9,9 +8,7 @@ import java.util.List;
 public class WeightedAverageFeeCalculator {
 
   public BigDecimal getValueSum(List<FundBalance> funds) {
-    return funds.stream()
-        .map(FundBalance::getTotalValue)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    return funds.stream().map(FundBalance::getTotalValue).reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   public BigDecimal getWeightedAverageFee(List<FundBalance> funds) {
@@ -32,7 +29,10 @@ public class WeightedAverageFeeCalculator {
     BigDecimal weightedArithmeticMean = BigDecimal.ZERO;
     for (FundBalance fund : funds) {
       BigDecimal fundTotalValue = fund.getTotalValue();
-      BigDecimal weightedValue = fundTotalValue.multiply(fund.getFund().getOngoingChargesFigure()).divide(valueSum, 4, RoundingMode.HALF_UP);
+      BigDecimal weightedValue =
+          fundTotalValue
+              .multiply(fund.getFund().getOngoingChargesFigure())
+              .divide(valueSum, 4, RoundingMode.HALF_UP);
       weightedArithmeticMean = weightedArithmeticMean.add(weightedValue);
     }
     return weightedArithmeticMean;

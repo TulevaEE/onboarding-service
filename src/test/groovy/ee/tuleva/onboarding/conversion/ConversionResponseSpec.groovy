@@ -10,7 +10,11 @@ class ConversionResponseSpec extends Specification {
   def "is Tuleva second pillar selected"() {
     given:
     ConversionResponse.Conversion secondPillar = Mock()
-    def conversionResponse = new ConversionResponse(secondPillar, notFullyConverted().thirdPillar)
+    def conversionResponse = new ConversionResponse(
+        secondPillar,
+        notFullyConverted().thirdPillar,
+        BigDecimal.ZERO
+    )
     secondPillar.isSelectionComplete() >> selectionComplete
 
     when:
@@ -27,7 +31,11 @@ class ConversionResponseSpec extends Specification {
 
   def "is second pillar fully converted to Tuleva"() {
     given:
-    def conversionResponse = new ConversionResponse(secondPillar, notFullyConverted().thirdPillar)
+    def conversionResponse = new ConversionResponse(
+        secondPillar,
+        notFullyConverted().thirdPillar,
+        BigDecimal.ZERO
+    )
 
     when:
     def answer = conversionResponse.isSecondPillarFullyConverted()
@@ -43,7 +51,11 @@ class ConversionResponseSpec extends Specification {
 
   def "is third pillar fully converted to Tuleva"() {
     given:
-    def conversionResponse = new ConversionResponse(notFullyConverted().secondPillar, thirdPillar)
+    def conversionResponse = new ConversionResponse(
+        notFullyConverted().secondPillar,
+        thirdPillar,
+        BigDecimal.ZERO
+    )
 
     when:
     def answer = conversionResponse.isThirdPillarFullyConverted()

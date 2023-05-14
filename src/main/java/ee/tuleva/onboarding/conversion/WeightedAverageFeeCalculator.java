@@ -19,11 +19,10 @@ public class WeightedAverageFeeCalculator {
 
     BigDecimal valueSum = getValueSum(funds);
     if (valueSum.equals(BigDecimal.ZERO)) {
-      BigDecimal arithmeticMean = BigDecimal.ZERO;
-      for (FundBalance fund : funds) {
-        arithmeticMean = arithmeticMean.add(fund.getFund().getOngoingChargesFigure());
-      }
-      return arithmeticMean.divide(new BigDecimal(funds.size()), RoundingMode.HALF_UP);
+      return funds.stream()
+          .map(fund -> fund.getFund().getOngoingChargesFigure())
+          .reduce(BigDecimal.ZERO, BigDecimal::add)
+          .divide(BigDecimal.valueOf(funds.size()), RoundingMode.HALF_UP);
     }
 
     BigDecimal weightedArithmeticMean = BigDecimal.ZERO;

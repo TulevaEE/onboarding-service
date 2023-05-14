@@ -41,11 +41,16 @@ public class UserConversionService {
   private final Clock estonianClock;
   private final ApplicationService applicationService;
 
+  private final WeightedAverageFeeCalculator weightedAverageFeeCalculator = new WeightedAverageFeeCalculator();
+
   public ConversionResponse getConversion(Person person) {
     List<FundBalance> fundBalances = accountStatementService.getAccountStatement(person);
     CashFlowStatement cashFlowStatement = cashFlowService.getCashFlowStatement(person);
 
     return ConversionResponse.builder()
+        .weightedAverageFee(
+            weightedAverageFeeCalculator.getWeightedAverageFee(fundBalances)
+        )
         .secondPillar(
             Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 2))

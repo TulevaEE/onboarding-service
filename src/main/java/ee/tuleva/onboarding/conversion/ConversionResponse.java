@@ -12,6 +12,8 @@ public class ConversionResponse {
   private Conversion secondPillar;
   private Conversion thirdPillar;
 
+  private BigDecimal weightedAverageFee;
+
   @JsonIgnore
   public boolean isSecondPillarFullyConverted() {
     return secondPillar.isFullyConverted();

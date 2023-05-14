@@ -46,6 +46,7 @@ class UserConversionServiceSpec extends Specification {
     ConversionResponse response = service.getConversion(samplePerson)
 
     then:
+    response.weightedAverageFee == BigDecimal.ZERO
     response.secondPillar.pendingWithdrawal
     !response.thirdPillar.pendingWithdrawal
   }

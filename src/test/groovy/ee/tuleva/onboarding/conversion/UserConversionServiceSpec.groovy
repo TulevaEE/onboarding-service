@@ -354,10 +354,12 @@ class UserConversionServiceSpec extends Specification {
                       new Exchange(
                           new ApiFundResponse(Fund.builder()
                               .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
+                              .ongoingChargesFigure(BigDecimal.TEN)
                               .pillar(2)
                               .build(), Locale.ENGLISH),
                           new ApiFundResponse(Fund.builder()
                               .isin("EE234")
+                              .ongoingChargesFigure(BigDecimal.TEN)
                               .pillar(2)
                               .fundManager(FundManager.builder().name(FundManager.TULEVA_FUND_MANAGER_NAME).build())
                               .build(), Locale.ENGLISH),
@@ -385,10 +387,12 @@ class UserConversionServiceSpec extends Specification {
                           new ApiFundResponse(Fund.builder()
                               .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
                               .pillar(2)
+                              .ongoingChargesFigure(BigDecimal.TEN)
                               .build(), Locale.ENGLISH),
                           new ApiFundResponse(Fund.builder()
                               .isin("EE234")
                               .pillar(2)
+                              .ongoingChargesFigure(BigDecimal.TEN)
                               .fundManager(FundManager.builder().name(FundManager.TULEVA_FUND_MANAGER_NAME).build())
                               .build(), Locale.ENGLISH),
                           null,

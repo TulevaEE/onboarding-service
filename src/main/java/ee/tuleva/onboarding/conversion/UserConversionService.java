@@ -49,7 +49,9 @@ public class UserConversionService {
     CashFlowStatement cashFlowStatement = cashFlowService.getCashFlowStatement(person);
 
     return ConversionResponse.builder()
-        .weightedAverageFee(weightedAverageFeeCalculator.getWeightedAverageFee(fundBalances))
+        .weightedAverageFee(
+            weightedAverageFeeCalculator.getWeightedAverageFee(
+                fundBalances, getPendingExchanges(2, person).toList()))
         .secondPillar(
             Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 2))

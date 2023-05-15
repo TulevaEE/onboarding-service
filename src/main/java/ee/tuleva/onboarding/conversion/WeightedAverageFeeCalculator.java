@@ -18,7 +18,7 @@ public class WeightedAverageFeeCalculator {
     }
 
     BigDecimal valueSum = getValueSum(funds);
-    if (valueSum.equals(BigDecimal.ZERO)) {
+    if (valueSum.compareTo(BigDecimal.ZERO) == 0) {
       return funds.stream()
           .map(fund -> fund.getFund().getOngoingChargesFigure())
           .reduce(BigDecimal.ZERO, BigDecimal::add)

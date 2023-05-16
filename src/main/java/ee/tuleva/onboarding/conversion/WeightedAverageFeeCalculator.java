@@ -20,7 +20,7 @@ public class WeightedAverageFeeCalculator {
     }
 
     BigDecimal valueSum = getValueSum(funds);
-    if (valueSum.equals(BigDecimal.ZERO)) {
+    if (valueSum.compareTo(BigDecimal.ZERO) == 0) {
       var fromFundIsins =
           pendingExchanges.stream().map(exchange -> exchange.getSourceFund().getIsin()).toList();
       var fundsThatDoNotIncludeLeavingFunds =

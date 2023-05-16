@@ -107,4 +107,53 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
         [value: new BigDecimal("200"), ongoingChargesFigure: new BigDecimal("0.03"), unavailableValue: BigDecimal.ZERO]
     ] | new BigDecimal("0.0244")
   }
+
+  @Unroll
+  def "Calculates the weighted average fee correctly with pending pik exchanges"() {
+    given:
+    List<FundBalance> funds = fundData.collect { fundInfo ->
+      Fund fund = Fund.builder()
+          .ongoingChargesFigure(fundInfo.ongoingChargesFigure)
+          .isin(FundFixture.tuleva2ndPillarStockFund.isin)
+          .build()
+
+      FundBalance.builder()
+          .fund(fund)
+          .value(fundInfo.value)
+          .unavailableValue(fundInfo.unavailableValue)
+          .build()
+    }
+
+    def locale = LocaleContextHolder.getLocale()
+
+    def exchange = new Exchange(
+        new ApiFundResponse(FundFixture.tuleva2ndPillarStockFund, locale),
+        null,
+        "target PIK",
+        BigDecimal.TEN
+    )
+
+    def exchanges = List.of(exchange)
+
+    expect:
+    weightedAverageFeeCalculator.getWeightedAverageFee(funds, exchanges) == expectedWeightedAverageFee
+
+    where:
+    fundData | expectedWeightedAverageFee
+    [] | BigDecimal.ZERO
+    [
+        [value: new BigDecimal("0"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: BigDecimal.ZERO]
+    ] | new BigDecimal("0")
+    [
+        [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.01"), unavailableValue: BigDecimal.ZERO]
+    ] | new BigDecimal("0.0090")
+    [
+        [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: BigDecimal.ZERO],
+        [value: new BigDecimal("200"), ongoingChargesFigure: new BigDecimal("0.03"), unavailableValue: BigDecimal.ZERO]
+    ] | new BigDecimal("0.0250")
+    [
+        [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: new BigDecimal("100")],
+        [value: new BigDecimal("200"), ongoingChargesFigure: new BigDecimal("0.03"), unavailableValue: BigDecimal.ZERO]
+    ] | new BigDecimal("0.0238")
+  }
 }

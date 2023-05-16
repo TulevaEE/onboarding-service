@@ -36,7 +36,7 @@ public class WeightedAverageFeeCalculator {
 
       var toFundWeightedValue =
           pendingExchanges.stream()
-              .map(exchange -> exchange.getTargetFund().getOngoingChargesFigure())
+              .map(this::getOngoingChargesFigure)
               .reduce(BigDecimal.ZERO, BigDecimal::add)
               .divide(BigDecimal.valueOf(funds.size()), RoundingMode.HALF_UP);
 
@@ -62,11 +62,9 @@ public class WeightedAverageFeeCalculator {
                   exchange ->
                       exchange
                           .getAmount()
-                          .multiply(exchange.getTargetFund().getOngoingChargesFigure())
+                          .multiply(getOngoingChargesFigure(exchange))
                           .divide(valueSum, 4, RoundingMode.HALF_UP))
               .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-      //if pik transfer then no target fund
 
       BigDecimal weightedValue =
           (fundTotalValue.subtract(amountThatLeavesThisFund))
@@ -76,5 +74,11 @@ public class WeightedAverageFeeCalculator {
           weightedArithmeticMean.add(weightedValue).add(weightedValueOfExchanges);
     }
     return weightedArithmeticMean;
+  }
+
+  private BigDecimal getOngoingChargesFigure(Exchange exchange) {
+    return (exchange.getTargetFund() == null)
+        ? BigDecimal.ZERO
+        : exchange.getTargetFund().getOngoingChargesFigure();
   }
 }

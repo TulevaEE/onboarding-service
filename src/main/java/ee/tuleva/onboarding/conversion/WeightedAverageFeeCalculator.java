@@ -66,6 +66,8 @@ public class WeightedAverageFeeCalculator {
                           .divide(valueSum, 4, RoundingMode.HALF_UP))
               .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+      //if pik transfer then no target fund
+
       BigDecimal weightedValue =
           (fundTotalValue.subtract(amountThatLeavesThisFund))
               .multiply(fund.getFund().getOngoingChargesFigure())

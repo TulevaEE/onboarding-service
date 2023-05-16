@@ -1,25 +1,24 @@
 package ee.tuleva.onboarding.conversion
 
+import ee.tuleva.onboarding.account.FundBalance
 import ee.tuleva.onboarding.fund.ApiFundResponse
 import ee.tuleva.onboarding.fund.Fund
-import ee.tuleva.onboarding.account.FundBalance
-import ee.tuleva.onboarding.fund.FundFixture
 import ee.tuleva.onboarding.mandate.application.Exchange
 import org.springframework.context.i18n.LocaleContextHolder
 import spock.lang.Specification
-import spock.lang.Unroll
+
+import static ee.tuleva.onboarding.fund.FundFixture.*
 
 class WeightedAverageFeeCalculatorSpec extends Specification {
 
   WeightedAverageFeeCalculator weightedAverageFeeCalculator = new WeightedAverageFeeCalculator()
 
-  @Unroll
   def "Calculates the weighted average fee correctly"() {
     given:
     List<FundBalance> funds = fundData.collect { fundInfo ->
       Fund fund = Fund.builder()
           .ongoingChargesFigure(fundInfo.ongoingChargesFigure)
-          .isin(FundFixture.tuleva2ndPillarStockFund.isin)
+          .isin(tuleva2ndPillarStockFund.isin)
           .build()
 
       FundBalance.builder()
@@ -33,39 +32,38 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
     weightedAverageFeeCalculator.getWeightedAverageFee(funds, []) == expectedWeightedAverageFee
 
     where:
-    fundData | expectedWeightedAverageFee
-    [] | BigDecimal.ZERO
+    fundData                                                                                                                       | expectedWeightedAverageFee
+    []                                                                                                                             | BigDecimal.ZERO
     [
         [value: new BigDecimal("0"), ongoingChargesFigure: new BigDecimal("0.01"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0100")
+    ]                                                                                                                              | new BigDecimal("0.0100")
     [
         [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.01"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0100")
+    ]                                                                                                                              | new BigDecimal("0.0100")
     [
         [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: BigDecimal.ZERO],
         [value: new BigDecimal("200"), ongoingChargesFigure: new BigDecimal("0.03"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0267")
+    ]                                                                                                                              | new BigDecimal("0.0267")
     [
         [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: new BigDecimal("100")],
         [value: new BigDecimal("200"), ongoingChargesFigure: new BigDecimal("0.03"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0250")
+    ]                                                                                                                              | new BigDecimal("0.0250")
     [
         [value: new BigDecimal("0.0000001"), ongoingChargesFigure: new BigDecimal("0.000002"), unavailableValue: BigDecimal.ZERO],
         [value: new BigDecimal("0.0000002"), ongoingChargesFigure: new BigDecimal("0.000003"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0000")
+    ]                                                                                                                              | new BigDecimal("0.0000")
     [
         [value: new BigDecimal("0.0"), ongoingChargesFigure: new BigDecimal("0.01"), unavailableValue: BigDecimal.ZERO],
         [value: new BigDecimal("0.0"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.02")
+    ]                                                                                                                              | new BigDecimal("0.02")
   }
 
-  @Unroll
   def "Calculates the weighted average fee correctly with pending exchanges"() {
     given:
     List<FundBalance> funds = fundData.collect { fundInfo ->
       Fund fund = Fund.builder()
-          .ongoingChargesFigure(fundInfo.ongoingChargesFigure)
-          .isin(FundFixture.tuleva2ndPillarStockFund.isin)
+          .ongoingChargesFigure(fundInfo.sourceFundFee)
+          .isin(fundInfo.isin)
           .build()
 
       FundBalance.builder()
@@ -77,44 +75,44 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
 
     def locale = LocaleContextHolder.getLocale()
 
-    def exchange = new Exchange(
-        new ApiFundResponse(FundFixture.tuleva2ndPillarStockFund, locale),
-        new ApiFundResponse(FundFixture.lhv2ndPillarFund, locale),
-        null,
-        BigDecimal.TEN
-    )
 
-    def exchanges = List.of(exchange)
+    def sourceFund = tuleva2ndPillarStockFund
+    def targetFund = lhv2ndPillarFund.tap { ongoingChargesFigure = 0.01 }
+    def pendingExchanges = [new Exchange(
+        new ApiFundResponse(sourceFund, locale),
+        new ApiFundResponse(targetFund, locale),
+        null,
+        10.0
+    )]
 
     expect:
-    weightedAverageFeeCalculator.getWeightedAverageFee(funds, exchanges) == expectedWeightedAverageFee
+    weightedAverageFeeCalculator.getWeightedAverageFee(funds, pendingExchanges) == expectedWeightedAverageFee
 
     where:
-    fundData | expectedWeightedAverageFee
-    [] | BigDecimal.ZERO
+    fundData                                                                                             | expectedWeightedAverageFee
+    []                                                                                                   | 0.0
     [
-        [value: new BigDecimal("0"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0100")
+        [isin: tuleva2ndPillarStockFund.isin, value: 0.0, sourceFundFee: 0.02, unavailableValue: 0.0]
+    ]                                                                                                    | 0.01
     [
-        [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.01"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0100")
+        [isin: tuleva2ndPillarStockFund.isin, value: 100.0, sourceFundFee: 0.01, unavailableValue: 0.0]
+    ]                                                                                                    | 0.01
     [
-        [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: BigDecimal.ZERO],
-        [value: new BigDecimal("200"), ongoingChargesFigure: new BigDecimal("0.03"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0256")
+        [isin: tuleva2ndPillarStockFund.isin, value: 100.0, sourceFundFee: 0.02, unavailableValue: 0.0],
+        [isin: tuleva2ndPillarBondFund.isin, value: 200.0, sourceFundFee: 0.03, unavailableValue: 0.0]
+    ]                                                                                                    | ((90 * 0.02 + 200 * 0.03 + 10 * 0.01) / 300).round(4)
     [
-        [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: new BigDecimal("100")],
-        [value: new BigDecimal("200"), ongoingChargesFigure: new BigDecimal("0.03"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0244")
+        [isin: tuleva2ndPillarStockFund.isin, value: 100.0, sourceFundFee: 0.02, unavailableValue: 100],
+        [isin: tuleva2ndPillarBondFund.isin, value: 200.0, sourceFundFee: 0.03, unavailableValue: 0.0]
+    ]                                                                                                    | ((190 * 0.02 + 200 * 0.03 + 10 * 0.01) / 400).round(4)
   }
 
-  @Unroll
   def "Calculates the weighted average fee correctly with pending pik exchanges"() {
     given:
     List<FundBalance> funds = fundData.collect { fundInfo ->
       Fund fund = Fund.builder()
           .ongoingChargesFigure(fundInfo.ongoingChargesFigure)
-          .isin(FundFixture.tuleva2ndPillarStockFund.isin)
+          .isin(tuleva2ndPillarStockFund.isin)
           .build()
 
       FundBalance.builder()
@@ -127,7 +125,7 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
     def locale = LocaleContextHolder.getLocale()
 
     def exchange = new Exchange(
-        new ApiFundResponse(FundFixture.tuleva2ndPillarStockFund, locale),
+        new ApiFundResponse(tuleva2ndPillarStockFund, locale),
         null,
         "target PIK",
         BigDecimal.TEN
@@ -139,21 +137,21 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
     weightedAverageFeeCalculator.getWeightedAverageFee(funds, exchanges) == expectedWeightedAverageFee
 
     where:
-    fundData | expectedWeightedAverageFee
-    [] | BigDecimal.ZERO
+    fundData                                                                                                                   | expectedWeightedAverageFee
+    []                                                                                                                         | BigDecimal.ZERO
     [
         [value: new BigDecimal("0"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0")
+    ]                                                                                                                          | new BigDecimal("0")
     [
         [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.01"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0090")
+    ]                                                                                                                          | new BigDecimal("0.0090")
     [
         [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: BigDecimal.ZERO],
         [value: new BigDecimal("200"), ongoingChargesFigure: new BigDecimal("0.03"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0250")
+    ]                                                                                                                          | new BigDecimal("0.0250")
     [
         [value: new BigDecimal("100"), ongoingChargesFigure: new BigDecimal("0.02"), unavailableValue: new BigDecimal("100")],
         [value: new BigDecimal("200"), ongoingChargesFigure: new BigDecimal("0.03"), unavailableValue: BigDecimal.ZERO]
-    ] | new BigDecimal("0.0238")
+    ]                                                                                                                          | new BigDecimal("0.0238")
   }
 }

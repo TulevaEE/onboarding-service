@@ -2,9 +2,6 @@ package ee.tuleva.onboarding.payment
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
-import ee.tuleva.onboarding.payment.provider.PaymentProviderCallbackService
-import ee.tuleva.onboarding.payment.provider.PaymentProviderService
-import ee.tuleva.onboarding.payment.recurring.RecurringPaymentService
 import org.springframework.http.MediaType
 
 import static ee.tuleva.onboarding.currency.Currency.EUR
@@ -34,7 +31,16 @@ class PaymentControllerSpec extends BaseControllerSpec {
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
 
     expect:
-    mvc.perform(get("/v1/payments/link?amount=100&currency=USD&bank=LHV"))
+    mvc.perform(get("/v1/payments/link?amount=100&currency=USD&bank=LHV&recipientPersonalCode=37605030299"))
+        .andExpect(status().isBadRequest())
+  }
+
+  def "GET /payments/link fails with invalid recipient personal code"() {
+    given:
+    def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
+
+    expect:
+    mvc.perform(get("/v1/payments/link?amount=100&currency=USD&bank=LHV&recipientPersonalCode=37605030290"))
         .andExpect(status().isBadRequest())
   }
 
@@ -50,12 +56,13 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .currency(EUR)
         .type(SINGLE)
         .bank(LHV)
+        .recipientPersonalCode("37605030299")
         .build()
 
     1 * paymentService.getLink(paymentData, person) >> paymentLink
 
     expect:
-    mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&type=SINGLE&bank=LHV"))
+    mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&type=SINGLE&bank=LHV&recipientPersonalCode=37605030299"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.url', is(paymentLink.url())))

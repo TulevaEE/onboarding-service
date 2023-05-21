@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.payment;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.Optional;
+import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,7 +29,8 @@ public class PaymentController {
   @GetMapping("/link")
   @Operation(summary = "Get a payment link")
   public PaymentLink getPaymentLink(
-      PaymentData paymentData, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+      @Valid PaymentData paymentData,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return paymentService.getLink(paymentData, authenticatedPerson);
   }
 

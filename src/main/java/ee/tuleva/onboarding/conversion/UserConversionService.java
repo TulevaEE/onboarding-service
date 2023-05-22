@@ -48,10 +48,17 @@ public class UserConversionService {
     List<FundBalance> fundBalances = accountStatementService.getAccountStatement(person);
     CashFlowStatement cashFlowStatement = cashFlowService.getCashFlowStatement(person);
 
+    var pendingExchanges = getPendingExchanges(2, person).toList();
+    var weightedAverageFee =
+        weightedAverageFeeCalculator.getWeightedAverageFee(fundBalances, pendingExchanges);
+    log.info(
+        "Weighted average fee is {} for person {} with {} pending exchanges",
+        weightedAverageFee,
+        person.getPersonalCode(),
+        pendingExchanges.size());
+
     return ConversionResponse.builder()
-        .weightedAverageFee(
-            weightedAverageFeeCalculator.getWeightedAverageFee(
-                fundBalances, getPendingExchanges(2, person).toList()))
+        .weightedAverageFee(weightedAverageFee)
         .secondPillar(
             Conversion.builder()
                 .selectionComplete(isSelectionComplete(fundBalances, 2))

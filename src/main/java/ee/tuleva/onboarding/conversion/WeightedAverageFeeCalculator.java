@@ -5,7 +5,9 @@ import ee.tuleva.onboarding.mandate.application.Exchange;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public class WeightedAverageFeeCalculator {
 
   public BigDecimal getValueSum(List<FundBalance> funds) {
@@ -14,6 +16,14 @@ public class WeightedAverageFeeCalculator {
 
   public BigDecimal getWeightedAverageFee(
       List<FundBalance> funds, List<Exchange> pendingExchanges) {
+    pendingExchanges.forEach(
+        e ->
+            log.info(
+                "Pending exchangesFrom {}, To: {}, amount: {}, pik: {}",
+                e.getSourceFund(),
+                e.getTargetFund(),
+                e.getAmount(),
+                e.getTargetPik()));
 
     if (funds.size() == 0) {
       return BigDecimal.ZERO;
@@ -65,6 +75,22 @@ public class WeightedAverageFeeCalculator {
                           .multiply(getOngoingChargesFigure(exchange))
                           .divide(valueSum, 4, RoundingMode.HALF_UP))
               .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+      log.info(
+          "Fund {}. {} exchanges that leave this fund. Amount that leaves is {}. Weighted value of the exchanges is {}",
+          fund.getIsin(),
+          exchangesFromCurrentFund.size(),
+          amountThatLeavesThisFund,
+          weightedValueOfExchanges);
+
+      exchangesFromCurrentFund.forEach(
+          e ->
+              log.info(
+                  "Pending exchanges from current fund: From {}, To: {}, amount: {}, pik: {}",
+                  e.getSourceFund(),
+                  e.getTargetFund(),
+                  e.getAmount(),
+                  e.getTargetPik()));
 
       BigDecimal weightedValue =
           (fundTotalValue.subtract(amountThatLeavesThisFund))

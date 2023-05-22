@@ -156,6 +156,13 @@ We use AWS Client VPN. To get started, log into [AWS SSO Portal](https://tuleva.
 - Configure AWS Profile and login `aws sso login`
 - Connect to the DB using AWS IAM authentication where user is `iamuser` and profile `tuleva`.
 
+### Audit log
+
+When you create new tables and want them to be audited in production, run this:
+```sql
+SELECT audit.audit_table('target_table_name');
+```
+
 ### References
 
 [hwcrypto.js](https://github.com/hwcrypto/hwcrypto.js)

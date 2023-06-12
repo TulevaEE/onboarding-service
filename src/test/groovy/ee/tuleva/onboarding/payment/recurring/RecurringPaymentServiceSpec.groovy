@@ -31,7 +31,7 @@ class RecurringPaymentServiceSpec extends Specification {
     where:
     bank     | url
     SWEDBANK | "https://www.swedbank.ee/private/pensions/pillar3/orderp3p"
-    LHV      | "https://www.lhv.ee/portfolio/payment_standing_add.cfm?i_receiver_name=AS%20Pensionikeskus" +
+    LHV      | "https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add?i_receiver_name=AS%20Pensionikeskus" +
         "&i_receiver_account_no=EE547700771002908125&i_payment_desc=30101119828%2C%20EE3600001707&i_payment_clirefno=993432432" +
         "&i_amount=12.34&i_currency_id=38&i_interval_type=K&i_date_first_payment=10.01.2020"
     SEB      | "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM&saajakonto=EE141010220263146225&saajanimi=" +

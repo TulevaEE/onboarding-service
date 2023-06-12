@@ -39,7 +39,7 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
               + "&alguskuup="
               + tenthDayOfMonth(LocalDate.now(clock))
               + "&sagedus=M"; // Monthly
-          case LHV -> "https://www.lhv.ee/portfolio/payment_standing_add.cfm"
+          case LHV -> "https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add"
               + "?i_receiver_name=AS%20Pensionikeskus"
               + "&i_receiver_account_no=EE547700771002908125" // LHV account
               + "&i_payment_desc=30101119828%2C%20EE3600001707"

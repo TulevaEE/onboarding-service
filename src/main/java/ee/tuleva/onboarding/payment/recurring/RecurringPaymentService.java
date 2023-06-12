@@ -42,8 +42,7 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
           case LHV -> "https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add"
               + "?i_receiver_name=AS%20Pensionikeskus"
               + "&i_receiver_account_no=EE547700771002908125" // LHV account
-              + "&i_payment_desc=30101119828%2C%20EE3600001707"
-              // 3rd pillar processing code and Tuleva 3rd pillar fund ISIN
+              + "&i_payment_desc=30101119828" // 3rd pillar processing code
               + "&i_payment_clirefno="
               + contactDetails.getPensionAccountNumber()
               + "&i_amount="

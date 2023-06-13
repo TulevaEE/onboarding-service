@@ -18,10 +18,10 @@ val springCloudVersion = "2021.0.6"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.7.11"
+    id("org.springframework.boot") version "2.7.12"
     id("io.spring.dependency-management") version "1.1.0"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
-    id("com.diffplug.spotless") version "6.18.0"
+    id("com.diffplug.spotless") version "6.19.0"
     jacoco
 }
 
@@ -92,8 +92,8 @@ dependencies {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
-    implementation("io.sentry:sentry-spring-boot-starter:6.18.1")
-    implementation("io.sentry:sentry-logback:6.18.1")
+    implementation("io.sentry:sentry-spring-boot-starter:6.22.0")
+    implementation("io.sentry:sentry-logback:6.22.0")
 
     implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
 
@@ -101,13 +101,13 @@ dependencies {
 
     implementation("ee.sk.mid:mid-rest-java-client:1.4")
 
-    implementation("com.google.guava:guava:31.1-jre")
+    implementation("com.google.guava:guava:32.0.0-jre")
 
-    compileOnly("org.projectlombok:lombok:1.18.26")
-    annotationProcessor("org.projectlombok:lombok:1.18.26")
+    compileOnly("org.projectlombok:lombok:1.18.28")
+    annotationProcessor("org.projectlombok:lombok:1.18.28")
 
-    testCompileOnly("org.projectlombok:lombok:1.18.26")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.26")
+    testCompileOnly("org.projectlombok:lombok:1.18.28")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.28")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
@@ -120,7 +120,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.3-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.11")
+    testImplementation("org.apache.groovy:groovy-all:4.0.12")
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")

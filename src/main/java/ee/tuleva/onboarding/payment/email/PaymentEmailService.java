@@ -12,9 +12,9 @@ import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -24,23 +24,20 @@ public class PaymentEmailService {
 
   private final EmailService emailService;
   private final ScheduledEmailService scheduledEmailService;
-  private final PaymentEmailContentService emailContentService;
   private final MandateEmailService mandateEmailService;
-  private final MessageSource messageSource;
 
   void sendThirdPillarPaymentSuccessEmail(User user, Locale locale) {
-    String subject =
-        messageSource.getMessage("mandate.email.thirdPillar.paymentSuccess.subject", null, locale);
-    String content = emailContentService.getThirdPillarPaymentSuccessHtml(user, locale);
-
+    String templateName = "third_pillar_payment_success_mandate_" + locale.getLanguage();
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
-            emailService.getRecipients(user),
-            subject,
-            content,
+            user.getEmail(),
+            templateName,
+            Map.of(
+                "fname", user.getFirstName(),
+                "lname", user.getLastName()),
             List.of("pillar_3.1", "mandate", "payment"),
             cancelReminderEmailsAndGetMandateAttachment(user));
-    emailService.send(user, mandrillMessage);
+    emailService.send(user, mandrillMessage, templateName);
   }
 
   private List<MessageContent> cancelReminderEmailsAndGetMandateAttachment(User user) {

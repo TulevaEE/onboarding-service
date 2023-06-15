@@ -13,12 +13,6 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 public class EmailConfiguration {
 
-  @Value("${mandate.email.from}")
-  private String from;
-
-  @Value("${mandate.email.bcc}")
-  private String bcc;
-
   @Value("${mandrill.key:#{null}}")
   private String mandrillKey;
 

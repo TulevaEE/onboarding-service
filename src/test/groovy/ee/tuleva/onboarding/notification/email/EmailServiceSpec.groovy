@@ -20,45 +20,44 @@ class EmailServiceSpec extends Specification {
   MandrillMessagesApi mandrillMessagesApi = Mock()
   EmailService service = new EmailService(emailConfiguration, mandrillApi)
   User user = sampleUser().build()
+  String templateName = "sample_template"
   MandrillMessage message = service.newMandrillMessage(
-      service.getRecipients(user),
-      "subject",
-      "html",
+      user.email,
+      templateName,
+      [fname: user.firstName, lname: user.lastName],
       ["test"],
       null)
   MandrillMessageStatus mandrillMessageStatus = Mock()
 
   def setup() {
-    emailConfiguration.from >> "tuleva@tuleva.ee"
-    emailConfiguration.bcc >> "avaldused@tuleva.ee"
     emailConfiguration.mandrillKey >> Optional.of("")
     mandrillApi.messages() >> mandrillMessagesApi
     mandrillMessageStatus.getStatus() >> "sent"
     mandrillMessageStatus.getId() >> "13"
   }
 
-  def "Send fake email"() {
+  def "Can send email with template"() {
     when:
-    Optional<String> messageId = service.send(user, message)
+    Optional<String> messageId = service.send(user, message, templateName)
 
     then:
-    1 * mandrillMessagesApi.send(message, false, null, null) >> [mandrillMessageStatus]
+    1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> [mandrillMessageStatus]
     messageId == Optional.of("13")
   }
 
-  def "Send delayed email"() {
+  def "Can send delayed emails with template"() {
     given:
-    Instant sendAt = Instant.now();
+    Instant sendAt = Instant.now()
 
     when:
-    Optional<String> messageId = service.send(user, message, sendAt)
+    Optional<String> messageId = service.send(user, message, templateName, sendAt)
 
     then:
-    1 * mandrillMessagesApi.send(message, false, null, Date.from(sendAt)) >> [mandrillMessageStatus]
+    1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, Date.from(sendAt)) >> [mandrillMessageStatus]
     messageId == Optional.of("13")
   }
 
-  def "cancels scheduled email"() {
+  def "Can cancel scheduled emails"() {
     given:
     String mandrillMessageId = "100"
     def info = new MandrillScheduledMessageInfo()

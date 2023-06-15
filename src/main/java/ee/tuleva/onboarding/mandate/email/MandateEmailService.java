@@ -1,10 +1,14 @@
 package ee.tuleva.onboarding.mandate.email;
 
+import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static java.util.Collections.singletonList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import ee.tuleva.onboarding.deadline.MandateDeadlines;
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
+import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType;
@@ -12,13 +16,9 @@ import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -28,9 +28,9 @@ public class MandateEmailService {
 
   private final EmailService emailService;
   private final ScheduledEmailService scheduledEmailService;
-  private final MandateEmailContentService emailContentService;
   private final Clock clock;
-  private final MessageSource messageSource;
+  private final FundRepository fundRepository;
+  private final MandateDeadlinesService mandateDeadlinesService;
 
   public void sendMandate(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
@@ -48,15 +48,48 @@ public class MandateEmailService {
 
   private void sendSecondPillarEmail(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
-    String subject = messageSource.getMessage("mandate.email.secondPillar.subject", null, locale);
+    String templateName = getTemplateName(mandate, locale);
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
-            emailService.getRecipients(user),
-            subject,
-            getSecondPillarContent(user, mandate, pillarSuggestion, locale),
+            user.getEmail(),
+            templateName,
+            getMergeVars(user, mandate, pillarSuggestion, locale),
             getSecondPillarMandateTags(pillarSuggestion),
             getMandateAttachments(user, mandate));
-    emailService.send(user, mandrillMessage);
+    emailService.send(user, mandrillMessage, templateName);
+  }
+
+  private Map<String, Object> getMergeVars(
+      User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
+    var mergeVars = new HashMap<String, Object>();
+    mergeVars.put("fname", user.getFirstName());
+    mergeVars.put("lname", user.getLastName());
+
+    if (mandate.isTransferCancellation()) {
+      String sourceFundIsin = mandate.getFundTransferExchanges().get(0).getSourceFundIsin();
+      String sourceFundName = fundRepository.findByIsin(sourceFundIsin).getName(locale);
+      mergeVars.put("sourceFundName", sourceFundName);
+    }
+
+    mergeVars.put("suggestMembership", pillarSuggestion.isSuggestMembership());
+    mergeVars.put("suggestThirdPillar", pillarSuggestion.isSuggestPillar());
+
+    MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(mandate.getCreatedDate());
+    mergeVars.put(
+        "transferDate",
+        deadlines.getTransferMandateFulfillmentDate().format(ofPattern("dd.MM.yyyy")));
+
+    return mergeVars;
+  }
+
+  private String getTemplateName(Mandate mandate, Locale locale) {
+    if (mandate.isWithdrawalCancellation()) {
+      return "second_pillar_withdrawal_cancellation_" + locale.getLanguage();
+    }
+    if (mandate.isTransferCancellation()) {
+      return "second_pillar_transfer_cancellation_" + locale.getLanguage();
+    }
+    return "second_pillar_mandate_" + locale.getLanguage();
   }
 
   private List<String> getSecondPillarMandateTags(PillarSuggestion pillarSuggestion) {
@@ -72,34 +105,22 @@ public class MandateEmailService {
     return tags;
   }
 
-  private String getSecondPillarContent(
-      User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
-    if (mandate.isWithdrawalCancellation()) {
-      return emailContentService.getSecondPillarWithdrawalCancellationHtml(user, locale);
-    }
-    if (mandate.isTransferCancellation()) {
-      return emailContentService.getSecondPillarTransferCancellationHtml(user, mandate, locale);
-    }
-    return emailContentService.getSecondPillarHtml(
-        user, mandate.getCreatedDate(), pillarSuggestion, locale);
-  }
-
   private void scheduleThirdPillarPaymentReminderEmail(User user, Mandate mandate, Locale locale) {
-    String subject =
-        messageSource.getMessage("mandate.email.thirdPillar.paymentReminder.subject", null, locale);
-    String content = emailContentService.getThirdPillarPaymentReminderHtml(user, locale);
     Instant sendAt = Instant.now(clock).plus(1, HOURS);
+    String templateName = "third_pillar_payment_reminder_mandate_" + locale.getLanguage();
 
     MandrillMessage message =
         emailService.newMandrillMessage(
-            emailService.getRecipients(user),
-            subject,
-            content,
+            user.getEmail(),
+            templateName,
+            Map.of(
+                "fname", user.getFirstName(),
+                "lname", user.getLastName()),
             List.of("pillar_3.1", "reminder"),
             getMandateAttachments(user, mandate));
 
     emailService
-        .send(user, message, sendAt)
+        .send(user, message, templateName, sendAt)
         .ifPresent(
             messageId ->
                 scheduledEmailService.create(
@@ -107,20 +128,20 @@ public class MandateEmailService {
   }
 
   void scheduleThirdPillarSuggestSecondEmail(User user, Locale locale) {
-    String subject =
-        messageSource.getMessage("mandate.email.thirdPillar.suggestSecond.subject", null, locale);
-    String content = emailContentService.getThirdPillarSuggestSecondHtml(user, locale);
     Instant sendAt = Instant.now(clock).plus(3, DAYS);
+    String templateName = "third_pillar_suggest_second_" + locale.getLanguage();
 
     MandrillMessage message =
         emailService.newMandrillMessage(
-            emailService.getRecipients(user),
-            subject,
-            content,
+            user.getEmail(),
+            templateName,
+            Map.of(
+                "fname", user.getFirstName(),
+                "lname", user.getLastName()),
             List.of("pillar_3.1", "suggest_2"),
             null);
     emailService
-        .send(user, message, sendAt)
+        .send(user, message, templateName, sendAt)
         .ifPresent(
             messageId ->
                 scheduledEmailService.create(

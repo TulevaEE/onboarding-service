@@ -3,9 +3,11 @@ package ee.tuleva.onboarding.member.email;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
-import java.util.Arrays;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,16 +17,21 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MemberEmailService {
   private final EmailService emailService;
-  private final MemberEmailContentService emailContentService;
 
   public void sendMemberNumber(User user, Locale locale) {
     log.info("Sending member number email to user: {}", user.getId());
+    String templateName = "member_" + locale.getLanguage();
+
     MandrillMessage message =
         emailService.newMandrillMessage(
-            emailService.getRecipients(user),
-            getMemberNumberEmailSubject(),
-            emailContentService.getMembershipEmailHtml(user, locale),
-            getMemberNumberTags(),
+            user.getEmail(),
+            templateName,
+            Map.of(
+                "fname", user.getFirstName(),
+                "lname", user.getLastName(),
+                "memberNumber", user.getMemberOrThrow().getMemberNumber(),
+                "memberDate", dateFormatter().format(user.getMemberOrThrow().getCreatedDate())),
+            List.of("memberNumber"),
             null);
 
     if (message == null) {
@@ -35,14 +42,10 @@ public class MemberEmailService {
       return;
     }
 
-    emailService.send(user, message);
+    emailService.send(user, message, templateName);
   }
 
-  private String getMemberNumberEmailSubject() {
-    return "Tuleva liikmetunnistus";
-  }
-
-  private List<String> getMemberNumberTags() {
-    return Arrays.asList("memberNumber");
+  private DateTimeFormatter dateFormatter() {
+    return DateTimeFormatter.ofPattern("dd.MM.yyyy").withZone(ZoneId.of("Europe/Tallinn"));
   }
 }

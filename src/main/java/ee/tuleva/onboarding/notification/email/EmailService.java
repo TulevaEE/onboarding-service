@@ -1,10 +1,11 @@
 package ee.tuleva.onboarding.notification.email;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
+import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.MergeVarBucket;
 
 import com.microtripit.mandrillapp.lutung.MandrillApi;
 import com.microtripit.mandrillapp.lutung.model.MandrillApiError;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MergeVar;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.Recipient;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
@@ -13,9 +14,9 @@ import ee.tuleva.onboarding.config.EmailConfiguration;
 import ee.tuleva.onboarding.user.User;
 import java.io.IOException;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,35 +37,45 @@ public class EmailService {
   }
 
   public MandrillMessage newMandrillMessage(
-      List<Recipient> to,
-      String subject,
-      String html,
+      String to,
+      String templateName,
+      Map<String, Object> mergeVars,
       List<String> tags,
       List<MessageContent> attachments) {
     MandrillMessage message = new MandrillMessage();
 
-    message.setSubject(subject);
-    message.setFromEmail(emailConfiguration.getFrom());
-    message.setFromName(getFromName());
-    message.setHtml(html);
     message.setAutoText(true);
-
+    MergeVarBucket mergeVarBucket = new MergeVarBucket();
+    mergeVarBucket.setRcpt(to);
+    MergeVar[] vars =
+        mergeVars.entrySet().stream()
+            .map(entry -> new MergeVar(entry.getKey(), entry.getValue()))
+            .toList()
+            .toArray(new MergeVar[0]);
+    mergeVarBucket.setVars(vars);
+    message.setMergeVars(List.of(mergeVarBucket));
     message.setAttachments(attachments);
-    message.setTo(to);
+    Recipient recipient = new Recipient();
+    recipient.setEmail(to);
+    message.setTo(List.of(new Recipient()));
     message.setPreserveRecipients(true);
     message.setTags(tags);
 
     message.setImportant(true);
     message.setTrackClicks(true);
+    message.setTrackOpens(true);
+    message.setGoogleAnalyticsDomains(List.of("tuleva.ee"));
+    message.setGoogleAnalyticsCampaign(templateName);
 
     return message;
   }
 
-  public Optional<String> send(User user, MandrillMessage message) {
-    return send(user, message, null);
+  public Optional<String> send(User user, MandrillMessage message, String templateName) {
+    return send(user, message, templateName, null);
   }
 
-  public Optional<String> send(User user, MandrillMessage message, Instant sendAt) {
+  public Optional<String> send(
+      User user, MandrillMessage message, String templateName, Instant sendAt) {
     try {
       if (mandrillApi == null) {
         log.warn(
@@ -74,14 +85,11 @@ public class EmailService {
       }
 
       Date sendDate = sendAt != null ? Date.from(sendAt) : null;
-      log.info(
-          "Sending email to user: from={}, userId={}, sendAt={}",
-          emailConfiguration.getFrom(),
-          user.getId(),
-          sendDate);
+      log.info("Sending email to user: userId={}, sendAt={}", user.getId(), sendDate);
 
       MandrillMessageStatus messageStatusReport =
-          mandrillApi.messages().send(message, false, null, sendDate)[0]; // FIXME [0]
+          mandrillApi.messages()
+              .sendTemplate(templateName, Map.of(), message, false, null, sendDate)[0];
       log.info(
           "Mandrill API response: status={}, id={}",
           messageStatusReport.getStatus(),
@@ -95,31 +103,6 @@ public class EmailService {
       log.error(e.getLocalizedMessage(), e);
       return Optional.empty();
     }
-  }
-
-  public List<Recipient> getRecipients(User user) {
-    if (isBlank(user.getEmail())) {
-      log.error("User email is missing: userId={}", user.getId());
-    }
-
-    List<Recipient> recipients = new ArrayList<>();
-
-    // Member inbox
-    Recipient member = new Recipient();
-    member.setEmail(user.getEmail());
-    recipients.add(member);
-
-    // Collector inbox
-    Recipient collector = new Recipient();
-    collector.setEmail(emailConfiguration.getBcc());
-    collector.setType(Recipient.Type.BCC);
-    recipients.add(collector);
-
-    return recipients;
-  }
-
-  private String getFromName() {
-    return "Tuleva";
   }
 
   public Optional<MandrillScheduledMessageInfo> cancelScheduledEmail(String mandrillMessageId) {

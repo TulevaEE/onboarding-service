@@ -29,8 +29,8 @@ class MemberEmailServiceSpec extends Specification {
     memberService.sendMemberNumber(user, locale)
 
     then:
-    1 * emailService.newMandrillMessage(user.email, "member_en", mergeVars, tags, null) >> message
-    1 * emailService.send(user, message, "member_en")
+    1 * emailService.newMandrillMessage(user.email, "membership_en", mergeVars, tags, null) >> message
+    1 * emailService.send(user, message, "membership_en")
   }
 
 }

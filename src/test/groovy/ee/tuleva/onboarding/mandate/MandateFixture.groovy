@@ -140,14 +140,14 @@ class MandateFixture {
         .address(addressFixture().build())
         .build()
 
-    mandate.setId(123)
+    mandate.setId(124)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
     mandate.setPillar(3)
     return mandate
   }
 
-  static Mandate sampleCancellationMandate() {
+  static Mandate sampleWithdrawalCancellationMandate() {
     Mandate mandate = builder()
         .address(addressFixture().build())
         .build()
@@ -156,6 +156,28 @@ class MandateFixture {
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
     mandate.metadata = ["applicationTypeToCancel": "SELECTION"]
+    mandate.pillar = 2
+    return mandate
+  }
+
+  static Mandate sampleTransferCancellationMandate() {
+    Mandate mandate = builder()
+        .fundTransferExchanges([
+            FundTransferExchange.builder()
+                .id(1234)
+                .sourceFundIsin("EE3600109435")
+                .targetFundIsin(null)
+                .amount(null)
+                .build(),
+        ])
+        .futureContributionFundIsin(null)
+        .address(addressFixture().build())
+        .build()
+
+    mandate.setId(123)
+    mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
+    mandate.setMandate("file".getBytes())
+    mandate.setPillar(2)
     return mandate
   }
 
@@ -195,6 +217,7 @@ class MandateFixture {
     mandate.setId(123)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
+    mandate.setPillar(2)
     return mandate
   }
 

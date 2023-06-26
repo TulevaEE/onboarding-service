@@ -10,7 +10,9 @@ import spock.lang.Specification
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
 
 class PaymentEmailServiceSpec extends Specification {
 
@@ -25,8 +27,15 @@ class PaymentEmailServiceSpec extends Specification {
   def "send third pillar payment success email"() {
     given:
     def user = sampleUser().build()
+    def payment = aNewPayment()
     def message = new MandrillMessage()
-    def mergeVars = ["fname": user.firstName, "lname": user.lastName]
+    def mergeVars = [
+        "fname": user.firstName,
+        "lname": user.lastName,
+        "amount": 10.00,
+        "currency": EUR,
+        "recipient": payment.recipientPersonalCode
+    ]
     def tags = ["pillar_3.1", "mandate", "payment"]
     def locale = Locale.ENGLISH
     def mandrillMessageId = "mandrillMessageId123"
@@ -40,7 +49,7 @@ class PaymentEmailServiceSpec extends Specification {
     mandateEmailService.getMandateAttachments(user, mandate) >> [mandateAttachment]
 
     when:
-    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, locale)
+    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, locale)
 
     then:
     1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_success_mandate_en", mergeVars, tags, [mandateAttachment]) >> message

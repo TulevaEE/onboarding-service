@@ -20,7 +20,7 @@ public class MemberEmailService {
 
   public void sendMemberNumber(User user, Locale locale) {
     log.info("Sending member number email to user: {}", user.getId());
-    String templateName = "member_" + locale.getLanguage();
+    String templateName = "membership_" + locale.getLanguage();
 
     MandrillMessage message =
         emailService.newMandrillMessage(

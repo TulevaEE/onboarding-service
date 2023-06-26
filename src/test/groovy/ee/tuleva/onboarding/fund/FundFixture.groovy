@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.fund
 
 import ee.tuleva.onboarding.fund.manager.FundManager
-import spock.lang.Specification
 
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
 
-class FundFixture extends Specification {
+class FundFixture {
 
   public static tuleva2ndPillarStockFund = Fund.builder()
       .isin("AE123232331")

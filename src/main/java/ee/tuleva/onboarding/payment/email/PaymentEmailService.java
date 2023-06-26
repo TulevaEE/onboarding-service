@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmail;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
 import java.util.Locale;
@@ -26,7 +27,7 @@ public class PaymentEmailService {
   private final ScheduledEmailService scheduledEmailService;
   private final MandateEmailService mandateEmailService;
 
-  void sendThirdPillarPaymentSuccessEmail(User user, Locale locale) {
+  void sendThirdPillarPaymentSuccessEmail(User user, Payment payment, Locale locale) {
     String templateName = "third_pillar_payment_success_mandate_" + locale.getLanguage();
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
@@ -34,7 +35,10 @@ public class PaymentEmailService {
             templateName,
             Map.of(
                 "fname", user.getFirstName(),
-                "lname", user.getLastName()),
+                "lname", user.getLastName(),
+                "amount", payment.getAmount(),
+                "currency", payment.getCurrency(),
+                "recipient", payment.getRecipientPersonalCode()),
             List.of("pillar_3.1", "mandate", "payment"),
             cancelReminderEmailsAndGetMandateAttachment(user));
     emailService.send(user, mandrillMessage, templateName);

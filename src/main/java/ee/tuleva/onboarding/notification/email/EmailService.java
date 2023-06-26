@@ -57,7 +57,7 @@ public class EmailService {
     message.setAttachments(attachments);
     Recipient recipient = new Recipient();
     recipient.setEmail(to);
-    message.setTo(List.of(new Recipient()));
+    message.setTo(List.of(recipient));
     message.setPreserveRecipients(true);
     message.setTags(tags);
 
@@ -85,15 +85,20 @@ public class EmailService {
       }
 
       Date sendDate = sendAt != null ? Date.from(sendAt) : null;
-      log.info("Sending email to user: userId={}, sendAt={}", user.getId(), sendDate);
+      log.info(
+          "Sending email to user: userId={}, sendAt={}, templateName={}",
+          user.getId(),
+          sendDate,
+          templateName);
 
       MandrillMessageStatus messageStatusReport =
           mandrillApi.messages()
               .sendTemplate(templateName, Map.of(), message, false, null, sendDate)[0];
       log.info(
-          "Mandrill API response: status={}, id={}",
+          "Mandrill API response: status={}, id={}, rejectReason={}",
           messageStatusReport.getStatus(),
-          messageStatusReport.getId());
+          messageStatusReport.getId(),
+          messageStatusReport.getRejectReason());
       return Optional.of(messageStatusReport.getId());
 
     } catch (MandrillApiError mandrillApiError) {

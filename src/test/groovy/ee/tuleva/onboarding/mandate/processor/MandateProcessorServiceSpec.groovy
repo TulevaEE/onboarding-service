@@ -12,7 +12,7 @@ import spock.lang.Specification
 import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleCancellationMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleWithdrawalCancellationMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
@@ -58,7 +58,7 @@ class MandateProcessorServiceSpec extends Specification {
 
   def "Start: starts processing cancellation mandate and saves mandate processes"() {
     given:
-    Mandate mandate = sampleCancellationMandate()
+    Mandate mandate = sampleWithdrawalCancellationMandate()
     mandate.address = addressFixture().build()
     mandate.user = sampleUser
     def response = new ApplicationResponse()

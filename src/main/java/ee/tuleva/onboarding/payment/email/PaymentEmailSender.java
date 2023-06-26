@@ -13,6 +13,7 @@ public class PaymentEmailSender {
 
   @EventListener
   public void sendEmails(PaymentCreatedEvent event) {
-    emailService.sendThirdPillarPaymentSuccessEmail(event.getUser(), event.getLocale());
+    emailService.sendThirdPillarPaymentSuccessEmail(
+        event.getUser(), event.getPayment(), event.getLocale());
   }
 }

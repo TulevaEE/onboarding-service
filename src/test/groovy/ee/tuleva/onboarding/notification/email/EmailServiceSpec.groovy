@@ -69,4 +69,23 @@ class EmailServiceSpec extends Specification {
     then:
     scheduledEmailInfo.get() == info
   }
+
+  def "can create new mandrill messages"() {
+    when:
+    MandrillMessage message = service.newMandrillMessage(
+        user.email,
+        templateName,
+        [fname: user.firstName, lname: user.lastName],
+        ["test"],
+        null)
+    then:
+    message.to.first().email == user.email
+    message.mergeVars.first().rcpt == user.email
+    message.mergeVars.first().vars.first().name == "fname"
+    message.mergeVars.first().vars.first().content == user.firstName
+    message.mergeVars.first().vars.last().name == "lname"
+    message.mergeVars.first().vars.last().content == user.lastName
+    message.googleAnalyticsCampaign == templateName
+    message.tags == ["test"]
+  }
 }

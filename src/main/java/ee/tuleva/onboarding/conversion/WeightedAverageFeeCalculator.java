@@ -10,10 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class WeightedAverageFeeCalculator {
 
-  public BigDecimal getValueSum(List<FundBalance> funds) {
-    return funds.stream().map(FundBalance::getTotalValue).reduce(BigDecimal.ZERO, BigDecimal::add);
-  }
-
   public BigDecimal getWeightedAverageFee(
       List<FundBalance> funds, List<Exchange> pendingExchanges) {
     pendingExchanges.forEach(
@@ -100,6 +96,10 @@ public class WeightedAverageFeeCalculator {
           weightedArithmeticMean.add(weightedValue).add(weightedValueOfExchanges);
     }
     return weightedArithmeticMean;
+  }
+
+  private BigDecimal getValueSum(List<FundBalance> funds) {
+    return funds.stream().map(FundBalance::getTotalValue).reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   private BigDecimal getOngoingChargesFigure(Exchange exchange) {

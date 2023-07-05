@@ -48,7 +48,8 @@ public class UserConversionService {
     List<FundBalance> fundBalances = accountStatementService.getAccountStatement(person);
     CashFlowStatement cashFlowStatement = cashFlowService.getCashFlowStatement(person);
 
-    var pendingExchanges = getPendingExchanges(2, person).toList();
+    var pendingExchanges =
+        Stream.concat(getPendingExchanges(2, person), getPendingExchanges(3, person)).toList();
     var weightedAverageFee =
         weightedAverageFeeCalculator.getWeightedAverageFee(fundBalances, pendingExchanges);
     log.info(
@@ -78,6 +79,9 @@ public class UserConversionService {
                         .lastYear(subtractionSum(cashFlowStatement, 2, lastYear()))
                         .total(totalSubtractionSum(cashFlowStatement, 2))
                         .build())
+                .weightedAverageFee(
+                    weightedAverageFeeCalculator.getWeightedAverageFee(
+                        filter(fundBalances, 2).toList(), getPendingExchanges(2, person).toList()))
                 .build())
         .thirdPillar(
             Conversion.builder()
@@ -98,6 +102,9 @@ public class UserConversionService {
                         .total(totalSubtractionSum(cashFlowStatement, 3))
                         .build())
                 .paymentComplete(paymentComplete(cashFlowStatement))
+                .weightedAverageFee(
+                    weightedAverageFeeCalculator.getWeightedAverageFee(
+                        filter(fundBalances, 3).toList(), getPendingExchanges(3, person).toList()))
                 .build())
         .build();
   }

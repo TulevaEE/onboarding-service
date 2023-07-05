@@ -11,7 +11,6 @@ public class ConversionResponse {
 
   private Conversion secondPillar;
   private Conversion thirdPillar;
-
   private BigDecimal weightedAverageFee;
 
   @JsonIgnore
@@ -41,6 +40,7 @@ public class ConversionResponse {
     private Boolean paymentComplete;
     private Amount contribution;
     private Amount subtraction;
+    private BigDecimal weightedAverageFee;
 
     @JsonIgnore
     public boolean isFullyConverted() {

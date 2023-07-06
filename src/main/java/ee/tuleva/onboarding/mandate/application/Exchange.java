@@ -42,6 +42,11 @@ public class Exchange {
   }
 
   @JsonIgnore
+  public boolean isFromOwnFund() {
+    return sourceFund != null && sourceFund.isOwnFund();
+  }
+
+  @JsonIgnore
   public boolean isToOwnFund() {
     return targetFund != null && targetFund.isOwnFund();
   }

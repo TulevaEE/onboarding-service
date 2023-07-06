@@ -197,16 +197,31 @@ public class UserConversionService {
   private boolean isTransfersComplete(
       List<FundBalance> fundBalances, Integer pillar, Person person) {
     return getIsinsOfFullPendingTransfersToConvertedFundManager(person, fundBalances, pillar)
-        .containsAll(unConvertedIsins(fundBalances, pillar));
+            .containsAll(unConvertedIsins(fundBalances, pillar))
+        && !hasAnyPendingTransfersAwayFromConvertedFundManager(person, pillar);
+  }
+
+  private boolean hasAnyPendingTransfersAwayFromConvertedFundManager(
+      Person person, Integer pillar) {
+    return getPendingExchanges(pillar, person).anyMatch(Exchange::isFromOwnFund);
   }
 
   private boolean isTransfersPartial(
       List<FundBalance> fundBalances, Integer pillar, Person person) {
     return filter(fundBalances, pillar).findFirst().isEmpty()
-        || filter(fundBalances, pillar)
-            .filter(FundBalance::hasTotalValue)
-            .anyMatch(FundBalance::isOwnFund)
+        || hasAnyValueInOwnFundsWithNoPendingTransfersAway(fundBalances, pillar, person)
         || hasAnyPendingTransfersToOwnFunds(person, pillar);
+  }
+
+  private boolean hasAnyValueInOwnFundsWithNoPendingTransfersAway(
+      List<FundBalance> fundBalances, Integer pillar, Person person) {
+    var fullyAwayIsins =
+        getIsinsOfFullPendingTransfersAwayFromConvertedFundManager(person, fundBalances, pillar);
+    return filter(fundBalances, pillar)
+        .filter(FundBalance::hasAnyTotalValue)
+        .anyMatch(
+            fundBalance ->
+                fundBalance.isOwnFund() && !fullyAwayIsins.contains(fundBalance.getIsin()));
   }
 
   private boolean hasAnyPendingTransfersToOwnFunds(Person person, Integer pillar) {
@@ -217,6 +232,14 @@ public class UserConversionService {
       Person person, List<FundBalance> fundBalances, Integer pillar) {
     return getPendingExchanges(pillar, person)
         .filter(exchange -> exchange.isToOwnFund() && amountMatches(exchange, fundBalances))
+        .map(exchange -> exchange.getSourceFund().getIsin())
+        .collect(toSet());
+  }
+
+  private Set<String> getIsinsOfFullPendingTransfersAwayFromConvertedFundManager(
+      Person person, List<FundBalance> fundBalances, Integer pillar) {
+    return getPendingExchanges(pillar, person)
+        .filter(exchange -> exchange.isFromOwnFund() && amountMatches(exchange, fundBalances))
         .map(exchange -> exchange.getSourceFund().getIsin())
         .collect(toSet());
   }
@@ -251,7 +274,7 @@ public class UserConversionService {
         .filter(
             fundBalance ->
                 !fundBalance.isOwnFund()
-                    && fundBalance.hasTotalValue()
+                    && fundBalance.hasAnyTotalValue()
                     && !fundBalance.isExitRestricted())
         .map(fundBalance -> fundBalance.getFund().getIsin())
         .collect(toList());

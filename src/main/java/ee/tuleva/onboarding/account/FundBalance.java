@@ -52,7 +52,7 @@ public class FundBalance {
     return fund.isExitRestricted();
   }
 
-  public boolean hasTotalValue() {
+  public boolean hasAnyTotalValue() {
     return getTotalValue().compareTo(ZERO) > 0;
   }
 

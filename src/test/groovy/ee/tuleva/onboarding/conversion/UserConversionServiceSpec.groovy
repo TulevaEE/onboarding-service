@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
 import ee.tuleva.onboarding.fund.ApiFundResponse
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
-import ee.tuleva.onboarding.fund.manager.FundManager
 import ee.tuleva.onboarding.mandate.application.Application
 import ee.tuleva.onboarding.mandate.application.ApplicationService
 import ee.tuleva.onboarding.mandate.application.Exchange
@@ -23,6 +22,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
+import static ee.tuleva.onboarding.fund.FundFixture.*
 
 class UserConversionServiceSpec extends Specification {
 
@@ -227,7 +227,7 @@ class UserConversionServiceSpec extends Specification {
 
     where:
     accountBalanceResponse             | secondPillarSelectionComplete | secondPillarTransfersComplete
-    activeTuleva2ndPillarFundBalance   | true                          | true
+    activeTuleva2ndPillarFundBalance   | true                          | false
     activeExternal2ndPillarFundBalance | false                         | false
   }
 
@@ -286,6 +286,27 @@ class UserConversionServiceSpec extends Specification {
     where:
     accountBalanceResponse             | thirdPillarSelectionComplete | thirdPillarTransfersComplete
     activeExternal3rdPillarFundBalance | false                        | false
+  }
+
+  def "GetConversion: Get conversion response for 3rd pillar pending exit transfer"() {
+    given:
+    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    applicationService.getTransferApplications(PENDING, samplePerson) >> [fullPending3rdPillarExit]
+    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+
+    when:
+    ConversionResponse response = service.getConversion(samplePerson)
+
+    then:
+    response.thirdPillar.selectionComplete == thirdPillarSelectionComplete
+    response.thirdPillar.transfersComplete == thirdPillarTransfersComplete
+    response.thirdPillar.selectionPartial == thirdPillarSelectionPartial
+    response.thirdPillar.transfersPartial == thirdPillarTransfersPartial
+
+    where:
+    accountBalanceResponse             | thirdPillarSelectionComplete | thirdPillarTransfersComplete | thirdPillarSelectionPartial | thirdPillarTransfersPartial
+    activeTuleva3rdPillarFundBalance   | true                         | false                        | true                        | false
+    activeExternal3rdPillarFundBalance | false                        | false                        | false                       | false
   }
 
   def "calculates contribution and subtraction sums"() {
@@ -378,25 +399,12 @@ class UserConversionServiceSpec extends Specification {
           .status(PENDING)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new ApiFundResponse(Fund.builder()
-                      .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
-                      .pillar(2)
-                      .ongoingChargesFigure(0.005)
-                      .build(), Locale.ENGLISH)
+                  .sourceFund(new ApiFundResponse(lhv2ndPillarFund, Locale.ENGLISH)
                   )
                   .exchange(
                       new Exchange(
-                          new ApiFundResponse(Fund.builder()
-                              .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
-                              .ongoingChargesFigure(0.005)
-                              .pillar(2)
-                              .build(), Locale.ENGLISH),
-                          new ApiFundResponse(Fund.builder()
-                              .isin("EE234")
-                              .ongoingChargesFigure(0.005)
-                              .pillar(2)
-                              .fundManager(FundManager.builder().name(FundManager.TULEVA_FUND_MANAGER_NAME).build())
-                              .build(), Locale.ENGLISH),
+                          new ApiFundResponse(lhv2ndPillarFund, Locale.ENGLISH),
+                          new ApiFundResponse(tuleva2ndPillarStockFund, Locale.ENGLISH),
                           null,
                           1.0
                       )
@@ -411,25 +419,12 @@ class UserConversionServiceSpec extends Specification {
           .status(PENDING)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new ApiFundResponse(Fund.builder()
-                      .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
-                      .pillar(2)
-                      .ongoingChargesFigure(0.005)
-                      .build(), Locale.ENGLISH)
+                  .sourceFund(new ApiFundResponse(lhv2ndPillarFund, Locale.ENGLISH)
                   )
                   .exchange(
                       new Exchange(
-                          new ApiFundResponse(Fund.builder()
-                              .isin(activeExternal2ndPillarFundBalance.first().getFund().getIsin())
-                              .pillar(2)
-                              .ongoingChargesFigure(0.005)
-                              .build(), Locale.ENGLISH),
-                          new ApiFundResponse(Fund.builder()
-                              .isin("EE234")
-                              .pillar(2)
-                              .ongoingChargesFigure(0.005)
-                              .fundManager(FundManager.builder().name(FundManager.TULEVA_FUND_MANAGER_NAME).build())
-                              .build(), Locale.ENGLISH),
+                          new ApiFundResponse(lhv2ndPillarFund, Locale.ENGLISH),
+                          new ApiFundResponse(tuleva2ndPillarStockFund, Locale.ENGLISH),
                           null,
                           0.5
                       )
@@ -443,19 +438,11 @@ class UserConversionServiceSpec extends Specification {
           .status(PENDING)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new ApiFundResponse(Fund.builder()
-                      .isin(activeTuleva2ndPillarFundBalance.first().getFund().getIsin())
-                      .pillar(2)
-                      .ongoingChargesFigure(0.005)
-                      .build(), Locale.ENGLISH)
+                  .sourceFund(new ApiFundResponse(tuleva2ndPillarStockFund, Locale.ENGLISH)
                   )
                   .exchange(
                       new Exchange(
-                          new ApiFundResponse(Fund.builder()
-                              .isin(activeTuleva2ndPillarFundBalance.first().getFund().getIsin())
-                              .pillar(2)
-                              .ongoingChargesFigure(0.005)
-                              .build(), Locale.ENGLISH),
+                          new ApiFundResponse(tuleva2ndPillarStockFund, Locale.ENGLISH),
                           null,
                           "EE801281685311741971",
                           1.0
@@ -470,11 +457,29 @@ class UserConversionServiceSpec extends Specification {
           .status(PENDING)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new ApiFundResponse(activeExternal3rdPillarFundBalance[0].fund, Locale.ENGLISH))
+                  .sourceFund(new ApiFundResponse(lhv3rdPillarFund, Locale.ENGLISH))
                   .exchange(
                       new Exchange(
-                          new ApiFundResponse(activeExternal3rdPillarFundBalance[0].fund, Locale.ENGLISH),
-                          new ApiFundResponse(activeExternal3rdPillarFundBalance[1].fund, Locale.ENGLISH),
+                          new ApiFundResponse(lhv3rdPillarFund, Locale.ENGLISH),
+                          new ApiFundResponse(tuleva3rdPillarFund, Locale.ENGLISH),
+                          null,
+                          100.0
+                      )
+                  )
+                  .build()
+          )
+          .build()
+
+  Application<TransferApplicationDetails> fullPending3rdPillarExit =
+      Application.<TransferApplicationDetails> builder()
+          .status(PENDING)
+          .details(
+              TransferApplicationDetails.builder()
+                  .sourceFund(new ApiFundResponse(tuleva3rdPillarFund, Locale.ENGLISH))
+                  .exchange(
+                      new Exchange(
+                          new ApiFundResponse(tuleva3rdPillarFund, Locale.ENGLISH),
+                          new ApiFundResponse(lhv3rdPillarFund, Locale.ENGLISH),
                           null,
                           100.0
                       )
@@ -488,11 +493,11 @@ class UserConversionServiceSpec extends Specification {
           .status(PENDING)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new ApiFundResponse(activeExternal3rdPillarFundBalance[0].getFund(), Locale.ENGLISH))
+                  .sourceFund(new ApiFundResponse(lhv3rdPillarFund, Locale.ENGLISH))
                   .exchange(
                       new Exchange(
-                          new ApiFundResponse(activeExternal3rdPillarFundBalance[0].getFund(), Locale.ENGLISH),
-                          new ApiFundResponse(activeExternal3rdPillarFundBalance[1].getFund(), Locale.ENGLISH),
+                          new ApiFundResponse(lhv3rdPillarFund, Locale.ENGLISH),
+                          new ApiFundResponse(tuleva3rdPillarFund, Locale.ENGLISH),
                           null,
                           50.0
                       )

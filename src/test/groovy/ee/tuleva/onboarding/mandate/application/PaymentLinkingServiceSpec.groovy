@@ -15,6 +15,7 @@ import spock.lang.Specification
 import java.time.Duration
 import java.time.Instant
 
+import static PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
@@ -22,7 +23,6 @@ import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.FAILED
 import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarApiFundResponse
 import static ee.tuleva.onboarding.fund.FundFixture.tuleva3rdPillarFund
-import static PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
 import static ee.tuleva.onboarding.payment.PaymentFixture.*
 
 class PaymentLinkingServiceSpec extends Specification {
@@ -51,7 +51,7 @@ class PaymentLinkingServiceSpec extends Specification {
     cashFlowService.getCashFlowStatement(person) >> CashFlowStatement.builder()
         .transactions(transactions)
         .build()
-    fundRepository.findByIsin(TULEVA_3RD_PILLAR_FUND_ISIN) >> tuleva3rdPillarFund
+    fundRepository.findByIsin(TULEVA_3RD_PILLAR_FUND_ISIN) >> tuleva3rdPillarFund()
 
     when:
     def paymentApplications = paymentApplicationService.getPaymentApplications(person)

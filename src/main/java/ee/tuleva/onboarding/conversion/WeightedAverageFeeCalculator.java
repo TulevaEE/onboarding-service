@@ -28,14 +28,15 @@ public class WeightedAverageFeeCalculator {
       String sourceIsin = exchange.getSourceIsin();
       Asset source =
           assetsByIsin.getOrDefault(sourceIsin, new Asset(exchange.getSourceFundFees(), ZERO));
-      Asset subtracted = source.subtract(exchange.getValue(source.value));
+      BigDecimal value = exchange.getValue(source.value);
+      Asset subtracted = source.subtract(value);
       assetsByIsin.put(sourceIsin, subtracted);
 
       if (!exchange.isToPik()) {
         String targetIsin = exchange.getTargetIsin();
         Asset target =
             assetsByIsin.getOrDefault(targetIsin, new Asset(exchange.getTargetFundFees(), ZERO));
-        Asset added = target.add(exchange.getValue(source.value));
+        Asset added = target.add(value);
         assetsByIsin.put(targetIsin, added);
       }
     }

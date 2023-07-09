@@ -62,4 +62,8 @@ public class FundBalance {
             .add(subtractions == null ? ZERO : subtractions);
     return contributions != null || subtractions != null ? sum : null;
   }
+
+  public BigDecimal getFee() {
+    return fund.getOngoingChargesFigure();
+  }
 }

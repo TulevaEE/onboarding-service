@@ -52,7 +52,7 @@ class ApplicationSpec extends Specification {
 
   def "getPillar"() {
     def secondPillarFund = new ApiFundResponse(Fund.builder().pillar(2).build(), Locale.ENGLISH)
-    def secondPillarExchange = new Exchange(secondPillarFund, secondPillarFund, null, null)
+    def secondPillarExchange = new Exchange(secondPillarFund, secondPillarFund, null, BigDecimal.ONE)
 
     expect:
     Application.builder()

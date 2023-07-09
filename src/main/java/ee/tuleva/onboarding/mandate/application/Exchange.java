@@ -31,7 +31,8 @@ public class Exchange {
           "Both target fund and target PIK can not be present at the same time");
     }
     Integer pillar = getPillar(sourceFund, targetFund, targetPik);
-    boolean amountBetween0and1 = amount.compareTo(ZERO) > 0 && amount.compareTo(ONE) <= 0;
+    boolean amountBetween0and1 =
+        amount != null && amount.compareTo(ZERO) > 0 && amount.compareTo(ONE) <= 0;
     if (pillar == 2 && !amountBetween0and1) {
       throw new IllegalArgumentException(
           "2nd pillar exchange amount has to be between 0 and 1.0 (which means between 0% and 100%)");

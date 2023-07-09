@@ -1,110 +1,64 @@
 package ee.tuleva.onboarding.conversion;
 
+import static java.math.BigDecimal.ZERO;
+import static java.util.stream.Collectors.toMap;
+
 import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.mandate.application.Exchange;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class WeightedAverageFeeCalculator {
 
   public BigDecimal getWeightedAverageFee(
-      List<FundBalance> funds, List<Exchange> pendingExchanges) {
-    pendingExchanges.forEach(
-        e ->
-            log.info(
-                "Pending exchangesFrom {}, To: {}, amount: {}, pik: {}",
-                e.getSourceFund(),
-                e.getTargetFund(),
-                e.getAmount(),
-                e.getTargetPik()));
+      List<FundBalance> fundBalances, List<Exchange> pendingExchanges) {
 
-    if (funds.size() == 0) {
-      return BigDecimal.ZERO;
+    Map<String, Asset> assetsByIsin =
+        fundBalances.stream()
+            .collect(
+                toMap(
+                    FundBalance::getIsin,
+                    fundBalance -> new Asset(fundBalance.getFee(), fundBalance.getTotalValue())));
+
+    for (Exchange exchange : pendingExchanges) {
+      String sourceIsin = exchange.getSourceIsin();
+      Asset source =
+          assetsByIsin.getOrDefault(sourceIsin, new Asset(exchange.getSourceFundFees(), ZERO));
+      Asset subtracted = source.subtract(exchange.getValue(source.value));
+      assetsByIsin.put(sourceIsin, subtracted);
+
+      if (!exchange.isToPik()) {
+        String targetIsin = exchange.getTargetIsin();
+        Asset target =
+            assetsByIsin.getOrDefault(targetIsin, new Asset(exchange.getTargetFundFees(), ZERO));
+        Asset added = target.add(exchange.getValue(source.value));
+        assetsByIsin.put(targetIsin, added);
+      }
     }
 
-    BigDecimal valueSum = getValueSum(funds);
-    if (valueSum.compareTo(BigDecimal.ZERO) == 0) {
-      var fromFundIsins =
-          pendingExchanges.stream().map(exchange -> exchange.getSourceFund().getIsin()).toList();
-      var fundsThatDoNotIncludeLeavingFunds =
-          funds.stream()
-              .filter(fundBalance -> !fromFundIsins.contains(fundBalance.getFund().getIsin()))
-              .toList();
+    BigDecimal totalValue =
+        assetsByIsin.values().stream().map(asset -> asset.value).reduce(ZERO, BigDecimal::add);
 
-      var weightedValue =
-          fundsThatDoNotIncludeLeavingFunds.stream()
-              .map(fund -> fund.getFund().getOngoingChargesFigure())
-              .reduce(BigDecimal.ZERO, BigDecimal::add)
-              .divide(BigDecimal.valueOf(funds.size()), RoundingMode.HALF_UP);
-
-      var toFundWeightedValue =
-          pendingExchanges.stream()
-              .map(this::getOngoingChargesFigure)
-              .reduce(BigDecimal.ZERO, BigDecimal::add)
-              .divide(BigDecimal.valueOf(funds.size()), RoundingMode.HALF_UP);
-
-      return weightedValue.add(toFundWeightedValue);
+    if (totalValue.compareTo(ZERO) == 0) {
+      return ZERO;
     }
 
-    BigDecimal weightedArithmeticMean = BigDecimal.ZERO;
-    for (FundBalance fund : funds) {
-      BigDecimal fundTotalValue = fund.getTotalValue();
-      var exchangesFromCurrentFund =
-          pendingExchanges.stream()
-              .filter(exchange -> exchange.getSourceFund().getIsin().equals(fund.getIsin()))
-              .toList();
-
-      var amountThatLeavesThisFund =
-          exchangesFromCurrentFund.stream()
-              .map(Exchange::getAmount)
-              .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-      var weightedValueOfExchanges =
-          exchangesFromCurrentFund.stream()
-              .map(
-                  exchange ->
-                      exchange
-                          .getAmount()
-                          .multiply(getOngoingChargesFigure(exchange))
-                          .divide(valueSum, 4, RoundingMode.HALF_UP))
-              .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-      log.info(
-          "Fund {}. {} exchanges that leave this fund. Amount that leaves is {}. Weighted value of the exchanges is {}",
-          fund.getIsin(),
-          exchangesFromCurrentFund.size(),
-          amountThatLeavesThisFund,
-          weightedValueOfExchanges);
-
-      exchangesFromCurrentFund.forEach(
-          e ->
-              log.info(
-                  "Pending exchanges from current fund: From {}, To: {}, amount: {}, pik: {}",
-                  e.getSourceFund(),
-                  e.getTargetFund(),
-                  e.getAmount(),
-                  e.getTargetPik()));
-
-      BigDecimal weightedValue =
-          (fundTotalValue.subtract(amountThatLeavesThisFund))
-              .multiply(fund.getFund().getOngoingChargesFigure())
-              .divide(valueSum, 4, RoundingMode.HALF_UP);
-      weightedArithmeticMean =
-          weightedArithmeticMean.add(weightedValue).add(weightedValueOfExchanges);
-    }
-    return weightedArithmeticMean;
+    return assetsByIsin.values().stream()
+        .map(asset -> asset.value.multiply(asset.fee).divide(totalValue, 4, RoundingMode.HALF_UP))
+        .reduce(ZERO, BigDecimal::add);
   }
 
-  private BigDecimal getValueSum(List<FundBalance> funds) {
-    return funds.stream().map(FundBalance::getTotalValue).reduce(BigDecimal.ZERO, BigDecimal::add);
-  }
+  record Asset(BigDecimal fee, BigDecimal value) {
+    public Asset add(BigDecimal augend) {
+      return new Asset(fee, value.add(augend));
+    }
 
-  private BigDecimal getOngoingChargesFigure(Exchange exchange) {
-    return (exchange.getTargetFund() == null)
-        ? BigDecimal.ZERO
-        : exchange.getTargetFund().getOngoingChargesFigure();
+    public Asset subtract(BigDecimal subtrahend) {
+      return new Asset(fee, value.subtract(subtrahend));
+    }
   }
 }

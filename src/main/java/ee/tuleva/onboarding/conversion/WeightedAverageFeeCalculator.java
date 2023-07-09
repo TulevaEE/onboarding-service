@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.mandate.application.Exchange;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
@@ -17,38 +18,51 @@ public class WeightedAverageFeeCalculator {
   public BigDecimal getWeightedAverageFee(
       List<FundBalance> fundBalances, List<Exchange> pendingExchanges) {
 
-    Map<String, Asset> assetsByIsin =
+    Map<String, Asset> balanceAssetsByIsin =
         fundBalances.stream()
             .collect(
                 toMap(
                     FundBalance::getIsin,
                     fundBalance -> new Asset(fundBalance.getFee(), fundBalance.getTotalValue())));
 
+    Map<String, Asset> exchangeAssetsByIsin = new HashMap<>();
     for (Exchange exchange : pendingExchanges) {
+      Asset asset =
+          balanceAssetsByIsin.getOrDefault(
+              exchange.getSourceIsin(), new Asset(exchange.getSourceFundFees(), ZERO));
+      BigDecimal value = exchange.getValue(asset.value);
+
       String sourceIsin = exchange.getSourceIsin();
       Asset source =
-          assetsByIsin.getOrDefault(sourceIsin, new Asset(exchange.getSourceFundFees(), ZERO));
-      BigDecimal value = exchange.getValue(source.value);
+          exchangeAssetsByIsin.getOrDefault(
+              sourceIsin, new Asset(exchange.getSourceFundFees(), ZERO));
       Asset subtracted = source.subtract(value);
-      assetsByIsin.put(sourceIsin, subtracted);
+      exchangeAssetsByIsin.put(sourceIsin, subtracted);
 
       if (!exchange.isToPik()) {
         String targetIsin = exchange.getTargetIsin();
         Asset target =
-            assetsByIsin.getOrDefault(targetIsin, new Asset(exchange.getTargetFundFees(), ZERO));
+            exchangeAssetsByIsin.getOrDefault(
+                targetIsin, new Asset(exchange.getTargetFundFees(), ZERO));
         Asset added = target.add(value);
-        assetsByIsin.put(targetIsin, added);
+        exchangeAssetsByIsin.put(targetIsin, added);
       }
     }
 
+    var mergedAssetsByIsin = new HashMap<>(balanceAssetsByIsin);
+    exchangeAssetsByIsin.forEach(
+        (isin, asset) -> mergedAssetsByIsin.merge(isin, asset, Asset::add));
+
     BigDecimal totalValue =
-        assetsByIsin.values().stream().map(asset -> asset.value).reduce(ZERO, BigDecimal::add);
+        mergedAssetsByIsin.values().stream()
+            .map(asset -> asset.value)
+            .reduce(ZERO, BigDecimal::add);
 
     if (totalValue.compareTo(ZERO) == 0) {
       return ZERO;
     }
 
-    return assetsByIsin.values().stream()
+    return mergedAssetsByIsin.values().stream()
         .map(asset -> asset.value.multiply(asset.fee).divide(totalValue, 4, RoundingMode.HALF_UP))
         .reduce(ZERO, BigDecimal::add);
   }
@@ -56,6 +70,13 @@ public class WeightedAverageFeeCalculator {
   record Asset(BigDecimal fee, BigDecimal value) {
     public Asset add(BigDecimal augend) {
       return new Asset(fee, value.add(augend));
+    }
+
+    public Asset add(Asset augend) {
+      if (fee.compareTo(augend.fee) != 0) {
+        throw new IllegalArgumentException("Different fees: " + this + ", " + augend);
+      }
+      return new Asset(fee, value.add(augend.value));
     }
 
     public Asset subtract(BigDecimal subtrahend) {

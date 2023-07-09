@@ -31,7 +31,7 @@ class FundFixture {
       .id(124)
       .pillar(2)
       .status(ACTIVE)
-      .ongoingChargesFigure(0.005)
+      .ongoingChargesFigure(0.006)
       .managementFeeRate(0.0034)
       .fundManager(
           FundManager.builder()

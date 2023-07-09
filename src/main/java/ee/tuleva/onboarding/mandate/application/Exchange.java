@@ -83,22 +83,27 @@ public class Exchange {
     return amount;
   }
 
+  @JsonIgnore
   public String getSourceIsin() {
     return sourceFund.getIsin();
   }
 
+  @JsonIgnore
   public String getTargetIsin() {
     return targetFund.getIsin();
   }
 
+  @JsonIgnore
   public BigDecimal getSourceFundFees() {
     return sourceFund.getOngoingChargesFigure();
   }
 
+  @JsonIgnore
   public BigDecimal getTargetFundFees() {
     return targetFund.getOngoingChargesFigure();
   }
 
+  @JsonIgnore
   public boolean isToPik() {
     return targetPik != null;
   }

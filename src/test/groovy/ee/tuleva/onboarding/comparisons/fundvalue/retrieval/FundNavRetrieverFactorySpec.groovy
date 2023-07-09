@@ -18,8 +18,8 @@ class FundNavRetrieverFactorySpec extends Specification {
 
   def "creates fund nav retrievers for all active funds"() {
     given:
-    def sampleFunds = [tuleva2ndPillarBondFund, tuleva2ndPillarStockFund,
-                       tuleva3rdPillarFund, lhv2ndPillarFund, lhv3rdPillarFund]
+    def sampleFunds = [tuleva2ndPillarBondFund(), tuleva2ndPillarStockFund(),
+                       tuleva3rdPillarFund(), lhv2ndPillarFund(), lhv3rdPillarFund()]
     fundRepository.findAllByStatus(ACTIVE) >> sampleFunds
     when:
     def retrievers = fundNavRetrieverFactory.createAll()

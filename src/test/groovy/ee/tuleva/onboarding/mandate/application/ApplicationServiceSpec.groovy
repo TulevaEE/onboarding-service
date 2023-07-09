@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.mandate.application
 
-
-import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
+import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
 import java.time.Instant
@@ -18,15 +17,9 @@ import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.fund.ApiFundResponseFixture.tuleva3rdPillarApiFundResponse
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleEarlyWithdrawalApplicationDto
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleWithdrawalApplicationDto
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.samplePikTransferApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.paymentApplication
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.PAYMENT
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
 
 class ApplicationServiceSpec extends Specification {
 
@@ -37,7 +30,7 @@ class ApplicationServiceSpec extends Specification {
   PaymentLinkingService paymentApplicationService = Mock()
 
   ApplicationService applicationService =
-    new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService)
+      new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService)
 
   def "gets applications"() {
     given:
@@ -52,8 +45,8 @@ class ApplicationServiceSpec extends Specification {
     def pikTransferApplication = samplePikTransferApplicationDto()
 
     episService.getApplications(person) >> [
-      transferApplication1, transferApplication2, completedTransferApplication,
-      pikTransferApplication, withdrawalApplication, earlyWithdrawalApplication
+        transferApplication1, transferApplication2, completedTransferApplication,
+        pikTransferApplication, withdrawalApplication, earlyWithdrawalApplication
     ]
     localeService.getCurrentLocale() >> Locale.ENGLISH
     fundRepository.findByIsin("source") >> sampleFunds().first()

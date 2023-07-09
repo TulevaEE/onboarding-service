@@ -399,12 +399,12 @@ class UserConversionServiceSpec extends Specification {
           .status(PENDING)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new ApiFundResponse(lhv2ndPillarFund, Locale.ENGLISH)
+                  .sourceFund(new ApiFundResponse(lhv2ndPillarFund(), Locale.ENGLISH)
                   )
                   .exchange(
                       new Exchange(
-                          new ApiFundResponse(lhv2ndPillarFund, Locale.ENGLISH),
-                          new ApiFundResponse(tuleva2ndPillarStockFund, Locale.ENGLISH),
+                          new ApiFundResponse(lhv2ndPillarFund(), Locale.ENGLISH),
+                          new ApiFundResponse(tuleva2ndPillarStockFund(), Locale.ENGLISH),
                           null,
                           1.0
                       )
@@ -419,12 +419,12 @@ class UserConversionServiceSpec extends Specification {
           .status(PENDING)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new ApiFundResponse(lhv2ndPillarFund, Locale.ENGLISH)
+                  .sourceFund(new ApiFundResponse(lhv2ndPillarFund(), Locale.ENGLISH)
                   )
                   .exchange(
                       new Exchange(
-                          new ApiFundResponse(lhv2ndPillarFund, Locale.ENGLISH),
-                          new ApiFundResponse(tuleva2ndPillarStockFund, Locale.ENGLISH),
+                          new ApiFundResponse(lhv2ndPillarFund(), Locale.ENGLISH),
+                          new ApiFundResponse(tuleva2ndPillarStockFund(), Locale.ENGLISH),
                           null,
                           0.5
                       )
@@ -438,11 +438,11 @@ class UserConversionServiceSpec extends Specification {
           .status(PENDING)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new ApiFundResponse(tuleva2ndPillarStockFund, Locale.ENGLISH)
+                  .sourceFund(new ApiFundResponse(tuleva2ndPillarStockFund(), Locale.ENGLISH)
                   )
                   .exchange(
                       new Exchange(
-                          new ApiFundResponse(tuleva2ndPillarStockFund, Locale.ENGLISH),
+                          new ApiFundResponse(tuleva2ndPillarStockFund(), Locale.ENGLISH),
                           null,
                           "EE801281685311741971",
                           1.0
@@ -457,11 +457,11 @@ class UserConversionServiceSpec extends Specification {
           .status(PENDING)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new ApiFundResponse(lhv3rdPillarFund, Locale.ENGLISH))
+                  .sourceFund(new ApiFundResponse(lhv3rdPillarFund(), Locale.ENGLISH))
                   .exchange(
                       new Exchange(
-                          new ApiFundResponse(lhv3rdPillarFund, Locale.ENGLISH),
-                          new ApiFundResponse(tuleva3rdPillarFund, Locale.ENGLISH),
+                          new ApiFundResponse(lhv3rdPillarFund(), Locale.ENGLISH),
+                          new ApiFundResponse(tuleva3rdPillarFund(), Locale.ENGLISH),
                           null,
                           100.0
                       )
@@ -475,11 +475,11 @@ class UserConversionServiceSpec extends Specification {
           .status(PENDING)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new ApiFundResponse(tuleva3rdPillarFund, Locale.ENGLISH))
+                  .sourceFund(new ApiFundResponse(tuleva3rdPillarFund(), Locale.ENGLISH))
                   .exchange(
                       new Exchange(
-                          new ApiFundResponse(tuleva3rdPillarFund, Locale.ENGLISH),
-                          new ApiFundResponse(lhv3rdPillarFund, Locale.ENGLISH),
+                          new ApiFundResponse(tuleva3rdPillarFund(), Locale.ENGLISH),
+                          new ApiFundResponse(lhv3rdPillarFund(), Locale.ENGLISH),
                           null,
                           100.0
                       )
@@ -493,11 +493,11 @@ class UserConversionServiceSpec extends Specification {
           .status(PENDING)
           .details(
               TransferApplicationDetails.builder()
-                  .sourceFund(new ApiFundResponse(lhv3rdPillarFund, Locale.ENGLISH))
+                  .sourceFund(new ApiFundResponse(lhv3rdPillarFund(), Locale.ENGLISH))
                   .exchange(
                       new Exchange(
-                          new ApiFundResponse(lhv3rdPillarFund, Locale.ENGLISH),
-                          new ApiFundResponse(tuleva3rdPillarFund, Locale.ENGLISH),
+                          new ApiFundResponse(lhv3rdPillarFund(), Locale.ENGLISH),
+                          new ApiFundResponse(tuleva3rdPillarFund(), Locale.ENGLISH),
                           null,
                           50.0
                       )

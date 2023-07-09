@@ -14,7 +14,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva2ndPillarStockFund)
+          .fund(tuleva2ndPillarStockFund())
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -23,7 +23,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva2ndPillarBondFund)
+          .fund(tuleva2ndPillarBondFund())
           .build()
   )
 
@@ -35,7 +35,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(lhv2ndPillarFund)
+          .fund(lhv2ndPillarFund())
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -44,7 +44,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva2ndPillarBondFund)
+          .fund(tuleva2ndPillarBondFund())
           .build()
   )
 
@@ -56,7 +56,7 @@ class AccountStatementFixture {
           .contributions(0.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(lhv2ndPillarFund)
+          .fund(lhv2ndPillarFund())
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -65,7 +65,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva2ndPillarBondFund)
+          .fund(tuleva2ndPillarBondFund())
           .build()
   )
 
@@ -77,7 +77,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva2ndPillarBondFund)
+          .fund(tuleva2ndPillarBondFund())
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -86,7 +86,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(lhv2ndPillarFund)
+          .fund(lhv2ndPillarFund())
           .build()
   )
 
@@ -98,7 +98,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(lhv2ndPillarFund)
+          .fund(lhv2ndPillarFund())
           .build()
   )
 
@@ -110,7 +110,7 @@ class AccountStatementFixture {
           .contributions(0.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva2ndPillarStockFund)
+          .fund(tuleva2ndPillarStockFund())
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -119,7 +119,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(lhv2ndPillarFund)
+          .fund(lhv2ndPillarFund())
           .build()
   )
 
@@ -131,7 +131,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva3rdPillarFund)
+          .fund(tuleva3rdPillarFund())
           .build(),
       FundBalance.builder()
           .value(200.0)
@@ -140,7 +140,7 @@ class AccountStatementFixture {
           .contributions(190.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(exitRestricted3rdPillarFund)
+          .fund(exitRestricted3rdPillarFund())
           .build()
   )
 
@@ -152,7 +152,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(lhv3rdPillarFund)
+          .fund(lhv3rdPillarFund())
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -161,7 +161,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva3rdPillarFund)
+          .fund(tuleva3rdPillarFund())
           .build()
   )
 
@@ -173,7 +173,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva3rdPillarFund)
+          .fund(tuleva3rdPillarFund())
           .build()
   )
 
@@ -185,7 +185,7 @@ class AccountStatementFixture {
           .contributions(0.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(lhv3rdPillarFund)
+          .fund(lhv3rdPillarFund())
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -194,7 +194,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva3rdPillarFund)
+          .fund(tuleva3rdPillarFund())
           .build()
   )
 
@@ -206,7 +206,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva3rdPillarFund)
+          .fund(tuleva3rdPillarFund())
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -215,7 +215,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(lhv3rdPillarFund)
+          .fund(lhv3rdPillarFund())
           .build()
   )
 
@@ -227,7 +227,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(lhv3rdPillarFund)
+          .fund(lhv3rdPillarFund())
           .build()
   )
 
@@ -239,7 +239,7 @@ class AccountStatementFixture {
           .contributions(0.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(tuleva3rdPillarFund)
+          .fund(tuleva3rdPillarFund())
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -248,7 +248,7 @@ class AccountStatementFixture {
           .contributions(90.0)
           .subtractions(0.0)
           .currency("EUR")
-          .fund(lhv3rdPillarFund)
+          .fund(lhv3rdPillarFund())
           .build()
   )
 

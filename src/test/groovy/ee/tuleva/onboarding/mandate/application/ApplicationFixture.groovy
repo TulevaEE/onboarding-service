@@ -67,6 +67,6 @@ class ApplicationFixture {
     return PaymentApplicationDetails.builder()
         .amount(10.0)
         .currency(EUR)
-        .targetFund(new ApiFundResponse(tuleva3rdPillarFund, Locale.ENGLISH))
+        .targetFund(new ApiFundResponse(tuleva3rdPillarFund(), Locale.ENGLISH))
   }
 }

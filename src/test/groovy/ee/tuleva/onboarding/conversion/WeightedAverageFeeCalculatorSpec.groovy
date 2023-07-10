@@ -159,7 +159,6 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
     [
         [isin: tuleva2ndPillarStockFund().isin, value: 100.0, fundFee: 0.005, unavailableValue: 0.0],
         [isin: tuleva2ndPillarBondFund().isin, value: 100.0, fundFee: 0.006, unavailableValue: 0.0]
-
     ]                                                                                                 | (150 * 0.006 + 50 * 0.02) / 200
   }
 

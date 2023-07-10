@@ -71,8 +71,9 @@ public class WeightedAverageFeeCalculator {
     }
 
     return mergedAssetsByIsin.values().stream()
-        .map(asset -> asset.value.multiply(asset.fee).divide(totalValue, 4, RoundingMode.HALF_UP))
-        .reduce(ZERO, BigDecimal::add);
+        .map(asset -> asset.value.multiply(asset.fee))
+        .reduce(ZERO, BigDecimal::add)
+        .divide(totalValue, 4, RoundingMode.HALF_UP);
   }
 
   record Asset(BigDecimal fee, BigDecimal value) {

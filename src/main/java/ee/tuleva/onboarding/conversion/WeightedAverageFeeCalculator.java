@@ -25,6 +25,8 @@ public class WeightedAverageFeeCalculator {
                     FundBalance::getIsin,
                     fundBalance -> new Asset(fundBalance.getFee(), fundBalance.getTotalValue())));
 
+    log.info("balanceAssetsByIsin: {}", balanceAssetsByIsin);
+
     Map<String, Asset> exchangeAssetsByIsin = new HashMap<>();
     for (Exchange exchange : pendingExchanges) {
       Asset asset =
@@ -49,14 +51,20 @@ public class WeightedAverageFeeCalculator {
       }
     }
 
+    log.info("exchangeAssetsByIsin: {}", exchangeAssetsByIsin);
+
     var mergedAssetsByIsin = new HashMap<>(balanceAssetsByIsin);
     exchangeAssetsByIsin.forEach(
         (isin, asset) -> mergedAssetsByIsin.merge(isin, asset, Asset::add));
+
+    log.info("mergedAssetsByIsin: {}", mergedAssetsByIsin);
 
     BigDecimal totalValue =
         mergedAssetsByIsin.values().stream()
             .map(asset -> asset.value)
             .reduce(ZERO, BigDecimal::add);
+
+    log.info("totalValue: {}", totalValue);
 
     if (totalValue.compareTo(ZERO) == 0) {
       return ZERO;

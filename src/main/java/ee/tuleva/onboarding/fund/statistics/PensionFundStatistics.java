@@ -2,9 +2,10 @@ package ee.tuleva.onboarding.fund.statistics;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import javax.xml.bind.annotation.XmlAccessType;
-import javax.xml.bind.annotation.XmlAccessorType;
-import javax.xml.bind.annotation.XmlAttribute;
+
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlAttribute;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

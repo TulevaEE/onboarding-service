@@ -73,7 +73,6 @@ dependencies {
 
     implementation("org.glassfish.jaxb:jaxb-runtime")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
-    implementation("javax.xml.bind:jaxb-api:2.3.1")
 
     runtimeOnly("org.postgresql:postgresql")
 
@@ -86,6 +85,7 @@ dependencies {
     implementation("org.decampo:xirr:1.2")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.2")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
+    implementation("javax.xml.bind:jaxb-api:2.3.1")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.1.4")
     implementation("org.digidoc4j:digidoc4j:5.1.0") {

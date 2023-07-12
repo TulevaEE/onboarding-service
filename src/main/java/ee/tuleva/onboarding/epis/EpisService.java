@@ -1,9 +1,5 @@
 package ee.tuleva.onboarding.epis;
 
-import static ee.tuleva.onboarding.config.OAuth2RestTemplateConfiguration.CLIENT_CREDENTIALS_REST_TEMPLATE;
-import static ee.tuleva.onboarding.config.OAuth2RestTemplateConfiguration.USER_TOKEN_REST_TEMPLATE;
-import static java.util.Arrays.asList;
-
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.contribution.Contribution;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
@@ -16,9 +12,6 @@ import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
-import java.time.LocalDate;
-import java.util.List;
-import javax.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +24,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import javax.annotation.Resource;
+import java.time.LocalDate;
+import java.util.List;
+
+import static ee.tuleva.onboarding.config.OAuth2RestTemplateConfiguration.CLIENT_CREDENTIALS_REST_TEMPLATE;
+import static ee.tuleva.onboarding.config.OAuth2RestTemplateConfiguration.USER_TOKEN_REST_TEMPLATE;
+import static java.util.Arrays.asList;
 
 @Service
 @Slf4j
@@ -126,7 +127,7 @@ public class EpisService {
     log.info("Getting contributions for {}", person.getPersonalCode());
 
     ResponseEntity<Contribution[]> response =
-        userTokenRestTemplate.exchange(url, GET, getHeadersEntity(), Contribution[].class);
+        userTokenRestTemplate.getForEntity(url, Contribution[].class);
 
     return asList(response.getBody());
   }

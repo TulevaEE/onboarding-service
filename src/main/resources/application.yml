@@ -177,9 +177,15 @@ spring:
     hikari:
       maximum-pool-size: 75
     initialization-mode: never
-
   flyway:
     baseline-on-migrate: false
+  security:
+    oauth2:
+      client:
+        provider:
+          tuleva:
+            token-uri: https://onboarding-service.tuleva.ee/oauth/token
+            authorization-uri: https://onboarding-service.tuleva.ee/oauth2/authorization
 server:
   servlet:
     session.cookie.domain: tuleva.ee # for session sharing across sub-domains

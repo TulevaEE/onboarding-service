@@ -21,8 +21,7 @@ public enum IdDocumentType {
   private static final String POLICE_PREFIX = "1.3.6.1.4.1.51361.1.1.";
   private static final String FOREIGN_AFFAIRS_PREFIX = "1.3.6.1.4.1.51455.1.1.";
 
-  @JsonValue
-  private final String identifier;
+  @JsonValue private final String identifier;
 
   IdDocumentType(String identifier) {
     this.identifier = identifier;

@@ -3,10 +3,8 @@ package ee.tuleva.onboarding.auth;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
-
 import java.util.List;
 import java.util.Map;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -38,9 +36,13 @@ public class PersonalCodeTokenIntrospector implements OpaqueTokenIntrospector {
       throw new BadOpaqueTokenException("Authorization not found");
     }
 
-    if (authorization.getAuthorizationGrantType().getValue().equals(AuthorizationGrantType.CLIENT_CREDENTIALS.getValue())) {
+    if (authorization
+        .getAuthorizationGrantType()
+        .getValue()
+        .equals(AuthorizationGrantType.CLIENT_CREDENTIALS.getValue())) {
       var authorities = AuthorityUtils.createAuthorityList("SERVICE");
-      return new OAuth2IntrospectionAuthenticatedPrincipal(authorization.getAttributes(), authorities);
+      return new OAuth2IntrospectionAuthenticatedPrincipal(
+          authorization.getAttributes(), authorities);
     }
 
     AuthenticatedPerson authenticatedPerson =

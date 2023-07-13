@@ -3,15 +3,20 @@ package ee.tuleva.onboarding.auth;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
+
 import java.util.List;
 import java.util.Map;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
 import org.springframework.security.oauth2.core.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.resource.introspection.BadOpaqueTokenException;
+import org.springframework.security.oauth2.server.resource.introspection.OAuth2IntrospectionAuthenticatedPrincipal;
 import org.springframework.security.oauth2.server.resource.introspection.OpaqueTokenIntrospector;
 
 @RequiredArgsConstructor
@@ -31,6 +36,11 @@ public class PersonalCodeTokenIntrospector implements OpaqueTokenIntrospector {
 
     if (authorization == null) {
       throw new BadOpaqueTokenException("Authorization not found");
+    }
+
+    if (authorization.getAuthorizationGrantType().getValue().equals(AuthorizationGrantType.CLIENT_CREDENTIALS.getValue())) {
+      var authorities = AuthorityUtils.createAuthorityList("SERVICE");
+      return new OAuth2IntrospectionAuthenticatedPrincipal(authorization.getAttributes(), authorities);
     }
 
     AuthenticatedPerson authenticatedPerson =

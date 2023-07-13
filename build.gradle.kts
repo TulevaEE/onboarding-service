@@ -152,6 +152,7 @@ tasks {
             exceptionFormat = FULL
         }
         useJUnitPlatform()
+        shouldRunAfter(spotlessCheck)
     }
 
     bootRun {

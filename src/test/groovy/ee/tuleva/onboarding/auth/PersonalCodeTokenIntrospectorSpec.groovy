@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.time.TestClockHolder
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.oauth2.core.AuthorizationGrantType
 import org.springframework.security.oauth2.core.OAuth2AccessToken
 import org.springframework.security.oauth2.core.OAuth2TokenType
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization
@@ -52,18 +53,19 @@ class PersonalCodeTokenIntrospectorSpec extends Specification {
     OAuth2AccessToken accessToken = Mock()
     Instant issuedAt = TestClockHolder.now.plusSeconds(12)
     Instant expiresAt = TestClockHolder.now.plusSeconds(50)
-    1 * registeredClient.getClientId() >> clientId
-    1 * authorization.getAccessToken() >> accessTokenToken
-    1 * accessTokenToken.getToken() >> accessToken
-    1 * accessToken.getExpiresAt() >> expiresAt
-    1 * accessToken.getIssuedAt() >> issuedAt
-    1 * authorization.getRegisteredClientId() >> "registeredclient"
-    1 * authorization.getPrincipalName() >> authenticatedPerson.personalCode
-    1 * authorization.getAttribute(AuthenticationAttributes.AUTHENTICATION_ATTRIBUTES_KEY) >> ["demo": "attribute"]
-    1 * oAuth2AuthorizationService.findByToken(token, OAuth2TokenType.ACCESS_TOKEN) >> authorization
-    1 * principalService.getFrom(authenticatedPerson.personalCode) >> authenticatedPerson
-    1 * grantedAuthorityFactory.from(authenticatedPerson) >> authorities
-    1 * registeredClientRepository.findById("registeredclient") >> registeredClient
+    registeredClient.getClientId() >> clientId
+    authorization.getAccessToken() >> accessTokenToken
+    accessTokenToken.getToken() >> accessToken
+    accessToken.getExpiresAt() >> expiresAt
+    accessToken.getIssuedAt() >> issuedAt
+    authorization.getRegisteredClientId() >> "registeredclient"
+    authorization.getPrincipalName() >> authenticatedPerson.personalCode
+    authorization.getAttribute(AuthenticationAttributes.AUTHENTICATION_ATTRIBUTES_KEY) >> ["demo": "attribute"]
+    authorization.getAuthorizationGrantType() >> new AuthorizationGrantType("smart_id")
+    oAuth2AuthorizationService.findByToken(token, OAuth2TokenType.ACCESS_TOKEN) >> authorization
+    principalService.getFrom(authenticatedPerson.personalCode) >> authenticatedPerson
+    grantedAuthorityFactory.from(authenticatedPerson) >> authorities
+    registeredClientRepository.findById("registeredclient") >> registeredClient
 
     when:
     def principal = personalCodeTokenIntrospector.introspect(token)

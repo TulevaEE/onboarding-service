@@ -3,5 +3,5 @@
     elementFormDefault = XmlNsForm.QUALIFIED)
 package ee.tuleva.onboarding.fund.statistics;
 
-import jakarta.xml.bind.annotation.XmlNsForm;
-import jakarta.xml.bind.annotation.XmlSchema;
+import javax.xml.bind.annotation.XmlNsForm;
+import javax.xml.bind.annotation.XmlSchema;

@@ -1,9 +1,7 @@
 package ee.tuleva.onboarding.config;
 
 import ee.tuleva.onboarding.auth.http.AuthorizedClientManagerOAuth2Interceptor;
-
 import java.time.Duration;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
@@ -28,7 +26,7 @@ public class OAuth2RestTemplateConfiguration {
 
   @Bean(CLIENT_CREDENTIALS_REST_TEMPLATE)
   public RestTemplate clientCredentialsRestTemplate() {
-    var clientRegistration = clientRegistrationRepository.findByRegistrationId("onboarding-service");
+    var clientRegistration = clientRegistrationRepository.findByRegistrationId("epis-service");
 
     return restTemplateBuilder
         .additionalInterceptors(

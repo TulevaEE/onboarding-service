@@ -28,6 +28,10 @@ public class ContactDetailsService {
     return updatedContactDetails;
   }
 
+  public ContactDetails getContactDetails(Person person, String token) {
+    return episService.getContactDetails(person, token);
+  }
+
   public ContactDetails getContactDetails(Person person) {
     return episService.getContactDetails(person);
   }

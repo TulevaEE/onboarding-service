@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.event;
 
-import ee.tuleva.onboarding.auth.AuthenticatedPersonPrincipal;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.v3.oas.annotations.Operation;
 import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,7 +23,7 @@ public class TrackingController {
   @PostMapping
   @Operation(summary = "Add tracked event")
   public void track(
-      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody TrackedEventCommand command) {
 
     eventPublisher.publishEvent(

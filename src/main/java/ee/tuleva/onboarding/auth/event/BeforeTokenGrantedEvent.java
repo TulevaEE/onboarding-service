@@ -1,19 +1,23 @@
 package ee.tuleva.onboarding.auth.event;
 
-import ee.tuleva.onboarding.auth.AuthenticationAttributes;
+import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.principal.Person;
-import java.io.Serial;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import lombok.Getter;
+import org.springframework.context.ApplicationEvent;
+import org.springframework.security.oauth2.provider.OAuth2Authentication;
 
-public class BeforeTokenGrantedEvent extends AbstractTokenEvent {
+@Getter
+public class BeforeTokenGrantedEvent extends ApplicationEvent {
 
-  @Serial private static final long serialVersionUID = 2538284674540281150L;
+  private final Person person;
+  private final OAuth2Authentication authentication;
+  private final GrantType grantType;
 
   public BeforeTokenGrantedEvent(
-      Object source,
-      Person person,
-      AuthenticationAttributes attributes,
-      AuthorizationGrantType authorizationGrantType) {
-    super(source, person, authorizationGrantType, attributes);
+      Object source, Person person, OAuth2Authentication authentication, GrantType grantType) {
+    super(source);
+    this.person = person;
+    this.authentication = authentication;
+    this.grantType = grantType;
   }
 }

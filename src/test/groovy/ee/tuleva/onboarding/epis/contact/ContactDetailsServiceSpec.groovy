@@ -41,7 +41,17 @@ class ContactDetailsServiceSpec extends Specification {
     1 * eventPublisher.publishEvent(_ as ContactDetailsUpdatedEvent)
   }
 
-  def "can get contact details"() {
+  def "can get contact details with token"() {
+    given:
+    def person = samplePerson()
+    def token = "123"
+    when:
+    contactDetailsService.getContactDetails(person, token)
+    then:
+    1 * episService.getContactDetails(person, token)
+  }
+
+  def "can get contact details with no token"() {
     given:
     def person = samplePerson()
     when:

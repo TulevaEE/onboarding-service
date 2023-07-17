@@ -40,25 +40,7 @@ spring:
     store-type: none
     jdbc:
       initialize-schema: never
-  security:
-    oauth2:
-      client:
-        provider:
-          tuleva:
-            token-uri: http://localhost:${server.port}/oauth/token
-            authorization-uri: http://localhost:${server.port}/oauth2/authorization
-        registration:
-          epis-service:
-            provider: tuleva
-            client-id: epis-service
-            client-secret: "epis-service"
-            authorization-grant-type: client_credentials
-          onboarding-client:
-            provider: tuleva
-            client-id: onboarding-client
-            client-secret: "onboarding-client"
-            redirect-uri: https://pension.tuleva.ee # Not used
-            authorization-grant-type: authorization_code
+  cloud.mvc.token-relay.enabled: false
 
 mobile-id:
   # use "https://mid.sk.ee/mid-api" for testing signing
@@ -177,15 +159,9 @@ spring:
     hikari:
       maximum-pool-size: 75
     initialization-mode: never
+
   flyway:
     baseline-on-migrate: false
-  security:
-    oauth2:
-      client:
-        provider:
-          tuleva:
-            token-uri: https://onboarding-service.tuleva.ee/oauth/token
-            authorization-uri: https://onboarding-service.tuleva.ee/oauth2/authorization
 server:
   servlet:
     session.cookie.domain: tuleva.ee # for session sharing across sub-domains

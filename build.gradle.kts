@@ -65,14 +65,15 @@ dependencies {
 
     implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
     implementation("org.springframework.session:spring-session-jdbc")
-    implementation("org.springframework.security:spring-security-oauth2-authorization-server:0.3.1")
-    implementation("org.springframework.security:spring-security-oauth2-client")
+    implementation(
+        "org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8",
+    )
+    implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
+
+    implementation("com.nimbusds:nimbus-jose-jwt:9.31")
 
     implementation("org.springdoc:springdoc-openapi-ui:1.7.0")
     implementation("org.springdoc:springdoc-openapi-security:1.7.0")
-
-    implementation("org.glassfish.jaxb:jaxb-runtime")
-    implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
 
     runtimeOnly("org.postgresql:postgresql")
 
@@ -85,7 +86,6 @@ dependencies {
     implementation("org.decampo:xirr:1.2")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.2")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
-    implementation("javax.xml.bind:jaxb-api:2.3.1")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.1.4")
     implementation("org.digidoc4j:digidoc4j:5.1.0") {

@@ -1,0 +1,98 @@
+package ee.tuleva.onboarding.auth.smartid;
+
+import ee.tuleva.onboarding.auth.GrantType;
+import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
+import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
+import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.principal.PrincipalService;
+import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
+import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.common.OAuth2AccessToken;
+import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
+import org.springframework.security.oauth2.provider.ClientDetails;
+import org.springframework.security.oauth2.provider.ClientDetailsService;
+import org.springframework.security.oauth2.provider.OAuth2Authentication;
+import org.springframework.security.oauth2.provider.OAuth2Request;
+import org.springframework.security.oauth2.provider.OAuth2RequestFactory;
+import org.springframework.security.oauth2.provider.TokenRequest;
+import org.springframework.security.oauth2.provider.token.AbstractTokenGranter;
+import org.springframework.security.oauth2.provider.token.AuthorizationServerTokenServices;
+
+@Slf4j
+public class SmartIdTokenGranter extends AbstractTokenGranter {
+
+  private static final GrantType GRANT_TYPE = GrantType.SMART_ID;
+
+  private final SmartIdAuthService smartIdAuthService;
+  private final PrincipalService principalService;
+  private final GrantedAuthorityFactory grantedAuthorityFactory;
+  private final ApplicationEventPublisher eventPublisher;
+
+  public SmartIdTokenGranter(
+      AuthorizationServerTokenServices tokenServices,
+      ClientDetailsService clientDetailsService,
+      OAuth2RequestFactory requestFactory,
+      SmartIdAuthService smartIdAuthService,
+      PrincipalService principalService,
+      GrantedAuthorityFactory grantedAuthorityFactory,
+      ApplicationEventPublisher applicationEventPublisher) {
+    super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE.name().toLowerCase());
+
+    assert smartIdAuthService != null;
+    assert principalService != null;
+    assert grantedAuthorityFactory != null;
+
+    this.smartIdAuthService = smartIdAuthService;
+    this.principalService = principalService;
+    this.grantedAuthorityFactory = grantedAuthorityFactory;
+    this.eventPublisher = applicationEventPublisher;
+  }
+
+  @Override
+  protected OAuth2AccessToken getAccessToken(ClientDetails client, TokenRequest tokenRequest) {
+    // grant_type validated in AbstractTokenGranter
+    final String clientId = client.getClientId();
+    if (clientId == null) {
+      log.error("Failed to authenticate client");
+      throw new InvalidRequestException("Unknown Client ID.");
+    }
+
+    var authenticationHash = tokenRequest.getRequestParameters().get("authenticationHash");
+    if (authenticationHash == null) {
+      throw new SmartIdSessionNotFoundException();
+    }
+
+    var identity = smartIdAuthService.getAuthenticationIdentity(authenticationHash);
+    if (identity.isEmpty()) {
+      throw new AuthNotCompleteException();
+    }
+    var smartIdPerson = new SmartIdPerson(identity.get());
+
+    AuthenticatedPerson authenticatedPerson =
+        principalService.getFrom(smartIdPerson, Optional.empty());
+
+    Authentication userAuthentication =
+        new PersonalCodeAuthentication<>(
+            authenticatedPerson, smartIdPerson, grantedAuthorityFactory.from(authenticatedPerson));
+
+    userAuthentication.setAuthenticated(true);
+
+    final OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);
+    final OAuth2Authentication oAuth2Authentication =
+        new OAuth2Authentication(oAuth2Request, userAuthentication);
+
+    eventPublisher.publishEvent(
+        new BeforeTokenGrantedEvent(this, authenticatedPerson, oAuth2Authentication, GRANT_TYPE));
+
+    OAuth2AccessToken accessToken = getTokenServices().createAccessToken(oAuth2Authentication);
+
+    eventPublisher.publishEvent(new AfterTokenGrantedEvent(this, authenticatedPerson, accessToken));
+
+    return accessToken;
+  }
+}

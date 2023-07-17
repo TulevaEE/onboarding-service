@@ -6,7 +6,6 @@ import static org.springframework.web.bind.annotation.RequestMethod.POST;
 import static org.springframework.web.bind.annotation.RequestMethod.PUT;
 
 import com.fasterxml.jackson.annotation.JsonView;
-import ee.tuleva.onboarding.auth.AuthenticatedPersonPrincipal;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
@@ -36,6 +35,7 @@ import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.Errors;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -62,7 +62,7 @@ public class MandateController {
   @RequestMapping(method = POST)
   @JsonView(MandateView.Default.class)
   public Mandate create(
-      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody CreateMandateCommand createMandateCommand,
       @Parameter(hidden = true) Errors errors) {
     if (errors.hasErrors()) {
@@ -78,7 +78,7 @@ public class MandateController {
   @RequestMapping(method = PUT, value = "/{id}/signature/mobileId")
   public MobileSignatureResponse startMobileIdSignature(
       @PathVariable("id") Long mandateId,
-      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson) {
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
 
     MobileIdSignatureSession signatureSession =
         mandateService.mobileIdSign(
@@ -92,7 +92,7 @@ public class MandateController {
   @RequestMapping(method = GET, value = "/{id}/signature/mobileId/status")
   public MobileSignatureStatusResponse getMobileIdSignatureStatus(
       @PathVariable("id") Long mandateId,
-      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Parameter(hidden = true) HttpServletRequest request) {
 
     Optional<MobileIdSignatureSession> signatureSession =
@@ -113,7 +113,7 @@ public class MandateController {
   @RequestMapping(method = PUT, value = "/{id}/signature/smartId")
   public MobileSignatureResponse startSmartIdSignature(
       @PathVariable("id") Long mandateId,
-      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson) {
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     SmartIdSignatureSession signatureSession =
         mandateService.smartIdSign(mandateId, authenticatedPerson.getUserId());
     sessionStore.save(signatureSession);
@@ -125,7 +125,7 @@ public class MandateController {
   @RequestMapping(method = GET, value = "/{id}/signature/smartId/status")
   public MobileSignatureStatusResponse getSmartIdSignatureStatus(
       @PathVariable("id") Long mandateId,
-      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       HttpServletRequest request) {
 
     Optional<SmartIdSignatureSession> signatureSession =
@@ -146,7 +146,7 @@ public class MandateController {
   @RequestMapping(method = PUT, value = "/{id}/signature/idCard")
   public IdCardSignatureResponse startIdCardSign(
       @PathVariable("id") Long mandateId,
-      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody StartIdCardSignCommand signCommand) {
 
     IdCardSignatureSession signatureSession =
@@ -163,7 +163,7 @@ public class MandateController {
   public IdCardSignatureStatusResponse getIdCardSignatureStatus(
       @PathVariable("id") Long mandateId,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
-      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       HttpServletRequest request) {
 
     Optional<IdCardSignatureSession> signatureSession =
@@ -188,7 +188,7 @@ public class MandateController {
   @RequestMapping(method = GET, value = "/{id}/file")
   public void getMandateFile(
       @PathVariable("id") Long mandateId,
-      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       HttpServletResponse response)
       throws IOException {
 
@@ -206,7 +206,7 @@ public class MandateController {
   @RequestMapping(method = GET, value = "/{id}/file/preview", produces = "application/zip")
   public void getMandateFilePreview(
       @PathVariable("id") Long mandateId,
-      @AuthenticatedPersonPrincipal AuthenticatedPerson authenticatedPerson,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       HttpServletResponse response)
       throws IOException {
 

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.epis
 
-
 import ee.tuleva.onboarding.contribution.Contribution
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
@@ -14,7 +13,6 @@ import org.mockserver.springtest.MockServerTest
 import org.mockserver.verify.VerificationTimes
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
-import org.springframework.boot.autoconfigure.security.oauth2.client.servlet.OAuth2ClientAutoConfiguration
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.web.servlet.error.DefaultErrorAttributes
 import org.springframework.boot.web.servlet.error.ErrorAttributes
@@ -24,9 +22,7 @@ import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.TestingAuthenticationToken
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClient
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService
-import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
+import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails
 import org.springframework.test.context.TestPropertySource
 import spock.lang.Specification
 
@@ -36,7 +32,6 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-import static ee.tuleva.onboarding.auth.OAuth2Fixture.anAuthorizedClient
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
@@ -45,10 +40,10 @@ import static org.mockserver.model.HttpRequest.request
 import static org.mockserver.model.HttpResponse.response
 import static org.mockserver.model.JsonBody.json
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @MockServerTest("epis.service.url=http://localhost:\${mockServerPort}")
 @TestPropertySource(properties = "spring.cache.type=ehcache")
-@Import([Config.class, OAuth2ClientAutoConfiguration.class])
+@Import(Config.class)
 class EpisServiceIntSpec extends Specification {
 
 
@@ -59,12 +54,6 @@ class EpisServiceIntSpec extends Specification {
       return new DefaultErrorAttributes()
     }
   }
-
-  @Autowired
-  ClientRegistrationRepository clientRegistrationRepository
-
-  @Autowired
-  OAuth2AuthorizedClientService authorizedClientService
 
   @Autowired
   private EpisService episService
@@ -81,13 +70,12 @@ class EpisServiceIntSpec extends Specification {
   private void setUpSecurityContext() {
     SecurityContext sc = SecurityContextHolder.createEmptyContext()
     TestingAuthenticationToken authentication = new TestingAuthenticationToken("test", "password")
+    OAuth2AuthenticationDetails details = Mock(OAuth2AuthenticationDetails)
+    authentication.details = details
+    details.getTokenValue() >> "dummy"
     sc.authentication = authentication
     SecurityContextHolder.context = sc
-
-    OAuth2AuthorizedClient authorizedClient = anAuthorizedClient(clientRegistrationRepository.findByRegistrationId("onboarding-client"))
-    authorizedClientService.saveAuthorizedClient(authorizedClient, authentication)
   }
-
 
   def cleanup() {
     SecurityContextHolder.clearContext()

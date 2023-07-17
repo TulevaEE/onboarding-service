@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.epis.fund.NavDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
+import org.springframework.security.oauth2.client.OAuth2RestOperations
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
@@ -18,7 +19,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 
 class MockEpisServiceSpec extends Specification {
 
-  EpisService episService = new MockEpisService(Mock(RestTemplate), Mock(RestTemplate))
+  EpisService episService = new MockEpisService(Mock(RestTemplate), Mock(OAuth2RestOperations))
 
   def "getApplications has a mock response"() {
     when:

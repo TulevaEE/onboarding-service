@@ -3,12 +3,12 @@ package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.fund.NavDto;
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.client.HttpClientErrorException;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -31,7 +31,7 @@ public class FundNavRetriever implements ComparisonIndexRetriever {
         if (nav != null) {
           result.add(toFundValue(nav));
         }
-      } catch (HttpClientErrorException.NotFound e) {
+      } catch (ErrorsResponseException e) {
         log.info("No NAV for {} on {}: {}", isin, date, e.getMessage());
       }
     }

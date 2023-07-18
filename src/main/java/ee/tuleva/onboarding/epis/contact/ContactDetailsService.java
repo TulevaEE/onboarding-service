@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.epis.contact;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,12 @@ public class ContactDetailsService {
     contactDetails.setEmail(user.getEmail());
     contactDetails.setPhoneNumber(user.getPhoneNumber());
     contactDetails.setAddress(address);
-    ContactDetails updatedContactDetails = episService.updateContactDetails(user, contactDetails);
+    ContactDetails updatedContactDetails = null;
+    try {
+      updatedContactDetails = episService.updateContactDetails(user, contactDetails);
+    } catch (ErrorsResponseException e) {
+      log.error("Contact details update failed for user " + user.getId(), e);
+    }
     eventPublisher.publishEvent(new ContactDetailsUpdatedEvent(this, user, updatedContactDetails));
     return updatedContactDetails;
   }

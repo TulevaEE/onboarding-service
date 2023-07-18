@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.epis.contact
 
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent
+import ee.tuleva.onboarding.error.exception.ErrorsResponseException
+import ee.tuleva.onboarding.error.response.ErrorsResponse
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
@@ -58,5 +60,24 @@ class ContactDetailsServiceSpec extends Specification {
     contactDetailsService.getContactDetails(person)
     then:
     1 * episService.getContactDetails(person)
+  }
+
+  def "can update contact details for users with no pension account"() {
+    given:
+    def user = sampleUser().build()
+    def address = addressFixture().build()
+    episService.getContactDetails(user) >> contactDetailsFixture()
+
+    1 * episService.updateContactDetails(user, _ as ContactDetails) >> {
+      throw new ErrorsResponseException(
+          ErrorsResponse.ofSingleError("40544", "Person has no active pension account!")
+      )
+    }
+
+    when:
+    contactDetailsService.updateContactDetails(user, address)
+
+    then:
+    1 * eventPublisher.publishEvent(_ as ContactDetailsUpdatedEvent)
   }
 }

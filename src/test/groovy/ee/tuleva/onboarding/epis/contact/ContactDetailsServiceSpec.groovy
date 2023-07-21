@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.epis.contact
 
-
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException
@@ -66,7 +65,8 @@ class ContactDetailsServiceSpec extends Specification {
     given:
     def user = sampleUser().build()
     def address = addressFixture().build()
-    episService.getContactDetails(user) >> contactDetailsFixture()
+    def contactDetails = contactDetailsFixture()
+    episService.getContactDetails(user) >> contactDetails
 
     1 * episService.updateContactDetails(user, _ as ContactDetails) >> {
       throw new ErrorsResponseException(
@@ -75,9 +75,10 @@ class ContactDetailsServiceSpec extends Specification {
     }
 
     when:
-    contactDetailsService.updateContactDetails(user, address)
+    def returnedContactDetails = contactDetailsService.updateContactDetails(user, address)
 
     then:
     1 * eventPublisher.publishEvent(_ as ContactDetailsUpdatedEvent)
+    returnedContactDetails == contactDetails
   }
 }

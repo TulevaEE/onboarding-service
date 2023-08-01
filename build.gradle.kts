@@ -93,7 +93,7 @@ dependencies {
     }
 
     implementation("io.sentry:sentry-spring-boot-starter:6.24.0")
-    implementation("io.sentry:sentry-logback:6.24.0")
+    implementation("io.sentry:sentry-logback:6.27.0")
 
     implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
 

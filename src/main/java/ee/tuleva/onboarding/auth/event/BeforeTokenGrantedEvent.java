@@ -1,6 +1,10 @@
 package ee.tuleva.onboarding.auth.event;
 
+import static ee.tuleva.onboarding.auth.GrantType.ID_CARD;
+
 import ee.tuleva.onboarding.auth.GrantType;
+import ee.tuleva.onboarding.auth.idcard.IdCardSession;
+import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import ee.tuleva.onboarding.auth.principal.Person;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
@@ -19,5 +23,14 @@ public class BeforeTokenGrantedEvent extends ApplicationEvent {
     this.person = person;
     this.authentication = authentication;
     this.grantType = grantType;
+  }
+
+  public boolean isIdCard() {
+    return ID_CARD.equals(grantType);
+  }
+
+  public IdDocumentType getIdDocumentType() {
+    var idCardSession = (IdCardSession) authentication.getUserAuthentication().getCredentials();
+    return idCardSession.getDocumentType();
   }
 }

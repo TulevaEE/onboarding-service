@@ -19,13 +19,33 @@ public class ConversionResponse {
   }
 
   @JsonIgnore
+  public boolean isSecondPillarPartiallyConverted() {
+    return secondPillar.isPartiallyConverted();
+  }
+
+  @JsonIgnore
   public boolean isThirdPillarFullyConverted() {
     return thirdPillar.isFullyConverted();
   }
 
   @JsonIgnore
+  public boolean isThirdPillarPartiallyConverted() {
+    return thirdPillar.isPartiallyConverted();
+  }
+
+  @JsonIgnore
   public boolean isSecondPillarSelected() {
     return secondPillar.isSelectionComplete();
+  }
+
+  @JsonIgnore
+  public BigDecimal getSecondPillarWeightedAverageFee() {
+    return secondPillar.getWeightedAverageFee();
+  }
+
+  @JsonIgnore
+  public BigDecimal getThirdPillarWeightedAverageFee() {
+    return thirdPillar.getWeightedAverageFee();
   }
 
   @Builder
@@ -45,6 +65,11 @@ public class ConversionResponse {
     @JsonIgnore
     public boolean isFullyConverted() {
       return transfersComplete && selectionComplete;
+    }
+
+    @JsonIgnore
+    public boolean isPartiallyConverted() {
+      return transfersPartial || selectionPartial;
     }
   }
 

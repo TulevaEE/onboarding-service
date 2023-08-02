@@ -1,17 +1,14 @@
 package ee.tuleva.onboarding.event.broadcasting;
 
-import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.idcard.IdCardSession;
-import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -23,21 +20,14 @@ public class LoginEventBroadcaster {
 
   @EventListener
   public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
-    Person person = event.getPerson();
-    Authentication auth = event.getAuthentication().getUserAuthentication();
+    Map<String, Object> data = new HashMap<>();
 
-    Object credentials = auth.getCredentials();
-    if (GrantType.ID_CARD.equals(event.getGrantType())) {
-      val idCardSession = (IdCardSession) credentials;
-      eventPublisher.publishEvent(
-          new TrackableEvent(
-              person,
-              TrackableEventType.LOGIN,
-              "method=" + event.getGrantType(),
-              "document=" + idCardSession.documentType));
-    } else {
-      eventPublisher.publishEvent(
-          new TrackableEvent(person, TrackableEventType.LOGIN, "method=" + event.getGrantType()));
+    data.put("method", event.getGrantType());
+    if (event.isIdCard()) {
+      data.put("document", event.getIdDocumentType());
     }
+
+    eventPublisher.publishEvent(
+        new TrackableEvent(event.getPerson(), TrackableEventType.LOGIN, data));
   }
 }

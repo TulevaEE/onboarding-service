@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user
 
+
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService
 import org.springframework.security.oauth2.common.OAuth2AccessToken

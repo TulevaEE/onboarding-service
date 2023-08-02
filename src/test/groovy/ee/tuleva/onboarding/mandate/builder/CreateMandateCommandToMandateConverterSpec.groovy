@@ -40,10 +40,14 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         mandate.futureContributionFundIsin.get() == command.futureContributionFundIsin
         mandate.id == null
         mandate.metadata == [
-            isSecondPillarActive        : contactDetails.isSecondPillarActive(),
-            isSecondPillarFullyConverted: conversion.isSecondPillarFullyConverted(),
-            isThirdPillarActive         : contactDetails.isThirdPillarActive(),
-            isThirdPillarFullyConverted : conversion.isThirdPillarFullyConverted()
+            isSecondPillarActive            : contactDetails.secondPillarActive,
+            isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,
+            isThirdPillarActive             : contactDetails.thirdPillarActive,
+            isThirdPillarFullyConverted     : conversion.thirdPillarFullyConverted,
+            isSecondPillarPartiallyConverted: conversion.secondPillarPartiallyConverted,
+            isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
+            secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
+            thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee
         ]
         0 * accountStatementService.getAccountStatement(_)
         1 * fundRepository.findByIsin("test") >> Fund.builder().pillar(2).isin("test").build()
@@ -81,10 +85,14 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         mandate.fundTransferExchanges[0].amount == 250.0617
         mandate.id == null
         mandate.metadata == [
-            isSecondPillarActive        : contactDetails.isSecondPillarActive(),
-            isSecondPillarFullyConverted: conversion.isSecondPillarFullyConverted(),
-            isThirdPillarActive         : contactDetails.isThirdPillarActive(),
-            isThirdPillarFullyConverted : conversion.isThirdPillarFullyConverted()
+            isSecondPillarActive            : contactDetails.secondPillarActive,
+            isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,
+            isThirdPillarActive             : contactDetails.thirdPillarActive,
+            isThirdPillarFullyConverted     : conversion.thirdPillarFullyConverted,
+            isSecondPillarPartiallyConverted: conversion.secondPillarPartiallyConverted,
+            isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
+            secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
+            thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee
         ]
         1 * accountStatementService.getAccountStatement(user) >> [fundBalance]
         1 * fundRepository.findByIsin(sourceIsin) >> fund

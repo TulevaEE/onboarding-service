@@ -40,11 +40,15 @@ class CancellationMandateBuilderSpec extends Specification {
     mandate.futureContributionFundIsin == Optional.empty()
     mandate.fundTransferExchanges == null
     mandate.metadata == [
-      applicationTypeToCancel     : applicationToCancel.getType(),
-      isSecondPillarActive        : contactDetails.isSecondPillarActive(),
-      isSecondPillarFullyConverted: conversion.isSecondPillarFullyConverted(),
-      isThirdPillarActive         : contactDetails.isThirdPillarActive(),
-      isThirdPillarFullyConverted : conversion.isThirdPillarFullyConverted()
+        applicationTypeToCancel         : applicationToCancel.type,
+        isSecondPillarActive            : contactDetails.secondPillarActive,
+        isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,
+        isThirdPillarActive             : contactDetails.thirdPillarActive,
+        isThirdPillarFullyConverted     : conversion.thirdPillarFullyConverted,
+        isSecondPillarPartiallyConverted: conversion.secondPillarPartiallyConverted,
+        isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
+        secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
+        thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee
     ]
   }
 
@@ -67,10 +71,14 @@ class CancellationMandateBuilderSpec extends Specification {
     mandate.futureContributionFundIsin == Optional.empty()
     mandate.fundTransferExchanges == [fundTransferExchange.mandate(mandate).build()]
     mandate.metadata == [
-      isSecondPillarActive        : contactDetails.isSecondPillarActive(),
-      isSecondPillarFullyConverted: conversion.isSecondPillarFullyConverted(),
-      isThirdPillarActive         : contactDetails.isThirdPillarActive(),
-      isThirdPillarFullyConverted : conversion.isThirdPillarFullyConverted()
+      isSecondPillarActive            : contactDetails.secondPillarActive,
+      isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,
+      isThirdPillarActive             : contactDetails.thirdPillarActive,
+      isThirdPillarFullyConverted     : conversion.thirdPillarFullyConverted,
+      isSecondPillarPartiallyConverted: conversion.secondPillarPartiallyConverted,
+      isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
+      secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
+      thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee
     ]
   }
 
@@ -93,10 +101,14 @@ class CancellationMandateBuilderSpec extends Specification {
     mandate.futureContributionFundIsin == Optional.empty()
     mandate.fundTransferExchanges == [fundTransferExchange.mandate(mandate).build()]
     mandate.metadata == [
-      isSecondPillarActive        : contactDetails.isSecondPillarActive(),
-      isSecondPillarFullyConverted: conversion.isSecondPillarFullyConverted(),
-      isThirdPillarActive         : contactDetails.isThirdPillarActive(),
-      isThirdPillarFullyConverted : conversion.isThirdPillarFullyConverted()
+        isSecondPillarActive            : contactDetails.secondPillarActive,
+        isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,
+        isThirdPillarActive             : contactDetails.thirdPillarActive,
+        isThirdPillarFullyConverted     : conversion.thirdPillarFullyConverted,
+        isSecondPillarPartiallyConverted: conversion.secondPillarPartiallyConverted,
+        isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
+        secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
+        thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee
     ]
   }
 }

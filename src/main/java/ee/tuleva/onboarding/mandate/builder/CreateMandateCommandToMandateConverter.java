@@ -43,7 +43,7 @@ public class CreateMandateCommandToMandateConverter
     mandate.setUser(user);
     mandate.setPillar(getPillar(createMandateCommand));
     mandate.setAddress(createMandateCommand.getAddress());
-    conversionDecorator.addConversionMetadata(mandate, conversion, contactDetails);
+    conversionDecorator.addConversionMetadata(mandate.getMetadata(), conversion, contactDetails);
 
     List<FundTransferExchange> fundTransferExchanges =
         createMandateCommand.getFundTransferExchanges().stream()

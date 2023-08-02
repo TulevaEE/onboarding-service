@@ -37,7 +37,7 @@ public class CancellationMandateBuilder {
     mandate.setUser(user);
     mandate.setAddress(contactDetails.getAddress());
 
-    conversionDecorator.addConversionMetadata(mandate, conversion, contactDetails);
+    conversionDecorator.addConversionMetadata(mandate.getMetadata(), conversion, contactDetails);
 
     if (applicationToCancel.getType() == WITHDRAWAL
         || applicationToCancel.getType() == EARLY_WITHDRAWAL) {

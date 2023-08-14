@@ -37,6 +37,7 @@ class RecurringPaymentServiceSpec extends Specification {
     SEB      | "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM&saajakonto=EE141010220263146225&saajanimi=" +
         "AS%20Pensionikeskus&selgitus=30101119828%2C%20EE3600001707&viitenr=993432432&summa=12.34&alguskuup=10.01.2020&sagedus=M"
     LUMINOR  | "https://luminor.ee/auth/#/web/view/autopilot/newpayment"
+    COOP     | "https://i.cooppank.ee/permpmts";
   }
 
   def "chooses the 10th day of month for recurring payment"() {

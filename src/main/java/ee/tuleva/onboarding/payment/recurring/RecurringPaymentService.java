@@ -53,6 +53,7 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
               + "&i_date_first_payment="
               + tenthDayOfMonth(LocalDate.now(clock));
           case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
+          case COOP -> "https://i.cooppank.ee/permpmts";
         };
     return new PaymentLink(url);
   }

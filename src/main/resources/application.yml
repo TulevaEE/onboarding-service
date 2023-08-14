@@ -138,6 +138,10 @@ payment-provider:
       access-key: 070e9cae-9f0c-423e-9345-70d624a05578
       secret-key: ${PAYMENT_SECRET_LHV}
       bic: LHVBEE22
+    coop:
+      access-key: 5aa7cf67-4a11-472f-a42e-aa7a5a389100
+      secret-key: ${PAYMENT_SECRET_COOP}
+      bic: EKRDEE22
 ---
 spring:
   flyway:
@@ -232,6 +236,10 @@ payment-provider:
       access-key: 955bc96c-aa71-4ff3-bea9-c8a429168c1d
       secret-key: ${PAYMENT_SECRET_LHV}
       bic: LHVBEE22
+    coop:
+      access-key: f5cd942d-5b23-4467-80ce-95cd67186c6f
+      secret-key: ${PAYMENT_SECRET_COOP}
+      bic: EKRDEE22
 
 sentry:
   traces-sample-rate: 1.0

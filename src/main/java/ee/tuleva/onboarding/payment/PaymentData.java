@@ -27,6 +27,7 @@ public class PaymentData {
     LUMINOR,
     SEB,
     SWEDBANK,
-    LHV
+    LHV,
+    COOP
   }
 }

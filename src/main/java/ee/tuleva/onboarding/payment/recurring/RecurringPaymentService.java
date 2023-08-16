@@ -62,8 +62,9 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
               + "&MaksePohjus=30101119828%2c%20EE3600001707"
               + "&ViiteNumber="
               + contactDetails.getPensionAccountNumber()
-              + "&MakseSagedus=3"
-              + "&MakseEsimene=10.01.2020";
+              + "&MakseSagedus=3" // Monthly
+              + "&MakseEsimene="
+              + tenthDayOfMonth(LocalDate.now(clock));
         };
     return new PaymentLink(url);
   }

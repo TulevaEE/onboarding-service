@@ -18,8 +18,8 @@ val springCloudVersion = "2021.0.8"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.7.13"
-    id("io.spring.dependency-management") version "1.1.0"
+    id("org.springframework.boot") version "2.7.14"
+    id("io.spring.dependency-management") version "1.1.2"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.18.0"
     jacoco
@@ -92,8 +92,8 @@ dependencies {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
-    implementation("io.sentry:sentry-spring-boot-starter:6.24.0")
-    implementation("io.sentry:sentry-logback:6.24.0")
+    implementation("io.sentry:sentry-spring-boot-starter:6.27.0")
+    implementation("io.sentry:sentry-logback:6.27.0")
 
     implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
 
@@ -101,7 +101,7 @@ dependencies {
 
     implementation("ee.sk.mid:mid-rest-java-client:1.4")
 
-    implementation("com.google.guava:guava:32.1.1-jre")
+    implementation("com.google.guava:guava:32.1.2-jre")
 
     compileOnly("org.projectlombok:lombok:1.18.28")
     annotationProcessor("org.projectlombok:lombok:1.18.28")

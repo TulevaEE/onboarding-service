@@ -53,7 +53,17 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
               + "&i_date_first_payment="
               + tenthDayOfMonth(LocalDate.now(clock));
           case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
-          case COOP -> "https://i.cooppank.ee/permpmts";
+          case COOP -> "https://i.cooppank.ee/newpmt"
+              + "?whatform=PermPaymentNew"
+              + "&SaajaNimi=AS%20Pensionikeskus"
+              + "&SaajaKonto=EE362200221067235244" // Swedbank account
+              + "&MakseSumma="
+              + paymentData.getAmount()
+              + "&MaksePohjus=30101119828%2c%20EE3600001707"
+              + "&ViiteNumber="
+              + contactDetails.getPensionAccountNumber()
+              + "&MakseSagedus=3"
+              + "&MakseEsimene=10.01.2020";
         };
     return new PaymentLink(url);
   }

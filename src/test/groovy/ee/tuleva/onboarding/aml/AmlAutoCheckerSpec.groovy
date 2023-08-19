@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml
 
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException
+import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
@@ -10,11 +11,10 @@ import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.security.core.Authentication
-import org.springframework.security.oauth2.common.OAuth2AccessToken
-import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD
@@ -31,23 +31,13 @@ class AmlAutoCheckerSpec extends Specification {
     def "checks user before login"() {
         given:
         def user = sampleUser().build()
-        def person = samplePerson()
+        def person = sampleAuthenticatedPersonAndMember()
+        .attributes(Map.of(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE, ESTONIAN_CITIZEN_ID_CARD))
+            .build()
         1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
 
-        Authentication auth = Mock({
-            getCredentials() >> IdCardSession.builder()
-                .firstName("ERKO")
-                .lastName("RISTHEIN")
-                .documentType(ESTONIAN_CITIZEN_ID_CARD)
-                .build()
-        })
-
-        OAuth2Authentication authentication = Mock({
-            getUserAuthentication() >> auth
-        })
-
         when:
-        amlAutoChecker.beforeLogin(new BeforeTokenGrantedEvent(this, person, authentication, GrantType.ID_CARD))
+        amlAutoChecker.beforeLogin(new BeforeTokenGrantedEvent(this, person, GrantType.ID_CARD))
 
         then:
         1 * amlService.checkUserBeforeLogin(user, person, ESTONIAN_CITIZEN_ID_CARD.isResident())
@@ -55,14 +45,13 @@ class AmlAutoCheckerSpec extends Specification {
 
     def "throws exception when user not found"() {
         given:
-        def person = samplePerson()
-        OAuth2Authentication auth = Mock({
-            getUserAuthentication() >> Mock(Authentication)
-        })
+        def person = sampleAuthenticatedPersonAndMember()
+            .attributes(Map.of(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE, ESTONIAN_CITIZEN_ID_CARD))
+            .build()
         1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
 
         when:
-        amlAutoChecker.beforeLogin(new BeforeTokenGrantedEvent(this, person, auth, GrantType.MOBILE_ID))
+        amlAutoChecker.beforeLogin(new BeforeTokenGrantedEvent(this, person, GrantType.MOBILE_ID))
 
         then:
         thrown(IllegalStateException)
@@ -73,15 +62,12 @@ class AmlAutoCheckerSpec extends Specification {
         given:
         def user = sampleUser().build()
         def contactDetails = contactDetailsFixture()
-        def token = "token"
-        def accessToken = Mock(OAuth2AccessToken, {
-            getValue() >> token
-        })
+        def jwtToken = "token"
         1 * userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
-        1 * contactDetailsService.getContactDetails(user, token) >> contactDetails
+        1 * contactDetailsService.getContactDetails(user, jwtToken) >> contactDetails
 
         when:
-        amlAutoChecker.afterLogin(new AfterTokenGrantedEvent(this, user, accessToken, jwtToken))
+        amlAutoChecker.afterLogin(new AfterTokenGrantedEvent(this, user, jwtToken))
 
         then:
         1 * amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails)

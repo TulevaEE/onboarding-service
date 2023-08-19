@@ -1,14 +1,12 @@
 package ee.tuleva.onboarding.event.broadcasting
 
-
+import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
 import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType
 import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.event.TrackableEventType
 import org.springframework.context.ApplicationEventPublisher
-import org.springframework.security.core.Authentication
-import org.springframework.security.oauth2.provider.OAuth2Authentication
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.GrantType.*
@@ -23,15 +21,9 @@ class LoginEventBroadcasterSpec extends Specification {
 
     def "OnBeforeTokenGrantedEvent: Broadcast login event"() {
         given:
-        def samplePerson = samplePerson()
+        def samplePerson = AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember().build()
 
-        def sampleAuthentication = Mock(OAuth2Authentication, {
-            getUserAuthentication() >> Mock(Authentication, {
-                getCredentials() >> credentials
-            })
-        })
-
-        def event = new BeforeTokenGrantedEvent(this, samplePerson, sampleAuthentication, grantType)
+        def event = new BeforeTokenGrantedEvent(this, samplePerson, grantType)
 
         when:
         service.onBeforeTokenGrantedEvent(event)

@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 @Builder
 public class IdCardSession implements Person, Serializable {
 
+  public static String ID_DOCUMENT_TYPE_ATTRIBUTE = "idDocumentType";
+
   @Serial private static final long serialVersionUID = -111852724795571891L;
 
   public final String firstName;

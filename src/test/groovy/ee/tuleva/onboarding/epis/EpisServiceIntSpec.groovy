@@ -22,7 +22,6 @@ import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.TestingAuthenticationToken
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails
 import org.springframework.test.context.TestPropertySource
 import spock.lang.Specification
 
@@ -69,10 +68,7 @@ class EpisServiceIntSpec extends Specification {
 
   private void setUpSecurityContext() {
     SecurityContext sc = SecurityContextHolder.createEmptyContext()
-    TestingAuthenticationToken authentication = new TestingAuthenticationToken("test", "password")
-    OAuth2AuthenticationDetails details = Mock(OAuth2AuthenticationDetails)
-    authentication.details = details
-    details.getTokenValue() >> "dummy"
+    TestingAuthenticationToken authentication = new TestingAuthenticationToken("test", "dummy")
     sc.authentication = authentication
     SecurityContextHolder.context = sc
   }

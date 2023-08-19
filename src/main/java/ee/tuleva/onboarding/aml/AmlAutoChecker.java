@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.aml;
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
-import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
@@ -45,7 +44,6 @@ public class AmlAutoChecker {
   @EventListener
   public void afterLogin(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
-    String token = event.getAccessToken().getValue();
     String jwtToken = event.getJwtToken();
 
     userService
@@ -53,7 +51,7 @@ public class AmlAutoChecker {
         .ifPresent(
             user -> {
               ContactDetails contactDetails =
-                  contactDetailsService.getContactDetails(person, token, jwtToken);
+                  contactDetailsService.getContactDetails(person, jwtToken);
               amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails);
             });
   }
@@ -71,11 +69,10 @@ public class AmlAutoChecker {
   }
 
   private Boolean isResident(BeforeTokenGrantedEvent event) {
-    Object credentials = event.getAuthentication().getUserAuthentication().getCredentials();
-    if (credentials instanceof IdCardSession) {
-      val documentType = ((IdCardSession) credentials).documentType;
-      return documentType.isResident();
+    val documentType = event.getIdDocumentType();
+    if (documentType == null) {
+      return null;
     }
-    return null;
+    return documentType.isResident();
   }
 }

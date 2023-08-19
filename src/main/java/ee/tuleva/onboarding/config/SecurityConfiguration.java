@@ -1,124 +1,62 @@
 package ee.tuleva.onboarding.config;
 
-import static ee.tuleva.onboarding.config.OAuthConfiguration.ResourceServerPathConfiguration.API_RESOURCES_REQUEST_MATCHER_BEAN;
+import static ee.tuleva.onboarding.capital.CapitalController.CAPITAL_URI;
 import static org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest.to;
-import static org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest.toAnyEndpoint;
 
-import java.util.List;
-import java.util.regex.Pattern;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import lombok.val;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.security.SecurityProperties;
+import ee.tuleva.onboarding.auth.authority.Authority;
+import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.crypto.factory.PasswordEncoderFactories;
-import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
-import org.springframework.security.crypto.password.NoOpPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
-import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
-import org.springframework.security.web.util.matcher.RequestMatcher;
-import org.springframework.util.StringUtils;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-@Configuration
+@EnableWebSecurity
 public class SecurityConfiguration {
 
-  @Configuration
-  @Slf4j
-  static class AuthenticationProviderConfiguration {
+  @Bean
+  public SecurityFilterChain securityFilterChain(
+      HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter) throws Exception {
+    http.authorizeRequests()
+        .requestMatchers(to("health"))
+        .permitAll()
+        .antMatchers(
+            "/",
+            "/swagger-ui/**",
+            "/webjars/**",
+            "/swagger-resources/**",
+            "/v3/api-docs/**",
+            "/authenticate",
+            "/oauth/token",
+            "/idLogin",
+            "/notifications/payments")
+        .permitAll()
+        .regexMatchers("/v1" + CAPITAL_URI)
+        .hasAuthority(Authority.MEMBER)
+        .regexMatchers(HttpMethod.GET, "/v1/funds.*")
+        .permitAll()
+        .regexMatchers(HttpMethod.HEAD, "/v1/members")
+        .permitAll()
+        .regexMatchers(HttpMethod.GET, "/v1/payments/success.*")
+        .permitAll()
+        .regexMatchers(HttpMethod.HEAD, "/v1/payments/notifications.*")
+        .permitAll()
+        .regexMatchers("/v1/.*")
+        .hasAuthority(Authority.USER)
+        .anyRequest()
+        .authenticated()
+        .and()
+        .csrf()
+        .ignoringAntMatchers(
+            "/authenticate", "/oauth/token", "/idLogin", "/notifications/payments", "/v1/**")
+        .and()
+        .sessionManagement()
+        .sessionCreationPolicy(SessionCreationPolicy.NEVER)
+        .and()
+        .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
 
-    private static final String NOOP_PASSWORD_PREFIX = "{noop}";
-
-    private static final Pattern PASSWORD_ALGORITHM_PATTERN = Pattern.compile("^\\{.+}.*$");
-
-    @Bean
-    public DaoAuthenticationProvider authenticationProvider(
-        InMemoryUserDetailsManager userDetailsManager) {
-      val provider = new DaoAuthenticationProvider();
-      provider.setUserDetailsService(userDetailsManager);
-      provider.setPasswordEncoder(passwordEncoder());
-      return provider;
-    }
-
-    @Bean
-    public InMemoryUserDetailsManager inMemoryUserDetailsManager(
-        SecurityProperties properties, ObjectProvider<PasswordEncoder> passwordEncoder) {
-      SecurityProperties.User user = properties.getUser();
-      List<String> roles = user.getRoles();
-      return new InMemoryUserDetailsManager(
-          User.withUsername(user.getName())
-              .password(getOrDeducePassword(user, passwordEncoder.getIfAvailable()))
-              .roles(StringUtils.toStringArray(roles))
-              .build());
-    }
-
-    private String getOrDeducePassword(SecurityProperties.User user, PasswordEncoder encoder) {
-      String password = user.getPassword();
-      if (user.isPasswordGenerated()) {
-        log.info(String.format("%n%nUsing generated security password: %s%n", user.getPassword()));
-      }
-      if (encoder != null || PASSWORD_ALGORITHM_PATTERN.matcher(password).matches()) {
-        return password;
-      }
-      return NOOP_PASSWORD_PREFIX + password;
-    }
-
-    @Bean
-    PasswordEncoder passwordEncoder() {
-      DelegatingPasswordEncoder encoder =
-          (DelegatingPasswordEncoder) PasswordEncoderFactories.createDelegatingPasswordEncoder();
-      encoder.setDefaultPasswordEncoderForMatches(NoOpPasswordEncoder.getInstance());
-      return encoder;
-    }
-  }
-
-  @EnableWebSecurity
-  @Configuration
-  @RequiredArgsConstructor
-  static class WebSecurityConfiguration extends WebSecurityConfigurerAdapter {
-
-    @Qualifier(API_RESOURCES_REQUEST_MATCHER_BEAN)
-    final RequestMatcher resources;
-
-    final DaoAuthenticationProvider authenticationProvider;
-
-    @Override
-    protected void configure(HttpSecurity http) throws Exception {
-      val nonResources = new NegatedRequestMatcher(resources);
-      http.requestMatcher(nonResources)
-          .authorizeRequests()
-          .requestMatchers(to("health"))
-          .permitAll()
-          .requestMatchers(toAnyEndpoint().excluding("health"))
-          .authenticated()
-          .antMatchers(
-              "/",
-              "/swagger-ui/**",
-              "/webjars/**",
-              "/swagger-resources/**",
-              "/v3/api-docs/**",
-              "/authenticate",
-              "/idLogin",
-              "/notifications/payments")
-          .permitAll()
-          .anyRequest()
-          .authenticated()
-          .and()
-          .csrf()
-          .ignoringAntMatchers("/authenticate", "/idLogin", "/notifications/payments")
-          .and()
-          .authenticationProvider(authenticationProvider)
-          .sessionManagement()
-          .sessionCreationPolicy(SessionCreationPolicy.NEVER);
-    }
+    return http.build();
   }
 }

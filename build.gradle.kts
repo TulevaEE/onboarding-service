@@ -65,10 +65,6 @@ dependencies {
 
     implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
     implementation("org.springframework.session:spring-session-jdbc")
-    implementation(
-        "org.springframework.security.oauth.boot:spring-security-oauth2-autoconfigure:2.6.8",
-    )
-    implementation("org.springframework.security.oauth:spring-security-oauth2:2.5.2.RELEASE")
 
     implementation("com.nimbusds:nimbus-jose-jwt:9.31")
 
@@ -102,6 +98,8 @@ dependencies {
     implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
+
+    implementation("javax.xml.bind:jaxb-api")
 
     implementation("ee.sk.mid:mid-rest-java-client:1.4")
 

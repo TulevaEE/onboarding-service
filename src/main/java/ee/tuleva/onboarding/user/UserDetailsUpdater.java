@@ -7,9 +7,7 @@ import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
-
 import java.util.Optional;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -46,17 +44,16 @@ public class UserDetailsUpdater {
   @EventListener
   public void onAfterTokenGrantedEvent(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
-    String token = event.getAccessToken().getValue();
     String jwtToken = event.getJwtToken();
 
     userService
         .findByPersonalCode(person.getPersonalCode())
-        .ifPresent(user -> updateContactDetails(person, token, jwtToken, user));
+        .ifPresent(user -> updateContactDetails(person, jwtToken, user));
   }
 
-  private void updateContactDetails(Person person, String token, String jwtToken, User user) {
+  private void updateContactDetails(Person person, String jwtToken, User user) {
     if (!user.hasContactDetails()) {
-      ContactDetails contactDetails = contactDetailsService.getContactDetails(person, token, jwtToken);
+      ContactDetails contactDetails = contactDetailsService.getContactDetails(person, jwtToken);
       String phoneNumber = StringUtils.trim(contactDetails.getPhoneNumber());
 
       Optional<String> email =

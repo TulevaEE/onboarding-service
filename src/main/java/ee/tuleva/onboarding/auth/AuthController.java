@@ -28,13 +28,8 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.oauth2.common.exceptions.UnauthorizedClientException;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @Slf4j
@@ -45,6 +40,7 @@ public class AuthController {
   private final SmartIdAuthService smartIdAuthService;
   private final IdCardAuthService idCardAuthService;
   private final GenericSessionStore genericSessionStore;
+  private final AuthService authService;
 
   @Value("${frontend.url}")
   private String frontendUrl;
@@ -77,6 +73,14 @@ public class AuthController {
         AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);
   }
 
+  // TODO: change the mapping
+  @PostMapping("/oauth/token")
+  public String login(
+      @RequestParam("grant_type") String grantType,
+      @RequestParam(value = "authenticationHash", required = false) String authenticationHash) {
+    return authService.authenticate(GrantType.valueOf(grantType.toUpperCase()), authenticationHash);
+  }
+
   @SneakyThrows
   @Operation(summary = "ID card login")
   @RequestMapping(
@@ -89,7 +93,7 @@ public class AuthController {
       @Parameter(hidden = true) HttpServletResponse response,
       @Parameter(hidden = true) HttpMethod httpMethod) {
     if (!"SUCCESS".equals(clientCertificateVerification)) {
-      throw new UnauthorizedClientException("Client certificate not verified");
+      throw new IllegalStateException("Client certificate not verified");
     }
 
     idCardAuthService.checkCertificate(URLDecoder.decode(clientCertificate, UTF_8.name()));

@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.AsyncConfigurer;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.security.task.DelegatingSecurityContextAsyncTaskExecutor;
 
 @EnableAsync
 @Configuration
@@ -21,7 +22,7 @@ public class AsyncConfiguration implements AsyncConfigurer {
     executor.setQueueCapacity(500);
     executor.setThreadNamePrefix("AsyncProcess-");
     executor.initialize();
-    return executor;
+    return new DelegatingSecurityContextAsyncTaskExecutor(executor);
   }
 
   @Override

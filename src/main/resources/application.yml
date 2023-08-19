@@ -91,6 +91,10 @@ smartid:
   relyingPartyName: ${SMARTID_RELYING_PARTY_NAME:Demo}
   hostUrl: https://sid.demo.sk.ee/smart-id-rp/v1/
 
+jwt:
+  keystore: "classpath:test-jwt-keystore.p12"
+  keystore-password: "Kalamaja123"
+
 logging:
   level:
     ee:

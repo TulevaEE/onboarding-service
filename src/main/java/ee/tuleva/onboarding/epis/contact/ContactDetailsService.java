@@ -35,8 +35,8 @@ public class ContactDetailsService {
     return updatedContactDetails;
   }
 
-  public ContactDetails getContactDetails(Person person, String token) {
-    return episService.getContactDetails(person, token);
+  public ContactDetails getContactDetails(Person person, String token, String jwtToken) {
+    return episService.getContactDetails(person, token, jwtToken);
   }
 
   public ContactDetails getContactDetails(Person person) {

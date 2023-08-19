@@ -46,13 +46,14 @@ public class AmlAutoChecker {
   public void afterLogin(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
     String token = event.getAccessToken().getValue();
+    String jwtToken = event.getJwtToken();
 
     userService
         .findByPersonalCode(person.getPersonalCode())
         .ifPresent(
             user -> {
               ContactDetails contactDetails =
-                  contactDetailsService.getContactDetails(person, token);
+                  contactDetailsService.getContactDetails(person, token, jwtToken);
               amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails);
             });
   }

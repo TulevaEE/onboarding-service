@@ -6,10 +6,13 @@ import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.exception.IdCardSessionNotFoundException;
+import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+
 import java.util.Optional;
+
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
@@ -32,6 +35,8 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
   private final GrantedAuthorityFactory grantedAuthorityFactory;
   private final ApplicationEventPublisher eventPublisher;
 
+  private final JwtTokenUtil jwtTokenUtil;
+
   public IdCardTokenGranter(
       AuthorizationServerTokenServices tokenServices,
       ClientDetailsService clientDetailsService,
@@ -39,12 +44,13 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
       GenericSessionStore genericSessionStore,
       PrincipalService principalService,
       GrantedAuthorityFactory grantedAuthorityFactory,
-      ApplicationEventPublisher applicationEventPublisher) {
+      ApplicationEventPublisher applicationEventPublisher, JwtTokenUtil jwtTokenUtil) {
     super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE.name().toLowerCase());
     this.sessionStore = genericSessionStore;
     this.principalService = principalService;
     this.grantedAuthorityFactory = grantedAuthorityFactory;
     this.eventPublisher = applicationEventPublisher;
+    this.jwtTokenUtil = jwtTokenUtil;
   }
 
   @Override
@@ -63,9 +69,11 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
     AuthenticatedPerson authenticatedPerson =
         principalService.getFrom(idCardSession, Optional.empty());
 
+    final var authorities = grantedAuthorityFactory.from(authenticatedPerson);
+
     Authentication userAuthentication =
         new PersonalCodeAuthentication<>(
-            authenticatedPerson, idCardSession, grantedAuthorityFactory.from(authenticatedPerson));
+            authenticatedPerson, idCardSession, authorities);
     userAuthentication.setAuthenticated(true);
 
     OAuth2Request oAuth2Request = tokenRequest.createOAuth2Request(client);
@@ -77,7 +85,9 @@ public class IdCardTokenGranter extends AbstractTokenGranter implements TokenGra
 
     OAuth2AccessToken accessToken = getTokenServices().createAccessToken(oAuth2Authentication);
 
-    eventPublisher.publishEvent(new AfterTokenGrantedEvent(this, authenticatedPerson, accessToken));
+    String jwtToken = jwtTokenUtil.generateToken(authenticatedPerson, authorities);
+
+    eventPublisher.publishEvent(new AfterTokenGrantedEvent(this, authenticatedPerson, accessToken, jwtToken));
 
     return accessToken;
   }

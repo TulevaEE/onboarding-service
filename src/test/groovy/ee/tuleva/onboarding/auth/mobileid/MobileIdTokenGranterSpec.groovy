@@ -31,14 +31,14 @@ class MobileIdTokenGranterSpec extends Specification {
 
     def setup() {
         mobileIdTokenGranter = new MobileIdTokenGranter(
-            authorizationServerTokenServices,
-            clientDetailsService,
-            oAuth2RequestFactory,
-            mobileIdAuthService,
-            principalService,
-            sessionStore,
-            grantedAuthorityFactory,
-            applicationEventPublisher
+                authorizationServerTokenServices,
+                clientDetailsService,
+                oAuth2RequestFactory,
+                mobileIdAuthService,
+                principalService,
+                sessionStore,
+                grantedAuthorityFactory,
+                applicationEventPublisher, jwtTokenUtil
         )
     }
 

@@ -7,6 +7,7 @@ import static java.util.Arrays.asList;
 import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.idcard.IdCardTokenGranter;
+import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdAuthService;
 import ee.tuleva.onboarding.auth.mobileid.MobileIdTokenGranter;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
@@ -117,6 +118,8 @@ public class OAuthConfiguration {
 
     @Autowired private ClientDetailsService clientDetailsService;
 
+    @Autowired private JwtTokenUtil jwtTokenUtil;
+
     @Bean
     public TokenStore tokenStore() {
       return new JdbcTokenStore(dataSource);
@@ -176,7 +179,7 @@ public class OAuthConfiguration {
           principalService,
           genericSessionStore,
           grantedAuthorityFactory,
-          applicationEventPublisher);
+          applicationEventPublisher, jwtTokenUtil);
     }
 
     private SmartIdTokenGranter smartIdTokenGranter(
@@ -188,7 +191,7 @@ public class OAuthConfiguration {
           smartIdAuthService,
           principalService,
           grantedAuthorityFactory,
-          applicationEventPublisher);
+          applicationEventPublisher, jwtTokenUtil);
     }
 
     private IdCardTokenGranter idCardTokenGranter(
@@ -200,7 +203,7 @@ public class OAuthConfiguration {
           genericSessionStore,
           principalService,
           grantedAuthorityFactory,
-          applicationEventPublisher);
+          applicationEventPublisher, jwtTokenUtil);
     }
   }
 }

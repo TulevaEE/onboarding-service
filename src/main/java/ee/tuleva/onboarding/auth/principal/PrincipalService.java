@@ -4,10 +4,11 @@ import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.io.Serializable;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.security.oauth2.common.exceptions.InvalidRequestException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,7 +18,7 @@ public class PrincipalService {
 
   private final UserService userService;
 
-  public AuthenticatedPerson getFrom(Person person, Optional<String> phoneNumber) {
+  public AuthenticatedPerson getFrom(Person person, Map<String, Serializable> attributes) {
 
     Optional<User> userOptional = userService.findByPersonalCode(person.getPersonalCode());
 
@@ -25,15 +26,15 @@ public class PrincipalService {
 
     if (!user.getActive()) {
       log.info("Failed to login inactive user with personal code {}", person.getPersonalCode());
-      throw new InvalidRequestException("INACTIVE_USER");
+      throw new IllegalStateException("INACTIVE_USER");
     }
 
     return AuthenticatedPerson.builder()
         .firstName(person.getFirstName())
         .lastName(person.getLastName())
         .personalCode(person.getPersonalCode())
-        .phoneNumber(phoneNumber.orElse(null))
         .userId(user.getId())
+        .attributes(attributes)
         .build();
   }
 

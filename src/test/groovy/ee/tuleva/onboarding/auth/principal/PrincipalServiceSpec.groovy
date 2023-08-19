@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.auth.principal
 
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
-import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -23,7 +22,7 @@ class PrincipalServiceSpec extends Specification {
     1 * userService.findByPersonalCode(person.personalCode) >> Optional.ofNullable(sampleUser)
 
     when:
-    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Optional.empty())
+    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
 
     then:
     authenticatedPerson.userId == sampleUser.id
@@ -45,7 +44,7 @@ class PrincipalServiceSpec extends Specification {
     1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
 
     when:
-    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Optional.empty())
+    AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
 
     then:
     1 * userService.createNewUser({User user ->
@@ -70,10 +69,10 @@ class PrincipalServiceSpec extends Specification {
     1 * userService.findByPersonalCode(person.personalCode) >> Optional.ofNullable(user)
 
     when:
-    service.getFrom(person, Optional.empty())
+    service.getFrom(person, Map.of())
 
     then:
-    thrown InvalidRequestException
+    thrown IllegalStateException
   }
 
 }

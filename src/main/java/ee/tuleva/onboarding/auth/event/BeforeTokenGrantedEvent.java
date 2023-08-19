@@ -5,23 +5,19 @@ import static ee.tuleva.onboarding.auth.GrantType.ID_CARD;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
-import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
-import org.springframework.security.oauth2.provider.OAuth2Authentication;
 
 @Getter
 public class BeforeTokenGrantedEvent extends ApplicationEvent {
 
-  private final Person person;
-  private final OAuth2Authentication authentication;
+  private final AuthenticatedPerson person;
   private final GrantType grantType;
 
-  public BeforeTokenGrantedEvent(
-      Object source, Person person, OAuth2Authentication authentication, GrantType grantType) {
+  public BeforeTokenGrantedEvent(Object source, AuthenticatedPerson person, GrantType grantType) {
     super(source);
     this.person = person;
-    this.authentication = authentication;
     this.grantType = grantType;
   }
 
@@ -30,7 +26,6 @@ public class BeforeTokenGrantedEvent extends ApplicationEvent {
   }
 
   public IdDocumentType getIdDocumentType() {
-    var idCardSession = (IdCardSession) authentication.getUserAuthentication().getCredentials();
-    return idCardSession.getDocumentType();
+    return person.getAttribute(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE);
   }
 }

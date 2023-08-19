@@ -3,10 +3,12 @@ package ee.tuleva.onboarding.error;
 import static org.springframework.http.HttpStatus.*;
 
 import ee.tuleva.onboarding.account.PensionRegistryAccountStatementConnectionException;
+import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
@@ -46,7 +48,17 @@ public class ErrorHandlingControllerAdvice {
   }
 
   @ExceptionHandler(ErrorsResponseException.class)
-  public ResponseEntity<ErrorsResponse> handleErrors(ErrorsResponseException exception) {
+  public ResponseEntity<Object> handleErrors(ErrorsResponseException exception) {
+    if (exception instanceof AuthNotCompleteException) {
+      /*
+       * Keeping the oauth error format. In the future this method should be removed and the exception
+       * should be handled as other ErrorsResponseExceptions
+       */
+      return new ResponseEntity<>(
+          Map.of(
+              "error", "AUTHENTICATION_NOT_COMPLETE", "error_description", "Please keep polling."),
+          OK);
+    }
     log.error("{}", exception.toString());
     return new ResponseEntity<>(exception.getErrorsResponse(), BAD_REQUEST);
   }

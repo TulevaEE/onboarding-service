@@ -25,7 +25,6 @@ import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.TestingAuthenticationToken
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails
 import org.springframework.test.context.TestPropertySource
 import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Specification
@@ -84,10 +83,7 @@ class PaymentIntegrationSpec extends Specification {
 
   def mockSecurityContext() {
     SecurityContext sc = SecurityContextHolder.createEmptyContext()
-    TestingAuthenticationToken authentication = new TestingAuthenticationToken("test", "password")
-    OAuth2AuthenticationDetails details = Mock(OAuth2AuthenticationDetails)
-    authentication.details = details
-    details.getTokenValue() >> aToken
+    TestingAuthenticationToken authentication = new TestingAuthenticationToken("test", aToken)
     sc.authentication = authentication
     SecurityContextHolder.context = sc
   }

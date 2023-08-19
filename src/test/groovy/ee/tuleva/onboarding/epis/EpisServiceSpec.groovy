@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.epis
 
+import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement
@@ -13,8 +14,6 @@ import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.security.oauth2.client.OAuth2RestOperations
-import org.springframework.security.oauth2.provider.authentication.OAuth2AuthenticationDetails
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
@@ -32,19 +31,19 @@ import static org.springframework.http.HttpStatus.OK
 class EpisServiceSpec extends Specification {
 
   RestTemplate restTemplate = Mock(RestTemplate)
-  OAuth2RestOperations clientCredentialsRestTemplate = Mock(OAuth2RestOperations)
-  EpisService service = new EpisService(restTemplate, clientCredentialsRestTemplate)
+  JwtTokenUtil jwtTokenUtil = Mock(JwtTokenUtil)
+  EpisService service = new EpisService(restTemplate, jwtTokenUtil)
 
   String sampleToken = "123"
+  String sampleServiceToken = "123456"
 
   def setup() {
     service.episServiceUrl = "http://epis"
 
-    OAuth2AuthenticationDetails sampleDetails = Mock(OAuth2AuthenticationDetails)
-    sampleDetails.getTokenValue() >> sampleToken
+    jwtTokenUtil.generateServiceToken() >> sampleServiceToken
 
     Authentication sampleAuthentication = Mock(Authentication)
-    sampleAuthentication.getDetails() >> sampleDetails
+    sampleAuthentication.credentials >> sampleToken
 
     SecurityContextHolder.getContext().setAuthentication(sampleAuthentication)
   }
@@ -179,7 +178,7 @@ class EpisServiceSpec extends Specification {
   def "gets nav"() {
     given:
     def navDto = Mock(NavDto)
-    1 * clientCredentialsRestTemplate.exchange("http://epis/navs/EE666?date=2018-10-20", GET, _, NavDto.class) >>
+    1 * restTemplate.exchange("http://epis/navs/EE666?date=2018-10-20", GET, _, NavDto.class) >>
         new ResponseEntity<NavDto>(navDto, OK);
     when:
     def result = service.getNav("EE666", LocalDate.parse("2018-10-20"))

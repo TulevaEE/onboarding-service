@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
+import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
@@ -14,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
 import org.springframework.web.servlet.LocaleResolver
 
+import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER_ATTRIBUTE
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static java.util.Locale.ENGLISH
 import static org.hamcrest.Matchers.is
@@ -62,7 +64,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
   def "mobile id signature start returns the mobile id challenge code"() {
     when:
-    mandateService.mobileIdSign(1L, authenticatedPerson.getUserId(), authenticatedPerson.getPhoneNumber()) >>
+    mandateService.mobileIdSign(1L, authenticatedPerson.getUserId(), authenticatedPerson.getAttribute(PHONE_NUMBER_ATTRIBUTE)) >>
         MobileIdSignatureSession.builder().verificationCode("1234").build()
 
     then:

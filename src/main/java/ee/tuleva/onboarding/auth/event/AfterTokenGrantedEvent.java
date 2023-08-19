@@ -10,10 +10,12 @@ public class AfterTokenGrantedEvent extends ApplicationEvent {
 
   private final Person person;
   private final OAuth2AccessToken accessToken;
+  private final String jwtToken;
 
-  public AfterTokenGrantedEvent(Object source, Person person, OAuth2AccessToken accessToken) {
+  public AfterTokenGrantedEvent(Object source, Person person, OAuth2AccessToken accessToken, String jwtToken) {
     super(source);
     this.person = person;
     this.accessToken = accessToken;
+    this.jwtToken = jwtToken;
   }
 }

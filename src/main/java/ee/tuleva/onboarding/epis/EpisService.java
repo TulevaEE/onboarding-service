@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.epis;
 
-import static java.util.Arrays.asList;
-import static org.springframework.http.HttpMethod.GET;
-
+import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.contribution.Contribution;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
@@ -15,8 +14,6 @@ import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
-import java.time.LocalDate;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,6 +32,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestOperations;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.LocalDate;
+import java.util.List;
+
+import static java.util.Arrays.asList;
+import static org.springframework.http.HttpMethod.GET;
+
 @Service
 @Slf4j
 @RequiredArgsConstructor
@@ -51,6 +54,7 @@ public class EpisService {
 
   private final RestOperations userTokenRestTemplate;
   private final OAuth2RestOperations clientCredentialsRestTemplate;
+  private final JwtTokenUtil jwtTokenUtil;
 
   @Value("${epis.service.url}")
   String episServiceUrl;
@@ -88,10 +92,10 @@ public class EpisService {
 
   @Caching(
       evict = {
-        @CacheEvict(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
+          @CacheEvict(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
+          @CacheEvict(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
+          @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
+          @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
       })
   public void clearCache(Person person) {
     log.info("Clearing cache for {}", person.getPersonalCode());
@@ -99,17 +103,17 @@ public class EpisService {
 
   @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
   public ContactDetails getContactDetails(Person person) {
-    return getContactDetails(person, getToken());
+    return getContactDetails(person, getToken(), jwtToken());
   }
 
   @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
-  public ContactDetails getContactDetails(Person person, String token) {
+  public ContactDetails getContactDetails(Person person, String token, String jwtToken) {
     String url = episServiceUrl + "/contact-details";
 
     log.info("Getting contact details from {} for {}", url, person.getPersonalCode());
 
     ResponseEntity<ContactDetails> response =
-        userTokenRestTemplate.exchange(url, GET, getHeadersEntity(token), ContactDetails.class);
+        userTokenRestTemplate.exchange(url, GET, getHeadersEntity(token, jwtToken), ContactDetails.class);
 
     return response.getBody();
   }
@@ -154,7 +158,7 @@ public class EpisService {
     log.info("Fetching NAV for fund from EPIS service: isin={}, date={}", isin, date);
     String url = episServiceUrl + "/navs/" + isin + "?date=" + date;
     return clientCredentialsRestTemplate
-        .exchange(url, GET, new HttpEntity<>(createJsonHeaders()), NavDto.class)
+        .exchange(url, GET, new HttpEntity<>(getServiceHeaders(jwtToken())), NavDto.class)
         .getBody();
   }
 
@@ -162,14 +166,14 @@ public class EpisService {
     String url = episServiceUrl + "/mandates";
 
     return userTokenRestTemplate.postForObject(
-        url, new HttpEntity<>(mandate, getHeaders()), ApplicationResponseDTO.class);
+        url, new HttpEntity<>(mandate, getUserHeaders()), ApplicationResponseDTO.class);
   }
 
   public ApplicationResponse sendCancellation(CancellationDto cancellation) {
     String url = episServiceUrl + "/cancellations";
 
     return userTokenRestTemplate.postForObject(
-        url, new HttpEntity<>(cancellation, getHeaders()), ApplicationResponse.class);
+        url, new HttpEntity<>(cancellation, getUserHeaders()), ApplicationResponse.class);
   }
 
   @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
@@ -179,24 +183,31 @@ public class EpisService {
     log.info("Updating contact details for {}", contactDetails.getPersonalCode());
 
     return userTokenRestTemplate.postForObject(
-        url, new HttpEntity<>(contactDetails, getHeaders()), ContactDetails.class);
+        url, new HttpEntity<>(contactDetails, getUserHeaders()), ContactDetails.class);
   }
 
   private HttpEntity<String> getHeadersEntity() {
-    return getHeadersEntity(getToken());
+    return getHeadersEntity(getToken(), jwtToken());
   }
 
-  private HttpEntity<String> getHeadersEntity(String token) {
-    return new HttpEntity<>(getHeaders(token));
+  private HttpEntity<String> getHeadersEntity(String token, String jwtToken) {
+    return new HttpEntity<>(getUserHeaders(token, jwtToken));
   }
 
-  private HttpHeaders getHeaders() {
-    return getHeaders(getToken());
+  private HttpHeaders getUserHeaders() {
+    return getUserHeaders(getToken(), jwtToken());
   }
 
-  private HttpHeaders getHeaders(String token) {
+  private HttpHeaders getUserHeaders(String token, String jwtToken) {
     HttpHeaders headers = createJsonHeaders();
     headers.add("Authorization", "Bearer " + token);
+    headers.add("X-Authorization", "Bearer " + jwtToken);
+    return headers;
+  }
+
+  private HttpHeaders getServiceHeaders(String jwtToken) {
+    HttpHeaders headers = createJsonHeaders();
+    headers.add("X-Authorization", "Bearer " + jwtToken);
     return headers;
   }
 
@@ -212,5 +223,9 @@ public class EpisService {
             SecurityContextHolder.getContext().getAuthentication().getDetails();
 
     return details.getTokenValue();
+  }
+
+  private String jwtToken() {
+    return jwtTokenUtil.generateServiceToken();
   }
 }

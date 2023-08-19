@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
@@ -35,6 +36,8 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
   private final GrantedAuthorityFactory grantedAuthorityFactory;
   private final ApplicationEventPublisher eventPublisher;
 
+  private final JwtTokenUtil jwtTokenUtil;
+
   public MobileIdTokenGranter(
       AuthorizationServerTokenServices tokenServices,
       ClientDetailsService clientDetailsService,
@@ -43,9 +46,10 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
       PrincipalService principalService,
       GenericSessionStore genericSessionStore,
       GrantedAuthorityFactory grantedAuthorityFactory,
-      ApplicationEventPublisher applicationEventPublisher) {
+      ApplicationEventPublisher applicationEventPublisher, JwtTokenUtil jwtTokenUtil) {
 
     super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE.name().toLowerCase());
+    this.jwtTokenUtil = jwtTokenUtil;
 
     assert mobileIdAuthService != null;
     assert principalService != null;
@@ -82,11 +86,13 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
     AuthenticatedPerson authenticatedPerson =
         principalService.getFrom(mobileIdSession, Optional.of(mobileIdSession.getPhoneNumber()));
 
+    final var authorities = grantedAuthorityFactory.from(authenticatedPerson);
+
     Authentication userAuthentication =
         new PersonalCodeAuthentication<>(
             authenticatedPerson,
             mobileIdSession,
-            grantedAuthorityFactory.from(authenticatedPerson));
+            authorities);
 
     userAuthentication.setAuthenticated(true);
 
@@ -99,7 +105,9 @@ public class MobileIdTokenGranter extends AbstractTokenGranter implements TokenG
 
     OAuth2AccessToken accessToken = getTokenServices().createAccessToken(oAuth2Authentication);
 
-    eventPublisher.publishEvent(new AfterTokenGrantedEvent(this, authenticatedPerson, accessToken));
+    String jwtToken = jwtTokenUtil.generateToken(authenticatedPerson, authorities);
+
+    eventPublisher.publishEvent(new AfterTokenGrantedEvent(this, authenticatedPerson, accessToken, jwtToken));
 
     return accessToken;
   }

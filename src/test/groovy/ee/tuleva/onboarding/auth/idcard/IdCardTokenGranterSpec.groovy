@@ -28,13 +28,13 @@ class IdCardTokenGranterSpec extends Specification {
 
     def setup() {
         tokenGranter = new IdCardTokenGranter(
-            authorizationServerTokenServices,
-            clientDetailsService,
-            oAuth2RequestFactory,
-            genericSessionStore,
-            principalService,
-            grantedAuthorityFactory,
-            applicationEventPublisher)
+                authorizationServerTokenServices,
+                clientDetailsService,
+                oAuth2RequestFactory,
+                genericSessionStore,
+                principalService,
+                grantedAuthorityFactory,
+                applicationEventPublisher, jwtTokenUtil)
     }
 
     def "GetAccessToken: Logging in with no client id fails"() {

@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException
-import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.security.oauth2.common.OAuth2AccessToken
 import org.springframework.security.oauth2.common.exceptions.InvalidRequestException
@@ -17,7 +16,6 @@ import org.springframework.security.oauth2.provider.token.AuthorizationServerTok
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.anAuthenticationIdentity
-import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.sampleSmartIdSession
 
 class SmartIdTokenGranterSpec extends Specification {
 
@@ -33,13 +31,13 @@ class SmartIdTokenGranterSpec extends Specification {
 
   def setup() {
     smartIdTokenGranter = new SmartIdTokenGranter(
-        authorizationServerTokenServices,
-        clientDetailsService,
-        oAuth2RequestFactory,
-        smartIdAuthService,
-        principalService,
-        grantedAuthorityFactory,
-        applicationEventPublisher
+            authorizationServerTokenServices,
+            clientDetailsService,
+            oAuth2RequestFactory,
+            smartIdAuthService,
+            principalService,
+            grantedAuthorityFactory,
+            applicationEventPublisher, jwtTokenUtil
     )
   }
 

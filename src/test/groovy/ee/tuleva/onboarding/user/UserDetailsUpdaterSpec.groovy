@@ -28,7 +28,7 @@ class UserDetailsUpdaterSpec extends Specification {
     1 * contactDetailsService.getContactDetails(user, token) >> contactDetails
 
     when:
-    service.onAfterTokenGrantedEvent(new AfterTokenGrantedEvent(this, user, accessToken))
+    service.onAfterTokenGrantedEvent(new AfterTokenGrantedEvent(this, user, accessToken, jwtToken))
 
     then:
     1 * userService.updateUser(user.personalCode, Optional.of(contactDetails.email), contactDetails.phoneNumber)

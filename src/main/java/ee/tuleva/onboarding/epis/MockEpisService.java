@@ -52,7 +52,7 @@ public class MockEpisService extends EpisService {
 
   public MockEpisService(
       RestOperations userTokenRestTemplate, OAuth2RestOperations clientCredentialsRestTemplate) {
-    super(userTokenRestTemplate, clientCredentialsRestTemplate);
+    super(userTokenRestTemplate, clientCredentialsRestTemplate, null);
   }
 
   @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode", sync = true)

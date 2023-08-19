@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.auth.PersonalCodeAuthentication;
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
+import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
@@ -32,6 +33,7 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
   private final PrincipalService principalService;
   private final GrantedAuthorityFactory grantedAuthorityFactory;
   private final ApplicationEventPublisher eventPublisher;
+  private final JwtTokenUtil jwtTokenUtil;
 
   public SmartIdTokenGranter(
       AuthorizationServerTokenServices tokenServices,
@@ -40,8 +42,9 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
       SmartIdAuthService smartIdAuthService,
       PrincipalService principalService,
       GrantedAuthorityFactory grantedAuthorityFactory,
-      ApplicationEventPublisher applicationEventPublisher) {
+      ApplicationEventPublisher applicationEventPublisher, JwtTokenUtil jwtTokenUtil) {
     super(tokenServices, clientDetailsService, requestFactory, GRANT_TYPE.name().toLowerCase());
+    this.jwtTokenUtil = jwtTokenUtil;
 
     assert smartIdAuthService != null;
     assert principalService != null;
@@ -76,9 +79,11 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
     AuthenticatedPerson authenticatedPerson =
         principalService.getFrom(smartIdPerson, Optional.empty());
 
+    final var authorities = grantedAuthorityFactory.from(authenticatedPerson);
+
     Authentication userAuthentication =
         new PersonalCodeAuthentication<>(
-            authenticatedPerson, smartIdPerson, grantedAuthorityFactory.from(authenticatedPerson));
+            authenticatedPerson, smartIdPerson, authorities);
 
     userAuthentication.setAuthenticated(true);
 
@@ -91,7 +96,9 @@ public class SmartIdTokenGranter extends AbstractTokenGranter {
 
     OAuth2AccessToken accessToken = getTokenServices().createAccessToken(oAuth2Authentication);
 
-    eventPublisher.publishEvent(new AfterTokenGrantedEvent(this, authenticatedPerson, accessToken));
+    String jwtToken = jwtTokenUtil.generateToken(authenticatedPerson, authorities);
+
+    eventPublisher.publishEvent(new AfterTokenGrantedEvent(this, authenticatedPerson, accessToken, jwtToken));
 
     return accessToken;
   }

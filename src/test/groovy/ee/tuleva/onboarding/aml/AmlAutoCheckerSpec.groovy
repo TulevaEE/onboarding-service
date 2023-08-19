@@ -81,7 +81,7 @@ class AmlAutoCheckerSpec extends Specification {
         1 * contactDetailsService.getContactDetails(user, token) >> contactDetails
 
         when:
-        amlAutoChecker.afterLogin(new AfterTokenGrantedEvent(this, user, accessToken))
+        amlAutoChecker.afterLogin(new AfterTokenGrantedEvent(this, user, accessToken, jwtToken))
 
         then:
         1 * amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails)

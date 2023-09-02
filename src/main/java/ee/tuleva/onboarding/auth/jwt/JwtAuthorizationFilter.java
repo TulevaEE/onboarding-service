@@ -2,11 +2,9 @@ package ee.tuleva.onboarding.auth.jwt;
 
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
-
 import javax.servlet.FilterChain;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;

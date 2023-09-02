@@ -96,7 +96,7 @@ public class EpisService {
 
   @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
   public ContactDetails getContactDetails(Person person) {
-    return getContactDetails(person, jwtToken());
+    return getContactDetails(person, userJwtToken());
   }
 
   @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
@@ -151,11 +151,7 @@ public class EpisService {
     log.info("Fetching NAV for fund from EPIS service: isin={}, date={}", isin, date);
     String url = episServiceUrl + "/navs/" + isin + "?date=" + date;
     return restTemplate
-        .exchange(
-            url,
-            GET,
-            new HttpEntity<>(getHeaders(jwtTokenUtil.generateServiceToken())),
-            NavDto.class)
+        .exchange(url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), NavDto.class)
         .getBody();
   }
 
@@ -184,7 +180,7 @@ public class EpisService {
   }
 
   private HttpEntity<String> getHeadersEntity() {
-    return getHeadersEntity(jwtToken());
+    return getHeadersEntity(userJwtToken());
   }
 
   private HttpEntity<String> getHeadersEntity(String jwtToken) {
@@ -192,7 +188,7 @@ public class EpisService {
   }
 
   private HttpHeaders getUserHeaders() {
-    return getHeaders(jwtToken());
+    return getHeaders(userJwtToken());
   }
 
   private HttpHeaders getHeaders(String jwtToken) {
@@ -207,11 +203,15 @@ public class EpisService {
     return headers;
   }
 
-  private String jwtToken() {
+  private String userJwtToken() {
     final var authentication = SecurityContextHolder.getContext().getAuthentication();
     if (authentication != null) {
       return (String) authentication.getCredentials();
     }
     throw new IllegalStateException("No authentication present!");
+  }
+
+  private String serviceJwtToken() {
+    return jwtTokenUtil.generateServiceToken();
   }
 }

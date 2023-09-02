@@ -32,7 +32,7 @@ class AmlAutoCheckerSpec extends Specification {
         given:
         def user = sampleUser().build()
         def person = sampleAuthenticatedPersonAndMember()
-        .attributes(Map.of(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE, ESTONIAN_CITIZEN_ID_CARD))
+        .attributes(Map.of(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE, ESTONIAN_CITIZEN_ID_CARD.name()))
             .build()
         1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
 
@@ -46,7 +46,7 @@ class AmlAutoCheckerSpec extends Specification {
     def "throws exception when user not found"() {
         given:
         def person = sampleAuthenticatedPersonAndMember()
-            .attributes(Map.of(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE, ESTONIAN_CITIZEN_ID_CARD))
+            .attributes(Map.of(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE, ESTONIAN_CITIZEN_ID_CARD.name()))
             .build()
         1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
 

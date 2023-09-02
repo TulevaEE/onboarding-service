@@ -73,8 +73,7 @@ public class AuthController {
         AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);
   }
 
-  // TODO: change the mapping
-  @PostMapping("/oauth/token")
+  @PostMapping({"/oauth/token", "/login"})
   public String login(
       @RequestParam("grant_type") String grantType,
       @RequestParam(value = "authenticationHash", required = false) String authenticationHash) {

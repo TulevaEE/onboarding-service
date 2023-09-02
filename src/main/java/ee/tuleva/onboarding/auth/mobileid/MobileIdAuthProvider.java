@@ -28,7 +28,7 @@ public class MobileIdAuthProvider implements AuthProvider {
   @Override
   public AuthenticatedPerson authenticate(String authenticationHash) {
     Optional<MobileIDSession> session = genericSessionStore.get(MobileIDSession.class);
-    if (!session.isPresent()) {
+    if (session.isEmpty()) {
       throw new MobileIdSessionNotFoundException();
     }
     MobileIDSession mobileIdSession = session.get();

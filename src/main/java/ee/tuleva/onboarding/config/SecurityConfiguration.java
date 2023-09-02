@@ -5,6 +5,7 @@ import static org.springframework.boot.actuate.autoconfigure.security.servlet.En
 
 import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
+import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -17,8 +18,9 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfiguration {
 
   @Bean
+  @SneakyThrows
   public SecurityFilterChain securityFilterChain(
-      HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter) throws Exception {
+      HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter) {
     http.authorizeRequests()
         .requestMatchers(to("health"))
         .permitAll()

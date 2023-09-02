@@ -33,13 +33,15 @@ class PrincipalServiceSpec extends Specification {
 
   def "getFromPerson: create a new user when one is not present"() {
     given:
-    Person person = samplePerson()
+    def person = samplePerson()
     String firstNameUncapitalized = "JORDAN"
     String firstNameCorrectlyCapitalized = "Jordan"
-    person.firstName = firstNameUncapitalized
     String lastNameUncapitalized = "VALDMA"
     String lastNameCorrectlyCapitalized = "Valdma"
-    person.lastName = lastNameUncapitalized
+    person = person.toBuilder()
+        .firstName(firstNameUncapitalized)
+        .lastName(lastNameUncapitalized)
+        .build()
 
     1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
 
@@ -47,7 +49,7 @@ class PrincipalServiceSpec extends Specification {
     AuthenticatedPerson authenticatedPerson = service.getFrom(person, Map.of())
 
     then:
-    1 * userService.createNewUser({User user ->
+    1 * userService.createNewUser({ User user ->
       user.firstName == firstNameCorrectlyCapitalized &&
           user.lastName == lastNameCorrectlyCapitalized &&
           user.personalCode == person.personalCode &&

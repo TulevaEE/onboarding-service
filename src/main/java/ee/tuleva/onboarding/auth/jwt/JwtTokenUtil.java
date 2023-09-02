@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.auth.jwt;
 
+import static ee.tuleva.onboarding.auth.jwt.CustomClaims.*;
 import static java.time.temporal.ChronoUnit.MINUTES;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import java.security.Key;
@@ -10,7 +13,6 @@ import java.security.KeyStore;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.*;
-import java.util.function.Function;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -35,17 +37,16 @@ public class JwtTokenUtil {
     this.signingKey = keystore.getKey("jwt", keystorePassword);
   }
 
-  public String getUsernameFromToken(String token) {
-    return getClaimFromToken(token, Claims::getSubject);
-  }
-
-  public List<String> getAuthoritiesFromToken(String token) {
-    return getClaimFromToken(token, (claims) -> claims.get("authorities", List.class));
-  }
-
-  public <T> T getClaimFromToken(String token, Function<Claims, T> claimsResolver) {
-    final Claims claims = getAllClaimsFromToken(token);
-    return claimsResolver.apply(claims);
+  public Person getPersonFromToken(String token) {
+    final var claims = getAllClaimsFromToken(token);
+    final var personalCode = claims.getSubject();
+    final String firstName = FIRST_NAME.fromClaims(claims);
+    final String lastName = LAST_NAME.fromClaims(claims);
+    return PersonImpl.builder()
+        .personalCode(personalCode)
+        .firstName(firstName)
+        .lastName(lastName)
+        .build();
   }
 
   private Claims getAllClaimsFromToken(String token) {
@@ -57,9 +58,14 @@ public class JwtTokenUtil {
     return Jwts.builder()
         .setClaims(
             Map.of(
-                "firstName", person.getFirstName(),
-                "lastName", person.getLastName(),
-                "authorities", authorities.stream().map(GrantedAuthority::getAuthority).toList()))
+                FIRST_NAME.value,
+                person.getFirstName(),
+                LAST_NAME.value,
+                person.getLastName(),
+                ATTRIBUTES.value,
+                person.getAttributes(),
+                AUTHORITIES.value,
+                authorities.stream().map(GrantedAuthority::getAuthority).toList()))
         .setSubject(person.getPersonalCode())
         .setIssuedAt(Date.from(clock.instant()))
         .setExpiration(Date.from(clock.instant().plus(JWT_TOKEN_VALIDITY)))
@@ -72,10 +78,18 @@ public class JwtTokenUtil {
     return Jwts.builder()
         .setClaims(claims)
         .setSubject("onboarding-service")
-        .setClaims(Map.of("authorities", List.of()))
+        .setClaims(Map.of(AUTHORITIES.value, List.of()))
         .setIssuedAt(Date.from(clock.instant()))
         .setExpiration(Date.from(clock.instant().plus(JWT_TOKEN_VALIDITY)))
         .signWith(signingKey)
         .compact();
+  }
+
+  public Map<String, String> getAttributesFromToken(String jwtToken) {
+    return ATTRIBUTES.fromClaims(getAllClaimsFromToken(jwtToken));
+  }
+
+  public List<String> getAuthoritiesFromToken(String jwtToken) {
+    return AUTHORITIES.fromClaims(getAllClaimsFromToken(jwtToken));
   }
 }

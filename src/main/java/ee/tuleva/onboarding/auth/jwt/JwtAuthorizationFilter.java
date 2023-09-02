@@ -2,9 +2,11 @@ package ee.tuleva.onboarding.auth.jwt;
 
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
+
 import javax.servlet.FilterChain;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
@@ -28,6 +30,11 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
     final var requestTokenHeader = request.getHeader("Authorization");
     if (StringUtils.startsWith(requestTokenHeader, "Bearer ")) {
       final var jwtToken = requestTokenHeader.substring(7);
+      // Frontend sends null when token is missing, remove if fixed
+      if (jwtToken.equals("null")) {
+        filterChain.doFilter(request, response);
+        return;
+      }
       try {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
           final var authenticationToken =
@@ -48,8 +55,6 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
       } catch (Exception e) {
         logger.error(e.getMessage(), e);
       }
-    } else {
-      logger.error("JWT Token does not begin with Bearer String");
     }
     filterChain.doFilter(request, response);
   }

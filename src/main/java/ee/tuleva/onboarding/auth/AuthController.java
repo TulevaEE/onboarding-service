@@ -17,9 +17,12 @@ import ee.tuleva.onboarding.auth.smartid.SmartIdSession;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+
 import java.net.URLDecoder;
+import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -74,10 +77,10 @@ public class AuthController {
   }
 
   @PostMapping({"/oauth/token", "/login"})
-  public String login(
+  public Map<String, String> login(
       @RequestParam("grant_type") String grantType,
       @RequestParam(value = "authenticationHash", required = false) String authenticationHash) {
-    return authService.authenticate(GrantType.valueOf(grantType.toUpperCase()), authenticationHash);
+    return Map.of("access_token", authService.authenticate(GrantType.valueOf(grantType.toUpperCase()), authenticationHash));
   }
 
   @SneakyThrows

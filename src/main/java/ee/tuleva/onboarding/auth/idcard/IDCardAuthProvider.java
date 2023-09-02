@@ -32,6 +32,6 @@ public class IDCardAuthProvider implements AuthProvider {
     }
     IdCardSession idCardSession = session.get();
     return principalService.getFrom(
-        idCardSession, Map.of(ID_DOCUMENT_TYPE_ATTRIBUTE, idCardSession.documentType));
+        idCardSession, Map.of(ID_DOCUMENT_TYPE_ATTRIBUTE, idCardSession.documentType.name()));
   }
 }

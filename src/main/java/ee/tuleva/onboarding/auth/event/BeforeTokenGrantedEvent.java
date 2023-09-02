@@ -26,6 +26,10 @@ public class BeforeTokenGrantedEvent extends ApplicationEvent {
   }
 
   public IdDocumentType getIdDocumentType() {
-    return person.getAttribute(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE);
+    final var attributeValue = person.getAttribute(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE);
+    if (attributeValue == null) {
+      return null;
+    }
+    return IdDocumentType.valueOf(attributeValue);
   }
 }

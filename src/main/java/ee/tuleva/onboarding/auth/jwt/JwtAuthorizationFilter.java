@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.jwt;
 
+import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
 import javax.servlet.FilterChain;
 import javax.servlet.http.HttpServletRequest;
@@ -18,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @RequiredArgsConstructor
 public class JwtAuthorizationFilter extends OncePerRequestFilter {
   private final JwtTokenUtil jwtTokenUtil;
+  private final PrincipalService principalService;
 
   @Override
   @SneakyThrows
@@ -30,7 +32,9 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
           final var authenticationToken =
               new UsernamePasswordAuthenticationToken(
-                  jwtTokenUtil.getUsernameFromToken(jwtToken),
+                  principalService.getFrom(
+                      jwtTokenUtil.getPersonFromToken(jwtToken),
+                      jwtTokenUtil.getAttributesFromToken(jwtToken)),
                   jwtToken,
                   jwtTokenUtil.getAuthoritiesFromToken(jwtToken).stream()
                       .map(SimpleGrantedAuthority::new)
@@ -39,15 +43,13 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
               new WebAuthenticationDetailsSource().buildDetails(request));
           SecurityContextHolder.getContext().setAuthentication(authenticationToken);
         }
-      } catch (IllegalArgumentException e) {
-        logger.error("Unable to fetch JWT Token");
       } catch (ExpiredJwtException e) {
-        logger.error("JWT Token is expired");
+        logger.info("JWT Token is expired");
       } catch (Exception e) {
         logger.error(e.getMessage(), e);
       }
     } else {
-      logger.warn("JWT Token does not begin with Bearer String");
+      logger.error("JWT Token does not begin with Bearer String");
     }
     filterChain.doFilter(request, response);
   }

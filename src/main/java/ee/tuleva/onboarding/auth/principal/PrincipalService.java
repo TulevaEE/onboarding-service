@@ -4,7 +4,6 @@ import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import java.io.Serializable;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +17,7 @@ public class PrincipalService {
 
   private final UserService userService;
 
-  public AuthenticatedPerson getFrom(Person person, Map<String, Serializable> attributes) {
+  public AuthenticatedPerson getFrom(Person person, Map<String, String> attributes) {
 
     Optional<User> userOptional = userService.findByPersonalCode(person.getPersonalCode());
 

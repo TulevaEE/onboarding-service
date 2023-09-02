@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.error
 import ee.tuleva.onboarding.account.AccountStatementService
 import ee.tuleva.onboarding.account.CashFlowService
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
+import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.config.SecurityConfiguration
 import ee.tuleva.onboarding.error.converter.ErrorAttributesConverter
 import ee.tuleva.onboarding.error.converter.InputErrorsConverter
@@ -36,6 +37,9 @@ class ErrorHandlingControllerSpec extends Specification {
 
   @MockBean
   CashFlowService cashFlowService
+
+  @MockBean
+  PrincipalService principalService
 
   @TestConfiguration
   static class ErrorAttributesConfiguration {

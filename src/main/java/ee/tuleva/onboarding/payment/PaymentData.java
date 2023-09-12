@@ -20,7 +20,8 @@ public class PaymentData {
   public enum PaymentType {
     SINGLE,
     RECURRING,
-    GIFT
+    GIFT,
+    MEMBER_FEE
   }
 
   public enum Bank {
@@ -28,6 +29,7 @@ public class PaymentData {
     SEB,
     SWEDBANK,
     LHV,
-    COOP
+    COOP,
+    TULUNDUSUHISTU
   }
 }

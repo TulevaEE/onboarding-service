@@ -37,6 +37,7 @@ public class MemberPaymentNotificationController {
   @Value("${membership-success.url}")
   private String membershipSuccessUrl;
 
+//TODO remove since this if for Maksekeskus and we will use Montonio
   @PostMapping("/payments")
   public void incomingPayment(
       @ModelAttribute @Valid IncomingPayment incomingPayment,

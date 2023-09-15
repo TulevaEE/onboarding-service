@@ -71,8 +71,7 @@ public class PaymentProviderService implements PaymentLinkGenerator {
 
   private static String getPaymentInformationUnstructured(PaymentData paymentData) {
     return (paymentData.getType() == PaymentData.PaymentType.MEMBER_FEE)
-        ? String.format(
-            "IK:%s", paymentData.getRecipientPersonalCode())
+        ? String.format("IK:%s", paymentData.getRecipientPersonalCode())
         : String.format("30101119828, IK:%s, EE3600001707", paymentData.getRecipientPersonalCode());
   }
 

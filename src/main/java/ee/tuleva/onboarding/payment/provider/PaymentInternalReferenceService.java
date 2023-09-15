@@ -24,6 +24,7 @@ class PaymentInternalReferenceService {
             person.getPersonalCode(),
             paymentData.getRecipientPersonalCode(),
             UUID.randomUUID(),
+            paymentData.getType(),
             localeService.getCurrentLocale());
     return mapper.writeValueAsString(paymentReference);
   }

@@ -22,13 +22,18 @@ class PaymentFixture {
   static PaymentData aPaymentData = new PaymentData(sampleUser.personalCode, aPaymentAmount, aPaymentCurrency, aPaymentType, aPaymentBank)
   static aPaymentCreationTime = TestClockHolder.now - Duration.ofDays(1)
 
-  static Payment aNewPayment() {
+  static Payment aNewSinglePayment() {
     return new Payment(
-        null, sampleUser, UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), aPaymentAmount, Currency.EUR, sampleUser.personalCode, null)
+        null, sampleUser, UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), aPaymentAmount, Currency.EUR, sampleUser.personalCode, null, PaymentType.SINGLE)
+  }
+
+  static Payment aNewMemberPayment() {
+    return new Payment(
+        null, sampleUser, UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), aPaymentAmount, Currency.EUR, sampleUser.personalCode, null, PaymentType.MEMBER_FEE)
   }
 
   static Payment aPayment(Long id = 123L, Instant createdTime = aPaymentCreationTime) {
-    return aNewPayment().tap {
+    return aNewSinglePayment().tap {
       it.id = id
       it.createdTime = createdTime
     }

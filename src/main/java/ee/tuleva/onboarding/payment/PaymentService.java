@@ -28,7 +28,7 @@ public class PaymentService {
   @Trackable(PAYMENT_LINK)
   PaymentLink getLink(PaymentData paymentData, Person person) {
     return switch (paymentData.getType()) {
-      case SINGLE, GIFT -> paymentProviderService.getPaymentLink(paymentData, person);
+      case SINGLE, GIFT, MEMBER_FEE -> paymentProviderService.getPaymentLink(paymentData, person);
       case RECURRING -> recurringPaymentService.getPaymentLink(paymentData, person);
     };
   }

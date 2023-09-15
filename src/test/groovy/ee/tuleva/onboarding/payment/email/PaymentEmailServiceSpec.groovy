@@ -12,7 +12,7 @@ import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageCon
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT
-import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 
 class PaymentEmailServiceSpec extends Specification {
 
@@ -27,7 +27,7 @@ class PaymentEmailServiceSpec extends Specification {
   def "send third pillar payment success email"() {
     given:
     def user = sampleUser().build()
-    def payment = aNewPayment()
+    def payment = aNewSinglePayment()
     def message = new MandrillMessage()
     def mergeVars = [
         "fname": user.firstName,

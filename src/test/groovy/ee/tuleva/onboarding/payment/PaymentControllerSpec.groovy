@@ -2,13 +2,19 @@ package ee.tuleva.onboarding.payment
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.user.User
+import ee.tuleva.onboarding.user.UserService
 import org.springframework.http.MediaType
 
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.payment.PaymentData.Bank.LHV
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
-import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedPaymentProviderToken
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -17,12 +23,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PaymentControllerSpec extends BaseControllerSpec {
 
   PaymentService paymentService = Mock()
+  UserService userService = Mock()
 
   PaymentController paymentController
   String frontendUrl = "https://frontend.url"
 
   def setup() {
-    paymentController = new PaymentController(paymentService)
+    paymentController = new PaymentController(paymentService, userService)
     paymentController.frontendUrl = frontendUrl
   }
 
@@ -71,7 +78,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
   def "GET /success redirects to success screen on successful payment"() {
     given:
     def mvc = mockMvc(paymentController)
-    1 * paymentService.processToken(aSerializedPaymentProviderToken) >> Optional.of(aNewPayment())
+    1 * paymentService.processToken(aSerializedPaymentProviderToken) >> Optional.of(aNewSinglePayment())
     expect:
     mvc.perform(get("/v1/payments/success")
         .param("payment_token", aSerializedPaymentProviderToken))
@@ -85,7 +92,43 @@ class PaymentControllerSpec extends BaseControllerSpec {
     expect:
     mvc.perform(get("/v1/payments/success")
         .param("payment_token", aSerializedPaymentProviderToken))
-        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-payment"))
+        .andExpect(redirectedUrl(frontendUrl + "/account?error_code=error.payment-failed"))
+  }
+
+  def "GET /success redirects to membership success screen on MEMBER_FEE payment"() {
+    given:
+    def mvc = mockMvc(paymentController)
+    Payment payment = aNewMemberPayment()
+    payment.setPaymentType(MEMBER_FEE)
+    User user = sampleUserNonMember().build()
+
+    payment.setUser(user)
+
+    1 * paymentService.processToken(aSerializedPaymentProviderToken) >> Optional.of(payment)
+    1 * userService.registerAsMember(user.getId())
+
+    expect:
+    mvc.perform(get("/v1/payments/success")
+        .param("payment_token", aSerializedPaymentProviderToken))
+        .andExpect(redirectedUrl(frontendUrl))
+  }
+
+  def "GET /success does not register already a member"() {
+    given:
+    def mvc = mockMvc(paymentController)
+    Payment payment = aNewMemberPayment()
+    payment.setPaymentType(MEMBER_FEE)
+    User user = sampleUser().build()
+
+    payment.setUser(user)
+
+    1 * paymentService.processToken(aSerializedPaymentProviderToken) >> Optional.of(payment)
+    0 * userService.registerAsMember(_)
+
+    expect:
+    mvc.perform(get("/v1/payments/success")
+        .param("payment_token", aSerializedPaymentProviderToken))
+        .andExpect(redirectedUrl(frontendUrl))
   }
 
   def "POST /notifications"() {

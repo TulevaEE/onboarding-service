@@ -63,6 +63,7 @@ public class PaymentProviderCallbackService {
             .internalReference(internalReference.getUuid())
             .user(user)
             .recipientPersonalCode(internalReference.getRecipientPersonalCode())
+            .paymentType(internalReference.getPaymentType())
             .build();
 
     Payment payment = paymentRepository.save(paymentToBeSaved);

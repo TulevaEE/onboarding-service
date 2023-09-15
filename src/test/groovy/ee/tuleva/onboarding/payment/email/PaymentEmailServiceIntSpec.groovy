@@ -8,7 +8,7 @@ import spock.lang.Ignore
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 
 @SpringBootTest
 @Ignore
@@ -19,7 +19,7 @@ class PaymentEmailServiceIntSpec extends Specification {
   def "SendThirdPillarPaymentSuccessEmail"() {
     given:
     User user = sampleUser().email("erko@risthein.ee").build()
-    Payment payment = aNewPayment()
+    Payment payment = aNewSinglePayment()
 
     when:
     paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, Locale.ENGLISH)

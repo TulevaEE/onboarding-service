@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user;
 
+import ee.tuleva.onboarding.member.listener.MemberCreatedEvent;
 import ee.tuleva.onboarding.user.exception.DuplicateEmailException;
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
@@ -9,6 +10,7 @@ import javax.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -19,6 +21,7 @@ public class UserService {
 
   private final UserRepository userRepository;
   private final MemberRepository memberRepository;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   // TODO: replace with Optional<User>
   @Nullable
@@ -74,6 +77,8 @@ public class UserService {
         user.getId());
 
     user.setMember(newMember);
+
+    applicationEventPublisher.publishEvent(new MemberCreatedEvent(user));
 
     return save(user);
   }

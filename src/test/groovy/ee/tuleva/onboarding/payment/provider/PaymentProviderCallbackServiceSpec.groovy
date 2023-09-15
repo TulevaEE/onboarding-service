@@ -7,7 +7,7 @@ import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 
 class PaymentProviderCallbackServiceSpec extends Specification {
@@ -28,8 +28,8 @@ class PaymentProviderCallbackServiceSpec extends Specification {
 
   void "if returning payment token is complete and no other payment exists in the database, create one"() {
     given:
-    def token = aSerializedCallbackFinalizedToken
-    def payment = aNewPayment()
+    def token = aSerializedCallbackFinalizedMemberPaymentToken
+    def payment = aNewMemberPayment()
     1 * userService.findByPersonalCode(anInternalReference.getPersonalCode()) >>
         Optional.of(payment.user)
     1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.empty()
@@ -43,8 +43,8 @@ class PaymentProviderCallbackServiceSpec extends Specification {
 
   def "if payment with a given internal reference exists, then do not create a new one"() {
     given:
-    def token = aSerializedCallbackFinalizedToken
-    def existingPayment = Optional.of(aNewPayment())
+    def token = aSerializedCallbackFinalizedMemberPaymentToken
+    def existingPayment = Optional.of(aNewMemberPayment())
     1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> existingPayment
     when:
     def returnedPayment = paymentProviderCallbackService.processToken(token)
@@ -75,8 +75,8 @@ class PaymentProviderCallbackServiceSpec extends Specification {
 
   void "publish payment created event"() {
     given:
-    def token = aSerializedCallbackFinalizedToken
-    def payment = aNewPayment()
+    def token = aSerializedCallbackFinalizedMemberPaymentToken
+    def payment = aNewMemberPayment()
     def user = payment.user
     userService.findByPersonalCode(anInternalReference.getPersonalCode()) >> Optional.of(user)
     paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> Optional.empty()

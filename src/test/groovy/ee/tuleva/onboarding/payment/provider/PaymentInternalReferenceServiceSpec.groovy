@@ -29,6 +29,7 @@ class PaymentInternalReferenceServiceSpec extends Specification {
     reference.personalCode == "38501010000"
     reference.locale == "en"
     reference.uuid.size() == 36
+    reference.paymentType == aPaymentData.getType().toString()
   }
 
   AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()

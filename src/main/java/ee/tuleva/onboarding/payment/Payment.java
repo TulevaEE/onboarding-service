@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.payment;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
+import static ee.tuleva.onboarding.payment.PaymentData.*;
 import static javax.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.currency.Currency;
@@ -42,6 +43,10 @@ public class Payment implements Comparable<Payment> {
 
   private Instant createdTime;
 
+  @NotNull
+  @Enumerated(STRING)
+  private PaymentType paymentType;
+
   @PrePersist
   protected void onCreate() {
     createdTime = Instant.now();
@@ -55,6 +60,7 @@ public class Payment implements Comparable<Payment> {
         .thenComparing(Payment::getRecipientPersonalCode)
         .thenComparing(Payment::getInternalReference)
         .thenComparing(Payment::getId, Comparator.nullsLast(Long::compareTo))
+        .thenComparing(Payment::getPaymentType)
         .compare(this, other);
   }
 }

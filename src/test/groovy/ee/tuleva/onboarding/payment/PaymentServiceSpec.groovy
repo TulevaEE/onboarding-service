@@ -6,9 +6,10 @@ import ee.tuleva.onboarding.payment.recurring.RecurringPaymentService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
-import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedPaymentProviderToken
 
@@ -25,7 +26,7 @@ class PaymentServiceSpec extends Specification {
   def "can get payments"() {
     given:
     def person = samplePerson()
-    def payment = aNewPayment()
+    def payment = aNewSinglePayment()
     paymentRepository.findAllByRecipientPersonalCode(person.personalCode) >> [payment]
     when:
     def payments = paymentService.getPayments(person)
@@ -38,6 +39,20 @@ class PaymentServiceSpec extends Specification {
     def person = samplePerson
     def paymentData = aPaymentData.tap { type = SINGLE }
     def link = new PaymentLink("https://single.payment.url")
+    paymentProviderService.getPaymentLink(paymentData, person) >> link
+
+    when:
+    def returnedLink = paymentService.getLink(paymentData, person)
+
+    then:
+    returnedLink == link
+  }
+
+  def "can get a member payment link"() {
+    given:
+    def person = samplePerson
+    def paymentData = aPaymentData.tap { type = MEMBER_FEE }
+    def link = new PaymentLink("https://member.payment.url")
     paymentProviderService.getPaymentLink(paymentData, person) >> link
 
     when:
@@ -64,7 +79,7 @@ class PaymentServiceSpec extends Specification {
   def "can process a payment provider token"() {
     given:
     def token = aSerializedPaymentProviderToken
-    def payment = Optional.of(aNewPayment())
+    def payment = Optional.of(aNewSinglePayment())
     paymentProviderCallbackService.processToken(token) >> payment
 
     when:

@@ -65,9 +65,6 @@ epis:
     url: http://localhost:9005/v1
     bic: "LCDELV22XXX"
 
-membership-success:
-  url: http://localhost:3000
-
 frontend:
   url: http://localhost:3000
 
@@ -204,9 +201,6 @@ epis:
   service:
     url: https://epis-service.tuleva.ee/v1
     bic: "LCDELV22XXX"
-
-membership-success:
-  url: https://pension.tuleva.ee
 
 frontend:
   url: https://pension.tuleva.ee

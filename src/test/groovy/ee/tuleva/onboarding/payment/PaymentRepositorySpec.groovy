@@ -8,7 +8,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
-import static ee.tuleva.onboarding.payment.PaymentFixture.aNewPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 
 @DataJpaTest
 class PaymentRepositorySpec extends Specification {
@@ -21,7 +21,7 @@ class PaymentRepositorySpec extends Specification {
   def "persisting and findById() works"() {
     given:
     User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
-    Payment paymentToBeSaved = aNewPayment()
+    Payment paymentToBeSaved = aNewSinglePayment()
     paymentToBeSaved.id = null
     paymentToBeSaved.user = sampleUser
 
@@ -46,7 +46,7 @@ class PaymentRepositorySpec extends Specification {
   def "findByInternalReference"() {
     given:
     User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
-    Payment paymentToBeSaved = aNewPayment()
+    Payment paymentToBeSaved = aNewSinglePayment()
     paymentToBeSaved.id = null
     paymentToBeSaved.user = sampleUser
 
@@ -72,7 +72,7 @@ class PaymentRepositorySpec extends Specification {
   def "can find by personal code"() {
     given:
     User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
-    Payment payment = aNewPayment().tap {
+    Payment payment = aNewSinglePayment().tap {
       id = null
       user = sampleUser
       recipientPersonalCode = sampleUser.personalCode

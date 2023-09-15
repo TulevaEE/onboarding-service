@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.user
 
+import ee.tuleva.onboarding.member.listener.MemberCreatedEvent
 import ee.tuleva.onboarding.user.exception.DuplicateEmailException
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
 import ee.tuleva.onboarding.user.member.MemberRepository
+import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -12,7 +14,8 @@ class UserServiceSpec extends Specification {
 
   def userRepository = Mock(UserRepository)
   def memberRepository = Mock(MemberRepository)
-  def service = new UserService(userRepository, memberRepository)
+  def applicationEventPublisher = Mock(ApplicationEventPublisher)
+  def service = new UserService(userRepository, memberRepository, applicationEventPublisher)
 
   @Shared
   String personalCodeSample = "somePersonalCode"
@@ -84,6 +87,9 @@ class UserServiceSpec extends Specification {
     then:
     member.memberNumber == 1000
     member.user == user
+    1 * applicationEventPublisher.publishEvent( _ as MemberCreatedEvent) >> { MemberCreatedEvent event ->
+      assert event.user == user
+    };
   }
 
   def "trying to register a user who is already a member as a new member throws exception"() {

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.payment;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import java.util.Optional;
 import javax.validation.Valid;
@@ -26,6 +28,8 @@ public class PaymentController {
 
   private final PaymentService paymentService;
 
+  private final UserService userService;
+
   @GetMapping("/link")
   @Operation(summary = "Get a payment link")
   public PaymentLink getPaymentLink(
@@ -38,11 +42,32 @@ public class PaymentController {
   @Operation(summary = "Redirects user to payment success")
   public RedirectView getPaymentSuccessRedirect(
       @RequestParam("payment_token") String serializedToken) {
-    Optional<Payment> payment = paymentService.processToken(serializedToken);
-    if (payment.isPresent()) {
-      return new RedirectView(frontendUrl + "/3rd-pillar-success");
+    Optional<Payment> paymentOptional = paymentService.processToken(serializedToken);
+
+    return paymentOptional
+        .map(
+            payment -> {
+              if (payment.getPaymentType() == PaymentData.PaymentType.MEMBER_FEE) {
+                registerMemberPayment(payment);
+                return new RedirectView(frontendUrl);
+              } else {
+                return new RedirectView(frontendUrl + "/3rd-pillar-success");
+              }
+            })
+        .orElseGet(
+            () -> new RedirectView(frontendUrl + "/account?error_code=error.payment-failed"));
+  }
+
+  private void registerMemberPayment(Payment payment) {
+    User user = payment.getUser();
+    if (!user.isMember()) {
+      userService.registerAsMember(user.getId());
+    } else {
+      log.warn(
+          "Member payment {} for user {}. User already is a member.",
+          payment.getId(),
+          user.getId());
     }
-    return new RedirectView(frontendUrl + "/3rd-pillar-payment");
   }
 
   @PostMapping("/notifications")

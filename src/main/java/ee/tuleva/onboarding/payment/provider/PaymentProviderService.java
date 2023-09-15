@@ -55,14 +55,13 @@ public class PaymentProviderService implements PaymentLinkGenerator {
     payload.put("merchant_return_url", apiUrl + "/payments/success");
     payload.put("merchant_notification_url", apiUrl + "/payments/notification");
 
-    payload.put(
-        "payment_information_unstructured", getPaymentInformationUnstructured(paymentData));
+    payload.put("payment_information_unstructured", getPaymentInformationUnstructured(paymentData));
 
     payload.put("preselected_locale", getLanguage());
     payload.put("exp", clock.instant().getEpochSecond() + 600);
     payload.put("checkout_first_name", person.getFirstName());
     payload.put("checkout_last_name", person.getLastName());
-    payload.put("preselected_aspsp", bankConfiguration.getBic());
+    payload.put("preselected_aspsp", bankConfiguration.getBic()); //TODO: check ASPS for member payment
 
     JWSObject jwsObject = getSignedJws(payload, bankConfiguration);
     URL url = getUrl(jwsObject);
@@ -72,7 +71,8 @@ public class PaymentProviderService implements PaymentLinkGenerator {
 
   private static String getPaymentInformationUnstructured(PaymentData paymentData) {
     return (paymentData.getType() == PaymentData.PaymentType.MEMBER_FEE)
-        ? String.format("IK:%s", paymentData.getRecipientPersonalCode()) //TODO: check the correct format
+        ? String.format(
+            "IK:%s", paymentData.getRecipientPersonalCode()) // TODO: check the correct format
         : String.format("30101119828, IK:%s, EE3600001707", paymentData.getRecipientPersonalCode());
   }
 

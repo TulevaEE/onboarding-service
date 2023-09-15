@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.event.EventLogRepository
 import ee.tuleva.onboarding.mandate.application.PaymentLinkingService
-import ee.tuleva.onboarding.payment.provider.PaymentProviderFixture
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserRepository
 import org.mockserver.client.MockServerClient
@@ -37,7 +36,7 @@ import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDet
 import static ee.tuleva.onboarding.mandate.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentAmount
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedCallbackFinalizedToken
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedCallbackFinalizedSinglePaymentToken
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.getAnInternalReference
 import static org.mockserver.model.HttpRequest.request
 import static org.mockserver.model.HttpResponse.response
@@ -135,7 +134,7 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private void expectToBeAbleToReceivePaymentNotification() {
-    paymentController.paymentCallback(aSerializedCallbackFinalizedToken)
+    paymentController.paymentCallback(aSerializedCallbackFinalizedSinglePaymentToken)
     assert paymentRepository.findAll().size() == 1
   }
 
@@ -148,7 +147,7 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private void expectThatPaymentCallbackRedirectsUser() {
-    RedirectView result = paymentController.getPaymentSuccessRedirect(aSerializedCallbackFinalizedToken)
+    RedirectView result = paymentController.getPaymentSuccessRedirect(aSerializedCallbackFinalizedSinglePaymentToken)
     assert result.url == frontendUrl + "/3rd-pillar-success"
   }
 

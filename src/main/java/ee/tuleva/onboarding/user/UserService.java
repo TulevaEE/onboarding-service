@@ -78,9 +78,10 @@ public class UserService {
 
     user.setMember(newMember);
 
+    User savedUser = save(user);
     applicationEventPublisher.publishEvent(new MemberCreatedEvent(user));
 
-    return save(user);
+    return savedUser;
   }
 
   public boolean isAMember(Long userId) {

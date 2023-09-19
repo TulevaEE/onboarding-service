@@ -66,7 +66,7 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
               + "&MakseEsimene="
               + tenthDayOfMonth(LocalDate.now(clock));
           case TULUNDUSUHISTU -> throw new IllegalArgumentException(
-              "Can not make a recurring payment to a given bank!");
+              "Recurring payments to the specified bank are not supported");
         };
     return new PaymentLink(url);
   }

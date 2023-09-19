@@ -7,19 +7,32 @@ import static ee.tuleva.onboarding.payment.PaymentData.Bank
 class PaymentProviderFixture {
   static String anAccessKey = "exampleAccessKey"
   static String aSecretKey = "exampleSecretKeyexampleSecretKeyexampleSecretKey"
+  static String anAccessKeyTulundusuhistu = "exampleAccessKeyTulundusuhistu"
+  static String aSecretKeyTulundusuhistu = "exampleSecretKeyexampleSecretKeyexampleSecretKeyTulundusuhistu"
 
   static PaymentProviderConfiguration aPaymentProviderConfiguration() {
     PaymentProviderBank samplePaymentProviderBankConfiguration = new PaymentProviderBank()
     samplePaymentProviderBankConfiguration.accessKey = anAccessKey
     samplePaymentProviderBankConfiguration.secretKey = aSecretKey
     samplePaymentProviderBankConfiguration.bic = "exampleAspsp"
-    def configuration = new PaymentProviderConfiguration([(Bank.LHV): samplePaymentProviderBankConfiguration])
+
+    PaymentProviderBank samplePaymentProviderBankConfigurationTulundusuhistu = new PaymentProviderBank()
+    samplePaymentProviderBankConfigurationTulundusuhistu.accessKey = anAccessKeyTulundusuhistu
+    samplePaymentProviderBankConfigurationTulundusuhistu.secretKey = aSecretKeyTulundusuhistu
+    samplePaymentProviderBankConfigurationTulundusuhistu.bic = "exampleAspsp"
+
+    def configuration = new PaymentProviderConfiguration([
+        (Bank.LHV): samplePaymentProviderBankConfiguration,
+        (Bank.TULUNDUSUHISTU): samplePaymentProviderBankConfigurationTulundusuhistu,
+    ])
     configuration.mapByAccessKey()
     return configuration
   }
 
   static String aSerializedPaymentProviderToken =
       "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjaGFudF9yZXR1cm5fdXJsIjoiaHR0cHM6Ly9vbmJvYXJkaW5nLXNlcnZpY2UudHVsZXZhLmVlL3YxL3BheW1lbnRzL3N1Y2Nlc3MiLCJhbW91bnQiOjEwLjAwLCJwYXltZW50X2luZm9ybWF0aW9uX3Vuc3RydWN0dXJlZCI6IjMwMTAxMTE5ODI4LCBJSzozODgxMjEyMTIxNSwgRUUzNjAwMDAxNzA3IiwiY2hlY2tvdXRfZmlyc3RfbmFtZSI6IkpvcmRhbiIsIm1lcmNoYW50X25vdGlmaWNhdGlvbl91cmwiOiJodHRwczovL29uYm9hcmRpbmctc2VydmljZS50dWxldmEuZWUvdjEvcGF5bWVudHMvbm90aWZpY2F0aW9uIiwicHJlc2VsZWN0ZWRfYXNwc3AiOiJleGFtcGxlQXNwc3AiLCJtZXJjaGFudF9yZWZlcmVuY2UiOiJ7XCJwZXJzb25hbENvZGVcIjogXCIzODgxMjEyMTIxNVwiLCBcInJlY2lwaWVudFBlcnNvbmFsQ29kZVwiOiBcIjM4ODEyMTIxMjE1XCIsIFwidXVpZFwiOiBcIjNhYjk0ZjExLWZiNzEtNDQwMS04MDQzLTVlOTExMjI3MDM3ZVwiLCBcInBheW1lbnRUeXBlXCI6IFwiTUVNQkVSX0ZFRVwifSIsImFjY2Vzc19rZXkiOiJleGFtcGxlQWNjZXNzS2V5IiwiY3VycmVuY3kiOiJFVVIiLCJleHAiOjE2MDYxMjYyMDAsInByZXNlbGVjdGVkX2xvY2FsZSI6ImV0IiwiY2hlY2tvdXRfbGFzdF9uYW1lIjoiVmFsZG1hIn0.Db8sycKqFeD5u9JW_z39fca-mi2Cqu0zmTDaQMEJ4gc"
+  static String aSerializedPaymentProviderTokenForMemberFeePayment =
+      "eyJhbGciOiJIUzI1NiJ9.eyJtZXJjaGFudF9yZXR1cm5fdXJsIjoiaHR0cHM6Ly9vbmJvYXJkaW5nLXNlcnZpY2UudHVsZXZhLmVlL3YxL3BheW1lbnRzL3N1Y2Nlc3MiLCJhbW91bnQiOjEwLjAwLCJwYXltZW50X2luZm9ybWF0aW9uX3Vuc3RydWN0dXJlZCI6IklLOjM4ODEyMTIxMjE1IiwiY2hlY2tvdXRfZmlyc3RfbmFtZSI6IkpvcmRhbiIsIm1lcmNoYW50X25vdGlmaWNhdGlvbl91cmwiOiJodHRwczovL29uYm9hcmRpbmctc2VydmljZS50dWxldmEuZWUvdjEvcGF5bWVudHMvbm90aWZpY2F0aW9uIiwicHJlc2VsZWN0ZWRfYXNwc3AiOiJleGFtcGxlQXNwc3AiLCJtZXJjaGFudF9yZWZlcmVuY2UiOiJ7XCJwZXJzb25hbENvZGVcIjogXCIzODgxMjEyMTIxNVwiLCBcInJlY2lwaWVudFBlcnNvbmFsQ29kZVwiOiBcIjM4ODEyMTIxMjE1XCIsIFwidXVpZFwiOiBcIjNhYjk0ZjExLWZiNzEtNDQwMS04MDQzLTVlOTExMjI3MDM3ZVwiLCBcInBheW1lbnRUeXBlXCI6IFwiTUVNQkVSX0ZFRVwifSIsImFjY2Vzc19rZXkiOiJleGFtcGxlQWNjZXNzS2V5VHVsdW5kdXN1aGlzdHUiLCJjdXJyZW5jeSI6IkVVUiIsImV4cCI6MTYwNjEyNjIwMCwicHJlc2VsZWN0ZWRfbG9jYWxlIjoiZXQiLCJjaGVja291dF9sYXN0X25hbWUiOiJWYWxkbWEifQ.cnAGxs_9elq89HWXRkEnDX2hau8JmXlGgEH3YuNVh-Q"
   static String anInternalReferenceSerialized = """{"personalCode": "38812121215", "recipientPersonalCode": "38812121215", "uuid": "3ab94f11-fb71-4401-8043-5e911227037e", "paymentType": "MEMBER_FEE"}"""
   static PaymentReference anInternalReference =
       new PaymentReference("38812121215", "38812121215", UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), PaymentData.PaymentType.MEMBER_FEE, Locale.ENGLISH)

@@ -20,6 +20,7 @@ class PaymentFixture {
   static PaymentType aPaymentType = PaymentType.SINGLE
   static Bank aPaymentBank = Bank.LHV
   static PaymentData aPaymentData = new PaymentData(sampleUser.personalCode, aPaymentAmount, aPaymentCurrency, aPaymentType, aPaymentBank)
+  static PaymentData aPaymentDataForMemberPayment = new PaymentData(sampleUser.personalCode, aPaymentAmount, aPaymentCurrency, PaymentType.MEMBER_FEE, Bank.TULUNDUSUHISTU)
   static aPaymentCreationTime = TestClockHolder.now - Duration.ofDays(1)
 
   static Payment aNewSinglePayment() {

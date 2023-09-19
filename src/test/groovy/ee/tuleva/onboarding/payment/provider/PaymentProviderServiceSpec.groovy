@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.payment.provider
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
-import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.locale.MockLocaleService
 import ee.tuleva.onboarding.payment.PaymentLink
@@ -11,6 +10,7 @@ import java.time.Clock
 import java.time.Instant
 
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
+import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentDataForMemberPayment
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 import static java.time.ZoneOffset.UTC
 
@@ -42,6 +42,17 @@ class PaymentProviderServiceSpec extends Specification {
 
     then:
     paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderToken
+  }
+
+  def "can get a member fee payment link"() {
+    given:
+    String internalReference = anInternalReferenceSerialized
+    1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, aPaymentDataForMemberPayment) >> internalReference
+    when:
+    PaymentLink paymentLink = paymentLinkService.getPaymentLink(aPaymentDataForMemberPayment, sampleAuthenticatedPerson)
+
+    then:
+    paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderTokenForMemberFeePayment
   }
 
   AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()

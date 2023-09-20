@@ -92,7 +92,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .andExpect(redirectedUrl(frontendUrl + "/account?error_code=error.payment-failed"))
   }
 
-  def "GET /success redirects to membership success screen on MEMBER_FEE payment"() {
+  def "GET /member-success redirects to membership success screen on MEMBER_FEE payment"() {
     given:
     def mvc = mockMvc(paymentController)
     Payment payment = aNewMemberPayment()
@@ -104,9 +104,19 @@ class PaymentControllerSpec extends BaseControllerSpec {
     1 * paymentService.processToken(aSerializedPaymentProviderToken) >> Optional.of(payment)
 
     expect:
-    mvc.perform(get("/v1/payments/success")
+    mvc.perform(get("/v1/payments/member-success")
         .param("payment_token", aSerializedPaymentProviderToken))
         .andExpect(redirectedUrl(frontendUrl))
+  }
+
+  def "GET /member-success redirects back to payment screen on cancelled payment"() {
+    given:
+    def mvc = mockMvc(paymentController)
+    1 * paymentService.processToken(aSerializedPaymentProviderToken) >> Optional.empty()
+    expect:
+    mvc.perform(get("/v1/payments/member-success")
+        .param("payment_token", aSerializedPaymentProviderToken))
+        .andExpect(redirectedUrl(frontendUrl + "/account?error_code=error.payment-failed"))
   }
 
   def "POST /notifications"() {

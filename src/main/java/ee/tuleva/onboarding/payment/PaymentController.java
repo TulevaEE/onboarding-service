@@ -42,13 +42,20 @@ public class PaymentController {
 
     return paymentOptional
         .map(
-            payment -> {
-              if (payment.getPaymentType() == PaymentData.PaymentType.MEMBER_FEE) {
-                return new RedirectView(frontendUrl);
-              } else {
-                return new RedirectView(frontendUrl + "/3rd-pillar-success");
-              }
-            })
+            payment -> new RedirectView(frontendUrl + "/3rd-pillar-success"))
+        .orElseGet(
+            () -> new RedirectView(frontendUrl + "/account?error_code=error.payment-failed"));
+  }
+
+  @GetMapping("/member-success")
+  @Operation(summary = "Redirects user to payment success")
+  public RedirectView getMemberPaymentSuccessRedirect(
+      @RequestParam("payment_token") String serializedToken) {
+    Optional<Payment> paymentOptional = paymentService.processToken(serializedToken);
+
+    return paymentOptional
+        .map(
+            payment -> new RedirectView(frontendUrl))
         .orElseGet(
             () -> new RedirectView(frontendUrl + "/account?error_code=error.payment-failed"));
   }

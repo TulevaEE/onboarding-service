@@ -8,6 +8,7 @@ import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
+import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
 import java.net.URL;
@@ -52,7 +53,7 @@ public class PaymentProviderService implements PaymentLinkGenerator {
     payload.put(
         "merchant_reference",
         paymentInternalReferenceService.getPaymentReference(person, paymentData));
-    payload.put("merchant_return_url", apiUrl + "/payments/success");
+    payload.put("merchant_return_url", getPaymentSuccessReturnUrl(paymentData.getType()));
     payload.put("merchant_notification_url", apiUrl + "/payments/notification");
 
     payload.put("payment_information_unstructured", getPaymentInformationUnstructured(paymentData));
@@ -70,9 +71,18 @@ public class PaymentProviderService implements PaymentLinkGenerator {
   }
 
   private static String getPaymentInformationUnstructured(PaymentData paymentData) {
-    return (paymentData.getType() == PaymentData.PaymentType.MEMBER_FEE)
-        ? String.format("IK:%s", paymentData.getRecipientPersonalCode())
+    return (paymentData.getType() == PaymentType.MEMBER_FEE)
+        ? String.format("member:%s", paymentData.getRecipientPersonalCode())
         : String.format("30101119828, IK:%s, EE3600001707", paymentData.getRecipientPersonalCode());
+  }
+
+  private String getPaymentSuccessReturnUrl(PaymentType paymentType) {
+    if(paymentType == PaymentType.MEMBER_FEE) {
+      return apiUrl + "/payments/member-success";
+    } else {
+      return apiUrl + "/payments/success";
+    }
+
   }
 
   private String getLanguage() {

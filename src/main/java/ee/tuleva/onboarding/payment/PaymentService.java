@@ -9,17 +9,23 @@ import ee.tuleva.onboarding.payment.provider.PaymentProviderService;
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentService;
 import java.util.List;
 import java.util.Optional;
+
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Service
+@Slf4j
 public class PaymentService {
 
   private final PaymentRepository paymentRepository;
   private final PaymentProviderService paymentProviderService;
   private final RecurringPaymentService recurringPaymentService;
   private final PaymentProviderCallbackService paymentProviderCallbackService;
+  private final UserService userService;
 
   public List<Payment> getPayments(Person person) {
     return paymentRepository.findAllByRecipientPersonalCode(person.getPersonalCode());
@@ -34,6 +40,25 @@ public class PaymentService {
   }
 
   Optional<Payment> processToken(String serializedToken) {
-    return paymentProviderCallbackService.processToken(serializedToken);
+    Optional<Payment> paymentOptional = paymentProviderCallbackService.processToken(serializedToken);
+    paymentOptional.ifPresent( payment -> {
+      if (payment.getPaymentType() == PaymentData.PaymentType.MEMBER_FEE) {
+        registerMemberPayment(payment);
+      }
+    });
+
+    return paymentOptional;
+  }
+
+  private void registerMemberPayment(Payment payment) {
+    User user = payment.getUser();
+    if (!user.isMember()) {
+      userService.registerAsMember(user.getId());
+    } else {
+      log.warn(
+          "Member payment {} for user {}. User already is a member.",
+          payment.getId(),
+          user.getId());
+    }
   }
 }

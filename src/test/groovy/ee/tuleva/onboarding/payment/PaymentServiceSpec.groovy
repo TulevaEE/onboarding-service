@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.payment
 import ee.tuleva.onboarding.payment.provider.PaymentProviderCallbackService
 import ee.tuleva.onboarding.payment.provider.PaymentProviderService
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentService
+import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -10,18 +11,21 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPaymentForExistingMember
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedPaymentProviderToken
-
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedPaymentProviderTokenForMemberFeePayment
 class PaymentServiceSpec extends Specification {
 
   PaymentRepository paymentRepository = Mock()
   PaymentProviderService paymentProviderService = Mock()
   RecurringPaymentService recurringPaymentService = Mock()
   PaymentProviderCallbackService paymentProviderCallbackService = Mock()
+  UserService userService = Mock()
 
   PaymentService paymentService = new PaymentService(
-      paymentRepository, paymentProviderService, recurringPaymentService, paymentProviderCallbackService)
+      paymentRepository, paymentProviderService, recurringPaymentService, paymentProviderCallbackService, userService)
 
   def "can get payments"() {
     given:
@@ -88,4 +92,35 @@ class PaymentServiceSpec extends Specification {
     then:
     returnedPayment == payment
   }
+
+  def "can process a member payment confirmation token and register a new member"() {
+    given:
+    def token = aSerializedPaymentProviderTokenForMemberFeePayment
+    def payment = aNewMemberPayment()
+    def optionalPayment = Optional.of(payment)
+    paymentProviderCallbackService.processToken(token) >> optionalPayment
+    1 * userService.registerAsMember(payment.user.id)
+
+    when:
+    def returnedPayment = paymentService.processToken(token)
+
+    then:
+    returnedPayment == optionalPayment
+  }
+
+  def "can process a member payment confirmation token and do not register an already member"() {
+    given:
+    def token = aSerializedPaymentProviderTokenForMemberFeePayment
+    def paymentOptional = Optional.of(aNewMemberPaymentForExistingMember())
+    paymentProviderCallbackService.processToken(token) >> paymentOptional
+    0 * userService.registerAsMember(_)
+
+    when:
+    def returnedPayment = paymentService.processToken(token)
+
+    then:
+    returnedPayment == paymentOptional
+  }
+
+
 }

@@ -138,7 +138,6 @@ payment-provider:
     tulundusuhistu:
       access-key: 912e0403-62ad-4b0c-a91c-129f64f7a3ea
       secret-key: ${PAYMENT_SECRET_TULUNDUSUHISTU}
-      bic: LHVBEE22
 
 
 payment:
@@ -237,7 +236,6 @@ payment-provider:
     tulundusuhistu:
       access-key: 02f596e6-d6b6-43a8-83ac-53d33cc1f13d
       secret-key: ${PAYMENT_SECRET_TULUNDUSUHISTU}
-      bic: LHVBEE22
 
 sentry:
   traces-sample-rate: 1.0

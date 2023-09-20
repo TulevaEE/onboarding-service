@@ -12,7 +12,7 @@ import lombok.Data;
 public class PaymentData {
 
   @ValidPersonalCode @NotNull private String recipientPersonalCode;
-  @NotNull private BigDecimal amount;
+  private BigDecimal amount;
   @NotNull private Currency currency;
   @NotNull private PaymentType type;
   @NotNull private Bank bank;

@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
+import java.math.BigDecimal;
 import java.net.URL;
 import java.time.Clock;
 import java.util.HashMap;
@@ -42,13 +43,16 @@ public class PaymentProviderService implements PaymentLinkGenerator {
   @Value("${api.url}")
   private String apiUrl;
 
+  @Value("${payment.member-fee}")
+  private BigDecimal memberFee;
+
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
     Map<String, Object> payload = new HashMap<>();
     PaymentProviderBank bankConfiguration =
         paymentProviderConfiguration.getPaymentProviderBank(paymentData.getBank());
 
     payload.put("currency", paymentData.getCurrency());
-    payload.put("amount", paymentData.getAmount());
+    payload.put("amount", getPaymentAmount(paymentData));
     payload.put("access_key", bankConfiguration.getAccessKey());
     payload.put(
         "merchant_reference",
@@ -82,7 +86,20 @@ public class PaymentProviderService implements PaymentLinkGenerator {
     } else {
       return apiUrl + "/payments/success";
     }
+  }
 
+  private BigDecimal getPaymentAmount(PaymentData paymentData) {
+    if(paymentData.getType() == PaymentType.MEMBER_FEE) {
+      if (memberFee == null) {
+        throw new IllegalArgumentException("Member fee must not be null");
+      }
+      return memberFee;
+    } else {
+      if (paymentData.getAmount() == null) {
+        throw new IllegalArgumentException("Payment amount must not be null");
+      }
+      return paymentData.getAmount();
+    }
   }
 
   private String getLanguage() {

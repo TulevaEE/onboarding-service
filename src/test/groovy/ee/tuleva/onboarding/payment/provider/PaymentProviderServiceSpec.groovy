@@ -11,6 +11,7 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentDataForMemberPayment
+import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentDataWithoutAnAmount
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 import static java.time.ZoneOffset.UTC
 
@@ -31,6 +32,11 @@ class PaymentProviderServiceSpec extends Specification {
     )
     paymentLinkService.paymentProviderUrl = "https://sandbox-payments.montonio.com"
     paymentLinkService.apiUrl = "https://onboarding-service.tuleva.ee/v1"
+    paymentLinkService.memberFee = new BigDecimal(125)
+  }
+
+  void beforeEach() {
+
   }
 
   def "can get a payment link"() {
@@ -53,6 +59,28 @@ class PaymentProviderServiceSpec extends Specification {
 
     then:
     paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderTokenForMemberFeePayment
+  }
+
+  def "can not get a member fee payment link when fee is not set"() {
+    def originalFee = paymentLinkService.memberFee
+    given:
+    paymentLinkService.memberFee = null
+    when:
+    paymentLinkService.getPaymentLink(aPaymentDataForMemberPayment, sampleAuthenticatedPerson)
+
+    then:
+    thrown(IllegalArgumentException)
+
+    cleanup:
+    paymentLinkService.memberFee = originalFee
+  }
+
+  def "can not get a payment link when anmount is not set"() {
+    when:
+    paymentLinkService.getPaymentLink(aPaymentDataWithoutAnAmount, sampleAuthenticatedPerson)
+
+    then:
+    thrown(IllegalArgumentException)
   }
 
   AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()

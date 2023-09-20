@@ -19,7 +19,7 @@ plugins {
     java
     groovy
     id("org.springframework.boot") version "2.7.15"
-    id("io.spring.dependency-management") version "1.1.2"
+    id("io.spring.dependency-management") version "1.1.3"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.18.0"
     jacoco
@@ -87,21 +87,22 @@ dependencies {
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.2")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.0")
 
-    implementation("ee.sk.smartid:smart-id-java-client:2.1.4")
-    implementation("org.digidoc4j:digidoc4j:5.1.0") {
+    implementation("ee.sk.smartid:smart-id-java-client:2.3")
+    implementation("ee.sk.mid:mid-rest-java-client:1.5")
+    implementation("jakarta.ws.rs:jakarta.ws.rs-api:3.1.0")
+    implementation("javax.ws.rs:javax.ws.rs-api:2.1.1")
+    implementation("org.digidoc4j:digidoc4j:5.2.0") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
 
-    implementation("io.sentry:sentry-spring-boot-starter:6.27.0")
-    implementation("io.sentry:sentry-logback:6.27.0")
+    implementation("io.sentry:sentry-spring-boot-starter:6.29.0")
+    implementation("io.sentry:sentry-logback:6.29.0")
 
     implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
     implementation("javax.xml.bind:jaxb-api")
-
-    implementation("ee.sk.mid:mid-rest-java-client:1.4")
 
     implementation("com.google.guava:guava:32.1.2-jre")
 
@@ -122,7 +123,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.3-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.13")
+    testImplementation("org.apache.groovy:groovy-all:4.0.15")
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")

@@ -12,7 +12,7 @@ import ee.tuleva.onboarding.payment.PaymentLink;
 import ee.tuleva.onboarding.payment.PaymentLinkGenerator;
 import java.net.URL;
 import java.time.Clock;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -42,7 +42,7 @@ public class PaymentProviderService implements PaymentLinkGenerator {
   private String apiUrl;
 
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
-    Map<String, Object> payload = new HashMap<>();
+    Map<String, Object> payload = new LinkedHashMap<>();
     PaymentProviderBank bankConfiguration =
         paymentProviderConfiguration.getPaymentProviderBank(paymentData.getBank());
 

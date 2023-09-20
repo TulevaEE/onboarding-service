@@ -13,7 +13,7 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2021.0.8"
+val springCloudVersion = "2022.0.4"
 
 plugins {
     java

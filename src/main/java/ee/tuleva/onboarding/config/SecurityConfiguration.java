@@ -43,6 +43,8 @@ public class SecurityConfiguration {
         .permitAll()
         .regexMatchers(HttpMethod.GET, "/v1/payments/success.*")
         .permitAll()
+        .regexMatchers(HttpMethod.GET, "/v1/payments/member-success.*")
+        .permitAll()
         .regexMatchers(HttpMethod.HEAD, "/v1/payments/notifications.*")
         .permitAll()
         .regexMatchers("/v1/.*")

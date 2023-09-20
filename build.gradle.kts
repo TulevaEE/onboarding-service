@@ -91,6 +91,7 @@ dependencies {
     implementation("ee.sk.mid:mid-rest-java-client:1.5")
     implementation("jakarta.ws.rs:jakarta.ws.rs-api:3.1.0")
     implementation("javax.ws.rs:javax.ws.rs-api:2.1.1")
+    implementation("org.glassfish.jersey.core:jersey-common:3.1.3")
     implementation("org.digidoc4j:digidoc4j:5.2.0") {
         exclude(group = "commons-logging", module = "commons-logging")
     }

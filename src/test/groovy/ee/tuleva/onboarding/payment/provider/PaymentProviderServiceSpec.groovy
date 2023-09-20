@@ -39,6 +39,7 @@ class PaymentProviderServiceSpec extends Specification {
 
   }
 
+  /* Flaky test: the jwt token uses a HashMap which does not guarantee order, so the jwt payload might change */
   def "can get a payment link"() {
     given:
     String internalReference = anInternalReferenceSerialized

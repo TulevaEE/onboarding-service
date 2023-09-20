@@ -33,6 +33,7 @@ class PaymentProviderServiceSpec extends Specification {
     paymentLinkService.apiUrl = "https://onboarding-service.tuleva.ee/v1"
   }
 
+  /* Flaky test: the jwt token uses a HashMap which does not guarantee order, so the jwt payload might change */
   def "can get a payment link"() {
     given:
     String internalReference = anInternalReferenceSerialized

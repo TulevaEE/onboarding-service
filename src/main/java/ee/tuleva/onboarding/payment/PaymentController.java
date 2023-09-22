@@ -41,8 +41,7 @@ public class PaymentController {
     Optional<Payment> paymentOptional = paymentService.processToken(serializedToken);
 
     return paymentOptional
-        .map(
-            payment -> new RedirectView(frontendUrl + "/3rd-pillar-success"))
+        .map(payment -> new RedirectView(frontendUrl + "/3rd-pillar-success"))
         .orElseGet(
             () -> new RedirectView(frontendUrl + "/account?error_code=error.payment-failed"));
   }
@@ -54,8 +53,7 @@ public class PaymentController {
     Optional<Payment> paymentOptional = paymentService.processToken(serializedToken);
 
     return paymentOptional
-        .map(
-            payment -> new RedirectView(frontendUrl))
+        .map(payment -> new RedirectView(frontendUrl))
         .orElseGet(
             () -> new RedirectView(frontendUrl + "/account?error_code=error.payment-failed"));
   }

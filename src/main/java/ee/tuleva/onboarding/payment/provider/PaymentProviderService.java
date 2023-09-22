@@ -81,7 +81,7 @@ public class PaymentProviderService implements PaymentLinkGenerator {
   }
 
   private String getPaymentSuccessReturnUrl(PaymentType paymentType) {
-    if(paymentType == PaymentType.MEMBER_FEE) {
+    if (paymentType == PaymentType.MEMBER_FEE) {
       return apiUrl + "/payments/member-success";
     } else {
       return apiUrl + "/payments/success";
@@ -89,7 +89,7 @@ public class PaymentProviderService implements PaymentLinkGenerator {
   }
 
   private BigDecimal getPaymentAmount(PaymentData paymentData) {
-    if(paymentData.getType() == PaymentType.MEMBER_FEE) {
+    if (paymentData.getType() == PaymentType.MEMBER_FEE) {
       if (memberFee == null) {
         throw new IllegalArgumentException("Member fee must not be null");
       }

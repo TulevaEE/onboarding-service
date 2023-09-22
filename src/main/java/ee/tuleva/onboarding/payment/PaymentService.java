@@ -7,11 +7,10 @@ import ee.tuleva.onboarding.event.annotation.Trackable;
 import ee.tuleva.onboarding.payment.provider.PaymentProviderCallbackService;
 import ee.tuleva.onboarding.payment.provider.PaymentProviderService;
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentService;
-import java.util.List;
-import java.util.Optional;
-
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,12 +39,14 @@ public class PaymentService {
   }
 
   Optional<Payment> processToken(String serializedToken) {
-    Optional<Payment> paymentOptional = paymentProviderCallbackService.processToken(serializedToken);
-    paymentOptional.ifPresent( payment -> {
-      if (payment.getPaymentType() == PaymentData.PaymentType.MEMBER_FEE) {
-        registerMemberPayment(payment);
-      }
-    });
+    Optional<Payment> paymentOptional =
+        paymentProviderCallbackService.processToken(serializedToken);
+    paymentOptional.ifPresent(
+        payment -> {
+          if (payment.getPaymentType() == PaymentData.PaymentType.MEMBER_FEE) {
+            registerMemberPayment(payment);
+          }
+        });
 
     return paymentOptional;
   }

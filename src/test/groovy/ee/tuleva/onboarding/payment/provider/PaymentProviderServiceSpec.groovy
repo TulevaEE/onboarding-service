@@ -62,6 +62,21 @@ class PaymentProviderServiceSpec extends Specification {
     paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderTokenForMemberFeePayment
   }
 
+  def "can get a member fee test payment link"() {
+    given:
+    String internalReference = anInternalReferenceSerialized
+    String testPersonalCode = "38888888888"
+    paymentLinkService.memberFeeTestPersonalCode = testPersonalCode;
+    def testPaymentData = aPaymentDataForMemberPayment;
+    testPaymentData.recipientPersonalCode = testPersonalCode
+    1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, testPaymentData) >> internalReference
+    when:
+    PaymentLink paymentLink = paymentLinkService.getPaymentLink(testPaymentData, sampleAuthenticatedPerson)
+
+    then:
+    paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=eyJhbGciOiJIUzI1NiJ9.eyJtZXJjaGFudF9yZXR1cm5fdXJsIjoiaHR0cHM6Ly9vbmJvYXJkaW5nLXNlcnZpY2UudHVsZXZhLmVlL3YxL3BheW1lbnRzL21lbWJlci1zdWNjZXNzIiwiYW1vdW50IjoxLCJwYXltZW50X2luZm9ybWF0aW9uX3Vuc3RydWN0dXJlZCI6Im1lbWJlcjozODg4ODg4ODg4OCIsImNoZWNrb3V0X2ZpcnN0X25hbWUiOiJKb3JkYW4iLCJtZXJjaGFudF9ub3RpZmljYXRpb25fdXJsIjoiaHR0cHM6Ly9vbmJvYXJkaW5nLXNlcnZpY2UudHVsZXZhLmVlL3YxL3BheW1lbnRzL25vdGlmaWNhdGlvbiIsInByZXNlbGVjdGVkX2FzcHNwIjoiZXhhbXBsZUFzcHNwIiwibWVyY2hhbnRfcmVmZXJlbmNlIjoie1wicGVyc29uYWxDb2RlXCI6IFwiMzg4MTIxMjEyMTVcIiwgXCJyZWNpcGllbnRQZXJzb25hbENvZGVcIjogXCIzODgxMjEyMTIxNVwiLCBcInV1aWRcIjogXCIzYWI5NGYxMS1mYjcxLTQ0MDEtODA0My01ZTkxMTIyNzAzN2VcIiwgXCJwYXltZW50VHlwZVwiOiBcIk1FTUJFUl9GRUVcIn0iLCJhY2Nlc3Nfa2V5IjoiZXhhbXBsZUFjY2Vzc0tleVR1bHVuZHVzdWhpc3R1IiwiY3VycmVuY3kiOiJFVVIiLCJleHAiOjE2MDYxMjYyMDAsInByZXNlbGVjdGVkX2xvY2FsZSI6ImV0IiwiY2hlY2tvdXRfbGFzdF9uYW1lIjoiVmFsZG1hIn0.nj9t7g-Ddno6s92_JFBXzuFOZLsFbtqvXmyAnd-WN2s"
+  }
+
   def "can not get a member fee payment link when fee is not set"() {
     def originalFee = paymentLinkService.memberFee
     given:

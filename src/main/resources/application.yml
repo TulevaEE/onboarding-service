@@ -142,6 +142,8 @@ payment-provider:
 
 payment:
   member-fee: 125
+  member-fee-test-personal-code: ${MEMBER_FEE_TEST_PERSONAL_CODE:38000000000}
+
 ---
 spring:
   flyway:

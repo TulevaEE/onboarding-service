@@ -17,6 +17,8 @@ import java.time.Clock;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +47,9 @@ public class PaymentProviderService implements PaymentLinkGenerator {
 
   @Value("${payment.member-fee}")
   private BigDecimal memberFee;
+
+  @Value("${payment.member-fee-test-personal-code}")
+  private String memberFeeTestPersonalCode;
 
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
     Map<String, Object> payload = new LinkedHashMap<>();
@@ -92,6 +97,9 @@ public class PaymentProviderService implements PaymentLinkGenerator {
     if (paymentData.getType() == PaymentType.MEMBER_FEE) {
       if (memberFee == null) {
         throw new IllegalArgumentException("Member fee must not be null");
+      }
+      if (Objects.equals(paymentData.getRecipientPersonalCode(), memberFeeTestPersonalCode) && memberFeeTestPersonalCode != null) {
+        return BigDecimal.ONE;
       }
       return memberFee;
     } else {

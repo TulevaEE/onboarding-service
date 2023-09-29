@@ -46,7 +46,7 @@ import static org.mockserver.model.MediaType.APPLICATION_JSON
 @MockServerTest("epis.service.url=http://localhost:\${mockServerPort}")
 @Import(Config.class)
 @TestPropertySource(properties = "PAYMENT_SECRET_LHV=exampleSecretKeyexampleSecretKeyexampleSecretKey")
-@TestPropertySource(properties = "payment-provider.banks.lhv.access-key=exampleAccessKey")
+@TestPropertySource(properties = "payment-provider.payment-channels.lhv.access-key=exampleAccessKey")
 class PaymentIntegrationSpec extends Specification {
 
   static class Config {

@@ -85,10 +85,10 @@ public class PaymentProviderCallbackService {
   @SneakyThrows
   private void verifyToken(JWSObject token) {
     String accessKey = token.getPayload().toJSONObject().get("access_key").toString();
-    PaymentProviderBank bankConfiguration =
-        paymentProviderConfiguration.getPaymentProviderBank(accessKey);
+    PaymentProviderChannel paymentChannelConfiguration =
+        paymentProviderConfiguration.getPaymentProviderChannel(accessKey);
 
-    if (!token.verify(new MACVerifier(bankConfiguration.secretKey.getBytes()))) {
+    if (!token.verify(new MACVerifier(paymentChannelConfiguration.secretKey.getBytes()))) {
       throw new BadCredentialsException("Token not verified");
     }
   }

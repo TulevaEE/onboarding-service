@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.payment.provider
 
 import ee.tuleva.onboarding.payment.PaymentData
 
-import static ee.tuleva.onboarding.payment.PaymentData.Bank
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel
 
 class PaymentProviderFixture {
   static String anAccessKey = "exampleAccessKey"
@@ -11,19 +11,19 @@ class PaymentProviderFixture {
   static String aSecretKeyTulundusuhistu = "exampleSecretKeyexampleSecretKeyexampleSecretKeyTulundusuhistu"
 
   static PaymentProviderConfiguration aPaymentProviderConfiguration() {
-    PaymentProviderBank samplePaymentProviderBankConfiguration = new PaymentProviderBank()
-    samplePaymentProviderBankConfiguration.accessKey = anAccessKey
-    samplePaymentProviderBankConfiguration.secretKey = aSecretKey
-    samplePaymentProviderBankConfiguration.bic = "exampleAspsp"
+    PaymentProviderChannel samplePaymentProviderChannelConfiguration = new PaymentProviderChannel()
+    samplePaymentProviderChannelConfiguration.accessKey = anAccessKey
+    samplePaymentProviderChannelConfiguration.secretKey = aSecretKey
+    samplePaymentProviderChannelConfiguration.bic = "exampleAspsp"
 
-    PaymentProviderBank samplePaymentProviderBankConfigurationTulundusuhistu = new PaymentProviderBank()
-    samplePaymentProviderBankConfigurationTulundusuhistu.accessKey = anAccessKeyTulundusuhistu
-    samplePaymentProviderBankConfigurationTulundusuhistu.secretKey = aSecretKeyTulundusuhistu
-    samplePaymentProviderBankConfigurationTulundusuhistu.bic = "exampleAspsp"
+    PaymentProviderChannel samplePaymentProviderChannelConfigurationTulundusuhistu = new PaymentProviderChannel()
+    samplePaymentProviderChannelConfigurationTulundusuhistu.accessKey = anAccessKeyTulundusuhistu
+    samplePaymentProviderChannelConfigurationTulundusuhistu.secretKey = aSecretKeyTulundusuhistu
+    samplePaymentProviderChannelConfigurationTulundusuhistu.bic = "exampleAspsp"
 
     def configuration = new PaymentProviderConfiguration([
-        (Bank.LHV): samplePaymentProviderBankConfiguration,
-        (Bank.TULUNDUSUHISTU): samplePaymentProviderBankConfigurationTulundusuhistu,
+        (PaymentChannel.LHV)           : samplePaymentProviderChannelConfiguration,
+        (PaymentChannel.TULUNDUSUHISTU): samplePaymentProviderChannelConfigurationTulundusuhistu,
     ])
     configuration.mapByAccessKey()
     return configuration

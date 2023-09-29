@@ -10,7 +10,7 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
-import static ee.tuleva.onboarding.payment.PaymentData.Bank
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType
 
 class PaymentFixture {
@@ -20,11 +20,11 @@ class PaymentFixture {
   static BigDecimal contributionAmountLow = new BigDecimal("9.99")
   static Currency aPaymentCurrency = Currency.EUR
   static PaymentType aPaymentType = PaymentType.SINGLE
-  static Bank aPaymentBank = Bank.LHV
+  static PaymentChannel aPaymentChannel = PaymentChannel.LHV
   static User sampleUserNonMember = sampleUserNonMember().build()
-  static PaymentData aPaymentData = new PaymentData(sampleUser.personalCode, aPaymentAmount, aPaymentCurrency, aPaymentType, aPaymentBank)
-  static PaymentData aPaymentDataWithoutAnAmount = new PaymentData(sampleUser.personalCode, null, aPaymentCurrency, aPaymentType, aPaymentBank)
-  static PaymentData aPaymentDataForMemberPayment = new PaymentData(sampleUserNonMember.personalCode, aPaymentAmount, aPaymentCurrency, PaymentType.MEMBER_FEE, Bank.TULUNDUSUHISTU)
+  static PaymentData aPaymentData = new PaymentData(sampleUser.personalCode, aPaymentAmount, aPaymentCurrency, aPaymentType, aPaymentChannel)
+  static PaymentData aPaymentDataWithoutAnAmount = new PaymentData(sampleUser.personalCode, null, aPaymentCurrency, aPaymentType, aPaymentChannel)
+  static PaymentData aPaymentDataForMemberPayment = new PaymentData(sampleUserNonMember.personalCode, aPaymentAmount, aPaymentCurrency, PaymentType.MEMBER_FEE, PaymentChannel.TULUNDUSUHISTU)
   static aPaymentCreationTime = TestClockHolder.now - Duration.ofDays(1)
 
   static Payment aNewSinglePayment() {

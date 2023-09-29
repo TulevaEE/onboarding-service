@@ -15,7 +15,7 @@ public class PaymentData {
   private BigDecimal amount;
   @NotNull private Currency currency;
   @NotNull private PaymentType type;
-  @NotNull private Bank bank;
+  @NotNull private PaymentData.PaymentChannel paymentChannel;
 
   public enum PaymentType {
     SINGLE,
@@ -24,7 +24,7 @@ public class PaymentData {
     MEMBER_FEE
   }
 
-  public enum Bank {
+  public enum PaymentChannel {
     LUMINOR,
     SEB,
     SWEDBANK,

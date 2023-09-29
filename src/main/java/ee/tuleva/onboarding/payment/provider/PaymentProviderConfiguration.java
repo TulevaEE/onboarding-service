@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.payment.provider;
 
 import static java.util.stream.Collectors.toMap;
 
-import ee.tuleva.onboarding.payment.PaymentData.Bank;
+import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
 import java.util.Map;
 import java.util.Map.Entry;
 import javax.annotation.PostConstruct;
@@ -16,21 +16,21 @@ import org.springframework.context.annotation.Configuration;
 @ConfigurationProperties("payment-provider")
 class PaymentProviderConfiguration {
 
-  @Getter private final Map<Bank, PaymentProviderBank> banks;
-  private Map<String, PaymentProviderBank> banksByAccessKey;
+  @Getter private final Map<PaymentChannel, PaymentProviderChannel> paymentChannels;
+  private Map<String, PaymentProviderChannel> paymentChannelsByAccessKey;
 
-  public PaymentProviderBank getPaymentProviderBank(Bank bank) {
-    return banks.get(bank);
+  public PaymentProviderChannel getPaymentProviderChannel(PaymentChannel paymentChannel) {
+    return paymentChannels.get(paymentChannel);
   }
 
-  public PaymentProviderBank getPaymentProviderBank(String accessKey) {
-    return banksByAccessKey.get(accessKey);
+  public PaymentProviderChannel getPaymentProviderChannel(String accessKey) {
+    return paymentChannelsByAccessKey.get(accessKey);
   }
 
   @PostConstruct
   private void mapByAccessKey() {
-    banksByAccessKey =
-        banks.entrySet().stream()
+    paymentChannelsByAccessKey =
+        paymentChannels.entrySet().stream()
             .collect(toMap(entry -> entry.getValue().accessKey, Entry::getValue));
   }
 }

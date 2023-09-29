@@ -8,7 +8,7 @@ import java.time.LocalDate
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsServiceStub.stubContactDetailsService
-import static ee.tuleva.onboarding.payment.PaymentData.Bank.*
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.*
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
 import static ee.tuleva.onboarding.time.TestClockHolder.clock
 
@@ -20,7 +20,7 @@ class RecurringPaymentServiceSpec extends Specification {
   def "can get a recurring payment link"() {
     given:
     def person = samplePerson
-    def paymentData = new PaymentData(samplePerson.personalCode, 12.34, EUR, RECURRING, bank)
+    def paymentData = new PaymentData(samplePerson.personalCode, 12.34, EUR, RECURRING, paymentChannel)
 
     when:
     def link = recurringPaymentService.getPaymentLink(paymentData, person)
@@ -30,7 +30,7 @@ class RecurringPaymentServiceSpec extends Specification {
 
 
     where:
-    bank            | url
+    paymentChannel | url
     SWEDBANK        | "https://www.swedbank.ee/private/pensions/pillar3/orderp3p"
     LHV             | "https://www.lhv.ee/ibank/cf/portfolio/payment_standing_add?i_receiver_name=AS%20Pensionikeskus" +
         "&i_receiver_account_no=EE547700771002908125&i_payment_desc=30101119828%2c%20EE3600001707&i_payment_clirefno=993432432" +
@@ -38,7 +38,7 @@ class RecurringPaymentServiceSpec extends Specification {
     SEB             | "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM&saajakonto=EE141010220263146225&saajanimi=" +
         "AS%20Pensionikeskus&selgitus=30101119828%2C%20EE3600001707&viitenr=993432432&summa=12.34&alguskuup=10.01.2020&sagedus=M"
     LUMINOR         | "https://luminor.ee/auth/#/web/view/autopilot/newpayment"
-    COOP            | "https://i.cooppank.ee/newpmt?whatform=PermPaymentNew&SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MakseSumma=12.34&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432&MakseSagedus=3&MakseEsimene=10.01.2020";
+    COOP            | "https://i.cooppank.ee/newpmt?whatform=PermPaymentNew&SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MakseSumma=12.34&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432&MakseSagedus=3&MakseEsimene=10.01.2020"
   }
 
   def "rejects recurring payments for TULUNDUSUHISTU"() {

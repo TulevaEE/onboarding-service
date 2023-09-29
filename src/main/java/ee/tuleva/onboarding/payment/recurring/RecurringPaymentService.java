@@ -25,7 +25,7 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
     ContactDetails contactDetails = contactDetailsService.getContactDetails(person);
     var url =
-        switch (paymentData.getBank()) {
+        switch (paymentData.getPaymentChannel()) {
           case SWEDBANK -> "https://www.swedbank.ee/private/pensions/pillar3/orderp3p";
           case SEB -> "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM"
               + "&saajakonto=EE141010220263146225" // SEB account
@@ -66,7 +66,7 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
               + "&MakseEsimene="
               + tenthDayOfMonth(LocalDate.now(clock));
           case TULUNDUSUHISTU -> throw new IllegalArgumentException(
-              "Recurring payments to the specified bank are not supported");
+              "Recurring payments to the specified payment channel are not supported");
         };
     return new PaymentLink(url);
   }

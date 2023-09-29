@@ -6,7 +6,7 @@ import ee.tuleva.onboarding.user.User
 import org.springframework.http.MediaType
 
 import static ee.tuleva.onboarding.currency.Currency.EUR
-import static ee.tuleva.onboarding.payment.PaymentData.Bank.LHV
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
@@ -35,7 +35,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
 
     expect:
-    mvc.perform(get("/v1/payments/link?amount=100&currency=USD&bank=LHV&recipientPersonalCode=37605030299"))
+    mvc.perform(get("/v1/payments/link?amount=100&currency=USD&paymentChannel=LHV&recipientPersonalCode=37605030299"))
         .andExpect(status().isBadRequest())
   }
 
@@ -44,7 +44,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, paymentController)
 
     expect:
-    mvc.perform(get("/v1/payments/link?amount=100&currency=USD&bank=LHV&recipientPersonalCode=37605030290"))
+    mvc.perform(get("/v1/payments/link?amount=100&currency=USD&paymentChannel=LHV&recipientPersonalCode=37605030290"))
         .andExpect(status().isBadRequest())
   }
 
@@ -59,14 +59,14 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .amount(100.22)
         .currency(EUR)
         .type(SINGLE)
-        .bank(LHV)
+        .paymentChannel(LHV)
         .recipientPersonalCode("37605030299")
         .build()
 
     1 * paymentService.getLink(paymentData, person) >> paymentLink
 
     expect:
-    mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&type=SINGLE&bank=LHV&recipientPersonalCode=37605030299"))
+    mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&type=SINGLE&paymentChannel=LHV&recipientPersonalCode=37605030299"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.url', is(paymentLink.url())))

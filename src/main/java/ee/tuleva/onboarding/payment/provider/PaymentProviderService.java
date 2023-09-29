@@ -52,12 +52,12 @@ public class PaymentProviderService implements PaymentLinkGenerator {
 
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
     Map<String, Object> payload = new LinkedHashMap<>();
-    PaymentProviderBank bankConfiguration =
-        paymentProviderConfiguration.getPaymentProviderBank(paymentData.getBank());
+    PaymentProviderChannel paymentChannelConfiguration =
+        paymentProviderConfiguration.getPaymentProviderChannel(paymentData.getPaymentChannel());
 
     payload.put("currency", paymentData.getCurrency());
     payload.put("amount", getPaymentAmount(paymentData));
-    payload.put("access_key", bankConfiguration.getAccessKey());
+    payload.put("access_key", paymentChannelConfiguration.getAccessKey());
     payload.put(
         "merchant_reference",
         paymentInternalReferenceService.getPaymentReference(person, paymentData));
@@ -70,9 +70,9 @@ public class PaymentProviderService implements PaymentLinkGenerator {
     payload.put("exp", clock.instant().getEpochSecond() + 600);
     payload.put("checkout_first_name", person.getFirstName());
     payload.put("checkout_last_name", person.getLastName());
-    payload.put("preselected_aspsp", bankConfiguration.getBic());
+    payload.put("preselected_aspsp", paymentChannelConfiguration.getBic());
 
-    JWSObject jwsObject = getSignedJws(payload, bankConfiguration);
+    JWSObject jwsObject = getSignedJws(payload, paymentChannelConfiguration);
     URL url = getUrl(jwsObject);
 
     return new PaymentLink(url.toString());
@@ -127,9 +127,9 @@ public class PaymentProviderService implements PaymentLinkGenerator {
 
   @SneakyThrows
   private JWSObject getSignedJws(
-      Map<String, Object> payload, PaymentProviderBank bankConfiguration) {
+      Map<String, Object> payload, PaymentProviderChannel paymentChannelConfiguration) {
     JWSObject jwsObject = new JWSObject(new JWSHeader(JWSAlgorithm.HS256), new Payload(payload));
-    jwsObject.sign(new MACSigner(bankConfiguration.secretKey.getBytes()));
+    jwsObject.sign(new MACSigner(paymentChannelConfiguration.secretKey.getBytes()));
     return jwsObject;
   }
 }

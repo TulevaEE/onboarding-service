@@ -59,6 +59,8 @@ public class SecurityConfiguration {
         .and()
         .sessionManagement()
         .sessionCreationPolicy(SessionCreationPolicy.NEVER)
+        .sessionFixation()
+        .newSession()
         .and()
         .logout()
         .logoutRequestMatcher(new AntPathRequestMatcher("/v1/logout", "GET"))

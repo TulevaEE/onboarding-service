@@ -55,6 +55,7 @@ public class Mandate implements Serializable {
   @NotNull
   @Min(2)
   @Max(3)
+  @JsonView(MandateView.Default.class)
   private Integer pillar;
 
   @NotNull

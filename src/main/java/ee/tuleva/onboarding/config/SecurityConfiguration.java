@@ -11,8 +11,16 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 
 @EnableWebSecurity
 public class SecurityConfiguration {
@@ -58,6 +66,9 @@ public class SecurityConfiguration {
         .and()
         .sessionManagement()
         .sessionCreationPolicy(SessionCreationPolicy.NEVER)
+        .and()
+        .logout().logoutRequestMatcher(new AntPathRequestMatcher("/v1/logout", "GET"))
+        .logoutSuccessHandler((request, response, authentication) -> response.setStatus(200))
         .and()
         .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
 

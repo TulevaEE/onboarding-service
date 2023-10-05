@@ -53,13 +53,14 @@ public class PaymentService {
 
   private void registerMemberPayment(Payment payment) {
     User user = payment.getUser();
-    if (!user.isMember()) {
-      userService.registerAsMember(user.getId());
-    } else {
-      log.warn(
+    if (user.isMember()) {
+      log.error(
           "Member payment {} for user {}. User already is a member.",
           payment.getId(),
           user.getId());
+      return;
     }
+
+    userService.registerAsMember(user.getId());
   }
 }

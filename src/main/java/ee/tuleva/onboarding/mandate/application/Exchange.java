@@ -15,9 +15,10 @@ public class Exchange {
   private ApiFundResponse sourceFund;
   private ApiFundResponse targetFund;
   private String targetPik;
-  /**
-   * 2nd pillar: Fraction of units (i.e. min 0, max 1) 3rd pillar: Number of units (i.e. min 0, max
-   * number of units you have)
+
+  /*
+   * 2nd pillar: Fraction of units (i.e. min 0, max 1).
+   * 3rd pillar: Number of units (i.e. min 0, max number of units you have)
    */
   private BigDecimal amount;
 

@@ -24,7 +24,7 @@
 
 PostgreSQL
 
-Running locally with Docker: `docker-compose up database -d`
+Running locally with Docker: `docker-compose up -d database`
 
 **Spring Profile**
 
@@ -32,7 +32,7 @@ IMPORTANT: Set your Spring active profile to `dev` - this will also run DB schem
 
 **Backend**
 
-Java 17, Spring Boot, Gradle, Spock for testing
+Java 21, Spring Boot, Gradle, Spock for testing
 
 Running locally: `./gradlew bootRun`
 

@@ -7,12 +7,16 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import java.security.Key;
 import java.security.KeyStore;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.*;
+import java.util.Collection;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -24,6 +28,7 @@ public class JwtTokenUtil {
 
   private final Duration JWT_TOKEN_VALIDITY = Duration.of(30, MINUTES);
   private final Key signingKey;
+  private final JwtParser jwtParser;
   private final Clock clock;
 
   @SneakyThrows
@@ -35,6 +40,11 @@ public class JwtTokenUtil {
     final var keystore = KeyStore.getInstance("PKCS12");
     keystore.load(keystoreResource.getInputStream(), keystorePassword);
     this.signingKey = keystore.getKey("jwt", keystorePassword);
+    this.jwtParser =
+        Jwts.parserBuilder()
+            .setSigningKey(signingKey)
+            .setClock(() -> Date.from(clock.instant()))
+            .build();
   }
 
   public Person getPersonFromToken(String token) {
@@ -50,7 +60,7 @@ public class JwtTokenUtil {
   }
 
   private Claims getAllClaimsFromToken(String token) {
-    return Jwts.parserBuilder().setSigningKey(signingKey).build().parseClaimsJws(token).getBody();
+    return jwtParser.parseClaimsJws(token).getBody();
   }
 
   public String generateToken(
@@ -74,11 +84,9 @@ public class JwtTokenUtil {
   }
 
   public String generateServiceToken() {
-    Map<String, Object> claims = new HashMap<>();
     return Jwts.builder()
-        .setClaims(claims)
-        .setSubject("onboarding-service")
         .setClaims(Map.of(AUTHORITIES.value, List.of()))
+        .setSubject("onboarding-service")
         .setIssuedAt(Date.from(clock.instant()))
         .setExpiration(Date.from(clock.instant().plus(JWT_TOKEN_VALIDITY)))
         .signWith(signingKey)

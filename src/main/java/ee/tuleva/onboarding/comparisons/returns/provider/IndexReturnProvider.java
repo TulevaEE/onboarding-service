@@ -10,12 +10,11 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetri
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator;
+import ee.tuleva.onboarding.comparisons.returns.ReturnDto;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.util.AbstractMap;
-import java.util.Arrays;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,9 +41,10 @@ public class IndexReturnProvider implements ReturnProvider {
     List<Return> returns =
         getKeys().stream()
             .map(
-                key ->
-                    new AbstractMap.SimpleEntry<>(
-                        key, rateOfReturnCalculator.getReturn(accountOverview, key)))
+                key -> {
+                  ReturnDto rateOfReturn = rateOfReturnCalculator.getReturn(accountOverview, key);
+                  return new SimpleEntry<>(key, rateOfReturn);
+                })
             .map(
                 tuple ->
                     Return.builder()
@@ -57,13 +57,14 @@ public class IndexReturnProvider implements ReturnProvider {
             .collect(toList());
 
     return Returns.builder()
-        .from(startTime.atZone(ZoneOffset.UTC).toLocalDate()) // TODO: Get real start time
+        .from(
+            accountOverview.sort().getFirstTransactionDate().orElse(accountOverview.getStartDate()))
         .returns(returns)
         .build();
   }
 
   @Override
   public List<String> getKeys() {
-    return Arrays.asList(EPI, UNION_STOCK_INDEX, CPI);
+    return List.of(EPI, UNION_STOCK_INDEX, CPI);
   }
 }

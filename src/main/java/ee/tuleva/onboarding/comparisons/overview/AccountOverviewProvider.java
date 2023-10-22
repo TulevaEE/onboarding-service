@@ -52,7 +52,7 @@ public class AccountOverviewProvider {
 
   private Predicate<CashFlow> createPillarFilter(Integer pillar) {
     List<String> pillarIsins =
-        fundRepository.findAllByPillar(pillar).stream().map(Fund::getIsin).collect(toList());
+        fundRepository.findAllByPillar(pillar).stream().map(Fund::getIsin).toList();
     return cashFlow -> pillarIsins.contains(cashFlow.getIsin());
   }
 

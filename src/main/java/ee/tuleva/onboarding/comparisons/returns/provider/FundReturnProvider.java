@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.comparisons.returns.provider;
 
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND;
-import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
@@ -10,9 +9,7 @@ import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,8 +30,10 @@ public class FundReturnProvider implements ReturnProvider {
     List<Return> returns =
         getKeys().stream()
             .map(
-                key ->
-                    new SimpleEntry<>(key, rateOfReturnCalculator.getReturn(accountOverview, key)))
+                key -> {
+                  var rateOfReturn = rateOfReturnCalculator.getReturn(accountOverview, key);
+                  return new SimpleEntry<>(key, rateOfReturn);
+                })
             .map(
                 tuple ->
                     Return.builder()
@@ -44,17 +43,18 @@ public class FundReturnProvider implements ReturnProvider {
                         .amount(tuple.getValue().amount())
                         .currency(tuple.getValue().currency())
                         .build())
-            .collect(toList());
+            .toList();
 
     return Returns.builder()
-        .from(startTime.atZone(ZoneOffset.UTC).toLocalDate()) // TODO: Get real start time
+        .from(
+            accountOverview.sort().getFirstTransactionDate().orElse(accountOverview.getStartDate()))
         .returns(returns)
         .build();
   }
 
   @Override
   public List<String> getKeys() {
-    return Arrays.asList(
+    return List.of(
         "EE3600019774",
         "EE3600019832",
         "EE3600019824",

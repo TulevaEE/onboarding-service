@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.comparisons.returns.provider;
 
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.PERSONAL;
-import static java.util.Collections.singletonList;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
@@ -11,8 +10,6 @@ import ee.tuleva.onboarding.comparisons.returns.ReturnDto;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -32,26 +29,27 @@ public class PersonalReturnProvider implements ReturnProvider {
   public Returns getReturns(Person person, Instant startTime, Integer pillar) {
     AccountOverview accountOverview =
         accountOverviewProvider.getAccountOverview(person, startTime, pillar);
-    ReturnDto returnRateAndAmount = rateOfReturnCalculator.getReturn(accountOverview);
+    ReturnDto rateOfReturn = rateOfReturnCalculator.getReturn(accountOverview);
 
     Return aReturn =
         Return.builder()
             .key(getKey(pillar))
             .type(PERSONAL)
-            .rate(returnRateAndAmount.rate())
-            .amount(returnRateAndAmount.amount())
-            .currency(returnRateAndAmount.currency())
+            .rate(rateOfReturn.rate())
+            .amount(rateOfReturn.amount())
+            .currency(rateOfReturn.currency())
             .build();
 
     return Returns.builder()
-        .from(startTime.atZone(ZoneOffset.UTC).toLocalDate()) // TODO: Get real start time
-        .returns(singletonList(aReturn))
+        .from(
+            accountOverview.sort().getFirstTransactionDate().orElse(accountOverview.getStartDate()))
+        .returns(List.of(aReturn))
         .build();
   }
 
   @Override
   public List<String> getKeys() {
-    return Arrays.asList(SECOND_PILLAR, THIRD_PILLAR);
+    return List.of(SECOND_PILLAR, THIRD_PILLAR);
   }
 
   private String getKey(Integer pillar) {

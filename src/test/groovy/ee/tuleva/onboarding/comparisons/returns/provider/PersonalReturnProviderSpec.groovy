@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.comparisons.returns.provider
 
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
+import ee.tuleva.onboarding.comparisons.overview.Transaction
 import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator
 import ee.tuleva.onboarding.comparisons.returns.ReturnDto
 import spock.lang.Specification
 
 import java.time.Instant
+import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.PERSONAL
@@ -27,7 +29,10 @@ class PersonalReturnProviderSpec extends Specification {
         def startTime = Instant.parse("2019-08-28T10:06:01Z")
         def endTime = Instant.now()
         def pillar = 2
-        def overview = new AccountOverview([], 0.0, 0.0, startTime, endTime, pillar)
+        def overview = new AccountOverview(
+            [new Transaction(10.0, Instant.parse("2020-10-11T10:06:01Z")),
+             new Transaction(100.0, Instant.parse("2020-09-10T10:06:01Z"))],
+            0.0, 0.0, startTime, endTime, pillar)
         def expectedReturn = 0.00123
         def returnAsAmount = 123.12
 
@@ -46,6 +51,8 @@ class PersonalReturnProviderSpec extends Specification {
           amount == returnAsAmount
           currency == EUR
         }
+        returns.returns.size() == 1
+        returns.from == LocalDate.of(2020,9,10)
     }
 
     def "can assemble a Returns object for your personal 3rd pillar fund"() {
@@ -54,7 +61,9 @@ class PersonalReturnProviderSpec extends Specification {
         def startTime = Instant.parse("2019-08-28T10:06:01Z")
         def endTime = Instant.now()
         def pillar = 3
-        def overview = new AccountOverview([], 0.0, 0.0, startTime, endTime, pillar)
+        def overview = new AccountOverview(
+            [new Transaction(100.0, Instant.parse("2020-09-10T10:06:01Z"))],
+            0.0, 0.0, startTime, endTime, pillar)
         def expectedReturn = 0.00123
         def returnAsAmount = 123.21
 
@@ -73,5 +82,7 @@ class PersonalReturnProviderSpec extends Specification {
           amount == returnAsAmount
           currency == EUR
         }
+        returns.returns.size() == 1
+        returns.from == LocalDate.of(2020,9,10)
     }
 }

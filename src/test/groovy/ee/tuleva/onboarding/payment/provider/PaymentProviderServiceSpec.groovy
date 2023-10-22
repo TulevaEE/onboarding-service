@@ -51,6 +51,7 @@ class PaymentProviderServiceSpec extends Specification {
     paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderToken
   }
 
+  /* Flaky test: the jwt token uses a HashMap which does not guarantee order, so the jwt payload might change */
   def "can get a member fee payment link"() {
     given:
     String internalReference = anInternalReferenceSerialized
@@ -62,6 +63,7 @@ class PaymentProviderServiceSpec extends Specification {
     paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderTokenForMemberFeePayment
   }
 
+  /* Flaky test: the jwt token uses a HashMap which does not guarantee order, so the jwt payload might change */
   def "can get a member fee test payment link"() {
     given:
     String internalReference = anInternalReferenceSerialized

@@ -6,20 +6,21 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetrieve
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.Transaction
+import org.apache.tools.ant.taskdefs.Local
 import spock.lang.Specification
 
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
-class RateOfReturnCalculatorSpec extends Specification {
+class ReturnCalculatorSpec extends Specification {
 
   FundValueProvider fundValueProvider
-  ReturnCalculator rateOfReturnCalculator
+  ReturnCalculator returnCalculator
 
   void setup() {
     fundValueProvider = Mock(FundValueProvider)
-    rateOfReturnCalculator = new ReturnCalculator(fundValueProvider)
+    returnCalculator = new ReturnCalculator(fundValueProvider)
   }
 
   def "it successfully calculates a return of 0%"() {
@@ -32,22 +33,24 @@ class RateOfReturnCalculatorSpec extends Specification {
         new Transaction(100.0, startTime),
     ], 0.0, 200.0, startTime, endTime, 2)
     when:
-    def returnRateAndAmount = rateOfReturnCalculator.getReturn(overview)
-    def estonianAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
-    def marketAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
+    def personalReturn = returnCalculator.getReturn(overview)
+    def estonianAverageReturn =
+        returnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
+    def marketAverageReturn =
+        returnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    returnRateAndAmount.rate() == 0
-    estonianAverageReturnRateAndAmount.rate() == 0
-    marketAverageReturnRateAndAmount.rate() == 0
-    returnRateAndAmount.amount() == 0
-    estonianAverageReturnRateAndAmount.amount() == 0
-    marketAverageReturnRateAndAmount.amount() == 0
-    returnRateAndAmount.amount() == 0
-    estonianAverageReturnRateAndAmount.amount() == 0
-    marketAverageReturnRateAndAmount.amount() == 0
+    personalReturn.rate() == 0
+    personalReturn.amount() == 0
+    personalReturn.from() == LocalDate.parse("2018-06-17")
+
+    estonianAverageReturn.rate() == 0
+    estonianAverageReturn.amount() == 0
+    estonianAverageReturn.from() == LocalDate.parse("2018-06-17")
+
+    marketAverageReturn.rate() == 0
+    marketAverageReturn.amount() == 0
+    marketAverageReturn.from() == LocalDate.parse("2018-06-17")
   }
 
   def "it successfully calculates a return for 0-valued transactions"() {
@@ -60,19 +63,24 @@ class RateOfReturnCalculatorSpec extends Specification {
         new Transaction(secondTransaction, startTime),
     ], beginningBalance, endingBalance, startTime, endTime, 2)
     when:
-    def returnRateAndAmount = rateOfReturnCalculator.getReturn(overview)
-    def estonianAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
-    def marketAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
+    def personalReturn = returnCalculator.getReturn(overview)
+    def estonianAverageReturn =
+        returnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
+    def marketAverageReturn =
+        returnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    returnRateAndAmount.rate() == BigDecimal.valueOf(xirr)
-    estonianAverageReturnRateAndAmount.rate() == 0
-    marketAverageReturnRateAndAmount.rate() == 0
-    returnRateAndAmount.amount() == 0
-    estonianAverageReturnRateAndAmount.amount() == 0
-    marketAverageReturnRateAndAmount.amount() == 0
+    personalReturn.rate() == BigDecimal.valueOf(xirr)
+    personalReturn.amount() == 0
+    personalReturn.from() == LocalDate.parse("2018-06-17")
+
+    estonianAverageReturn.rate() == 0
+    estonianAverageReturn.amount() == 0
+    estonianAverageReturn.from() == LocalDate.parse("2018-06-17")
+
+    marketAverageReturn.rate() == 0
+    marketAverageReturn.amount() == 0
+    marketAverageReturn.from() == LocalDate.parse("2018-06-17")
 
     where:
     firstTransaction | secondTransaction | beginningBalance | endingBalance || xirr
@@ -89,19 +97,24 @@ class RateOfReturnCalculatorSpec extends Specification {
     Instant endTime = parseInstant("2018-07-18")
     def overview = new AccountOverview(exampleTransactions, 30.0, 620.0, startTime, endTime, 2)
     when:
-    def returnRateAndAmount = rateOfReturnCalculator.getReturn(overview)
-    def estonianAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
-    def marketAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
+    def personalReturn = returnCalculator.getReturn(overview)
+    def estonianAverageReturn =
+        returnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
+    def marketAverageReturn =
+        returnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    returnRateAndAmount.rate() == 0.0427
-    estonianAverageReturnRateAndAmount.rate() == 0
-    marketAverageReturnRateAndAmount.rate() == 0
-    returnRateAndAmount.amount() == 110
-    estonianAverageReturnRateAndAmount.amount() == 0
-    marketAverageReturnRateAndAmount.amount() == 0
+    personalReturn.rate() == 0.0427
+    personalReturn.amount() == 110
+    personalReturn.from() == LocalDate.parse("2010-07-01")
+
+    estonianAverageReturn.rate() == 0
+    estonianAverageReturn.amount() == 0
+    estonianAverageReturn.from() == LocalDate.parse("2010-07-01")
+
+    marketAverageReturn.rate() == 0
+    marketAverageReturn.amount() == 0
+    marketAverageReturn.from() == LocalDate.parse("2010-07-01")
   }
 
   def "it correctly calculates simulated return using a different fund taking into account the beginning balance"() {
@@ -114,16 +127,19 @@ class RateOfReturnCalculatorSpec extends Specification {
     }
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
     when:
-    def estonianAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
-    def marketAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
+    def estonianAverageReturn =
+        returnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
+    def marketAverageReturn =
+        returnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    estonianAverageReturnRateAndAmount.rate() == 0.0326
-    marketAverageReturnRateAndAmount.rate() == 0
-    estonianAverageReturnRateAndAmount.amount().trunc(2) == 81.76
-    marketAverageReturnRateAndAmount.amount().trunc(2) == 0
+    estonianAverageReturn.rate() == 0.0326
+    estonianAverageReturn.amount().trunc(2) == 81.76
+    estonianAverageReturn.from() == LocalDate.parse("2010-07-01")
+
+    marketAverageReturn.rate() == 0
+    marketAverageReturn.amount().trunc(2) == 0
+    marketAverageReturn.from() == LocalDate.parse("2010-07-01")
   }
 
   def "it handles missing fund values"() {
@@ -133,16 +149,19 @@ class RateOfReturnCalculatorSpec extends Specification {
     fundValueProvider.getLatestValue(_, _) >> Optional.empty()
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
     when:
-    def estonianAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
-    def marketAverageReturnRateAndAmount =
-        rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
+    def estonianAverageReturn =
+        returnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
+    def marketAverageReturn =
+        returnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    estonianAverageReturnRateAndAmount.rate() == 0
-    marketAverageReturnRateAndAmount.rate() == 0
-    estonianAverageReturnRateAndAmount.amount() == 0
-    marketAverageReturnRateAndAmount.amount() == 0
+    estonianAverageReturn.rate() == 0
+    estonianAverageReturn.amount() == 0
+    estonianAverageReturn.from() == LocalDate.parse("2010-07-01")
+
+    marketAverageReturn.rate() == 0
+    marketAverageReturn.amount() == 0
+    marketAverageReturn.from() == LocalDate.parse("2010-07-01")
   }
 
   private static Map<String, BigDecimal> epiFundValues() {

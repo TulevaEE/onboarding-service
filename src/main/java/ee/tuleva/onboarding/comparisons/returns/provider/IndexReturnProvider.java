@@ -53,14 +53,11 @@ public class IndexReturnProvider implements ReturnProvider {
                         .rate(tuple.getValue().rate())
                         .amount(tuple.getValue().amount())
                         .currency(tuple.getValue().currency())
+                        .from(tuple.getValue().from())
                         .build())
             .collect(toList());
 
-    return Returns.builder()
-        .from(
-            accountOverview.sort().getFirstTransactionDate().orElse(accountOverview.getStartDate()))
-        .returns(returns)
-        .build();
+    return Returns.builder().returns(returns).build();
   }
 
   @Override

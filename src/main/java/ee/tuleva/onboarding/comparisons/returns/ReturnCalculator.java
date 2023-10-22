@@ -33,14 +33,19 @@ public class ReturnCalculator {
   private final FundValueProvider fundValueProvider;
 
   public ReturnDto getReturn(AccountOverview accountOverview) {
-    return new ReturnDto(getRateOfReturn(accountOverview), getCashReturn(accountOverview), EUR);
+    return new ReturnDto(
+        getRateOfReturn(accountOverview),
+        getCashReturn(accountOverview),
+        EUR,
+        accountOverview.sort().getFirstTransactionDate().orElse(accountOverview.getStartDate()));
   }
 
   public ReturnDto getReturn(AccountOverview accountOverview, String comparisonFund) {
     return new ReturnDto(
         getRateOfReturn(accountOverview, comparisonFund).orElse(ZERO),
         getCashReturn(accountOverview, comparisonFund).orElse(ZERO),
-        EUR);
+        EUR,
+        accountOverview.sort().getFirstTransactionDate().orElse(accountOverview.getStartDate()));
   }
 
   private BigDecimal getRateOfReturn(AccountOverview accountOverview) {

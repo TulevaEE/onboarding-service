@@ -30,20 +30,21 @@ class IndexReturnProviderSpec extends Specification {
         def startTime = Instant.parse("2019-08-28T10:06:01Z")
         def endTime = Instant.now()
         def pillar = 2
+        def earliestTransactionDate = LocalDate.parse("2020-09-10")
         def overview = new AccountOverview(
             [new Transaction(10.0, Instant.parse("2020-10-11T10:06:01Z")),
-             new Transaction(100.0, Instant.parse("2020-09-10T10:06:01Z"))],
+             new Transaction(100.0, Instant.parse("${earliestTransactionDate}T10:06:01Z"))],
             0.0, 0.0, startTime, endTime, pillar)
         def expectedReturn = 0.00123
         def returnAsAmount = 123.12
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
         rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY) >>
-            new ReturnDto(expectedReturn, returnAsAmount, EUR)
+            new ReturnDto(expectedReturn, returnAsAmount, EUR, earliestTransactionDate)
         rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY) >>
-            new ReturnDto(expectedReturn, returnAsAmount, EUR)
+            new ReturnDto(expectedReturn, returnAsAmount, EUR, earliestTransactionDate)
         rateOfReturnCalculator.getReturn(overview, CPIValueRetriever.KEY) >>
-            new ReturnDto(expectedReturn, returnAsAmount, EUR)
+            new ReturnDto(expectedReturn, returnAsAmount, EUR, earliestTransactionDate)
 
 
         when:
@@ -56,20 +57,23 @@ class IndexReturnProviderSpec extends Specification {
           rate == expectedReturn
           amount == returnAsAmount
           currency == EUR
+          from == earliestTransactionDate
         }
         with(returns.returns[1]) {
           key == UnionStockIndexRetriever.KEY
           type == INDEX
           rate == expectedReturn
           currency == EUR
+          from == earliestTransactionDate
         }
         with(returns.returns[2]) {
           key == CPIValueRetriever.KEY
           type == INDEX
           rate == expectedReturn
           currency == EUR
+          from == earliestTransactionDate
         }
         returns.returns.size() == returnProvider.getKeys().size()
-        returns.from == LocalDate.of(2020,9,10)
+        returns.from == earliestTransactionDate
     }
 }

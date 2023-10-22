@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator;
+import ee.tuleva.onboarding.comparisons.returns.ReturnDto;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.time.Instant;
@@ -28,10 +29,10 @@ public class FundReturnProvider implements ReturnProvider {
         accountOverviewProvider.getAccountOverview(person, startTime, pillar);
 
     List<Return> returns =
-        getKeys().stream()
+        fundIsins().stream()
             .map(
                 key -> {
-                  var rateOfReturn = rateOfReturnCalculator.getReturn(accountOverview, key);
+                  ReturnDto rateOfReturn = rateOfReturnCalculator.getReturn(accountOverview, key);
                   return new SimpleEntry<>(key, rateOfReturn);
                 })
             .map(
@@ -42,18 +43,19 @@ public class FundReturnProvider implements ReturnProvider {
                         .rate(tuple.getValue().rate())
                         .amount(tuple.getValue().amount())
                         .currency(tuple.getValue().currency())
+                        .from(tuple.getValue().from())
                         .build())
             .toList();
 
-    return Returns.builder()
-        .from(
-            accountOverview.sort().getFirstTransactionDate().orElse(accountOverview.getStartDate()))
-        .returns(returns)
-        .build();
+    return Returns.builder().returns(returns).build();
   }
 
   @Override
   public List<String> getKeys() {
+    return fundIsins();
+  }
+
+  private List<String> fundIsins() {
     return List.of(
         "EE3600019774",
         "EE3600019832",

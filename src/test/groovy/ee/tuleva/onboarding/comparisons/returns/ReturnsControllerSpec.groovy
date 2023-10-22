@@ -7,10 +7,9 @@ import org.springframework.http.MediaType
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return
-import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND
-import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.INDEX
-import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.PERSONAL
+import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.*
 import static ee.tuleva.onboarding.comparisons.returns.ReturnsController.BEGINNING_OF_TIMES
+import static ee.tuleva.onboarding.currency.Currency.EUR
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
@@ -34,9 +33,16 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def key = "EE123"
         BigDecimal rate = 1.0
         BigDecimal amount = 30.03
-        def returns = Returns.builder()
+        def aReturn = Return.builder()
+            .key(key)
+            .type(type)
+            .rate(rate)
+            .amount(amount)
+            .currency(EUR)
             .from(LocalDate.parse(fromDate))
-            .returns([Return.builder().key(key).type(type).rate(rate).amount(amount).build()])
+            .build()
+        def returns = Returns.builder()
+            .returns([aReturn])
             .build()
         returnsService.get(_ as Person, LocalDate.parse(fromDate), null) >> returns
 
@@ -50,6 +56,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.returns[0].key', is(key)))
             .andExpect(jsonPath('$.returns[0].rate', is(rate.toDouble())))
             .andExpect(jsonPath('$.returns[0].amount', is(amount.toDouble())))
+            .andExpect(jsonPath('$.returns[0].currency', is(EUR.name())))
     }
 
     def "can GET /returns without specifying fromDate"() {
@@ -58,9 +65,9 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def key = "EE123"
         def rate = 1.0
         def amount = 30.03
+        def aReturn = Return.builder().key(key).type(type).rate(rate).amount(amount).currency(EUR).from(BEGINNING_OF_TIMES).build()
         def returns = Returns.builder()
-            .from(BEGINNING_OF_TIMES)
-            .returns([Return.builder().key(key).type(type).rate(rate).amount(amount).build()])
+            .returns([aReturn])
             .build()
         returnsService.get(_ as Person, BEGINNING_OF_TIMES, null) >> returns
 
@@ -73,6 +80,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.returns[0].key', is(key)))
             .andExpect(jsonPath('$.returns[0].rate', is(rate.toDouble())))
             .andExpect(jsonPath('$.returns[0].amount', is(amount.toDouble())))
+            .andExpect(jsonPath('$.returns[0].currency', is(EUR.name())))
     }
 
     def "can GET /returns by specifying keys"() {
@@ -84,11 +92,10 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def rate = 1.0
         def amount = 30.03
         def returns = Returns.builder()
-            .from(LocalDate.parse(fromDate))
             .returns([
-                    Return.builder().key(key1).type(PERSONAL).rate(rate).amount(amount).build(),
-                    Return.builder().key(key2).type(FUND).rate(rate).amount(amount).build(),
-                    Return.builder().key(key3).type(INDEX).rate(rate).amount(amount).build(),
+                Return.builder().key(key1).type(PERSONAL).rate(rate).amount(amount).currency(EUR).from(LocalDate.parse(fromDate)).build(),
+                Return.builder().key(key2).type(FUND).rate(rate).amount(amount).currency(EUR).from(LocalDate.parse(fromDate)).build(),
+                Return.builder().key(key3).type(INDEX).rate(rate).amount(amount).currency(EUR).from(LocalDate.parse(fromDate)).build(),
             ])
             .build()
         returnsService.get(_ as Person, LocalDate.parse(fromDate), [key1, key2, key3]) >> returns
@@ -107,16 +114,19 @@ class ReturnsControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.returns[0].key', is(key1)))
             .andExpect(jsonPath('$.returns[0].rate', is(rate.toDouble())))
             .andExpect(jsonPath('$.returns[0].amount', is(amount.toDouble())))
+            .andExpect(jsonPath('$.returns[0].currency', is(EUR.name())))
 
             .andExpect(jsonPath('$.returns[1].type', is(FUND.toString())))
             .andExpect(jsonPath('$.returns[1].key', is(key2)))
             .andExpect(jsonPath('$.returns[1].rate', is(rate.toDouble())))
             .andExpect(jsonPath('$.returns[1].amount', is(amount.toDouble())))
+            .andExpect(jsonPath('$.returns[1].currency', is(EUR.name())))
 
             .andExpect(jsonPath('$.returns[2].type', is(INDEX.toString())))
             .andExpect(jsonPath('$.returns[2].key', is(key3)))
             .andExpect(jsonPath('$.returns[2].rate', is(rate.toDouble())))
             .andExpect(jsonPath('$.returns[2].amount', is(amount.toDouble())))
+            .andExpect(jsonPath('$.returns[2].currency', is(EUR.name())))
     }
 
 }

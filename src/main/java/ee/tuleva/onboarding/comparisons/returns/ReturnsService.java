@@ -1,15 +1,10 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR;
-import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
-import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
-import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnProvider;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -23,17 +18,10 @@ import org.springframework.stereotype.Service;
 public class ReturnsService {
 
   private final List<ReturnProvider> returnProviders;
-  private final AccountOverviewProvider accountOverviewProvider;
 
   public Returns get(Person person, LocalDate fromDate, List<String> keys) {
     int pillar = getPillar(keys);
     Instant fromTime = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC);
-
-    if (pillar == 3) {
-      if (!wasThereABalanceAYearAgo(person, pillar)) {
-        return Returns.builder().from(fromDate).notEnoughHistory(true).build();
-      }
-    }
 
     List<Return> returns =
         returnProviders.stream()
@@ -45,13 +33,7 @@ public class ReturnsService {
             .filter(aReturn -> keys == null || keys.contains(aReturn.getKey()))
             .toList();
 
-    return Returns.builder().from(fromDate).returns(returns).notEnoughHistory(false).build();
-  }
-
-  private boolean wasThereABalanceAYearAgo(Person person, int pillar) {
-    AccountOverview accountOverview =
-        accountOverviewProvider.getAccountOverview(person, aYearAgo().truncatedTo(DAYS), pillar);
-    return accountOverview.getBeginningBalance().compareTo(BigDecimal.ZERO) > 0;
+    return Returns.builder().returns(returns).build();
   }
 
   private Integer getPillar(List<String> keys) {

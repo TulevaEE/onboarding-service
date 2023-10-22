@@ -13,7 +13,7 @@ import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND
-import static ee.tuleva.onboarding.currency.Currency.*
+import static ee.tuleva.onboarding.currency.Currency.EUR
 
 class FundReturnProviderSpec extends Specification {
 
@@ -28,16 +28,17 @@ class FundReturnProviderSpec extends Specification {
     def startTime = Instant.parse("2019-08-28T10:06:01Z")
     def endTime = Instant.now()
     def pillar = 2
+    def earliestTransactionDate = LocalDate.parse("2020-09-10")
     def overview = new AccountOverview(
         [new Transaction(10.0, Instant.parse("2020-10-11T10:06:01Z")),
-         new Transaction(100.0, Instant.parse("2020-09-10T10:06:01Z"))],
+         new Transaction(100.0, Instant.parse("${earliestTransactionDate}T10:06:01Z"))],
         0.0, 0.0, startTime, endTime, pillar)
     def expectedReturn = 0.00123
     def returnAsAmount = 123.12
 
     accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
     rateOfReturnCalculator.getReturn(overview, _ as String) >>
-        new ReturnDto(expectedReturn, returnAsAmount, EUR)
+        new ReturnDto(expectedReturn, returnAsAmount, EUR, earliestTransactionDate)
 
     when:
     Returns returns = returnProvider.getReturns(person, startTime, pillar)
@@ -49,8 +50,9 @@ class FundReturnProviderSpec extends Specification {
       rate == expectedReturn
       amount == returnAsAmount
       currency == EUR
+      from == earliestTransactionDate
     }
     returns.returns.size() == returnProvider.getKeys().size()
-    returns.from == LocalDate.of(2020, 9, 10)
+    returns.from == earliestTransactionDate
   }
 }

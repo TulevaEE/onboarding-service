@@ -38,13 +38,10 @@ public class PersonalReturnProvider implements ReturnProvider {
             .rate(rateOfReturn.rate())
             .amount(rateOfReturn.amount())
             .currency(rateOfReturn.currency())
+            .from(rateOfReturn.from())
             .build();
 
-    return Returns.builder()
-        .from(
-            accountOverview.sort().getFirstTransactionDate().orElse(accountOverview.getStartDate()))
-        .returns(List.of(aReturn))
-        .build();
+    return Returns.builder().returns(List.of(aReturn)).build();
   }
 
   @Override

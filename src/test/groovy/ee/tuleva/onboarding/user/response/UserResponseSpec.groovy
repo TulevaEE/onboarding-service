@@ -5,6 +5,8 @@ import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import java.time.LocalDate
+
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
 class UserResponseSpec extends Specification {
@@ -34,7 +36,7 @@ class UserResponseSpec extends Specification {
   }
 
 
-  def "calculates age in the API response"() {
+  def "calculates age, retirement age and date of birth in the API response"() {
     given:
     def user = sampleUser().build()
 
@@ -43,6 +45,8 @@ class UserResponseSpec extends Specification {
 
     then:
     userResponse.age > 0
+    userResponse.retirementAge == 65
+    userResponse.dateOfBirth == LocalDate.parse("1988-12-12")
   }
 
 }

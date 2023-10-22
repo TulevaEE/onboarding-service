@@ -31,7 +31,7 @@ public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalC
         return false;
       }
 
-      PersonalCode.getBirthDate(personalCode); // throws exception on invalid date
+      PersonalCode.getDateOfBirth(personalCode); // throws exception on invalid date
 
       if (!(order >= 0 && order <= 999)) {
         return false;

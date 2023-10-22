@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
+import java.time.LocalDate;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -67,5 +68,13 @@ public class UserResponse {
 
   public int getAge() {
     return PersonalCode.getAge(personalCode);
+  }
+
+  public int getRetirementAge() {
+    return PersonalCode.getRetirementAge(personalCode);
+  }
+
+  public LocalDate getDateOfBirth() {
+    return PersonalCode.getDateOfBirth(personalCode);
   }
 }

@@ -35,10 +35,11 @@ class FundReturnProviderSpec extends Specification {
         0.0, 0.0, startTime, endTime, pillar)
     def expectedReturn = 0.00123
     def returnAsAmount = 123.12
+    def payments = 234.12
 
     accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
     rateOfReturnCalculator.getReturn(overview, _ as String) >>
-        new ReturnDto(expectedReturn, returnAsAmount, EUR, earliestTransactionDate)
+        new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
 
     when:
     Returns returns = returnProvider.getReturns(person, startTime, pillar)
@@ -49,6 +50,7 @@ class FundReturnProviderSpec extends Specification {
       type == FUND
       rate == expectedReturn
       amount == returnAsAmount
+      paymentsSum == payments
       currency == EUR
       from == earliestTransactionDate
     }

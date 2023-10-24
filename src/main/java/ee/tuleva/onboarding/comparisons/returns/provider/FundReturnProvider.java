@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.comparisons.returns.ReturnDto;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.time.Instant;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,24 +30,27 @@ public class FundReturnProvider implements ReturnProvider {
     List<Return> returns =
         fundIsins().stream()
             .map(
-                key -> {
-                  ReturnDto rateOfReturn = rateOfReturnCalculator.getReturn(accountOverview, key);
-                  return new SimpleEntry<>(key, rateOfReturn);
+                fundIsin -> {
+                  ReturnDto aReturn = rateOfReturnCalculator.getReturn(accountOverview, fundIsin);
+                  return new Tuple(fundIsin, aReturn);
                 })
             .map(
                 tuple ->
                     Return.builder()
-                        .key(tuple.getKey())
+                        .key(tuple.fundIsin)
                         .type(FUND)
-                        .rate(tuple.getValue().rate())
-                        .amount(tuple.getValue().amount())
-                        .currency(tuple.getValue().currency())
-                        .from(tuple.getValue().from())
+                        .rate(tuple.aReturn.rate())
+                        .amount(tuple.aReturn.amount())
+                        .paymentsSum(tuple.aReturn.paymentsSum())
+                        .currency(tuple.aReturn.currency())
+                        .from(tuple.aReturn.from())
                         .build())
             .toList();
 
     return Returns.builder().returns(returns).build();
   }
+
+  private record Tuple(String fundIsin, ReturnDto aReturn) {}
 
   @Override
   public List<String> getKeys() {

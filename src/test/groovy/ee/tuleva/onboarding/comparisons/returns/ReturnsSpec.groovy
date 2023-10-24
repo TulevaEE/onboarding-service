@@ -12,7 +12,7 @@ class ReturnsSpec extends Specification {
   def "calculates from date of a single return"() {
     given:
     def fromDate = LocalDate.of(2010, 02, 03)
-    def aReturn = new Return("isin", 0.01, 123.45, EUR, FUND, fromDate)
+    def aReturn = new Return("isin", 0.01, 123.45, 234.56, EUR, FUND, fromDate)
     def returns = new Returns([aReturn])
     when:
     LocalDate from = returns.getFrom()
@@ -23,8 +23,8 @@ class ReturnsSpec extends Specification {
   def "calculates from date of multiple returns"() {
     given:
     def fromDate = LocalDate.of(2010, 02, 03)
-    def aReturn1 = new Return("isin1", 0.01, 123.45, EUR, FUND, fromDate)
-    def aReturn2 = new Return("isin2", 0.02, 678.90, EUR, FUND, fromDate)
+    def aReturn1 = new Return("isin1", 0.01, 123.45, 234.56, EUR, FUND, fromDate)
+    def aReturn2 = new Return("isin2", 0.02, 678.90, 789.12, EUR, FUND, fromDate)
     def returns = new Returns([aReturn1, aReturn2])
     when:
     LocalDate from = returns.getFrom()
@@ -36,8 +36,8 @@ class ReturnsSpec extends Specification {
     given:
     def fromDate1 = LocalDate.of(2010, 02, 03)
     def fromDate2 = LocalDate.of(2011, 04, 05)
-    def aReturn1 = new Return("isin1", 0.01, 123.45, EUR, FUND, fromDate1)
-    def aReturn2 = new Return("isin2", 0.02, 678.90, EUR, FUND, fromDate2)
+    def aReturn1 = new Return("isin1", 0.01, 123.45, 234.56, EUR, FUND, fromDate1)
+    def aReturn2 = new Return("isin2", 0.02, 678.90, 789.12, EUR, FUND, fromDate2)
     def returns = new Returns([aReturn1, aReturn2])
     when:
     returns.getFrom()

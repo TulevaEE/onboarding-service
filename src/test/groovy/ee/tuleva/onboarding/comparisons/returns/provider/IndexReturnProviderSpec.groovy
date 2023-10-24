@@ -37,14 +37,15 @@ class IndexReturnProviderSpec extends Specification {
             0.0, 0.0, startTime, endTime, pillar)
         def expectedReturn = 0.00123
         def returnAsAmount = 123.12
+        def payments = 234.12
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
         rateOfReturnCalculator.getReturn(overview, EPIFundValueRetriever.KEY) >>
-            new ReturnDto(expectedReturn, returnAsAmount, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
         rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY) >>
-            new ReturnDto(expectedReturn, returnAsAmount, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
         rateOfReturnCalculator.getReturn(overview, CPIValueRetriever.KEY) >>
-            new ReturnDto(expectedReturn, returnAsAmount, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
 
 
         when:
@@ -56,6 +57,7 @@ class IndexReturnProviderSpec extends Specification {
           type == INDEX
           rate == expectedReturn
           amount == returnAsAmount
+          paymentsSum == payments
           currency == EUR
           from == earliestTransactionDate
         }
@@ -63,6 +65,8 @@ class IndexReturnProviderSpec extends Specification {
           key == UnionStockIndexRetriever.KEY
           type == INDEX
           rate == expectedReturn
+          amount == returnAsAmount
+          paymentsSum == payments
           currency == EUR
           from == earliestTransactionDate
         }
@@ -70,6 +74,8 @@ class IndexReturnProviderSpec extends Specification {
           key == CPIValueRetriever.KEY
           type == INDEX
           rate == expectedReturn
+          amount == returnAsAmount
+          paymentsSum == payments
           currency == EUR
           from == earliestTransactionDate
         }

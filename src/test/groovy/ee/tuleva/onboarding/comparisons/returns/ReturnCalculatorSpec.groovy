@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetrieve
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.Transaction
-import org.apache.tools.ant.taskdefs.Local
 import spock.lang.Specification
 
 import java.time.Instant
@@ -42,14 +41,17 @@ class ReturnCalculatorSpec extends Specification {
     then:
     personalReturn.rate() == 0
     personalReturn.amount() == 0
+    personalReturn.paymentsSum() == 100 + 100
     personalReturn.from() == LocalDate.parse("2018-06-17")
 
     estonianAverageReturn.rate() == 0
     estonianAverageReturn.amount() == 0
+    estonianAverageReturn.paymentsSum() == 100 + 100
     estonianAverageReturn.from() == LocalDate.parse("2018-06-17")
 
     marketAverageReturn.rate() == 0
     marketAverageReturn.amount() == 0
+    marketAverageReturn.paymentsSum() == 100 + 100
     marketAverageReturn.from() == LocalDate.parse("2018-06-17")
   }
 
@@ -72,14 +74,17 @@ class ReturnCalculatorSpec extends Specification {
     then:
     personalReturn.rate() == BigDecimal.valueOf(xirr)
     personalReturn.amount() == 0
+    personalReturn.paymentsSum() == firstTransaction + secondTransaction
     personalReturn.from() == LocalDate.parse("2018-06-17")
 
     estonianAverageReturn.rate() == 0
     estonianAverageReturn.amount() == 0
+    personalReturn.paymentsSum() == firstTransaction + secondTransaction
     estonianAverageReturn.from() == LocalDate.parse("2018-06-17")
 
     marketAverageReturn.rate() == 0
     marketAverageReturn.amount() == 0
+    marketAverageReturn.paymentsSum() == firstTransaction + secondTransaction
     marketAverageReturn.from() == LocalDate.parse("2018-06-17")
 
     where:
@@ -106,14 +111,17 @@ class ReturnCalculatorSpec extends Specification {
     then:
     personalReturn.rate() == 0.0427
     personalReturn.amount() == 110
+    personalReturn.paymentsSum() == 16 * 30
     personalReturn.from() == LocalDate.parse("2010-07-01")
 
     estonianAverageReturn.rate() == 0
     estonianAverageReturn.amount() == 0
+    personalReturn.paymentsSum() == 16 * 30
     estonianAverageReturn.from() == LocalDate.parse("2010-07-01")
 
     marketAverageReturn.rate() == 0
     marketAverageReturn.amount() == 0
+    personalReturn.paymentsSum() == 16 * 30
     marketAverageReturn.from() == LocalDate.parse("2010-07-01")
   }
 
@@ -134,11 +142,13 @@ class ReturnCalculatorSpec extends Specification {
 
     then:
     estonianAverageReturn.rate() == 0.0326
-    estonianAverageReturn.amount().trunc(2) == 81.76
+    estonianAverageReturn.amount() == 81.76
+    estonianAverageReturn.paymentsSum() == 16 * 30
     estonianAverageReturn.from() == LocalDate.parse("2010-07-01")
 
     marketAverageReturn.rate() == 0
-    marketAverageReturn.amount().trunc(2) == 0
+    marketAverageReturn.amount() == 0
+    marketAverageReturn.paymentsSum() == 16 * 30
     marketAverageReturn.from() == LocalDate.parse("2010-07-01")
   }
 
@@ -157,10 +167,12 @@ class ReturnCalculatorSpec extends Specification {
     then:
     estonianAverageReturn.rate() == 0
     estonianAverageReturn.amount() == 0
+    estonianAverageReturn.paymentsSum() == 0
     estonianAverageReturn.from() == LocalDate.parse("2010-07-01")
 
     marketAverageReturn.rate() == 0
     marketAverageReturn.amount() == 0
+    marketAverageReturn.paymentsSum() == 0
     marketAverageReturn.from() == LocalDate.parse("2010-07-01")
   }
 

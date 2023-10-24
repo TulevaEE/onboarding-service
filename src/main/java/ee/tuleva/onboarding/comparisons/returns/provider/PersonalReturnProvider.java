@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -29,23 +30,30 @@ public class PersonalReturnProvider implements ReturnProvider {
   public Returns getReturns(Person person, Instant startTime, Integer pillar) {
     AccountOverview accountOverview =
         accountOverviewProvider.getAccountOverview(person, startTime, pillar);
-    ReturnDto rateOfReturn = rateOfReturnCalculator.getReturn(accountOverview);
+    ReturnDto aReturn = rateOfReturnCalculator.getReturn(accountOverview);
 
-    Return aReturn =
-        Return.builder()
-            .key(getKey(pillar))
-            .type(PERSONAL)
-            .rate(rateOfReturn.rate())
-            .amount(rateOfReturn.amount())
-            .currency(rateOfReturn.currency())
-            .from(rateOfReturn.from())
-            .build();
+    var returns =
+        List.of(
+            Return.builder()
+                .key(getKey(pillar))
+                .type(PERSONAL)
+                .rate(aReturn.rate())
+                .amount(aReturn.amount())
+                .paymentsSum(aReturn.paymentsSum())
+                .currency(aReturn.currency())
+                .from(aReturn.from())
+                .build());
 
-    return Returns.builder().returns(List.of(aReturn)).build();
+    return Returns.builder().returns(returns).build();
   }
 
   @Override
   public List<String> getKeys() {
+    return pillars();
+  }
+
+  @NotNull
+  private static List<String> pillars() {
     return List.of(SECOND_PILLAR, THIRD_PILLAR);
   }
 

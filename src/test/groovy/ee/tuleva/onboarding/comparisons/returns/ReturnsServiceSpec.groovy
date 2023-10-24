@@ -27,31 +27,8 @@ class ReturnsServiceSpec extends Specification {
     def startTime = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC)
     def pillar = 2
 
-    def return1 = Return.builder()
-        .key(UnionStockIndexRetriever.KEY)
-        .type(INDEX)
-        .rate(0.0123)
-        .amount(123.45)
-        .currency(EUR)
-        .from(fromDate)
-        .build()
-
-    def returns1 = Returns.builder()
-        .returns([return1])
-        .build()
-
-    def return2 = Return.builder()
-        .key(EPIFundValueRetriever.KEY)
-        .type(INDEX)
-        .rate(0.0234)
-        .amount(234.56)
-        .currency(EUR)
-        .from(fromDate)
-        .build()
-
-    def returns2 = Returns.builder()
-        .returns([return2])
-        .build()
+    def (return1, returns1) = sampleReturns1(fromDate)
+    def (return2, returns2) = sampleReturns2(fromDate)
 
     returnProvider1.getReturns(person, startTime, pillar) >> returns1
     returnProvider2.getReturns(person, startTime, pillar) >> returns2
@@ -75,31 +52,8 @@ class ReturnsServiceSpec extends Specification {
     def startTime = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC)
     def pillar = 2
 
-    def return1 = Return.builder()
-        .key(UnionStockIndexRetriever.KEY)
-        .type(INDEX)
-        .rate(0.0123)
-        .amount(234.56)
-        .currency(EUR)
-        .from(fromDate)
-        .build()
-
-    def returns1 = Returns.builder()
-        .returns([return1])
-        .build()
-
-    def return2 = Return.builder()
-        .key(EPIFundValueRetriever.KEY)
-        .type(INDEX)
-        .rate(0.0234)
-        .amount(234.56)
-        .currency(EUR)
-        .from(fromDate)
-        .build()
-
-    def returns2 = Returns.builder()
-        .returns([return2])
-        .build()
+    def (return1, returns1) = sampleReturns1(fromDate)
+    def (return2, returns2) = sampleReturns2(fromDate)
 
     returnProvider1.getReturns(person, startTime, pillar) >> returns1
     returnProvider2.getReturns(person, startTime, pillar) >> returns2
@@ -123,23 +77,8 @@ class ReturnsServiceSpec extends Specification {
     def startTime = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC)
     def pillar = 2
 
-    def return1 = Return.builder()
-        .key("EE123")
-        .type(FUND)
-        .rate(0.0123)
-        .amount(123.45)
-        .currency(EUR)
-        .from(fromDate)
-        .build()
-
-    def return2 = Return.builder()
-        .key("EE234")
-        .type(FUND)
-        .rate(0.0234)
-        .amount(234.56)
-        .currency(EUR)
-        .from(fromDate)
-        .build()
+    def (return1) = sampleReturns1(fromDate)
+    def (return2) = sampleReturns2(fromDate)
 
     def allReturns = Returns.builder()
         .returns([return1, return2])
@@ -158,5 +97,41 @@ class ReturnsServiceSpec extends Specification {
       from == fromDate
       returns == [return1]
     }
+  }
+
+  private def sampleReturns1(LocalDate fromDate) {
+    def return1 = Return.builder()
+        .key(UnionStockIndexRetriever.KEY)
+        .type(INDEX)
+        .rate(0.0123)
+        .amount(123.45)
+        .paymentsSum(345.67)
+        .currency(EUR)
+        .from(fromDate)
+        .build()
+
+    def returns = Returns.builder()
+        .returns([return1])
+        .build()
+
+    return [return1, returns]
+  }
+
+  private def sampleReturns2(LocalDate fromDate) {
+    def return2 = Return.builder()
+        .key(EPIFundValueRetriever.KEY)
+        .type(FUND)
+        .rate(0.0234)
+        .amount(234.56)
+        .paymentsSum(456.78)
+        .currency(EUR)
+        .from(fromDate)
+        .build()
+
+    def returns =  Returns.builder()
+        .returns([return2])
+        .build()
+
+    return [return2, returns]
   }
 }

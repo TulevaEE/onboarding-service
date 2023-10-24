@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.comparisons.returns.provider;
 
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.INDEX;
-import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CPIValueRetriever;
@@ -14,9 +13,9 @@ import ee.tuleva.onboarding.comparisons.returns.ReturnDto;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import java.time.Instant;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -39,29 +38,38 @@ public class IndexReturnProvider implements ReturnProvider {
         accountOverviewProvider.getAccountOverview(person, startTime, pillar);
 
     List<Return> returns =
-        getKeys().stream()
+        comparisonIndexes().stream()
             .map(
-                key -> {
-                  ReturnDto rateOfReturn = rateOfReturnCalculator.getReturn(accountOverview, key);
-                  return new SimpleEntry<>(key, rateOfReturn);
+                comparisonIndex -> {
+                  ReturnDto aReturn =
+                      rateOfReturnCalculator.getReturn(accountOverview, comparisonIndex);
+                  return new Tuple(comparisonIndex, aReturn);
                 })
             .map(
                 tuple ->
                     Return.builder()
-                        .key(tuple.getKey())
+                        .key(tuple.comparisonIndex)
                         .type(INDEX)
-                        .rate(tuple.getValue().rate())
-                        .amount(tuple.getValue().amount())
-                        .currency(tuple.getValue().currency())
-                        .from(tuple.getValue().from())
+                        .rate(tuple.aReturn.rate())
+                        .amount(tuple.aReturn.amount())
+                        .paymentsSum(tuple.aReturn.paymentsSum())
+                        .currency(tuple.aReturn.currency())
+                        .from(tuple.aReturn.from())
                         .build())
-            .collect(toList());
+            .toList();
 
     return Returns.builder().returns(returns).build();
   }
 
+  private record Tuple(String comparisonIndex, ReturnDto aReturn) {}
+
   @Override
   public List<String> getKeys() {
+    return comparisonIndexes();
+  }
+
+  @NotNull
+  private static List<String> comparisonIndexes() {
     return List.of(EPI, UNION_STOCK_INDEX, CPI);
   }
 }

@@ -23,7 +23,7 @@ class PersonalReturnProviderSpec extends Specification {
 
     def returnProvider = new PersonalReturnProvider(accountOverviewProvider, rateOfReturnCalculator)
 
-    def "can assemble a Return object for your personal 2nd pillar fund"() {
+    def "can assemble a Returns object for your personal 2nd pillar fund"() {
         given:
         def person = samplePerson()
         def startTime = Instant.parse("2019-08-28T10:06:01Z")
@@ -36,10 +36,11 @@ class PersonalReturnProviderSpec extends Specification {
             0.0, 0.0, startTime, endTime, pillar)
         def expectedReturn = 0.00123
         def returnAsAmount = 123.12
+        def payments = 234.12
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
         rateOfReturnCalculator.getReturn(overview) >>
-            new ReturnDto(expectedReturn, returnAsAmount, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
 
         when:
         def returns = returnProvider.getReturns(person, startTime, pillar)
@@ -50,6 +51,7 @@ class PersonalReturnProviderSpec extends Specification {
           type == PERSONAL
           rate == expectedReturn
           amount == returnAsAmount
+          paymentsSum == payments
           currency == EUR
           from == earliestTransactionDate
         }
@@ -69,10 +71,11 @@ class PersonalReturnProviderSpec extends Specification {
             0.0, 0.0, startTime, endTime, pillar)
         def expectedReturn = 0.00123
         def returnAsAmount = 123.21
+        def payments = 234.45
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
         rateOfReturnCalculator.getReturn(overview) >>
-            new ReturnDto(expectedReturn, returnAsAmount, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
 
         when:
         def returns = returnProvider.getReturns(person, startTime, pillar)
@@ -83,6 +86,7 @@ class PersonalReturnProviderSpec extends Specification {
           type == PERSONAL
           rate == expectedReturn
           amount == returnAsAmount
+          paymentsSum == payments
           currency == EUR
           from == earliestTransactionDate
         }

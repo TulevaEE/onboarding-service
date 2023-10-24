@@ -31,13 +31,15 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def fromDate = "2017-01-01"
         def type = FUND
         def key = "EE123"
-        BigDecimal rate = 1.0
-        BigDecimal amount = 30.03
+        def rate = 1.0
+        def amount = 30.03
+        def paymentsSum = 123.45
         def aReturn = Return.builder()
             .key(key)
             .type(type)
             .rate(rate)
             .amount(amount)
+            .paymentsSum(paymentsSum)
             .currency(EUR)
             .from(LocalDate.parse(fromDate))
             .build()
@@ -56,6 +58,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.returns[0].key', is(key)))
             .andExpect(jsonPath('$.returns[0].rate', is(rate.toDouble())))
             .andExpect(jsonPath('$.returns[0].amount', is(amount.toDouble())))
+            .andExpect(jsonPath('$.returns[0].paymentsSum', is(paymentsSum.toDouble())))
             .andExpect(jsonPath('$.returns[0].currency', is(EUR.name())))
     }
 
@@ -65,7 +68,8 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def key = "EE123"
         def rate = 1.0
         def amount = 30.03
-        def aReturn = Return.builder().key(key).type(type).rate(rate).amount(amount).currency(EUR).from(BEGINNING_OF_TIMES).build()
+        def paymentsSum = 123.45
+        def aReturn = Return.builder().key(key).type(type).rate(rate).amount(amount).paymentsSum(paymentsSum).currency(EUR).from(BEGINNING_OF_TIMES).build()
         def returns = Returns.builder()
             .returns([aReturn])
             .build()
@@ -80,6 +84,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.returns[0].key', is(key)))
             .andExpect(jsonPath('$.returns[0].rate', is(rate.toDouble())))
             .andExpect(jsonPath('$.returns[0].amount', is(amount.toDouble())))
+            .andExpect(jsonPath('$.returns[0].paymentsSum', is(paymentsSum.toDouble())))
             .andExpect(jsonPath('$.returns[0].currency', is(EUR.name())))
     }
 
@@ -91,11 +96,12 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def key3 = "EPI"
         def rate = 1.0
         def amount = 30.03
+        def paymentsSum = 123.45
         def returns = Returns.builder()
             .returns([
-                Return.builder().key(key1).type(PERSONAL).rate(rate).amount(amount).currency(EUR).from(LocalDate.parse(fromDate)).build(),
-                Return.builder().key(key2).type(FUND).rate(rate).amount(amount).currency(EUR).from(LocalDate.parse(fromDate)).build(),
-                Return.builder().key(key3).type(INDEX).rate(rate).amount(amount).currency(EUR).from(LocalDate.parse(fromDate)).build(),
+                Return.builder().key(key1).type(PERSONAL).rate(rate).amount(amount).paymentsSum(paymentsSum).currency(EUR).from(LocalDate.parse(fromDate)).build(),
+                Return.builder().key(key2).type(FUND).rate(rate).amount(amount).paymentsSum(paymentsSum).currency(EUR).from(LocalDate.parse(fromDate)).build(),
+                Return.builder().key(key3).type(INDEX).rate(rate).amount(amount).paymentsSum(paymentsSum).currency(EUR).from(LocalDate.parse(fromDate)).build(),
             ])
             .build()
         returnsService.get(_ as Person, LocalDate.parse(fromDate), [key1, key2, key3]) >> returns
@@ -114,18 +120,21 @@ class ReturnsControllerSpec extends BaseControllerSpec {
             .andExpect(jsonPath('$.returns[0].key', is(key1)))
             .andExpect(jsonPath('$.returns[0].rate', is(rate.toDouble())))
             .andExpect(jsonPath('$.returns[0].amount', is(amount.toDouble())))
+            .andExpect(jsonPath('$.returns[0].paymentsSum', is(paymentsSum.toDouble())))
             .andExpect(jsonPath('$.returns[0].currency', is(EUR.name())))
 
             .andExpect(jsonPath('$.returns[1].type', is(FUND.toString())))
             .andExpect(jsonPath('$.returns[1].key', is(key2)))
             .andExpect(jsonPath('$.returns[1].rate', is(rate.toDouble())))
             .andExpect(jsonPath('$.returns[1].amount', is(amount.toDouble())))
+            .andExpect(jsonPath('$.returns[1].paymentsSum', is(paymentsSum.toDouble())))
             .andExpect(jsonPath('$.returns[1].currency', is(EUR.name())))
 
             .andExpect(jsonPath('$.returns[2].type', is(INDEX.toString())))
             .andExpect(jsonPath('$.returns[2].key', is(key3)))
             .andExpect(jsonPath('$.returns[2].rate', is(rate.toDouble())))
             .andExpect(jsonPath('$.returns[2].amount', is(amount.toDouble())))
+            .andExpect(jsonPath('$.returns[2].paymentsSum', is(paymentsSum.toDouble())))
             .andExpect(jsonPath('$.returns[2].currency', is(EUR.name())))
     }
 

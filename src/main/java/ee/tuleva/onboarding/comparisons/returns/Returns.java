@@ -21,6 +21,7 @@ public class Returns {
     String key;
     BigDecimal rate;
     BigDecimal amount;
+    BigDecimal paymentsSum;
     Currency currency;
     Type type;
     @JsonIgnore LocalDate from;

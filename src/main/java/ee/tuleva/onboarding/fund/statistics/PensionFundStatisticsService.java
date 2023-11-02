@@ -66,7 +66,10 @@ public class PensionFundStatisticsService {
       }
       return result;
     } catch (Exception e) {
-      log.error("Error getting pension fund statistics");
+      log.error(
+          "Error getting pension fund statistics: {}, {}",
+          e.getClass().getSimpleName(),
+          e.getMessage());
       return new ArrayList<>();
     }
   }

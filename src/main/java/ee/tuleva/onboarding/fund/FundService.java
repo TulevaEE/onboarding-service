@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.fund;
 
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.StreamSupport.stream;
 
+import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics;
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService;
 import ee.tuleva.onboarding.locale.LocaleService;
@@ -20,6 +20,7 @@ class FundService {
 
   private final FundRepository fundRepository;
   private final PensionFundStatisticsService pensionFundStatisticsService;
+  private final FundValueRepository fundValueRepository;
   private final LocaleService localeService;
 
   List<ExtendedApiFundResponse> getFunds(Optional<String> fundManagerName) {
@@ -29,19 +30,27 @@ class FundService {
             fund ->
                 new ExtendedApiFundResponse(
                     fund, getStatistics(fund), localeService.getCurrentLocale()))
-        .collect(toList());
+        .toList();
   }
 
   private PensionFundStatistics getStatistics(Fund fund) {
-    return pensionFundStatisticsService.getCachedStatistics().stream()
+    List<PensionFundStatistics> statistics = pensionFundStatisticsService.getCachedStatistics();
+    return statistics.stream()
         .filter(statistic -> Objects.equals(statistic.getIsin(), fund.getIsin()))
         .findFirst()
-        .orElse(PensionFundStatistics.getNull());
+        .orElseGet(() -> fallbackNavStatistics(fund));
+  }
+
+  private PensionFundStatistics fallbackNavStatistics(Fund fund) {
+    return fundValueRepository
+        .findLastValueForFund(fund.getIsin())
+        .map(fundValue -> PensionFundStatistics.builder().nav(fundValue.getValue()).build())
+        .orElseGet(PensionFundStatistics::getNull);
   }
 
   private Iterable<Fund> fundsBy(Optional<String> fundManagerName) {
     return fundManagerName
         .map(fundRepository::findAllByFundManagerNameIgnoreCase)
-        .orElse(fundRepository.findAll());
+        .orElseGet(fundRepository::findAll);
   }
 }

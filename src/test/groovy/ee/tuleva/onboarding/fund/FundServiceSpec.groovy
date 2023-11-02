@@ -1,29 +1,34 @@
 package ee.tuleva.onboarding.fund
 
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatistics
 import ee.tuleva.onboarding.fund.statistics.PensionFundStatisticsService
 import ee.tuleva.onboarding.locale.LocaleConfiguration
 import ee.tuleva.onboarding.locale.LocaleService
 import spock.lang.Specification
 
+import java.time.LocalDate
+
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
-import static java.util.Collections.singletonList
 import static java.util.stream.Collectors.toList
 
 class FundServiceSpec extends Specification {
 
   def fundRepository = Mock(FundRepository)
   def pensionFundStatisticsService = Mock(PensionFundStatisticsService)
+  def fundValueRepository = Mock(FundValueRepository)
   def localeService = Mock(LocaleService)
 
-  def fundService = new FundService(fundRepository, pensionFundStatisticsService,localeService)
+  def fundService = new FundService(fundRepository, pensionFundStatisticsService,
+      fundValueRepository, localeService)
 
   def "can get funds and statistics"() {
     given:
-    String fundManagerName = "Tuleva"
-    Iterable<Fund> funds = sampleFunds().stream()
+    def fundManagerName = "Tuleva"
+    def funds = sampleFunds().stream()
       .filter({ fund -> fund.fundManager.name == fundManagerName })
-      .collect(toList())
+      .toList()
     fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
     def tulevaFund = funds.first()
     def volume = 1_000_000.0
@@ -32,6 +37,8 @@ class FundServiceSpec extends Specification {
     pensionFundStatisticsService.getCachedStatistics() >>
       [new PensionFundStatistics(tulevaFund.isin, volume, nav, peopleCount)]
     localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    fundValueRepository.findLastValueForFund(_ as String) >> Optional.empty()
+
     when:
     def response = fundService.getFunds(Optional.of(fundManagerName))
 
@@ -46,16 +53,16 @@ class FundServiceSpec extends Specification {
 
   def "can get funds with names in given language"() {
     given:
-    String fundManagerName = "Tuleva"
-
-    Iterable<Fund> funds = sampleFunds().stream()
+    def fundManagerName = "Tuleva"
+    def funds = sampleFunds().stream()
       .filter({ fund -> fund.fundManager.name == fundManagerName })
-      .collect(toList())
+      .toList()
     fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
     localeService.getCurrentLocale() >> Locale.forLanguageTag(language)
 
     def tulevaFund = funds.first()
-    pensionFundStatisticsService.getCachedStatistics() >> singletonList(PensionFundStatistics.getNull())
+    pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
+    fundValueRepository.findLastValueForFund(_ as String) >> Optional.empty()
 
     when:
     def response = fundService.getFunds(Optional.of(fundManagerName))
@@ -74,8 +81,8 @@ class FundServiceSpec extends Specification {
 
   def "sorts funds by name"() {
     given:
-    String fundManagerName = "Tuleva"
-    Iterable<Fund> funds = sampleFunds().stream()
+    def fundManagerName = "Tuleva"
+    def funds = sampleFunds().stream()
       .filter({ fund -> fund.fundManager.name == fundManagerName })
       .sorted(new Comparator<Fund>() {
         @Override
@@ -87,6 +94,7 @@ class FundServiceSpec extends Specification {
     fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
     pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
     localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    fundValueRepository.findLastValueForFund(_ as String) >> Optional.empty()
 
     when:
     def response = fundService.getFunds(Optional.of(fundManagerName))
@@ -98,6 +106,30 @@ class FundServiceSpec extends Specification {
     with(response[1]) {
       name == "Tuleva maailma võlakirjade pensionifond"
     }
+    response.size() == 2
+  }
+
+  def "gives a fallback nav when no statistics found"() {
+    given:
+    String fundManagerName = "Tuleva"
+    def funds = sampleFunds().stream()
+      .filter({ fund -> fund.fundManager.name == fundManagerName })
+      .toList()
+    fundRepository.findAllByFundManagerNameIgnoreCase(fundManagerName) >> funds
+    def tulevaFund = funds.first()
+    pensionFundStatisticsService.getCachedStatistics() >> [PensionFundStatistics.getNull()]
+    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+    fundValueRepository.findLastValueForFund(tulevaFund.isin) >> Optional.of(
+        new FundValue(tulevaFund.isin, LocalDate.parse("2023-11-03"),123.0))
+    fundValueRepository.findLastValueForFund(_ as String) >> Optional.empty()
+
+    when:
+    def response = fundService.getFunds(Optional.of(fundManagerName))
+
+    then:
+    def fund = response.first()
+    fund.isin == tulevaFund.isin
+    fund.nav == 123.0
     response.size() == 2
   }
 }

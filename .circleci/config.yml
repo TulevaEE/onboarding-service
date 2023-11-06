@@ -52,7 +52,20 @@ jobs:
           paths:
             - build
 
-  deploy:
+  deploy-staging:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - eb/setup
+      - restore_cache:
+          keys:
+            - v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}
+      - deploy:
+          name: Deploy master to Staging
+          command: eb deploy onboarding-service-staging --label ${CIRCLE_SHA1} --timeout 20
+
+  deploy-production:
     docker:
       - image: cimg/base:stable
     steps:
@@ -64,6 +77,7 @@ jobs:
       - deploy:
           name: Deploy master to Production
           command: eb deploy onboarding-service-env --label ${CIRCLE_SHA1} --timeout 20
+
   notify-sentry-deploy:
     docker:
       - image: cimg/base:stable
@@ -80,6 +94,7 @@ jobs:
             sentry-cli releases set-commits $SENTRY_RELEASE --auto
             sentry-cli releases finalize $SENTRY_RELEASE
             sentry-cli releases deploys $SENTRY_RELEASE new -e $SENTRY_ENVIRONMENT
+
 workflows:
   version: 2
   onboarding-service-workflow:
@@ -98,7 +113,14 @@ workflows:
           filters:
             branches:
               only: master
-      - deploy:
+      - deploy-staging:
+          requires:
+            - aws-ecr/build-and-push-image
+          context: aws
+          filters:
+            branches:
+              only: master
+      - deploy-production:
           requires:
             - aws-ecr/build-and-push-image
           context: aws
@@ -107,7 +129,7 @@ workflows:
               only: master
       - notify-sentry-deploy:
           requires:
-            - deploy
+            - deploy-production
           context: sentry
           filters:
             branches:

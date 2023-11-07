@@ -150,7 +150,9 @@ spring:
     locations: classpath:/db/migration, classpath:/db/dev
   config:
     activate:
-      on-profile: dev
+      on-profile:
+        - dev
+        - staging
 ---
 spring:
   config:

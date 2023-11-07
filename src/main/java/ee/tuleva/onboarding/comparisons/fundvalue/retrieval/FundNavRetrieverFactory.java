@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Profile("!dev")
+@Profile({"!dev", "!staging"})
 public class FundNavRetrieverFactory {
 
   private final FundRepository fundRepository;

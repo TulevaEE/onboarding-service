@@ -16,7 +16,7 @@ import org.springframework.web.client.RestOperations;
 
 @Service
 @Slf4j
-@Profile("!dev")
+@Profile({"!dev", "!staging"})
 public class PensionFundStatisticsService {
 
   @Value("${pensionikeskus.statistics.2ndpillar.url}")

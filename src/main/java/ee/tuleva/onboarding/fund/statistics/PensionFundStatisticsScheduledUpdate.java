@@ -9,7 +9,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 @Configuration
 @EnableScheduling
 @RequiredArgsConstructor
-@Profile("!dev")
+@Profile({"!dev", "!staging"})
 public class PensionFundStatisticsScheduledUpdate {
 
   private final PensionFundStatisticsService pensionFundStatisticsService;

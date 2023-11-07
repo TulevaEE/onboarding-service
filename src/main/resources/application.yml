@@ -60,7 +60,6 @@ springdoc:
 epis:
   service:
     url: http://localhost:9005/v1
-    bic: "LCDELV22XXX"
 
 frontend:
   url: http://localhost:3000
@@ -194,13 +193,9 @@ smartid:
 truststore:
   path: "/home/webapp/truststore.jks"
 
-mandrill:
-  key: ${MANDRILL_KEY}
-
 epis:
   service:
     url: https://epis-service.tuleva.ee/v1
-    bic: "LCDELV22XXX"
 
 frontend:
   url: https://pension.tuleva.ee

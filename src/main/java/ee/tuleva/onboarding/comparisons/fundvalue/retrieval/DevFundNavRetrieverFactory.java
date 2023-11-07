@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Service
-@Profile("dev")
+@Profile({"dev", "staging"})
 public class DevFundNavRetrieverFactory extends FundNavRetrieverFactory {
 
   public DevFundNavRetrieverFactory(FundRepository fundRepository, EpisService episService) {

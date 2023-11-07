@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Profile;
 public class DigiDocConfiguration {
 
   @Bean
-  @Profile({"production", "staging"})
+  @Profile({"production"})
   public org.digidoc4j.Configuration digiDocConfigProd() {
     return new org.digidoc4j.Configuration(PROD);
   }

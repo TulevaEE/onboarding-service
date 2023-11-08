@@ -66,7 +66,7 @@ dependencies {
     implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
     implementation("org.springframework.session:spring-session-jdbc")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.35")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.37.1")
 
     implementation("org.springdoc:springdoc-openapi-ui:1.7.0")
     implementation("org.springdoc:springdoc-openapi-security:1.7.0")

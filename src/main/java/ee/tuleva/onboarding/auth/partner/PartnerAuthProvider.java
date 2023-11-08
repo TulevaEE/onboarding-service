@@ -10,10 +10,12 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
+@Profile("!production")
 public class PartnerAuthProvider implements AuthProvider {
 
   private final JwtTokenUtil jwtTokenUtil;

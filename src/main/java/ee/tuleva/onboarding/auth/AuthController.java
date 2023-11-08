@@ -18,7 +18,6 @@ import ee.tuleva.onboarding.error.ValidationErrorsException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import java.net.URLDecoder;
-import java.util.Map;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -74,12 +73,11 @@ public class AuthController {
         AuthenticateResponse.fromMobileIdSession(loginSession), HttpStatus.OK);
   }
 
-  @PostMapping({"/oauth/token", "/login"})
-  public Map<String, String> login(
+  @PostMapping({"/oauth/token", "/login", "/v1/tokens"})
+  public AccessToken login(
       @RequestParam("grant_type") String grantType,
       @RequestParam(value = "authenticationHash", required = false) String authenticationHash) {
-    return Map.of(
-        "access_token",
+    return new AccessToken(
         authService.authenticate(GrantType.valueOf(grantType.toUpperCase()), authenticationHash));
   }
 

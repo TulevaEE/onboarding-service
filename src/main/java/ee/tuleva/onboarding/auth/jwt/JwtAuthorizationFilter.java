@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.jwt;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
 import javax.servlet.FilterChain;
@@ -35,17 +36,22 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
       }
       try {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
+          AuthenticatedPerson principal =
+              principalService.getFrom(
+                  jwtTokenUtil.getPersonFromToken(jwtToken),
+                  jwtTokenUtil.getAttributesFromToken(jwtToken));
+
+          final var authorities =
+              jwtTokenUtil.getAuthoritiesFromToken(jwtToken).stream()
+                  .map(SimpleGrantedAuthority::new)
+                  .toList();
+
           final var authenticationToken =
-              new UsernamePasswordAuthenticationToken(
-                  principalService.getFrom(
-                      jwtTokenUtil.getPersonFromToken(jwtToken),
-                      jwtTokenUtil.getAttributesFromToken(jwtToken)),
-                  jwtToken,
-                  jwtTokenUtil.getAuthoritiesFromToken(jwtToken).stream()
-                      .map(SimpleGrantedAuthority::new)
-                      .toList());
+              new UsernamePasswordAuthenticationToken(principal, jwtToken, authorities);
+
           authenticationToken.setDetails(
               new WebAuthenticationDetailsSource().buildDetails(request));
+
           SecurityContextHolder.getContext().setAuthentication(authenticationToken);
         }
       } catch (ExpiredJwtException e) {

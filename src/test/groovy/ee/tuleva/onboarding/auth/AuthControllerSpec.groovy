@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.auth
 
-
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.command.AuthenticationType
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService
@@ -10,14 +9,16 @@ import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService
 import ee.tuleva.onboarding.auth.smartid.SmartIdFixture
-import ee.tuleva.onboarding.auth.smartid.SmartIdSession
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.test.web.servlet.MockMvc
 
+import static ee.tuleva.onboarding.auth.GrantType.PARTNER
+import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
 class AuthControllerSpec extends BaseControllerSpec {
 
@@ -90,11 +91,23 @@ class AuthControllerSpec extends BaseControllerSpec {
     1 * idCardAuthService.checkCertificate("test_cert")
   }
 
-  private static sampleDeprecatedAuthenticateCommand() {
-    [
-        phoneNumber : MobileIdFixture.samplePhoneNumber,
-        personalCode: MobileIdFixture.sampleIdCode
-    ]
+  def "POST /v1/tokens with valid handover jwt should return an access token"() {
+    given:
+    def grantType = PARTNER
+    def handoverJwt = "validHandoverJwt"
+    def accessToken = "validAccessToken"
+    authService.authenticate(PARTNER, handoverJwt) >> accessToken
+
+    when:
+    def result = mockMvc.perform(post("/v1/tokens")
+        .param("grant_type", grantType.name())
+        .param("authenticationHash", handoverJwt))
+
+    then:
+    result
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.access_token', is(accessToken)))
   }
 
   private static sampleMobileIdAuthenticateCommand() {

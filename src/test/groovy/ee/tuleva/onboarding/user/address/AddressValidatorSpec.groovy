@@ -12,12 +12,8 @@ class AddressValidatorSpec extends Specification {
         expect:
         addressValidator.isValid(address, null) == isValid
         where:
-        address                                                                                            | isValid
-        new Address(street: "Telliskivi 60", districtCode: "0037", postalCode: "10149", countryCode: "EE") | true
-        new Address(street: null, districtCode: "0037", postalCode: "10149", countryCode: "EE")            | false
-        new Address(street: "Telliskivi 60", districtCode: null, postalCode: "10149", countryCode: "EE")   | false
-        new Address(street: "Telliskivi 60", districtCode: "0037", postalCode: null, countryCode: "EE")    | false
-        new Address(street: "Telliskivi 60", districtCode: "0037", postalCode: "10149", countryCode: null) | false
-        new Address(street: "Abbey Road 3", districtCode: null, postalCode: "NW8 9AY", countryCode: "UK")  | true
+        address                         | isValid
+        new Address(countryCode: "EE")  | true
+        new Address(countryCode: "")    | false
     }
 }

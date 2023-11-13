@@ -34,10 +34,7 @@ class ContactDetailsServiceSpec extends Specification {
     }, { contactDetails ->
       contactDetails.email == user.email
       contactDetails.phoneNumber == user.phoneNumber
-      contactDetails.addressRow1 == address.street
       contactDetails.country == address.countryCode
-      contactDetails.districtCode == address.districtCode
-      contactDetails.postalIndex == address.postalCode
     })
     1 * eventPublisher.publishEvent(_ as ContactDetailsUpdatedEvent)
   }

@@ -9,10 +9,7 @@ public class AddressValidator implements ConstraintValidator<ValidAddress, Addre
 
   @Override
   public boolean isValid(Address address, ConstraintValidatorContext context) {
-    return isNotBlank(address.getStreet())
-        && isNotBlank(address.getPostalCode())
-        && (address.isEstonian() && isNotBlank(address.getDistrictCode())
-            || isNotBlank(address.getCountryCode()) && !address.isEstonian());
+    return isNotBlank(address.getCountryCode());
   }
 
   @Override

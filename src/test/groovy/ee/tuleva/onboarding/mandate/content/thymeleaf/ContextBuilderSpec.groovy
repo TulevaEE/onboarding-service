@@ -161,10 +161,6 @@ class ContextBuilderSpec extends Specification {
         .address(address)
         .build()
     then:
-    context.getVariable("addressLine1") == address.street
-    context.getVariable("addressLine2") == null
     context.getVariable("countryCode") == address.countryCode
-    context.getVariable("postCode") == address.postalCode
-    context.getVariable("districtName") == address.districtCode
   }
 }

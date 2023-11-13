@@ -49,9 +49,6 @@ class MandateControllerSpec extends BaseControllerSpec {
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.futureContributionFundIsin', is(mandate.futureContributionFundIsin.get())))
         .andExpect(jsonPath('$.pillar', is(mandate.pillar)))
-        .andExpect(jsonPath('$.address.street', is(mandate.address.street)))
-        .andExpect(jsonPath('$.address.districtCode', is(mandate.address.districtCode)))
-        .andExpect(jsonPath('$.address.postalCode', is(mandate.address.postalCode)))
         .andExpect(jsonPath('$.address.countryCode', is(mandate.address.countryCode)))
         .andExpect(
             jsonPath('$.fundTransferExchanges[0].sourceFundIsin', is(mandate.fundTransferExchanges[0].sourceFundIsin)))

@@ -228,9 +228,6 @@ class EpisServiceIntSpec extends Specification {
                 }
               ],
               "address": {
-                "street": "${address.street}",
-                "districtCode": "${address.districtCode}",
-                "postalCode": "${address.postalCode}",
                 "countryCode": "${address.countryCode}"
               },
               "email": "${mandate.email}",

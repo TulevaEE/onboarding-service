@@ -38,13 +38,7 @@ public class UserResponse {
   public static UserResponse from(@NotNull User user, @NotNull ContactDetails contactDetails) {
     return responseBuilder(user)
         .pensionAccountNumber(contactDetails.getPensionAccountNumber())
-        .address(
-            Address.builder()
-                .street(contactDetails.getAddressRow1())
-                .districtCode(contactDetails.getDistrictCode())
-                .postalCode(contactDetails.getPostalIndex())
-                .countryCode(contactDetails.getCountry())
-                .build())
+        .address(Address.builder().countryCode(contactDetails.getCountry()).build())
         .secondPillarPikNumber(contactDetails.getActiveSecondPillarFundPik())
         .isSecondPillarActive(contactDetails.isSecondPillarActive())
         .isThirdPillarActive(contactDetails.isThirdPillarActive())

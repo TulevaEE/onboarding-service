@@ -735,7 +735,7 @@ fund_transfer=[
       <tbody>
         <tr class="c34">
           <td class="c27" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3">Telliskivi 123</span></p>
+            <p class="c0"><span class="c3"></span></p>
           </td>
           <td class="c35" colspan="2" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
@@ -752,10 +752,10 @@ fund_transfer=[
         </tr>
         <tr class="c7">
           <td class="c27" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5">0123</span></p>
+            <p class="c0"><span class="c5"></span></p>
           </td>
           <td class="c23" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5">99999</span></p>
+            <p class="c0"><span class="c5"></span></p>
           </td>
           <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c5">US</span></p>
@@ -802,15 +802,14 @@ fund_transfer=[
             <p class="c14"><span class="c5">Elektrooniliselt</span></p>
           </td>
           <td class="c26" colspan="1" rowspan="1">
-            <p class="c0">
-                <span class="c5">X</span></p>
+            <p class="c0"> X
+            </p>
           </td>
           <td class="c21" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Postiga</span></p>
           </td>
           <td class="c13" colspan="1" rowspan="1">
             <p class="c0">
-                <span class="c5"></span>
             </p>
           </td>
           <td class="c38" colspan="1" rowspan="1">
@@ -1708,7 +1707,7 @@ future_contributions=[
       <tbody>
         <tr class="c13">
           <td class="c26" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0">Telliskivi 123</span></p>
+            <p class="c5 c8"><span class="c0"></span></p>
           </td>
           <td class="c34" colspan="2" rowspan="1">
             <p class="c5 c8"><span class="c0"></span></p>
@@ -1724,10 +1723,10 @@ future_contributions=[
         </tr>
         <tr class="c23">
           <td class="c26" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1">0123</span></p>
+            <p class="c5 c8"><span class="c1"></span></p>
           </td>
           <td class="c16" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1">99999</span></p>
+            <p class="c5 c8"><span class="c1"></span></p>
           </td>
           <td class="c7" colspan="1" rowspan="1">
             <p class="c5 c8"><span class="c1">US</span></p>
@@ -1775,14 +1774,14 @@ future_contributions=[
             <p class="c5"><span class="c1">Elektrooniliselt</span></p>
           </td>
           <td class="c21" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1">X</span>
+            <p class="c5 c8">X
             </p>
           </td>
           <td class="c29" colspan="1" rowspan="1">
             <p class="c5"><span class="c1">Postiga</span></p>
           </td>
           <td class="c4" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c1"></span>
+            <p class="c5 c8">
             </p>
           </td>
           <td class="c9" colspan="1" rowspan="1">
@@ -2737,7 +2736,7 @@ mandate_cancellation=[
       <tbody>
         <tr class="c34">
           <td class="c27" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3">Telliskivi 123</span></p>
+            <p class="c0"><span class="c3"></span></p>
           </td>
           <td class="c35" colspan="2" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
@@ -2754,10 +2753,10 @@ mandate_cancellation=[
         </tr>
         <tr class="c7">
           <td class="c27" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5">0123</span></p>
+            <p class="c0"><span class="c5"></span></p>
           </td>
           <td class="c23" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5">99999</span></p>
+            <p class="c0"><span class="c5"></span></p>
           </td>
           <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c5">US</span></p>
@@ -2804,15 +2803,13 @@ mandate_cancellation=[
             <p class="c14"><span class="c5">Elektrooniliselt</span></p>
           </td>
           <td class="c26" colspan="1" rowspan="1">
-            <p class="c0">
-                <span class="c5">X</span></p>
+            <p class="c0">X</p>
           </td>
           <td class="c21" colspan="1" rowspan="1">
             <p class="c14"><span class="c5">Postiga</span></p>
           </td>
           <td class="c13" colspan="1" rowspan="1">
             <p class="c0">
-                <span class="c5"></span>
             </p>
           </td>
           <td class="c38" colspan="1" rowspan="1">

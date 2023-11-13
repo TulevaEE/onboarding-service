@@ -46,9 +46,6 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
         .andExpect(jsonPath('$.memberNumber', is(nullValue())))
         .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
-        .andExpect(jsonPath('$.address.street', is(contactDetails.addressRow1)))
-        .andExpect(jsonPath('$.address.districtCode', is(contactDetails.districtCode)))
-        .andExpect(jsonPath('$.address.postalCode', is(contactDetails.postalIndex)))
         .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
         .andExpect(jsonPath('$.secondPillarActive', is(contactDetails.secondPillarActive)))
         .andExpect(jsonPath('$.thirdPillarActive', is(contactDetails.thirdPillarActive)))
@@ -76,9 +73,6 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
         .andExpect(jsonPath('$.memberNumber', is(user.memberOrThrow.memberNumber)))
         .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
-        .andExpect(jsonPath('$.address.street', is(contactDetails.addressRow1)))
-        .andExpect(jsonPath('$.address.districtCode', is(contactDetails.districtCode)))
-        .andExpect(jsonPath('$.address.postalCode', is(contactDetails.postalIndex)))
         .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
   }
 
@@ -129,9 +123,6 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.phoneNumber', is("5555555")))
         .andExpect(jsonPath('$.age', isA(Integer)))
         .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
-        .andExpect(jsonPath('$.address.street', is(address.street)))
-        .andExpect(jsonPath('$.address.districtCode', is(address.districtCode)))
-        .andExpect(jsonPath('$.address.postalCode', is(address.postalCode)))
         .andExpect(jsonPath('$.address.countryCode', is(address.countryCode)))
   }
 

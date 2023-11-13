@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
-import ee.tuleva.onboarding.auth.mobileid.MobileIDSession
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
@@ -50,9 +49,6 @@ class MandateControllerSpec extends BaseControllerSpec {
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.futureContributionFundIsin', is(mandate.futureContributionFundIsin.get())))
         .andExpect(jsonPath('$.pillar', is(mandate.pillar)))
-        .andExpect(jsonPath('$.address.street', is(mandate.address.street)))
-        .andExpect(jsonPath('$.address.districtCode', is(mandate.address.districtCode)))
-        .andExpect(jsonPath('$.address.postalCode', is(mandate.address.postalCode)))
         .andExpect(jsonPath('$.address.countryCode', is(mandate.address.countryCode)))
         .andExpect(
             jsonPath('$.fundTransferExchanges[0].sourceFundIsin', is(mandate.fundTransferExchanges[0].sourceFundIsin)))

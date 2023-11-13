@@ -8,10 +8,7 @@ class AddressFixture {
 
   static AddressBuilder addressFixture() {
     return builder()
-        .street("Telliskivi 123")
         .countryCode("US")
-        .postalCode("99999")
-        .districtCode("0123")
   }
 
   static anAddress = addressFixture().build()

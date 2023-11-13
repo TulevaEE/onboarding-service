@@ -95,10 +95,7 @@ public class ContextBuilder {
   }
 
   public ContextBuilder address(Address address) {
-    ctx.setVariable("addressLine1", address.getStreet());
     ctx.setVariable("countryCode", address.getCountryCode());
-    ctx.setVariable("postCode", address.getPostalCode());
-    ctx.setVariable("districtName", address.getDistrictCode());
     return this;
   }
 }

@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
 import org.springframework.http.MediaType
 
-import static ee.tuleva.onboarding.conversion.ConversionResponse.*
+import static ee.tuleva.onboarding.conversion.ConversionResponse.Conversion
 import static org.hamcrest.Matchers.*
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*

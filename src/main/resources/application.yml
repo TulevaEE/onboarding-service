@@ -174,10 +174,6 @@ server:
     session.cookie.domain: tuleva.ee # for session sharing across sub-domains
   port: 5000
 
-ssl:
-  keystore: /home/webapp/keystore.p12
-  keystore.password: ${SSL_KEYSTORE_PASSWORD}
-
 jwt:
   keystore: "file:/jwt-keystore.p12"
   keystore-password: ${JWT_KEYSTORE_PASSWORD}

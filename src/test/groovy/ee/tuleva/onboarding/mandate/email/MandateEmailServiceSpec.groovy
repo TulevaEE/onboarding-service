@@ -13,7 +13,7 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
-import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
+import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
@@ -39,7 +39,7 @@ class MandateEmailServiceSpec extends Specification {
   def "Send second pillar mandate email"() {
     given:
     def user = sampleUser().build()
-    def conversion = notFullyConverted()
+    def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
     def mandate = sampleMandate()
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
@@ -156,7 +156,7 @@ class MandateEmailServiceSpec extends Specification {
   def "Sends two third pillar emails"() {
     given:
     def user = sampleUser().build()
-    def conversion = notFullyConverted()
+    def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
     emailService.newMandrillMessage(*_) >> new MandrillMessage()

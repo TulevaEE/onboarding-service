@@ -14,36 +14,35 @@ class PillarSuggestionSpec extends Specification {
   def "suggests second pillar"() {
     when:
     contactDetails.isSecondPillarActive() >> secondPillarActive
-    conversion.isSecondPillarFullyConverted() >> secondPillarConverted
-    conversion.isSecondPillarSelected() >> secondPillarSelected
+    conversion.isSecondPillarPartiallyConverted() >> secondPillarPartiallyConverted
     def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
 
     then:
     pillarSuggestion.isSuggestPillar() == suggestPillar
 
     where:
-    secondPillarActive | secondPillarConverted | secondPillarSelected | suggestPillar
-    false              | false                 | false                | true
-    true               | false                 | false                | true
-    true               | false                 | true                 | false
-    true               | true                  | true                 | false
+    secondPillarActive | secondPillarPartiallyConverted | suggestPillar
+    false              | false                          | true
+    true               | false                          | true
+    false              | true                           | true
+    true               | true                           | false
   }
 
   def "suggests third pillar"() {
     when:
     contactDetails.isThirdPillarActive() >> thirdPillarActive
-    conversion.isThirdPillarFullyConverted() >> thirdPillarConverted
+    conversion.isThirdPillarPartiallyConverted() >> thirdPillarPartiallyConverted
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
 
     then:
     pillarSuggestion.isSuggestPillar() == suggestPillar
 
     where:
-    thirdPillarActive | thirdPillarConverted | suggestPillar
-    false             | false                | true
-    true              | false                | true
-    false             | true                 | true
-    true              | true                 | false
+    thirdPillarActive | thirdPillarPartiallyConverted | suggestPillar
+    false             | false                         | true
+    true              | false                         | true
+    false             | true                          | true
+    true              | true                          | false
   }
 
   def "suggests membership"() {

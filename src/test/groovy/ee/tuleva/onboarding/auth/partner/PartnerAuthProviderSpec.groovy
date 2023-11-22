@@ -1,28 +1,32 @@
 package ee.tuleva.onboarding.auth.partner
 
-import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil
+
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.PersonImpl
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import io.jsonwebtoken.Jwts
+import org.springframework.core.io.ByteArrayResource
+import org.springframework.core.io.Resource
 import spock.lang.Specification
 
+import java.security.PublicKey
+import java.security.interfaces.RSAPublicKey
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 
 import static ee.tuleva.onboarding.auth.GrantType.*
-import static ee.tuleva.onboarding.auth.KeyStoreFixture.*
+import static ee.tuleva.onboarding.auth.KeyStoreFixture.getKeyPair
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static java.time.temporal.ChronoUnit.HOURS
 
 class PartnerAuthProviderSpec extends Specification {
 
-  Clock clock = Clock.fixed(Instant.EPOCH, ZoneId.of("UTC"))
-  JwtTokenUtil jwtTokenUtil = new JwtTokenUtil(keyStore(), keyStorePassword, clock)
-  PrincipalService principalService = Mock()
 
-  PartnerAuthProvider partnerAuthProvider = new PartnerAuthProvider(jwtTokenUtil, principalService)
+  private Resource partnerPublicKey = publicKeyToResource(keyPair.public)
+  Clock clock = Clock.fixed(Instant.EPOCH, ZoneId.of("UTC"))
+  PrincipalService principalService = Mock()
+  PartnerAuthProvider partnerAuthProvider = new PartnerAuthProvider(partnerPublicKey, clock, principalService)
 
   def "support PARTNER grant type"() {
     expect:
@@ -66,5 +70,18 @@ class PartnerAuthProviderSpec extends Specification {
         .userId(sampleUserId)
         .attributes([:])
         .build()
+  }
+
+  private Resource publicKeyToResource(PublicKey publicKey) {
+    String pem = publicKeyToPemFormat(publicKey)
+    byte[] pemBytes = pem.getBytes()
+    return new ByteArrayResource(pemBytes)
+  }
+
+  private String publicKeyToPemFormat(PublicKey publicKey) {
+    RSAPublicKey rsaPublicKey = (RSAPublicKey) publicKey
+    byte[] encodedKey = rsaPublicKey.getEncoded()
+    String base64Encoded = Base64.getEncoder().encodeToString(encodedKey)
+    return "-----BEGIN PUBLIC KEY-----\n" + base64Encoded + "\n-----END PUBLIC KEY-----\n"
   }
 }

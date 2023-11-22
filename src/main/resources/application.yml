@@ -83,6 +83,9 @@ jwt:
   keystore: "classpath:test-jwt-keystore.p12"
   keystore-password: "Kalamaja123"
 
+partner:
+  publicKey: "classpath:test-partner-public-key.pem"
+
 logging:
   level:
     ee:
@@ -177,6 +180,9 @@ server:
 jwt:
   keystore: "file:/jwt-keystore.p12"
   keystore-password: ${JWT_KEYSTORE_PASSWORD}
+
+partner:
+  publicKey: "file:/partner-public-key.pem"
 
 mobile-id:
   hostUrl: "https://mid.sk.ee/mid-api"

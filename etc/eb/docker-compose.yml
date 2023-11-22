@@ -5,9 +5,9 @@ services:
     ports:
       - 5000:5000
     volumes:
-      - /home/webapp/keystore.p12:/keystore.p12
       - /home/webapp/truststore.jks:/truststore.jks
       - /home/webapp/jwt-keystore.p12:/jwt-keystore.p12
+      - /home/webapp/partner-public-key.pem:/partner-public-key.pem
     env_file:
       - .env
 

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.auth.partner
 
-
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.auth.principal.PersonImpl

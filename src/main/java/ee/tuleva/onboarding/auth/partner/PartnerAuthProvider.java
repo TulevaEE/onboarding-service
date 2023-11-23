@@ -74,7 +74,8 @@ public class PartnerAuthProvider implements AuthProvider {
     String key = new String(publicKeyBytes);
     String publicKeyPEM =
         key.replace("-----BEGIN PUBLIC KEY-----", "")
-            .replaceAll(System.lineSeparator(), "")
+            .replaceAll("\r", "")
+            .replaceAll("\n", "")
             .replace("-----END PUBLIC KEY-----", "");
 
     byte[] encodedKey = Base64.getDecoder().decode(publicKeyPEM);

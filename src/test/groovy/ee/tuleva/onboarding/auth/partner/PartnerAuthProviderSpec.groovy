@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.auth.partner
 
-
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.PersonImpl
 import ee.tuleva.onboarding.auth.principal.PrincipalService
@@ -82,6 +81,6 @@ class PartnerAuthProviderSpec extends Specification {
     RSAPublicKey rsaPublicKey = (RSAPublicKey) publicKey
     byte[] encodedKey = rsaPublicKey.getEncoded()
     String base64Encoded = Base64.getEncoder().encodeToString(encodedKey)
-    return "-----BEGIN PUBLIC KEY-----\n" + base64Encoded + "\n-----END PUBLIC KEY-----\n"
+    return "-----BEGIN PUBLIC KEY-----\r\n" + base64Encoded + "\r\n-----END PUBLIC KEY-----\r\n"
   }
 }

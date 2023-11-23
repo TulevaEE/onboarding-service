@@ -64,7 +64,7 @@ public class EmailService {
     message.setImportant(true);
     message.setTrackClicks(true);
     message.setTrackOpens(true);
-    message.setGoogleAnalyticsDomains(List.of("tuleva.ee"));
+    message.setGoogleAnalyticsDomains(List.of("tuleva.ee", "pension.tuleva.ee"));
     message.setGoogleAnalyticsCampaign(templateName);
 
     return message;

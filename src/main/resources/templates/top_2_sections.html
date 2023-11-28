@@ -1,0 +1,137 @@
+<style type="text/css">
+  * {
+    margin: 0;
+    padding: 0;
+    text-indent: 0;
+  }
+
+  p {
+    color: black;
+    font-family: "Times New Roman", serif;
+    font-style: normal;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 10pt;
+    margin: 0pt;
+  }
+
+  .s2 {
+    color: black;
+    font-family: "Times New Roman", serif;
+    font-style: normal;
+    font-weight: normal;
+    text-decoration: none;
+    font-size: 10pt;
+  }
+
+  li {
+    display: block;
+  }
+
+  #l1 > li > *:first-child:before {
+    counter-increment: c1;
+    content: counter(c1, decimal) ". ";
+    color: black;
+    font-family: "Times New Roman", serif;
+    font-style: normal;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 10pt;
+  }
+
+  #l1 > li:first-child > *:first-child:before {
+    counter-increment: c1 0;
+  }
+
+  #l2 > li > *:first-child:before {
+    counter-increment: c2;
+    content: counter(c2, decimal) ") ";
+    color: black;
+    font-family: "Times New Roman", serif;
+    font-style: normal;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 10pt;
+  }
+
+  #l2 > li:first-child > *:first-child:before {
+    counter-increment: c2 0;
+  }
+
+  .empty-span {
+    padding: 5pt 5pt 5pt 5pt;
+  }
+
+  table, tbody {
+    width: 100%;
+    vertical-align: top;
+    overflow: visible;
+  }
+
+  td,
+  th {
+    border: 1px solid black;
+    min-width: 15px;
+  }
+</style>
+
+<!-- Section 1: Avalduse esitaja -->
+<p style="padding-left: 0pt;text-indent: 0pt;text-align: left;">1. Avalduse esitaja</p>
+<table style="border-collapse:collapse;margin-left:0pt" cellspacing="0">
+  <!-- First row with variables -->
+  <tr style="height:22pt">
+    <td ><p ><span th:text="${idCode}"></span></p></td>
+    <td ><p ><span th:text="${countryCode}"></span></p></td>
+  </tr>
+  <!-- Labels for first row -->
+  <tr style="height:22pt">
+    <td ><p class="s2" >Isikukood</p></td>
+    <td ><p class="s2" >Alalise / peamise elukoha riik</p></td>
+  </tr>
+  <!-- Second row with variables -->
+  <tr style="height:22pt">
+    <td ><p ><span th:text="${firstName}"></span></p></td>
+    <td ><p ><span th:text="${lastName}"></span></p></td>
+  </tr>
+  <!-- Labels for second row -->
+  <tr style="height:22pt">
+    <td ><p class="s2" >Eesnimi</p></td>
+    <td ><p class="s2" >Perekonnanimi</p></td>
+  </tr>
+  <!-- Third row with variables -->
+  <tr style="height:22pt">
+    <td ><p ><span th:text="${phoneNumber}"></span></p></td>
+    <td ><p ><span th:text="${email}"></span></p></td>
+  </tr>
+  <!-- Labels for third row -->
+  <tr style="height:22pt">
+    <td ><p class="s2" >Kontakttelefon</p></td>
+    <td ><p class="s2" >E-posti aadress</p></td>
+  </tr>
+</table>
+<p class="c0"><span class="empty-span"></span></p>
+
+<!-- Section 2: Isiku eelistused -->
+<p style="padding-left: 0pt;text-indent: 0pt;text-align: left;">2. Isiku eelistused</p>
+<table style="border-collapse:collapse;margin-left:0pt" cellspacing="0">
+  <!-- Preference row with variables -->
+  <tr style="height:26pt">
+    <td  colspan="5"><p class="s2" >Soovin pensioniregistri teatist pensionikonto jäägi kohta</p></td>
+    <td ><p ><span th:text="${contactDetails.noticeNeeded.equalsIgnoreCase('Y') ? 'X' : '' }"></span></p></td>
+  </tr>
+  <tr>
+    <td>
+      <p class="s2">Keel</p>
+    </td>
+  </tr>
+  <!-- Language selection rows with variables -->
+  <tr style="height:26pt">
+    <td ><p class="s2" >Eesti keel</p></td>
+    <td ><p ><span th:text="${contactDetails.languagePreference.toString().equalsIgnoreCase('EST') ? 'X' : ''}"></span></p></td>
+    <td ><p class="s2" >Vene keel</p></td>
+    <td ><p ><span th:text="${contactDetails.languagePreference.toString().equalsIgnoreCase('RUS') ? 'X' : ''}"></span></p></td>
+    <td ><p class="s2" >Inglise keel</p></td>
+    <td ><p ><span th:text="${contactDetails.languagePreference.toString().equalsIgnoreCase('ENG') ? 'X' : ''}"></span></p></td>
+  </tr>
+</table>
+<p class="c0"><span class="empty-span"></span></p>

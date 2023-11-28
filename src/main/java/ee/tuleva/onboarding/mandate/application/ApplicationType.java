@@ -9,7 +9,9 @@ public enum ApplicationType {
   EARLY_WITHDRAWAL("Raha väljavõtmise avaldus"), // 2nd pillar
   WITHDRAWAL("Ühekordse väljamakse avaldus"), // 2nd pillar
   CANCELLATION("Avalduse tühistamise avaldus"), // 2nd pillar, to cancel EARLY_WITHDRAWAL/WITHDRAWAL
-  PAYMENT("Sissemakse"), // 3rd pillar contribution payment
+  PAYMENT("Sissemakse"), // 3rd pillar contribution payment,
+
+  RATE("Sissemaksete määra muutmine")
   ;
 
   public final String nameEstonian;

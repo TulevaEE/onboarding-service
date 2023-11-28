@@ -1,0 +1,434 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Ületoomise avaldus</title>
+  <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
+
+  <style type="text/css">ol {
+    margin: 0;
+    padding: 0
+  }
+
+  table td, table th {
+    padding: 0
+  }
+
+  .c2 {
+    border-right-style: solid;
+    padding: 5pt 5pt 5pt 5pt;
+    border-bottom-color: #000000;
+    border-top-width: 1pt;
+    border-right-width: 1pt;
+    border-left-color: #000000;
+    vertical-align: top;
+    border-right-color: #000000;
+    border-left-width: 1pt;
+    border-top-style: solid;
+    border-left-style: solid;
+    border-bottom-width: 1pt;
+    width: 156pt;
+    border-top-color: #000000;
+    border-bottom-style: solid
+  }
+
+  .c19 {
+    border-right-style: solid;
+    padding: 5pt 5pt 5pt 5pt;
+    border-bottom-color: #000000;
+    border-top-width: 1pt;
+    border-right-width: 1pt;
+    border-left-color: #000000;
+    vertical-align: top;
+    border-right-color: #000000;
+    border-left-width: 1pt;
+    border-top-style: solid;
+    border-left-style: solid;
+    border-bottom-width: 1pt;
+    width: 234pt;
+    border-top-color: #000000;
+    border-bottom-style: solid
+  }
+
+  .c22 {
+    border-right-style: solid;
+    padding: 5pt 5pt 5pt 5pt;
+    border-bottom-color: #000000;
+    border-top-width: 1pt;
+    border-right-width: 1pt;
+    border-left-color: #000000;
+    vertical-align: top;
+    border-right-color: #000000;
+    border-left-width: 1pt;
+    border-top-style: solid;
+    border-left-style: solid;
+    border-bottom-width: 1pt;
+    width: 468pt;
+    border-top-color: #000000;
+    border-bottom-style: solid
+  }
+
+  .c37 {
+    color: #000000;
+    font-weight: 400;
+    text-decoration: none;
+    vertical-align: baseline;
+    font-size: 11pt;
+    font-family: "Arial";
+    font-style: normal
+  }
+
+  .c5 {
+    color: #000000;
+    font-weight: 400;
+    text-decoration: none;
+    vertical-align: baseline;
+    font-size: 11pt;
+    font-family: "Times New Roman";
+    font-style: normal
+  }
+
+  .c3 {
+    color: #000000;
+    font-weight: 700;
+    text-decoration: none;
+    vertical-align: baseline;
+    font-size: 11pt;
+    font-family: "Times New Roman";
+    font-style: normal
+  }
+
+  .c18 {
+    padding-top: 0pt;
+    padding-bottom: 0pt;
+    line-height: 1.15;
+    orphans: 2;
+    widows: 2;
+    text-align: left;
+    height: 11pt
+  }
+
+  .c0 {
+    padding-top: 0pt;
+    padding-bottom: 0pt;
+    line-height: 1.0;
+    text-align: left;
+    height: 11pt
+  }
+
+  .c16 {
+    color: #000000;
+    text-decoration: none;
+    vertical-align: baseline;
+    font-size: 12pt;
+    font-style: normal
+  }
+
+  .c12 {
+    padding-top: 0pt;
+    padding-bottom: 0pt;
+    line-height: 0.8416666666666667;
+    text-align: right
+  }
+
+  .c31 {
+    padding-top: 0pt;
+    padding-bottom: 0pt;
+    line-height: 0.9958333333333332;
+    text-align: center
+  }
+
+  .c15 {
+    border-spacing: 0;
+    border-collapse: collapse;
+    margin-right: auto
+  }
+
+  .c14 {
+    padding-top: 0pt;
+    padding-bottom: 0pt;
+    line-height: 1.0;
+    text-align: left
+  }
+
+  .c32 {
+    background-color: #ffffff;
+    max-width: 468pt;
+    padding: 72pt 72pt 72pt 72pt
+  }
+
+  .c6 {
+    font-weight: 400;
+    font-family: "Times New Roman"
+  }
+
+  .c1 {
+    height: 0pt
+  }
+
+  .c28 {
+    height: 11pt
+  }
+
+  .c34 {
+    height: 20pt
+  }
+
+  li {
+    color: #000000;
+    font-size: 11pt;
+    font-family: "Arial"
+  }
+
+  p {
+    margin: 0;
+    color: #000000;
+    font-size: 11pt;
+    font-family: "Arial"
+  }
+
+  h1 {
+    padding-top: 20pt;
+    color: #000000;
+    font-size: 20pt;
+    padding-bottom: 6pt;
+    font-family: "Arial";
+    line-height: 1.15;
+    page-break-after: avoid;
+    orphans: 2;
+    widows: 2;
+    text-align: left
+  }
+
+  h2 {
+    padding-top: 18pt;
+    color: #000000;
+    font-size: 16pt;
+    padding-bottom: 6pt;
+    font-family: "Arial";
+    line-height: 1.15;
+    page-break-after: avoid;
+    orphans: 2;
+    widows: 2;
+    text-align: left
+  }
+
+  h3 {
+    padding-top: 16pt;
+    color: #434343;
+    font-size: 14pt;
+    padding-bottom: 4pt;
+    font-family: "Arial";
+    line-height: 1.15;
+    page-break-after: avoid;
+    orphans: 2;
+    widows: 2;
+    text-align: left
+  }
+
+  h4 {
+    padding-top: 14pt;
+    color: #666666;
+    font-size: 12pt;
+    padding-bottom: 4pt;
+    font-family: "Arial";
+    line-height: 1.15;
+    page-break-after: avoid;
+    orphans: 2;
+    widows: 2;
+    text-align: left
+  }
+
+  h5 {
+    padding-top: 12pt;
+    color: #666666;
+    font-size: 11pt;
+    padding-bottom: 4pt;
+    font-family: "Arial";
+    line-height: 1.15;
+    page-break-after: avoid;
+    orphans: 2;
+    widows: 2;
+    text-align: left
+  }
+
+  h6 {
+    padding-top: 12pt;
+    color: #666666;
+    font-size: 11pt;
+    padding-bottom: 4pt;
+    font-family: "Arial";
+    line-height: 1.15;
+    page-break-after: avoid;
+    font-style: italic;
+    orphans: 2;
+    widows: 2;
+    text-align: left
+  }</style>
+
+
+</head>
+<body class="c32">
+<div>
+  <p class="c18"><span class="c37"></span></p>
+</div>
+<p class="c12"><span class="c5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+</p>
+<p class="c12"><span class="c5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+</p>
+<p class="c12"><span class="c6">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span
+    class="c16 c6">Pensionikeskuse vorm</span></p>
+<p class="c12 c28"><span class="c5"></span></p>
+<p class="c18"><span class="c5"></span></p>
+<p class="c18"><span class="c5"></span></p>
+<p class="c31"><span class="c6">KOHUSTULIKU KOGUMISPENSIONI SISSEMAKSETE MÄÄRA MUUTMISE AVALDUS nr <span th:text="${documentNumber}"></span></span></p>
+<p class="c0"><span class="c5"></span></p>
+
+<div th:insert="top_2_sections" th:remove="tag"></div>
+
+<!--MARK1-->
+<p class="c14"><span class="c3">3. Makse määr</span></p>
+<p class="c0"><span class="c3"></span></p>
+<a id="t.d6fdd94d45e9e36ceb8ba0e486558ebd2e046b42"></a><a id="t.3"></a>
+
+<table class="c15">
+  <tbody>
+  <tr class="c1">
+    <td colspan="1" rowspan="1">
+      <p><span class="c5">
+        Valitud uus makse määr protsentides kogumispensionide seaduses
+        nimetatud tasudelt
+        NB! Lubatud väärtus: 2, 4 või 6
+      </span></p>
+    </td>
+    <td class="c19" colspan="1" rowspan="1">
+      <p class="c0"><span class="c5" th:text="${newPaymentRate}"></span>%</p>
+    </td>
+  </tr>
+  </tbody>
+</table>
+<p class="c0"><span class="c3"></span></p>
+<p class="c14"><span class="c3">Olen teadlik, et</span></p>
+<p class="c0"><span class="c3"></span></p>
+<div style="padding-left: 20px">
+  <p class="c14"><span class="c3">1) käesoleva avalduse esitamisega hiljemalt 30. novembril, kohustun tasuma kohustusliku
+kogumispensioni makset kogumispensionide seaduses sätestatud tasudelt avaldusel
+märgitud määras alates avalduse esitamise aastale järgneva aasta 1. jaanuarist;</span>
+  </p>
+  <p class="c0"><span class="c3"></span></p>
+  <p class="c14"><span class="c3">2)  esitatud avaldust saab muuta kogumispensionide seaduses sätestatud avalduse esitamise
+perioodi lõpuni, esitades selleks uue makse määra muutmise avalduse;</span></p>
+  <p class="c0"><span class="c3"></span></p>
+  <p class="c14"><span class="c3">3)  pärast kogumispensionide seaduses sätestatud perioodi lõppu esitatud makse määra
+muutmise avaldus jõustub järgmise avalduse esitamise perioodile järgneva aasta 1.
+jaanuarist.</span></p>
+</div>
+<p class="c0"><span class="c3"></span></p>
+<p class="c3">
+  Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja
+  väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.
+  NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
+  Pensionikeskus veebilehel.
+</p>
+<p class="c0"><span class="c3"></span></p>
+<a id="t.b2831fb258baf4dfb1c91996f8b9ea52c86b598f"></a><a id="t.4"></a>
+<table class="c15">
+  <tbody>
+  <tr class="c1">
+    <td class="c19" colspan="1" rowspan="1">
+      <p class="c0"><span class="c5" th:text="${documentDatePPKKAAAA}"></span></p>
+    </td>
+    <td class="c19" colspan="1" rowspan="1">
+      <p class="c0"><span class="c3"></span></p>
+    </td>
+  </tr>
+  <tr class="c1">
+    <td class="c19" colspan="1" rowspan="1">
+      <p class="c14"><span class="c5">Kuup&auml;ev (pp.kk.aaaa)</span></p>
+    </td>
+    <td class="c19" colspan="1" rowspan="1">
+      <p class="c14"><span class="c5">Allkiri</span></p>
+    </td>
+  </tr>
+  </tbody>
+</table>
+<p class="c0"><span class="c3"></span></p>
+<p class="c14"><span class="c3">4. Seadusliku esindaja andmed&sup1;</span></p>
+<p class="c0"><span class="c3"></span></p>
+<a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
+<table class="c15">
+  <tbody>
+  <tr class="c34">
+    <td class="c22" colspan="3" rowspan="1">
+      <p class="c14"><span class="c3">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
+    </td>
+  </tr>
+  <tr class="c1">
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c0"><span class="c3"></span></p>
+    </td>
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c0"><span class="c3"></span></p>
+    </td>
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c0"><span class="c3"></span></p>
+    </td>
+  </tr>
+  <tr class="c1">
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c14"><span class="c5">Seadusliku esindaja isikukood</span></p>
+    </td>
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c14"><span class="c5">Ees- ja perekonnanimi</span></p>
+    </td>
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c14"><span class="c5">Seadusliku esindaja allkiri</span></p>
+    </td>
+  </tr>
+  </tbody>
+</table>
+<p class="c0"><span class="c3"></span></p>
+<p class="c14"><span class="c3">5. Volitatud esindaja andmed&sup2;</span></p>
+<p class="c0"><span class="c3"></span></p>
+<a id="t.364bbe539b833f885e6cdf18af613e0e4b587303"></a><a id="t.6"></a>
+<table class="c15">
+  <tbody>
+  <tr class="c1">
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c0"><span class="c3"></span></p>
+    </td>
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c0"><span class="c3"></span></p>
+    </td>
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c0"><span class="c3"></span></p>
+    </td>
+  </tr>
+  <tr class="c1">
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c14"><span class="c5">F&uuml;&uuml;silise isiku puhul tema isikukood</span></p>
+      <p class="c0"><span class="c5"></span></p>
+      <p class="c14"><span class="c5">Juriidilise isiku puhul tema registrikood ja juriidilise isiku esindaja isikukood</span>
+      </p>
+    </td>
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c14"><span class="c5">F&uuml;&uuml;silise isiku puhul tema ees- ja perekonnanimi</span></p>
+      <p class="c0"><span class="c5"></span></p>
+      <p class="c14"><span class="c5">Juriidilise isiku puhul tema &auml;rinimi ning juriidilise isiku esindaja ees- ja perekonnanimi</span>
+      </p>
+    </td>
+    <td class="c2" colspan="1" rowspan="1">
+      <p class="c14"><span class="c5">Avalduse esitaja isikusamasust tuvastanud isiku allkiri</span></p>
+    </td>
+  </tr>
+  </tbody>
+</table>
+<p class="c0"><span class="c3"></span></p>
+<p class="c0"><span class="c3"></span></p>
+<p class="c14"><span class="c5">&sup1; Lahter täidetakse avalduse esitaja seadusliku esindaja poolt, kui tulenevalt õigusaktidest on avalduse esitamine lubatud üksnes seadusliku esindaja poolt või tema nõusolekul.</span>
+</p>
+<p class="c0"><span class="c5"></span></p>
+<p class="c14"><span class="c5">&sup2; Lahter täidetakse, kui avaldus esitatakse muu esindaja kui seadusliku esindaja kaudu.</span>
+</p>
+</body>
+
+</html>

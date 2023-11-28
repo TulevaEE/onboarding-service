@@ -7,6 +7,8 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextBuilder;
 import ee.tuleva.onboarding.user.User;
+
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -85,5 +87,30 @@ class MandateContentService {
             .build();
 
     return templateEngine.process("mandate_cancellation_mandate", ctx);
+  }
+
+  String getRateChangeHtml(
+      User user,
+      Mandate mandate,
+      ContactDetails contactDetails,
+      ApplicationType applicationTypeToCancel,
+      BigDecimal rate
+      ) {
+    String transactionId = UUID.randomUUID().toString();
+    String documentNumber = mandate.getId().toString();
+
+    Context ctx =
+        ContextBuilder.builder()
+            .mandate(mandate)
+            .newPaymentRate(rate)
+            .user(user)
+            .address(mandate.getAddress())
+            .contactDetails(contactDetails)
+            .transactionId(transactionId)
+            .documentNumber(documentNumber)
+            .applicationTypeToCancel(applicationTypeToCancel)
+            .build();
+
+    return templateEngine.process("payment_rate_change", ctx);
   }
 }

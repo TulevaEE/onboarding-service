@@ -4,7 +4,8 @@
     <title>Ületoomise avaldus</title>
     <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
 
-    <style type="text/css">ol {
+    <style type="text/css">
+    ol {
       margin: 0;
       padding: 0
     }
@@ -664,186 +665,19 @@
     <p class="c12"><span class="c5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
     </p>
     <p class="c12"><span class="c6">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span
-        class="c16 c6">Rahandusministri 26. aprilli 2011. a ma&#776;a&#776;ruse nr 25 </span></p>
-    <p class="c12"><span class="c16 c6">&bdquo;Kohustusliku kogumispensioni avalduste vormide </span></p>
-    <p class="c12"><span class="c6 c16">kehtestamine&ldquo; lisa 2</span></p>
-    <p class="c12"><span class="c16 c6">&nbsp;(muudetud so&#771;nastuses) </span></p>
-    <p class="c12"><span class="c5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-    </p>
-    <p class="c12"><span class="c5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-    </p>
-    <p class="c12"><span class="c5">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-    </p>
-    <p class="c12 c28"><span class="c5"></span></p>
+        class="c16 c6">Pensionikeskuse vorm</span></p>
     <p class="c18"><span class="c5"></span></p>
     <p class="c18"><span class="c5"></span></p>
     <p class="c31"><span class="c6">KOHUSTUSLIKU PENSIONIFONDI OSAKUTE VAHETAMISE AVALDUS nr <span
         th:text="${documentNumber}"></span></span></p>
     <p class="c0"><span class="c5"></span></p>
 
-    <p class="c4"><span class="c39">1. Avalduse esitaja</span></p>
-    <p class="c18"><span class="c5"></span></p>
-    <a id="t.712981a4452879ce0099246241239d458bf94b79"></a><a id="t.0"></a>
-    <table class="c15">
-      <tbody>
-        <tr class="c40">
-          <td class="c2" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5" th:text="${idCode}"></span></p>
-          </td>
-          <td class="c2" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5" th:text="${firstName}"></span></p>
-          </td>
-          <td class="c2" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5" th:text="${lastName}"></span></p>
-          </td>
-        </tr>
-        <tr class="c1">
-          <td class="c2" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Isikukood</span></p>
-          </td>
-          <td class="c2" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Eesnimi</span></p>
-          </td>
-          <td class="c2" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Perekonnanimi</span></p>
-          </td>
-        </tr>
-        <tr class="c7">
-          <td class="c2" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5" th:text="${phoneNumber}"></span></p>
-          </td>
-          <td class="c10" colspan="2" rowspan="1">
-            <p class="c0"><span class="c5" th:text="${email}"></span></p>
-          </td>
-        </tr>
-        <tr class="c7">
-          <td class="c2" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Kontakttelefon</span></p>
-          </td>
-          <td class="c10" colspan="2" rowspan="1">
-            <p class="c14"><span class="c5">E-posti aadress</span></p>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <p class="c18"><span class="c5"></span></p>
+    <div th:insert="top_2_sections" th:remove="tag"></div>
 
-    <p class="c14"><span class="c3">2. Aadress</span></p>
-    <p class="c0"><span class="c3"></span></p>
-    <a id="t.e0927e35cdcaed5d1bfd3eb4cb10714eb91b9c37"></a><a id="t.1"></a>
-    <table class="c15">
-      <tbody>
-        <tr class="c34">
-          <td class="c27" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3" th:text="${addressLine1}"></span></p>
-          </td>
-          <td class="c35" colspan="2" rowspan="1">
-            <p class="c0"><span class="c3" th:text="${addressLine2}"></span></p>
-          </td>
-        </tr>
-        <tr class="c34">
-          <td class="c27" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">T&auml;nav, maja- ja/v&otilde;i korteri number, maakohas k&uuml;la</span>
-            </p>
-          </td>
-          <td class="c35" colspan="2" rowspan="1">
-            <p class="c14"><span class="c5">Asula v&otilde;i sidejaoskond</span></p>
-          </td>
-        </tr>
-        <tr class="c7">
-          <td class="c27" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5" th:text="${districtName}"></span></p>
-          </td>
-          <td class="c23" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5" th:text="${postCode}"></span></p>
-          </td>
-          <td class="c2" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5" th:text="${countryCode}"></span></p>
-          </td>
-        </tr>
-        <tr class="c7">
-          <td class="c27" colspan="1" rowspan="1">
-            <p class="c14"><span class="c6">Linn v&otilde;i maakond</span></p>
-          </td>
-          <td class="c23" colspan="1" rowspan="1">
-            <p class="c14"><span class="c6">Sihtnumber</span></p>
-          </td>
-          <td class="c2" colspan="1" rowspan="1">
-            <p class="c14"><span class="c6">Riik</span></p>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <p class="c0"><span class="c3"></span></p>
-    <p class="c14"><span class="c3">3. Isiku eelistused</span></p>
-    <p class="c0"><span class="c3"></span></p>
-    <a id="t.032bcade378b103fe3f95a946ba9f148bbac3d44"></a><a id="t.2"></a>
-    <table class="c15">
-      <tbody>
-        <tr class="c7">
-          <td class="c29" colspan="9" rowspan="1">
-            <p class="c14"><span class="c5">Soovin pensioniregistri teatist pensionikonto j&auml;&auml;gi kohta</span>
-            </p>
-          </td>
-          <td class="c30" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"
-                                th:text="${contactDetails.noticeNeeded.equalsIgnoreCase('Y') ? 'X' : '' }"></span></p>
-          </td>
-        </tr>
-        <tr class="c7">
-          <td class="c36" colspan="4" rowspan="1">
-            <p class="c14"><span class="c5">Teatise esitamise viis</span></p>
-          </td>
-          <td class="c11" colspan="6" rowspan="1">
-            <p class="c14"><span class="c5">Keel</span></p>
-          </td>
-        </tr>
-        <tr class="c1">
-          <td class="c33" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Elektrooniliselt</span></p>
-          </td>
-          <td class="c26" colspan="1" rowspan="1">
-            <p class="c0"> X
-            </p>
-          </td>
-          <td class="c21" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Postiga</span></p>
-          </td>
-          <td class="c13" colspan="1" rowspan="1">
-            <p class="c0">
-            </p>
-          </td>
-          <td class="c38" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Eesti keel</span></p>
-          </td>
-          <td class="c17" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"
-                                th:text="${contactDetails.languagePreference.toString().equalsIgnoreCase('EST') ? 'X' : ''}"></span>
-            </p>
-          </td>
-          <td class="c24" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Vene keel</span></p>
-          </td>
-          <td class="c26" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"
-                                th:text="${contactDetails.languagePreference.toString().equalsIgnoreCase('RUS') ? 'X' : ''}"></span>
-            </p>
-          </td>
-          <td class="c20" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Inglise keel</span></p>
-          </td>
-          <td class="c30" colspan="1" rowspan="1">
-            <p class="c0"><span class="c5"
-                                th:text="${contactDetails.languagePreference.toString().equalsIgnoreCase('ENG') ? 'X' : ''}"></span>
-            </p>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <p class="c0"><span class="c3"></span></p>
-
-    <!--MARK1-->
-    <p class="c14"><span class="c3">4. Kohustusliku pensionifondi nimetus, mille osakuid soovin vahetada ja mille osakud v&otilde;etakse vahetamisel tagasi ning kohustuslik(ud) pensionifond(id), mille osakuid soovin vahetamisel omandada&sup1;</span>
+    <p class="c14"><span class="c3">3. Kohustusliku pensionifondi nimetus, mille osakuid soovin vahetada ja mille osakud võetakse
+vahetamisel tagasi ning kohustuslik(ud) pensionifond(id), mille osakuid soovin vahetamisel omandada
+või pensioni investeerimiskonto number (PIK), millele soovin tagasivõetud osakutest saadud summa
+üle kanda.&sup1;</span>
     </p>
     <p class="c0"><span class="c3"></span></p>
     <a id="t.d6fdd94d45e9e36ceb8ba0e486558ebd2e046b42"></a><a id="t.3"></a>
@@ -855,10 +689,17 @@
             </p>
           </td>
           <td class="c25" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Pensionifondi nimetus, mille osakuid soovin vahetamisel omandada</span></p>
+            <p class="c14"><span class="c5">Pensionifondi nimetus, mille osakuid
+soovin vahetamisel omandada või PIK
+number ja krediidiasutuse või
+krediidiasutuse Eesti filiaali nimi, kus
+PIK on avatud ja kuhu raha kanda</span></p>
           </td>
           <td class="c9" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Osakute vahetamisel tagasiv&otilde;tmisele kuuluvate osakute osakaal, mille eest soovin omandada valitud pensionifondi osakuid (%)</span>
+            <p class="c14"><span class="c5">Osakute vahetamisel
+tagasivõtmisele
+kuuluvate osakute osakaal
+(%)</span>
             </p>
           </td>
         </tr>
@@ -891,51 +732,78 @@
 
 
     <p class="c0"><span class="c3"></span></p>
-    <p class="c14"><span class="c3">Kinnitan, et mul on olnud v&otilde;imalik tutvuda k&otilde;igi registreeritud kohustuslike pensionifondide tingimuste ja emissiooniprospektidega ning n&otilde;ustun minu valitud pensionifondi(de) tingimustega.</span>
+    <p class="c14"><span class="c3">Kinnitan, et mul on olnud võimalik tutvuda kõigi registreeritud kohustuslike pensionifondide tingimuste,
+prospektide ja põhiteabega ning nõustun minu valitud pensionifondi(de) tingimustega või PIK-i(de)
+tingimustega.</span>
     </p>
     <p class="c0"><span class="c3"></span></p>
-    <p class="c14"><span class="c3">Olen teadlik asjaolust, et kohustusliku pensionifondi osakute vahetamise avalduse esitamisega v&otilde;etakse avaldusel nimetatud pensionifondi osakud tagasi ja vahetatakse teis(t)e pensionifondi(de) osakute vastu. K&auml;esolevat avaldust saab muuta kuni kohustusliku pensionifondi osakute vahetamise avalduse esitamise t&auml;htp&auml;evani, esitades uue avalduse.</span>
-    </p>
+    <p class="c14"><span class="c3">Olen teadlik, et:</span></p>
     <p class="c0"><span class="c3"></span></p>
-    <p class="c14"><span class="c3">Olen teadlik asjaolust, et m&auml;rkides lahtris 4 osakute vahetamisel tagasiv&otilde;tmisele kuuluvate osakute osakaalud selliselt, et nende summa on v&auml;iksem kui 100%, j&auml;&auml;b osa osakuid vahetamata.</span>
-    </p>
+    <p class="c14"><span class="c3">1) kohustusliku pensionifondi nimetuse juurde, mille osakuid soovitakse osakute vahetamisel
+      omandada või PIK-i juurde, kuhu soovitakse raha kanda, märgitakse osakute vahetamisel
+      tagasivõtmisele kuuluvate pensionifondi osakute osakaal protsentides, üheprotsendilise täpsusega.
+      Osakute arv, mis osakute vahetamisel tagasi võetakse, määratakse avaldusel märgitud osakute
+      osakaalu alusel osakute vahetamise hetke seisuga.
+    </span></p>
+    <p class="c14"><span class="c3">
+      Kui soovitakse vahetada kõik osakud teise kohustusliku pensionifondi osakute vastu või kanda
+      kogu fondist tagasivõetud summa PIK-i, märgitakse kohustusliku pensionifondi nimetuse juurde,
+      mille osakuid soovitakse omandada või PIK-i juurde, kuhu summa soovitakse kanda „100%”.</span></p>
     <p class="c0"><span class="c3"></span></p>
-    <p class="c14"><span class="c3">Olen teadlik asjaolust, et k&auml;esoleva avalduse esitamisega j&auml;&auml;b pensionifond, millesse minu kohustusliku kogumispensioni maksed laekuvad v&otilde;i peaksid laekuma, endiseks.</span>
-    </p>
+      <p class="c14"><span class="c3">2) kohustusliku pensionifondi osakute vahetamise avalduse esitamisega võetakse avaldusel
+      nimetatud pensionifondi osakud tagasi ja vahetatakse teis(t)e pensionifondi(de) osakute vastu või
+      kantakse tagasivõetud osakutest saadud summa üle PIK-i.</span></p>
+    <p class="c0"><span class="c3"></span></p>
+      <p class="c14"><span class="c3">3) käesolevat avaldust saab muuta kuni kohustusliku pensionifondi osakute vahetamise avalduse
+      esitamise tähtpäevani, esitades uue avalduse.</span></p>
+    <p class="c0"><span class="c3"></span></p>
+      <p class="c14"><span class="c3">4) märkides käesoleval avaldusel osakute vahetamisel tagasivõtmisele kuuluvate osakute osakaalud
+      selliselt, et nende summa on väiksem kui 100%, jääb osa osakuid vahetamata.</span></p>
+    <p class="c0"><span class="c3"></span></p>
+      <p class="c14"><span class="c3">5) käesoleva osakute vahetamise avalduse esitamisega jääb pensionifond või PIK, millesse minu
+      kohustusliku kogumispensioni maksed laekuvad või peaksid laekuma, endiseks.</span></p>
+
+    <p class="c0"><span class="c3"></span></p>
+    <p class="c14"><span class="c3">Olen nõus, et AS Pensionikeskus kogub ja
+                    töötleb minu isikuandmeid kogumispensionide seaduses ja väärtpaberite registri pidamise seaduses
+                    sätestatud ulatuses Euroopa Liidu piires.
+    </span></p>
+    <p class="c14"><span class="c3">
+      NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
+      Pensionikeskus veebilehel.</span></p>
+
+
+
     <p class="c0"><span class="c3"></span></p>
     <a id="t.b2831fb258baf4dfb1c91996f8b9ea52c86b598f"></a><a id="t.4"></a>
     <table class="c15">
       <tbody>
-        <tr class="c1">
-          <td class="c19" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3" th:text="${documentDatePPKKAAAA}"></span></p>
-            <p class="c0"><span class="c3"></span></p>
-          </td>
-          <td class="c19" colspan="1" rowspan="1">
-            <p class="c0"><span class="c3"></span></p>
-          </td>
-        </tr>
-        <tr class="c1">
-          <td class="c19" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Kuup&auml;ev (pp.kk.aaaa)</span></p>
-          </td>
-          <td class="c19" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Allkiri</span></p>
-          </td>
-        </tr>
+      <tr class="c1">
+        <td class="c19" colspan="1" rowspan="1">
+          <p class="c0"><span class="c3" th:text="${documentDatePPKKAAAA}"></span></p>
+          <p class="c0"><span class="c3"></span></p>
+        </td>
+        <td class="c19" colspan="1" rowspan="1">
+          <p class="c0"><span class="c3"></span></p>
+        </td>
+      </tr>
+      <tr class="c1">
+        <td class="c19" colspan="1" rowspan="1">
+          <p class="c14"><span class="c5">Kuup&auml;ev (pp.kk.aaaa)</span></p>
+        </td>
+        <td class="c19" colspan="1" rowspan="1">
+          <p class="c14"><span class="c5">Allkiri</span></p>
+        </td>
+      </tr>
       </tbody>
     </table>
+
     <p class="c0"><span class="c3"></span></p>
-    <p class="c14"><span class="c3">5. Seadusliku esindaja andmed&sup2;</span></p>
+    <p class="c14"><span class="c3">4. Seadusliku esindaja andmed&sup2;</span></p>
     <p class="c0"><span class="c3"></span></p>
     <a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
     <table class="c15">
       <tbody>
-        <tr class="c34">
-          <td class="c22" colspan="3" rowspan="1">
-            <p class="c14"><span class="c3">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
-          </td>
-        </tr>
         <tr class="c1">
           <td class="c2" colspan="1" rowspan="1">
             <p class="c0"><span class="c3"></span></p>
@@ -961,7 +829,7 @@
       </tbody>
     </table>
     <p class="c0"><span class="c3"></span></p>
-    <p class="c14"><span class="c3">6. Volitatud esindaja andmed&sup3;</span></p>
+    <p class="c14"><span class="c3">5. Volitatud esindaja andmed&sup3;</span></p>
     <p class="c0"><span class="c3"></span></p>
     <a id="t.364bbe539b833f885e6cdf18af613e0e4b587303"></a><a id="t.6"></a>
     <table class="c15">
@@ -998,25 +866,16 @@
     </table>
     <p class="c0"><span class="c3"></span></p>
     <p class="c0"><span class="c3"></span></p>
-    <p class="c14"><span class="c5">&sup1; Kohustusliku pensionifondi osakute vahetamise avaldusega saab vahetada &uuml;he pensionifondi osakud &uuml;he v&otilde;i mitme teise pensionifondi osakute vastu.</span>
+    <p class="c14"><span class="c5">&sup1; Avaldusel on tähestikulises järjekorras ja võrdsetel alustel välja toodud kõigi Finantsinspektsiooni veebilehel
+avaldatud kohustuslike pensionifondide ametlikud nimetused ning isiku võimalus valida pensionifondi asemel
+investeerimine pensioni investeerimiskonto kaudu.</span>
     </p>
     <p class="c0"><span class="c5"></span></p>
-    <p class="c14"><span class="c5">Kohustusliku pensionifondi nimetuse juurde, mille osakuid soovitakse osakute vahetamisel omandada, m&auml;rgitakse osakute vahetamisel tagasiv&otilde;tmisele kuuluvate pensionifondi osakute osakaal protsentides, &uuml;heprotsendilise t&auml;psusega. Osakute arv, mis osakute vahetamisel tagasi v&otilde;etakse, m&auml;&auml;ratakse avaldusel m&auml;rgitud osakute osakaalu alusel osakute vahetamise hetke seisuga.</span>
+    <p class="c14"><span class="c5">&sup2; Lahter täidetakse avalduse esitaja seadusliku esindaja poolt, kui tulenevalt õigusaktidest on avalduse esitamine
+lubatud üksnes seadusliku esindaja poolt või tema nõusolekul.</span>
     </p>
     <p class="c0"><span class="c5"></span></p>
-    <p class="c14"><span class="c5">Kui soovitakse vahetada k&otilde;ik osakud teise kohustusliku pensionifondi osakute vastu, m&auml;rgitakse kohustusliku pensionifondi nimetuse juurde, mille osakuid soovitakse omandada, &bdquo;100%&rdquo;.</span>
-    </p>
-    <p class="c0"><span class="c5"></span></p>
-    <p class="c14"><span class="c5">Kui soovitakse vahetada vaid osa osakuid, m&auml;rgitakse kohustusliku pensionifondi nimetuse juurde, mille osakuid soovitakse omandada, nende osakute osakaal, mis v&otilde;etakse vahetamisel tagasi ja mille eest valitud pensionifondi osakuid omandada soovitakse (nt 50%).</span>
-    </p>
-    <p class="c0"><span class="c5"></span></p>
-    <p class="c14"><span class="c5">Kui osakute vahetamise k&auml;igus soovitakse omandada mitme kohustusliku pensionifondi osakuid, m&auml;rgitakse iga kohustusliku pensionifondi nimetuse juurde, mille osakuid soovitakse omandada, osakute vahetamisel tagasiv&otilde;tmisele kuuluvate osakute osakaal (m&auml;rkides n&auml;iteks kohustusliku pensionifondi 1 juurde &bdquo;50%&rdquo; ja kohustusliku pensionifondi 2 juurde &bdquo;50%&rdquo;, vahetatakse pooled olemasoleva fondi osakud fondi 1 ja pooled olemasoleva fondi osakud fondi 2 osakute vastu).</span>
-    </p>
-    <p class="c0"><span class="c5"></span></p>
-    <p class="c14"><span class="c5">&sup2; Lahter t&auml;idetakse avalduse esitaja seadusliku esindaja poolt, kui tulenevalt &otilde;igusaktidest on avalduse esitamine lubatud &uuml;ksnes seadusliku esindaja poolt v&otilde;i tema n&otilde;usolekul.</span>
-    </p>
-    <p class="c0"><span class="c5"></span></p>
-    <p class="c14"><span class="c5">&sup3; Lahter t&auml;idetakse, kui avaldus esitatakse muu esindaja kui seadusliku esindaja kaudu.</span>
+    <p class="c14"><span class="c5">&sup3; Lahter täidetakse, kui avaldus esitatakse muu esindaja kui seadusliku esindaja kaudu.</span>
     </p>
   </body>
 

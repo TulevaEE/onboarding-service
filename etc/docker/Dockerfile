@@ -13,7 +13,7 @@ COPY dependency/BOOT-INF/classes /app
 COPY dependency/entrypoint.sh /entrypoint.sh
 RUN ["chmod", "+x", "/entrypoint.sh"]
 
-HEALTHCHECK --interval=5s --timeout=3s --start-period=30s \
+HEALTHCHECK --interval=5s --timeout=3s --retries=3 --start-period=30s \
  CMD curl --silent --fail --request GET http://localhost:5000/actuator/health \
                  | jq --exit-status '.status == "UP"' || exit 1
 

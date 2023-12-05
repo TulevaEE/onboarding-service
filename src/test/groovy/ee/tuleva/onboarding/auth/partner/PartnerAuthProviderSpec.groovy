@@ -46,17 +46,22 @@ class PartnerAuthProviderSpec extends Specification {
         .claim("firstName", samplePerson.firstName)
         .claim("lastName", samplePerson.lastName)
         .claim("iss", "testpartner")
+        .claim("authenticationMethod", "SMART_ID")
         .compact()
+    def attributes = [
+        "issuer"                     : "testpartner",
+        "partnerAuthenticationMethod": "SMART_ID"
+    ]
     principalService.getFrom(
         PersonImpl.builder()
             .personalCode(samplePerson.personalCode)
             .firstName(samplePerson.firstName)
-            .lastName(samplePerson.lastName).build(), ["issuer": "testpartner"]) >> AuthenticatedPerson.builder()
+            .lastName(samplePerson.lastName).build(), attributes) >> AuthenticatedPerson.builder()
         .firstName(samplePerson.firstName)
         .lastName(samplePerson.lastName)
         .personalCode(samplePerson.personalCode)
         .userId(sampleUserId)
-        .attributes(["issuer": "testpartner"])
+        .attributes(attributes)
         .build()
 
     when:
@@ -68,7 +73,7 @@ class PartnerAuthProviderSpec extends Specification {
         .lastName(samplePerson.lastName)
         .personalCode(samplePerson.personalCode)
         .userId(sampleUserId)
-        .attributes(["issuer": "testpartner"])
+        .attributes(attributes)
         .build()
   }
 

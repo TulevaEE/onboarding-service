@@ -58,7 +58,13 @@ public class PartnerAuthProvider implements AuthProvider {
   public AuthenticatedPerson authenticate(String handoverToken) {
     Claims claims = jwtParser.parseClaimsJws(handoverToken).getBody();
     Person person = getPersonFromClaims(claims);
-    return principalService.getFrom(person, Map.of("issuer", claims.getIssuer()));
+    return principalService.getFrom(
+        person,
+        Map.of(
+            "issuer",
+            claims.getIssuer(),
+            "partnerAuthenticationMethod",
+            (String) claims.get("authenticationMethod")));
   }
 
   private Person getPersonFromClaims(Claims claims) {

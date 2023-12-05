@@ -20,7 +20,7 @@ public class LoginEventBroadcaster {
 
   @EventListener
   public void onBeforeTokenGrantedEvent(BeforeTokenGrantedEvent event) {
-    Map<String, Object> data = new HashMap<>();
+    Map<String, Object> data = new HashMap<>(event.getPerson().getAttributes());
 
     data.put("method", event.getGrantType());
     if (event.isIdCard()) {

@@ -56,12 +56,12 @@ public class PartnerAuthProvider implements AuthProvider {
 
   @Override
   public AuthenticatedPerson authenticate(String handoverToken) {
-    Person person = getPersonFromToken(handoverToken);
-    return principalService.getFrom(person, Map.of());
+    Claims claims = jwtParser.parseClaimsJws(handoverToken).getBody();
+    Person person = getPersonFromClaims(claims);
+    return principalService.getFrom(person, Map.of("issuer", claims.getIssuer()));
   }
 
-  private Person getPersonFromToken(String token) {
-    Claims claims = jwtParser.parseClaimsJws(token).getBody();
+  private Person getPersonFromClaims(Claims claims) {
     return PersonImpl.builder()
         .personalCode(claims.getSubject())
         .firstName(FIRST_NAME.fromClaims(claims))

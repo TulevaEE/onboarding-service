@@ -45,17 +45,18 @@ class PartnerAuthProviderSpec extends Specification {
         .setExpiration(Date.from(clock.instant().plus(1, HOURS)))
         .claim("firstName", samplePerson.firstName)
         .claim("lastName", samplePerson.lastName)
+        .claim("iss", "testpartner")
         .compact()
     principalService.getFrom(
         PersonImpl.builder()
             .personalCode(samplePerson.personalCode)
             .firstName(samplePerson.firstName)
-            .lastName(samplePerson.lastName).build(), [:]) >> AuthenticatedPerson.builder()
+            .lastName(samplePerson.lastName).build(), ["issuer": "testpartner"]) >> AuthenticatedPerson.builder()
         .firstName(samplePerson.firstName)
         .lastName(samplePerson.lastName)
         .personalCode(samplePerson.personalCode)
         .userId(sampleUserId)
-        .attributes([:])
+        .attributes(["issuer": "testpartner"])
         .build()
 
     when:
@@ -67,7 +68,7 @@ class PartnerAuthProviderSpec extends Specification {
         .lastName(samplePerson.lastName)
         .personalCode(samplePerson.personalCode)
         .userId(sampleUserId)
-        .attributes([:])
+        .attributes(["issuer": "testpartner"])
         .build()
   }
 

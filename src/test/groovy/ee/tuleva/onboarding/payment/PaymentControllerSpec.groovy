@@ -7,7 +7,9 @@ import org.springframework.http.MediaType
 
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.PARTNER
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
@@ -67,6 +69,28 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
     expect:
     mvc.perform(get("/v1/payments/link?amount=100.22&currency=EUR&type=SINGLE&paymentChannel=LHV&recipientPersonalCode=37605030299"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.url', is(paymentLink.url())))
+  }
+
+  def "GET /payments/link works with no amount and currency"() {
+    given:
+    def person = sampleAuthenticatedPerson
+    def mvc = mockMvcWithAuthenticationPrincipal(person, paymentController)
+
+    PaymentLink paymentLink = new PaymentLink("https://some.url?payment_token=23948h3t9gfd")
+
+    PaymentData paymentData = PaymentData.builder()
+        .type(RECURRING)
+        .paymentChannel(PARTNER)
+        .recipientPersonalCode("37605030299")
+        .build()
+
+    1 * paymentService.getLink(paymentData, person) >> paymentLink
+
+    expect:
+    mvc.perform(get("/v1/payments/link?type=RECURRING&paymentChannel=PARTNER&recipientPersonalCode=37605030299"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.url', is(paymentLink.url())))

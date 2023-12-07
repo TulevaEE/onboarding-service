@@ -13,9 +13,9 @@ public class PaymentData {
 
   @ValidPersonalCode @NotNull private String recipientPersonalCode;
   private BigDecimal amount;
-  @NotNull private Currency currency;
+  private Currency currency;
   @NotNull private PaymentType type;
-  @NotNull private PaymentData.PaymentChannel paymentChannel;
+  @NotNull private PaymentChannel paymentChannel;
 
   public enum PaymentType {
     SINGLE,

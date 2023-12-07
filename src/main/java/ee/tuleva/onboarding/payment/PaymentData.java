@@ -30,6 +30,7 @@ public class PaymentData {
     SWEDBANK,
     LHV,
     COOP,
+    PARTNER,
     TULUNDUSUHISTU
   }
 }

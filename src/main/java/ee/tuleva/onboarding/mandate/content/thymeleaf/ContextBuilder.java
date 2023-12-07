@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
-
 import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -105,5 +104,4 @@ public class ContextBuilder {
     ctx.setVariable("newPaymentRate", rate);
     return this;
   }
-
 }

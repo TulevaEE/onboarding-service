@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextBuilder;
 import ee.tuleva.onboarding.user.User;
-
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -94,8 +93,7 @@ class MandateContentService {
       Mandate mandate,
       ContactDetails contactDetails,
       ApplicationType applicationTypeToCancel,
-      BigDecimal rate
-      ) {
+      BigDecimal rate) {
     String transactionId = UUID.randomUUID().toString();
     String documentNumber = mandate.getId().toString();
 

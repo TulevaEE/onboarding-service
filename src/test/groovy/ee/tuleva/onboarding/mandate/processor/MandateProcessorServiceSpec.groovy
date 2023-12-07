@@ -13,6 +13,7 @@ import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleWithdrawalCancellationMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandateWithPaymentRate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
@@ -74,6 +75,29 @@ class MandateProcessorServiceSpec extends Specification {
       dto.address == mandate.address
     }) >> response
   }
+
+  def "Start: processes mandate with payment rate and saves processes"() {
+    given:
+    Mandate mandate = sampleMandateWithPaymentRate()
+    mandate.user = sampleUser
+    def mandateResponse = new ApplicationResponseDTO()
+    def response = new ApplicationResponse()
+    mandateResponse.mandateResponses = [response]
+
+    1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
+    1 * episService.sendMandate({ MandateDto dto ->
+      dto.paymentRate.isPresent() && dto.paymentRate.get() == mandate.paymentRate
+    }) >> mandateResponse
+
+    when:
+    service.start(sampleUser, mandate)
+
+    then:
+    1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
+      mandateProcess.mandate == mandate && mandateProcess.processId != null
+    }) >> { args -> args[0] }
+  }
+
 
   def "IsFinished: processing is complete when all message processes are finished"() {
     given:

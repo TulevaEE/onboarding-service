@@ -13,7 +13,7 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.RATE
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.PAYMENT_RATE
 
 @SpringBootTest
 @EnableSnapshots
@@ -108,7 +108,7 @@ class MandateContentServiceSpec extends Specification {
     def user = sampleUserNonMember().build()
     def mandate = sampleMandate()
     def contactDetails = contactDetailsFixture()
-    def applicationType = RATE
+    def applicationType = PAYMENT_RATE
 
     when:
     String html = mandateContentService.getRateChangeHtml(user, mandate, contactDetails, applicationType, new BigDecimal(6))

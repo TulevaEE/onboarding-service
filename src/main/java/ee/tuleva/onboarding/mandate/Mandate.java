@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import java.io.Serializable;
@@ -88,6 +89,10 @@ public class Mandate implements Serializable {
   @NotNull
   private Map<String, Object> metadata = new HashMap<>();
 
+  @ValidPaymentRate
+  @JsonView(MandateView.Default.class)
+  private BigDecimal paymentRate;
+
   @Builder
   Mandate(
       User user,
@@ -95,13 +100,15 @@ public class Mandate implements Serializable {
       List<FundTransferExchange> fundTransferExchanges,
       Integer pillar,
       @Nullable Address address,
-      Map<String, Object> metadata) {
+      Map<String, Object> metadata,
+      @Nullable BigDecimal paymentRate) {
     this.user = user;
     this.futureContributionFundIsin = futureContributionFundIsin;
     this.fundTransferExchanges = fundTransferExchanges;
     this.pillar = pillar;
     this.address = address;
     this.metadata = metadata;
+    this.paymentRate = paymentRate;
   }
 
   public Optional<byte[]> getMandate() {
@@ -141,6 +148,11 @@ public class Mandate implements Serializable {
   @JsonIgnore
   public boolean isWithdrawalCancellation() {
     return metadata != null && metadata.containsKey("applicationTypeToCancel");
+  }
+
+  @JsonIgnore
+  public boolean isPaymentRateApplication() {
+    return paymentRate != null;
   }
 
   @JsonIgnore

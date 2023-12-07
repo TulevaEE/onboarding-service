@@ -36,7 +36,6 @@ class RecurringPaymentServiceSpec extends Specification {
     then:
     link.url() == url
 
-
     where:
     paymentChannel | url
     SWEDBANK       | "https://www.swedbank.ee/private/pensions/pillar3/orderp3p"
@@ -48,6 +47,18 @@ class RecurringPaymentServiceSpec extends Specification {
     LUMINOR        | "https://luminor.ee/auth/#/web/view/autopilot/newpayment"
     COOP           | "https://i.cooppank.ee/newpmt?whatform=PermPaymentNew&SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MakseSumma=12.34&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432&MakseSagedus=3&MakseEsimene=10.01.2020"
     PARTNER        | """{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":12.34,"currency":"EUR","description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}"""
+  }
+
+  def "works with no amount and currency"() {
+    given:
+    def person = samplePerson
+    def paymentData = new PaymentData(samplePerson.personalCode, null, null, RECURRING, PARTNER)
+
+    when:
+    def link = recurringPaymentService.getPaymentLink(paymentData, person)
+
+    then:
+    link.url() == """{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":null,"currency":null,"description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}"""
   }
 
   def "rejects recurring payments for TULUNDUSUHISTU"() {

@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,7 @@ public class MandateProcessorService {
             .email(mandate.getEmail())
             .phoneNumber(mandate.getPhoneNumber());
     addSelectionApplication(mandate, mandateDtoBuilder);
+    addPaymentRateApplication(mandate, mandateDtoBuilder);
     return mandateDtoBuilder.build();
   }
 
@@ -122,6 +124,14 @@ public class MandateProcessorService {
     if (mandate.getFutureContributionFundIsin().isPresent()) {
       val process = createMandateProcess(mandate, ApplicationType.SELECTION);
       mandateDto.futureContributionFundIsin(mandate.getFutureContributionFundIsin().get());
+      mandateDto.processId(process.getProcessId());
+    }
+  }
+
+  private void addPaymentRateApplication(Mandate mandate, MandateDto.MandateDtoBuilder mandateDto) {
+    if (mandate.isPaymentRateApplication()) {
+      val process = createMandateProcess(mandate, ApplicationType.PAYMENT_RATE);
+      mandateDto.paymentRate(Optional.of(mandate.getPaymentRate()));
       mandateDto.processId(process.getProcessId());
     }
   }

@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.user.address.Address;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import javax.validation.constraints.Max;
 import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
@@ -38,6 +39,8 @@ public class MandateDto {
   private String email;
 
   private String phoneNumber;
+
+  private Optional<BigDecimal> paymentRate;
 
   @AllArgsConstructor
   @NoArgsConstructor

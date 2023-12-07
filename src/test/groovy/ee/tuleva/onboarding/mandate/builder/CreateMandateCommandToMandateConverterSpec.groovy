@@ -24,10 +24,12 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
 
     def "converts to mandate"() {
         given:
+        def aPaymentRate = new BigDecimal(6.0)
         def command = new CreateMandateCommand()
         command.setFutureContributionFundIsin("test")
         command.fundTransferExchanges = []
         command.address = addressFixture().build()
+        command.paymentRate = aPaymentRate
         def user = sampleUser().build()
         def conversion = fullyConverted()
         def contactDetails = contactDetailsFixture()
@@ -49,6 +51,7 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
             secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
             thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee
         ]
+        mandate.paymentRate == aPaymentRate
         0 * accountStatementService.getAccountStatement(_)
         1 * fundRepository.findByIsin("test") >> Fund.builder().pillar(2).isin("test").build()
     }

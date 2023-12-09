@@ -16,6 +16,7 @@ class MandateContentCreatorSpec extends Specification {
     mandateContentService.getFundTransferHtml(*_) >> "fundTransferContent"
     mandateContentService.getFutureContributionsFundHtml(*_) >> "futureContributionContent"
     mandateContentService.getMandateCancellationHtml(*_) >> "mandateCancellationContent"
+    mandateContentService.getRateChangeHtml(*_) >> "rateChangeContent"
   }
 
   def "Generate mandate content"() {
@@ -112,6 +113,28 @@ class MandateContentCreatorSpec extends Specification {
     mandateContentFiles[3].name == "avalduse_tyhistamise_avaldus_123.html"
     mandateContentFiles[3].mimeType == "text/html"
     mandateContentFiles[3].content == "mandateCancellationContent".bytes
+
+    mandateContentFiles.size() == 4
+  }
+
+  def "Generate mandate content for payment rate change"() {
+    given:
+    def mandate = sampleMandate()
+    mandate.setPaymentRate(new BigDecimal("6.0"))
+
+    when:
+    List<MandateContentFile> mandateContentFiles =
+        mandateContentCreator.getContentFiles(
+            sampleUser().build(),
+            mandate,
+            sampleFunds(),
+            contactDetailsFixture()
+        )
+
+    then:
+    mandateContentFiles.any { it.name == "makse_maara_muutmise_avaldus_123.html" &&
+        it.mimeType == "text/html" &&
+        new String(it.content) == "rateChangeContent" }
 
     mandateContentFiles.size() == 4
   }

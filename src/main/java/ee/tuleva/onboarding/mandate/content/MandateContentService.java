@@ -92,7 +92,6 @@ class MandateContentService {
       User user,
       Mandate mandate,
       ContactDetails contactDetails,
-      ApplicationType applicationTypeToCancel,
       BigDecimal rate) {
     String transactionId = UUID.randomUUID().toString();
     String documentNumber = mandate.getId().toString();
@@ -106,7 +105,6 @@ class MandateContentService {
             .contactDetails(contactDetails)
             .transactionId(transactionId)
             .documentNumber(documentNumber)
-            .applicationTypeToCancel(applicationTypeToCancel)
             .build();
 
     return templateEngine.process("payment_rate_change", ctx);

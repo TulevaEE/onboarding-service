@@ -35,6 +35,12 @@ public class MandateContentCreator {
               user, mandate, contactDetails, mandate.getApplicationTypeToCancel()));
     }
 
+    if(mandate.isPaymentRateApplication()) {
+      files.add(
+          getContentFileForPaymentRateChange(user, mandate, contactDetails)
+      );
+    }
+
     return files;
   }
 
@@ -50,6 +56,22 @@ public class MandateContentCreator {
 
     return MandateContentFile.builder()
         .name("avalduse_tyhistamise_avaldus_" + documentNumber + ".html")
+        .mimeType("text/html")
+        .content(htmlContent.getBytes())
+        .build();
+  }
+
+  private MandateContentFile getContentFileForPaymentRateChange(
+      User user,
+      Mandate mandate,
+      ContactDetails contactDetails) {
+    String htmlContent =
+        mandateContentService.getRateChangeHtml(
+            user, mandate, contactDetails, mandate.getPaymentRate());
+    String documentNumber = mandate.getId().toString();
+
+    return MandateContentFile.builder()
+        .name("makse_maara_muutmise_avaldus_" + documentNumber + ".html")
         .mimeType("text/html")
         .content(htmlContent.getBytes())
         .build();

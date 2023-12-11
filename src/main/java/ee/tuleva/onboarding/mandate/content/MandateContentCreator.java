@@ -35,10 +35,8 @@ public class MandateContentCreator {
               user, mandate, contactDetails, mandate.getApplicationTypeToCancel()));
     }
 
-    if(mandate.isPaymentRateApplication()) {
-      files.add(
-          getContentFileForPaymentRateChange(user, mandate, contactDetails)
-      );
+    if (mandate.isPaymentRateApplication()) {
+      files.add(getContentFileForPaymentRateChange(user, mandate, contactDetails));
     }
 
     return files;
@@ -62,9 +60,7 @@ public class MandateContentCreator {
   }
 
   private MandateContentFile getContentFileForPaymentRateChange(
-      User user,
-      Mandate mandate,
-      ContactDetails contactDetails) {
+      User user, Mandate mandate, ContactDetails contactDetails) {
     String htmlContent =
         mandateContentService.getRateChangeHtml(
             user, mandate, contactDetails, mandate.getPaymentRate());

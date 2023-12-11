@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.cancellation.CancellationDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
+import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.user.User
@@ -79,24 +80,43 @@ class MandateProcessorServiceSpec extends Specification {
   def "Start: processes mandate with payment rate and saves processes"() {
     given:
     Mandate mandate = sampleMandateWithPaymentRate()
+    mandate.address = addressFixture().build()
     mandate.user = sampleUser
-    def mandateResponse = new ApplicationResponseDTO()
     def response = new ApplicationResponse()
-    mandateResponse.mandateResponses = [response]
-
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
-    1 * episService.sendMandate({ MandateDto dto ->
-      dto.paymentRate.isPresent() && dto.paymentRate.get() == mandate.paymentRate
-    }) >> mandateResponse
-
     when:
     service.start(sampleUser, mandate)
-
     then:
     1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
+    1 * episService.sendPaymentRateApplication({ PaymentRateDto dto ->
+      dto.rate == mandate.paymentRate
+      dto.address == mandate.address
+    }) >> response
   }
+//  def "Start: processes mandate with payment rate and saves processes"() {
+//    given:
+//    Mandate mandate = sampleMandateWithPaymentRate()
+//    mandate.address = addressFixture().build()
+//    mandate.user = sampleUser
+//    def mandateResponse = new ApplicationResponseDTO()
+//    def response = new ApplicationResponse()
+//    mandateResponse.mandateResponses = [response]
+//
+//    1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
+//    1 * episService.sendMandate({ MandateDto dto ->
+//      dto.paymentRate.isPresent() && dto.paymentRate.get() == mandate.paymentRate
+//    }) >> mandateResponse
+//
+//    when:
+//    service.start(sampleUser, mandate)
+//
+//    then:
+//    1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
+//      mandateProcess.mandate == mandate && mandateProcess.processId != null
+//    }) >> { args -> args[0] }
+//  }
 
 
   def "IsFinished: processing is complete when all message processes are finished"() {

@@ -89,10 +89,7 @@ class MandateContentService {
   }
 
   String getRateChangeHtml(
-      User user,
-      Mandate mandate,
-      ContactDetails contactDetails,
-      BigDecimal rate) {
+      User user, Mandate mandate, ContactDetails contactDetails, BigDecimal rate) {
     String transactionId = UUID.randomUUID().toString();
     String documentNumber = mandate.getId().toString();
 

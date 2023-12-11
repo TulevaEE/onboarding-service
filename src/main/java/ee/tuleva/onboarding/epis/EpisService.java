@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
+import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -167,6 +168,13 @@ public class EpisService {
 
     return restTemplate.postForObject(
         url, new HttpEntity<>(cancellation, getUserHeaders()), ApplicationResponse.class);
+  }
+
+  public ApplicationResponse sendPaymentRateApplication(PaymentRateDto paymentRateDto) {
+    String url = episServiceUrl + "/payment-rate";
+
+    return restTemplate.postForObject(
+        url, new HttpEntity<>(paymentRateDto, getUserHeaders()), ApplicationResponse.class);
   }
 
   @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")

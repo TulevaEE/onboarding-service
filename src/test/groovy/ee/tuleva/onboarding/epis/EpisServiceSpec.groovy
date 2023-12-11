@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.epis.fund.NavDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
+import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto
 import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -17,6 +18,7 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
+import java.time.Instant
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -25,6 +27,8 @@ import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixtur
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
+import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 import static org.springframework.http.HttpMethod.GET
 import static org.springframework.http.HttpStatus.OK
 
@@ -197,6 +201,30 @@ class EpisServiceSpec extends Specification {
 
     when:
     service.sendCancellation(sampleCancellation)
+
+    then:
+    true
+  }
+
+  def "can send payment rate application"() {
+    given:
+    def samplePaymentRate =PaymentRateDto.builder()
+        .id(123L)
+        .rate(BigDecimal.valueOf(4.0))
+        .processId("rateProcessId")
+        .createdDate(Instant.parse("2023-03-09T10:00:00Z"))
+        .address(addressFixture().build())
+        .email("email@override.ee")
+        .phoneNumber("+37288888888")
+        .build()
+
+    1 * restTemplate.postForObject(_ as String, {HttpEntity httpEntity ->
+      doesHttpEntityContainToken(httpEntity, sampleToken) &&
+          httpEntity.body.id == samplePaymentRate.id
+    }, ApplicationResponse.class)
+
+    when:
+    service.sendPaymentRateApplication(samplePaymentRate)
 
     then:
     true

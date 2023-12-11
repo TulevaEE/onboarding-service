@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cancellation.CancellationDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
+import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -35,6 +36,9 @@ public class MandateProcessorService {
 
     if (mandate.isWithdrawalCancellation()) {
       val response = episService.sendCancellation(getCancellationDto(mandate));
+      handleApplicationProcessResponse(new ApplicationResponseDTO(response));
+    } else if (mandate.isPaymentRateApplication()) {
+      val response = episService.sendPaymentRateApplication(getPaymentRateDto(mandate));
       handleApplicationProcessResponse(new ApplicationResponseDTO(response));
     } else {
       val response = episService.sendMandate(getMandateDto(mandate));
@@ -68,6 +72,21 @@ public class MandateProcessorService {
             .phoneNumber(mandate.getPhoneNumber());
 
     val process = createMandateProcess(mandate, ApplicationType.CANCELLATION);
+    mandateDtoBuilder.processId(process.getProcessId());
+    return mandateDtoBuilder.build();
+  }
+
+  private PaymentRateDto getPaymentRateDto(Mandate mandate) {
+    val mandateDtoBuilder =
+        PaymentRateDto.builder()
+            .id(mandate.getId())
+            .createdDate(mandate.getCreatedDate())
+            .rate(mandate.getPaymentRate())
+            .address(mandate.getAddress())
+            .email(mandate.getEmail())
+            .phoneNumber(mandate.getPhoneNumber());
+
+    val process = createMandateProcess(mandate, ApplicationType.PAYMENT_RATE);
     mandateDtoBuilder.processId(process.getProcessId());
     return mandateDtoBuilder.build();
   }

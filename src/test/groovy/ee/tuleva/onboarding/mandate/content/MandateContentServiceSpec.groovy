@@ -108,10 +108,9 @@ class MandateContentServiceSpec extends Specification {
     def user = sampleUserNonMember().build()
     def mandate = sampleMandate()
     def contactDetails = contactDetailsFixture()
-    def applicationType = PAYMENT_RATE
 
     when:
-    String html = mandateContentService.getRateChangeHtml(user, mandate, contactDetails, applicationType, new BigDecimal(6))
+    String html = mandateContentService.getRateChangeHtml(user, mandate, contactDetails, new BigDecimal(6))
 
     then:
     expect.toMatchSnapshot(html)

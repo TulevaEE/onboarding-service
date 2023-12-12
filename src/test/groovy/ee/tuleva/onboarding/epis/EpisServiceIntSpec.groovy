@@ -231,7 +231,8 @@ class EpisServiceIntSpec extends Specification {
                 "countryCode": "${address.countryCode}"
               },
               "email": "${mandate.email}",
-              "phoneNumber": "${mandate.phoneNumber}"
+              "phoneNumber": "${mandate.phoneNumber}",
+              "paymentRate": ${mandate.paymentRate}
             }
           """, MatchType.STRICT))
         )

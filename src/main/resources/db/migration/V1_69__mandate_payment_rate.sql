@@ -1,2 +1,2 @@
 ALTER TABLE mandate
-  ADD COLUMN payment_rate DECIMAL(2,2);
+  ADD COLUMN payment_rate DECIMAL(1,0);

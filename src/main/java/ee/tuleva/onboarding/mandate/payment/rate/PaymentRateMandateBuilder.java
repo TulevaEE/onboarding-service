@@ -26,6 +26,7 @@ public class PaymentRateMandateBuilder {
     Mandate mandate = new Mandate();
     mandate.setUser(user);
     mandate.setAddress(contactDetails.getAddress());
+    mandate.setPillar(2);
 
     conversionDecorator.addConversionMetadata(mandate.getMetadata(), conversion, contactDetails);
     mandate.setPaymentRate(paymentRate);

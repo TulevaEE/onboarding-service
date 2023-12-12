@@ -32,9 +32,12 @@ class PaymentRateValidatorSpec extends Specification {
     where:
     rate    | isValid
     "2.0"   | true
+    "2"     | true
     "2.1"   | false
     "4.0"   | true
+    "4"     | true
     "6.0"   | true
+    "6"     | true
     "3.0"   | false
     "5.0"   | false
     "7.0"   | false

@@ -9,7 +9,10 @@ import javax.validation.ConstraintValidatorContext;
 public class PaymentRateValidator implements ConstraintValidator<ValidPaymentRate, BigDecimal> {
 
   private final List<BigDecimal> allowedValues =
-      Arrays.asList(new BigDecimal("2.0"), new BigDecimal("4.0"), new BigDecimal("6.0"));
+      Arrays.asList(
+          new BigDecimal("2.0"), new BigDecimal("4.0"), new BigDecimal("6.0"),
+          new BigDecimal("2"), new BigDecimal("4"), new BigDecimal("6")
+          );
 
   @Override
   public boolean isValid(BigDecimal value, ConstraintValidatorContext context) {

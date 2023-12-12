@@ -8,11 +8,10 @@ import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
-import org.junit.jupiter.api.Test
 import spock.lang.Specification
 
-import static org.mockito.Mockito.*
-import static org.assertj.core.api.Assertions.assertThat
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
 class PaymentRateServiceSpec extends Specification {
   UserService userService = Mock(UserService)
@@ -24,26 +23,27 @@ class PaymentRateServiceSpec extends Specification {
   PaymentRateService paymentRateService = new PaymentRateService(
       mandateService, userService, episService, conversionService, paymentRateMandateBuilder)
 
-  @Test
-  void "savePaymentRateMandate creates and saves a mandate for the user"() {
-    Long userId = 123L
-    BigDecimal paymentRate = new BigDecimal("2.0")
-    User user = mock(User.class)
-    ConversionResponse conversion = mock(ConversionResponse.class)
-    ContactDetails contactDetails = mock(ContactDetails.class)
-    Mandate mandate = mock(Mandate.class)
 
+  def "can change payment rate"() {
     given:
+    BigDecimal paymentRate = new BigDecimal("2.0")
+    User user = sampleUser().build()
+    Long userId = user.getId()
+    ConversionResponse conversion = Mock(ConversionResponse)
+    ContactDetails contactDetails = Mock(ContactDetails)
+    Mandate mandate = sampleMandate()
+
     userService.getById(userId) >> user
     conversionService.getConversion(user) >> conversion
     episService.getContactDetails(user) >> contactDetails
-    paymentRateMandateBuilder.build(paymentRate, user, conversion, contactDetails) >> mandate
-    mandateService.save(user, mandate) >> mandate
+    1 * paymentRateMandateBuilder.build(paymentRate, user, conversion, contactDetails) >> mandate
+    1 * mandateService.save(user, mandate) >> mandate
 
     when:
     Mandate result = paymentRateService.savePaymentRateMandate(userId, paymentRate)
 
     then:
-    assertThat(result).isSameAs(mandate)
+    result.id == mandate.id
   }
+
 }

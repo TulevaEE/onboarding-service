@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.auth.mobileid
 
 
-import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException
@@ -9,7 +8,8 @@ import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
-import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER_ATTRIBUTE
+import static ee.tuleva.onboarding.auth.GrantType.*
+import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER
 
 class MobileIdAuthProviderSpec extends Specification {
   private final GenericSessionStore genericSessionStore = Mock()
@@ -23,9 +23,9 @@ class MobileIdAuthProviderSpec extends Specification {
 
   def "supports mobileid"() {
     expect:
-    mobileIdAuthProvider.supports(GrantType.MOBILE_ID)
-    !mobileIdAuthProvider.supports(GrantType.SMART_ID)
-    !mobileIdAuthProvider.supports(GrantType.ID_CARD)
+    mobileIdAuthProvider.supports(MOBILE_ID)
+    !mobileIdAuthProvider.supports(SMART_ID)
+    !mobileIdAuthProvider.supports(ID_CARD)
   }
 
   def "throws when session is missing"() {
@@ -57,7 +57,10 @@ class MobileIdAuthProviderSpec extends Specification {
     MobileIDSession session = MobileIdFixture.sampleMobileIdSession
     mobileIdAuthService.isLoginComplete(session) >> true
     genericSessionStore.get(MobileIDSession) >> Optional.of(session)
-    principalService.getFrom(session, [(PHONE_NUMBER_ATTRIBUTE): session.phoneNumber]) >> person
+    principalService.getFrom(session, [
+        (PHONE_NUMBER): session.phoneNumber,
+        (GRANT_TYPE)  : MOBILE_ID.name()
+    ]) >> person
     when:
     AuthenticatedPerson result = mobileIdAuthProvider.authenticate(authenticationHash)
     then:

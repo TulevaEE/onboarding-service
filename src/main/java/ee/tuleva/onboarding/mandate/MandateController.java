@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate;
 
-import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER_ATTRIBUTE;
+import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
 import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
@@ -85,7 +85,7 @@ public class MandateController {
         mandateService.mobileIdSign(
             mandateId,
             authenticatedPerson.getUserId(),
-            authenticatedPerson.getAttribute(PHONE_NUMBER_ATTRIBUTE));
+            authenticatedPerson.getAttribute(PHONE_NUMBER));
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());

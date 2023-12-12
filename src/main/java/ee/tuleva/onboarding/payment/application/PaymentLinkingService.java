@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.application;
+package ee.tuleva.onboarding.payment.application;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 
@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.locale.LocaleService;
+import ee.tuleva.onboarding.mandate.application.Application;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentService;
 import java.math.BigDecimal;

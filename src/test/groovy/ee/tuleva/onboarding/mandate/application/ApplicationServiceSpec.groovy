@@ -4,6 +4,8 @@ import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
+import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
+import ee.tuleva.onboarding.payment.application.PaymentLinkingService
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
@@ -27,7 +29,7 @@ class ApplicationServiceSpec extends Specification {
   LocaleService localeService = Mock()
   FundRepository fundRepository = Mock()
   MandateDeadlinesService mandateDeadlinesService = Mock()
-  PaymentLinkingService paymentApplicationService = Mock()
+    PaymentLinkingService paymentApplicationService = Mock()
 
   ApplicationService applicationService =
       new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService)

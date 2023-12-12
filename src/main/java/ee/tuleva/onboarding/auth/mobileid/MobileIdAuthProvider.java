@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.auth.mobileid;
 
-import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER_ATTRIBUTE;
+import static ee.tuleva.onboarding.auth.GrantType.GRANT_TYPE;
+import static ee.tuleva.onboarding.auth.GrantType.MOBILE_ID;
+import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
 
 import ee.tuleva.onboarding.auth.AuthProvider;
 import ee.tuleva.onboarding.auth.GrantType;
@@ -22,7 +24,7 @@ public class MobileIdAuthProvider implements AuthProvider {
 
   @Override
   public boolean supports(GrantType grantType) {
-    return GrantType.MOBILE_ID.equals(grantType);
+    return MOBILE_ID.equals(grantType);
   }
 
   @Override
@@ -39,6 +41,7 @@ public class MobileIdAuthProvider implements AuthProvider {
     }
 
     return principalService.getFrom(
-        mobileIdSession, Map.of(PHONE_NUMBER_ATTRIBUTE, mobileIdSession.getPhoneNumber()));
+        mobileIdSession,
+        Map.of(PHONE_NUMBER, mobileIdSession.getPhoneNumber(), GRANT_TYPE, MOBILE_ID.name()));
   }
 }

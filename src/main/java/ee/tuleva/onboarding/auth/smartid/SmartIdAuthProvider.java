@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.auth.smartid;
 
+import static ee.tuleva.onboarding.auth.GrantType.GRANT_TYPE;
+import static ee.tuleva.onboarding.auth.GrantType.SMART_ID;
+
 import ee.tuleva.onboarding.auth.AuthProvider;
 import ee.tuleva.onboarding.auth.GrantType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -17,7 +20,7 @@ public class SmartIdAuthProvider implements AuthProvider {
 
   @Override
   public boolean supports(GrantType grantType) {
-    return GrantType.SMART_ID.equals(grantType);
+    return SMART_ID.equals(grantType);
   }
 
   @Override
@@ -31,6 +34,6 @@ public class SmartIdAuthProvider implements AuthProvider {
       throw new AuthNotCompleteException();
     }
     var smartIdPerson = new SmartIdPerson(identity.get());
-    return principalService.getFrom(smartIdPerson, Map.of());
+    return principalService.getFrom(smartIdPerson, Map.of(GRANT_TYPE, SMART_ID.name()));
   }
 }

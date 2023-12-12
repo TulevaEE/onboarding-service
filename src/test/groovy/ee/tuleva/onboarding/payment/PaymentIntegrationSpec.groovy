@@ -8,7 +8,7 @@ import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.event.EventLogRepository
-import ee.tuleva.onboarding.mandate.application.PaymentLinkingService
+import ee.tuleva.onboarding.payment.application.PaymentLinkingService
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserRepository
 import org.mockserver.client.MockServerClient
@@ -33,7 +33,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowStatementFor3rdPillarPayment
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.mandate.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
+import static ee.tuleva.onboarding.payment.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentAmount
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedCallbackFinalizedSinglePaymentToken

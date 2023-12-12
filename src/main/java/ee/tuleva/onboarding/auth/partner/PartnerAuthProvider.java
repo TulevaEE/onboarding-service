@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.auth.partner;
 import static ee.tuleva.onboarding.auth.GrantType.PARTNER;
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.FIRST_NAME;
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.LAST_NAME;
+import static java.util.Collections.unmodifiableMap;
 
 import ee.tuleva.onboarding.auth.AuthProvider;
 import ee.tuleva.onboarding.auth.GrantType;
@@ -13,12 +14,14 @@ import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.UnsupportedJwtException;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Clock;
 import java.util.Base64;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +32,7 @@ import org.springframework.stereotype.Component;
 @Component
 @Profile("!production")
 public class PartnerAuthProvider implements AuthProvider {
-
+  private static final String SUPPORTED_TOKEN_TYPE = "HANDOVER";
   private final JwtParser jwtParser;
   private final PrincipalService principalService;
 
@@ -57,14 +60,17 @@ public class PartnerAuthProvider implements AuthProvider {
   @Override
   public AuthenticatedPerson authenticate(String handoverToken) {
     Claims claims = jwtParser.parseClaimsJws(handoverToken).getBody();
+    validate(claims);
     Person person = getPersonFromClaims(claims);
-    return principalService.getFrom(
-        person,
-        Map.of(
-            "issuer",
-            claims.getIssuer(),
-            "partnerAuthenticationMethod",
-            (String) claims.get("authenticationMethod")));
+    Map<String, String> attributes = getAttributes(claims);
+
+    return principalService.getFrom(person, attributes);
+  }
+
+  private void validate(Claims claims) {
+    if (!SUPPORTED_TOKEN_TYPE.equalsIgnoreCase(claims.get("tokenType", String.class))) {
+      throw new UnsupportedJwtException("Unsupported token type: " + claims.get("tokenType"));
+    }
   }
 
   private Person getPersonFromClaims(Claims claims) {
@@ -73,6 +79,17 @@ public class PartnerAuthProvider implements AuthProvider {
         .firstName(FIRST_NAME.fromClaims(claims))
         .lastName(LAST_NAME.fromClaims(claims))
         .build();
+  }
+
+  private Map<String, String> getAttributes(Claims claims) {
+    Map<String, String> attributes = new HashMap<>();
+    attributes.put("grantType", PARTNER.name());
+    attributes.put("issuer", claims.getIssuer());
+    attributes.put("partnerAuthenticationMethod", claims.get("authenticationMethod", String.class));
+    attributes.put("partnerSigningMethod", claims.get("signingMethod", String.class));
+    attributes.put("phoneNumber", claims.get("phoneNumber", String.class));
+    attributes.put("documentNumber", claims.get("documentNumber", String.class));
+    return unmodifiableMap(attributes);
   }
 
   @SneakyThrows

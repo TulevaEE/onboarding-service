@@ -83,6 +83,9 @@ public class MandateEmailService {
   }
 
   private String getTemplateName(Mandate mandate, Locale locale) {
+    if (mandate.isPaymentRateApplication()) {
+      return "second_pillar_payment_rate_" + locale.getLanguage();
+    }
     if (mandate.isWithdrawalCancellation()) {
       return "second_pillar_withdrawal_cancellation_" + locale.getLanguage();
     }

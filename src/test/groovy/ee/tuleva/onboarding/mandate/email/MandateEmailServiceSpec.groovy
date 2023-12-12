@@ -17,6 +17,7 @@ import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConve
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandateWithPaymentRate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static java.time.ZoneOffset.UTC
 import static java.time.temporal.ChronoUnit.DAYS
@@ -167,5 +168,34 @@ class MandateEmailServiceSpec extends Specification {
     then:
     2 * emailService.send(*_) >> Optional.of("123")
   }
+
+  def "Send second pillar payment rate mandate email"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = notConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = sampleMandateWithPaymentRate()
+    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
+    def message = new MandrillMessage()
+    def mergeVars = [
+        fname             : user.firstName,
+        lname             : user.lastName,
+        suggestMembership : false,
+        transferDate      : "03.05.2021",
+        suggestThirdPillar: true
+    ]
+    def tags = ["mandate", "pillar_2", "suggest_3"]
+
+    mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "second_pillar_payment_rate_en", mergeVars, tags, !null) >> message
+    1 * emailService.send(user, message, "second_pillar_payment_rate_en")
+  }
+
+
 
 }

@@ -1,0 +1,4 @@
+ALTER TABLE users
+  ALTER COLUMN first_name SET NOT NULL;
+ALTER TABLE users
+  ALTER COLUMN last_name SET NOT NULL;

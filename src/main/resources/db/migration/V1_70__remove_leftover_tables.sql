@@ -11,5 +11,3 @@ DROP TABLE spring_session_attributes;
 DROP TABLE spring_session;
 
 DROP TABLE third_pillar_statistics;
-
-DROP TABLE user_profile;

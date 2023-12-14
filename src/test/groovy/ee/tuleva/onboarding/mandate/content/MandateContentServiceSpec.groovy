@@ -13,7 +13,6 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.PAYMENT_RATE
 
 @SpringBootTest
 @EnableSnapshots
@@ -86,7 +85,6 @@ class MandateContentServiceSpec extends Specification {
     expect.toMatchSnapshot(html)
   }
 
-
   @SnapshotName("mandate_cancellation")
   def "mandate cancellation"() {
     given:
@@ -115,6 +113,5 @@ class MandateContentServiceSpec extends Specification {
     then:
     expect.toMatchSnapshot(html)
   }
-
 
 }

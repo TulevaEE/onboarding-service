@@ -1684,11 +1684,23 @@ fund_transfer_3rd_pillar=[
     .width-50-percent {
       width: 50%;
     }
+
+    .cright {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 0.8416666666666667;
+      text-align: right
+    }
+
     </style>
 .
 .
   </head>
   <body class="c32">
+    <p class="cright"><a id="kix.g9q1qkk2mnqa"></a><span class="c1">Pensionikeskuse vorm</span>
+    </p>
+    <p class="c0"><span class="c3"></span></p>
+    <p class="c0"><span class="c3"></span></p>
     <p class="c31"><span class="c6">VABATAHTLIKU PENSIONIFONDI OSAKUTE VAHETAMISE AVALDUS nr <span>1234</span></span></p>
     <p class="c0"><span class="c5"></span></p>
 
@@ -2345,11 +2357,11 @@ future_contributions_2nd_pillar=[
   </head>
 
   <body class="c33">
-    <p class="c30"><a id="kix.g9q1qkk2mnqa"></a><span class="c1">&bdquo;Rahandusministri 26. aprilli 2011. a m&auml;&auml;ruse nr 25<br></br>&bdquo;Kohustusliku kogumispensioni avalduste vormide <br></br>kehtestamine&ldquo; lisa 1 <br></br>(muudetud s&otilde;nastuses)</span>
+    <p class="c30"><a id="kix.g9q1qkk2mnqa"></a><span class="c1">Pensionikeskuse vorm</span>
     </p>
     <p class="c17 c8"><span class="c1"></span></p>
     <p class="c17 c8"><span class="c1"></span></p>
-    <p class="c6"><span class="c1">VALIKUAVALDUS nr <span>123</span></span></p>
+    <p class="c6"><span class="c1">KOHUSTUSLIKU PENSONIFONDI VALIKUAVALDUS nr <span>123</span></span></p>
     <p class="c5 c8"><span class="c1"></span></p>
 
     <style type="text/css">
@@ -2965,13 +2977,26 @@ future_contributions_3rd_pillar=[
       orphans: 2;
       widows: 2;
       text-align: left
-    }</style>
+    }
+
+    .c30 {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 0.8416666666666667;
+      text-align: right
+    }
+
+    </style>
 
     <title>Valikuavaldus</title>
     <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
   </head>
 
   <body class="c33">
+    <p class="c30"><a id="kix.g9q1qkk2mnqa"></a><span class="c1">Pensionikeskuse vorm</span>
+    </p>
+    <p class="c17 c8"><span class="c1"></span></p>
+    <p class="c17 c8"><span class="c1"></span></p>
     <p class="c6"><span class="c1">VABATAHTLIKU PENSIONIFONDI VALIKUAVALDUS nr <span>124</span></span>
     </p>
     <p class="c5 c8"><span class="c1"></span></p>

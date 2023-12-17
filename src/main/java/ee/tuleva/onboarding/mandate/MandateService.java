@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
@@ -47,14 +48,16 @@ public class MandateService {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final UserConversionService conversionService;
 
-  public Mandate save(Long userId, CreateMandateCommand createMandateCommand) {
+  public Mandate save(
+      AuthenticatedPerson authenticatedPerson, CreateMandateCommand createMandateCommand) {
     validateCreateMandateCommand(createMandateCommand);
-    User user = userService.getById(userId);
+    User user = userService.getById(authenticatedPerson.getUserId());
     ConversionResponse conversion = conversionService.getConversion(user);
     ContactDetails contactDetails = episService.getContactDetails(user);
-    CreateMandateCommandWrapper createMandateCommandWrapper =
-        new CreateMandateCommandWrapper(createMandateCommand, user, conversion, contactDetails);
-    Mandate mandate = mandateConverter.convert(createMandateCommandWrapper);
+    CreateMandateCommandWrapper wrapper =
+        new CreateMandateCommandWrapper(
+            createMandateCommand, authenticatedPerson, user, conversion, contactDetails);
+    Mandate mandate = mandateConverter.convert(wrapper);
     return save(user, mandate);
   }
 

@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
 import static java.util.Arrays.asList;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
@@ -30,13 +31,15 @@ public class MandateCancellationService {
   private final UserConversionService conversionService;
   private final CancellationMandateBuilder cancellationMandateBuilder;
 
-  public Mandate saveCancellationMandate(Long userId, ApplicationDTO applicationToCancel) {
+  public Mandate saveCancellationMandate(
+      AuthenticatedPerson authenticatedPerson, ApplicationDTO applicationToCancel) {
     validate(applicationToCancel.getType());
-    User user = userService.getById(userId);
+    User user = userService.getById(authenticatedPerson.getUserId());
     ConversionResponse conversion = conversionService.getConversion(user);
     ContactDetails contactDetails = episService.getContactDetails(user);
     Mandate mandate =
-        cancellationMandateBuilder.build(applicationToCancel, user, conversion, contactDetails);
+        cancellationMandateBuilder.build(
+            applicationToCancel, authenticatedPerson, user, conversion, contactDetails);
     return mandateService.save(user, mandate);
   }
 

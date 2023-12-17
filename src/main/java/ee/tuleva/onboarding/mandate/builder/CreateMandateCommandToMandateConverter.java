@@ -4,6 +4,7 @@ import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.FundBalance;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.fund.FundRepository;
@@ -38,12 +39,14 @@ public class CreateMandateCommandToMandateConverter
     val createMandateCommand = wrapper.getCreateMandateCommand();
     ConversionResponse conversion = wrapper.getConversion();
     ContactDetails contactDetails = wrapper.getContactDetails();
+    AuthenticatedPerson authenticatedPerson = wrapper.getAuthenticatedPerson();
 
     Mandate mandate = new Mandate();
     mandate.setUser(user);
     mandate.setPillar(getPillar(createMandateCommand));
     mandate.setAddress(createMandateCommand.getAddress());
-    conversionDecorator.addConversionMetadata(mandate.getMetadata(), conversion, contactDetails);
+    conversionDecorator.addConversionMetadata(
+        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson);
 
     List<FundTransferExchange> fundTransferExchanges =
         createMandateCommand.getFundTransferExchanges().stream()

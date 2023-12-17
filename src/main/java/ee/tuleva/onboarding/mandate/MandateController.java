@@ -72,7 +72,7 @@ public class MandateController {
     }
 
     log.info("Creating mandate");
-    return mandateService.save(authenticatedPerson.getUserId(), createMandateCommand);
+    return mandateService.save(authenticatedPerson, createMandateCommand);
   }
 
   @Operation(summary = "Start signing mandate with mobile ID")

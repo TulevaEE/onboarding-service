@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.BaseControllerSpec
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
 import org.springframework.test.web.servlet.MockMvc
 
@@ -62,7 +63,7 @@ class ApplicationControllerSpec extends BaseControllerSpec {
   def "can cancel applications"() {
     def mandate = sampleMandate()
     def applicationId = 123L
-    1 * applicationCancellationService.createCancellationMandate(_ as Person, _ as Long, applicationId) >>
+    1 * applicationCancellationService.createCancellationMandate(_ as AuthenticatedPerson, applicationId) >>
       new ApplicationCancellationResponse(mandate.id)
 
     expect:

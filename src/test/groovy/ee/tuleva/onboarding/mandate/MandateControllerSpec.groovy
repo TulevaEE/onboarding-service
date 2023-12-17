@@ -39,7 +39,7 @@ class MandateControllerSpec extends BaseControllerSpec {
   def "save a mandate"() {
     when:
     def mandate = sampleMandate()
-    mandateService.save(_ as Long, _ as CreateMandateCommand) >> mandate
+    mandateService.save(_ as AuthenticatedPerson, _ as CreateMandateCommand) >> mandate
     then:
     mvc
         .perform(post("/v1/mandates")

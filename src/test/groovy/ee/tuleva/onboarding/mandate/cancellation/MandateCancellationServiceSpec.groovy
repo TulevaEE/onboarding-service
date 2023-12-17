@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.mandate.MandateService
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
@@ -25,13 +26,14 @@ class MandateCancellationServiceSpec extends Specification {
 
   def setup() {
     mandateCancellationService = new MandateCancellationService(
-      mandateService, userService, episService, conversionService, cancellationMandateBuilder
+        mandateService, userService, episService, conversionService, cancellationMandateBuilder
     )
   }
 
   def "saves cancellation mandate"() {
     given:
     def user = sampleUser().build()
+    def person = authenticatedPersonFromUser(user).build()
     def conversion = fullyConverted()
     def contactDetails = contactDetailsFixture()
     def applicationToCancel = sampleTransferApplicationDto()
@@ -40,10 +42,10 @@ class MandateCancellationServiceSpec extends Specification {
     1 * userService.getById(user.id) >> user
     1 * conversionService.getConversion(user) >> conversion
     1 * episService.getContactDetails(user) >> contactDetails
-    1 * cancellationMandateBuilder.build(applicationToCancel, user, conversion, contactDetails) >> mandate
+    1 * cancellationMandateBuilder.build(applicationToCancel, person, user, conversion, contactDetails) >> mandate
 
     when:
-    mandateCancellationService.saveCancellationMandate(user.id, applicationToCancel)
+    mandateCancellationService.saveCancellationMandate(person, applicationToCancel)
 
     then:
     1 * mandateService.save(user, mandate)
@@ -52,11 +54,12 @@ class MandateCancellationServiceSpec extends Specification {
   def "validates application type before saving"() {
     given:
     def user = sampleUser().build()
+    def person = authenticatedPersonFromUser(user).build()
     def applicationToCancel = sampleTransferApplicationDto()
     applicationToCancel.type = SELECTION
 
     when:
-    mandateCancellationService.saveCancellationMandate(user.id, applicationToCancel)
+    mandateCancellationService.saveCancellationMandate(person, applicationToCancel)
 
     then:
     thrown(InvalidApplicationTypeException)

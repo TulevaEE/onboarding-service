@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.builder;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import java.util.Map;
@@ -9,7 +10,10 @@ import org.springframework.stereotype.Service;
 public class ConversionDecorator {
 
   public void addConversionMetadata(
-      Map<String, Object> metadata, ConversionResponse conversion, ContactDetails contactDetails) {
+      Map<String, Object> metadata,
+      ConversionResponse conversion,
+      ContactDetails contactDetails,
+      AuthenticatedPerson authenticatedPerson) {
     metadata.put("isSecondPillarActive", contactDetails.isSecondPillarActive());
     metadata.put("isSecondPillarPartiallyConverted", conversion.isSecondPillarPartiallyConverted());
     metadata.put("isSecondPillarFullyConverted", conversion.isSecondPillarFullyConverted());
@@ -19,5 +23,7 @@ public class ConversionDecorator {
     metadata.put("isThirdPillarPartiallyConverted", conversion.isThirdPillarPartiallyConverted());
     metadata.put("isThirdPillarFullyConverted", conversion.isThirdPillarFullyConverted());
     metadata.put("thirdPillarWeightedAverageFee", conversion.getThirdPillarWeightedAverageFee());
+
+    metadata.put("authAttributes", authenticatedPerson.getAttributes());
   }
 }

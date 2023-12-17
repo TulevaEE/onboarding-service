@@ -27,7 +27,6 @@ import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("!production")
 public class PartnerAuthProvider implements AuthProvider {
   private static final String SUPPORTED_TOKEN_TYPE = "HANDOVER";
   private final JwtParser jwtParser;

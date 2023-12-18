@@ -128,13 +128,13 @@ public class MandateDeadlines {
             .atStartOfDay(timeZone)
             .with(LocalTime.MAX);
 
-    ZonedDateTime january1applicationYear =
-        LocalDate.of(applicationYear, Month.JANUARY, 1).atStartOfDay(timeZone).with(LocalTime.MAX);
+    ZonedDateTime endOfApplicationYear =
+        LocalDate.of(applicationYear, Month.DECEMBER, 31).atStartOfDay(timeZone).with(LocalTime.MAX);
 
     if (zonedApplicationDate.isBefore(november30ApplicationYear)) {
-      return january1applicationYear.plusYears(1).toInstant();
+      return endOfApplicationYear.toInstant();
     } else {
-      return january1applicationYear.plusYears(2).toInstant();
+      return endOfApplicationYear.plusYears(1).toInstant();
     }
   }
 }

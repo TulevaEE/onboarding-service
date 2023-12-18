@@ -183,52 +183,52 @@ class MandateDeadlinesSpec extends Specification {
     }
   }
 
-  def "test getPaymentRateDeadline before November 30 (2021-11-29) responds 2021-11-30"() {
+  def "test getPaymentRateDeadline before November 30 (2024-11-29) responds 2024-11-30"() {
     given:
-        def applicationDate = Instant.parse("2021-11-29T10:00:00Z")
+        def applicationDate = Instant.parse("2024-11-29T10:00:00Z")
         def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
         mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
 
     then:
-        mandateDeadlines.getPaymentRateDeadline() == Instant.parse("2021-11-30T21:59:59.999999999Z")
+        mandateDeadlines.getPaymentRateDeadline() == Instant.parse("2024-11-30T21:59:59.999999999Z")
   }
 
-  def "test getPaymentRateDeadline after November 30(2021-12-01) responds 2022-11-30"() {
+  def "test getPaymentRateDeadline after November 30(2024-12-01) responds 2025-11-30"() {
     given:
-        def applicationDate = Instant.parse("2021-12-01T10:00:00Z")
+        def applicationDate = Instant.parse("2024-12-01T10:00:00Z")
         def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
         mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
 
     then:
-        mandateDeadlines.getPaymentRateDeadline() == Instant.parse("2022-11-30T21:59:59.999999999Z")
+        mandateDeadlines.getPaymentRateDeadline() == Instant.parse("2025-11-30T21:59:59.999999999Z")
   }
 
-  def "test getPaymentRateFulfillmentDate before November 30(2021-11-29) responds 2022-01-01"() {
+  def "test getPaymentRateFulfillmentDate before November 30(2024-11-29) responds 2025-01-01"() {
     given:
-        def applicationDate = Instant.parse("2021-11-29T10:00:00Z")
+        def applicationDate = Instant.parse("2024-11-29T10:00:00Z")
         def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
         mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
 
     then:
-        mandateDeadlines.getPaymentRateFulfillmentDate() == Instant.parse("2022-01-01T21:59:59.999999999Z")
+        mandateDeadlines.getPaymentRateFulfillmentDate() == Instant.parse("2024-12-31T21:59:59.999999999Z")
   }
 
-  def "test getPaymentRateFulfillmentDate after November 30(2021-12-01) responds 2023-01-01"() {
+  def "test getPaymentRateFulfillmentDate after November 30(2024-12-01) responds 2026-01-01"() {
     given:
-        def applicationDate = Instant.parse("2021-12-01T10:00:00Z")
+        def applicationDate = Instant.parse("2024-12-01T10:00:00Z")
         def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
         mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
 
     then:
-        mandateDeadlines.getPaymentRateFulfillmentDate() == Instant.parse("2023-01-01T21:59:59.999999999Z")
+        mandateDeadlines.getPaymentRateFulfillmentDate() == Instant.parse("2025-12-31T21:59:59.999999999Z")
   }
 
 }

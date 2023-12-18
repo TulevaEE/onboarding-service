@@ -100,4 +100,41 @@ public class MandateDeadlines {
       default -> throw new IllegalArgumentException("Unknown application type: " + applicationType);
     };
   }
+
+  public Instant getPaymentRateDeadline() {
+    ZoneId timeZone = estonianClock.getZone();
+    ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
+    int applicationYear = zonedApplicationDate.getYear();
+
+    ZonedDateTime november30ApplicationYear =
+        LocalDate.of(applicationYear, Month.NOVEMBER, 30)
+            .atStartOfDay(timeZone)
+            .with(LocalTime.MAX);
+
+    if (zonedApplicationDate.isBefore(november30ApplicationYear)) {
+      return november30ApplicationYear.toInstant();
+    } else {
+      return november30ApplicationYear.plusYears(1).toInstant();
+    }
+  }
+
+  public Instant getPaymentRateFulfillmentDate() {
+    ZoneId timeZone = estonianClock.getZone();
+    ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
+    int applicationYear = zonedApplicationDate.getYear();
+
+    ZonedDateTime november30ApplicationYear =
+        LocalDate.of(applicationYear, Month.NOVEMBER, 30)
+            .atStartOfDay(timeZone)
+            .with(LocalTime.MAX);
+
+    ZonedDateTime january1applicationYear =
+        LocalDate.of(applicationYear, Month.JANUARY, 1).atStartOfDay(timeZone).with(LocalTime.MAX);
+
+    if (zonedApplicationDate.isBefore(november30ApplicationYear)) {
+      return january1applicationYear.plusYears(1).toInstant();
+    } else {
+      return january1applicationYear.plusYears(2).toInstant();
+    }
+  }
 }

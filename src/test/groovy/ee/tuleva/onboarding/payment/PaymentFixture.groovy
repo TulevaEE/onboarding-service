@@ -22,10 +22,14 @@ class PaymentFixture {
   static PaymentType aPaymentType = PaymentType.SINGLE
   static PaymentChannel aPaymentChannel = PaymentChannel.LHV
   static User sampleUserNonMember = sampleUserNonMember().build()
-  static PaymentData aPaymentData = new PaymentData(sampleUser.personalCode, aPaymentAmount, aPaymentCurrency, aPaymentType, aPaymentChannel)
+  static PaymentData aPaymentData = aPaymentData()
   static PaymentData aPaymentDataWithoutAnAmount = new PaymentData(sampleUser.personalCode, null, aPaymentCurrency, aPaymentType, aPaymentChannel)
   static PaymentData aPaymentDataForMemberPayment = new PaymentData(sampleUserNonMember.personalCode, aPaymentAmount, aPaymentCurrency, PaymentType.MEMBER_FEE, PaymentChannel.TULUNDUSUHISTU)
   static aPaymentCreationTime = TestClockHolder.now - Duration.ofDays(1)
+
+  static PaymentData aPaymentData() {
+    return new PaymentData(sampleUser.personalCode, aPaymentAmount, aPaymentCurrency, aPaymentType, aPaymentChannel)
+  }
 
   static Payment aNewSinglePayment() {
     return new Payment(

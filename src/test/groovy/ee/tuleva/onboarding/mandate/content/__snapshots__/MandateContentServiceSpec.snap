@@ -1986,7 +1986,7 @@ fund_transfer_3rd_pillar=[
       <tbody>
         <tr class="c34">
           <td class="c22" colspan="3" rowspan="1">
-            <p class="c14"><span class="c3">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
+            <p class="c14"><span class="c3">Kinnitan, et olen osakuomaniku seaduslik esindaja.</span></p>
           </td>
         </tr>
         <tr class="c1">
@@ -2504,7 +2504,7 @@ future_contributions_2nd_pillar=[
 .
 .
     <p class="c5 c8"><span class="c0"></span></p>
-    <p class="c5"><span class="c0">3. Kohustuslik pensionifond, kuhu soovin hakata tegema kohustusliku kogumispensioni sissemakseid&sup1;</span>
+    <p class="c5"><span class="c0">3. Kohustuslik pensionifond / pensioni investeerimiskonto (PIK), kuhu soovin hakata tegema kohustusliku kogumispensioni sissemakseid&sup1;</span>
     </p>
     <p class="c5 c8"><span class="c0"></span></p>
     <a id="t.02fe6cfe4ddff85327de913266a11873fe4457ee"></a><a id="t.3"></a>
@@ -2512,7 +2512,7 @@ future_contributions_2nd_pillar=[
       <tbody>
         <tr class="c12">
           <td class="c10" colspan="1" rowspan="1">
-            <p class="c5"><span class="c18">Pensionifondi nimetus</span></p>
+            <p class="c5"><span class="c18"><b>Pensionifondi nimetus / PIK number</b></span></p>
           </td>
           <td class="c15" colspan="1" rowspan="1">
             <p class="c5 c8"><span class="c0"></span></p>
@@ -2596,39 +2596,12 @@ future_contributions_2nd_pillar=[
     <p class="c5 c8"><span class="c0"></span></p>
     <p class="c5 c8"><span class="c0"></span></p>
     <a id="t.b2831fb258baf4dfb1c91996f8b9ea52c86b598f"></a><a id="t.4"></a>
-    <table class="c25">
-      <tbody>
-        <tr class="c12">
-          <td class="c3" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0">10.03.2021</span></p>
-            <p class="c5 c8"><span class="c0"></span></p>
-          </td>
-          <td class="c3" colspan="1" rowspan="1">
-            <p class="c5 c8"><span class="c0"></span></p>
-          </td>
-        </tr>
-        <tr class="c12">
-          <td class="c3" colspan="1" rowspan="1">
-            <p class="c5"><span class="c1">Kuup&auml;ev (pp.kk.aaaa)</span></p>
-          </td>
-          <td class="c3" colspan="1" rowspan="1">
-            <p class="c5"><span class="c1">Allkiri</span></p>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <p class="c5 c8"><span class="c0"></span></p>
     <p class="c5"><span class="c0">4. Seadusliku esindaja andmed&sup2;</span></p>
     <p class="c5 c8"><span class="c0"></span></p>
     <p class="c5 c8"><span class="c0"></span></p>
     <a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
     <table class="c25">
       <tbody>
-        <tr class="c13">
-          <td class="c32" colspan="3" rowspan="1">
-            <p class="c5"><span class="c0">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
-          </td>
-        </tr>
         <tr class="c12">
           <td class="c7" colspan="1" rowspan="1">
             <p class="c5 c8"><span class="c0"></span></p>
@@ -2654,7 +2627,7 @@ future_contributions_2nd_pillar=[
       </tbody>
     </table>
     <p class="c5 c8"><span class="c0"></span></p>
-    <p class="c5"><span class="c0">6. Volitatud esindaja andmed&sup3;</span></p>
+    <p class="c5"><span class="c0">5. Volitatud esindaja andmed&sup3;</span></p>
     <p class="c5 c8"><span class="c0"></span></p>
     <a id="t.364bbe539b833f885e6cdf18af613e0e4b587303"></a><a id="t.6"></a>
     <table class="c25">
@@ -3267,7 +3240,7 @@ Pensionikeskus veebilehel.</span>
       <tbody>
         <tr class="c13">
           <td class="c32" colspan="3" rowspan="1">
-            <p class="c5"><span class="c0">Kinnitan, et olen avalduse esitaja seaduslik esindaja.</span></p>
+            <p class="c5"><span class="c0">Kinnitan, et olen osakuomaniku seaduslik esindaja.</span></p>
           </td>
         </tr>
         <tr class="c12">

@@ -19,9 +19,10 @@ class UserResponseSpec extends Specification {
         .lastName(lastName)
         .build()
     def contactDetails = new ContactDetails()
+    def secondPillarPaymentRate = 6
 
     when:
-    def userResponse = UserResponse.from(user, contactDetails)
+    def userResponse = UserResponse.from(user, contactDetails, secondPillarPaymentRate)
 
     then:
     userResponse.firstName == responseFirstName

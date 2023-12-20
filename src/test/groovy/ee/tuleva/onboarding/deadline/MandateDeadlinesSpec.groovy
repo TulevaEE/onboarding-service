@@ -216,7 +216,7 @@ class MandateDeadlinesSpec extends Specification {
         mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
 
     then:
-        mandateDeadlines.getPaymentRateFulfillmentDate() == Instant.parse("2024-12-31T21:59:59.999999999Z")
+        mandateDeadlines.getPaymentRateFulfillmentDate() == LocalDate.parse("2024-12-31")
   }
 
   def "test getPaymentRateFulfillmentDate after November 30(2024-12-01) responds 2026-01-01"() {
@@ -228,7 +228,7 @@ class MandateDeadlinesSpec extends Specification {
         mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
 
     then:
-        mandateDeadlines.getPaymentRateFulfillmentDate() == Instant.parse("2025-12-31T21:59:59.999999999Z")
+        mandateDeadlines.getPaymentRateFulfillmentDate() == LocalDate.parse("2025-12-31")
   }
 
 }

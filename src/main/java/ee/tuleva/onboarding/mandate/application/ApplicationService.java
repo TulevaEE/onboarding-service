@@ -58,6 +58,7 @@ public class ApplicationService {
     applications.addAll(getTransferApplications(person));
     applications.addAll(getWithdrawalApplications(person));
     applications.addAll(paymentLinkingService.getPaymentApplications(person));
+    applications.addAll(getPaymentRateApplications(person));
     Collections.sort(applications);
     return applications;
   }
@@ -83,6 +84,14 @@ public class ApplicationService {
         person,
         entry -> entry.getKey().isWithdrawal(),
         entry -> entry.getValue().stream().map(this::convertWithdrawal));
+  }
+
+  private List<Application<PaymentRateApplicationDetails>> getPaymentRateApplications(
+      Person person) {
+    return getApplications(
+        person,
+        entry -> entry.getKey().isPaymentRate(),
+        entry -> entry.getValue().stream().map(this::convertPaymentRate));
   }
 
   private <T extends ApplicationDetails> List<Application<T>> getApplications(
@@ -175,6 +184,24 @@ public class ApplicationService {
             .depositAccountIBAN(applicationDTO.getBankAccount())
             .fulfillmentDate(deadlines.getFulfillmentDate(applicationDTO.getType()))
             .cancellationDeadline(deadlines.getCancellationDeadline(applicationDTO.getType()))
+            .build());
+    return applicationBuilder.build();
+  }
+
+  private Application<PaymentRateApplicationDetails> convertPaymentRate(
+      ApplicationDTO applicationDTO) {
+    val applicationBuilder =
+        Application.<PaymentRateApplicationDetails>builder()
+            .creationTime(applicationDTO.getDate())
+            .status(applicationDTO.getStatus())
+            .id(applicationDTO.getId());
+
+    val deadlines = mandateDeadlinesService.getDeadlines(applicationDTO.getDate());
+    applicationBuilder.details(
+        PaymentRateApplicationDetails.builder()
+            .type(applicationDTO.getType())
+            .rate(applicationDTO.getPaymentRate())
+            .fulfillmentDate(deadlines.getFulfillmentDate(applicationDTO.getType()))
             .build());
     return applicationBuilder.build();
   }

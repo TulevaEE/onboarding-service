@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.epis.mandate;
 
 import ee.tuleva.onboarding.epis.mandate.MandateDto.MandateFundsTransferExchangeDTO;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -24,6 +25,7 @@ public class ApplicationDTO {
   private List<MandateFundsTransferExchangeDTO> fundTransferExchanges;
   private ApplicationType type;
   private String bankAccount;
+  private BigDecimal paymentRate;
 
   public boolean isWithdrawal() {
     return type != null && type.isWithdrawal();

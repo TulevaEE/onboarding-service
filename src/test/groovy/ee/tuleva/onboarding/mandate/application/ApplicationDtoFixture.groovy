@@ -59,6 +59,15 @@ class ApplicationDtoFixture {
         .build()
   }
 
+  static ApplicationDTO samplePaymentRateApplicationDto() {
+    return ApplicationDTO.builder()
+        .date(TestClockHolder.now)
+        .type(PAYMENT_RATE)
+        .status(PENDING)
+        .id(123L)
+        .paymentRate(BigDecimal.valueOf(6))
+        .build()
+  }
   static ApplicationDTO sampleEarlyWithdrawalApplicationDto() {
     return ApplicationDTO.builder()
         .date(TestClockHolder.now)

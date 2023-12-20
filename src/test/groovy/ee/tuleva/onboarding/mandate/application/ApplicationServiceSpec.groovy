@@ -43,10 +43,12 @@ class ApplicationServiceSpec extends Specification {
     def withdrawalApplication = sampleWithdrawalApplicationDto()
     def earlyWithdrawalApplication = sampleEarlyWithdrawalApplicationDto()
     def pikTransferApplication = samplePikTransferApplicationDto()
+    def paymentRateApplication = samplePaymentRateApplicationDto()
 
     episService.getApplications(person) >> [
         transferApplication1, transferApplication2, completedTransferApplication,
-        pikTransferApplication, withdrawalApplication, earlyWithdrawalApplication
+        pikTransferApplication, withdrawalApplication, earlyWithdrawalApplication,
+        paymentRateApplication
     ]
     localeService.getCurrentLocale() >> Locale.ENGLISH
     fundRepository.findByIsin("source") >> sampleFunds().first()
@@ -161,6 +163,15 @@ class ApplicationServiceSpec extends Specification {
         targetFund == tuleva3rdPillarApiFundResponse()
       }
     }
-    applications.size() == 7
+    with(applications[7] as Application<PaymentRateApplicationDetails>) {
+      id == 123L
+      type == PAYMENT_RATE
+      status == PENDING
+      creationTime == TestClockHolder.now
+      with(details) {
+        rate == 6.0
+      }
+    }
+    applications.size() == 8
   }
 }

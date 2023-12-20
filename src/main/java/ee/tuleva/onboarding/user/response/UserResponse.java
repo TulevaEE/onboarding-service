@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import lombok.Builder;
 import lombok.Getter;
@@ -30,18 +31,23 @@ public class UserResponse {
   private Address address;
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
+  private BigDecimal secondPillarPaymentRate;
 
   public static UserResponse from(@NotNull User user) {
     return responseBuilder(user).build();
   }
 
-  public static UserResponse from(@NotNull User user, @NotNull ContactDetails contactDetails) {
+  public static UserResponse from(
+      @NotNull User user,
+      @NotNull ContactDetails contactDetails,
+      @NotNull BigDecimal secondPillarPaymentRate) {
     return responseBuilder(user)
         .pensionAccountNumber(contactDetails.getPensionAccountNumber())
         .address(Address.builder().countryCode(contactDetails.getCountry()).build())
         .secondPillarPikNumber(contactDetails.getActiveSecondPillarFundPik())
         .isSecondPillarActive(contactDetails.isSecondPillarActive())
         .isThirdPillarActive(contactDetails.isThirdPillarActive())
+        .secondPillarPaymentRate(secondPillarPaymentRate)
         .build();
   }
 

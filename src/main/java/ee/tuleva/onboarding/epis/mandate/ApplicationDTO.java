@@ -30,4 +30,8 @@ public class ApplicationDTO {
   public boolean isWithdrawal() {
     return type != null && type.isWithdrawal();
   }
+
+  public boolean isPaymentRate() {
+    return type != null && type.isPaymentRate();
+  }
 }

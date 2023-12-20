@@ -36,7 +36,8 @@ public class UserController {
     Long userId = authenticatedPerson.getUserId();
     User user = userService.getById(userId);
     ContactDetails contactDetails = episService.getContactDetails(authenticatedPerson);
-    return UserResponse.from(user, contactDetails);
+    return UserResponse.from(
+        user, contactDetails, userService.getSecondPillarPaymentRate(authenticatedPerson));
   }
 
   @GetMapping("/me/principal")
@@ -64,7 +65,8 @@ public class UserController {
     if (cmd.getAddress() != null) {
       ContactDetails contactDetails =
           contactDetailsService.updateContactDetails(user, cmd.getAddress());
-      return UserResponse.from(user, contactDetails);
+      return UserResponse.from(
+          user, contactDetails, userService.getSecondPillarPaymentRate(authenticatedPerson));
     }
 
     return UserResponse.from(user);

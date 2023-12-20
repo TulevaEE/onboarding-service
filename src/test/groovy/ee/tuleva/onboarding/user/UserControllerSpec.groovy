@@ -29,8 +29,10 @@ class UserControllerSpec extends BaseControllerSpec {
     given:
     def contactDetails = contactDetailsFixture()
     def user = userFrom(sampleAuthenticatedPerson)
+    def sampleSecondPillarPaymentRate = 2
     1 * userService.getById(sampleAuthenticatedPerson.userId) >> user
     1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
+    1 * userService.getSecondPillarPaymentRate(sampleAuthenticatedPerson) >> sampleSecondPillarPaymentRate
 
     expect:
     mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
@@ -49,6 +51,7 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
         .andExpect(jsonPath('$.secondPillarActive', is(contactDetails.secondPillarActive)))
         .andExpect(jsonPath('$.thirdPillarActive', is(contactDetails.thirdPillarActive)))
+        .andExpect(jsonPath('$.secondPillarPaymentRate', is(sampleSecondPillarPaymentRate)))
   }
 
   def "/me endpoint works with a member"() {
@@ -98,12 +101,14 @@ class UserControllerSpec extends BaseControllerSpec {
         address: address
     )
     def updatedUser = userFrom(sampleAuthenticatedPerson, command)
+    def sampleSecondPillarPaymentRate = 2
 
     1 * userService
         .updateUser(sampleAuthenticatedPerson.personalCode, Optional.of(command.email), command.phoneNumber) >>
         updatedUser
     1 * contactDetailsService.updateContactDetails(updatedUser, command.address) >>
         contactDetails.setAddress(address)
+    1 * userService.getSecondPillarPaymentRate(sampleAuthenticatedPerson) >> sampleSecondPillarPaymentRate
 
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
@@ -124,6 +129,7 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.age', isA(Integer)))
         .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
         .andExpect(jsonPath('$.address.countryCode', is(address.countryCode)))
+        .andExpect(jsonPath('$.secondPillarPaymentRate', is(sampleSecondPillarPaymentRate)))
   }
 
   def "can update just email and phone number"() {

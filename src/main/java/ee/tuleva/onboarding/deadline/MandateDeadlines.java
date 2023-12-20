@@ -88,6 +88,7 @@ public class MandateDeadlines {
       case TRANSFER -> getTransferMandateFulfillmentDate();
       case WITHDRAWAL -> getWithdrawalFulfillmentDate();
       case EARLY_WITHDRAWAL -> getEarlyWithdrawalFulfillmentDate();
+      case PAYMENT_RATE -> getPaymentRateFulfillmentDate();
       default -> throw new IllegalArgumentException("Unknown application type: " + applicationType);
     };
   }
@@ -118,7 +119,7 @@ public class MandateDeadlines {
     }
   }
 
-  public Instant getPaymentRateFulfillmentDate() {
+  public LocalDate getPaymentRateFulfillmentDate() {
     ZoneId timeZone = estonianClock.getZone();
     ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
     int applicationYear = zonedApplicationDate.getYear();
@@ -129,12 +130,14 @@ public class MandateDeadlines {
             .with(LocalTime.MAX);
 
     ZonedDateTime endOfApplicationYear =
-        LocalDate.of(applicationYear, Month.DECEMBER, 31).atStartOfDay(timeZone).with(LocalTime.MAX);
+        LocalDate.of(applicationYear, Month.DECEMBER, 31)
+            .atStartOfDay(timeZone)
+            .with(LocalTime.MAX);
 
     if (zonedApplicationDate.isBefore(november30ApplicationYear)) {
-      return endOfApplicationYear.toInstant();
+      return endOfApplicationYear.toLocalDate();
     } else {
-      return endOfApplicationYear.plusYears(1).toInstant();
+      return endOfApplicationYear.plusYears(1).toLocalDate();
     }
   }
 }

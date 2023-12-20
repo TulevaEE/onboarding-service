@@ -22,4 +22,8 @@ public enum ApplicationType {
   public boolean isTransfer() {
     return this == TRANSFER;
   }
+
+  public boolean isPaymentRate() {
+    return this == PAYMENT_RATE;
+  }
 }

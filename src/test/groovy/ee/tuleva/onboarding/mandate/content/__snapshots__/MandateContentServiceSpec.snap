@@ -1852,14 +1852,14 @@ fund_transfer_3rd_pillar=[
       <tbody>
         <tr class="c1">
           <td class="c8" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Pensionifondi nimetus, mille osakuid soovin vahetada ja mille osakud v&otilde;etakse vahetamisel tagasi</span>
+            <p class="c14"><span class="c5">Pensionifond, mille osakuid soovin vahetada ja mille osakud võetakse vahetamisel tagasi</span>
             </p>
           </td>
           <td class="c25" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Pensionifondi nimetus, mille osakuid soovin vahetamisel omandada</span></p>
+            <p class="c14"><span class="c5">Pensionifond, mille osakuid soovin vahetamisel omandada</span></p>
           </td>
           <td class="c9" colspan="1" rowspan="1">
-            <p class="c14"><span class="c5">Tagasivõetavate osakute arv, mille eest soovin omandada valitud väärtpaberi osakuid</span>
+            <p class="c14"><span class="c5">Tagasivõetavate osakute arv, mille eest soovin omandada valitud pensionifondi osakuid</span>
             </p>
           </td>
         </tr>
@@ -1895,12 +1895,12 @@ fund_transfer_3rd_pillar=[
       <tbody>
       <tr class="c1">
         <td class="c8" colspan="2">
-          <p class="c14"><span class="c5">Osakute ja puuduva t&ouml;&ouml;v&otilde;ime<sup>1</sup></span></p>
+          <p class="c14"><span class="c5">Osaline ja puuduv töövõime&sup1;</span></p>
         </td>
       </tr>
       <tr class="c7">
         <td class="c25" colspan="1">
-          <p class="c14"><span class="c5">Osakute t&ouml;&ouml;v&otilde;ime</span></p>
+          <p class="c14"><span class="c5">Osaline töövõime</span></p>
         </td>
         <td class="c9" colspan="1">
           <p class="c0"><span class="c3"></span></p>
@@ -1908,7 +1908,7 @@ fund_transfer_3rd_pillar=[
       </tr>
       <tr class="c7">
         <td class="c25" colspan="1">
-          <p class="c14"><span class="c5">Puuduva t&ouml;&ouml;v&otilde;ime</span></p>
+          <p class="c14"><span class="c5">Puuduv töövõime</span></p>
         </td>
         <td class="c9" colspan="1">
           <p class="c0"><span class="c3"></span></p>
@@ -3114,7 +3114,7 @@ future_contributions_3rd_pillar=[
 .
 .
     <p class="c5 c8"><span class="c0"></span></p>
-    <p class="c5"><span class="c0">3. Vabatahtlik(ud) pensionifond(id), kuhu soovin hakata tegema vabatahtliku kogumispensioni sissemakseid&sup1;</span>
+    <p class="c5"><span class="c0">3. Vabatahtlik(ud) pensionifond(id), kuhu soovin hakata tegema vabatahtliku kogumispensioni sissemakseid</span>
     </p>
     <p class="c5 c8"><span class="c0"></span></p>
     <a id="t.02fe6cfe4ddff85327de913266a11873fe4457ee"></a><a id="t.3"></a>
@@ -3122,7 +3122,7 @@ future_contributions_3rd_pillar=[
       <tbody>
         <tr class="c12">
           <td class="c10" colspan="1" rowspan="1">
-            <p class="c5"><span class="c18">Pensionifondi nimetus</span></p>
+            <p class="c5"><span class="c18">Pensionifond</span></p>
           </td>
           <td class="c7" colspan="1" rowspan="1">
             <p class="c5"><span class="c1">Igakordse sissemakse summa jaotuse osakaal valitud fondide vahel (%)</span>
@@ -4325,7 +4325,7 @@ payment_rate_change=[
       </span></p>
     </td>
     <td class="c19" colspan="1" rowspan="1">
-      <p class="c0"><span class="c5">6</span>%</p>
+      <p class="c0"><span class="c5">6</span></p>
     </td>
   </tr>
   </tbody>

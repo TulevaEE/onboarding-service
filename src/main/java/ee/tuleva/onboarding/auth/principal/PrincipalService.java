@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Map;
 import java.util.Optional;
+import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,7 @@ public class PrincipalService {
 
   private final UserService userService;
 
-  public AuthenticatedPerson getFrom(Person person, Map<String, String> attributes) {
+  public AuthenticatedPerson getFrom(@Valid Person person, Map<String, String> attributes) {
 
     Optional<User> userOptional = userService.findByPersonalCode(person.getPersonalCode());
 

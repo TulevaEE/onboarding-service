@@ -14,7 +14,7 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
 import org.springframework.web.servlet.LocaleResolver
 
-import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER_ATTRIBUTE
+import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static java.util.Locale.ENGLISH
 import static org.hamcrest.Matchers.is
@@ -39,7 +39,7 @@ class MandateControllerSpec extends BaseControllerSpec {
   def "save a mandate"() {
     when:
     def mandate = sampleMandate()
-    mandateService.save(_ as Long, _ as CreateMandateCommand) >> mandate
+    mandateService.save(_ as AuthenticatedPerson, _ as CreateMandateCommand) >> mandate
     then:
     mvc
         .perform(post("/v1/mandates")
@@ -60,7 +60,7 @@ class MandateControllerSpec extends BaseControllerSpec {
 
   def "mobile id signature start returns the mobile id challenge code"() {
     when:
-    mandateService.mobileIdSign(1L, authenticatedPerson.getUserId(), authenticatedPerson.getAttribute(PHONE_NUMBER_ATTRIBUTE)) >>
+    mandateService.mobileIdSign(1L, authenticatedPerson.getUserId(), authenticatedPerson.getAttribute(PHONE_NUMBER)) >>
         MobileIdSignatureSession.builder().verificationCode("1234").build()
 
     then:

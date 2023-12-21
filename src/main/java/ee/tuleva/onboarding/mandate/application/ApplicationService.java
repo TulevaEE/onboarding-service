@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
+import ee.tuleva.onboarding.payment.application.PaymentLinkingService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.application;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
@@ -17,10 +18,11 @@ public class ApplicationCancellationService {
   private final EpisService episService;
 
   public ApplicationCancellationResponse createCancellationMandate(
-      Person person, Long userId, Long applicationId) {
-    ApplicationDTO applicationToCancel = getApplication(applicationId, person);
+      AuthenticatedPerson authenticatedPerson, Long applicationId) {
+    ApplicationDTO applicationToCancel = getApplication(applicationId, authenticatedPerson);
     Mandate mandate =
-        mandateCancellationService.saveCancellationMandate(userId, applicationToCancel);
+        mandateCancellationService.saveCancellationMandate(
+            authenticatedPerson, applicationToCancel);
     return new ApplicationCancellationResponse(mandate.getId());
   }
 

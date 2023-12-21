@@ -25,6 +25,7 @@ import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
@@ -45,7 +46,7 @@ class MandateServiceSpec extends Specification {
   UserConversionService conversionService = Mock()
 
   MandateService service = new MandateService(mandateRepository, signService, converter, mandateProcessor,
-    mandateFileService, userService, episService, eventPublisher, conversionService)
+      mandateFileService, userService, episService, eventPublisher, conversionService)
 
   Long sampleMandateId = 1L
   User sampleUser = sampleUser()
@@ -61,18 +62,18 @@ class MandateServiceSpec extends Specification {
     }
     CreateMandateCommand createMandateCmd = sampleCreateMandateCommand()
     when:
-    Mandate mandate = service.save(sampleUser.id, createMandateCmd)
+    Mandate mandate = service.save(authenticatedPersonFromUser(sampleUser).build(), createMandateCmd)
     then:
     mandate.futureContributionFundIsin == Optional.of(createMandateCmd.futureContributionFundIsin)
     mandate.fundTransferExchanges.size() == createMandateCmd.fundTransferExchanges.size()
     mandate.fundTransferExchanges.first().sourceFundIsin ==
-      createMandateCmd.fundTransferExchanges.first().sourceFundIsin
+        createMandateCmd.fundTransferExchanges.first().sourceFundIsin
 
     mandate.fundTransferExchanges.first().targetFundIsin ==
-      createMandateCmd.fundTransferExchanges.first().targetFundIsin
+        createMandateCmd.fundTransferExchanges.first().targetFundIsin
 
     mandate.fundTransferExchanges.first().amount ==
-      createMandateCmd.fundTransferExchanges.first().amount
+        createMandateCmd.fundTransferExchanges.first().amount
     1 * episService.getContactDetails(sampleUser) >> contactDetailsFixture()
     1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
     1 * eventPublisher.publishEvent(_ as BeforeMandateCreatedEvent)
@@ -83,7 +84,7 @@ class MandateServiceSpec extends Specification {
     given:
     CreateMandateCommand createMandateCmd = invalidCreateMandateCommand()
     when:
-    service.save(sampleUser.id, createMandateCmd)
+    service.save(authenticatedPersonFromUser(sampleUser).build(), createMandateCmd)
     then:
     InvalidMandateException exception = thrown()
     exception.errorsResponse.errors.first().code == "invalid.mandate.source.amount.exceeded"
@@ -93,7 +94,7 @@ class MandateServiceSpec extends Specification {
     given:
     CreateMandateCommand createMandateCmd = sampleCreateMandateCommand()
     when:
-    service.save(sampleUser.id, createMandateCmd)
+    service.save(authenticatedPersonFromUser(sampleUser).build(), createMandateCmd)
     then:
     AmlChecksMissingException exception = thrown()
     exception.errorsResponse.errors.first().code == "invalid.mandate.checks.missing"
@@ -108,7 +109,7 @@ class MandateServiceSpec extends Specification {
     given:
     CreateMandateCommand createMandateCmd = invalidCreateMandateCommandWithSameSourceAndTargetFund
     when:
-    service.save(sampleUser.id, createMandateCmd)
+    service.save(authenticatedPersonFromUser(sampleUser).build(), createMandateCmd)
     then:
     InvalidMandateException exception = thrown()
     exception.errorsResponse.errors.first().code == "invalid.mandate.same.source.and.target.transfer.present"
@@ -121,7 +122,7 @@ class MandateServiceSpec extends Specification {
 
     1 * mandateFileService.getMandateFiles(sampleMandateId, user.id) >> sampleFiles()
     1 * signService.startMobileIdSign(_ as List<SignatureFile>, user.personalCode, user.phoneNumber) >>
-      signatureSession
+        signatureSession
 
     when:
     def session = service.mobileIdSign(sampleMandateId, user.id, user.phoneNumber)
@@ -323,9 +324,9 @@ class MandateServiceSpec extends Specification {
 
   User sampleUser() {
     return User.builder()
-      .personalCode("38501010002")
-      .phoneNumber("5555555")
-      .build()
+        .personalCode("38501010002")
+        .phoneNumber("5555555")
+        .build()
   }
 
   ErrorsResponse sampleErrorsResponse = new ErrorsResponse([ErrorResponse.builder().code('sampe.error').build()])

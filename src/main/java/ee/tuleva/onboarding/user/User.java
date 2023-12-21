@@ -13,6 +13,7 @@ import java.util.Optional;
 import javax.persistence.*;
 import javax.validation.constraints.Email;
 import javax.validation.constraints.Min;
+import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import lombok.*;
 
@@ -38,9 +39,9 @@ public class User implements Person, Serializable {
 
   private String phoneNumber;
 
-  private String firstName;
+  @NotBlank private String firstName;
 
-  private String lastName;
+  @NotBlank private String lastName;
 
   @NotNull private Instant createdDate;
 

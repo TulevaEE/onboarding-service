@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.auth.event;
 
 import static ee.tuleva.onboarding.auth.GrantType.ID_CARD;
+import static ee.tuleva.onboarding.auth.idcard.IdCardSession.ID_DOCUMENT_TYPE;
 
 import ee.tuleva.onboarding.auth.GrantType;
-import ee.tuleva.onboarding.auth.idcard.IdCardSession;
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import lombok.Getter;
@@ -26,7 +26,7 @@ public class BeforeTokenGrantedEvent extends ApplicationEvent {
   }
 
   public IdDocumentType getIdDocumentType() {
-    final var attributeValue = person.getAttribute(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE);
+    final var attributeValue = person.getAttribute(ID_DOCUMENT_TYPE);
     if (attributeValue == null) {
       return null;
     }

@@ -9,13 +9,15 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.locale.MockLocaleService
 import ee.tuleva.onboarding.payment.PaymentService
+import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
+import ee.tuleva.onboarding.payment.application.PaymentLinkingService
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
 import java.time.Duration
 import java.time.Instant
 
-import static PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
+import static ee.tuleva.onboarding.payment.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
@@ -41,7 +43,7 @@ class PaymentLinkingServiceSpec extends Specification {
   FundRepository fundRepository = Mock()
   PublicHolidays publicHolidays = new PublicHolidays(TestClockHolder.clock)
   LocaleService localeService = new MockLocaleService()
-  PaymentLinkingService paymentApplicationService =
+    PaymentLinkingService paymentApplicationService =
       new PaymentLinkingService(paymentService, cashFlowService, fundRepository, localeService, TestClockHolder.clock, publicHolidays)
 
   def "can get payment applications"() {

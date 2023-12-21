@@ -19,13 +19,13 @@ import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSeri
 class PaymentServiceSpec extends Specification {
 
   PaymentRepository paymentRepository = Mock()
-  PaymentProviderService paymentProviderService = Mock()
+  SinglePaymentService singlePaymentService = Mock()
   RecurringPaymentService recurringPaymentService = Mock()
   PaymentProviderCallbackService paymentProviderCallbackService = Mock()
   UserService userService = Mock()
 
   PaymentService paymentService = new PaymentService(
-      paymentRepository, paymentProviderService, recurringPaymentService, paymentProviderCallbackService, userService)
+      paymentRepository, singlePaymentService, recurringPaymentService, paymentProviderCallbackService, userService)
 
   def "can get payments"() {
     given:
@@ -41,9 +41,9 @@ class PaymentServiceSpec extends Specification {
   def "can get a single payment link"() {
     given:
     def person = samplePerson
-    def paymentData = aPaymentData.tap { type = SINGLE }
+    def paymentData = aPaymentData().tap { type = SINGLE }
     def link = new PaymentLink("https://single.payment.url")
-    paymentProviderService.getPaymentLink(paymentData, person) >> link
+    singlePaymentService.getPaymentLink(paymentData, person) >> link
 
     when:
     def returnedLink = paymentService.getLink(paymentData, person)
@@ -55,9 +55,9 @@ class PaymentServiceSpec extends Specification {
   def "can get a member payment link"() {
     given:
     def person = samplePerson
-    def paymentData = aPaymentData.tap { type = MEMBER_FEE }
+    def paymentData = aPaymentData().tap { type = MEMBER_FEE }
     def link = new PaymentLink("https://member.payment.url")
-    paymentProviderService.getPaymentLink(paymentData, person) >> link
+    singlePaymentService.getPaymentLink(paymentData, person) >> link
 
     when:
     def returnedLink = paymentService.getLink(paymentData, person)
@@ -69,7 +69,7 @@ class PaymentServiceSpec extends Specification {
   def "can get a recurring payment link"() {
     given:
     def person = samplePerson
-    def paymentData = aPaymentData.tap { type = RECURRING }
+    def paymentData = aPaymentData().tap { type = RECURRING }
     def link = new PaymentLink("https://recurring.payment.url")
     recurringPaymentService.getPaymentLink(paymentData, person) >> link
 

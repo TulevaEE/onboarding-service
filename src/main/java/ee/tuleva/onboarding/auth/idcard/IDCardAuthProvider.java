@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.auth.idcard;
 
-import static ee.tuleva.onboarding.auth.idcard.IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE;
+import static ee.tuleva.onboarding.auth.GrantType.GRANT_TYPE;
+import static ee.tuleva.onboarding.auth.GrantType.ID_CARD;
+import static ee.tuleva.onboarding.auth.idcard.IdCardSession.ID_DOCUMENT_TYPE;
 
 import ee.tuleva.onboarding.auth.AuthProvider;
 import ee.tuleva.onboarding.auth.GrantType;
@@ -21,7 +23,7 @@ public class IDCardAuthProvider implements AuthProvider {
 
   @Override
   public boolean supports(GrantType grantType) {
-    return GrantType.ID_CARD.equals(grantType);
+    return ID_CARD.equals(grantType);
   }
 
   @Override
@@ -32,6 +34,7 @@ public class IDCardAuthProvider implements AuthProvider {
     }
     IdCardSession idCardSession = session.get();
     return principalService.getFrom(
-        idCardSession, Map.of(ID_DOCUMENT_TYPE_ATTRIBUTE, idCardSession.documentType.name()));
+        idCardSession,
+        Map.of(ID_DOCUMENT_TYPE, idCardSession.documentType.name(), GRANT_TYPE, ID_CARD.name()));
   }
 }

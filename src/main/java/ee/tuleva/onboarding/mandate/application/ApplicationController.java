@@ -49,6 +49,6 @@ class ApplicationController {
       @PathVariable("id") Long applicationId) {
     log.info("Cancelling application {}", applicationId);
     return applicationCancellationService.createCancellationMandate(
-        authenticatedPerson, authenticatedPerson.getUserId(), applicationId);
+        authenticatedPerson, applicationId);
   }
 }

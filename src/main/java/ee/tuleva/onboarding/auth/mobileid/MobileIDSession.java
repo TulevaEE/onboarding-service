@@ -9,7 +9,7 @@ import lombok.Data;
 @Data
 public class MobileIDSession implements Person, Serializable {
 
-  public static final String PHONE_NUMBER_ATTRIBUTE = "phoneNumber";
+  public static final String PHONE_NUMBER = "phoneNumber";
 
   @Serial private static final long serialVersionUID = -7501351267187058440L;
 

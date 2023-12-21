@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
 import static java.util.Collections.singletonList;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
@@ -29,6 +30,7 @@ public class CancellationMandateBuilder {
 
   public Mandate build(
       ApplicationDTO applicationToCancel,
+      AuthenticatedPerson authenticatedPerson,
       User user,
       ConversionResponse conversion,
       ContactDetails contactDetails) {
@@ -37,7 +39,8 @@ public class CancellationMandateBuilder {
     mandate.setUser(user);
     mandate.setAddress(contactDetails.getAddress());
 
-    conversionDecorator.addConversionMetadata(mandate.getMetadata(), conversion, contactDetails);
+    conversionDecorator.addConversionMetadata(
+        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson);
 
     if (applicationToCancel.getType() == WITHDRAWAL
         || applicationToCancel.getType() == EARLY_WITHDRAWAL) {

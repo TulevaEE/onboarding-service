@@ -1,22 +1,19 @@
 package ee.tuleva.onboarding.aml
 
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException
-import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
-import ee.tuleva.onboarding.auth.idcard.IdCardSession
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
 import ee.tuleva.onboarding.user.UserService
-import org.springframework.security.core.Authentication
 import spock.lang.Specification
 import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
-import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.auth.idcard.IdCardSession.ID_DOCUMENT_TYPE
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
@@ -32,7 +29,7 @@ class AmlAutoCheckerSpec extends Specification {
         given:
         def user = sampleUser().build()
         def person = sampleAuthenticatedPersonAndMember()
-        .attributes(Map.of(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE, ESTONIAN_CITIZEN_ID_CARD.name()))
+        .attributes(Map.of(ID_DOCUMENT_TYPE, ESTONIAN_CITIZEN_ID_CARD.name()))
             .build()
         1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
 
@@ -46,7 +43,7 @@ class AmlAutoCheckerSpec extends Specification {
     def "throws exception when user not found"() {
         given:
         def person = sampleAuthenticatedPersonAndMember()
-            .attributes(Map.of(IdCardSession.ID_DOCUMENT_TYPE_ATTRIBUTE, ESTONIAN_CITIZEN_ID_CARD.name()))
+            .attributes(Map.of(ID_DOCUMENT_TYPE, ESTONIAN_CITIZEN_ID_CARD.name()))
             .build()
         1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
 

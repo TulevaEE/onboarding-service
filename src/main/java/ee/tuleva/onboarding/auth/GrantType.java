@@ -4,5 +4,7 @@ public enum GrantType {
   ID_CARD,
   MOBILE_ID,
   SMART_ID,
-  PARTNER
+  PARTNER;
+
+  public static final String GRANT_TYPE = "grantType";
 }

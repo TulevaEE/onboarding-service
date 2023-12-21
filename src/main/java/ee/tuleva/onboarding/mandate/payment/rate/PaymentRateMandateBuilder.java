@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.payment.rate;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -19,6 +20,7 @@ public class PaymentRateMandateBuilder {
 
   public Mandate build(
       BigDecimal paymentRate,
+      AuthenticatedPerson authenticatedPerson,
       User user,
       ConversionResponse conversion,
       ContactDetails contactDetails) {
@@ -28,7 +30,8 @@ public class PaymentRateMandateBuilder {
     mandate.setAddress(contactDetails.getAddress());
     mandate.setPillar(2);
 
-    conversionDecorator.addConversionMetadata(mandate.getMetadata(), conversion, contactDetails);
+    conversionDecorator.addConversionMetadata(
+        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson);
     mandate.setPaymentRate(paymentRate);
 
     return mandate;

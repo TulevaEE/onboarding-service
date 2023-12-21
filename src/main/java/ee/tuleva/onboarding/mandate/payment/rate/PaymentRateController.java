@@ -32,7 +32,7 @@ class PaymentRateController {
         paymentRateCommand.getPaymentRate());
     Mandate savedMandate =
         paymentRateService.savePaymentRateMandate(
-            authenticatedPerson.getUserId(), paymentRateCommand.getPaymentRate());
+            authenticatedPerson, paymentRateCommand.getPaymentRate());
     return PaymentRateResponse.builder().mandateId(savedMandate.getId()).build();
   }
 }

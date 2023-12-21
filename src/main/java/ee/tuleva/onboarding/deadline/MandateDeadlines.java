@@ -129,15 +129,12 @@ public class MandateDeadlines {
             .atStartOfDay(timeZone)
             .with(LocalTime.MAX);
 
-    ZonedDateTime endOfApplicationYear =
-        LocalDate.of(applicationYear, Month.DECEMBER, 31)
-            .atStartOfDay(timeZone)
-            .with(LocalTime.MAX);
+    LocalDate startOfNextYear = LocalDate.of(applicationYear + 1, Month.JANUARY, 1);
 
     if (zonedApplicationDate.isBefore(november30ApplicationYear)) {
-      return endOfApplicationYear.toLocalDate();
+      return startOfNextYear;
     } else {
-      return endOfApplicationYear.plusYears(1).toLocalDate();
+      return startOfNextYear.plusYears(1);
     }
   }
 }

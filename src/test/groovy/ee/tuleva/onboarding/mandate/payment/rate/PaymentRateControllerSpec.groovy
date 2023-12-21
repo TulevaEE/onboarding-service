@@ -1,16 +1,17 @@
 package ee.tuleva.onboarding.mandate.payment.rate
 
 import ee.tuleva.onboarding.BaseControllerSpec
-import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.mandate.Mandate
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.MvcResult
 
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 class PaymentRateControllerSpec extends BaseControllerSpec {
 
@@ -26,7 +27,7 @@ class PaymentRateControllerSpec extends BaseControllerSpec {
     command.setPaymentRate(newRate)
 
     Mandate aMandate = sampleMandate()
-    paymentRateService.savePaymentRateMandate(authenticatedPerson.getUserId(), command.getPaymentRate()) >> aMandate
+    paymentRateService.savePaymentRateMandate(authenticatedPerson, command.getPaymentRate()) >> aMandate
 
     then:
     MvcResult result = mvc
@@ -48,7 +49,7 @@ class PaymentRateControllerSpec extends BaseControllerSpec {
     command.setPaymentRate(newRate)
 
     Mandate aMandate = sampleMandate()
-    paymentRateService.savePaymentRateMandate(authenticatedPerson.getUserId(), command.getPaymentRate()) >> aMandate
+    paymentRateService.savePaymentRateMandate(authenticatedPerson, command.getPaymentRate()) >> aMandate
 
     then:
     mvc

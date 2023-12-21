@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.payment.rate
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.conversion.ConversionResponse
 import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.EpisService
@@ -10,6 +11,7 @@ import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
@@ -28,19 +30,19 @@ class PaymentRateServiceSpec extends Specification {
     given:
     BigDecimal paymentRate = new BigDecimal("2.0")
     User user = sampleUser().build()
-    Long userId = user.getId()
+    AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     ConversionResponse conversion = Mock(ConversionResponse)
     ContactDetails contactDetails = Mock(ContactDetails)
     Mandate mandate = sampleMandate()
 
-    userService.getById(userId) >> user
+    userService.getById(authenticatedPerson.userId) >> user
     conversionService.getConversion(user) >> conversion
     episService.getContactDetails(user) >> contactDetails
-    1 * paymentRateMandateBuilder.build(paymentRate, user, conversion, contactDetails) >> mandate
+    1 * paymentRateMandateBuilder.build(paymentRate, authenticatedPerson, user, conversion, contactDetails) >> mandate
     1 * mandateService.save(user, mandate) >> mandate
 
     when:
-    Mandate result = paymentRateService.savePaymentRateMandate(userId, paymentRate)
+    Mandate result = paymentRateService.savePaymentRateMandate(authenticatedPerson, paymentRate)
 
     then:
     result.id == mandate.id

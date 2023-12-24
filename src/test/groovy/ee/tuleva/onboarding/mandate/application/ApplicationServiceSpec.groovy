@@ -171,7 +171,9 @@ class ApplicationServiceSpec extends Specification {
       status == PENDING
       creationTime == TestClockHolder.now
       with(details) {
-        rate == 6.0
+        paymentRate == 6.0
+        fulfillmentDate == LocalDate.parse("2022-01-01")
+        cancellationDeadline == Instant.parse("2021-11-30T21:59:59.999999999Z")
       }
     }
     applications.size() == 8

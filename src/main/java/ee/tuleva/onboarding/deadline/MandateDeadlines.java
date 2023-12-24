@@ -98,6 +98,7 @@ public class MandateDeadlines {
       case TRANSFER -> getTransferMandateCancellationDeadline();
       case WITHDRAWAL -> getWithdrawalCancellationDeadline();
       case EARLY_WITHDRAWAL -> getEarlyWithdrawalCancellationDeadline();
+      case PAYMENT_RATE -> getPaymentRateDeadline();
       default -> throw new IllegalArgumentException("Unknown application type: " + applicationType);
     };
   }

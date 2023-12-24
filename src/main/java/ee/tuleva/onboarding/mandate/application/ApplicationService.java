@@ -200,8 +200,9 @@ public class ApplicationService {
     applicationBuilder.details(
         PaymentRateApplicationDetails.builder()
             .type(applicationDTO.getType())
-            .rate(applicationDTO.getPaymentRate())
+            .paymentRate(applicationDTO.getPaymentRate())
             .fulfillmentDate(deadlines.getFulfillmentDate(applicationDTO.getType()))
+            .cancellationDeadline(deadlines.getCancellationDeadline(applicationDTO.getType()))
             .build());
     return applicationBuilder.build();
   }

@@ -45,7 +45,6 @@ public class CreateMandateCommandToMandateConverter
     mandate.setUser(user);
     mandate.setPillar(getPillar(createMandateCommand));
     mandate.setAddress(createMandateCommand.getAddress());
-    mandate.setPaymentRate(createMandateCommand.getPaymentRate());
     conversionDecorator.addConversionMetadata(
         mandate.getMetadata(), conversion, contactDetails, authenticatedPerson);
 

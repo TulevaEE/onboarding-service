@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.mandate.email
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
+import ee.tuleva.onboarding.auth.principal.AuthenticationHolder
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType
 import ee.tuleva.onboarding.notification.email.EmailService
+import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
 import java.time.Clock
@@ -22,6 +24,7 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 import static java.time.ZoneOffset.UTC
 import static java.time.temporal.ChronoUnit.DAYS
 import static java.time.temporal.ChronoUnit.HOURS
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 
 class MandateEmailServiceSpec extends Specification {
 
@@ -29,13 +32,17 @@ class MandateEmailServiceSpec extends Specification {
   ScheduledEmailService scheduledEmailService = Mock()
   FundRepository fundRepository = Mock()
   MandateDeadlinesService mandateDeadlinesService = Mock()
+  UserService userService = Mock()
+  AuthenticationHolder authenticationHolder = Mock()
   def now = Instant.parse("2021-09-01T10:06:01Z")
 
   MandateEmailService mandateEmailService = new MandateEmailService(emailService,
       scheduledEmailService,
       Clock.fixed(now, UTC),
       fundRepository,
-      mandateDeadlinesService)
+      mandateDeadlinesService,
+      userService,
+      authenticationHolder)
 
   def "Send second pillar mandate email"() {
     given:
@@ -177,16 +184,23 @@ class MandateEmailServiceSpec extends Specification {
     def mandate = sampleMandateWithPaymentRate()
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
     def message = new MandrillMessage()
-    def mergeVars = [
-        fname             : user.firstName,
-        lname             : user.lastName,
-        suggestMembership : false,
-        transferDate      : "03.05.2021",
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+
+    def mergeVars  = [
+        fname: user.firstName,
+        lname: user.lastName,
+        suggestMembership: false,
+        paymentRateFulfillmentDate: "01.01.2022",
+        newPaymentRate: 6,
         suggestThirdPillar: true
     ]
+
     def tags = ["mandate", "pillar_2", "suggest_3"]
 
+    authenticationHolder.getAuthenticatedPerson() >> authenticatedPerson
     mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
+    userService.getSecondPillarPaymentRate(authenticatedPerson) >> 6
+    mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
@@ -195,7 +209,4 @@ class MandateEmailServiceSpec extends Specification {
     1 * emailService.newMandrillMessage(user.email, "second_pillar_payment_rate_en", mergeVars, tags, !null) >> message
     1 * emailService.send(user, message, "second_pillar_payment_rate_en")
   }
-
-
-
 }

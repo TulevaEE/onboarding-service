@@ -6,6 +6,7 @@ import static java.time.temporal.ChronoUnit.HOURS;
 import static java.util.Collections.singletonList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import ee.tuleva.onboarding.auth.principal.AuthenticationHolder;
 import ee.tuleva.onboarding.deadline.MandateDeadlines;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.fund.FundRepository;
@@ -14,8 +15,11 @@ import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,6 +35,8 @@ public class MandateEmailService {
   private final Clock clock;
   private final FundRepository fundRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
+  private final UserService userService;
+  private final AuthenticationHolder authenticationHolder;
 
   public void sendMandate(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
@@ -65,6 +71,23 @@ public class MandateEmailService {
     mergeVars.put("fname", user.getFirstName());
     mergeVars.put("lname", user.getLastName());
 
+    DateTimeFormatter dateTimeFormatter = ofPattern("dd.MM.yyyy");
+    if (mandate.isPaymentRateApplication()) {
+      BigDecimal pendingPaymentRate =
+          userService.getSecondPillarPaymentRate(authenticationHolder.getAuthenticatedPerson());
+      mergeVars.put("newPaymentRate", pendingPaymentRate.intValue());
+      mergeVars.put(
+          "paymentRateFulfillmentDate",
+          mandateDeadlinesService
+              .getDeadlines()
+              .getPaymentRateFulfillmentDate()
+              .format(dateTimeFormatter));
+    } else {
+      MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(mandate.getCreatedDate());
+      mergeVars.put(
+          "transferDate", deadlines.getTransferMandateFulfillmentDate().format(dateTimeFormatter));
+    }
+
     if (mandate.isTransferCancellation()) {
       String sourceFundIsin = mandate.getFundTransferExchanges().get(0).getSourceFundIsin();
       String sourceFundName = fundRepository.findByIsin(sourceFundIsin).getName(locale);
@@ -73,11 +96,6 @@ public class MandateEmailService {
 
     mergeVars.put("suggestMembership", pillarSuggestion.isSuggestMembership());
     mergeVars.put("suggestThirdPillar", pillarSuggestion.isSuggestPillar());
-
-    MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(mandate.getCreatedDate());
-    mergeVars.put(
-        "transferDate",
-        deadlines.getTransferMandateFulfillmentDate().format(ofPattern("dd.MM.yyyy")));
 
     return mergeVars;
   }

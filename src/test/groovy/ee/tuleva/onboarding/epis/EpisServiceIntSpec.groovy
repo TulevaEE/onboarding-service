@@ -140,7 +140,7 @@ class EpisServiceIntSpec extends Specification {
       awaitTermination(5, TimeUnit.SECONDS)
     }
     then:
-    mockServerClient.verify(request().withPath("/applications"), VerificationTimes.exactly(2))
+    mockServerClient.verify(request().withPath("/applications"), VerificationTimes.exactly(1))
   }
 
   def "getCashFlowStatement - only one request per person is allowed to run at any time"() {

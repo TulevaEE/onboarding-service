@@ -127,7 +127,7 @@ dependencies {
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.1.0")
     testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.6")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.6")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.7")
 }
 
 dependencyManagement {

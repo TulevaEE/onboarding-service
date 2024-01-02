@@ -6,7 +6,7 @@ import java.time.ZoneId
 
 class MandateDeadlinesFixture {
   private static Clock clock = Clock.fixed(Instant.parse("2021-03-11T10:00:00Z"), ZoneId.of("Europe/Tallinn"))
-  private static PublicHolidays publicHolidays = new PublicHolidays(clock)
+  private static PublicHolidays publicHolidays = new PublicHolidays()
 
   static MandateDeadlines sampleDeadlines() {
     return new MandateDeadlines(clock, publicHolidays, Instant.now(clock))

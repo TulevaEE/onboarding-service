@@ -41,7 +41,7 @@ class PaymentLinkingServiceSpec extends Specification {
   PaymentService paymentService = Mock()
   CashFlowService cashFlowService = Mock()
   FundRepository fundRepository = Mock()
-  PublicHolidays publicHolidays = new PublicHolidays(TestClockHolder.clock)
+  PublicHolidays publicHolidays = new PublicHolidays()
   LocaleService localeService = new MockLocaleService()
     PaymentLinkingService paymentApplicationService =
       new PaymentLinkingService(paymentService, cashFlowService, fundRepository, localeService, TestClockHolder.clock, publicHolidays)

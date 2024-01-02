@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
 class MandateDeadlinesSpec extends Specification {
 
   MandateDeadlines mandateDeadlines
+  PublicHolidays publicHolidays = new PublicHolidays()
 
   def "test getMandateDeadlines before march 31"() {
     given:
@@ -19,7 +20,7 @@ class MandateDeadlinesSpec extends Specification {
     def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
-    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+    mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
     with(mandateDeadlines) {
@@ -42,7 +43,7 @@ class MandateDeadlinesSpec extends Specification {
     def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
-    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+    mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
     with(mandateDeadlines) {
@@ -65,7 +66,7 @@ class MandateDeadlinesSpec extends Specification {
     def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
-    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+    mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
     with(mandateDeadlines) {
@@ -88,7 +89,7 @@ class MandateDeadlinesSpec extends Specification {
     def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
-    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+    mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
     with(mandateDeadlines) {
@@ -111,7 +112,7 @@ class MandateDeadlinesSpec extends Specification {
     def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
-    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+    mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
     with(mandateDeadlines) {
@@ -127,7 +128,7 @@ class MandateDeadlinesSpec extends Specification {
     def clock = Clock.fixed(Instant.parse("2021-04-01T10:00:00Z"), ZoneId.of("Europe/Tallinn"))
 
     when:
-    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+    mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
     with(mandateDeadlines) {
@@ -150,7 +151,7 @@ class MandateDeadlinesSpec extends Specification {
     def clock = Clock.fixed(Instant.parse("2022-01-05T10:00:00Z"), ZoneId.of("Europe/Tallinn"))
 
     when:
-    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+    mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
     with(mandateDeadlines) {
@@ -167,13 +168,36 @@ class MandateDeadlinesSpec extends Specification {
     }
   }
 
+  def "test mandate deadlines work correctly across year boundaries and next year public holidays"() {
+    given:
+    def applicationDate = Instant.parse("2023-11-30T10:00:00Z")
+    def clock = Clock.fixed(Instant.parse("2023-11-30T10:00:00Z"), ZoneId.of("Europe/Tallinn"))
+
+    when:
+    mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
+
+    then:
+    with(mandateDeadlines) {
+      Instant.parse("2023-11-30T21:59:59.999999999Z") == getPeriodEnding()
+
+      Instant.parse("2023-11-30T21:59:59.999999999Z") == getTransferMandateCancellationDeadline()
+      LocalDate.parse("2024-01-02") == getTransferMandateFulfillmentDate()
+
+      Instant.parse("2024-03-31T20:59:59.999999999Z") == getEarlyWithdrawalCancellationDeadline()
+      LocalDate.parse("2024-05-02") == getEarlyWithdrawalFulfillmentDate()
+
+      Instant.parse("2023-11-30T21:59:59.999999999Z") == getWithdrawalCancellationDeadline()
+      LocalDate.parse("2023-12-18") == getWithdrawalFulfillmentDate()
+    }
+  }
+
   def "can get cancellation deadlines for different application types"() {
     given:
     def applicationDate = Instant.parse("2021-08-11T10:00:00Z")
     def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
-    mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+    mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
     with(mandateDeadlines) {
@@ -189,7 +213,7 @@ class MandateDeadlinesSpec extends Specification {
         def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
-        mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+        mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
         mandateDeadlines.getPaymentRateDeadline() == Instant.parse("2024-11-30T21:59:59.999999999Z")
@@ -201,7 +225,7 @@ class MandateDeadlinesSpec extends Specification {
         def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
-        mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+        mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
         mandateDeadlines.getPaymentRateDeadline() == Instant.parse("2025-11-30T21:59:59.999999999Z")
@@ -213,7 +237,7 @@ class MandateDeadlinesSpec extends Specification {
         def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
-        mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+        mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
         mandateDeadlines.getPaymentRateFulfillmentDate() == LocalDate.parse("2025-01-01")
@@ -225,7 +249,7 @@ class MandateDeadlinesSpec extends Specification {
         def clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"))
 
     when:
-        mandateDeadlines = new MandateDeadlines(clock, new PublicHolidays(clock), applicationDate)
+        mandateDeadlines = new MandateDeadlines(clock, publicHolidays, applicationDate)
 
     then:
         mandateDeadlines.getPaymentRateFulfillmentDate() == LocalDate.parse("2026-01-01")

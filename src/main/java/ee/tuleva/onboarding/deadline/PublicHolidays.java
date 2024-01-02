@@ -3,9 +3,8 @@ package ee.tuleva.onboarding.deadline;
 import static java.time.DayOfWeek.SATURDAY;
 import static java.time.DayOfWeek.SUNDAY;
 
-import java.time.Clock;
 import java.time.LocalDate;
-import java.util.Arrays;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -13,23 +12,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class PublicHolidays {
 
-  private final Clock estonianClock;
-
-  public boolean isPublicHoliday(LocalDate date) {
-    return Arrays.asList(
-            newYearsDay(),
-            independenceDay(),
-            goodFriday(),
-            easterSunday(),
-            springDay(),
-            pentecost(),
-            victoryDay(),
-            midsummerDay(),
-            dayOfRestorationOfIndependence(),
-            christmasEve(),
-            christmasDay(),
-            boxingDay())
-        .contains(date);
+  public LocalDate addWorkingDays(LocalDate date, int workingDays) {
+    if (workingDays == 0) {
+      return date;
+    }
+    return addWorkingDays(nextWorkingDay(date), --workingDays);
   }
 
   public LocalDate nextWorkingDay(LocalDate to) {
@@ -40,62 +27,75 @@ public class PublicHolidays {
     return date;
   }
 
-  public boolean isWorkingDay(LocalDate date) {
+  boolean isWorkingDay(LocalDate date) {
     return !(date.getDayOfWeek() == SATURDAY
         || date.getDayOfWeek() == SUNDAY
         || isPublicHoliday(date));
   }
 
-  LocalDate newYearsDay() {
-    return now().withDayOfMonth(1).withMonth(1);
+  boolean isPublicHoliday(LocalDate date) {
+    return List.of(
+            newYearsDay(date),
+            independenceDay(date),
+            goodFriday(date),
+            easterSunday(date),
+            springDay(date),
+            pentecost(date),
+            victoryDay(date),
+            midsummerDay(date),
+            dayOfRestorationOfIndependence(date),
+            christmasEve(date),
+            christmasDay(date),
+            boxingDay(date))
+        .contains(date);
   }
 
-  LocalDate independenceDay() {
-    return now().withDayOfMonth(24).withMonth(2);
+  LocalDate newYearsDay(LocalDate date) {
+    return date.withDayOfMonth(1).withMonth(1);
   }
 
-  LocalDate goodFriday() {
-    return easterSunday().minusDays(2);
+  LocalDate independenceDay(LocalDate date) {
+    return date.withDayOfMonth(24).withMonth(2);
   }
 
-  LocalDate easterSunday() {
-    return getEasterSundayDate(now().getYear());
+  LocalDate goodFriday(LocalDate date) {
+    return easterSunday(date).minusDays(2);
   }
 
-  LocalDate springDay() {
-    return now().withDayOfMonth(1).withMonth(5);
+  LocalDate easterSunday(LocalDate date) {
+    return getEasterSundayDate(date.getYear());
   }
 
-  LocalDate pentecost() {
-    return easterSunday().plusDays(49);
+  LocalDate springDay(LocalDate date) {
+    return date.withDayOfMonth(1).withMonth(5);
   }
 
-  LocalDate victoryDay() {
-    return now().withDayOfMonth(23).withMonth(6);
+  LocalDate pentecost(LocalDate date) {
+    return easterSunday(date).plusDays(49);
   }
 
-  LocalDate midsummerDay() {
-    return now().withDayOfMonth(24).withMonth(6);
+  LocalDate victoryDay(LocalDate date) {
+    return date.withDayOfMonth(23).withMonth(6);
   }
 
-  LocalDate dayOfRestorationOfIndependence() {
-    return now().withDayOfMonth(20).withMonth(8);
+  LocalDate midsummerDay(LocalDate date) {
+    return date.withDayOfMonth(24).withMonth(6);
   }
 
-  LocalDate christmasEve() {
-    return now().withDayOfMonth(24).withMonth(12);
+  LocalDate dayOfRestorationOfIndependence(LocalDate date) {
+    return date.withDayOfMonth(20).withMonth(8);
   }
 
-  LocalDate christmasDay() {
-    return now().withDayOfMonth(25).withMonth(12);
+  LocalDate christmasEve(LocalDate date) {
+    return date.withDayOfMonth(24).withMonth(12);
   }
 
-  LocalDate boxingDay() {
-    return now().withDayOfMonth(26).withMonth(12);
+  LocalDate christmasDay(LocalDate date) {
+    return date.withDayOfMonth(25).withMonth(12);
   }
 
-  private LocalDate now() {
-    return LocalDate.now(estonianClock);
+  LocalDate boxingDay(LocalDate date) {
+    return date.withDayOfMonth(26).withMonth(12);
   }
 
   private LocalDate getEasterSundayDate(int year) {
@@ -114,12 +114,5 @@ public class PublicHolidays {
     int month = (h + l - 7 * m + 114) / 31;
     int day = ((h + l - 7 * m + 114) % 31) + 1;
     return LocalDate.of(year, month, day);
-  }
-
-  public LocalDate addWorkingDays(LocalDate date, int workingDays) {
-    if (workingDays == 0) {
-      return date;
-    }
-    return addWorkingDays(nextWorkingDay(date), --workingDays);
   }
 }

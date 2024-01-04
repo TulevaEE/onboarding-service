@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.user.response
 
 import ee.tuleva.onboarding.epis.contact.ContactDetails
+import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -19,10 +20,10 @@ class UserResponseSpec extends Specification {
         .lastName(lastName)
         .build()
     def contactDetails = new ContactDetails()
-    def secondPillarPaymentRate = 6
+    def paymentRates = new PaymentRates(2, 6)
 
     when:
-    def userResponse = UserResponse.from(user, contactDetails, secondPillarPaymentRate)
+    def userResponse = UserResponse.from(user, contactDetails, paymentRates)
 
     then:
     userResponse.firstName == responseFirstName

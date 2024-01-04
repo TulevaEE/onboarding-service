@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
 import ee.tuleva.onboarding.user.response.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +30,7 @@ public class UserController {
   private final UserService userService;
   private final EpisService episService;
   private final ContactDetailsService contactDetailsService;
+  private final SecondPillarPaymentRateService secondPillarPaymentRateService;
 
   @Operation(summary = "Get info about the current user")
   @GetMapping("/me")
@@ -37,7 +39,7 @@ public class UserController {
     User user = userService.getById(userId);
     ContactDetails contactDetails = episService.getContactDetails(authenticatedPerson);
     return UserResponse.from(
-        user, contactDetails, userService.getSecondPillarPaymentRate(authenticatedPerson));
+        user, contactDetails, secondPillarPaymentRateService.getPaymentRates(authenticatedPerson));
   }
 
   @GetMapping("/me/principal")
@@ -66,7 +68,9 @@ public class UserController {
       ContactDetails contactDetails =
           contactDetailsService.updateContactDetails(user, cmd.getAddress());
       return UserResponse.from(
-          user, contactDetails, userService.getSecondPillarPaymentRate(authenticatedPerson));
+          user,
+          contactDetails,
+          secondPillarPaymentRateService.getPaymentRates(authenticatedPerson));
     }
 
     return UserResponse.from(user);

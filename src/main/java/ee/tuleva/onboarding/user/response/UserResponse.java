@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.user.response;
 import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import ee.tuleva.onboarding.user.member.Member;
@@ -31,6 +32,7 @@ public class UserResponse {
   private Address address;
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
+  private PaymentRates secondPillarPaymentRates;
   private BigDecimal secondPillarPaymentRate;
 
   public static UserResponse from(@NotNull User user) {
@@ -40,14 +42,15 @@ public class UserResponse {
   public static UserResponse from(
       @NotNull User user,
       @NotNull ContactDetails contactDetails,
-      @NotNull BigDecimal secondPillarPaymentRate) {
+      @NotNull PaymentRates paymentRates) {
     return responseBuilder(user)
         .pensionAccountNumber(contactDetails.getPensionAccountNumber())
         .address(Address.builder().countryCode(contactDetails.getCountry()).build())
         .secondPillarPikNumber(contactDetails.getActiveSecondPillarFundPik())
         .isSecondPillarActive(contactDetails.isSecondPillarActive())
         .isThirdPillarActive(contactDetails.isThirdPillarActive())
-        .secondPillarPaymentRate(secondPillarPaymentRate)
+        .secondPillarPaymentRates(paymentRates)
+        .secondPillarPaymentRate(BigDecimal.valueOf(paymentRates.getPending()))
         .build();
   }
 

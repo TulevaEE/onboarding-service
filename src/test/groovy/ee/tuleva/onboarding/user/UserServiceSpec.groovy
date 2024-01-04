@@ -1,8 +1,5 @@
 package ee.tuleva.onboarding.user
 
-import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
-import ee.tuleva.onboarding.epis.EpisService
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.member.listener.MemberCreatedEvent
 import ee.tuleva.onboarding.user.exception.DuplicateEmailException
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException
@@ -12,16 +9,13 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.*
-import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.samplePaymentRateApplicationDto
-import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 
 class UserServiceSpec extends Specification {
 
   def userRepository = Mock(UserRepository)
   def memberRepository = Mock(MemberRepository)
   def applicationEventPublisher = Mock(ApplicationEventPublisher)
-  def episService = Mock(EpisService)
-  def service = new UserService(userRepository, memberRepository, applicationEventPublisher, episService)
+  def service = new UserService(userRepository, memberRepository, applicationEventPublisher)
 
   @Shared
   String personalCodeSample = "somePersonalCode"
@@ -158,28 +152,4 @@ class UserServiceSpec extends Specification {
     simpleUser().build().personalCode | Optional.of(simpleUser().build()) | false
   }
 
-  def "getSecondPillarPaymentRate returns default rate when no applications match"() {
-    given:
-    AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-    episService.getApplications(authenticatedPerson) >> []
-
-    when:
-    BigDecimal rate = service.getSecondPillarPaymentRate(authenticatedPerson)
-
-    then:
-    rate == new BigDecimal(2)
-  }
-
-  def "getSecondPillarPaymentRate returns rate of first matching application"() {
-    given:
-    AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-    ApplicationDTO sampleApplication = samplePaymentRateApplicationDto()
-    episService.getApplications(authenticatedPerson) >> [sampleApplication]
-
-    when:
-    BigDecimal rate = service.getSecondPillarPaymentRate(authenticatedPerson)
-
-    then:
-    rate == sampleApplication.getPaymentRate()
-  }
 }

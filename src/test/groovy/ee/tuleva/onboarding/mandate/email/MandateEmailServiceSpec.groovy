@@ -7,7 +7,7 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType
 import ee.tuleva.onboarding.notification.email.EmailService
-import ee.tuleva.onboarding.user.UserService
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import spock.lang.Specification
 
 import java.time.Clock
@@ -32,7 +32,7 @@ class MandateEmailServiceSpec extends Specification {
   ScheduledEmailService scheduledEmailService = Mock()
   FundRepository fundRepository = Mock()
   MandateDeadlinesService mandateDeadlinesService = Mock()
-  UserService userService = Mock()
+  SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
   AuthenticationHolder authenticationHolder = Mock()
   def now = Instant.parse("2021-09-01T10:06:01Z")
 
@@ -41,7 +41,7 @@ class MandateEmailServiceSpec extends Specification {
       Clock.fixed(now, UTC),
       fundRepository,
       mandateDeadlinesService,
-      userService,
+      secondPillarPaymentRateService,
       authenticationHolder)
 
   def "Send second pillar mandate email"() {
@@ -199,7 +199,7 @@ class MandateEmailServiceSpec extends Specification {
 
     authenticationHolder.getAuthenticatedPerson() >> authenticatedPerson
     mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
-    userService.getSecondPillarPaymentRate(authenticatedPerson) >> 6
+    secondPillarPaymentRateService.getPendingSecondPillarPaymentRate(authenticatedPerson) >> 6
     mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
 
     when:

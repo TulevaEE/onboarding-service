@@ -14,8 +14,8 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService;
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
@@ -35,7 +35,7 @@ public class MandateEmailService {
   private final Clock clock;
   private final FundRepository fundRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
-  private final UserService userService;
+  private final SecondPillarPaymentRateService secondPillarPaymentRateService;
   private final AuthenticationHolder authenticationHolder;
 
   public void sendMandate(
@@ -74,7 +74,8 @@ public class MandateEmailService {
     DateTimeFormatter dateTimeFormatter = ofPattern("dd.MM.yyyy");
     if (mandate.isPaymentRateApplication()) {
       BigDecimal pendingPaymentRate =
-          userService.getSecondPillarPaymentRate(authenticationHolder.getAuthenticatedPerson());
+          secondPillarPaymentRateService.getPendingSecondPillarPaymentRate(
+              authenticationHolder.getAuthenticatedPerson());
       mergeVars.put("newPaymentRate", pendingPaymentRate.intValue());
       mergeVars.put(
           "paymentRateFulfillmentDate",

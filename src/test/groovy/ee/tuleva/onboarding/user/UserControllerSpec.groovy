@@ -4,6 +4,8 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService
+import ee.tuleva.onboarding.paymentrate.PaymentRates
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.user.command.UpdateUserCommand
 import org.springframework.http.MediaType
 
@@ -21,18 +23,21 @@ class UserControllerSpec extends BaseControllerSpec {
 
   UserService userService = Mock()
   EpisService episService = Mock()
+  SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
   ContactDetailsService contactDetailsService = Mock()
 
-  UserController controller = new UserController(userService, episService, contactDetailsService)
+  UserController controller = new UserController(
+      userService, episService, contactDetailsService, secondPillarPaymentRateService)
 
   def "/me endpoint works with non member"() {
     given:
     def contactDetails = contactDetailsFixture()
     def user = userFrom(sampleAuthenticatedPerson)
-    def sampleSecondPillarPaymentRate = 2.0
+    def samplePaymentRates = new PaymentRates(2, 6)
     1 * userService.getById(sampleAuthenticatedPerson.userId) >> user
     1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
-    1 * userService.getSecondPillarPaymentRate(sampleAuthenticatedPerson) >> sampleSecondPillarPaymentRate
+    1 * secondPillarPaymentRateService
+        .getPaymentRates(sampleAuthenticatedPerson) >> samplePaymentRates
 
     expect:
     mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
@@ -51,7 +56,11 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
         .andExpect(jsonPath('$.secondPillarActive', is(contactDetails.secondPillarActive)))
         .andExpect(jsonPath('$.thirdPillarActive', is(contactDetails.thirdPillarActive)))
-        .andExpect(jsonPath('$.secondPillarPaymentRate', is(sampleSecondPillarPaymentRate.doubleValue())))
+        .andExpect(jsonPath('$.secondPillarPaymentRates.pending',
+            is(samplePaymentRates.pending)))
+        .andExpect(jsonPath('$.secondPillarPaymentRates.current',
+            is(samplePaymentRates.current)))
+        .andExpect(jsonPath('$.secondPillarPaymentRate', is(samplePaymentRates.pending)))
   }
 
   def "/me endpoint works with a member"() {
@@ -59,10 +68,11 @@ class UserControllerSpec extends BaseControllerSpec {
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     def user = sampleUser().build()
     def contactDetails = contactDetailsFixture()
-    def sampleSecondPillarPaymentRate = 2.0
+    def samplePaymentRates = new PaymentRates(2, 6)
     1 * userService.getById(user.id) >> user
     1 * episService.getContactDetails(authenticatedPerson) >> contactDetails
-    1 * userService.getSecondPillarPaymentRate(authenticatedPerson) >> sampleSecondPillarPaymentRate
+    1 * secondPillarPaymentRateService
+        .getPaymentRates(authenticatedPerson) >> samplePaymentRates
 
     expect:
     mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
@@ -79,6 +89,11 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.memberNumber', is(user.memberOrThrow.memberNumber)))
         .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
         .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
+        .andExpect(jsonPath('$.secondPillarPaymentRates.pending',
+            is(samplePaymentRates.pending)))
+        .andExpect(jsonPath('$.secondPillarPaymentRates.current',
+            is(samplePaymentRates.current)))
+        .andExpect(jsonPath('$.secondPillarPaymentRate', is(samplePaymentRates.pending)))
   }
 
   def "/me/principal endpoint works"() {
@@ -103,14 +118,15 @@ class UserControllerSpec extends BaseControllerSpec {
         address: address
     )
     def updatedUser = userFrom(sampleAuthenticatedPerson, command)
-    def sampleSecondPillarPaymentRate = 2.0
+    def samplePaymentRates = new PaymentRates(2, 6)
 
     1 * userService
         .updateUser(sampleAuthenticatedPerson.personalCode, Optional.of(command.email), command.phoneNumber) >>
         updatedUser
     1 * contactDetailsService.updateContactDetails(updatedUser, command.address) >>
         contactDetails.setAddress(address)
-    1 * userService.getSecondPillarPaymentRate(sampleAuthenticatedPerson) >> sampleSecondPillarPaymentRate
+    1 * secondPillarPaymentRateService
+        .getPaymentRates(sampleAuthenticatedPerson) >> samplePaymentRates
 
     def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
@@ -131,7 +147,11 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.age', isA(Integer)))
         .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
         .andExpect(jsonPath('$.address.countryCode', is(address.countryCode)))
-        .andExpect(jsonPath('$.secondPillarPaymentRate', is(sampleSecondPillarPaymentRate.doubleValue())))
+        .andExpect(jsonPath('$.secondPillarPaymentRates.pending',
+            is(samplePaymentRates.pending)))
+        .andExpect(jsonPath('$.secondPillarPaymentRates.current',
+            is(samplePaymentRates.current)))
+        .andExpect(jsonPath('$.secondPillarPaymentRate', is(samplePaymentRates.pending)))
   }
 
   def "can update just email and phone number"() {

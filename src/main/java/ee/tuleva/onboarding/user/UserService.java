@@ -1,14 +1,10 @@
 package ee.tuleva.onboarding.user;
 
-import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.member.listener.MemberCreatedEvent;
 import ee.tuleva.onboarding.user.exception.DuplicateEmailException;
 import ee.tuleva.onboarding.user.exception.UserAlreadyAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
-import java.math.BigDecimal;
 import java.util.Optional;
 import javax.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -26,9 +22,6 @@ public class UserService {
   private final UserRepository userRepository;
   private final MemberRepository memberRepository;
   private final ApplicationEventPublisher applicationEventPublisher;
-  private final EpisService episService;
-
-  private final BigDecimal DEFAULT_SECOND_PILLAR_PAYMENT_RATE = BigDecimal.valueOf(2);
 
   // TODO: replace with Optional<User>
   @Nullable
@@ -106,15 +99,5 @@ public class UserService {
 
     Optional<User> existingUser = userRepository.findByEmail(email.get());
     return existingUser.isPresent() && !personalCode.equals(existingUser.get().getPersonalCode());
-  }
-
-  public BigDecimal getSecondPillarPaymentRate(AuthenticatedPerson authenticatedPerson) {
-    return episService.getApplications(authenticatedPerson).stream()
-        .filter(
-            applicationDTO ->
-                applicationDTO.isPaymentRate() && applicationDTO.getStatus().isPending())
-        .findFirst()
-        .map(ApplicationDTO::getPaymentRate)
-        .orElse(DEFAULT_SECOND_PILLAR_PAYMENT_RATE);
   }
 }

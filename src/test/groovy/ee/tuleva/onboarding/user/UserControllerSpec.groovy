@@ -60,7 +60,6 @@ class UserControllerSpec extends BaseControllerSpec {
             is(samplePaymentRates.pending)))
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
             is(samplePaymentRates.current)))
-        .andExpect(jsonPath('$.secondPillarPaymentRate', is(samplePaymentRates.pending)))
   }
 
   def "/me endpoint works with a member"() {
@@ -93,7 +92,6 @@ class UserControllerSpec extends BaseControllerSpec {
             is(samplePaymentRates.pending)))
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
             is(samplePaymentRates.current)))
-        .andExpect(jsonPath('$.secondPillarPaymentRate', is(samplePaymentRates.pending)))
   }
 
   def "/me/principal endpoint works"() {
@@ -151,7 +149,6 @@ class UserControllerSpec extends BaseControllerSpec {
             is(samplePaymentRates.pending)))
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
             is(samplePaymentRates.current)))
-        .andExpect(jsonPath('$.secondPillarPaymentRate', is(samplePaymentRates.pending)))
   }
 
   def "can update just email and phone number"() {

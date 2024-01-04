@@ -50,7 +50,6 @@ public class UserResponse {
         .isSecondPillarActive(contactDetails.isSecondPillarActive())
         .isThirdPillarActive(contactDetails.isThirdPillarActive())
         .secondPillarPaymentRates(paymentRates)
-        .secondPillarPaymentRate(BigDecimal.valueOf(paymentRates.getPending()))
         .build();
   }
 

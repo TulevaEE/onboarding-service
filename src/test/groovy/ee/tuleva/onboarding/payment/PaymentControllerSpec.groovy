@@ -5,16 +5,14 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.user.User
 import org.springframework.http.MediaType
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.PARTNER
-import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
-import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
-import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.*
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedPaymentProviderToken
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -113,7 +111,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     expect:
     mvc.perform(get("/v1/payments/success")
         .param("payment_token", aSerializedPaymentProviderToken))
-        .andExpect(redirectedUrl(frontendUrl + "/account?error_code=error.payment-failed"))
+        .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-payment"))
   }
 
   def "GET /member-success redirects to membership success screen on MEMBER_FEE payment"() {

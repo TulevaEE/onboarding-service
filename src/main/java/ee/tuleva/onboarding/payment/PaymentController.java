@@ -53,8 +53,7 @@ public class PaymentController {
 
     return paymentOptional
         .map(payment -> new RedirectView(frontendUrl))
-        .orElseGet(
-            () -> new RedirectView(frontendUrl + "/account?error_code=error.payment-failed"));
+        .orElseGet(() -> new RedirectView(frontendUrl + "/account"));
   }
 
   @PostMapping("/notifications")

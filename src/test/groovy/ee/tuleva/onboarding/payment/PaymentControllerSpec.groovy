@@ -131,14 +131,14 @@ class PaymentControllerSpec extends BaseControllerSpec {
         .andExpect(redirectedUrl(frontendUrl))
   }
 
-  def "GET /member-success redirects back to payment screen on cancelled payment"() {
+  def "GET /member-success redirects back to account page on cancelled payment"() {
     given:
     def mvc = mockMvc(paymentController)
     1 * paymentService.processToken(aSerializedPaymentProviderToken) >> Optional.empty()
     expect:
     mvc.perform(get("/v1/payments/member-success")
         .param("payment_token", aSerializedPaymentProviderToken))
-        .andExpect(redirectedUrl(frontendUrl + "/account?error_code=error.payment-failed"))
+        .andExpect(redirectedUrl(frontendUrl + "/account"))
   }
 
   def "POST /notifications"() {

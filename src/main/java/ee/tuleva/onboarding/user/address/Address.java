@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user.address;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.mandate.MandateView;
 import javax.validation.constraints.NotBlank;
@@ -14,6 +15,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @JsonView(MandateView.Default.class)
 @ValidAddress
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Address {
 
   @NotBlank private String countryCode;

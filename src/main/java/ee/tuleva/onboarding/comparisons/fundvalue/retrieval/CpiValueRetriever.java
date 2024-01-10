@@ -81,8 +81,8 @@ public class CpiValueRetriever implements ComparisonIndexRetriever {
     List<FundValue> cpiValues = new ArrayList<>();
 
     for (int i = 0; i < table[0].length - 1; i++) {
-      String yearMonth = table[0][1 + i];
-      String cpi = table[1][1 + i].replace(" ", "");
+      String yearMonth = table[0][1 + i].trim();
+      String cpi = table[1][1 + i].trim();
 
       LocalDate date = LocalDate.parse(yearMonth + "-01", ofPattern("yyyy-MM-dd"));
 

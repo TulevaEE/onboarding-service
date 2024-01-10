@@ -37,8 +37,8 @@ class CpiValueRetrieverSpec extends Specification {
   def "it successfully parses a valid CPI TSV file"() {
     given:
     def mockApiResponse =
-        """freq,unit,coicop,geo\\TIME_PERIOD\t1996-01\t1996-02\t1996-03
-M,I96,CP00,EE\t93.8\t96.8\t98.4"""
+        """freq,unit,coicop,geo\\TIME_PERIOD\t1996-01 \t1996-02\t1996-03
+M,I96,CP00,EE\t93.8 \t96.8\t98.4"""
 
     server.expect(requestTo("https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/prc_hicp_midx/?format=TSV&compressed=true"))
         .andRespond(withSuccess(gzip(mockApiResponse), MediaType.TEXT_PLAIN))

@@ -18,9 +18,6 @@ class SlackServiceSpec extends Specification {
   SlackService slackService
 
   @Autowired
-  RestTemplateBuilder restTemplateBuilder
-
-  @Autowired
   MockRestServiceServer server
 
   private String dummyWebhookUrl = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"

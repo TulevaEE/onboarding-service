@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.comparisons.returns.provider
 
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CPIValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CpiValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
@@ -44,7 +44,7 @@ class IndexReturnProviderSpec extends Specification {
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
         rateOfReturnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY) >>
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
-        rateOfReturnCalculator.getReturn(overview, CPIValueRetriever.KEY) >>
+        rateOfReturnCalculator.getReturn(overview, CpiValueRetriever.KEY) >>
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
 
 
@@ -71,7 +71,7 @@ class IndexReturnProviderSpec extends Specification {
           from == earliestTransactionDate
         }
         with(returns.returns[2]) {
-          key == CPIValueRetriever.KEY
+          key == CpiValueRetriever.KEY
           type == INDEX
           rate == expectedReturn
           amount == returnAsAmount

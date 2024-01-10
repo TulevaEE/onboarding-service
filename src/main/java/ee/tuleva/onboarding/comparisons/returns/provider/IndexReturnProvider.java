@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.comparisons.returns.provider;
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.INDEX;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CPIValueRetriever;
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CpiValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
@@ -26,7 +26,7 @@ public class IndexReturnProvider implements ReturnProvider {
 
   private static final String UNION_STOCK_INDEX = UnionStockIndexRetriever.KEY;
 
-  private static final String CPI = CPIValueRetriever.KEY;
+  private static final String CPI = CpiValueRetriever.KEY;
 
   private final AccountOverviewProvider accountOverviewProvider;
 

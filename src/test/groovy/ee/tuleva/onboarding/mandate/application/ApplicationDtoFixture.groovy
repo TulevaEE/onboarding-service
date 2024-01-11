@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 
+import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
 
@@ -59,7 +60,7 @@ class ApplicationDtoFixture {
         .build()
   }
 
-  static ApplicationDTO samplePaymentRateApplicationDto() {
+  static ApplicationDTO samplePendingPaymentRateApplicationDto() {
     return ApplicationDTO.builder()
         .date(TestClockHolder.now)
         .type(PAYMENT_RATE)
@@ -68,6 +69,17 @@ class ApplicationDtoFixture {
         .paymentRate(BigDecimal.valueOf(6))
         .build()
   }
+
+  static ApplicationDTO sampleCompletedPaymentRateApplicationDto() {
+    return ApplicationDTO.builder()
+        .date(TestClockHolder.now)
+        .type(PAYMENT_RATE)
+        .status(COMPLETE)
+        .id(123L)
+        .paymentRate(BigDecimal.valueOf(4))
+        .build()
+  }
+
   static ApplicationDTO sampleEarlyWithdrawalApplicationDto() {
     return ApplicationDTO.builder()
         .date(TestClockHolder.now)

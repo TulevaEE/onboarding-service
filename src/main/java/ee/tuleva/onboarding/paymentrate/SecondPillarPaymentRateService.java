@@ -4,6 +4,8 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import java.math.BigDecimal;
+import java.util.Comparator;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,14 +28,19 @@ public class SecondPillarPaymentRateService {
         .orElse(DEFAULT_SECOND_PILLAR_PAYMENT_RATE);
   }
 
-  private BigDecimal getCurrentSecondPillarPaymentRate() {
-    // TODO: Implement this before 2025
-    return DEFAULT_SECOND_PILLAR_PAYMENT_RATE;
+  private BigDecimal getCurrentSecondPillarPaymentRate(AuthenticatedPerson authenticatedPerson) {
+      return episService.getApplications(authenticatedPerson).stream()
+              .filter(
+                      applicationDTO ->
+                              applicationDTO.isPaymentRate() && applicationDTO.getStatus().isComplete())
+          .max(Comparator.comparing(ApplicationDTO::getDate))
+        .map(ApplicationDTO::getPaymentRate)
+        .orElse(DEFAULT_SECOND_PILLAR_PAYMENT_RATE);
   }
 
   public PaymentRates getPaymentRates(AuthenticatedPerson authenticatedPerson) {
     return new PaymentRates(
-        getCurrentSecondPillarPaymentRate().intValue(),
+        getCurrentSecondPillarPaymentRate(authenticatedPerson).intValue(),
         getPendingSecondPillarPaymentRate(authenticatedPerson).intValue());
   }
 }

@@ -45,7 +45,7 @@ class ApplicationServiceSpec extends Specification {
     def withdrawalApplication = sampleWithdrawalApplicationDto()
     def earlyWithdrawalApplication = sampleEarlyWithdrawalApplicationDto()
     def pikTransferApplication = samplePikTransferApplicationDto()
-    def paymentRateApplication = samplePaymentRateApplicationDto()
+    def paymentRateApplication = samplePendingPaymentRateApplicationDto()
 
     episService.getApplications(person) >> [
         transferApplication1, transferApplication2, completedTransferApplication,

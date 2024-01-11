@@ -8,4 +8,9 @@ public enum ApplicationStatus {
   public boolean isPending() {
     return this == PENDING;
   }
+
+  public boolean isComplete() {
+    return this == COMPLETE;
+  }
+
 }

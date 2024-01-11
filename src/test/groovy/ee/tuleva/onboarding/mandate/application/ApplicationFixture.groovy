@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.application
 
-
+import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.fund.ApiFundResponse
 import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
 import ee.tuleva.onboarding.time.TestClockHolder
@@ -57,6 +57,42 @@ class ApplicationFixture {
             .amount(1.0)
             .build()
         )
+  }
+
+  static Application<PaymentRateApplicationDetails> samplePendingPaymentRateApplication() {
+    return Application.builder()
+        .creationTime(Instant.now())
+        .status(PENDING)
+        .id(123L)
+        .details(PaymentRateApplicationDetails.builder()
+            .paymentRate(BigDecimal.valueOf(6))
+            .type(ApplicationType.PAYMENT_RATE)
+            .build())
+        .build()
+  }
+
+  static Application<PaymentRateApplicationDetails> sampleCompletedPaymentRateApplication(BigDecimal rate) {
+    return Application.builder()
+        .creationTime(Instant.now())
+        .status(ApplicationStatus.COMPLETE)
+        .id(123L)
+        .details(PaymentRateApplicationDetails.builder()
+            .paymentRate(rate)
+            .type(ApplicationType.PAYMENT_RATE)
+            .build())
+        .build()
+  }
+
+  static Application<PaymentRateApplicationDetails> sampleCompletedPaymentRateApplication(BigDecimal rate, Instant creationTime) {
+    return Application.builder()
+        .creationTime(creationTime)
+        .status(ApplicationStatus.COMPLETE)
+        .id(123L)
+        .details(PaymentRateApplicationDetails.builder()
+            .paymentRate(rate)
+            .type(ApplicationType.PAYMENT_RATE)
+            .build())
+        .build()
   }
 
   static WithdrawalApplicationDetails.WithdrawalApplicationDetailsBuilder withdrawalApplicationDetails() {

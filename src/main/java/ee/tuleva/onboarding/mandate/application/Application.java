@@ -33,6 +33,11 @@ public class Application<T extends ApplicationDetails> implements Comparable<App
   }
 
   @JsonIgnore
+  public boolean isComplete() {
+    return status != null && status.isComplete();
+  }
+
+  @JsonIgnore
   public boolean isWithdrawal() {
     return getType() != null && getType().isWithdrawal();
   }

@@ -178,4 +178,48 @@ class ApplicationServiceSpec extends Specification {
     }
     applications.size() == 8
   }
+
+  def "gets payment rate applications"() {
+    given:
+        def person = samplePerson()
+        def transferApplication1 = sampleTransferApplicationDto()
+        def completedTransferApplication = sampleTransferApplicationDto()
+        completedTransferApplication.status = COMPLETE
+        completedTransferApplication.id = 456L
+        def transferApplication2 = sampleTransferApplicationDto()
+        def withdrawalApplication = sampleWithdrawalApplicationDto()
+        def earlyWithdrawalApplication = sampleEarlyWithdrawalApplicationDto()
+        def pikTransferApplication = samplePikTransferApplicationDto()
+        def paymentRateApplication = samplePendingPaymentRateApplicationDto()
+
+        episService.getApplications(person) >> [
+            transferApplication1, transferApplication2, completedTransferApplication,
+            pikTransferApplication, withdrawalApplication, earlyWithdrawalApplication,
+            paymentRateApplication
+        ]
+        localeService.getCurrentLocale() >> Locale.ENGLISH
+        fundRepository.findByIsin("source") >> sampleFunds().first()
+        fundRepository.findByIsin("target") >> sampleFunds().drop(1).first()
+
+        mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
+        paymentApplicationService.getPaymentApplications(person) >> [paymentApplication().build()]
+
+    when:
+        def applications = applicationService.getPaymentRateApplications(person)
+
+    then:
+        with(applications[0] as Application<PaymentRateApplicationDetails>) {
+          id == 123L
+          type == PAYMENT_RATE
+          status == PENDING
+          creationTime == TestClockHolder.now
+          with(details) {
+            paymentRate == 6.0
+            fulfillmentDate == LocalDate.parse("2022-01-01")
+            cancellationDeadline == Instant.parse("2021-11-30T21:59:59.999999999Z")
+          }
+        }
+        applications.size() == 1
+  }
+
 }

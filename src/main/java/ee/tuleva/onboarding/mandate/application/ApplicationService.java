@@ -72,6 +72,14 @@ public class ApplicationService {
     return getTransferApplications(person).stream().filter(byStatus(status)).collect(toList());
   }
 
+  public List<Application<PaymentRateApplicationDetails>> getPaymentRateApplications(
+      Person person) {
+    return getApplications(
+        person,
+        entry -> entry.getKey().isPaymentRate(),
+        entry -> entry.getValue().stream().map(this::convertPaymentRate));
+  }
+
   private List<Application<TransferApplicationDetails>> getTransferApplications(Person person) {
     return getApplications(
         person,
@@ -84,14 +92,6 @@ public class ApplicationService {
         person,
         entry -> entry.getKey().isWithdrawal(),
         entry -> entry.getValue().stream().map(this::convertWithdrawal));
-  }
-
-  private List<Application<PaymentRateApplicationDetails>> getPaymentRateApplications(
-      Person person) {
-    return getApplications(
-        person,
-        entry -> entry.getKey().isPaymentRate(),
-        entry -> entry.getValue().stream().map(this::convertPaymentRate));
   }
 
   private <T extends ApplicationDetails> List<Application<T>> getApplications(

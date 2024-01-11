@@ -12,5 +12,4 @@ public enum ApplicationStatus {
   public boolean isComplete() {
     return this == COMPLETE;
   }
-
 }

@@ -5,7 +5,6 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import java.math.BigDecimal;
 import java.util.Comparator;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,11 +28,11 @@ public class SecondPillarPaymentRateService {
   }
 
   private BigDecimal getCurrentSecondPillarPaymentRate(AuthenticatedPerson authenticatedPerson) {
-      return episService.getApplications(authenticatedPerson).stream()
-              .filter(
-                      applicationDTO ->
-                              applicationDTO.isPaymentRate() && applicationDTO.getStatus().isComplete())
-          .max(Comparator.comparing(ApplicationDTO::getDate))
+    return episService.getApplications(authenticatedPerson).stream()
+        .filter(
+            applicationDTO ->
+                applicationDTO.isPaymentRate() && applicationDTO.getStatus().isComplete())
+        .max(Comparator.comparing(ApplicationDTO::getDate))
         .map(ApplicationDTO::getPaymentRate)
         .orElse(DEFAULT_SECOND_PILLAR_PAYMENT_RATE);
   }

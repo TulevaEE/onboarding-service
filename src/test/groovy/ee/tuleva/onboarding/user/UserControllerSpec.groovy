@@ -57,9 +57,42 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.secondPillarActive', is(contactDetails.secondPillarActive)))
         .andExpect(jsonPath('$.thirdPillarActive', is(contactDetails.thirdPillarActive)))
         .andExpect(jsonPath('$.secondPillarPaymentRates.pending',
-            is(samplePaymentRates.pending)))
+            is(samplePaymentRates.pending.get())))
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
             is(samplePaymentRates.current)))
+  }
+
+  def "serialized no payment rate correctly as null"() {
+    given:
+        def contactDetails = contactDetailsFixture()
+        def user = userFrom(sampleAuthenticatedPerson)
+        def samplePaymentRates = new PaymentRates(2, null)
+        1 * userService.getById(sampleAuthenticatedPerson.userId) >> user
+        1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
+        1 * secondPillarPaymentRateService
+            .getPaymentRates(sampleAuthenticatedPerson) >> samplePaymentRates
+
+    expect:
+        mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
+            .perform(get("/v1/me"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+            .andExpect(jsonPath('$.id', is(2)))
+            .andExpect(jsonPath('$.firstName', is(sampleAuthenticatedPerson.firstName)))
+            .andExpect(jsonPath('$.lastName', is(sampleAuthenticatedPerson.lastName)))
+            .andExpect(jsonPath('$.personalCode', is(sampleAuthenticatedPerson.personalCode)))
+            .andExpect(jsonPath('$.age', is(user.age)))
+            .andExpect(jsonPath('$.email', is(user.email)))
+            .andExpect(jsonPath('$.phoneNumber', is(user.phoneNumber)))
+            .andExpect(jsonPath('$.memberNumber', is(nullValue())))
+            .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
+            .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
+            .andExpect(jsonPath('$.secondPillarActive', is(contactDetails.secondPillarActive)))
+            .andExpect(jsonPath('$.thirdPillarActive', is(contactDetails.thirdPillarActive)))
+            .andExpect(jsonPath('$.secondPillarPaymentRates.pending',
+                is(null)))
+            .andExpect(jsonPath('$.secondPillarPaymentRates.current',
+                is(samplePaymentRates.current)))
   }
 
   def "/me endpoint works with a member"() {
@@ -89,7 +122,7 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
         .andExpect(jsonPath('$.address.countryCode', is(contactDetails.country)))
         .andExpect(jsonPath('$.secondPillarPaymentRates.pending',
-            is(samplePaymentRates.pending)))
+            is(samplePaymentRates.pending.get())))
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
             is(samplePaymentRates.current)))
   }
@@ -146,7 +179,7 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.pensionAccountNumber', is(contactDetails.pensionAccountNumber)))
         .andExpect(jsonPath('$.address.countryCode', is(address.countryCode)))
         .andExpect(jsonPath('$.secondPillarPaymentRates.pending',
-            is(samplePaymentRates.pending)))
+            is(samplePaymentRates.pending.get())))
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
             is(samplePaymentRates.current)))
   }

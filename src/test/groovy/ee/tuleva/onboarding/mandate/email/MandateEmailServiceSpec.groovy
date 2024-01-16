@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService
 import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType
 import ee.tuleva.onboarding.notification.email.EmailService
+import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import spock.lang.Specification
 
@@ -185,13 +186,17 @@ class MandateEmailServiceSpec extends Specification {
     def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
     def message = new MandrillMessage()
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+    def samplePaymentRates = new PaymentRates(
+        2, 6
+    )
 
     def mergeVars  = [
         fname: user.firstName,
         lname: user.lastName,
         suggestMembership: false,
         paymentRateFulfillmentDate: "01.01.2022",
-        newPaymentRate: 6,
+        newPaymentRate: samplePaymentRates.pending.get(),
+        oldPaymentRate: samplePaymentRates.current,
         suggestThirdPillar: true
     ]
 
@@ -199,7 +204,7 @@ class MandateEmailServiceSpec extends Specification {
 
     authenticationHolder.getAuthenticatedPerson() >> authenticatedPerson
     mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
-    secondPillarPaymentRateService.getPendingSecondPillarPaymentRate(authenticatedPerson) >> 6
+    secondPillarPaymentRateService.getPaymentRates(authenticatedPerson) >> samplePaymentRates
     mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
 
     when:
@@ -209,4 +214,29 @@ class MandateEmailServiceSpec extends Specification {
     1 * emailService.newMandrillMessage(user.email, "second_pillar_payment_rate_en", mergeVars, tags, !null) >> message
     1 * emailService.send(user, message, "second_pillar_payment_rate_en")
   }
+
+  def "Send second pillar payment rate mandate email, error when no pending rate"() {
+    given:
+        def user = sampleUser().build()
+        def conversion = notConverted()
+        def contactDetails = contactDetailsFixture()
+        def mandate = sampleMandateWithPaymentRate()
+        def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
+        def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+        def samplePaymentRates = new PaymentRates(
+            2, null
+        )
+
+        authenticationHolder.getAuthenticatedPerson() >> authenticatedPerson
+        mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
+        secondPillarPaymentRateService.getPaymentRates(authenticatedPerson) >> samplePaymentRates
+        mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
+
+    when:
+        mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+        thrown(NoSuchElementException)
+  }
+
 }

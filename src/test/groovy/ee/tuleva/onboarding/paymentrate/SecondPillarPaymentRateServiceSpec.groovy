@@ -18,31 +18,6 @@ class SecondPillarPaymentRateServiceSpec extends Specification {
   def applicationService = Mock(ApplicationService)
   def service = new SecondPillarPaymentRateService(applicationService)
 
-  def "getPendingSecondPillarPaymentRate returns default rate when no applications match"() {
-    given:
-        AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-        applicationService.getPaymentRateApplications(authenticatedPerson) >> []
-
-    when:
-        BigDecimal rate = service.getPendingSecondPillarPaymentRate(authenticatedPerson)
-
-    then:
-        rate == new BigDecimal(2)
-  }
-
-  def "getPendingSecondPillarPaymentRate returns rate of first matching pending application"() {
-    given:
-        AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-        Application sampleApplication = samplePendingPaymentRateApplication()
-        applicationService.getPaymentRateApplications(authenticatedPerson) >> [sampleApplication]
-
-    when:
-        BigDecimal rate = service.getPendingSecondPillarPaymentRate(authenticatedPerson)
-
-    then:
-        rate == sampleApplication.getDetails().getPaymentRate()
-  }
-
   def "getPaymentRates returns rate of first pending matching application and latest completed matching for current"() {
     given:
         AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
@@ -67,7 +42,7 @@ class SecondPillarPaymentRateServiceSpec extends Specification {
 
     then:
         rates.current == sampleLatestCompletedApplication.getDetails().getPaymentRate()
-        rates.pending == samplePendingApplication.getDetails().getPaymentRate()
+        rates.pending.get() == samplePendingApplication.getDetails().getPaymentRate()
   }
 
 
@@ -81,7 +56,7 @@ class SecondPillarPaymentRateServiceSpec extends Specification {
 
     then:
         rates.current == 2
-        rates.pending == 2
+        rates.pending == Optional.empty()
   }
 
   def "getPaymentRates returns rate of first pending matching application and default rate for current"() {
@@ -95,7 +70,7 @@ class SecondPillarPaymentRateServiceSpec extends Specification {
 
     then:
         rates.current == 2
-        rates.pending == sampleApplication.getDetails().getPaymentRate()
+        rates.pending.get() == sampleApplication.getDetails().getPaymentRate()
   }
 
 }

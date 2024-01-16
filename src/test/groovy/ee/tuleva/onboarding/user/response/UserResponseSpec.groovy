@@ -37,7 +37,6 @@ class UserResponseSpec extends Specification {
     "erko-erko" | "risthein" || "Erko-Erko"       | "Risthein"
   }
 
-
   def "calculates age, retirement age and date of birth in the API response"() {
     given:
     def user = sampleUser().build()
@@ -49,6 +48,28 @@ class UserResponseSpec extends Specification {
     userResponse.age > 0
     userResponse.retirementAge == 65
     userResponse.dateOfBirth == LocalDate.parse("1988-12-12")
+  }
+
+  def "converts pending payment rate correctly"() {
+    given:
+        def user = User.builder()
+            .firstName("firstName")
+            .lastName("lastName")
+            .build()
+        def contactDetails = new ContactDetails()
+        def paymentRates = new PaymentRates(currentPaymentRate, pendingPaymentRate)
+
+    when:
+        def userResponse = UserResponse.from(user, contactDetails, paymentRates)
+
+    then:
+        userResponse.secondPillarPaymentRates.current == responseCurrentPaymentRate
+        userResponse.secondPillarPaymentRates.pending == responsePendingPaymentRate
+
+    where:
+        currentPaymentRate   | pendingPaymentRate   || responseCurrentPaymentRate | responsePendingPaymentRate
+        2 | 4     || 2  | 4
+        2 | null  || 2  | null
   }
 
 }

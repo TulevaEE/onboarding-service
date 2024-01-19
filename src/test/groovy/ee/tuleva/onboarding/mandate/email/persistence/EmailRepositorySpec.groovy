@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.email.scheduledEmail
+package ee.tuleva.onboarding.mandate.email.persistence
 
 
 import org.springframework.beans.factory.annotation.Autowired
@@ -7,28 +7,29 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SCHEDULED
 
 @DataJpaTest
-class ScheduledEmailRepositorySpec extends Specification {
+class EmailRepositorySpec extends Specification {
 
   @Autowired
   private TestEntityManager entityManager
 
   @Autowired
-  private ScheduledEmailRepository scheduledEmailRepository
+  private EmailRepository emailRepository
 
   def "persisting and finding works"() {
     given:
     def user = entityManager.persist(sampleUserNonMember().id(null).build())
-    def emailType = ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT
+    def emailType = EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE
     def scheduledEmail = entityManager.persist(
-        new ScheduledEmail(userId: user.id, mandrillMessageId: "mandrillMessageId123", type: emailType)
+        new Email(userId: user.id, mandrillMessageId: "mandrillMessageId123", type: emailType, status: SCHEDULED)
     )
     entityManager.flush()
 
     when:
     def scheduledEmails =
-        scheduledEmailRepository.findAllByUserIdAndTypeOrderByCreatedDateDesc(user.id, emailType)
+        emailRepository.findAllByUserIdAndTypeAndStatusOrderByCreatedDateDesc(user.id, emailType, SCHEDULED)
 
     then:
     scheduledEmails == [scheduledEmail]

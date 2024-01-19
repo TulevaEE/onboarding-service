@@ -42,6 +42,9 @@ spring:
       initialize-schema: never
   cloud.mvc.token-relay.enabled: false
 
+mandrill:
+  url: https://mandrillapp.com/api/1.0
+
 mobile-id:
   # use "https://mid.sk.ee/mid-api" for testing signing
   hostUrl: 'https://tsp.demo.sk.ee/mid-api'

@@ -8,10 +8,7 @@ import spock.lang.Ignore
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleTransferCancellationMandate
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleWithdrawalCancellationMandate
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
-import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static ee.tuleva.onboarding.mandate.email.PillarSuggestionFixture.secondPillarSuggestion
 import static ee.tuleva.onboarding.mandate.email.PillarSuggestionFixture.thirdPillarSuggestion
 
@@ -83,8 +80,8 @@ class MandateEmailServiceIntSpec extends Specification {
     User user = sampleUser().id(1).email("erko@risthein.ee").build()
 
     when:
-    mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, Locale.ENGLISH)
-    mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, new Locale("et"))
+    mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, mandate, mandate, Locale.ENGLISH)
+    mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, mandate, mandate, new Locale("et"))
 
     then:
     true

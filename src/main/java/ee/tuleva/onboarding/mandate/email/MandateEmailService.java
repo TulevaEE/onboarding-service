@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.email;
 
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_SUGGEST_SECOND;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.HOURS;
@@ -11,8 +12,8 @@ import ee.tuleva.onboarding.deadline.MandateDeadlines;
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailService;
-import ee.tuleva.onboarding.mandate.email.scheduledEmail.ScheduledEmailType;
+import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
@@ -30,7 +31,7 @@ import org.springframework.stereotype.Service;
 public class MandateEmailService {
 
   private final EmailService emailService;
-  private final ScheduledEmailService scheduledEmailService;
+  private final EmailPersistenceService emailPersistenceService;
   private final Clock clock;
   private final FundRepository fundRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
@@ -44,7 +45,7 @@ public class MandateEmailService {
       case 3 -> {
         scheduleThirdPillarPaymentReminderEmail(user, mandate, locale);
         if (pillarSuggestion.isSuggestPillar()) {
-          scheduleThirdPillarSuggestSecondEmail(user, locale);
+          scheduleThirdPillarSuggestSecondEmail(user, mandate, pillarSuggestion, locale);
         }
       }
       default -> throw new IllegalArgumentException("Unknown pillar: " + mandate.getPillar());
@@ -53,7 +54,8 @@ public class MandateEmailService {
 
   private void sendSecondPillarEmail(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
-    String templateName = getTemplateName(mandate, locale);
+    EmailType emailType = EmailType.from(mandate);
+    String templateName = emailType.getTemplateName(locale);
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             user.getEmail(),
@@ -61,7 +63,12 @@ public class MandateEmailService {
             getMergeVars(user, mandate, pillarSuggestion, locale),
             getSecondPillarMandateTags(pillarSuggestion),
             getMandateAttachments(user, mandate));
-    emailService.send(user, mandrillMessage, templateName);
+    emailService
+        .send(user, mandrillMessage, templateName)
+        .ifPresent(
+            response ->
+                emailPersistenceService.save(
+                    user, response.getId(), emailType, response.getStatus(), mandate));
   }
 
   private Map<String, Object> getMergeVars(
@@ -109,19 +116,6 @@ public class MandateEmailService {
     return mergeVars;
   }
 
-  private String getTemplateName(Mandate mandate, Locale locale) {
-    if (mandate.isPaymentRateApplication()) {
-      return "second_pillar_payment_rate_" + locale.getLanguage();
-    }
-    if (mandate.isWithdrawalCancellation()) {
-      return "second_pillar_withdrawal_cancellation_" + locale.getLanguage();
-    }
-    if (mandate.isTransferCancellation()) {
-      return "second_pillar_transfer_cancellation_" + locale.getLanguage();
-    }
-    return "second_pillar_mandate_" + locale.getLanguage();
-  }
-
   private List<String> getSecondPillarMandateTags(PillarSuggestion pillarSuggestion) {
     List<String> tags = new ArrayList<>();
     tags.add("mandate");
@@ -137,7 +131,8 @@ public class MandateEmailService {
 
   private void scheduleThirdPillarPaymentReminderEmail(User user, Mandate mandate, Locale locale) {
     Instant sendAt = Instant.now(clock).plus(1, HOURS);
-    String templateName = "third_pillar_payment_reminder_mandate_" + locale.getLanguage();
+    EmailType emailType = EmailType.from(mandate);
+    String templateName = emailType.getTemplateName(locale);
 
     MandrillMessage message =
         emailService.newMandrillMessage(
@@ -152,14 +147,20 @@ public class MandateEmailService {
     emailService
         .send(user, message, templateName, sendAt)
         .ifPresent(
-            messageId ->
-                scheduledEmailService.create(
-                    user, messageId, ScheduledEmailType.REMIND_THIRD_PILLAR_PAYMENT, mandate));
+            response ->
+                emailPersistenceService.save(
+                    user,
+                    response.getId(),
+                    EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE,
+                    response.getStatus(),
+                    mandate));
   }
 
-  void scheduleThirdPillarSuggestSecondEmail(User user, Locale locale) {
+  void scheduleThirdPillarSuggestSecondEmail(
+      User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
     Instant sendAt = Instant.now(clock).plus(3, DAYS);
-    String templateName = "third_pillar_suggest_second_" + locale.getLanguage();
+    EmailType emailType = EmailType.from(mandate, pillarSuggestion);
+    String templateName = emailType.getTemplateName(locale);
 
     MandrillMessage message =
         emailService.newMandrillMessage(
@@ -173,9 +174,9 @@ public class MandateEmailService {
     emailService
         .send(user, message, templateName, sendAt)
         .ifPresent(
-            messageId ->
-                scheduledEmailService.create(
-                    user, messageId, ScheduledEmailType.SUGGEST_SECOND_PILLAR));
+            response ->
+                emailPersistenceService.save(
+                    user, response.getId(), THIRD_PILLAR_SUGGEST_SECOND, response.getStatus()));
   }
 
   public List<MandrillMessage.MessageContent> getMandateAttachments(User user, Mandate mandate) {

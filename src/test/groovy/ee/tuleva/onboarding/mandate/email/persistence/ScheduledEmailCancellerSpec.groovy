@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.email.scheduledEmail
+package ee.tuleva.onboarding.mandate.email.persistence
 
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
@@ -7,8 +7,8 @@ import spock.lang.Specification
 
 class ScheduledEmailCancellerSpec extends Specification {
 
-  ScheduledEmailService scheduledEmailService = Mock()
-  ScheduledEmailCanceller scheduledEmailCanceller = new ScheduledEmailCanceller(scheduledEmailService)
+  EmailPersistenceService emailPersistenceService = Mock()
+  ScheduledEmailCanceller scheduledEmailCanceller = new ScheduledEmailCanceller(emailPersistenceService)
 
   def "cancels second pillar scheduled emails when mandate signed"() {
     given:
@@ -20,7 +20,7 @@ class ScheduledEmailCancellerSpec extends Specification {
     scheduledEmailCanceller.cancelEmail(event)
 
     then:
-    callCount * scheduledEmailService.cancel(user, ScheduledEmailType.SUGGEST_SECOND_PILLAR)
+    callCount * emailPersistenceService.cancel(user, EmailType.THIRD_PILLAR_SUGGEST_SECOND)
 
     where:
     pillar | callCount

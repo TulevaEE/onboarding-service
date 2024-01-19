@@ -186,4 +186,8 @@ public class Mandate implements Serializable {
   public String getPhoneNumber() {
     return user.getPhoneNumber();
   }
+
+  public boolean isThirdPillar() {
+    return pillar == 3;
+  }
 }

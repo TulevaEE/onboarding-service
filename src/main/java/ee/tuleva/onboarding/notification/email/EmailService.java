@@ -70,11 +70,12 @@ public class EmailService {
     return message;
   }
 
-  public Optional<String> send(User user, MandrillMessage message, String templateName) {
+  public Optional<MandrillMessageStatus> send(
+      User user, MandrillMessage message, String templateName) {
     return send(user, message, templateName, null);
   }
 
-  public Optional<String> send(
+  public Optional<MandrillMessageStatus> send(
       User user, MandrillMessage message, String templateName, Instant sendAt) {
     try {
       if (mandrillApi == null) {
@@ -91,15 +92,15 @@ public class EmailService {
           sendDate,
           templateName);
 
-      MandrillMessageStatus messageStatusReport =
+      MandrillMessageStatus response =
           mandrillApi.messages()
               .sendTemplate(templateName, Map.of(), message, false, null, sendDate)[0];
       log.info(
           "Mandrill API response: status={}, id={}, rejectReason={}",
-          messageStatusReport.getStatus(),
-          messageStatusReport.getId(),
-          messageStatusReport.getRejectReason());
-      return Optional.of(messageStatusReport.getId());
+          response.getStatus(),
+          response.getId(),
+          response.getRejectReason());
+      return Optional.of(response);
 
     } catch (MandrillApiError mandrillApiError) {
       log.error(mandrillApiError.getMandrillErrorAsJson(), mandrillApiError);

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.email.scheduledEmail;
+package ee.tuleva.onboarding.mandate.email.persistence;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static javax.persistence.EnumType.STRING;
@@ -19,26 +19,29 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.NonNull;
 
 @Entity
-@Table(name = "scheduled_email")
+@Table(name = "email")
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @Data
-public class ScheduledEmail {
+public class Email {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @NonNull private Long userId;
-  @NonNull private String mandrillMessageId;
+  @NotNull private Long userId;
+  @NotNull private String mandrillMessageId;
 
+  @NotNull
   @Enumerated(STRING)
-  @NonNull
-  private ScheduledEmailType type;
+  private EmailType type;
+
+  @NotNull
+  @Enumerated(STRING)
+  private EmailStatus status;
 
   @ManyToOne
   @JoinColumn(name = "mandate_id")

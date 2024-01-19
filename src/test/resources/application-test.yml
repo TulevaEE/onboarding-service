@@ -23,10 +23,6 @@ spring:
     database:
       replace: none
 
-proxy:
-  url: "http://sample:sample@sample:8000"
-  nonProxyHosts: "mandrillapp.com|sk.ee|sentry.io|localhost"
-
 epis:
   service:
     url: http://localhost:9005/v1

@@ -57,13 +57,13 @@ M,I96,CP00,EE\t93.8 \t96.8\t98.4"""
   }
 
   private byte[] gzip(String input) {
-    try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-         GZIPOutputStream gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)) {
-      gzipOutputStream.write(input.getBytes(StandardCharsets.UTF_8));
-      gzipOutputStream.close();
-      return byteArrayOutputStream.toByteArray();
+    try (def byteArrayOutputStream = new ByteArrayOutputStream()
+         def gzipOutputStream = new GZIPOutputStream(byteArrayOutputStream)) {
+      gzipOutputStream.write(input.getBytes(StandardCharsets.UTF_8))
+      gzipOutputStream.close()
+      return byteArrayOutputStream.toByteArray()
     } catch (IOException e) {
-      throw new RuntimeException("Error compressing string", e);
+      throw new RuntimeException("Error compressing string", e)
     }
   }
 }

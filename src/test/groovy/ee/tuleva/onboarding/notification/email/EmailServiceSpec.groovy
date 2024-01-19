@@ -27,22 +27,23 @@ class EmailServiceSpec extends Specification {
       [fname: user.firstName, lname: user.lastName],
       ["test"],
       null)
-  MandrillMessageStatus mandrillMessageStatus = Mock()
+  MandrillMessageStatus mandrillMessageStatus = new MandrillMessageStatus().tap {
+    _id = "123"
+    status = "sent"
+  }
 
   def setup() {
     emailConfiguration.mandrillKey >> Optional.of("")
     mandrillApi.messages() >> mandrillMessagesApi
-    mandrillMessageStatus.getStatus() >> "sent"
-    mandrillMessageStatus.getId() >> "13"
   }
 
   def "Can send email with template"() {
     when:
-    Optional<String> messageId = service.send(user, message, templateName)
+    def response = service.send(user, message, templateName)
 
     then:
     1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, null) >> [mandrillMessageStatus]
-    messageId == Optional.of("13")
+    response == Optional.of(mandrillMessageStatus)
   }
 
   def "Can send delayed emails with template"() {
@@ -50,11 +51,11 @@ class EmailServiceSpec extends Specification {
     Instant sendAt = Instant.now()
 
     when:
-    Optional<String> messageId = service.send(user, message, templateName, sendAt)
+    def response = service.send(user, message, templateName, sendAt)
 
     then:
     1 * mandrillMessagesApi.sendTemplate(templateName, [:], message, false, null, Date.from(sendAt)) >> [mandrillMessageStatus]
-    messageId == Optional.of("13")
+    response == Optional.of(mandrillMessageStatus)
   }
 
   def "Can cancel scheduled emails"() {

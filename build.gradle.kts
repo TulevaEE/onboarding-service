@@ -50,6 +50,7 @@ java {
 
 repositories {
     mavenCentral()
+    maven("https://jitpack.io")
 }
 
 dependencies {
@@ -99,6 +100,9 @@ dependencies {
     implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
+
+    implementation("com.github.ErkoRisthein:mailchimp-transactional-api-java:1.0.55")
+
 
     implementation("javax.xml.bind:jaxb-api")
 

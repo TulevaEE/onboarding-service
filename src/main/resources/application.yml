@@ -94,9 +94,6 @@ logging:
     ee:
       sk:
         smartid: TRACE
-        mid:
-          rest:
-            MidLoggingFilter: TRACE
       tuleva:
         onboarding:
           comparisons:

@@ -28,11 +28,9 @@ import ee.sk.mid.rest.dao.response.MidAuthenticationResponse;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
-@Transactional(rollbackFor = Exception.class)
 @AllArgsConstructor
 public class MobileIdAuthService {
   private final MidClient client;

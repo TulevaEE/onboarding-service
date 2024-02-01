@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.event;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.v3.oas.annotations.Operation;
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;

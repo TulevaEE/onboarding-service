@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.user
 import spock.lang.Specification
 import spock.lang.Unroll
 
-import javax.validation.Validation
+import jakarta.validation.Validation
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser

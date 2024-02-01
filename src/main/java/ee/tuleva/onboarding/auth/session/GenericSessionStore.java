@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.auth.session;
 
+import jakarta.servlet.http.HttpSession;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import javax.servlet.http.HttpSession;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;

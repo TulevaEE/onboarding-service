@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.mandate.payment.rate
 import spock.lang.Specification
 import spock.lang.Unroll
 
-import javax.validation.Validation
-import javax.validation.Validator
+import jakarta.validation.Validation
+import jakarta.validation.Validator
 
 class PaymentRateValidatorSpec extends Specification {
 

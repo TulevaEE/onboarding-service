@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.aml.dto;
 
 import ee.tuleva.onboarding.aml.AmlCheckType;
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
 
 public class AmlCheckTypeValidator implements ConstraintValidator<ValidAmlCheckType, AmlCheckType> {
 

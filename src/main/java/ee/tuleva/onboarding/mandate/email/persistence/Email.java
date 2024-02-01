@@ -1,14 +1,14 @@
 package ee.tuleva.onboarding.mandate.email.persistence;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
+import static jakarta.persistence.EnumType.STRING;
 import static java.time.temporal.ChronoUnit.DAYS;
-import static javax.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.mandate.Mandate;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.time.Clock;
 import java.time.Instant;
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

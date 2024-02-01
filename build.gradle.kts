@@ -18,7 +18,7 @@ val springCloudVersion = "2021.0.9"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "2.7.18"
+    id("org.springframework.boot") version "3.0.13"
     id("io.spring.dependency-management") version "1.1.4"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.25.0"
@@ -88,12 +88,14 @@ dependencies {
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.2")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
 
-    implementation("ee.sk.smartid:smart-id-java-client:2.1.4") {
+    implementation("ee.sk.smartid:smart-id-java-client:2.3") {
         exclude(group = "org.bouncycastle")
     }
-    implementation("ee.sk.mid:mid-rest-java-client:1.4") {
+    implementation("ee.sk.mid:mid-rest-java-client:1.5") {
         exclude(group = "org.bouncycastle")
     }
+
+    // TODO: upgrade to 5.3.0 when it's released
     implementation("org.digidoc4j:digidoc4j:5.2.0") {
         exclude(group = "commons-logging", module = "commons-logging")
         exclude(group = "org.bouncycastle")
@@ -104,14 +106,14 @@ dependencies {
     implementation("io.sentry:sentry-spring-boot-starter:7.8.0")
     implementation("io.sentry:sentry-logback:7.8.0")
 
-    implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.7.1")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
     implementation("com.github.ErkoRisthein:mailchimp-transactional-api-java:1.0.55")
     implementation("com.github.ErkoRisthein:mailchimp-marketing-api-java:3.0.81")
 
-    implementation("javax.xml.bind:jaxb-api")
+    implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
     compileOnly("org.projectlombok:lombok:1.18.32")
     annotationProcessor("org.projectlombok:lombok:1.18.32")
@@ -124,13 +126,14 @@ dependencies {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }
-    testImplementation("org.spockframework:spock-core:2.3-groovy-4.0") {
+    testImplementation("org.spockframework:spock-core:2.4-M1-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.3-groovy-4.0") {
+    testImplementation("org.spockframework:spock-spring:2.4-M1-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.21")
+    testImplementation("org.apache.groovy:groovy:4.0.21")
+    testImplementation("org.apache.groovy:groovy-json:4.0.21")
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")

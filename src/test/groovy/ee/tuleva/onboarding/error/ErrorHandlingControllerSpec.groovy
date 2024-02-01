@@ -23,7 +23,7 @@ import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
 import spock.lang.Specification
 
-import javax.servlet.RequestDispatcher
+import jakarta.servlet.RequestDispatcher
 
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get

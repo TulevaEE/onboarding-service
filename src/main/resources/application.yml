@@ -9,6 +9,7 @@ server:
       remote-ip-header: x-forwarded-for
       protocol-header: x-forwarded-proto
     redirect-context-root: false
+    relaxed-query-chars: []
   servlet:
     session:
       timeout: 3600
@@ -41,6 +42,8 @@ spring:
     jdbc:
       initialize-schema: never
   cloud.mvc.token-relay.enabled: false
+
+
 
 mandrill:
   url: https://mandrillapp.com/api/1.0
@@ -167,7 +170,7 @@ spring:
     username: ${JDBC_DATABASE_USERNAME}
     password: ${JDBC_DATABASE_PASSWORD}
     hikari:
-      maximum-pool-size: 60
+      maximum-pool-size: 50
     initialization-mode: never
 
   flyway:

@@ -2,11 +2,11 @@ package ee.tuleva.onboarding.aml;
 
 import ee.tuleva.onboarding.config.MapJsonConverter;
 import ee.tuleva.onboarding.user.User;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 

@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.mandate.payment.rate;
 
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
 
 public class PaymentRateValidator implements ConstraintValidator<ValidPaymentRate, BigDecimal> {
 

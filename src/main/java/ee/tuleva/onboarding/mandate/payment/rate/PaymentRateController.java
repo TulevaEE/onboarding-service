@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.mandate.payment.rate.PaymentRateController.*;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.mandate.Mandate;
 import io.swagger.v3.oas.annotations.Operation;
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

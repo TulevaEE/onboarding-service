@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.epis.payment.rate;
 
 import ee.tuleva.onboarding.user.address.Address;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
 import org.springframework.lang.Nullable;

@@ -5,8 +5,8 @@ import static org.springframework.boot.web.error.ErrorAttributeOptions.Include.S
 import static org.springframework.boot.web.error.ErrorAttributeOptions.of;
 
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.Map;
-import javax.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.error.ErrorAttributes;
 import org.springframework.boot.web.servlet.error.ErrorController;

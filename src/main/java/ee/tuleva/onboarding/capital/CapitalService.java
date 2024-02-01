@@ -14,11 +14,11 @@ import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
 import ee.tuleva.onboarding.currency.Currency;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.function.Predicate;
-import javax.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

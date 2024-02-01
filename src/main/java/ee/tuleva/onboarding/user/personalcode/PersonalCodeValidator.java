@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.user.personalcode;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
 import java.time.format.DateTimeParseException;
-import javax.validation.ConstraintValidator;
-import javax.validation.ConstraintValidatorContext;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j

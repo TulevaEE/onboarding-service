@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.command;
 
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data

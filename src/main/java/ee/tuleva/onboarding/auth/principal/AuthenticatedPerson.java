@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.auth.principal;
 
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
+import jakarta.validation.constraints.NotBlank;
 import java.util.HashMap;
 import java.util.Map;
-import javax.validation.constraints.NotBlank;
 import lombok.*;
 
 @Builder

@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.mandate.command;
 
 import ee.tuleva.onboarding.user.address.Address;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;

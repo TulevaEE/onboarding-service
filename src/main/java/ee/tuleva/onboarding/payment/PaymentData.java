@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.payment;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
-import javax.validation.constraints.NotNull;
 import lombok.Builder;
 import lombok.Data;
 

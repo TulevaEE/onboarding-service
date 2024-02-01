@@ -4,7 +4,7 @@ package ee.tuleva.onboarding.auth.command
 import spock.lang.Specification
 import spock.lang.Unroll
 
-import javax.validation.Validation
+import jakarta.validation.Validation
 
 import static ee.tuleva.onboarding.auth.command.AuthenticationType.MOBILE_ID
 

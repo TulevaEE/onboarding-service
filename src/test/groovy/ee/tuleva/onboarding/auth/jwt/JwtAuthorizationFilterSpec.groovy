@@ -11,7 +11,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.context.SecurityContextHolder
 import spock.lang.Specification
 
-import javax.servlet.FilterChain
+import jakarta.servlet.FilterChain
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId

@@ -8,13 +8,11 @@ import ee.tuleva.onboarding.holdings.xml.XmlHoldingDetail;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Unmarshaller;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.UncheckedIOException;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.zip.GZIPInputStream;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+
 import javax.xml.namespace.QName;
 import javax.xml.stream.XMLEventReader;
 import javax.xml.stream.XMLInputFactory;
@@ -22,10 +20,13 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.events.EndElement;
 import javax.xml.stream.events.StartElement;
 import javax.xml.stream.events.XMLEvent;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Service;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.zip.GZIPInputStream;
 
 @Slf4j
 @Service
@@ -151,7 +152,7 @@ public class HoldingDetailsJob {
 
       while ((e = xmlEventReader.peek()) != null) {
         boolean wasCursorChanged = false;
-        if (e.isStartElement()) {
+        if (((XMLEvent) e).isStartElement()) {
           wasCursorChanged = processStartElement(xmlEventReader, (StartElement) e);
         } else if (e.isEndElement()) {
           wasCursorChanged = processEndElement(xmlEventReader, (EndElement) e);

@@ -4,12 +4,12 @@ package ee.tuleva.onboarding.mandate
 import spock.lang.Specification
 import spock.lang.Unroll
 
-import javax.validation.ConstraintViolation
+import jakarta.validation.ConstraintViolation
 
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
-import javax.validation.Validation
-import javax.validation.Validator
+import jakarta.validation.Validation
+import jakarta.validation.Validator
 
 class MandateSpec extends Specification {
 

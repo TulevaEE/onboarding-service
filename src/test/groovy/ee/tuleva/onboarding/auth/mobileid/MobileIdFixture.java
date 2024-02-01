@@ -5,7 +5,6 @@ import ee.sk.mid.MidAuthenticationResult;
 import ee.sk.mid.MidHashToSign;
 import ee.sk.mid.MidHashType;
 import ee.sk.mid.rest.dao.MidSessionStatus;
-import ee.sk.smartid.AuthenticationHash;
 
 public class MobileIdFixture {
 
@@ -16,10 +15,11 @@ public class MobileIdFixture {
   public static String sampleIdCode = "38812121215";
   public static String sampleSessionId = "12345";
 
-  public static MidHashToSign hash = MidHashToSign.newBuilder()
-      .withHashType(MidHashType.SHA256)
-      .withDataToHash("data".getBytes())
-      .build();
+  public static MidHashToSign hash =
+      MidHashToSign.newBuilder()
+          .withHashType(MidHashType.SHA256)
+          .withDataToHash("data".getBytes())
+          .build();
   public static MobileIDSession sampleMobileIdSession =
       new MobileIDSession(sampleSessionId, "challenge", hash, samplePhoneNumber);
 

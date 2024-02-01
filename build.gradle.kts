@@ -21,13 +21,13 @@ plugins {
     id("org.springframework.boot") version "2.7.18"
     id("io.spring.dependency-management") version "1.1.4"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
-    id("com.diffplug.spotless") version "6.23.3"
+    id("com.diffplug.spotless") version "6.25.0"
     jacoco
 }
 
 spotless {
     java {
-        target("src/*/java/**/*.java")
+        target("src/*/java/**/*.java", "src/*/groovy/**/*.java")
         removeUnusedImports()
         googleJavaFormat()
     }
@@ -88,14 +88,21 @@ dependencies {
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.2")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.1")
 
-    implementation("ee.sk.smartid:smart-id-java-client:2.1.4")
-    implementation("ee.sk.mid:mid-rest-java-client:1.4")
+    implementation("ee.sk.smartid:smart-id-java-client:2.1.4") {
+        exclude(group = "org.bouncycastle")
+    }
+    implementation("ee.sk.mid:mid-rest-java-client:1.4") {
+        exclude(group = "org.bouncycastle")
+    }
     implementation("org.digidoc4j:digidoc4j:5.2.0") {
         exclude(group = "commons-logging", module = "commons-logging")
+        exclude(group = "org.bouncycastle")
     }
+    implementation("org.bouncycastle:bcprov-jdk18on:1.76")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.76")
 
-    implementation("io.sentry:sentry-spring-boot-starter:7.1.0")
-    implementation("io.sentry:sentry-logback:7.1.0")
+    implementation("io.sentry:sentry-spring-boot-starter:7.3.0")
+    implementation("io.sentry:sentry-logback:7.3.0")
 
     implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
 
@@ -125,7 +132,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.3-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.17")
+    testImplementation("org.apache.groovy:groovy-all:4.0.18")
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")

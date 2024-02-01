@@ -14,13 +14,13 @@ public class SmartIdFixture {
   private static final String verificationCode = "12345";
   public static final String aSessionId = "someSessionId";
   public static SmartIdSession sampleSmartIdSession =
-    new SmartIdSession(verificationCode, personalCode, AuthenticationHash.generateRandomHash());
+      new SmartIdSession(verificationCode, personalCode, AuthenticationHash.generateRandomHash());
   public static SmartIdSession sampleFinalSmartIdSession =
-    new SmartIdSession(verificationCode, personalCode, AuthenticationHash.generateRandomHash());
+      new SmartIdSession(verificationCode, personalCode, AuthenticationHash.generateRandomHash());
 
   public static AuthenticationIdentity anAuthenticationIdentity = new AuthenticationIdentity();
-  public static SemanticsIdentifier aSemanticsIdentifier = new SemanticsIdentifier(IdentityType.PNO,
-    CountryCode.EE, personalCode);
+  public static SemanticsIdentifier aSemanticsIdentifier =
+      new SemanticsIdentifier(IdentityType.PNO, CountryCode.EE, personalCode);
 
   static {
     anAuthenticationIdentity.setIdentityCode(personalCode);

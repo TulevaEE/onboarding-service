@@ -2,16 +2,16 @@ package ee.tuleva.onboarding.payment;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static ee.tuleva.onboarding.payment.PaymentData.*;
-import static javax.persistence.EnumType.STRING;
+import static jakarta.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.user.User;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.UUID;
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

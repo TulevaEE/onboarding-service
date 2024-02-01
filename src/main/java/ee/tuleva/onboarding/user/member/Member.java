@@ -4,10 +4,10 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.user.User;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.Instant;
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.Where;
 

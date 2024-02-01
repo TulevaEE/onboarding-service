@@ -4,9 +4,9 @@ import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import jakarta.validation.Valid;
 import java.util.Map;
 import java.util.Optional;
-import javax.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

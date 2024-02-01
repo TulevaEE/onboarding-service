@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.auth.principal;
 
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
-import javax.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Value

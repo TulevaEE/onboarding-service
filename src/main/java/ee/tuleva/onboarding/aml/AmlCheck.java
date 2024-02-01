@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.aml;
 
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.Type;
 import org.springframework.data.annotation.CreatedDate;

@@ -167,7 +167,7 @@ spring:
     username: ${JDBC_DATABASE_USERNAME}
     password: ${JDBC_DATABASE_PASSWORD}
     hikari:
-      maximum-pool-size: 60
+      maximum-pool-size: 50
     initialization-mode: never
 
   flyway:

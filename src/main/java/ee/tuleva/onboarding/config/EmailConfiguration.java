@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.config;
 import com.microtripit.mandrillapp.lutung.MandrillApi;
 import io.github.erkoristhein.mailchimp.ApiClient;
 import io.github.erkoristhein.mailchimp.api.MessagesApi;
+import io.github.erkoristhein.mailchimp.marketing.api.ListsApi;
 import java.util.Optional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -15,11 +16,17 @@ import org.springframework.context.annotation.Configuration;
 @Getter
 public class EmailConfiguration {
 
+  @Value("${mandrill.url}")
+  private String mandrillUrl;
+
   @Value("${mandrill.key:#{null}}")
   private String mandrillKey;
 
-  @Value("${mandrill.url:#{null}}")
-  private String mandrillUrl;
+  @Value("${mailchimp.url}")
+  private String mailchimpUrl;
+
+  @Value("${mailchimp.key:#{null}}")
+  private String mailchimpKey;
 
   private Optional<String> mandrillKey() {
     return Optional.ofNullable(mandrillKey);
@@ -27,8 +34,7 @@ public class EmailConfiguration {
 
   @Bean
   public MandrillApi mandrillApi() {
-
-    if (!mandrillKey().isPresent()) {
+    if (mandrillKey().isEmpty()) {
       log.warn("Mandrill key not present.");
     }
 
@@ -36,13 +42,28 @@ public class EmailConfiguration {
   }
 
   @Bean
-  public ApiClient mailchimpTransactionalApiClient() {
-    ApiClient apiClient = new ApiClient();
-    return apiClient.setBasePath(mandrillUrl);
+  public io.github.erkoristhein.mailchimp.ApiClient mailchimpTransactionalApiClient() {
+    return new ApiClient().setBasePath(mandrillUrl);
   }
 
   @Bean
-  public MessagesApi mailchimpTransactionalMessagesApi(ApiClient mailchimpTransactionalApiClient) {
+  public io.github.erkoristhein.mailchimp.marketing.ApiClient mailchimpMarketingApiClient() {
+    var apiClient = new io.github.erkoristhein.mailchimp.marketing.ApiClient();
+    apiClient.setBasePath(mailchimpUrl);
+    apiClient.setUsername("any");
+    apiClient.setPassword(mailchimpKey);
+    return apiClient;
+  }
+
+  @Bean
+  public MessagesApi mailchimpTransactionalMessagesApi(
+      io.github.erkoristhein.mailchimp.ApiClient mailchimpTransactionalApiClient) {
     return new MessagesApi(mailchimpTransactionalApiClient);
+  }
+
+  @Bean
+  public ListsApi mailchimpMarketingListsApi(
+      io.github.erkoristhein.mailchimp.marketing.ApiClient mailchimpMarketingApiClient) {
+    return new ListsApi(mailchimpMarketingApiClient);
   }
 }

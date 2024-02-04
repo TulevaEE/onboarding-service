@@ -73,7 +73,19 @@ public class Exchange {
 
   @JsonIgnore
   public boolean isFullAmount() {
-    return getPillar() == 2 && amount.intValue() == 1; // 100%
+    if (getPillar() != 2) {
+      throw new IllegalStateException("isFullAmount() is only supported for 2nd pillar");
+    }
+    return amount.intValue() == 1; // 100% of units
+  }
+
+  @JsonIgnore
+  public boolean isFullAmount(BigDecimal fundBalanceUnits) {
+    if (getPillar() != 3) {
+      throw new IllegalStateException(
+          "isFullAmount(fundBalanceUnits) is only supported for 3rd pillar");
+    }
+    return amount.equals(fundBalanceUnits);
   }
 
   @JsonIgnore

@@ -257,7 +257,7 @@ public class UserConversionService {
     }
     if (exchange.getPillar() == 3) {
       FundBalance fundBalance = fundBalance(exchange, fundBalances);
-      return exchange.getAmount().equals(fundBalance.getTotalValue());
+      return exchange.isFullAmount(fundBalance.getUnits());
     }
     throw new IllegalStateException("Invalid pillar: " + exchange.getPillar());
   }

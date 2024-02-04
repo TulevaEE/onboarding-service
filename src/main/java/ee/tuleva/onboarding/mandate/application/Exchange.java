@@ -95,7 +95,9 @@ public class Exchange {
       return amount.multiply(totalValue);
     }
     if (getPillar() == 3) {
-      return amount.multiply(totalValue).divide(totalUnits, 2, RoundingMode.HALF_UP);
+      return ZERO.equals(totalUnits)
+          ? ZERO
+          : amount.multiply(totalValue).divide(totalUnits, 2, RoundingMode.HALF_UP);
     }
     throw new IllegalStateException("Unknown pillar: " + getPillar());
   }

@@ -52,7 +52,8 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
             activeContributions: fundBalances[0].activeContributions,
             contributions      : fundBalances[0].contributions.doubleValue(),
             subtractions       : fundBalances[0].subtractions.doubleValue(),
-            profit             : fundBalances[0].profit.doubleValue()
+            profit             : fundBalances[0].profit.doubleValue(),
+            units              : fundBalances[0].units.doubleValue(),
         ])))
         .andExpect(jsonPath('$', hasSize(fundBalances.size())))
   }

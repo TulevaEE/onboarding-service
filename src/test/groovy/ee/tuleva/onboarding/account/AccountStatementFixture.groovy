@@ -15,6 +15,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(tuleva2ndPillarStockFund())
+          .units(123.4567)
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -24,6 +25,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(tuleva2ndPillarBondFund())
+          .units(234.5678)
           .build()
   )
 
@@ -36,6 +38,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(lhv2ndPillarFund())
+          .units(345.6789)
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -45,6 +48,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(tuleva2ndPillarBondFund())
+          .units(456.7890)
           .build()
   )
 
@@ -57,6 +61,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(lhv2ndPillarFund())
+          .units(345.6789)
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -66,6 +71,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(tuleva2ndPillarBondFund())
+          .units(234.5678)
           .build()
   )
 
@@ -78,6 +84,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(tuleva2ndPillarBondFund())
+          .units(234.5678)
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -87,6 +94,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(lhv2ndPillarFund())
+          .units(345.6789)
           .build()
   )
 
@@ -99,6 +107,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(lhv2ndPillarFund())
+          .units(345.6789)
           .build()
   )
 
@@ -111,6 +120,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(tuleva2ndPillarStockFund())
+          .units(123.4567)
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -120,6 +130,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(lhv2ndPillarFund())
+          .units(345.6789)
           .build()
   )
 
@@ -155,7 +166,7 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(lhv3rdPillarFund())
-          .units(456.78)
+          .units(2343.8579)
           .build(),
       FundBalance.builder()
           .value(100.0)
@@ -166,6 +177,29 @@ class AccountStatementFixture {
           .currency("EUR")
           .fund(tuleva3rdPillarFund())
           .units(234.56)
+          .build()
+  )
+
+  public static List<FundBalance> onlyExternal3rdPillarFundBalance = Lists.asList(
+      FundBalance.builder()
+          .value(100.0)
+          .unavailableValue(0.0)
+          .activeContributions(false)
+          .contributions(90.0)
+          .subtractions(0.0)
+          .currency("EUR")
+          .fund(lhv3rdPillarFund())
+          .units(2343.8579)
+          .build(),
+      FundBalance.builder()
+          .value(0.0)
+          .unavailableValue(0.0)
+          .activeContributions(true)
+          .contributions(0.0)
+          .subtractions(0.0)
+          .currency("EUR")
+          .fund(tuleva3rdPillarFund())
+          .units(0.0)
           .build()
   )
 

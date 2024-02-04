@@ -19,6 +19,7 @@ public class FundBalance {
   private BigDecimal value;
   private BigDecimal unavailableValue;
   private BigDecimal units;
+  private BigDecimal unavailableUnits;
   private String currency;
   private boolean activeContributions;
   private BigDecimal contributions;
@@ -42,6 +43,11 @@ public class FundBalance {
   public BigDecimal getTotalValue() {
     return ZERO.add(value == null ? ZERO : value)
         .add(unavailableValue == null ? ZERO : unavailableValue);
+  }
+
+  public BigDecimal getTotalUnits() {
+    return ZERO.add(units == null ? ZERO : units)
+        .add(unavailableUnits == null ? ZERO : unavailableUnits);
   }
 
   public boolean isOwnFund() {

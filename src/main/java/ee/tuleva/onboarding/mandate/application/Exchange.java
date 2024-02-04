@@ -93,7 +93,7 @@ public class Exchange {
     if (getPillar() == 2) {
       return amount.multiply(totalValue);
     }
-    return amount;
+    return amount; // TODO: multiply by NAV
   }
 
   @JsonIgnore

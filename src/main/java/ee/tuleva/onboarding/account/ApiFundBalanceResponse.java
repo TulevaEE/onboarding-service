@@ -17,7 +17,6 @@ class ApiFundBalanceResponse {
   private BigDecimal contributions;
   private BigDecimal subtractions;
   private BigDecimal profit;
-  private BigDecimal units;
 
   static ApiFundBalanceResponse from(FundBalance fundBalance, Locale locale) {
     return ApiFundBalanceResponse.builder()
@@ -29,7 +28,6 @@ class ApiFundBalanceResponse {
         .contributions(fundBalance.getContributions())
         .subtractions(fundBalance.getSubtractions())
         .profit(fundBalance.getProfit())
-        .units(fundBalance.getUnits())
         .build();
   }
 }

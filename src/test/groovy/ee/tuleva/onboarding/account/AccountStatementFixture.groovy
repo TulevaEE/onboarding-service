@@ -180,7 +180,7 @@ class AccountStatementFixture {
           .build()
   )
 
-  public static List<FundBalance> onlyExternal3rdPillarFundBalance = Lists.asList(
+  public static List<FundBalance> pendingExternal3rdPillarFundBalance = Lists.asList(
       FundBalance.builder()
           .value(100.0)
           .unavailableValue(0.0)
@@ -189,7 +189,8 @@ class AccountStatementFixture {
           .subtractions(0.0)
           .currency("EUR")
           .fund(lhv3rdPillarFund())
-          .units(2343.8579)
+          .units(0.0)
+          .unavailableUnits(2343.8579)
           .build(),
       FundBalance.builder()
           .value(0.0)

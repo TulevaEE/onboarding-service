@@ -245,10 +245,10 @@ class UserConversionServiceSpec extends Specification {
     response.thirdPillar.transfersComplete == thirdPillarTransfersComplete
 
     where:
-    accountBalanceResponse             | thirdPillarSelectionComplete | thirdPillarTransfersComplete
-    activeTuleva3rdPillarFundBalance   | true                         | true
-    activeExternal3rdPillarFundBalance | false                        | true
-    onlyExternal3rdPillarFundBalance   | true                         | true
+    accountBalanceResponse              | thirdPillarSelectionComplete | thirdPillarTransfersComplete
+    activeTuleva3rdPillarFundBalance    | true                         | true
+    activeExternal3rdPillarFundBalance  | false                        | true
+    pendingExternal3rdPillarFundBalance | true                         | true
   }
 
   def "get partial conversion for 3rd pillar given pending mandates cover the lack"() {

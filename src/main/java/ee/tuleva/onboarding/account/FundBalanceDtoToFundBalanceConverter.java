@@ -55,6 +55,7 @@ public class FundBalanceDtoToFundBalanceConverter
         .value(fundBalanceDto.getValue())
         .unavailableValue(fundBalanceDto.getUnavailableValue())
         .units(fundBalanceDto.getUnits())
+        .unavailableUnits(fundBalanceDto.getUnavailableUnits())
         .fund(fund)
         .build();
   }

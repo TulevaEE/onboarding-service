@@ -6,6 +6,7 @@ import static java.math.BigDecimal.ZERO;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import lombok.Builder;
 import lombok.Data;
 
@@ -89,11 +90,14 @@ public class Exchange {
   }
 
   @JsonIgnore
-  public BigDecimal getValue(BigDecimal totalValue) {
+  public BigDecimal getValue(BigDecimal totalValue, BigDecimal totalUnits) {
     if (getPillar() == 2) {
       return amount.multiply(totalValue);
     }
-    return amount; // TODO: multiply by NAV
+    if (getPillar() == 3) {
+      return amount.multiply(totalValue).divide(totalUnits, 2, RoundingMode.HALF_UP);
+    }
+    throw new IllegalStateException("Unknown pillar: " + getPillar());
   }
 
   @JsonIgnore

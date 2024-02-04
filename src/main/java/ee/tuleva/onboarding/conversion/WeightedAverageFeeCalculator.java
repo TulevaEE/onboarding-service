@@ -23,7 +23,11 @@ public class WeightedAverageFeeCalculator {
             .collect(
                 toMap(
                     FundBalance::getIsin,
-                    fundBalance -> new Asset(fundBalance.getFee(), fundBalance.getTotalValue())));
+                    fundBalance ->
+                        new Asset(
+                            fundBalance.getFee(),
+                            fundBalance.getTotalValue(),
+                            fundBalance.getTotalUnits())));
 
     log.info("balanceAssetsByIsin: {}", balanceAssetsByIsin);
 
@@ -31,22 +35,22 @@ public class WeightedAverageFeeCalculator {
     for (Exchange exchange : pendingExchanges) {
       Asset asset =
           balanceAssetsByIsin.getOrDefault(
-              exchange.getSourceIsin(), new Asset(exchange.getSourceFundFees(), ZERO));
-      BigDecimal value = exchange.getValue(asset.value);
+              exchange.getSourceIsin(), new Asset(exchange.getSourceFundFees(), ZERO, ZERO));
+      BigDecimal value = exchange.getValue(asset.value, asset.units);
 
       String sourceIsin = exchange.getSourceIsin();
       Asset source =
           exchangeAssetsByIsin.getOrDefault(
-              sourceIsin, new Asset(exchange.getSourceFundFees(), ZERO));
-      Asset subtracted = source.subtract(value);
+              sourceIsin, new Asset(exchange.getSourceFundFees(), ZERO, ZERO));
+      Asset subtracted = source.subtract(value, asset.units);
       exchangeAssetsByIsin.put(sourceIsin, subtracted);
 
       if (!exchange.isToPik()) {
         String targetIsin = exchange.getTargetIsin();
         Asset target =
             exchangeAssetsByIsin.getOrDefault(
-                targetIsin, new Asset(exchange.getTargetFundFees(), ZERO));
-        Asset added = target.add(value);
+                targetIsin, new Asset(exchange.getTargetFundFees(), ZERO, ZERO));
+        Asset added = target.add(value, asset.units);
         exchangeAssetsByIsin.put(targetIsin, added);
       }
     }
@@ -76,20 +80,20 @@ public class WeightedAverageFeeCalculator {
         .divide(totalValue, 4, RoundingMode.HALF_UP);
   }
 
-  record Asset(BigDecimal fee, BigDecimal value) {
-    public Asset add(BigDecimal augend) {
-      return new Asset(fee, value.add(augend));
+  record Asset(BigDecimal fee, BigDecimal value, BigDecimal units) {
+    public Asset add(BigDecimal valueAugend, BigDecimal unitsAugend) {
+      return new Asset(fee, value.add(valueAugend), units.add(unitsAugend));
     }
 
     public Asset add(Asset augend) {
       if (fee.compareTo(augend.fee) != 0) {
         throw new IllegalArgumentException("Different fees: " + this + ", " + augend);
       }
-      return new Asset(fee, value.add(augend.value));
+      return new Asset(fee, value.add(augend.value), units.add(augend.units));
     }
 
-    public Asset subtract(BigDecimal subtrahend) {
-      return new Asset(fee, value.subtract(subtrahend));
+    public Asset subtract(BigDecimal valueSubtrahend, BigDecimal unitsSubtrahend) {
+      return new Asset(fee, value.subtract(valueSubtrahend), units.subtract(unitsSubtrahend));
     }
   }
 }

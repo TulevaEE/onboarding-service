@@ -60,7 +60,7 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
     ]                                                                                                        | 0.0
   }
 
-  def "Calculates the weighted average fee correctly with a pending exchange"() {
+  def "Calculates the 2nd pillar weighted average fee correctly with a pending exchange"() {
     given:
     List<FundBalance> funds = fundData.collect { fundInfo ->
       Fund fund = Fund.builder()
@@ -107,6 +107,44 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
         [isin: tuleva2ndPillarStockFund().isin, value: 100.0, fundFee: 0.005, unavailableValue: 100],
         [isin: tuleva2ndPillarBondFund().isin, value: 200.0, fundFee: 0.006, unavailableValue: 0.0]
     ]                                                                                                 | ((200 * 0.006 + 200 * 0.01) / 400).round(4)
+  }
+
+  def "Calculates the 3rd pillar weighted average fee correctly with a pending exchange"() {
+    given:
+    List<FundBalance> fundBalances = fundBalanceData.collect { fundInfo ->
+      Fund fund = Fund.builder()
+          .ongoingChargesFigure(fundInfo.fundFee)
+          .isin(fundInfo.isin)
+          .build()
+
+      FundBalance.builder()
+          .fund(fund)
+          .value(fundInfo.value)
+          .unavailableValue(fundInfo.unavailableValue)
+          .units(fundInfo.units)
+          .unavailableUnits(fundInfo.unavailableUnits)
+          .build()
+    }
+
+    def locale = LocaleContextHolder.getLocale()
+
+
+    def sourceFund = lhv3rdPillarFund().tap { ongoingChargesFigure = 0.01 }
+    def targetFund = tuleva3rdPillarFund().tap { ongoingChargesFigure = 0.005 }
+    def pendingExchanges = [new Exchange(
+        new ApiFundResponse(sourceFund, locale),
+        new ApiFundResponse(targetFund, locale),
+        null,
+        2345.6789 // 100% of units
+    )]
+
+    expect:
+    weightedAverageFeeCalculator.getWeightedAverageFee(fundBalances, pendingExchanges) == expectedWeightedAverageFee
+
+    where:
+    fundBalanceData                                                                                                                  | expectedWeightedAverageFee
+    []                                                                                                                               | 0.0
+    [[isin: lhv3rdPillarFund().isin, fundFee: 0.01, value: 0.0, unavailableValue: 4300.12, units: 0.0, unavailableUnits: 2345.6789]] | 0.005
   }
 
   def "Calculates the weighted average fee correctly with multiple pending exchanges"() {

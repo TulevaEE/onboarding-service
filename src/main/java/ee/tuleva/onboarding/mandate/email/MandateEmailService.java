@@ -134,6 +134,11 @@ public class MandateEmailService {
     EmailType emailType = EmailType.from(mandate);
     String templateName = emailType.getTemplateName(locale);
 
+    if (emailPersistenceService.hasEmailsToday(user, emailType)) {
+      log.info("Already has email today: userId={}, emailType={}", user.getId(), emailType);
+      return;
+    }
+
     MandrillMessage message =
         emailService.newMandrillMessage(
             user.getEmail(),
@@ -162,6 +167,11 @@ public class MandateEmailService {
     EmailType emailType = EmailType.from(mandate, pillarSuggestion);
     String templateName = emailType.getTemplateName(locale);
 
+    if (emailPersistenceService.hasEmailsToday(user, emailType)) {
+      log.info("Already has email today: userId={}, emailType={}", user.getId(), emailType);
+      return;
+    }
+
     MandrillMessage message =
         emailService.newMandrillMessage(
             user.getEmail(),
@@ -171,6 +181,7 @@ public class MandateEmailService {
                 "lname", user.getLastName()),
             List.of("pillar_3.1", "suggest_2"),
             null);
+
     emailService
         .send(user, message, templateName, sendAt)
         .ifPresent(

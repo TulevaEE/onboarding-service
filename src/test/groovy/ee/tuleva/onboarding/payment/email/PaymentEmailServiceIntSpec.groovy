@@ -23,7 +23,7 @@ class PaymentEmailServiceIntSpec extends Specification {
 
     when:
     paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, Locale.ENGLISH)
-    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, new Locale("et"))
+    paymentEmailService.sendThirdPillarPaymentSuccessEmail(user, payment, Locale.of("et"))
 
     then:
     true

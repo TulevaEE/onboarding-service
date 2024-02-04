@@ -27,7 +27,7 @@ class MandateEmailServiceIntSpec extends Specification {
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
-    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, new Locale("et"))
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.of("et"))
 
     then:
     true
@@ -41,7 +41,7 @@ class MandateEmailServiceIntSpec extends Specification {
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
-    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, new Locale("et"))
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.of("et"))
 
     then:
     true
@@ -55,7 +55,7 @@ class MandateEmailServiceIntSpec extends Specification {
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
-    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, new Locale("et"))
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.of("et"))
 
     then:
     true
@@ -69,7 +69,7 @@ class MandateEmailServiceIntSpec extends Specification {
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
-    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, new Locale("et"))
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.of("et"))
 
     then:
     true
@@ -78,10 +78,12 @@ class MandateEmailServiceIntSpec extends Specification {
   def "ScheduleThirdPillarSuggestSecondEmail"() {
     given:
     User user = sampleUser().id(1).email("erko@risthein.ee").build()
+    Mandate mandate = thirdPillarMandate().tap { it.id = 1 }
+    PillarSuggestion pillarSuggestion = thirdPillarSuggestion
 
     when:
-    mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, mandate, mandate, Locale.ENGLISH)
-    mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, mandate, mandate, new Locale("et"))
+    mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, mandate, pillarSuggestion, Locale.ENGLISH)
+    mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, mandate, pillarSuggestion, Locale.of("et"))
 
     then:
     true

@@ -1,13 +1,14 @@
 package ee.tuleva.onboarding.mandate.email.persistence;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.CANCELLED;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SCHEDULED;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.*;
 
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class EmailPersistenceService {
 
   private final EmailRepository emailRepository;
   private final EmailService emailService;
+  private final Clock clock;
 
   public void save(User user, String messageId, EmailType type, String status) {
     save(user, messageId, type, status, null);
@@ -38,9 +40,7 @@ public class EmailPersistenceService {
   }
 
   public List<Email> cancel(User user, EmailType type) {
-    List<Email> scheduledEmails =
-        emailRepository.findAllByUserIdAndTypeAndStatusOrderByCreatedDateDesc(
-            user.getId(), type, SCHEDULED);
+    List<Email> scheduledEmails = getScheduledEmails(user, type);
     log.info("Cancelling scheduled emails: emails={}", scheduledEmails);
     List<Email> cancelled = new ArrayList<>();
     scheduledEmails.forEach(
@@ -54,5 +54,16 @@ public class EmailPersistenceService {
                     }));
     emailRepository.saveAll(scheduledEmails);
     return cancelled;
+  }
+
+  public boolean hasEmailsToday(User user, EmailType type) {
+    EmailStatus[] statuses = {SENT, QUEUED, SCHEDULED};
+    Optional<Email> latestEmail = emailRepository.findLatestEmail(user.getId(), type, statuses);
+    return latestEmail.map(email -> email.isToday(clock)).orElse(false);
+  }
+
+  private List<Email> getScheduledEmails(User user, EmailType type) {
+    return emailRepository.findAllByUserIdAndTypeAndStatusOrderByCreatedDateDesc(
+        user.getId(), type, SCHEDULED);
   }
 }

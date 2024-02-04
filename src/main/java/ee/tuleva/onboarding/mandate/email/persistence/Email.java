@@ -1,19 +1,13 @@
 package ee.tuleva.onboarding.mandate.email.persistence;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static javax.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.mandate.Mandate;
+import java.time.Clock;
 import java.time.Instant;
-import javax.persistence.Entity;
-import javax.persistence.Enumerated;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.PrePersist;
-import javax.persistence.Table;
+import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -49,8 +43,20 @@ public class Email {
 
   @NotNull private Instant createdDate;
 
+  @NotNull private Instant updatedDate;
+
   @PrePersist
   protected void onCreate() {
     createdDate = clock().instant();
+    updatedDate = Instant.now();
+  }
+
+  @PreUpdate
+  protected void onUpdate() {
+    updatedDate = Instant.now();
+  }
+
+  public boolean isToday(Clock clock) {
+    return Instant.now(clock).truncatedTo(DAYS).equals(createdDate.truncatedTo(DAYS));
   }
 }

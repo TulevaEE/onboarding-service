@@ -22,7 +22,7 @@ class MemberEmailServiceIntSpec extends Specification {
 
     when:
     memberEmailService.sendMemberNumber(user, Locale.ENGLISH)
-    memberEmailService.sendMemberNumber(user, new Locale("et"))
+    memberEmailService.sendMemberNumber(user, Locale.of("et"))
 
     then:
     true

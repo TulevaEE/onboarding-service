@@ -271,4 +271,20 @@ class MandateEmailServiceSpec extends Specification {
     thrown(NoSuchElementException)
   }
 
+  def "does not send email when already sent today"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = thirdPillarMandate()
+    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
+    emailPersistenceService.hasEmailsToday(user, EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE) >> true
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    0 * emailService.send(*_)
+  }
+
 }

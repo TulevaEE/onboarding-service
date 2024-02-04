@@ -2,19 +2,24 @@ package ee.tuleva.onboarding.mandate.email.persistence
 
 import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo
 import ee.tuleva.onboarding.notification.email.EmailService
+import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
+import java.time.Clock
+import java.time.Instant
+
 import static EmailType.THIRD_PILLAR_SUGGEST_SECOND
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SCHEDULED
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.*
 
 class EmailPersistenceServiceSpec extends Specification {
 
   EmailRepository emailRepository = Mock()
   EmailService emailService = Mock()
+  Clock clock = TestClockHolder.clock
 
   EmailPersistenceService emailPersistenceService =
-      new EmailPersistenceService(emailRepository, emailService)
+      new EmailPersistenceService(emailRepository, emailService, clock)
 
   def "creates scheduled email with correct attributes"() {
     given:
@@ -56,5 +61,27 @@ class EmailPersistenceServiceSpec extends Specification {
     cancelledEmails == emails
     cancelledEmails.every { email -> email.status == EmailStatus.CANCELLED }
     1 * emailRepository.saveAll(emails)
+  }
+
+  def "can check for todays emails"() {
+    given:
+    def user = new User(id: 13)
+    def type = THIRD_PILLAR_SUGGEST_SECOND
+    def email = new Email(
+        userId: user.id,
+        mandrillMessageId: "100",
+        type: type,
+        status: SCHEDULED,
+        createdDate: Instant.now(clock),
+        updatedDate: Instant.now(clock)
+    )
+    def statuses = new EmailStatus[]{SENT, QUEUED, SCHEDULED}
+    emailRepository.findLatestEmail(user.id, type, statuses) >> Optional.of(email)
+
+    when:
+    def hasEmailsToday = emailPersistenceService.hasEmailsToday(user, type)
+
+    then:
+    hasEmailsToday
   }
 }

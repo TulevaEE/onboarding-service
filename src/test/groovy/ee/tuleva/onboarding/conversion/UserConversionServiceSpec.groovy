@@ -248,6 +248,7 @@ class UserConversionServiceSpec extends Specification {
     accountBalanceResponse             | thirdPillarSelectionComplete | thirdPillarTransfersComplete
     activeTuleva3rdPillarFundBalance   | true                         | true
     activeExternal3rdPillarFundBalance | false                        | true
+    onlyExternal3rdPillarFundBalance   | true                         | true
   }
 
   def "get partial conversion for 3rd pillar given pending mandates cover the lack"() {
@@ -463,7 +464,7 @@ class UserConversionServiceSpec extends Specification {
                           new ApiFundResponse(lhv3rdPillarFund(), Locale.ENGLISH),
                           new ApiFundResponse(tuleva3rdPillarFund(), Locale.ENGLISH),
                           null,
-                          456.78 // 100% of the FundBalance units
+                          2343.8579 // 100% of the FundBalance units
                       )
                   )
                   .build()

@@ -463,7 +463,7 @@ class UserConversionServiceSpec extends Specification {
                           new ApiFundResponse(lhv3rdPillarFund(), Locale.ENGLISH),
                           new ApiFundResponse(tuleva3rdPillarFund(), Locale.ENGLISH),
                           null,
-                          100.0
+                          456.78 // 100% of the FundBalance units
                       )
                   )
                   .build()
@@ -481,7 +481,7 @@ class UserConversionServiceSpec extends Specification {
                           new ApiFundResponse(tuleva3rdPillarFund(), Locale.ENGLISH),
                           new ApiFundResponse(lhv3rdPillarFund(), Locale.ENGLISH),
                           null,
-                          100.0
+                          234.56 // 100% of the FundBalance units
                       )
                   )
                   .build()

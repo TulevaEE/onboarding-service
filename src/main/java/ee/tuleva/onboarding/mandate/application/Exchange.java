@@ -1,15 +1,14 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import ee.tuleva.onboarding.fund.ApiFundResponse;
-import lombok.Builder;
-import lombok.Data;
-
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-
 import static java.math.BigDecimal.ONE;
 import static java.math.BigDecimal.ZERO;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import ee.tuleva.onboarding.fund.ApiFundResponse;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import lombok.Builder;
+import lombok.Data;
 
 @Data
 @Builder

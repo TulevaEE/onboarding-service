@@ -1,14 +1,15 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import static java.math.BigDecimal.ONE;
-import static java.math.BigDecimal.ZERO;
-
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.fund.ApiFundResponse;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import lombok.Builder;
 import lombok.Data;
+
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+import static java.math.BigDecimal.ONE;
+import static java.math.BigDecimal.ZERO;
 
 @Data
 @Builder
@@ -95,7 +96,7 @@ public class Exchange {
       return amount.multiply(totalValue);
     }
     if (getPillar() == 3) {
-      return ZERO.equals(totalUnits)
+      return ZERO.compareTo(totalUnits) == 0
           ? ZERO
           : amount.multiply(totalValue).divide(totalUnits, 2, RoundingMode.HALF_UP);
     }

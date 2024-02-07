@@ -46,6 +46,8 @@ mandrill:
   url: https://mandrillapp.com/api/1.0
 mailchimp:
   url: https://us13.api.mailchimp.com/3.0
+opensanctions:
+  url: https://yente.tuleva.ee
 
 mobile-id:
   # use "https://mid.sk.ee/mid-api" for testing signing

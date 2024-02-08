@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.aml
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.TextNode
+import ee.tuleva.onboarding.aml.sanctions.SanctionCheckService
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.event.TrackableEventType
@@ -7,7 +10,6 @@ import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.user.User
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
-import spock.lang.Unroll
 
 import java.time.Clock
 import java.time.Instant
@@ -22,10 +24,13 @@ class AmlServiceSpec extends Specification {
 
   AmlCheckRepository amlCheckRepository = Mock()
   ApplicationEventPublisher eventPublisher = Mock()
+  SanctionCheckService sanctionCheckService = Mock()
+
+  ObjectMapper objectMapper = new ObjectMapper()
 
   Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
 
-  AmlService amlService = new AmlService(amlCheckRepository, eventPublisher)
+  AmlService amlService = new AmlService(amlCheckRepository, eventPublisher, sanctionCheckService)
 
   def aYearAgo = Instant.now(clock).minus(365, DAYS)
 
@@ -37,26 +42,35 @@ class AmlServiceSpec extends Specification {
     ClockHolder.setDefaultClock()
   }
 
-  def "adds aml checks after login"() {
+  def "adds aml checks before login"() {
     given:
     def user = sampleUserNonMember().build()
     def isResident = true
+
+    sanctionCheckService.match(user.fullName, user.dateOfBirth, user.personalCode, "ee")
+        >> objectMapper.createArrayNode()
+
     when:
     amlService.checkUserBeforeLogin(user, user, isResident)
     then:
-    1 * amlCheckRepository.save({check ->
+    1 * amlCheckRepository.save({ check ->
       check.user == user &&
           check.type == DOCUMENT &&
           check.success
     })
-    1 * amlCheckRepository.save({check ->
+    1 * amlCheckRepository.save({ check ->
       check.user == user &&
           check.type == SK_NAME &&
           check.success
     })
-    1 * amlCheckRepository.save({check ->
+    1 * amlCheckRepository.save({ check ->
       check.user == user &&
           check.type == RESIDENCY_AUTO &&
+          check.success
+    })
+    1 * amlCheckRepository.save({ check ->
+      check.user == user &&
+          check.type == SANCTION &&
           check.success
     })
   }
@@ -65,10 +79,13 @@ class AmlServiceSpec extends Specification {
     given:
     def user = sampleUserNonMember().build()
     def isResident = null
+    sanctionCheckService.match(user.fullName, user.dateOfBirth, user.personalCode, "ee")
+        >> objectMapper.createArrayNode()
+
     when:
     amlService.checkUserBeforeLogin(user, user, isResident)
     then:
-    2 * amlCheckRepository.save({check ->
+    3 * amlCheckRepository.save({ check ->
       check.user == user &&
           check.type != RESIDENCY_AUTO &&
           check.success
@@ -87,7 +104,7 @@ class AmlServiceSpec extends Specification {
     amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails)
     then:
     1 * amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, PENSION_REGISTRY_NAME, aYearAgo) >> false
-    1 * amlCheckRepository.save({check ->
+    1 * amlCheckRepository.save({ check ->
       check.user == user &&
           check.type == PENSION_REGISTRY_NAME &&
           check.success
@@ -101,7 +118,7 @@ class AmlServiceSpec extends Specification {
     amlService.addContactDetailsCheckIfMissing(user)
     then:
     1 * amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, CONTACT_DETAILS, aYearAgo) >> false
-    1 * amlCheckRepository.save({check ->
+    1 * amlCheckRepository.save({ check ->
       check.user == user &&
           check.type == CONTACT_DETAILS &&
           check.success
@@ -117,7 +134,7 @@ class AmlServiceSpec extends Specification {
     when:
     amlService.addCheckIfMissing(amlCheck)
     then:
-    1 * amlCheckRepository.save({check ->
+    1 * amlCheckRepository.save({ check ->
       check.user == user &&
           check.type == type &&
           check.success == success
@@ -156,7 +173,6 @@ class AmlServiceSpec extends Specification {
     result
   }
 
-  @Unroll
   def "sees if all checks are passed for third pillar"() {
     given:
     def user = sampleUser().build()
@@ -180,8 +196,29 @@ class AmlServiceSpec extends Specification {
         successfulChecks(RESIDENCY_MANUAL, DOCUMENT, SK_NAME, PENSION_REGISTRY_NAME, OCCUPATION)                | false
   }
 
+  def "checks for sanctions before login"() {
+    given:
+    def user = sampleUser().build()
+    def isResident = true
+    def sanctionCheckResults = objectMapper.createArrayNode()
+    sanctionCheckResults.add(new TextNode("result1"))
+    sanctionCheckService.match(user.fullName, user.dateOfBirth, user.personalCode, "ee")
+        >> sanctionCheckResults
+
+    when:
+    amlService.checkUserBeforeLogin(user, user, isResident)
+
+    then:
+    1 * amlCheckRepository.save({ check ->
+      check.user == user &&
+          check.type == SANCTION &&
+          !check.success &&
+          check.metadata == [results: sanctionCheckResults]
+    })
+  }
+
   private static List<AmlCheck> successfulChecks(AmlCheckType... checkTypes) {
-    return checkTypes.collect({type -> check(type)
+    return checkTypes.collect({ type -> check(type)
     })
   }
 

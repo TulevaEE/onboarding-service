@@ -57,8 +57,10 @@ public class EmailPersistenceService {
   }
 
   public boolean hasEmailsToday(User user, EmailType type) {
-    EmailStatus[] statuses = {SENT, QUEUED, SCHEDULED};
-    Optional<Email> latestEmail = emailRepository.findLatestEmail(user.getId(), type, statuses);
+    var statuses = List.of(SENT, QUEUED, SCHEDULED);
+    Optional<Email> latestEmail =
+        emailRepository.findFirstByUserIdAndTypeAndStatusInOrderByCreatedDateDesc(
+            user.getId(), type, statuses);
     return latestEmail.map(email -> email.isToday(clock)).orElse(false);
   }
 

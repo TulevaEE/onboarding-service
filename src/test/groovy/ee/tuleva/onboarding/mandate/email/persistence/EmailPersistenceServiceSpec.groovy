@@ -59,7 +59,7 @@ class EmailPersistenceServiceSpec extends Specification {
 
     then:
     cancelledEmails == emails
-    cancelledEmails.every { email -> email.status == EmailStatus.CANCELLED }
+    cancelledEmails.every { email -> email.status == CANCELLED }
     1 * emailRepository.saveAll(emails)
   }
 
@@ -75,8 +75,9 @@ class EmailPersistenceServiceSpec extends Specification {
         createdDate: Instant.now(clock),
         updatedDate: Instant.now(clock)
     )
-    def statuses = new EmailStatus[]{SENT, QUEUED, SCHEDULED}
-    emailRepository.findLatestEmail(user.id, type, statuses) >> Optional.of(email)
+    def statuses = [SENT, QUEUED, SCHEDULED]
+    emailRepository.
+        findFirstByUserIdAndTypeAndStatusInOrderByCreatedDateDesc(user.id, type, statuses) >> Optional.of(email)
 
     when:
     def hasEmailsToday = emailPersistenceService.hasEmailsToday(user, type)

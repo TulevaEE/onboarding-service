@@ -38,16 +38,20 @@ class EmailRepositorySpec extends Specification {
     given:
     def user = entityManager.persist(sampleUserNonMember().id(null).build())
     def emailType = EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE
-    def scheduledEmail = entityManager.persist(
+    def scheduledEmail1 = entityManager.persist(
         new Email(userId: user.id, mandrillMessageId: "mandrillMessageId123", type: emailType, status: SCHEDULED)
     )
+    def scheduledEmail2 = entityManager.persist(
+        new Email(userId: user.id, mandrillMessageId: "mandrillMessageId234", type: emailType, status: SCHEDULED)
+    )
     entityManager.flush()
-    def statuses = new EmailStatus[]{SCHEDULED}
+    def statuses = [SCHEDULED]
 
     when:
-    Optional<Email> latestEmail = emailRepository.findLatestEmail(user.id, emailType, statuses)
+    Optional<Email> latestEmail =
+        emailRepository.findFirstByUserIdAndTypeAndStatusInOrderByCreatedDateDesc(user.id, emailType, statuses)
 
     then:
-    latestEmail.get() == scheduledEmail
+    latestEmail.get() == scheduledEmail2
   }
 }

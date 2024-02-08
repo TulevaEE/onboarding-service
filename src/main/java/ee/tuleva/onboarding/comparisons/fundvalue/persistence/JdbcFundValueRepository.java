@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.comparisons.fundvalue.persistence;
 
 import static java.util.stream.Collectors.toList;
 
-import com.google.common.collect.ImmutableMap;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import java.sql.ResultSet;
@@ -69,7 +68,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   @Override
   public void save(FundValue fundValue) {
     Map<String, Object> values =
-        ImmutableMap.of(
+        Map.of(
             "key", fundValue.getComparisonFund(),
             "date", fundValue.getDate(),
             "value", fundValue.getValue());
@@ -80,7 +79,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   @Override
   public void update(FundValue fundValue) {
     Map<String, Object> values =
-        ImmutableMap.of(
+        Map.of(
             "key", fundValue.getComparisonFund(),
             "date", fundValue.getDate(),
             "value", fundValue.getValue());
@@ -94,7 +93,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         fundValues.stream()
             .map(
                 fundValue ->
-                    ImmutableMap.of(
+                    Map.of(
                         "key", (Object) fundValue.getComparisonFund(),
                         "date", fundValue.getDate(),
                         "value", fundValue.getValue()))
@@ -105,8 +104,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   @Override
   public Optional<FundValue> findLastValueForFund(String fund) {
     List<FundValue> result =
-        jdbcTemplate.query(
-            FIND_LAST_VALUE_QUERY, ImmutableMap.of("key", fund), new FundValueRowMapper());
+        jdbcTemplate.query(FIND_LAST_VALUE_QUERY, Map.of("key", fund), new FundValueRowMapper());
     return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
   }
 
@@ -115,7 +113,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     List<FundValue> result =
         jdbcTemplate.query(
             FIND_FUND_VALUE_QUERY,
-            ImmutableMap.of(
+            Map.of(
                 "key", fundValue.getComparisonFund(),
                 "date", fundValue.getDate(),
                 "value", fundValue.getValue()),
@@ -127,9 +125,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   public Optional<FundValue> getLatestValue(String key, LocalDate date) {
     List<FundValue> result =
         jdbcTemplate.query(
-            FIND_LATEST_VALUE_QUERY,
-            ImmutableMap.of("key", key, "date", date),
-            new FundValueRowMapper());
+            FIND_LATEST_VALUE_QUERY, Map.of("key", key, "date", date), new FundValueRowMapper());
     return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
   }
 

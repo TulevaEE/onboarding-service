@@ -1,9 +1,8 @@
 package ee.tuleva.onboarding.auth.idcard;
 
-import static com.google.common.collect.Lists.newArrayList;
-
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException;
 import java.util.Arrays;
+import java.util.List;
 
 public enum IdDocumentType {
   ESTONIAN_CITIZEN_ID_CARD(1),
@@ -46,9 +45,9 @@ public enum IdDocumentType {
   }
 
   public Boolean isResident() {
-    if (newArrayList(ESTONIAN_CITIZEN_ID_CARD, OLD_ID_CARD).contains(this)) {
+    if (List.of(ESTONIAN_CITIZEN_ID_CARD, OLD_ID_CARD).contains(this)) {
       return true;
-    } else if (newArrayList(
+    } else if (List.of(
             DIPLOMATIC_ID_CARD,
             E_RESIDENT_DIGITAL_ID_CARD,
             EUROPEAN_CITIZEN_FAMILY_MEMBER_RESIDENCE_CARD,

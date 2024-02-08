@@ -34,8 +34,7 @@ public class AmlCheckService {
   public List<AmlCheckType> getMissingChecks(Long userId) {
     User user = userService.getById(userId);
     val checks = stream(AmlCheckType.values()).filter(AmlCheckType::isManual).collect(toList());
-    val existingChecks =
-        amlService.getChecks(user).stream().map(AmlCheck::getType).collect(toList());
+    val existingChecks = amlService.getChecks(user).stream().map(AmlCheck::getType).toList();
     checks.removeAll(existingChecks);
     if (existingChecks.contains(RESIDENCY_AUTO)) {
       checks.remove(RESIDENCY_MANUAL);

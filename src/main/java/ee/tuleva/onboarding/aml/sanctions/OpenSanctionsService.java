@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml.sanctions;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -9,6 +10,7 @@ import java.util.Set;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -16,7 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 @Service
-public class OpenSanctionsService {
+@Profile("!dev")
+public class OpenSanctionsService implements SanctionCheckService {
 
   private final RestTemplate restTemplate;
   private final ObjectMapper objectMapper;
@@ -29,12 +32,13 @@ public class OpenSanctionsService {
     this.objectMapper = objectMapper;
   }
 
+  @Override
   @SneakyThrows
-  public JsonNode findMatch(
-      String fullName, String birthDate, String idNumber, String nationality) {
+  public JsonNode match(String fullName, LocalDate birthDate, String idNumber, String nationality) {
     var nationalities = new HashSet<>(List.of("ee", "eu", "suhh", nationality));
     var properties =
-        new PersonProperties(List.of(fullName), List.of(birthDate), idNumber, nationalities);
+        new PersonProperties(
+            List.of(fullName), List.of(birthDate.toString()), idNumber, nationalities);
     var personQuery = new PersonQuery(properties);
     var matchRequest = new MatchRequest(Map.of(idNumber, personQuery));
 
@@ -48,17 +52,17 @@ public class OpenSanctionsService {
     return rootNode.path("responses").path(idNumber).path("results");
   }
 
-  public record PersonProperties(
+  private record PersonProperties(
       List<String> name, List<String> birthDate, String idNumber, Set<String> nationality) {}
 
-  public record PersonQuery(String schema, PersonProperties properties) {
+  private record PersonQuery(String schema, PersonProperties properties) {
 
     public PersonQuery(PersonProperties properties) {
       this("Person", properties);
     }
   }
 
-  public record MatchRequest(Map<String, PersonQuery> queries) {}
+  private record MatchRequest(Map<String, PersonQuery> queries) {}
 
   private HttpHeaders headers() {
     HttpHeaders headers = new HttpHeaders();

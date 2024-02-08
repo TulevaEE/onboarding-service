@@ -4,7 +4,6 @@ import static org.bouncycastle.asn1.x509.Extension.certificatePolicies;
 import static org.bouncycastle.asn1.x509.Extension.extendedKeyUsage;
 import static org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils.parseExtensionValue;
 
-import com.google.common.collect.ImmutableList;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownDocumentTypeException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownExtendedKeyUsageException;
 import ee.tuleva.onboarding.auth.idcard.exception.UnknownIssuerException;
@@ -33,7 +32,7 @@ public class IdCardAuthService {
   private static final int POLICY_NO_1 = 0;
   private static final int POLICY_NO_2 = 1;
   private static final List<String> VALID_ISSUERS =
-      ImmutableList.of(
+      List.of(
           "CN=ESTEID-SK 2015, OID.2.5.4.97=NTREE-10747013, O=AS Sertifitseerimiskeskus, C=EE",
           "CN=ESTEID2018, OID.2.5.4.97=NTREE-10747013, O=SK ID Solutions AS, C=EE");
 

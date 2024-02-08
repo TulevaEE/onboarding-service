@@ -1,18 +1,11 @@
 package ee.tuleva.onboarding.aml;
 
-import static ee.tuleva.onboarding.aml.AmlCheckType.CONTACT_DETAILS;
-import static ee.tuleva.onboarding.aml.AmlCheckType.DOCUMENT;
-import static ee.tuleva.onboarding.aml.AmlCheckType.OCCUPATION;
-import static ee.tuleva.onboarding.aml.AmlCheckType.PENSION_REGISTRY_NAME;
-import static ee.tuleva.onboarding.aml.AmlCheckType.POLITICALLY_EXPOSED_PERSON;
-import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_AUTO;
-import static ee.tuleva.onboarding.aml.AmlCheckType.RESIDENCY_MANUAL;
-import static ee.tuleva.onboarding.aml.AmlCheckType.SK_NAME;
+import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toSet;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
+import com.fasterxml.jackson.databind.JsonNode;
+import ee.tuleva.onboarding.aml.sanctions.SanctionCheckService;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
@@ -34,19 +27,18 @@ public class AmlService {
 
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
+  private final SanctionCheckService sanctionCheckService;
   private final List<List<AmlCheckType>> allowedCombinations =
-      ImmutableList.of(
-          ImmutableList.of(
-              POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION),
-          ImmutableList.of(
-              POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION),
-          ImmutableList.of(
+      List.of(
+          List.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION),
+          List.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION),
+          List.of(
               POLITICALLY_EXPOSED_PERSON,
               PENSION_REGISTRY_NAME,
               DOCUMENT,
               RESIDENCY_AUTO,
               OCCUPATION),
-          ImmutableList.of(
+          List.of(
               POLITICALLY_EXPOSED_PERSON,
               PENSION_REGISTRY_NAME,
               DOCUMENT,
@@ -57,6 +49,7 @@ public class AmlService {
     addDocumentCheck(user);
     addResidencyCheck(user, isResident);
     addSkNameCheck(user, person);
+    addSanctionCheck(user);
   }
 
   private void addDocumentCheck(User user) {
@@ -86,8 +79,24 @@ public class AmlService {
     addCheckIfMissing(skNameCheck);
   }
 
+  private void addSanctionCheck(User user) {
+    JsonNode results =
+        sanctionCheckService.match(
+            user.getFullName(), user.getDateOfBirth(), user.getPersonalCode(), "ee");
+
+    AmlCheck sanctionCheck =
+        AmlCheck.builder()
+            .user(user)
+            .type(SANCTION)
+            .success(results.isEmpty())
+            .metadata(Map.of("results", results))
+            .build();
+
+    addCheckIfMissing(sanctionCheck);
+  }
+
   private Map<String, Object> metadata(Person user, Person person) {
-    return ImmutableMap.of("user", strip(user), "person", strip(person));
+    return Map.of("user", strip(user), "person", strip(person));
   }
 
   private Person strip(Person person) {

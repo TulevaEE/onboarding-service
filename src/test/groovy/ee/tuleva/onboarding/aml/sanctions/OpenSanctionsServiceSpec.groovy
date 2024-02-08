@@ -10,6 +10,8 @@ import org.springframework.test.context.TestPropertySource
 import org.springframework.test.web.client.MockRestServiceServer
 import spock.lang.Specification
 
+import java.time.LocalDate
+
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
@@ -29,11 +31,11 @@ class OpenSanctionsServiceSpec extends Specification {
 
   def "can find a match"() {
     given:
-    String fullName = "Peeter Meeter"
-    String birthDate = "1960-04-08"
-    String idNumber = "36004081234"
-    String nationality = "suhh"
-    String expectedResults = """[
+    def fullName = "Peeter Meeter"
+    def birthDate = LocalDate.parse("1960-04-08")
+    def personalCode = "36004081234"
+    def nationality = "suhh"
+    def expectedResults = """[
       {
         "id": "Q123",
         "caption": "$fullName",
@@ -46,9 +48,9 @@ class OpenSanctionsServiceSpec extends Specification {
         }
       }
     ]"""
-    String responseJson = """{
+    def responseJson = """{
       "responses": {
-        "$idNumber": {
+        "$personalCode": {
           "status": 200,
           "results": ${expectedResults}
         }
@@ -60,7 +62,7 @@ class OpenSanctionsServiceSpec extends Specification {
         .andExpect(content().json("""
         {
             "queries": {
-              "$idNumber": {
+              "$personalCode": {
                 "schema": "Person",
                 "properties": {
                   "name": [
@@ -69,7 +71,7 @@ class OpenSanctionsServiceSpec extends Specification {
                   "birthDate": [
                     "$birthDate"
                   ],
-                  "idNumber": "$idNumber",
+                  "idNumber": "$personalCode",
                   "nationality": ["eu", "ee", "suhh"]
                   }
               }
@@ -79,7 +81,7 @@ class OpenSanctionsServiceSpec extends Specification {
 
 
     when:
-    JsonNode results = openSanctionsService.findMatch(fullName, birthDate, idNumber, nationality)
+    JsonNode results = openSanctionsService.match(fullName, birthDate, personalCode, nationality)
 
     then:
     new JsonSlurper().parseText(objectMapper.writeValueAsString(results)) == new JsonSlurper().parseText(expectedResults)

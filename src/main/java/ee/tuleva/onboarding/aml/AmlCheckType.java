@@ -10,7 +10,8 @@ public enum AmlCheckType {
   SK_NAME,
   POLITICALLY_EXPOSED_PERSON(true),
   OCCUPATION(true),
-  CONTACT_DETAILS;
+  CONTACT_DETAILS,
+  SANCTION;
 
   @Getter final boolean manual;
 

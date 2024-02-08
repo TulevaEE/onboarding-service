@@ -113,8 +113,6 @@ dependencies {
 
     implementation("javax.xml.bind:jaxb-api")
 
-    implementation("com.google.guava:guava:33.0.0-jre")
-
     compileOnly("org.projectlombok:lombok:1.18.30")
     annotationProcessor("org.projectlombok:lombok:1.18.30")
 

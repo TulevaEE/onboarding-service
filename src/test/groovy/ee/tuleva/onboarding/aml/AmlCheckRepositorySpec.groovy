@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.aml
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.node.TextNode
 import ee.tuleva.onboarding.user.User
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
@@ -9,6 +11,7 @@ import spock.lang.Specification
 import java.time.Instant
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.DOCUMENT
+import static ee.tuleva.onboarding.aml.AmlCheckType.SANCTION
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static java.time.temporal.ChronoUnit.DAYS
 
@@ -19,6 +22,8 @@ class AmlCheckRepositorySpec extends Specification {
 
     @Autowired
     private AmlCheckRepository repository
+
+    ObjectMapper objectMapper = new ObjectMapper()
 
     def "persisting and findById() works"() {
         given:
@@ -124,10 +129,10 @@ class AmlCheckRepositorySpec extends Specification {
         User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
 
         AmlCheck sampleCheck = AmlCheck.builder()
-            .user(sampleUser)
-            .type(DOCUMENT)
-            .success(true)
-            .build()
+                .user(sampleUser)
+                .type(DOCUMENT)
+                .success(true)
+                .build()
 
         entityManager.persist(sampleCheck)
 
@@ -140,5 +145,35 @@ class AmlCheckRepositorySpec extends Specification {
 
         then:
         checks == []
+    }
+
+    def "can save JsonNode as metadata"() {
+        given:
+        User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
+
+        def results = objectMapper.createArrayNode()
+        results.add(new TextNode("result1"))
+        def metadata = ["results": results]
+
+        AmlCheck sampleCheck = AmlCheck.builder()
+                .user(sampleUser)
+                .type(SANCTION)
+                .success(false)
+                .metadata(metadata)
+                .build()
+
+        entityManager.persist(sampleCheck)
+
+        entityManager.flush()
+
+        when:
+        def check = repository.findById(sampleCheck.id)
+
+        then:
+        check.isPresent()
+        check.get().id != null
+        check.get().user == sampleUser
+        check.get().type == SANCTION
+        check.get().metadata == metadata
     }
 }

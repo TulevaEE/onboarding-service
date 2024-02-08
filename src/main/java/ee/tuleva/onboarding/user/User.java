@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import java.io.Serializable;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.Optional;
 import javax.persistence.*;
 import javax.validation.constraints.Email;
@@ -83,5 +84,13 @@ public class User implements Person, Serializable {
 
   public boolean hasContactDetails() {
     return email != null || phoneNumber != null;
+  }
+
+  public String getFullName() {
+    return firstName + " " + lastName;
+  }
+
+  public LocalDate getDateOfBirth() {
+    return PersonalCode.getDateOfBirth(personalCode);
   }
 }

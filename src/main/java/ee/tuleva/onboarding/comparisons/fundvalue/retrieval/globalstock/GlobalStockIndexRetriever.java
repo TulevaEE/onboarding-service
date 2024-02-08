@@ -20,11 +20,13 @@ import java.util.zip.ZipInputStream;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Profile("!dev & !test")
 public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
   public static final String KEY = "GLOBAL_STOCK_INDEX";
   private static final String PATH = "/Daily/DMRI/XI_MSTAR/";

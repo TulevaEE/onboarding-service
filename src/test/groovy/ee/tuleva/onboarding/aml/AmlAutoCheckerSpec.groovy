@@ -40,6 +40,20 @@ class AmlAutoCheckerSpec extends Specification {
         1 * amlService.checkUserBeforeLogin(user, person, ESTONIAN_CITIZEN_ID_CARD.isResident())
     }
 
+
+    def "checks user before login async"() {
+        given:
+        def user = sampleUser().build()
+        def person = sampleAuthenticatedPersonAndMember().build()
+        1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
+
+        when:
+        amlAutoChecker.beforeLoginAsync(new BeforeTokenGrantedEvent(this, person, GrantType.SMART_ID))
+
+        then:
+        1 * amlService.addSanctionCheckIfMissing(user)
+    }
+
     def "throws exception when user not found"() {
         given:
         def person = sampleAuthenticatedPersonAndMember()

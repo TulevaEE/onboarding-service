@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Profile("!dev & !test")
+@Profile("!dev")
 public class GlobalStockIndexRetriever implements ComparisonIndexRetriever {
   public static final String KEY = "GLOBAL_STOCK_INDEX";
   private static final String PATH = "/Daily/DMRI/XI_MSTAR/";

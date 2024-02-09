@@ -18,7 +18,7 @@ import java.nio.file.Files
 import static ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever.KEY
 import static java.time.LocalDate.parse
 
-class GlobalIndexValueRetrieverSpec extends Specification {
+class GlobalStockIndexRetrieverSpec extends Specification {
     @Shared
     private FakeFtpServer fakeFtpServer
 

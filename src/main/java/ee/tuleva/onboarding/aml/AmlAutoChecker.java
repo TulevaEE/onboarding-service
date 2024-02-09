@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -29,16 +30,17 @@ public class AmlAutoChecker {
   public void beforeLogin(BeforeTokenGrantedEvent event) {
     Person person = event.getPerson();
     Boolean isResident = isResident(event);
-
-    User user =
-        userService
-            .findByPersonalCode(person.getPersonalCode())
-            .orElseThrow(
-                () ->
-                    new IllegalStateException(
-                        "User not found with code " + person.getPersonalCode()));
+    User user = getUser(person);
 
     amlService.checkUserBeforeLogin(user, person, isResident);
+  }
+
+  @EventListener
+  @Async
+  public void beforeLoginAsync(BeforeTokenGrantedEvent event) {
+    Person person = event.getPerson();
+    User user = getUser(person);
+    amlService.addSanctionCheckIfMissing(user);
   }
 
   @EventListener
@@ -59,6 +61,14 @@ public class AmlAutoChecker {
   @EventListener
   public void contactDetailsUpdated(ContactDetailsUpdatedEvent event) {
     amlService.addContactDetailsCheckIfMissing(event.getUser());
+  }
+
+  private User getUser(Person person) {
+    return userService
+        .findByPersonalCode(person.getPersonalCode())
+        .orElseThrow(
+            () ->
+                new IllegalStateException("User not found with code " + person.getPersonalCode()));
   }
 
   @EventListener

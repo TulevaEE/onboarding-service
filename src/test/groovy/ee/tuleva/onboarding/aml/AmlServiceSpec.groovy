@@ -47,9 +47,6 @@ class AmlServiceSpec extends Specification {
     def user = sampleUserNonMember().build()
     def isResident = true
 
-    sanctionCheckService.match(user.fullName, user.dateOfBirth, user.personalCode, "ee")
-        >> objectMapper.createArrayNode()
-
     when:
     amlService.checkUserBeforeLogin(user, user, isResident)
     then:
@@ -68,24 +65,17 @@ class AmlServiceSpec extends Specification {
           check.type == RESIDENCY_AUTO &&
           check.success
     })
-    1 * amlCheckRepository.save({ check ->
-      check.user == user &&
-          check.type == SANCTION &&
-          check.success
-    })
   }
 
   def "does not add residency check if its null"() {
     given:
     def user = sampleUserNonMember().build()
     def isResident = null
-    sanctionCheckService.match(user.fullName, user.dateOfBirth, user.personalCode, "ee")
-        >> objectMapper.createArrayNode()
 
     when:
     amlService.checkUserBeforeLogin(user, user, isResident)
     then:
-    3 * amlCheckRepository.save({ check ->
+    2 * amlCheckRepository.save({ check ->
       check.user == user &&
           check.type != RESIDENCY_AUTO &&
           check.success
@@ -196,17 +186,17 @@ class AmlServiceSpec extends Specification {
         successfulChecks(RESIDENCY_MANUAL, DOCUMENT, SK_NAME, PENSION_REGISTRY_NAME, OCCUPATION)                | false
   }
 
-  def "checks for sanctions before login"() {
+  def "checks for sanctions"() {
     given:
     def user = sampleUser().build()
-    def isResident = true
+
     def sanctionCheckResults = objectMapper.createArrayNode()
     sanctionCheckResults.add(new TextNode("result1"))
     sanctionCheckService.match(user.fullName, user.dateOfBirth, user.personalCode, "ee")
         >> sanctionCheckResults
 
     when:
-    amlService.checkUserBeforeLogin(user, user, isResident)
+    amlService.addSanctionCheckIfMissing(user)
 
     then:
     1 * amlCheckRepository.save({ check ->

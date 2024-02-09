@@ -49,7 +49,6 @@ public class AmlService {
     addDocumentCheck(user);
     addResidencyCheck(user, isResident);
     addSkNameCheck(user, person);
-    addSanctionCheck(user);
   }
 
   private void addDocumentCheck(User user) {
@@ -79,7 +78,7 @@ public class AmlService {
     addCheckIfMissing(skNameCheck);
   }
 
-  private void addSanctionCheck(User user) {
+  public void addSanctionCheckIfMissing(User user) {
     JsonNode results =
         sanctionCheckService.match(
             user.getFullName(), user.getDateOfBirth(), user.getPersonalCode(), "ee");

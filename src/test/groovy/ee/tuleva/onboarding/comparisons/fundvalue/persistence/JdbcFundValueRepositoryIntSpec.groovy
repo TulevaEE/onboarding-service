@@ -113,7 +113,45 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         result.containsAll(values)
     }
 
-    private static List<FundValue> getFakeFundValues() {
+  def "it finds active fund keys starting with EE and recent entries"() {
+    given:
+        LocalDate threeMonthsAgo = LocalDate.now().minusMonths(3)
+        LocalDate fourMonthsAgo = LocalDate.now().minusMonths(4)
+        List<FundValue> recentValues = [
+            new FundValue("EE_FUND_0", fourMonthsAgo, 10.12345),
+            new FundValue("EE_FUND_1", threeMonthsAgo, 100.12345),
+            new FundValue("EE_FUND_2", LocalDate.now(), 200.12345)
+        ]
+        recentValues.each { fundValueRepository.save(it) }
+        fundValueRepository.save(new FundValue("NON_EE_FUND",  LocalDate.now(), 300.12345))
+
+    when:
+        List<String> activeKeys = fundValueRepository.findActiveFundKeys()
+
+    then:
+        activeKeys.size() == 2
+        activeKeys.containsAll(["EE_FUND_1", "EE_FUND_2"])
+  }
+
+  def "it finds the earliest date for a given fund key"() {
+    given:
+        String key = "SOME_FUND"
+        List<FundValue> valuesWithDifferentDates = [
+            new FundValue(key, parse("2020-01-01"), 101.12345),
+            new FundValue(key, parse("2020-01-10"), 102.12345),
+            new FundValue(key, parse("2019-12-31"), 100.12345)
+        ]
+        valuesWithDifferentDates.each { fundValueRepository.save(it) }
+
+    when:
+        Optional<LocalDate> earliestDate = fundValueRepository.findEarliestDateForKey(key)
+
+    then:
+        earliestDate.isPresent()
+        earliestDate.get() == parse("2019-12-31")
+  }
+
+  private static List<FundValue> getFakeFundValues() {
         def today = LocalDate.now()
         def yesterday = LocalDate.now().minusDays(1)
         return [

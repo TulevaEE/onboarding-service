@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.comparisons.returns.provider;
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator;
@@ -21,6 +22,8 @@ public class FundReturnProvider implements ReturnProvider {
   private final AccountOverviewProvider accountOverviewProvider;
 
   private final ReturnCalculator rateOfReturnCalculator;
+
+  private final FundValueRepository fundValueRepository;
 
   @Override
   public Returns getReturns(Person person, Instant startTime, Integer pillar) {
@@ -58,17 +61,6 @@ public class FundReturnProvider implements ReturnProvider {
   }
 
   private List<String> fundIsins() {
-    return List.of(
-        "EE3600019774",
-        "EE3600019832",
-        "EE3600019824",
-        "EE3600019782",
-        "EE3600019717",
-        "EE3600019733",
-        "EE3600098612",
-        "EE3600019725",
-        "EE3600019758",
-        "EE3600019741",
-        "EE3600019766");
+    return fundValueRepository.findActiveFundKeys();
   }
 }

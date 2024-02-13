@@ -40,8 +40,6 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   private static final String FIND_FUND_VALUE_QUERY =
       "" + "SELECT * " + "FROM index_values " + "WHERE key = :key AND date = :date " + "LIMIT 1";
 
-  private static final String ALL_KEYS_QUERY = "SELECT DISTINCT key FROM index_values ORDER BY key";
-
   private static final String INSERT_VALUES_QUERY =
       "" + "INSERT INTO index_values (key, date, value) " + "VALUES (:key, :date, :value)";
 
@@ -56,6 +54,36 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
           + "UNION "
           + "(SELECT * FROM index_values WHERE key='GLOBAL_STOCK_INDEX' and date >='2020-01-01') "
           + ") v ORDER BY v.date ASC";
+
+  private static final String FIND_EARLIEST_DATE_FOR_KEY_QUERY =
+      "SELECT key, MIN(date) AS earliest_date "
+          + "FROM index_values "
+          + "WHERE key = :key "
+          + "GROUP BY key";
+
+  private static final String FIND_KEYS_STARTING_WITH_EE_AND_RECENT_ENTRIES_QUERY =
+      "SELECT DISTINCT key "
+          + "FROM index_values "
+          + "WHERE key LIKE 'EE%' AND date >= :threeMonthsAgo "
+          + "ORDER BY key ASC";
+
+  public List<String> findActiveFundKeys() {
+    LocalDate threeMonthsAgo = LocalDate.now().minusMonths(3);
+
+    return jdbcTemplate.query(
+        FIND_KEYS_STARTING_WITH_EE_AND_RECENT_ENTRIES_QUERY,
+        Map.of("threeMonthsAgo", threeMonthsAgo),
+        (rs, rowNum) -> rs.getString("key"));
+  }
+
+  public Optional<LocalDate> findEarliestDateForKey(String key) {
+    List<LocalDate> result =
+        jdbcTemplate.query(
+            FIND_EARLIEST_DATE_FOR_KEY_QUERY,
+            Map.of("key", key),
+            (rs, rowNum) -> rs.getDate("earliest_date").toLocalDate());
+    return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+  }
 
   private static class FundValueRowMapper implements RowMapper<FundValue> {
     @Override

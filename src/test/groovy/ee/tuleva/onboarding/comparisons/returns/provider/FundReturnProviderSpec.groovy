@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.comparisons.returns.provider
 
+import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.overview.Transaction
@@ -19,8 +20,9 @@ class FundReturnProviderSpec extends Specification {
 
   def accountOverviewProvider = Mock(AccountOverviewProvider)
   def rateOfReturnCalculator = Mock(ReturnCalculator)
+  def fundValueRepository = Mock(FundValueRepository)
 
-  def returnProvider = new FundReturnProvider(accountOverviewProvider, rateOfReturnCalculator)
+  def returnProvider = new FundReturnProvider(accountOverviewProvider, rateOfReturnCalculator, fundValueRepository)
 
   def "can assemble a Returns object for all funds"() {
     given:
@@ -40,6 +42,9 @@ class FundReturnProviderSpec extends Specification {
     accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
     rateOfReturnCalculator.getReturn(overview, _ as String) >>
         new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
+    fundValueRepository.findActiveFundKeys() >> List.of(
+        "EE3600019774",
+        "EE3600019766")
 
     when:
     Returns returns = returnProvider.getReturns(person, startTime, pillar)

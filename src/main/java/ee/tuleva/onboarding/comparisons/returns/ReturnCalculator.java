@@ -150,8 +150,7 @@ public class ReturnCalculator {
     List<Transaction> transactions = accountOverview.getTransactions();
     List<Transaction> purchaseTransactions = new ArrayList<>();
 
-    //if (accountOverview.getBeginningBalance().compareTo(ZERO) != 0) {
-    if (!accountOverview.getBeginningBalance().equals(ZERO)) {
+    if (accountOverview.getBeginningBalance().compareTo(ZERO) != 0) {
       Transaction beginningTransaction =
           new Transaction(accountOverview.getBeginningBalance(), accountOverview.getStartTime());
       purchaseTransactions.add(beginningTransaction);

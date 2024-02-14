@@ -90,6 +90,7 @@ class ReturnCalculatorSpec extends Specification {
     where:
     firstTransaction | secondTransaction | beginningBalance | endingBalance || xirr
     0.0              | 0.0               | 0.0              | 0.0           || 0.0
+    0.0              | 0.0               | 0.000000         | 0.0           || 0.0
     0.0              | 1.0               | 0.0              | 1.0           || 0.0
     0.0              | -1.0              | 1.0              | 0.0           || 0.0
   }

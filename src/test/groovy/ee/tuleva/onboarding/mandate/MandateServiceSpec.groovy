@@ -44,9 +44,10 @@ class MandateServiceSpec extends Specification {
   EpisService episService = Mock()
   ApplicationEventPublisher eventPublisher = Mock()
   UserConversionService conversionService = Mock()
+  MandateValidator mandateValidator = Mock()
 
   MandateService service = new MandateService(mandateRepository, signService, converter, mandateProcessor,
-      mandateFileService, userService, episService, eventPublisher, conversionService)
+      mandateFileService, userService, episService, eventPublisher, conversionService, mandateValidator)
 
   Long sampleMandateId = 1L
   User sampleUser = sampleUser()
@@ -61,8 +62,9 @@ class MandateServiceSpec extends Specification {
       return mandate
     }
     CreateMandateCommand createMandateCmd = sampleCreateMandateCommand()
+    def person = authenticatedPersonFromUser(sampleUser).build()
     when:
-    Mandate mandate = service.save(authenticatedPersonFromUser(sampleUser).build(), createMandateCmd)
+    Mandate mandate = service.save(person, createMandateCmd)
     then:
     mandate.futureContributionFundIsin == Optional.of(createMandateCmd.futureContributionFundIsin)
     mandate.fundTransferExchanges.size() == createMandateCmd.fundTransferExchanges.size()
@@ -78,23 +80,15 @@ class MandateServiceSpec extends Specification {
     1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
     1 * eventPublisher.publishEvent(_ as BeforeMandateCreatedEvent)
     1 * conversionService.getConversion(sampleUser) >> fullyConverted()
-  }
-
-  def "save: Create mandate with invalid CreateMandateCommand fails"() {
-    given:
-    CreateMandateCommand createMandateCmd = invalidCreateMandateCommand()
-    when:
-    service.save(authenticatedPersonFromUser(sampleUser).build(), createMandateCmd)
-    then:
-    InvalidMandateException exception = thrown()
-    exception.errorsResponse.errors.first().code == "invalid.mandate.source.amount.exceeded"
+    1 * mandateValidator.validate(createMandateCmd, person)
   }
 
   def "save: Create mandate with missing aml checks fails"() {
     given:
     CreateMandateCommand createMandateCmd = sampleCreateMandateCommand()
+    def person = authenticatedPersonFromUser(sampleUser).build()
     when:
-    service.save(authenticatedPersonFromUser(sampleUser).build(), createMandateCmd)
+    service.save(person, createMandateCmd)
     then:
     AmlChecksMissingException exception = thrown()
     exception.errorsResponse.errors.first().code == "invalid.mandate.checks.missing"
@@ -103,16 +97,7 @@ class MandateServiceSpec extends Specification {
     1 * fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> Fund.builder().pillar(2).build()
     1 * conversionService.getConversion(sampleUser) >> fullyConverted()
     1 * episService.getContactDetails(sampleUser) >> contactDetailsFixture()
-  }
-
-  def "save: Create mandate with same source and target fund fails"() {
-    given:
-    CreateMandateCommand createMandateCmd = invalidCreateMandateCommandWithSameSourceAndTargetFund
-    when:
-    service.save(authenticatedPersonFromUser(sampleUser).build(), createMandateCmd)
-    then:
-    InvalidMandateException exception = thrown()
-    exception.errorsResponse.errors.first().code == "invalid.mandate.same.source.and.target.transfer.present"
+    1 * mandateValidator.validate(createMandateCmd, person)
   }
 
   def "mobile id signing works"() {

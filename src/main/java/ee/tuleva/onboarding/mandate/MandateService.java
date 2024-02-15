@@ -20,11 +20,8 @@ import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -47,10 +44,11 @@ public class MandateService {
   private final EpisService episService;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final UserConversionService conversionService;
+  private final MandateValidator mandateValidator;
 
   public Mandate save(
       AuthenticatedPerson authenticatedPerson, CreateMandateCommand createMandateCommand) {
-    validateCreateMandateCommand(createMandateCommand);
+    mandateValidator.validate(createMandateCommand, authenticatedPerson);
     User user = userService.getById(authenticatedPerson.getUserId());
     ConversionResponse conversion = conversionService.getConversion(user);
     ContactDetails contactDetails = episService.getContactDetails(user);
@@ -65,47 +63,6 @@ public class MandateService {
     log.info("Saving mandate for user {}", user.getId());
     applicationEventPublisher.publishEvent(new BeforeMandateCreatedEvent(this, user, mandate));
     return mandateRepository.save(mandate);
-  }
-
-  private void validateCreateMandateCommand(CreateMandateCommand createMandateCommand) {
-    if (countValuesBiggerThanOne(summariseSourceFundTransferAmounts(createMandateCommand)) > 0) {
-      throw InvalidMandateException.sourceAmountExceeded();
-    }
-
-    if (isSameSourceToTargetTransferPresent(createMandateCommand)) {
-      throw InvalidMandateException.sameSourceAndTargetTransferPresent();
-    }
-  }
-
-  private boolean isSameSourceToTargetTransferPresent(CreateMandateCommand createMandateCommand) {
-    return createMandateCommand.getFundTransferExchanges().stream()
-        .anyMatch(fte -> fte.getSourceFundIsin().equalsIgnoreCase(fte.getTargetFundIsin()));
-  }
-
-  private Map<String, BigDecimal> summariseSourceFundTransferAmounts(
-      CreateMandateCommand createMandateCommand) {
-    Map<String, BigDecimal> summaryMap = new HashMap<>();
-
-    createMandateCommand
-        .getFundTransferExchanges()
-        .forEach(
-            fte -> {
-              if (!summaryMap.containsKey(fte.getSourceFundIsin())) {
-                summaryMap.put(fte.getSourceFundIsin(), new BigDecimal(0));
-              }
-
-              summaryMap.put(
-                  fte.getSourceFundIsin(),
-                  summaryMap.get(fte.getSourceFundIsin()).add(fte.getAmount()));
-            });
-
-    return summaryMap;
-  }
-
-  private long countValuesBiggerThanOne(Map<String, BigDecimal> summaryMap) {
-    return summaryMap.values().stream()
-        .filter(value -> value.compareTo(BigDecimal.ONE) > 0)
-        .count();
   }
 
   public MobileIdSignatureSession mobileIdSign(Long mandateId, Long userId, String phoneNumber) {

@@ -21,4 +21,11 @@ public class InvalidMandateException extends ErrorsResponseException {
             "invalid.mandate.same.source.and.target.transfer.present",
             "Same source and target transfer present."));
   }
+
+  public static InvalidMandateException futureContributionsToSameFund() {
+    return new InvalidMandateException(
+        ErrorsResponse.ofSingleError(
+            "invalid.mandate.future.contributions.to.same.fund",
+            "Future contributions cannot be made to the same fund."));
+  }
 }

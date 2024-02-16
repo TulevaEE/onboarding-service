@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
+import java.time.Instant;
 import java.time.LocalDate;
 import lombok.Builder;
 import lombok.Getter;
@@ -32,6 +33,7 @@ public class UserResponse {
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
   private PaymentRatesResponse secondPillarPaymentRates;
+  private Instant memberJoinDate;
 
   public static UserResponse from(@NotNull User user) {
     return responseBuilder(user).build();
@@ -50,6 +52,7 @@ public class UserResponse {
         .secondPillarPaymentRates(
             new PaymentRatesResponse(
                 paymentRates.getCurrent(), paymentRates.getPending().orElse(null)))
+        .memberJoinDate(user.getMember().map(Member::getCreatedDate).orElse(null))
         .build();
   }
 

@@ -60,6 +60,7 @@ class UserControllerSpec extends BaseControllerSpec {
             is(samplePaymentRates.pending.get())))
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
             is(samplePaymentRates.current)))
+        .andExpect(jsonPath('$.memberJoinDate', is(nullValue())))
   }
 
   def "serialized no payment rate correctly as null"() {
@@ -93,6 +94,8 @@ class UserControllerSpec extends BaseControllerSpec {
                 is(null)))
             .andExpect(jsonPath('$.secondPillarPaymentRates.current',
                 is(samplePaymentRates.current)))
+            .andExpect(jsonPath('$.memberJoinDate', is(nullValue())))
+
   }
 
   def "/me endpoint works with a member"() {
@@ -125,6 +128,7 @@ class UserControllerSpec extends BaseControllerSpec {
             is(samplePaymentRates.pending.get())))
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
             is(samplePaymentRates.current)))
+        .andExpect(jsonPath('$.memberJoinDate', is(user.memberOrThrow.createdDate.toString())))
   }
 
   def "/me/principal endpoint works"() {

@@ -34,7 +34,8 @@ public class FundReturnProvider implements ReturnProvider {
         fundIsins().stream()
             .map(
                 fundIsin -> {
-                  ReturnDto aReturn = rateOfReturnCalculator.getReturn(accountOverview, fundIsin);
+                  ReturnDto aReturn =
+                      rateOfReturnCalculator.getSimulatedReturn(accountOverview, fundIsin);
                   return new Tuple(fundIsin, aReturn);
                 })
             .map(

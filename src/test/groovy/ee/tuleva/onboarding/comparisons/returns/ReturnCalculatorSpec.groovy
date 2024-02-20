@@ -34,9 +34,9 @@ class ReturnCalculatorSpec extends Specification {
     when:
     def personalReturn = returnCalculator.getReturn(overview)
     def estonianAverageReturn =
-        returnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, EPIFundValueRetriever.KEY)
     def marketAverageReturn =
-        returnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
     personalReturn.rate() == 0
@@ -67,9 +67,9 @@ class ReturnCalculatorSpec extends Specification {
     when:
     def personalReturn = returnCalculator.getReturn(overview)
     def estonianAverageReturn =
-        returnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, EPIFundValueRetriever.KEY)
     def marketAverageReturn =
-        returnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
     personalReturn.rate() == BigDecimal.valueOf(xirr)
@@ -105,12 +105,12 @@ class ReturnCalculatorSpec extends Specification {
     when:
     def personalReturn = returnCalculator.getReturn(overview)
     def estonianAverageReturn =
-        returnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, EPIFundValueRetriever.KEY)
     def marketAverageReturn =
-        returnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    personalReturn.rate() == 0.0427
+    personalReturn.rate() == 0.0430
     personalReturn.amount() == 110
     personalReturn.paymentsSum() == 16 * 30
     personalReturn.from() == LocalDate.parse("2010-07-01")
@@ -137,13 +137,13 @@ class ReturnCalculatorSpec extends Specification {
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
     when:
     def estonianAverageReturn =
-        returnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, EPIFundValueRetriever.KEY)
     def marketAverageReturn =
-        returnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    estonianAverageReturn.rate() == 0.0326
-    estonianAverageReturn.amount() == 81.76
+    estonianAverageReturn.rate() == 0.0335
+    estonianAverageReturn.amount() == 83.68
     estonianAverageReturn.paymentsSum() == 16 * 30
     estonianAverageReturn.from() == LocalDate.parse("2010-07-01")
 
@@ -161,9 +161,9 @@ class ReturnCalculatorSpec extends Specification {
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
     when:
     def estonianAverageReturn =
-        returnCalculator.getReturn(overview, EPIFundValueRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, EPIFundValueRetriever.KEY)
     def marketAverageReturn =
-        returnCalculator.getReturn(overview, UnionStockIndexRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
     estonianAverageReturn.rate() == 0

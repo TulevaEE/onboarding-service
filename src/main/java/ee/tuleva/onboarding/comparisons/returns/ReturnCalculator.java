@@ -34,29 +34,30 @@ public class ReturnCalculator {
   private final FundValueProvider fundValueProvider;
 
   public ReturnDto getReturn(AccountOverview accountOverview) {
-    BigDecimal rateOfReturn = getRateOfReturn(accountOverview);
-    CashReturn cashReturn = getCashReturn(accountOverview);
+    BigDecimal rateOfReturn = getPersonalRateOfReturn(accountOverview);
+    CashReturn cashReturn = getPersonalCashReturn(accountOverview);
     LocalDate from =
-        accountOverview.sort().getFirstTransactionDate().orElse(accountOverview.getStartDate());
+        accountOverview.getFirstTransactionDate().orElse(accountOverview.getStartDate());
     return new ReturnDto(rateOfReturn, cashReturn.value, cashReturn.paymentsSum, EUR, from);
   }
 
-  public ReturnDto getReturn(AccountOverview accountOverview, String comparisonFund) {
-    CashReturn cashReturn = getCashReturn(accountOverview, comparisonFund);
-    BigDecimal rateOfReturn = getRateOfReturn(accountOverview, comparisonFund);
+  public ReturnDto getSimulatedReturn(AccountOverview accountOverview, String comparisonFund) {
+    CashReturn cashReturn = getSimulatedCashReturn(accountOverview, comparisonFund);
+    BigDecimal rateOfReturn = getSimulatedRateOfReturn(accountOverview, comparisonFund);
     LocalDate from =
-        accountOverview.sort().getFirstTransactionDate().orElse(accountOverview.getStartDate());
+        accountOverview.getFirstTransactionDate().orElse(accountOverview.getStartDate());
     return new ReturnDto(rateOfReturn, cashReturn.value, cashReturn.paymentsSum, EUR, from);
   }
 
-  private BigDecimal getRateOfReturn(AccountOverview accountOverview) {
+  private BigDecimal getPersonalRateOfReturn(AccountOverview accountOverview) {
     List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
     return calculateReturn(
         purchaseTransactions, accountOverview.getEndingBalance(), accountOverview.getEndTime());
   }
 
-  private BigDecimal getRateOfReturn(AccountOverview accountOverview, String comparisonFund) {
+  private BigDecimal getSimulatedRateOfReturn(
+      AccountOverview accountOverview, String comparisonFund) {
     List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
     val sellAmount =
@@ -103,7 +104,7 @@ public class ReturnCalculator {
     }
   }
 
-  private CashReturn getCashReturn(AccountOverview accountOverview) {
+  private CashReturn getPersonalCashReturn(AccountOverview accountOverview) {
     val paymentsSum =
         accountOverview.getTransactions().stream()
             .map(Transaction::amount)
@@ -120,7 +121,8 @@ public class ReturnCalculator {
     return new CashReturn(paymentsSum, cashReturn);
   }
 
-  private CashReturn getCashReturn(AccountOverview accountOverview, String comparisonFund) {
+  private CashReturn getSimulatedCashReturn(
+      AccountOverview accountOverview, String comparisonFund) {
     List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
     val endingBalance =
@@ -151,8 +153,11 @@ public class ReturnCalculator {
     List<Transaction> purchaseTransactions = new ArrayList<>();
 
     if (accountOverview.getBeginningBalance().compareTo(ZERO) != 0) {
+      // TODO: how to get the correct beginning time?
+      Instant beginningTime =
+          accountOverview.getFirstTransactionTime().orElse(accountOverview.getStartTime());
       Transaction beginningTransaction =
-          new Transaction(accountOverview.getBeginningBalance(), accountOverview.getStartTime());
+          new Transaction(accountOverview.getBeginningBalance(), beginningTime);
       purchaseTransactions.add(beginningTransaction);
     }
     purchaseTransactions.addAll(transactions);

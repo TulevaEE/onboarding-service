@@ -42,7 +42,7 @@ public class IndexReturnProvider implements ReturnProvider {
             .map(
                 comparisonIndex -> {
                   ReturnDto aReturn =
-                      rateOfReturnCalculator.getReturn(accountOverview, comparisonIndex);
+                      rateOfReturnCalculator.getSimulatedReturn(accountOverview, comparisonIndex);
                   return new Tuple(comparisonIndex, aReturn);
                 })
             .map(

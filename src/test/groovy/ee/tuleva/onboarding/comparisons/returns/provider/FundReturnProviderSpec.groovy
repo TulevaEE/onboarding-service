@@ -40,7 +40,7 @@ class FundReturnProviderSpec extends Specification {
     def payments = 234.12
 
     accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
-    rateOfReturnCalculator.getReturn(overview, _ as String) >>
+    rateOfReturnCalculator.getSimulatedReturn(overview, _ as String) >>
         new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
     fundValueRepository.findActiveFundKeys() >> List.of(
         "EE3600019774",

@@ -32,6 +32,13 @@ public class AccountOverview {
     return Optional.empty();
   }
 
+  public Optional<Instant> getFirstTransactionTime() {
+    if (transactions != null && !transactions.isEmpty()) {
+      return Optional.of(transactions.get(0).time());
+    }
+    return Optional.empty();
+  }
+
   public LocalDate getStartDate() {
     return startTime.atOffset(ZoneOffset.UTC).toLocalDate();
   }

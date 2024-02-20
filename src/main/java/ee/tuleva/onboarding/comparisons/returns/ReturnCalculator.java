@@ -7,7 +7,6 @@ import static java.time.ZoneId.systemDefault;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
-import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.overview.Transaction;
 import java.math.BigDecimal;
 import java.math.MathContext;
@@ -33,7 +32,6 @@ public class ReturnCalculator {
   private static final int CASH_DECIMAL_PLACES = 2;
 
   private final FundValueProvider fundValueProvider;
-  private final AccountOverviewProvider accountOverviewProvider;
 
   public ReturnDto getReturn(AccountOverview accountOverview) {
     BigDecimal rateOfReturn = getPersonalRateOfReturn(accountOverview);

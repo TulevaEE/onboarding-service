@@ -33,7 +33,7 @@ class ReturnsServiceSpec extends Specification {
   def "can get returns from multiple providers"() {
     given:
     def person = samplePerson()
-    def fromDate = LocalDate.parse("2019-08-29")
+    def fromDate = LocalDate.parse("2019-08-28")
     def startTime = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC)
     def pillar = 3
 
@@ -66,8 +66,8 @@ class ReturnsServiceSpec extends Specification {
   def "works with null keys"() {
     given:
     def person = samplePerson()
-    def fromDate = LocalDate.parse("2019-08-29")
-    def startTime = Instant.parse("2020-01-02T00:00:00Z")
+    def fromDate = LocalDate.parse("2019-08-28")
+    def startTime = Instant.parse("2020-01-01T00:00:00Z")
     def pillar = 2
 
     def (return1, returns1) = sampleReturns1(fromDate)
@@ -95,8 +95,8 @@ class ReturnsServiceSpec extends Specification {
   def "can filter a single return from a return provider that provides many returns"() {
     given:
     def person = samplePerson()
-    def fromDate = LocalDate.parse("2019-08-29")
-    def startTime = Instant.parse("2020-01-02T00:00:00Z")
+    def fromDate = LocalDate.parse("2019-08-28")
+    def startTime = Instant.parse("2020-01-01T00:00:00Z")
     def pillar = 2
 
     def (return1) = sampleReturns1(fromDate)
@@ -134,8 +134,8 @@ class ReturnsServiceSpec extends Specification {
         def person = samplePerson()
         LocalDate originalFromDate = LocalDate.parse("2020-01-01")
         LocalDate earliestNavDate = LocalDate.parse("2020-02-01")
-        Instant adjustedStartTime = Instant.parse("2020-05-04T00:00:00Z")
-        LocalDate adjustedStartDate = LocalDate.parse("2020-05-04")
+        Instant adjustedStartTime = Instant.parse("2020-05-01T00:00:00Z")
+        LocalDate adjustedStartDate = LocalDate.parse("2020-05-01")
 
         def (return1, returns1) = sampleReturns1(adjustedStartDate)
         def (return2, returns2) = sampleReturns2(adjustedStartDate)

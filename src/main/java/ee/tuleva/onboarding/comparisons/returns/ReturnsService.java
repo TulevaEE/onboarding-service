@@ -54,8 +54,7 @@ public class ReturnsService {
     LocalDate transferMandateFulfillmentDate = deadlines.getTransferMandateFulfillmentDate();
     LocalDate navDatePlus1 =
         publicHolidays.previousWorkingDay(transferMandateFulfillmentDate).plusDays(1);
-    Instant revisedFromTime = navDatePlus1.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
-    return revisedFromTime;
+    return navDatePlus1.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
   }
 
   private LocalDate chooseDateAccordingToDataAvailability(LocalDate fromDate, List<String> keys) {

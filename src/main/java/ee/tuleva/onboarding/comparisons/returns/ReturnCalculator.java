@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -35,17 +34,23 @@ public class ReturnCalculator {
   public ReturnDto getReturn(AccountOverview accountOverview) {
     BigDecimal rateOfReturn = getPersonalRateOfReturn(accountOverview);
     CashReturn cashReturn = getPersonalCashReturn(accountOverview);
-    LocalDate from =
-        accountOverview.getFirstTransactionDate().orElse(accountOverview.getStartDate());
-    return new ReturnDto(rateOfReturn, cashReturn.value, cashReturn.paymentsSum, EUR, from);
+    return new ReturnDto(
+        rateOfReturn,
+        cashReturn.value,
+        cashReturn.paymentsSum,
+        EUR,
+        accountOverview.getStartDate());
   }
 
   public ReturnDto getSimulatedReturn(AccountOverview accountOverview, String comparisonFund) {
     CashReturn cashReturn = getSimulatedCashReturn(accountOverview, comparisonFund);
     BigDecimal rateOfReturn = getSimulatedRateOfReturn(accountOverview, comparisonFund);
-    LocalDate from =
-        accountOverview.getFirstTransactionDate().orElse(accountOverview.getStartDate());
-    return new ReturnDto(rateOfReturn, cashReturn.value, cashReturn.paymentsSum, EUR, from);
+    return new ReturnDto(
+        rateOfReturn,
+        cashReturn.value,
+        cashReturn.paymentsSum,
+        EUR,
+        accountOverview.getStartDate());
   }
 
   private BigDecimal getPersonalRateOfReturn(AccountOverview accountOverview) {

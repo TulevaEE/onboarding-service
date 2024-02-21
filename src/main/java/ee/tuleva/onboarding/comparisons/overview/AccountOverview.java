@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import lombok.Builder;
 import lombok.Value;
 
@@ -22,6 +23,13 @@ public class AccountOverview {
   public AccountOverview sort() {
     Collections.sort(transactions);
     return this;
+  }
+
+  public Optional<LocalDate> getFirstTransactionDate() {
+    if (transactions != null && !transactions.isEmpty()) {
+      return Optional.of(transactions.get(0).date());
+    }
+    return Optional.empty();
   }
 
   public LocalDate getStartDate() {

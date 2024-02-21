@@ -33,7 +33,7 @@ class ReturnsServiceSpec extends Specification {
   def "can get returns from multiple providers"() {
     given:
     def person = samplePerson()
-    def fromDate = LocalDate.parse("2019-08-28")
+    def fromDate = LocalDate.parse("2019-08-29")
     def startTime = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC)
     def pillar = 3
 
@@ -66,7 +66,7 @@ class ReturnsServiceSpec extends Specification {
   def "works with null keys"() {
     given:
     def person = samplePerson()
-    def fromDate = LocalDate.parse("2019-08-28")
+    def fromDate = LocalDate.parse("2019-08-29")
     def startTime = Instant.parse("2020-01-02T00:00:00Z")
     def pillar = 2
 
@@ -95,7 +95,7 @@ class ReturnsServiceSpec extends Specification {
   def "can filter a single return from a return provider that provides many returns"() {
     given:
     def person = samplePerson()
-    def fromDate = LocalDate.parse("2019-08-28")
+    def fromDate = LocalDate.parse("2019-08-29")
     def startTime = Instant.parse("2020-01-02T00:00:00Z")
     def pillar = 2
 

@@ -80,7 +80,7 @@ public class CashFlow implements Comparable<CashFlow> {
 
   @Override
   public String toString() {
-    return "{%s, %s, %s, %s, %s}".formatted(isin, time, amount, type, comment);
+    return "{%s, %s, %s, %s, %s, %s}".formatted(isin, time, amount, type, comment, priceTime);
   }
 
   public enum Type {

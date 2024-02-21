@@ -46,9 +46,11 @@ public class ReturnsService {
   private Instant getRevisedFromTime(LocalDate fromDate, List<String> keys, int pillar) {
     LocalDate earliestNavDate = chooseDateAccordingToDataAvailability(fromDate, keys);
     Instant earliestNavTime = earliestNavDate.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
-    if (pillar == 3) {
+
+    if (earliestNavDate.equals(fromDate) || pillar == 3) {
       return earliestNavTime;
     }
+
     MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(earliestNavTime);
     PublicHolidays publicHolidays = new PublicHolidays();
     LocalDate transferMandateFulfillmentDate = deadlines.getTransferMandateFulfillmentDate();

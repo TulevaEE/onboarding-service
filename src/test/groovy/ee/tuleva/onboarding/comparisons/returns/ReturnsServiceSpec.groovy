@@ -67,7 +67,7 @@ class ReturnsServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def fromDate = LocalDate.parse("2019-08-28")
-    def startTime = Instant.parse("2020-01-01T00:00:00Z")
+    def startTime = Instant.parse("2019-08-28T00:00:00Z")
     def pillar = 2
 
     def (return1, returns1) = sampleReturns1(fromDate)
@@ -96,7 +96,7 @@ class ReturnsServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def fromDate = LocalDate.parse("2019-08-28")
-    def startTime = Instant.parse("2020-01-01T00:00:00Z")
+    def startTime = Instant.parse("2019-08-28T00:00:00Z")
     def pillar = 2
 
     def (return1) = sampleReturns1(fromDate)

@@ -27,6 +27,14 @@ public class PublicHolidays {
     return date;
   }
 
+  public LocalDate previousWorkingDay(LocalDate to) {
+    LocalDate date = to.minusDays(1);
+    while (!isWorkingDay(date)) {
+      date = date.minusDays(1);
+    }
+    return date;
+  }
+
   boolean isWorkingDay(LocalDate date) {
     return !(date.getDayOfWeek() == SATURDAY
         || date.getDayOfWeek() == SUNDAY

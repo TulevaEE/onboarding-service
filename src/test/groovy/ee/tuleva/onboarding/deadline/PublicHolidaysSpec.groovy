@@ -56,4 +56,11 @@ class PublicHolidaysSpec extends Specification {
     publicHolidays.addWorkingDays(publicHolidays.christmasEve(date), 3) == threeWorkingDaysAfterChristmas
   }
 
+  def "previous workday for may 2 is april 28"() {
+    when:
+    PublicHolidays publicHolidays = new PublicHolidays()
+    then:
+    publicHolidays.previousWorkingDay(LocalDate.parse("2017-05-02")) == LocalDate.parse("2017-04-28")
+  }
+
 }

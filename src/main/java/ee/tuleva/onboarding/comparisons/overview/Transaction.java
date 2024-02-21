@@ -18,4 +18,9 @@ public record Transaction(BigDecimal amount, Instant time) implements Comparable
   public int compareTo(@NotNull Transaction other) {
     return comparing(Transaction::time).thenComparing(Transaction::amount).compare(this, other);
   }
+
+  @Override
+  public String toString() {
+    return "{" + amount + ", " + time + "}";
+  }
 }

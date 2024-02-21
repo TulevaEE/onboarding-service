@@ -6,12 +6,12 @@ import ee.tuleva.onboarding.mandate.application.ApplicationService
 import spock.lang.Specification
 
 import java.time.Instant
-import java.time.ZoneId
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
-
-import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.*
+import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.sampleCompletedPaymentRateApplication
+import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.samplePendingPaymentRateApplication
 
 class SecondPillarPaymentRateServiceSpec extends Specification {
 
@@ -24,11 +24,11 @@ class SecondPillarPaymentRateServiceSpec extends Specification {
         Application samplePendingApplication = samplePendingPaymentRateApplication()
         Application sampleLatestCompletedApplication = sampleCompletedPaymentRateApplication(BigDecimal.valueOf(4))
 
-        Instant oneYearBefore = ZonedDateTime.ofInstant(sampleLatestCompletedApplication.getCreationTime(), ZoneId.systemDefault())
+        Instant oneYearBefore = ZonedDateTime.ofInstant(sampleLatestCompletedApplication.getCreationTime(), ZoneOffset.UTC)
             .minusYears(1).toInstant()
         Application sampleEarlierCompletedApplication = sampleCompletedPaymentRateApplication(BigDecimal.valueOf(2), oneYearBefore)
 
-        Instant twoYearsBefore = ZonedDateTime.ofInstant(sampleLatestCompletedApplication.getCreationTime(), ZoneId.systemDefault())
+        Instant twoYearsBefore = ZonedDateTime.ofInstant(sampleLatestCompletedApplication.getCreationTime(), ZoneOffset.UTC)
             .minusYears(2).toInstant()
         Application sampleEarlierCompletedApplication2 = sampleCompletedPaymentRateApplication(BigDecimal.valueOf(2), twoYearsBefore)
 

@@ -14,6 +14,8 @@ import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -49,9 +51,11 @@ public class ReturnsService {
       return earliestNavTime;
     }
     MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(earliestNavTime);
+    PublicHolidays publicHolidays = new PublicHolidays();
+    LocalDate transferMandateFulfillmentDate = deadlines.getTransferMandateFulfillmentDate();
+    LocalDate navDatePlus1 = publicHolidays.previousWorkingDay(transferMandateFulfillmentDate).plusDays(1);
     Instant revisedFromTime =
-        deadlines
-            .getTransferMandateFulfillmentDate()
+        navDatePlus1
             .atStartOfDay()
             .atZone(ZoneOffset.UTC)
             .toInstant();

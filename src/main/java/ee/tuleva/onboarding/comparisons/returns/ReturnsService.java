@@ -27,7 +27,7 @@ public class ReturnsService {
 
   public Returns get(Person person, LocalDate fromDate, List<String> keys) {
     int pillar = getPillar(keys);
-    Instant fromTime = getRevisedFromTime(fromDate, keys);
+    Instant fromTime = getRevisedFromTime(fromDate, keys, pillar);
 
     List<Return> returns =
         returnProviders.stream()
@@ -42,15 +42,20 @@ public class ReturnsService {
     return Returns.builder().returns(returns).build();
   }
 
-  private Instant getRevisedFromTime(LocalDate fromDate, List<String> keys) {
+  private Instant getRevisedFromTime(LocalDate fromDate, List<String> keys, int pillar) {
     LocalDate earliestNavDate = chooseDateAccordingToDataAvailability(fromDate, keys);
     Instant earliestNavTime = earliestNavDate.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
+    if (pillar == 3) {
+      return earliestNavTime;
+    }
     MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(earliestNavTime);
-    return deadlines
-        .getTransferMandateFulfillmentDate()
-        .atStartOfDay()
-        .atZone(ZoneOffset.UTC)
-        .toInstant();
+    Instant revisedFromTime =
+        deadlines
+            .getTransferMandateFulfillmentDate()
+            .atStartOfDay()
+            .atZone(ZoneOffset.UTC)
+            .toInstant();
+    return revisedFromTime;
   }
 
   private LocalDate chooseDateAccordingToDataAvailability(LocalDate fromDate, List<String> keys) {

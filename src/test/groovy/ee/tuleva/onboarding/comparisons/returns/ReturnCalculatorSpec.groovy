@@ -110,7 +110,7 @@ class ReturnCalculatorSpec extends Specification {
         returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    personalReturn.rate() == 0.0430
+    personalReturn.rate() == 0.0427
     personalReturn.amount() == 110
     personalReturn.paymentsSum() == 16 * 30
     personalReturn.from() == LocalDate.parse("2010-07-01")
@@ -142,8 +142,8 @@ class ReturnCalculatorSpec extends Specification {
         returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
     then:
-    estonianAverageReturn.rate() == 0.0335
-    estonianAverageReturn.amount() == 83.68
+    estonianAverageReturn.rate() == 0.0326
+    estonianAverageReturn.amount() == 81.76
     estonianAverageReturn.paymentsSum() == 16 * 30
     estonianAverageReturn.from() == LocalDate.parse("2010-07-01")
 

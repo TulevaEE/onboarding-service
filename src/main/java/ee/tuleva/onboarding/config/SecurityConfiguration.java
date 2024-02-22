@@ -34,7 +34,8 @@ public class SecurityConfiguration {
             "/authenticate",
             "/oauth/token",
             "/idLogin",
-            "/notifications/payments")
+            "/notifications/payments",
+            "/error")
         .permitAll()
         .regexMatchers("/v1" + CAPITAL_URI)
         .hasAuthority(Authority.MEMBER)

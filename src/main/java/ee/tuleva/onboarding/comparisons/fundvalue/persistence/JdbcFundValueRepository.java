@@ -7,9 +7,7 @@ import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -55,6 +53,9 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
           + "(SELECT * FROM index_values WHERE key='GLOBAL_STOCK_INDEX' and date >='2020-01-01') "
           + ") v ORDER BY v.date ASC";
 
+  private static final String FIND_EARLIEST_DATES_QUERY =
+      "SELECT key, MIN(date) AS earliest_date " + "FROM index_values " + "GROUP BY key";
+
   private static final String FIND_EARLIEST_DATE_FOR_KEY_QUERY =
       "SELECT key, MIN(date) AS earliest_date "
           + "FROM index_values "
@@ -85,7 +86,23 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
   }
 
+  @Override
+  public Map<String, LocalDate> findEarliestDates() {
+    return jdbcTemplate.query(
+        FIND_EARLIEST_DATES_QUERY,
+        resultSet -> {
+          Map<String, LocalDate> resultMap = new HashMap<>();
+          while (resultSet.next()) {
+            String key = resultSet.getString("key");
+            LocalDate date = resultSet.getDate("earliest_date").toLocalDate();
+            resultMap.put(key, date);
+          }
+          return resultMap;
+        });
+  }
+
   private static class FundValueRowMapper implements RowMapper<FundValue> {
+
     @Override
     public FundValue mapRow(ResultSet rs, int rowNum) throws SQLException {
       return new FundValue(

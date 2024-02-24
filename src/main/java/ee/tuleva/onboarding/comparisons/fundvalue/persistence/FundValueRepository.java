@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.comparisons.fundvalue.persistence;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 public interface FundValueRepository {
@@ -21,4 +22,6 @@ public interface FundValueRepository {
   Optional<LocalDate> findEarliestDateForKey(String key);
 
   List<String> findActiveFundKeys();
+
+  Map<String, LocalDate> findEarliestDates();
 }

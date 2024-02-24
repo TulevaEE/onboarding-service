@@ -151,6 +151,27 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         earliestDate.get() == parse("2019-12-31")
   }
 
+  def "it finds all earliest dates"() {
+    given:
+    String key = "SOME_FUND"
+    String key2 = "SOME_FUND_2"
+    List<FundValue> valuesWithDifferentDates = [
+        new FundValue(key2, parse("2020-03-01"), 104.12345),
+        new FundValue(key2, parse("2020-02-01"), 103.12345),
+        new FundValue(key2, parse("2020-01-01"), 101.12345),
+        new FundValue(key, parse("2020-01-01"), 101.12345),
+        new FundValue(key, parse("2020-01-10"), 102.12345),
+        new FundValue(key, parse("2019-12-31"), 100.12345),
+    ]
+    fundValueRepository.saveAll(valuesWithDifferentDates)
+
+    when:
+    Map<String, LocalDate> dates = fundValueRepository.findEarliestDates()
+
+    then:
+    dates == ["SOME_FUND": parse("2019-12-31"), "SOME_FUND_2": parse("2020-01-01")]
+  }
+
   private static List<FundValue> getFakeFundValues() {
         def today = LocalDate.now()
         def yesterday = LocalDate.now().minusDays(1)

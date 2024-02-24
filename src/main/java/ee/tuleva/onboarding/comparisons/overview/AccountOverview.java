@@ -1,12 +1,13 @@
 package ee.tuleva.onboarding.comparisons.overview;
 
+import static java.math.BigDecimal.ZERO;
+import static java.time.ZoneOffset.UTC;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import lombok.Builder;
 import lombok.Value;
 
@@ -25,18 +26,22 @@ public class AccountOverview {
     return this;
   }
 
-  public Optional<LocalDate> getFirstTransactionDate() {
-    if (transactions != null && !transactions.isEmpty()) {
-      return Optional.of(transactions.get(0).date());
+  public LocalDate calculateRealBeginningDate() {
+    if (beginningBalance != null && beginningBalance.compareTo(ZERO) != 0) {
+      return getStartDate();
     }
-    return Optional.empty();
+    if (transactions != null && !transactions.isEmpty()) {
+      return transactions.get(0).date();
+    }
+    // fallback
+    return getStartDate();
   }
 
-  public LocalDate getStartDate() {
-    return startTime.atOffset(ZoneOffset.UTC).toLocalDate();
+  private LocalDate getStartDate() {
+    return startTime.atOffset(UTC).toLocalDate();
   }
 
   public LocalDate getEndDate() {
-    return endTime.atOffset(ZoneOffset.UTC).toLocalDate();
+    return endTime.atOffset(UTC).toLocalDate();
   }
 }

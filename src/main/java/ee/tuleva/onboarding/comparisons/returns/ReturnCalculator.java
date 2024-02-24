@@ -35,16 +35,14 @@ public class ReturnCalculator {
   public ReturnDto getReturn(AccountOverview accountOverview) {
     BigDecimal rateOfReturn = getPersonalRateOfReturn(accountOverview);
     CashReturn cashReturn = getPersonalCashReturn(accountOverview);
-    LocalDate from =
-        accountOverview.getFirstTransactionDate().orElse(accountOverview.getStartDate());
+    LocalDate from = accountOverview.calculateRealBeginningDate();
     return new ReturnDto(rateOfReturn, cashReturn.value, cashReturn.paymentsSum, EUR, from);
   }
 
   public ReturnDto getSimulatedReturn(AccountOverview accountOverview, String comparisonFund) {
     CashReturn cashReturn = getSimulatedCashReturn(accountOverview, comparisonFund);
     BigDecimal rateOfReturn = getSimulatedRateOfReturn(accountOverview, comparisonFund);
-    LocalDate from =
-        accountOverview.getFirstTransactionDate().orElse(accountOverview.getStartDate());
+    LocalDate from = accountOverview.calculateRealBeginningDate();
     return new ReturnDto(rateOfReturn, cashReturn.value, cashReturn.paymentsSum, EUR, from);
   }
 

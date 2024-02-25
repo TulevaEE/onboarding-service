@@ -4,7 +4,6 @@ import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
@@ -37,10 +36,13 @@ public class AmlAutoChecker {
 
   @EventListener
   @Async
-  public void beforeLoginAsync(BeforeTokenGrantedEvent event) {
+  public void afterLoginAsync(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
+    String jwtToken = event.getJwtToken();
     User user = getUser(person);
-    amlService.addSanctionCheckIfMissing(user);
+
+    var contactDetails = contactDetailsService.getContactDetails(person, jwtToken);
+    amlService.addSanctionAndPepCheckIfMissing(user, contactDetails);
   }
 
   @EventListener
@@ -52,8 +54,7 @@ public class AmlAutoChecker {
         .findByPersonalCode(person.getPersonalCode())
         .ifPresent(
             user -> {
-              ContactDetails contactDetails =
-                  contactDetailsService.getContactDetails(person, jwtToken);
+              var contactDetails = contactDetailsService.getContactDetails(person, jwtToken);
               amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails);
             });
   }

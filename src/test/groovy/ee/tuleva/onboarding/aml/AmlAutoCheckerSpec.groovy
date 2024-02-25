@@ -41,17 +41,19 @@ class AmlAutoCheckerSpec extends Specification {
     }
 
 
-    def "checks user before login async"() {
+    def "checks user after login async"() {
         given:
         def user = sampleUser().build()
-        def person = sampleAuthenticatedPersonAndMember().build()
-        1 * userService.findByPersonalCode(person.personalCode) >> Optional.of(user)
+        def contactDetails = contactDetailsFixture()
+        def jwtToken = "token"
+        1 * userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
+        1 * contactDetailsService.getContactDetails(user, jwtToken) >> contactDetails
 
         when:
-        amlAutoChecker.beforeLoginAsync(new BeforeTokenGrantedEvent(this, person, GrantType.SMART_ID))
+        amlAutoChecker.afterLoginAsync(new AfterTokenGrantedEvent(this, user, jwtToken))
 
         then:
-        1 * amlService.addSanctionCheckIfMissing(user)
+        1 * amlService.addSanctionAndPepCheckIfMissing(user, contactDetails)
     }
 
     def "throws exception when user not found"() {

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.user.personalcode;
 
+import static ee.tuleva.onboarding.user.personalcode.Gender.*;
+import static ee.tuleva.onboarding.user.personalcode.Gender.FEMALE;
 import static java.time.format.ResolverStyle.STRICT;
 import static java.time.temporal.ChronoField.YEAR;
 
@@ -27,6 +29,11 @@ public class PersonalCode {
     String century = personalCode.substring(0, 1);
     String dateOfBirth = personalCode.substring(1, 7);
     return LocalDate.parse(dateOfBirth, dateOfBirthFormatter(century));
+  }
+
+  public static Gender getGender(String personalCode) {
+    int genderNumber = Integer.parseInt(personalCode.substring(0, 1));
+    return genderNumber % 2 == 0 ? FEMALE : MALE;
   }
 
   private static DateTimeFormatter dateOfBirthFormatter(String century) {

@@ -34,7 +34,7 @@ class OpenSanctionsServiceSpec extends Specification {
     def fullName = "Peeter Meeter"
     def birthDate = LocalDate.parse("1960-04-08")
     def personalCode = "36004081234"
-    def nationality = "suhh"
+    def country = "ee"
     def expectedResults = """[
       {
         "id": "Q123",
@@ -44,7 +44,7 @@ class OpenSanctionsServiceSpec extends Specification {
           "gender": ["male"],
           "notes": ["Estonian politician"],
           "name": ["$fullName"],
-          "nationality": ["ee"]
+          "country": ["ee"]
         }
       }
     ]"""
@@ -57,7 +57,7 @@ class OpenSanctionsServiceSpec extends Specification {
       }
     }"""
 
-    server.expect(requestTo("https://dummyUrl/match/default?algorithm=best&fuzzy=false"))
+    server.expect(requestTo("https://dummyUrl/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.8&topics=role.pep&topics=role.rca&topics=sanction&topics=sanction.linked&facets=countries&facets=topics&facets=datasets&facets=gender"))
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(content().json("""
         {
@@ -71,8 +71,8 @@ class OpenSanctionsServiceSpec extends Specification {
                   "birthDate": [
                     "$birthDate"
                   ],
-                  "idNumber": "$personalCode",
-                  "nationality": ["eu", "ee", "suhh"]
+                  "country": ["ee"],
+                  "gender": ["male"]
                   }
               }
           }
@@ -81,7 +81,7 @@ class OpenSanctionsServiceSpec extends Specification {
 
 
     when:
-    JsonNode results = openSanctionsService.match(fullName, birthDate, personalCode, nationality)
+    JsonNode results = openSanctionsService.match(fullName, personalCode, country)
 
     then:
     new JsonSlurper().parseText(objectMapper.writeValueAsString(results)) == new JsonSlurper().parseText(expectedResults)

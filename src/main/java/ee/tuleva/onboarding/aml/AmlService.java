@@ -5,14 +5,18 @@ import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import ee.tuleva.onboarding.aml.sanctions.SanctionCheckService;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.user.User;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
@@ -78,20 +82,58 @@ public class AmlService {
     addCheckIfMissing(skNameCheck);
   }
 
-  public void addSanctionCheckIfMissing(User user) {
-    JsonNode results =
+  public List<AmlCheck> addSanctionAndPepCheckIfMissing(User user, ContactDetails contactDetails) {
+    ArrayNode results =
         sanctionCheckService.match(
-            user.getFullName(), user.getDateOfBirth(), user.getPersonalCode(), "ee");
+            user.getFullName(), user.getPersonalCode(), contactDetails.getCountry());
 
-    AmlCheck sanctionCheck =
-        AmlCheck.builder()
-            .user(user)
-            .type(SANCTION)
-            .success(results.isEmpty())
-            .metadata(Map.of("results", results))
-            .build();
+    AmlCheck pepCheck = null;
+    try {
+      pepCheck =
+          AmlCheck.builder()
+              .user(user)
+              .type(POLITICALLY_EXPOSED_PERSON_AUTO)
+              .success(!hasMatch(results, "role"))
+              .metadata(Map.of("results", results))
+              .build();
 
-    addCheckIfMissing(sanctionCheck);
+      addCheckIfMissing(pepCheck);
+    } catch (Exception e) {
+      log.error("Error adding pep check", e);
+    }
+
+    AmlCheck sanctionCheck = null;
+    try {
+      sanctionCheck =
+          AmlCheck.builder()
+              .user(user)
+              .type(SANCTION)
+              .success(!hasMatch(results, "sanction"))
+              .metadata(Map.of("results", results))
+              .build();
+
+      addCheckIfMissing(sanctionCheck);
+    } catch (Exception e) {
+      log.error("Error adding sanction check", e);
+    }
+
+    List<AmlCheck> amlChecks = new ArrayList<>();
+    amlChecks.add(pepCheck);
+    amlChecks.add(sanctionCheck);
+    return amlChecks;
+  }
+
+  private boolean hasMatch(ArrayNode results, String topicName) {
+    return stream(results)
+        .anyMatch(
+            result ->
+                stream((ArrayNode) result.get("properties").get("topics"))
+                        .anyMatch(topic -> topic.asText().startsWith(topicName))
+                    && result.get("match").asBoolean());
+  }
+
+  private Stream<JsonNode> stream(ArrayNode arrayNode) {
+    return StreamSupport.stream(arrayNode.spliterator(), false);
   }
 
   private Map<String, Object> metadata(Person user, Person person) {

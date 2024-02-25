@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.aml
 
+
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.databind.node.TextNode
+import com.fasterxml.jackson.databind.node.BooleanNode
 import ee.tuleva.onboarding.aml.sanctions.SanctionCheckService
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.event.TrackableEvent
@@ -17,6 +18,7 @@ import java.time.Instant
 import static ee.tuleva.onboarding.aml.AmlCheckType.*
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static java.time.ZoneOffset.UTC
 import static java.time.temporal.ChronoUnit.DAYS
 
@@ -186,25 +188,31 @@ class AmlServiceSpec extends Specification {
         successfulChecks(RESIDENCY_MANUAL, DOCUMENT, SK_NAME, PENSION_REGISTRY_NAME, OCCUPATION)                | false
   }
 
-  def "checks for sanctions"() {
+  def "checks for pep and sanctions"() {
     given:
     def user = sampleUser().build()
+    def contactDetails = contactDetailsFixture()
 
-    def sanctionCheckResults = objectMapper.createArrayNode()
-    sanctionCheckResults.add(new TextNode("result1"))
-    sanctionCheckService.match(user.fullName, user.dateOfBirth, user.personalCode, "ee")
-        >> sanctionCheckResults
+
+    def properties = objectMapper.createObjectNode()
+    properties.set("topics", objectMapper.createArrayNode().add("role.pep"))
+
+    def result1 = objectMapper.createObjectNode()
+    result1.set("properties", properties)
+    result1.set("match", BooleanNode.TRUE)
+
+    def checkResults = objectMapper.createArrayNode().add(result1)
+
+    sanctionCheckService.match(user.fullName, user.personalCode, "EE") >> checkResults
 
     when:
-    amlService.addSanctionCheckIfMissing(user)
+    List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, contactDetails)
 
     then:
-    1 * amlCheckRepository.save({ check ->
-      check.user == user &&
-          check.type == SANCTION &&
-          !check.success &&
-          check.metadata == [results: sanctionCheckResults]
-    })
+    checks == [
+        check(POLITICALLY_EXPOSED_PERSON_AUTO, false, user, [results: checkResults]),
+        check(SANCTION, true, user, [results: checkResults])
+    ]
   }
 
   private static List<AmlCheck> successfulChecks(AmlCheckType... checkTypes) {
@@ -212,7 +220,7 @@ class AmlServiceSpec extends Specification {
     })
   }
 
-  private static AmlCheck check(AmlCheckType type, boolean success = true, User user = null) {
-    return AmlCheck.builder().type(type).success(success).user(user).build()
+  private static AmlCheck check(AmlCheckType type, boolean success = true, User user = null, Map<String, Object> metadata = [:]) {
+    return AmlCheck.builder().type(type).success(success).user(user).metadata(metadata).build()
   }
 }

@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.aml.sanctions;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import java.time.LocalDate;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 
 public interface SanctionCheckService {
-  JsonNode match(String fullName, LocalDate birthDate, String idNumber, String nationality);
+  ArrayNode match(String fullName, String idNumber, String country);
 }

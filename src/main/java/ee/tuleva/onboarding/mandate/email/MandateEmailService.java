@@ -44,7 +44,7 @@ public class MandateEmailService {
       case 2 -> sendSecondPillarEmail(user, mandate, pillarSuggestion, locale);
       case 3 -> {
         scheduleThirdPillarPaymentReminderEmail(user, mandate, locale);
-        if (pillarSuggestion.isSuggestPillar()) {
+        if (pillarSuggestion.isSuggestSecondPillar()) {
           scheduleThirdPillarSuggestSecondEmail(user, mandate, pillarSuggestion, locale);
         }
       }
@@ -110,8 +110,9 @@ public class MandateEmailService {
       mergeVars.put("sourceFundName", sourceFundName);
     }
 
+    mergeVars.put("suggestPaymentRate", pillarSuggestion.isSuggestPaymentRate());
     mergeVars.put("suggestMembership", pillarSuggestion.isSuggestMembership());
-    mergeVars.put("suggestThirdPillar", pillarSuggestion.isSuggestPillar());
+    mergeVars.put("suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar());
 
     return mergeVars;
   }
@@ -120,11 +121,14 @@ public class MandateEmailService {
     List<String> tags = new ArrayList<>();
     tags.add("mandate");
     tags.add("pillar_2");
+    if (pillarSuggestion.isSuggestPaymentRate()) {
+      tags.add("suggest_payment_rate");
+    }
+    if (pillarSuggestion.isSuggestThirdPillar()) {
+      tags.add("suggest_3");
+    }
     if (pillarSuggestion.isSuggestMembership()) {
       tags.add("suggest_member");
-    }
-    if (pillarSuggestion.isSuggestPillar()) {
-      tags.add("suggest_3");
     }
     return tags;
   }

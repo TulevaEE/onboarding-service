@@ -44,7 +44,7 @@ public enum EmailType {
   }
 
   public static EmailType from(Mandate mandate, PillarSuggestion pillarSuggestion) {
-    if (mandate.isThirdPillar() && pillarSuggestion.isSuggestPillar()) {
+    if (mandate.isThirdPillar() && pillarSuggestion.isSuggestSecondPillar()) {
       return THIRD_PILLAR_SUGGEST_SECOND;
     }
     return THIRD_PILLAR_SUGGEST_SECOND;

@@ -22,6 +22,7 @@ import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConve
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
+import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 import static java.time.ZoneOffset.UTC
 import static java.time.temporal.ChronoUnit.DAYS
 import static java.time.temporal.ChronoUnit.HOURS
@@ -50,16 +51,18 @@ class MandateEmailServiceSpec extends Specification {
     def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
     def mandate = sampleMandate()
-    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
     def message = new MandrillMessage()
     def mergeVars = [
         fname             : user.firstName,
         lname             : user.lastName,
-        suggestMembership : false,
         transferDate      : "03.05.2021",
-        suggestThirdPillar: true
+        suggestPaymentRate: pillarSuggestion.suggestPaymentRate,
+        suggestThirdPillar: pillarSuggestion.suggestThirdPillar,
+        suggestMembership : pillarSuggestion.suggestMembership,
     ]
-    def tags = ["mandate", "pillar_2", "suggest_3"]
+    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = "123"
       status = "sent"
@@ -79,8 +82,10 @@ class MandateEmailServiceSpec extends Specification {
   def "mandate tagging for 2nd pillar mandates"() {
     given:
     def pillarSuggestion = Mock(PillarSuggestion)
-    pillarSuggestion.isSuggestPillar() >> suggestPillar
-    pillarSuggestion.isSuggestMembership() >> suggestMembership
+    pillarSuggestion.isSuggestThirdPillar() >> suggestThirdPillar
+    pillarSuggestion.isSuggestMembership() >> suggestMember
+    pillarSuggestion.isSuggestPaymentRate() >> suggestPaymentRate
+
 
     when:
     def tags = mandateEmailService.getSecondPillarMandateTags(pillarSuggestion)
@@ -89,11 +94,11 @@ class MandateEmailServiceSpec extends Specification {
     tags == expectedTags
 
     where:
-    suggestPillar | suggestMembership || expectedTags
-    false         | false             || ["mandate", "pillar_2"]
-    false         | true              || ["mandate", "pillar_2", "suggest_member"]
-    true          | false             || ["mandate", "pillar_2", "suggest_3"]
-    true          | true              || ["mandate", "pillar_2", "suggest_member", "suggest_3"]
+    suggestPaymentRate | suggestThirdPillar | suggestMember || expectedTags
+    false              | false              | false         || ["mandate", "pillar_2"]
+    true               | false              | false         || ["mandate", "pillar_2", "suggest_payment_rate"]
+    true               | true               | false         || ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
+    true               | true               | true          || ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3", "suggest_member"]
   }
 
   def "schedule third pillar payment reminder email"() {
@@ -102,7 +107,8 @@ class MandateEmailServiceSpec extends Specification {
     def conversion = fullyConverted()
     def contactDetails = contactDetailsFixture()
     def mandate = thirdPillarMandate()
-    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
     def message = new MandrillMessage()
     def mergeVars = [fname: user.firstName, lname: user.lastName]
     def tags = ["pillar_3.1", "reminder"]
@@ -127,7 +133,7 @@ class MandateEmailServiceSpec extends Specification {
     def user = sampleUser().build()
     def mandate = thirdPillarMandate()
     PillarSuggestion pillarSuggestion = Mock()
-    pillarSuggestion.isSuggestPillar() >> true
+    pillarSuggestion.isSuggestSecondPillar() >> true
     def message = new MandrillMessage()
     def mergeVars = [fname: user.firstName, lname: user.lastName]
     def tags = ["pillar_3.1", "suggest_2"]
@@ -152,7 +158,7 @@ class MandateEmailServiceSpec extends Specification {
     def user = sampleUser().build()
 
     PillarSuggestion pillarSuggestion = Mock()
-    pillarSuggestion.isSuggestPillar() >> suggestPillar
+    pillarSuggestion.isSuggestSecondPillar() >> suggestPillar
 
     def mandate = thirdPillarMandate()
     def paymentReminder = new MandrillMessage()
@@ -190,7 +196,8 @@ class MandateEmailServiceSpec extends Specification {
     def user = sampleUser().build()
     def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
-    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
     emailService.newMandrillMessage(*_) >> new MandrillMessage()
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = UUID.randomUUID().toString()
@@ -210,7 +217,8 @@ class MandateEmailServiceSpec extends Specification {
     def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
     def mandate = sampleMandateWithPaymentRate()
-    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
     def message = new MandrillMessage()
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     def samplePaymentRates = new PaymentRates(
@@ -220,14 +228,15 @@ class MandateEmailServiceSpec extends Specification {
     def mergeVars = [
         fname                     : user.firstName,
         lname                     : user.lastName,
-        suggestMembership         : false,
         paymentRateFulfillmentDate: "01.01.2022",
         newPaymentRate            : samplePaymentRates.pending.get(),
         oldPaymentRate            : samplePaymentRates.current,
-        suggestThirdPillar        : true
+        suggestPaymentRate        : pillarSuggestion.suggestPaymentRate,
+        suggestThirdPillar        : pillarSuggestion.suggestThirdPillar,
+        suggestMembership         : pillarSuggestion.suggestMembership,
     ]
 
-    def tags = ["mandate", "pillar_2", "suggest_3"]
+    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
 
     authenticationHolder.getAuthenticatedPerson() >> authenticatedPerson
     mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
@@ -253,7 +262,8 @@ class MandateEmailServiceSpec extends Specification {
     def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
     def mandate = sampleMandateWithPaymentRate()
-    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     def samplePaymentRates = new PaymentRates(
         2, null
@@ -277,7 +287,8 @@ class MandateEmailServiceSpec extends Specification {
     def conversion = fullyConverted()
     def contactDetails = contactDetailsFixture()
     def mandate = thirdPillarMandate()
-    def pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
     emailPersistenceService.hasEmailsToday(user, EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE) >> true
 
     when:

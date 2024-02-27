@@ -1,10 +1,13 @@
 package ee.tuleva.onboarding.mandate.email
 
+import ee.tuleva.onboarding.conversion.ConversionResponse
 import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
+import ee.tuleva.onboarding.paymentrate.PaymentRates
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
@@ -12,29 +15,31 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
+import static ee.tuleva.onboarding.paymentrate.PaymentRatesFixture.samplePaymentRates
 
 class MandateEmailSenderSpec extends Specification {
 
   EpisService episService = Mock(EpisService)
   MandateEmailService mandateEmailService = Mock(MandateEmailService)
   UserConversionService conversionService = Mock(UserConversionService)
+  SecondPillarPaymentRateService paymentRateService = Mock(SecondPillarPaymentRateService)
 
-  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, episService, conversionService)
+  MandateEmailSender mandateEmailSender = new MandateEmailSender(mandateEmailService, episService, conversionService, paymentRateService)
 
   def "send email when second pillar mandate event was received"() {
     given:
     User user = sampleUser().build()
     Mandate mandate = sampleMandate()
-
     ContactDetails contactDetails = new ContactDetails()
+    ConversionResponse conversion = notFullyConverted()
+    PaymentRates paymentRates = samplePaymentRates()
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
+
     1 * episService.getContactDetails(_) >> contactDetails
-
-    def conversion = notFullyConverted()
-    1 * conversionService.getConversion(event.getUser()) >> conversion
-
-    def pillarSuggestion = new PillarSuggestion(2, user, contactDetails, conversion)
+    1 * conversionService.getConversion(user) >> conversion
+    1 * paymentRateService.getPaymentRates(user) >> paymentRates
 
     when:
     mandateEmailSender.sendEmail(event)
@@ -47,16 +52,16 @@ class MandateEmailSenderSpec extends Specification {
     given:
     User user = sampleUser().build()
     Mandate mandate = thirdPillarMandate()
-
     ContactDetails contactDetails = new ContactDetails()
+    ConversionResponse conversion = notFullyConverted()
+    PaymentRates paymentRates = samplePaymentRates()
+    PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
     AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
+
     1 * episService.getContactDetails(_) >> contactDetails
-
-    def conversion = notFullyConverted()
     1 * conversionService.getConversion(event.getUser()) >> conversion
-
-    PillarSuggestion pillarSuggestion = new PillarSuggestion(3, user, contactDetails, conversion)
+    1 * paymentRateService.getPaymentRates(event.getUser()) >> paymentRates
 
     when:
     mandateEmailSender.sendEmail(event)

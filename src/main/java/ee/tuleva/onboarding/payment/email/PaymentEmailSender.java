@@ -45,16 +45,20 @@ public class PaymentEmailSender {
       return;
     }
 
-    setupSecurityContext(user);
+    try {
+      setupSecurityContext(user);
 
-    ContactDetails contactDetails = contactDetailsService.getContactDetails(user);
-    ConversionResponse conversion = conversionService.getConversion(user);
-    PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
+      ContactDetails contactDetails = contactDetailsService.getContactDetails(user);
+      ConversionResponse conversion = conversionService.getConversion(user);
+      PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
 
-    PillarSuggestion pillarSuggestion =
-        new PillarSuggestion(user, contactDetails, conversion, paymentRates);
+      PillarSuggestion pillarSuggestion =
+          new PillarSuggestion(user, contactDetails, conversion, paymentRates);
 
-    emailService.sendThirdPillarPaymentSuccessEmail(user, payment, pillarSuggestion, locale);
+      emailService.sendThirdPillarPaymentSuccessEmail(user, payment, pillarSuggestion, locale);
+    } finally {
+      SecurityContextHolder.clearContext();
+    }
   }
 
   private void setupSecurityContext(User user) {

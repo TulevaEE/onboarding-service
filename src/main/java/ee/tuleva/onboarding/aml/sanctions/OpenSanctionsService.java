@@ -48,7 +48,7 @@ public class OpenSanctionsService implements SanctionCheckService {
     String json =
         restTemplate.postForObject(
             baseUrl
-                + "/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.8"
+                + "/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.7"
                 + "&topics=role.pep&topics=role.rca&topics=sanction&topics=sanction.linked"
                 + "&facets=countries&facets=topics&facets=datasets&facets=gender",
             new HttpEntity<>(matchRequest, headers()),

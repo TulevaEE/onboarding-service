@@ -77,14 +77,16 @@ public class EmailService {
 
   public Optional<MandrillMessageStatus> send(
       User user, MandrillMessage message, String templateName, Instant sendAt) {
-    try {
-      if (mandrillApi == null) {
-        log.warn(
-            "Mandrill not initialised, not sending mandate email for user: userId={}",
-            user.getId());
-        return Optional.empty();
-      }
+    if (mandrillApi == null) {
+      log.warn(
+          "Mandrill not initialised, not sending email for user: userId={}, sendAt={}, templateName={}",
+          user.getId(),
+          templateName,
+          sendAt);
+      return Optional.empty();
+    }
 
+    try {
       Date sendDate = sendAt != null ? Date.from(sendAt) : null;
       log.info(
           "Sending email to user: userId={}, sendAt={}, templateName={}",

@@ -5,15 +5,14 @@ import static java.util.Collections.emptyList;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
 import ee.tuleva.onboarding.mandate.email.MandateEmailService;
+import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.user.User;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,7 +26,8 @@ public class PaymentEmailService {
   private final EmailPersistenceService emailPersistenceService;
   private final MandateEmailService mandateEmailService;
 
-  void sendThirdPillarPaymentSuccessEmail(User user, Payment payment, Locale locale) {
+  void sendThirdPillarPaymentSuccessEmail(
+      User user, Payment payment, PillarSuggestion pillarSuggestion, Locale locale) {
     EmailType emailType = EmailType.from(payment);
     String templateName = emailType.getTemplateName(locale);
 
@@ -35,13 +35,8 @@ public class PaymentEmailService {
         emailService.newMandrillMessage(
             user.getEmail(),
             emailType.getTemplateName(locale),
-            Map.of(
-                "fname", user.getFirstName(),
-                "lname", user.getLastName(),
-                "amount", payment.getAmount(),
-                "currency", payment.getCurrency(),
-                "recipient", payment.getRecipientPersonalCode()),
-            List.of("pillar_3.1", "mandate", "payment"),
+            getMergeVars(user, payment, pillarSuggestion),
+            getTags(pillarSuggestion),
             cancelReminderEmailsAndGetMandateAttachment(user));
     emailService
         .send(user, mandrillMessage, templateName)
@@ -49,6 +44,36 @@ public class PaymentEmailService {
             response ->
                 emailPersistenceService.save(
                     user, response.getId(), emailType, response.getStatus()));
+  }
+
+  private Map<String, Object> getMergeVars(
+      User user, Payment payment, PillarSuggestion pillarSuggestion) {
+    return Map.of(
+        "fname", user.getFirstName(),
+        "lname", user.getLastName(),
+        "amount", payment.getAmount(),
+        "currency", payment.getCurrency(),
+        "recipient", payment.getRecipientPersonalCode(),
+        "suggestMembership", pillarSuggestion.isSuggestMembership(),
+        "suggestSecondPillar", pillarSuggestion.isSuggestSecondPillar(),
+        "suggestPaymentRate", pillarSuggestion.isSuggestPaymentRate());
+  }
+
+  private List<String> getTags(PillarSuggestion pillarSuggestion) {
+    List<String> tags = new ArrayList<>();
+    tags.add("pillar_3.1");
+    tags.add("mandate");
+    tags.add("payment");
+    if (pillarSuggestion.isSuggestPaymentRate()) {
+      tags.add("suggest_payment_rate");
+    }
+    if (pillarSuggestion.isSuggestSecondPillar()) {
+      tags.add("suggest_2");
+    }
+    if (pillarSuggestion.isSuggestMembership()) {
+      tags.add("suggest_member");
+    }
+    return tags;
   }
 
   private List<MessageContent> cancelReminderEmailsAndGetMandateAttachment(User user) {

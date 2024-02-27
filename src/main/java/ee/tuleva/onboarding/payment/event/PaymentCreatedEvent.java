@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.payment.event;
 
 import ee.tuleva.onboarding.payment.Payment;
+import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.user.User;
 import java.util.Locale;
 import lombok.Getter;
@@ -18,5 +19,9 @@ public class PaymentCreatedEvent extends ApplicationEvent {
     this.user = user;
     this.payment = payment;
     this.locale = locale;
+  }
+
+  public PaymentType getPaymentType() {
+    return payment.getPaymentType();
   }
 }

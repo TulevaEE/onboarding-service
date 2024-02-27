@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.paymentrate
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.mandate.application.Application
 import ee.tuleva.onboarding.mandate.application.ApplicationService
 import spock.lang.Specification
@@ -10,6 +11,7 @@ import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.sampleCompletedPaymentRateApplication
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.samplePendingPaymentRateApplication
 
@@ -20,7 +22,7 @@ class SecondPillarPaymentRateServiceSpec extends Specification {
 
   def "getPaymentRates returns rate of first pending matching application and latest completed matching for current"() {
     given:
-        AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+        Person person = samplePerson()
         Application samplePendingApplication = samplePendingPaymentRateApplication()
         Application sampleLatestCompletedApplication = sampleCompletedPaymentRateApplication(BigDecimal.valueOf(4))
 
@@ -32,13 +34,13 @@ class SecondPillarPaymentRateServiceSpec extends Specification {
             .minusYears(2).toInstant()
         Application sampleEarlierCompletedApplication2 = sampleCompletedPaymentRateApplication(BigDecimal.valueOf(2), twoYearsBefore)
 
-        applicationService.getPaymentRateApplications(authenticatedPerson) >> [
+        applicationService.getPaymentRateApplications(person) >> [
             sampleEarlierCompletedApplication, samplePendingApplication,
             sampleLatestCompletedApplication, sampleEarlierCompletedApplication2
         ]
 
     when:
-        PaymentRates rates = service.getPaymentRates(authenticatedPerson)
+        PaymentRates rates = service.getPaymentRates(person)
 
     then:
         rates.current == sampleLatestCompletedApplication.getDetails().getPaymentRate()
@@ -48,11 +50,11 @@ class SecondPillarPaymentRateServiceSpec extends Specification {
 
   def "getPaymentRates returns default rate when no applications pending match and default rate for current"() {
     given:
-        AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-        applicationService.getPaymentRateApplications(authenticatedPerson) >> []
+        Person person = samplePerson()
+        applicationService.getPaymentRateApplications(person) >> []
 
     when:
-        PaymentRates rates = service.getPaymentRates(authenticatedPerson)
+        PaymentRates rates = service.getPaymentRates(person)
 
     then:
         rates.current == 2
@@ -61,12 +63,12 @@ class SecondPillarPaymentRateServiceSpec extends Specification {
 
   def "getPaymentRates returns rate of first pending matching application and default rate for current"() {
     given:
-        AuthenticatedPerson authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+        Person person = samplePerson()
         Application sampleApplication = samplePendingPaymentRateApplication()
-        applicationService.getPaymentRateApplications(authenticatedPerson) >> [sampleApplication]
+        applicationService.getPaymentRateApplications(person) >> [sampleApplication]
 
     when:
-        PaymentRates rates = service.getPaymentRates(authenticatedPerson)
+        PaymentRates rates = service.getPaymentRates(person)
 
     then:
         rates.current == 2

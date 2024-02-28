@@ -34,7 +34,7 @@ class ReturnsServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def fromDate = LocalDate.parse("2019-08-28")
-    def startTime = fromDate.atStartOfDay().toInstant(ZoneOffset.UTC)
+    def startTime = fromDate.plusDays(2).atStartOfDay().toInstant(ZoneOffset.UTC)
     def pillar = 3
 
     def (return1, returns1) = sampleReturns1(fromDate)
@@ -67,7 +67,7 @@ class ReturnsServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def fromDate = LocalDate.parse("2019-08-28")
-    def startTime = Instant.parse("2019-08-28T00:00:00Z")
+    def startTime = Instant.parse("2019-08-30T00:00:00Z")
     def pillar = 2
 
     def (return1, returns1) = sampleReturns1(fromDate)
@@ -96,7 +96,7 @@ class ReturnsServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def fromDate = LocalDate.parse("2019-08-28")
-    def startTime = Instant.parse("2019-08-28T00:00:00Z")
+    def startTime = Instant.parse("2019-08-30T00:00:00Z")
     def pillar = 2
 
     def (return1) = sampleReturns1(fromDate)
@@ -167,16 +167,15 @@ class ReturnsServiceSpec extends Specification {
     given:
         def person = samplePerson()
         LocalDate originalFromDate = LocalDate.parse("2020-01-01")
-
-
+        Instant fromTime = originalFromDate.plusDays(2).atStartOfDay().toInstant(ZoneOffset.UTC)
 
         def (return1, returns1) = sampleReturns1(originalFromDate)
         def (return2, returns2) = sampleReturns2(originalFromDate)
         def (return3, returns3) = sampleReturns3(originalFromDate)
 
-        returnProvider1.getReturns(person, originalFromDate.atStartOfDay().toInstant(ZoneOffset.UTC), 3) >> returns1
-        returnProvider2.getReturns(person, originalFromDate.atStartOfDay().toInstant(ZoneOffset.UTC), 3) >> returns2
-        returnProvider3.getReturns(person, originalFromDate.atStartOfDay().toInstant(ZoneOffset.UTC), 3) >> returns3
+        returnProvider1.getReturns(person, fromTime, 3) >> returns1
+        returnProvider2.getReturns(person, fromTime, 3) >> returns2
+        returnProvider3.getReturns(person, fromTime, 3) >> returns3
 
         returnProvider1.getKeys() >> [return1.key]
         returnProvider2.getKeys() >> [return2.key]

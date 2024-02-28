@@ -62,21 +62,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
           + "WHERE key = :key "
           + "GROUP BY key";
 
-  private static final String FIND_KEYS_STARTING_WITH_EE_AND_RECENT_ENTRIES_QUERY =
-      "SELECT DISTINCT key "
-          + "FROM index_values "
-          + "WHERE key LIKE 'EE%' AND date >= :threeMonthsAgo "
-          + "ORDER BY key ASC";
-
-  public List<String> findActiveFundKeys() {
-    LocalDate threeMonthsAgo = LocalDate.now().minusMonths(3);
-
-    return jdbcTemplate.query(
-        FIND_KEYS_STARTING_WITH_EE_AND_RECENT_ENTRIES_QUERY,
-        Map.of("threeMonthsAgo", threeMonthsAgo),
-        (rs, rowNum) -> rs.getString("key"));
-  }
-
+  @Override
   public Optional<LocalDate> findEarliestDateForKey(String key) {
     List<LocalDate> result =
         jdbcTemplate.query(

@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.capital
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository
-import ee.tuleva.onboarding.capital.event.organisation.OrganisationCapitalEventType
 import ee.tuleva.onboarding.user.member.Member
 import spock.lang.Specification
 
@@ -11,12 +10,13 @@ import java.time.LocalDate
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventFixture.memberCapitalEventFixture
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*
+import static ee.tuleva.onboarding.capital.event.organisation.OrganisationCapitalEventType.INVESTMENT_RETURN
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture
 
 class CapitalServiceSpec extends Specification {
-    MemberCapitalEventRepository memberCapitalEventRepository = Mock(MemberCapitalEventRepository)
-    AggregatedCapitalEventRepository aggregatedCapitalEventRepository = Mock(AggregatedCapitalEventRepository)
+    MemberCapitalEventRepository memberCapitalEventRepository = Mock()
+    AggregatedCapitalEventRepository aggregatedCapitalEventRepository = Mock()
     CapitalService service = new CapitalService(memberCapitalEventRepository, aggregatedCapitalEventRepository)
 
     def "GetCapitalStatement"() {
@@ -82,7 +82,7 @@ class CapitalServiceSpec extends Specification {
 
     private AggregatedCapitalEvent getAggregatedCapitalEvent(BigDecimal ownershipUnitPrice) {
         new AggregatedCapitalEvent(0,
-            OrganisationCapitalEventType.FIAT_RETURN,
+            INVESTMENT_RETURN,
             new BigDecimal(1),
             new BigDecimal(1),
             new BigDecimal(100),

@@ -74,6 +74,7 @@ public class ReturnCalculator {
       List<Transaction> purchaseTransactions) {
     BigDecimal virtualFundUnitsBought = ZERO;
     for (Transaction transaction : purchaseTransactions) {
+      // TODO: O(n) database queries here, can be optimized to O(1)
       Optional<FundValue> fundValueAtTime =
           fundValueProvider.getLatestValue(comparisonFund, transaction.date());
       if (fundValueAtTime.isEmpty()) {

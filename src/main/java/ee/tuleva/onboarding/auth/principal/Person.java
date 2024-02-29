@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth.principal;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import javax.validation.constraints.NotBlank;
 
@@ -13,4 +14,9 @@ public interface Person {
 
   @NotBlank
   String getLastName();
+
+  @JsonIgnore
+  default String getFullName() {
+    return getFirstName() + " " + getLastName();
+  }
 }

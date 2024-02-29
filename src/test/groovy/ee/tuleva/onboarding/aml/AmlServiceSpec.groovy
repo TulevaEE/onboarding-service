@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.aml
 
-
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.BooleanNode
-import ee.tuleva.onboarding.aml.sanctions.SanctionCheckService
+import ee.tuleva.onboarding.aml.sanctions.MatchResponse
+import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.event.TrackableEventType
@@ -26,7 +26,7 @@ class AmlServiceSpec extends Specification {
 
   AmlCheckRepository amlCheckRepository = Mock()
   ApplicationEventPublisher eventPublisher = Mock()
-  SanctionCheckService sanctionCheckService = Mock()
+  PepAndSanctionCheckService sanctionCheckService = Mock()
 
   ObjectMapper objectMapper = new ObjectMapper()
 
@@ -201,17 +201,20 @@ class AmlServiceSpec extends Specification {
     result1.set("properties", properties)
     result1.set("match", BooleanNode.TRUE)
 
-    def checkResults = objectMapper.createArrayNode().add(result1)
 
-    sanctionCheckService.match(user.fullName, user.personalCode, "EE") >> checkResults
+    def results = objectMapper.createArrayNode().add(result1)
+    def query = objectMapper.createObjectNode()
+    def matchResponse = new MatchResponse(results, query)
+
+    sanctionCheckService.match(user, "EE") >> matchResponse
 
     when:
     List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, contactDetails)
 
     then:
     checks == [
-        check(POLITICALLY_EXPOSED_PERSON_AUTO, false, user, [results: checkResults]),
-        check(SANCTION, true, user, [results: checkResults])
+        check(POLITICALLY_EXPOSED_PERSON_AUTO, false, user, [results: results, query: query]),
+        check(SANCTION, true, user,  [results: results, query: query]),
     ]
   }
 

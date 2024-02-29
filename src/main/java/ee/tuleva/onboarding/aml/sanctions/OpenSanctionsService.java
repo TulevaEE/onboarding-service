@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.aml.sanctions;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.util.HashSet;
 import java.util.List;
@@ -20,7 +21,7 @@ import org.springframework.web.client.RestTemplate;
 
 @Service
 @Profile("!dev")
-public class OpenSanctionsService implements SanctionCheckService {
+public class OpenSanctionsService implements PepAndSanctionCheckService {
 
   private final RestTemplate restTemplate;
   private final ObjectMapper objectMapper;
@@ -35,15 +36,16 @@ public class OpenSanctionsService implements SanctionCheckService {
 
   @Override
   @SneakyThrows
-  public ArrayNode match(String fullName, String idNumber, String country) {
+  public MatchResponse match(Person person, String country) {
+    var personalCode = person.getPersonalCode();
+    var fullName = person.getFullName();
     var countries = getCountries(country);
-    var gender = PersonalCode.getGender(idNumber).name().toLowerCase();
-    var birthDate = PersonalCode.getDateOfBirth(idNumber);
+    var gender = PersonalCode.getGender(personalCode).name().toLowerCase();
+    var birthDate = PersonalCode.getDateOfBirth(personalCode).toString();
     var properties =
-        new PersonProperties(
-            List.of(fullName), List.of(birthDate.toString()), countries, List.of(gender));
+        new PersonProperties(List.of(fullName), List.of(birthDate), countries, List.of(gender));
     var personQuery = new PersonQuery(properties);
-    var matchRequest = new MatchRequest(Map.of(idNumber, personQuery));
+    var matchRequest = new MatchRequest(Map.of(personalCode, personQuery));
 
     String json =
         restTemplate.postForObject(
@@ -55,7 +57,8 @@ public class OpenSanctionsService implements SanctionCheckService {
             String.class);
 
     JsonNode rootNode = objectMapper.readTree(json);
-    return (ArrayNode) rootNode.path("responses").path(idNumber).path("results");
+    JsonNode response = rootNode.path("responses").path(personalCode);
+    return new MatchResponse((ArrayNode) response.path("results"), response.path("query"));
   }
 
   private HashSet<String> getCountries(String country) {

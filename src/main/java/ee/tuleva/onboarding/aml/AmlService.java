@@ -6,7 +6,8 @@ import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
-import ee.tuleva.onboarding.aml.sanctions.SanctionCheckService;
+import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
+import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
@@ -31,7 +32,7 @@ public class AmlService {
 
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
-  private final SanctionCheckService sanctionCheckService;
+  private final PepAndSanctionCheckService pepAndSanctionCheckService;
   private final List<List<AmlCheckType>> allowedCombinations =
       List.of(
           List.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION),
@@ -83,9 +84,9 @@ public class AmlService {
   }
 
   public List<AmlCheck> addSanctionAndPepCheckIfMissing(User user, ContactDetails contactDetails) {
-    ArrayNode results =
-        sanctionCheckService.match(
-            user.getFullName(), user.getPersonalCode(), contactDetails.getCountry());
+    MatchResponse response = pepAndSanctionCheckService.match(user, contactDetails.getCountry());
+    ArrayNode results = response.results();
+    JsonNode query = response.query();
 
     AmlCheck pepCheck = null;
     try {
@@ -94,7 +95,7 @@ public class AmlService {
               .user(user)
               .type(POLITICALLY_EXPOSED_PERSON_AUTO)
               .success(!hasMatch(results, "role"))
-              .metadata(Map.of("results", results))
+              .metadata(metadata(results, query))
               .build();
 
       addCheckIfMissing(pepCheck);
@@ -109,7 +110,7 @@ public class AmlService {
               .user(user)
               .type(SANCTION)
               .success(!hasMatch(results, "sanction"))
-              .metadata(Map.of("results", results))
+              .metadata(metadata(results, query))
               .build();
 
       addCheckIfMissing(sanctionCheck);
@@ -123,12 +124,33 @@ public class AmlService {
     return amlChecks;
   }
 
-  private boolean hasMatch(ArrayNode results, String topicName) {
+  public void recheckAllPepAndSanctionChecks() {
+    amlCheckRepository
+        .findAllByTypeIn(List.of(SANCTION, POLITICALLY_EXPOSED_PERSON_AUTO))
+        .forEach(
+            amlCheck -> {
+              MatchResponse matchResponse =
+                  pepAndSanctionCheckService.match(amlCheck.getUser(), "ee");
+              amlCheck.setMetadata(metadata(matchResponse.results(), matchResponse.query()));
+              if (amlCheck.getType() == SANCTION) {
+                amlCheck.setSuccess(!hasMatch(matchResponse.results(), "sanction"));
+              } else if (amlCheck.getType() == POLITICALLY_EXPOSED_PERSON_AUTO) {
+                amlCheck.setSuccess(!hasMatch(matchResponse.results(), "role"));
+              }
+              amlCheckRepository.save(amlCheck);
+            });
+  }
+
+  private Map<String, Object> metadata(ArrayNode results, JsonNode query) {
+    return Map.of("results", results, "query", query);
+  }
+
+  private boolean hasMatch(ArrayNode results, String topicNameStartsWith) {
     return stream(results)
         .anyMatch(
             result ->
                 stream((ArrayNode) result.get("properties").get("topics"))
-                        .anyMatch(topic -> topic.asText().startsWith(topicName))
+                        .anyMatch(topic -> topic.asText().startsWith(topicNameStartsWith))
                     && result.get("match").asBoolean());
   }
 

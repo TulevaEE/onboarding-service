@@ -138,6 +138,16 @@ public class AmlService {
                 amlCheck.setSuccess(!hasMatch(matchResponse.results(), "role"));
               }
               amlCheckRepository.save(amlCheck);
+
+              AmlCheck pepCheck =
+                  AmlCheck.builder()
+                      .user(amlCheck.getUser())
+                      .type(POLITICALLY_EXPOSED_PERSON_AUTO)
+                      .success(!hasMatch(matchResponse.results(), "role"))
+                      .metadata(metadata(matchResponse.results(), matchResponse.query()))
+                      .build();
+
+              addCheckIfMissing(pepCheck);
             });
   }
 

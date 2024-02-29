@@ -13,8 +13,8 @@ public class RecheckPepAndSanctionJob {
 
   private final AmlService amlService;
 
-  // once per week on Thursday at 15:30
-  @Scheduled(cron = "0 30 15 * * THU", zone = "Europe/Tallinn")
+  // once per week on Thursday at 20:20
+  @Scheduled(cron = "0 20 20 * * THU", zone = "Europe/Tallinn")
   public void run() {
     amlService.recheckAllPepAndSanctionChecks();
   }

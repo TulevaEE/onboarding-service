@@ -101,7 +101,7 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.76")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.76")
 
-    implementation("io.sentry:sentry-spring-boot-starter:7.3.0")
+    implementation("io.sentry:sentry-spring-boot-starter:7.4.0")
     implementation("io.sentry:sentry-logback:7.3.0")
 
     implementation("com.vladmihalcea:hibernate-types-55:2.21.1")

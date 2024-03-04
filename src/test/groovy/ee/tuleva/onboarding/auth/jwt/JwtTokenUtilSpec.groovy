@@ -3,10 +3,12 @@ package ee.tuleva.onboarding.auth.jwt
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
+import io.jsonwebtoken.ExpiredJwtException
 import org.springframework.core.io.ClassPathResource
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import spock.lang.Specification
+import static java.time.temporal.ChronoUnit.*
 
 import java.time.Clock
 import java.time.Instant
@@ -37,11 +39,77 @@ class JwtTokenUtilSpec extends Specification {
         .build()
     List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
     when:
-    String token = jwtTokenUtil.generateToken(person, authorities)
+    String token = jwtTokenUtil.generateAccessToken(person, authorities)
     Person parsed = jwtTokenUtil.getPersonFromToken(token)
     then:
     parsed.personalCode == "38812121215"
     parsed.firstName == "Peeter"
     parsed.lastName == "Meeter"
   }
+
+  def "generates refresh token"() {
+    given:
+        AuthenticatedPerson person = AuthenticatedPerson.builder()
+            .firstName("Peeter")
+            .lastName("Meeter")
+            .personalCode("38812121215")
+            .build()
+        List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
+
+    when:
+        String token = jwtTokenUtil.generateRefreshToken(person, authorities)
+        Person parsed = jwtTokenUtil.getPersonFromToken(token)
+        TokenType tokenType = jwtTokenUtil.getTypeFromToken(token)
+
+    then:
+        parsed.personalCode == "38812121215"
+        parsed.firstName == "Peeter"
+        parsed.lastName == "Meeter"
+        tokenType == TokenType.REFRESH
+  }
+
+  def "extracts attributes and authorities from token"() {
+    given:
+        AuthenticatedPerson person = AuthenticatedPerson.builder()
+            .firstName("Peeter")
+            .lastName("Meeter")
+            .personalCode("38812121215")
+            .attributes(Map.of("email", "peeter@meeter.com"))
+            .build()
+        List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
+
+    when:
+        String token = jwtTokenUtil.generateAccessToken(person, authorities)
+        Map<String, String> attributes = jwtTokenUtil.getAttributesFromToken(token)
+        List<String> extractedAuthorities = jwtTokenUtil.getAuthoritiesFromToken(token)
+
+    then:
+        attributes.get("email") == "peeter@meeter.com"
+        extractedAuthorities.contains("USER")
+  }
+
+  def "handles expired token"() {
+    given:
+        AuthenticatedPerson person = AuthenticatedPerson.builder()
+            .firstName("Peeter")
+            .lastName("Meeter")
+            .personalCode("38812121215")
+            .build()
+        List<GrantedAuthority> authorities = [new SimpleGrantedAuthority("USER")]
+        Clock pastClock = Clock.fixed(Instant.EPOCH.minus(2, HOURS), ZoneId.of("UTC"))
+        JwtTokenUtil pastJwtTokenUtil = new JwtTokenUtil(
+            new ClassPathResource("test-jwt-keystore.p12"),
+            "Kalamaja123".toCharArray(),
+            pastClock)
+
+        String token = pastJwtTokenUtil.generateAccessToken(person, authorities)
+
+    when:
+        Person parsed = jwtTokenUtil.getPersonFromToken(token)
+
+    then:
+        thrown(ExpiredJwtException)
+  }
+
+
 }

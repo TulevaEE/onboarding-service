@@ -44,7 +44,7 @@ public class UserDetailsUpdater {
   @EventListener
   public void onAfterTokenGrantedEvent(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
-    String jwtToken = event.getJwtToken();
+    String jwtToken = event.getTokens().accessToken();
 
     userService
         .findByPersonalCode(person.getPersonalCode())

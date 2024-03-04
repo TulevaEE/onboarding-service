@@ -1,14 +1,12 @@
 package ee.tuleva.onboarding.auth.jwt;
 
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.*;
-import static java.time.temporal.ChronoUnit.MINUTES;
+import static java.time.temporal.ChronoUnit.*;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtParser;
-import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.*;
 import java.security.Key;
 import java.security.KeyStore;
 import java.time.Clock;
@@ -26,7 +24,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtTokenUtil {
 
-  private final Duration JWT_TOKEN_VALIDITY = Duration.of(30, MINUTES);
+  private final Duration ACCESS_TOKEN_VALIDITY = Duration.of(30, MINUTES);
+  private final Duration REFRESH_TOKEN_VALIDITY = Duration.of(4, HOURS);
   private final Key signingKey;
   private final JwtParser jwtParser;
   private final Clock clock;
@@ -60,14 +59,18 @@ public class JwtTokenUtil {
   }
 
   private Claims getAllClaimsFromToken(String token) {
+    // When token is expired, this throws ExpiredJwtException, which is handled in
+    // ErrorHandlingControllerAdvice
     return jwtParser.parseClaimsJws(token).getBody();
   }
 
-  public String generateToken(
+  public String generateAccessToken(
       AuthenticatedPerson person, Collection<? extends GrantedAuthority> authorities) {
     return Jwts.builder()
         .setClaims(
             Map.of(
+                TOKEN_TYPE.value,
+                TokenType.ACCESS,
                 FIRST_NAME.value,
                 person.getFirstName(),
                 LAST_NAME.value,
@@ -78,7 +81,29 @@ public class JwtTokenUtil {
                 authorities.stream().map(GrantedAuthority::getAuthority).toList()))
         .setSubject(person.getPersonalCode())
         .setIssuedAt(Date.from(clock.instant()))
-        .setExpiration(Date.from(clock.instant().plus(JWT_TOKEN_VALIDITY)))
+        .setExpiration(Date.from(clock.instant().plus(ACCESS_TOKEN_VALIDITY)))
+        .signWith(signingKey)
+        .compact();
+  }
+
+  public String generateRefreshToken(
+      AuthenticatedPerson person, Collection<? extends GrantedAuthority> authorities) {
+    return Jwts.builder()
+        .setClaims(
+            Map.of(
+                TOKEN_TYPE.value,
+                TokenType.REFRESH,
+                FIRST_NAME.value,
+                person.getFirstName(),
+                LAST_NAME.value,
+                person.getLastName(),
+                ATTRIBUTES.value,
+                person.getAttributes(),
+                AUTHORITIES.value,
+                authorities.stream().map(GrantedAuthority::getAuthority).toList()))
+        .setSubject(person.getPersonalCode())
+        .setIssuedAt(Date.from(clock.instant()))
+        .setExpiration(Date.from(clock.instant().plus(REFRESH_TOKEN_VALIDITY)))
         .signWith(signingKey)
         .compact();
   }
@@ -88,7 +113,7 @@ public class JwtTokenUtil {
         .setClaims(Map.of(AUTHORITIES.value, List.of()))
         .setSubject("onboarding-service")
         .setIssuedAt(Date.from(clock.instant()))
-        .setExpiration(Date.from(clock.instant().plus(JWT_TOKEN_VALIDITY)))
+        .setExpiration(Date.from(clock.instant().plus(ACCESS_TOKEN_VALIDITY)))
         .signWith(signingKey)
         .compact();
   }
@@ -99,5 +124,15 @@ public class JwtTokenUtil {
 
   public List<String> getAuthoritiesFromToken(String jwtToken) {
     return AUTHORITIES.fromClaims(getAllClaimsFromToken(jwtToken));
+  }
+
+  public TokenType getTypeFromToken(String jwtToken) {
+    return TokenType.valueOf(TOKEN_TYPE.fromClaims(getAllClaimsFromToken(jwtToken)));
+  }
+
+  public static Map<String, String> getExpiredTokenErrorResponse() {
+    return Map.of(
+        "error", "TOKEN_EXPIRED",
+        "error_description", "The token is expired.");
   }
 }

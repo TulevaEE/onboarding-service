@@ -96,7 +96,9 @@ class AuthControllerSpec extends BaseControllerSpec {
     def grantType = PARTNER
     def handoverJwt = "validHandoverJwt"
     def accessToken = "validAccessToken"
-    authService.authenticate(PARTNER, handoverJwt) >> accessToken
+    def refreshToken = "refreshToken"
+    def tokens = new AccessAndRefreshToken(accessToken, refreshToken)
+    authService.authenticate(PARTNER, handoverJwt) >> tokens
 
     when:
     def result = mockMvc.perform(post("/v1/tokens")
@@ -108,6 +110,56 @@ class AuthControllerSpec extends BaseControllerSpec {
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.access_token', is(accessToken)))
+        .andExpect(jsonPath('$.refresh_token', is(refreshToken)))
+  }
+
+  def "Authenticate: return validation error for invalid request"() {
+    given:
+        String invalidRequestBody = "{}"
+
+    when:
+        MockHttpServletResponse response = mockMvc
+            .perform(post("/authenticate")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(invalidRequestBody)).andReturn().response
+
+    then:
+        response.status == HttpStatus.BAD_REQUEST.value()
+  }
+
+  def "Refresh Access Token: successfully refresh token"() {
+    given:
+        String validRefreshToken = "validRefreshToken"
+        String newAccessToken = "newAccessToken"
+        String newRefreshToken = "newRefreshToken"
+        AccessAndRefreshToken refreshedTokens = new AccessAndRefreshToken(newAccessToken, newRefreshToken)
+        authService.refreshToken(validRefreshToken) >> refreshedTokens
+
+    when:
+        MockHttpServletResponse response = mockMvc
+            .perform(post("/oauth/refresh-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refresh_token\":\"${validRefreshToken}\"}")).andReturn().response
+
+    then:
+        response.status == HttpStatus.OK.value()
+        response.contentAsString.contains(newAccessToken)
+        response.contentAsString.contains(newRefreshToken)
+  }
+
+  def "Refresh Access Token: handle expired refresh token"() {
+    given:
+        String expiredRefreshToken = "expiredRefreshToken"
+        authService.refreshToken(expiredRefreshToken) >> { throw new ExpiredRefreshJwtException() }
+
+    when:
+        MockHttpServletResponse response = mockMvc
+            .perform(post("/oauth/refresh-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"refresh_token\":\"${expiredRefreshToken}\"}")).andReturn().response
+
+    then:
+        response.status == HttpStatus.FORBIDDEN.value()
   }
 
   private static sampleMobileIdAuthenticateCommand() {

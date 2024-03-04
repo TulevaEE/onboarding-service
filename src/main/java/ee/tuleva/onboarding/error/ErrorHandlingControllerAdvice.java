@@ -3,16 +3,20 @@ package ee.tuleva.onboarding.error;
 import static org.springframework.http.HttpStatus.*;
 
 import ee.tuleva.onboarding.account.PensionRegistryAccountStatementConnectionException;
+import ee.tuleva.onboarding.auth.ExpiredRefreshJwtException;
+import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.response.AuthNotCompleteException;
 import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
+import io.jsonwebtoken.ExpiredJwtException;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -61,5 +65,21 @@ public class ErrorHandlingControllerAdvice {
     }
     log.error("{}", exception.toString());
     return new ResponseEntity<>(exception.getErrorsResponse(), BAD_REQUEST);
+  }
+
+  @ExceptionHandler(ExpiredJwtException.class)
+  public ResponseEntity<Object> handleErrors(ExpiredJwtException exception) {
+    log.debug("ExpiredJwtException {}", exception.toString());
+    return new ResponseEntity<>(
+        JwtTokenUtil.getExpiredTokenErrorResponse(), HttpStatus.UNAUTHORIZED);
+  }
+
+  @ExceptionHandler(ExpiredRefreshJwtException.class)
+  public ResponseEntity<Object> handleErrors(ExpiredRefreshJwtException exception) {
+    log.debug("ExpiredJwtException {}", exception.toString());
+    return new ResponseEntity<>(
+        Map.of(
+            "error", "REFRESH_TOKEN_EXPIRED", "error_description", "The refresh token is expired."),
+        FORBIDDEN);
   }
 }

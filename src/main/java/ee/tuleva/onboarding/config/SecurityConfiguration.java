@@ -33,6 +33,7 @@ public class SecurityConfiguration {
             "/v3/api-docs/**",
             "/authenticate",
             "/oauth/token",
+            "/oauth/refresh-token",
             "/idLogin",
             "/notifications/payments",
             "/error")
@@ -56,10 +57,15 @@ public class SecurityConfiguration {
         .and()
         .csrf()
         .ignoringAntMatchers(
-            "/authenticate", "/oauth/token", "/idLogin", "/notifications/payments", "/v1/**")
+            "/authenticate",
+            "/oauth/token",
+            "/oauth/refresh-token",
+            "/idLogin",
+            "/notifications/payments",
+            "/v1/**")
         .and()
         .sessionManagement()
-        .sessionCreationPolicy(SessionCreationPolicy.NEVER)
+        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
         .sessionFixation()
         .newSession()
         .and()

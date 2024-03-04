@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.jwt
 
-
+import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.auth.KeyStoreFixture
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.PrincipalService
@@ -12,6 +12,7 @@ import org.springframework.security.core.context.SecurityContextHolder
 import spock.lang.Specification
 
 import javax.servlet.FilterChain
+import javax.servlet.http.HttpServletResponse
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -56,6 +57,7 @@ class JwtAuthorizationFilterSpec extends Specification {
         .claim("firstName", "Peeter")
         .claim("lastName", "Meeter")
         .claim("authorities", new String[]{"USER"})
+        .claim("tokenType", "ACCESS")
         .compact()
     def person = sampleAuthenticatedPersonAndMember()
         .firstName("Peeter")
@@ -96,7 +98,13 @@ class JwtAuthorizationFilterSpec extends Specification {
     filter.doFilterInternal(request, response, filterChain)
     then:
     SecurityContextHolder.context.getAuthentication() == null
-    1 * filterChain.doFilter(request, response)
+    response.status == HttpServletResponse.SC_UNAUTHORIZED
+    response.contentType == "application/json"
+    def objectMapper = new ObjectMapper()
+    Map<String, Object> actualResponse = objectMapper.readValue(response.contentAsString, Map.class)
+    Map<String, Object> expectedResponse = JwtTokenUtil.getExpiredTokenErrorResponse()
+    assert actualResponse == expectedResponse
+    0 * filterChain.doFilter(request, response)
   }
 
   def "does not accept unsigned tokens"() {
@@ -118,5 +126,28 @@ class JwtAuthorizationFilterSpec extends Specification {
     SecurityContextHolder.context.getAuthentication() == null
     1 * filterChain.doFilter(request, response)
   }
+
+  def "does not accept refresh tokens"() {
+    given:
+        def token = Jwts.builder()
+            .setSubject("38510309519")
+            .signWith(KeyStoreFixture.keyPair.private)
+            .setExpiration(Date.from(clock.instant().plus(1, HOURS)))
+            .claim("firstName", "Peeter")
+            .claim("lastName", "Meeter")
+            .claim("authorities", new String[]{"USER"})
+            .claim("tokenType", "REFRESH")
+            .compact()
+        def request = new MockHttpServletRequest()
+        request.addHeader("Authorization", "Bearer " + token)
+        def response = new MockHttpServletResponse()
+        def filterChain = Mock(FilterChain)
+    when:
+        filter.doFilterInternal(request, response, filterChain)
+    then:
+        SecurityContextHolder.context.getAuthentication() == null
+        1 * filterChain.doFilter(request, response)
+  }
+
 
 }

@@ -5,6 +5,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.auth.command.AuthenticateCommand;
 import ee.tuleva.onboarding.auth.idcard.IdCardAuthService;
 import ee.tuleva.onboarding.auth.mobileid.MobileIDSession;
@@ -74,12 +75,19 @@ public class AuthController {
   }
 
   @PostMapping({"/oauth/token", "/login", "/v1/tokens"})
-  public AccessToken login(
+  public AccessAndRefreshToken login(
       @RequestParam("grant_type") String grantType,
       @RequestParam(value = "authenticationHash", required = false) String authenticationHash) {
-    return new AccessToken(
-        authService.authenticate(GrantType.valueOf(grantType.toUpperCase()), authenticationHash));
+    return authService.authenticate(GrantType.valueOf(grantType.toUpperCase()), authenticationHash);
   }
+
+  @PostMapping("/oauth/refresh-token")
+  public AccessAndRefreshToken refreshAccessToken(
+      @RequestBody RefreshTokenRequest refreshTokenRequest) {
+    return authService.refreshToken(refreshTokenRequest.refreshToken);
+  }
+
+  public record RefreshTokenRequest(@JsonProperty("refresh_token") String refreshToken) {}
 
   @SneakyThrows
   @Operation(summary = "ID card login")

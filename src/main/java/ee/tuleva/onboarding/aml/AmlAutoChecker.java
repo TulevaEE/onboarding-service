@@ -38,7 +38,7 @@ public class AmlAutoChecker {
   @Async
   public void afterLoginAsync(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
-    String jwtToken = event.getJwtToken();
+    String jwtToken = event.getTokens().accessToken();
     User user = getUser(person);
 
     var contactDetails = contactDetailsService.getContactDetails(person, jwtToken);
@@ -48,7 +48,7 @@ public class AmlAutoChecker {
   @EventListener
   public void afterLogin(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
-    String jwtToken = event.getJwtToken();
+    String jwtToken = event.getTokens().accessToken();
 
     userService
         .findByPersonalCode(person.getPersonalCode())

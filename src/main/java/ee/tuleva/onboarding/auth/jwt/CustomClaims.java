@@ -12,7 +12,8 @@ public enum CustomClaims {
   FIRST_NAME("firstName", String.class),
   LAST_NAME("lastName", String.class),
   ATTRIBUTES("attributes", Map.class),
-  AUTHORITIES("authorities", List.class);
+  AUTHORITIES("authorities", List.class),
+  TOKEN_TYPE("tokenType", String.class);
 
   final String value;
   final Class<?> type;

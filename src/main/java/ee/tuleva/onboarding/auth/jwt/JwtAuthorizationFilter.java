@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.auth.jwt;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
+import java.io.IOException;
+import java.util.Map;
 import javax.servlet.FilterChain;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -36,30 +39,42 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
       }
       try {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-          AuthenticatedPerson principal =
-              principalService.getFrom(
-                  jwtTokenUtil.getPersonFromToken(jwtToken),
-                  jwtTokenUtil.getAttributesFromToken(jwtToken));
+          TokenType tokenType = jwtTokenUtil.getTypeFromToken(jwtToken);
+          if (tokenType == TokenType.ACCESS) {
+            AuthenticatedPerson principal =
+                principalService.getFrom(
+                    jwtTokenUtil.getPersonFromToken(jwtToken),
+                    jwtTokenUtil.getAttributesFromToken(jwtToken));
 
-          final var authorities =
-              jwtTokenUtil.getAuthoritiesFromToken(jwtToken).stream()
-                  .map(SimpleGrantedAuthority::new)
-                  .toList();
+            final var authorities =
+                jwtTokenUtil.getAuthoritiesFromToken(jwtToken).stream()
+                    .map(SimpleGrantedAuthority::new)
+                    .toList();
 
-          final var authenticationToken =
-              new UsernamePasswordAuthenticationToken(principal, jwtToken, authorities);
+            final var authenticationToken =
+                new UsernamePasswordAuthenticationToken(principal, jwtToken, authorities);
 
-          authenticationToken.setDetails(
-              new WebAuthenticationDetailsSource().buildDetails(request));
+            authenticationToken.setDetails(
+                new WebAuthenticationDetailsSource().buildDetails(request));
 
-          SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+          }
         }
       } catch (ExpiredJwtException e) {
         logger.info("JWT Token is expired");
+        respondWithTokenExpired(response);
+        return;
       } catch (Exception e) {
         logger.error(e.getMessage(), e);
       }
     }
     filterChain.doFilter(request, response);
+  }
+
+  private static void respondWithTokenExpired(HttpServletResponse response) throws IOException {
+    Map<String, String> errorResponse = JwtTokenUtil.getExpiredTokenErrorResponse();
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    response.setContentType("application/json");
+    response.getWriter().write(new ObjectMapper().writeValueAsString(errorResponse));
   }
 }

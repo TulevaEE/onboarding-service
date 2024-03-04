@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  aws-ecr: circleci/aws-ecr@8.1.3
+  aws-ecr: circleci/aws-ecr@9.0.2
   eb: circleci/aws-elastic-beanstalk@2.0.1
   codecov: codecov/codecov@3.2.4
   snyk: snyk/snyk@1.4.0
@@ -101,7 +101,7 @@ workflows:
     jobs:
       - build:
           context: snyk
-      - aws-ecr/build-and-push-image:
+      - aws-ecr/build_and_push_image:
           requires:
             - build
           context: aws
@@ -115,14 +115,14 @@ workflows:
               only: master
       - deploy-staging:
           requires:
-            - aws-ecr/build-and-push-image
+            - aws-ecr/build_and_push_image
           context: aws
           filters:
             branches:
               only: master
       - deploy-production:
           requires:
-            - aws-ecr/build-and-push-image
+            - aws-ecr/build_and_push_image
           context: aws
           filters:
             branches:

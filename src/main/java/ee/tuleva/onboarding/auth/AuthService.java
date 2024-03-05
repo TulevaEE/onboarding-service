@@ -64,9 +64,8 @@ public class AuthService {
 
       final var authorities = grantedAuthorityFactory.from(authenticatedPerson);
       String newAccessToken = jwtTokenUtil.generateAccessToken(authenticatedPerson, authorities);
-      String newRefreshToken = jwtTokenUtil.generateRefreshToken(authenticatedPerson, authorities);
 
-      return new AccessAndRefreshToken(newAccessToken, newRefreshToken);
+      return new AccessAndRefreshToken(newAccessToken, refreshToken);
     } catch (ExpiredJwtException e) {
       throw new ExpiredRefreshJwtException();
     }

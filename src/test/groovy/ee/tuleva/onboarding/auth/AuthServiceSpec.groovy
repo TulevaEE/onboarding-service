@@ -63,16 +63,15 @@ class AuthServiceSpec extends Specification {
         principalService.getFrom(authenticatedPerson, [:]) >> authenticatedPerson
         grantedAuthorityFactory.from(authenticatedPerson) >> grantedAuthorities
         String newAccessToken = "newAccessToken"
-        String newRefreshToken = "newRefreshToken"
-        jwtTokenUtil.generateAccessToken(authenticatedPerson, grantedAuthorities) >> newAccessToken
-        jwtTokenUtil.generateRefreshToken(authenticatedPerson, grantedAuthorities) >> newRefreshToken
+        1 * jwtTokenUtil.generateAccessToken(authenticatedPerson, grantedAuthorities) >> newAccessToken
+        0 * jwtTokenUtil.generateRefreshToken(authenticatedPerson, grantedAuthorities)
 
     when:
         AccessAndRefreshToken tokens = authService.refreshToken(refreshToken)
 
     then:
         tokens.accessToken == newAccessToken
-        tokens.refreshToken == newRefreshToken
+        tokens.refreshToken == refreshToken
   }
 
 

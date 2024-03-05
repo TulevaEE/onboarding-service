@@ -64,7 +64,7 @@ public class PaymentEmailSender {
   private void setupSecurityContext(User user) {
     final var principal = principalService.getFrom(user, Map.of());
     final var authorities = grantedAuthorityFactory.from(principal);
-    final var jwtToken = jwtTokenUtil.generateToken(principal, authorities);
+    final var jwtToken = jwtTokenUtil.generateAccessToken(principal, authorities);
 
     final var authenticationToken =
         new UsernamePasswordAuthenticationToken(principal, jwtToken, authorities);

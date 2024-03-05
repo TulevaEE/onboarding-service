@@ -101,8 +101,8 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.76")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.76")
 
-    implementation("io.sentry:sentry-spring-boot-starter:7.3.0")
-    implementation("io.sentry:sentry-logback:7.3.0")
+    implementation("io.sentry:sentry-spring-boot-starter:7.5.0")
+    implementation("io.sentry:sentry-logback:7.5.0")
 
     implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
 
@@ -130,7 +130,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.3-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.18")
+    testImplementation("org.apache.groovy:groovy-all:4.0.19")
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")

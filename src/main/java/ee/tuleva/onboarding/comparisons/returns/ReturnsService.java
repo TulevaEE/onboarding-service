@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR;
+import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
@@ -48,7 +49,8 @@ public class ReturnsService {
     Instant earliestNavTime = earliestNavDate.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
 
     if (earliestNavDate.equals(fromDate) || pillar == 3) {
-      return earliestNavTime;
+      // so you could always get the previous day's nav for the beginning balance
+      return earliestNavTime.plus(2, DAYS);
     }
 
     MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(earliestNavTime);

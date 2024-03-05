@@ -1,12 +1,13 @@
 package ee.tuleva.onboarding.comparisons.returns.provider
 
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
+
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
 import ee.tuleva.onboarding.comparisons.overview.Transaction
 import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator
 import ee.tuleva.onboarding.comparisons.returns.ReturnDto
 import ee.tuleva.onboarding.comparisons.returns.Returns
+import ee.tuleva.onboarding.fund.FundRepository
 import spock.lang.Specification
 
 import java.time.Instant
@@ -15,14 +16,17 @@ import java.time.LocalDate
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND
 import static ee.tuleva.onboarding.currency.Currency.EUR
+import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarBondFund
+import static ee.tuleva.onboarding.fund.FundFixture.tuleva2ndPillarStockFund
 
 class FundReturnProviderSpec extends Specification {
 
-  def accountOverviewProvider = Mock(AccountOverviewProvider)
-  def rateOfReturnCalculator = Mock(ReturnCalculator)
-  def fundValueRepository = Mock(FundValueRepository)
+  AccountOverviewProvider accountOverviewProvider = Mock()
+  ReturnCalculator rateOfReturnCalculator = Mock()
+  FundRepository fundRepository = Mock()
 
-  def returnProvider = new FundReturnProvider(accountOverviewProvider, rateOfReturnCalculator, fundValueRepository)
+  def returnProvider = new FundReturnProvider(accountOverviewProvider, rateOfReturnCalculator, fundRepository)
 
   def "can assemble a Returns object for all funds"() {
     given:
@@ -42,9 +46,7 @@ class FundReturnProviderSpec extends Specification {
     accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
     rateOfReturnCalculator.getSimulatedReturn(overview, _ as String) >>
         new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
-    fundValueRepository.findActiveFundKeys() >> List.of(
-        "EE3600019774",
-        "EE3600019766")
+    fundRepository.findAllByStatus(ACTIVE) >> List.of(tuleva2ndPillarBondFund(), tuleva2ndPillarStockFund())
 
     when:
     Returns returns = returnProvider.getReturns(person, startTime, pillar)

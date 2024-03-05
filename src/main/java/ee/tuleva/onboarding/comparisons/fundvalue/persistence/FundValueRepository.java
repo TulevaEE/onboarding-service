@@ -21,7 +21,5 @@ public interface FundValueRepository {
 
   Optional<LocalDate> findEarliestDateForKey(String key);
 
-  List<String> findActiveFundKeys();
-
   Map<String, LocalDate> findEarliestDates();
 }

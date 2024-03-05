@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.aml.sanctions
 
-import com.fasterxml.jackson.databind.JsonNode
+
 import com.fasterxml.jackson.databind.ObjectMapper
+import ee.tuleva.onboarding.auth.principal.PersonImpl
 import groovy.json.JsonSlurper
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
@@ -31,9 +32,12 @@ class OpenSanctionsServiceSpec extends Specification {
 
   def "can find a match"() {
     given:
-    def fullName = "Peeter Meeter"
+    def firstName = "Peeter"
+    def lastName = "Meeter"
+    def fullName = "$firstName $lastName"
     def birthDate = LocalDate.parse("1960-04-08")
     def personalCode = "36004081234"
+    def person = new PersonImpl(personalCode, firstName, lastName)
     def country = "ee"
     def expectedResults = """[
       {
@@ -48,16 +52,25 @@ class OpenSanctionsServiceSpec extends Specification {
         }
       }
     ]"""
+    def expectedQuery = """{
+      "schema": "Person",
+        "properties": {
+          "name": ["$fullName"],
+          "birthDate": ["$birthDate"],
+          "country": ["ee"]
+       }
+    }"""
     def responseJson = """{
       "responses": {
         "$personalCode": {
           "status": 200,
-          "results": ${expectedResults}
+          "results": ${expectedResults},
+          "query": ${expectedQuery}
         }
       }
     }"""
 
-    server.expect(requestTo("https://dummyUrl/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.8&topics=role.pep&topics=role.rca&topics=sanction&topics=sanction.linked&facets=countries&facets=topics&facets=datasets&facets=gender"))
+    server.expect(requestTo("https://dummyUrl/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.7&topics=role.pep&topics=role.rca&topics=sanction&topics=sanction.linked&facets=countries&facets=topics&facets=datasets&facets=gender"))
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(content().json("""
         {
@@ -81,10 +94,11 @@ class OpenSanctionsServiceSpec extends Specification {
 
 
     when:
-    JsonNode results = openSanctionsService.match(fullName, personalCode, country)
+    MatchResponse response = openSanctionsService.match(person, country)
 
     then:
-    new JsonSlurper().parseText(objectMapper.writeValueAsString(results)) == new JsonSlurper().parseText(expectedResults)
+    new JsonSlurper().parseText(objectMapper.writeValueAsString(response.results())) == new JsonSlurper().parseText(expectedResults)
+    new JsonSlurper().parseText(objectMapper.writeValueAsString(response.query())) == new JsonSlurper().parseText(expectedQuery)
   }
 
   def cleanup() {

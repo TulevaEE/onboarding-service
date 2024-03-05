@@ -11,4 +11,6 @@ public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
       User user, AmlCheckType type, Instant createdAfter);
 
   List<AmlCheck> findAllByUserAndCreatedTimeAfter(User user, Instant createdAfter);
+
+  List<AmlCheck> findAllByTypeIn(List<AmlCheckType> types);
 }

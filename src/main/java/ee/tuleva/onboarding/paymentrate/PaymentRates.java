@@ -13,4 +13,8 @@ public class PaymentRates {
   public Optional<Integer> getPending() {
     return Optional.ofNullable(pending);
   }
+
+  public boolean hasIncreased() {
+    return (current != null && current > 2) || (pending != null && pending > 2);
+  }
 }

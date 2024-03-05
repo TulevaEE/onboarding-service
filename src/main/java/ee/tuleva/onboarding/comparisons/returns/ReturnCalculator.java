@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.returns;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static java.math.BigDecimal.ZERO;
+import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue;
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider;
@@ -74,6 +75,7 @@ public class ReturnCalculator {
       List<Transaction> purchaseTransactions) {
     BigDecimal virtualFundUnitsBought = ZERO;
     for (Transaction transaction : purchaseTransactions) {
+      // TODO: O(n) database queries here, can be optimized to O(1)
       Optional<FundValue> fundValueAtTime =
           fundValueProvider.getLatestValue(comparisonFund, transaction.date());
       if (fundValueAtTime.isEmpty()) {
@@ -148,9 +150,10 @@ public class ReturnCalculator {
     List<Transaction> transactions = accountOverview.getTransactions();
     List<Transaction> purchaseTransactions = new ArrayList<>();
 
-    if (accountOverview.getBeginningBalance().compareTo(ZERO) != 0) {
-      Transaction beginningTransaction =
-          new Transaction(accountOverview.getBeginningBalance(), accountOverview.getStartTime());
+    BigDecimal beginningBalance = accountOverview.getBeginningBalance();
+    if (beginningBalance.compareTo(ZERO) != 0) {
+      Instant priceDate = accountOverview.getStartTime().minus(1, DAYS);
+      Transaction beginningTransaction = new Transaction(beginningBalance, priceDate);
       purchaseTransactions.add(beginningTransaction);
     }
     purchaseTransactions.addAll(transactions);

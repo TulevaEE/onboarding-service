@@ -1,15 +1,17 @@
 package ee.tuleva.onboarding.comparisons.returns.provider;
 
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND;
+import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
 
 import ee.tuleva.onboarding.auth.principal.Person;
-import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator;
 import ee.tuleva.onboarding.comparisons.returns.ReturnDto;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
+import ee.tuleva.onboarding.fund.Fund;
+import ee.tuleva.onboarding.fund.FundRepository;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +25,7 @@ public class FundReturnProvider implements ReturnProvider {
 
   private final ReturnCalculator rateOfReturnCalculator;
 
-  private final FundValueRepository fundValueRepository;
+  private final FundRepository fundRepository;
 
   @Override
   public Returns getReturns(Person person, Instant startTime, Integer pillar) {
@@ -62,6 +64,6 @@ public class FundReturnProvider implements ReturnProvider {
   }
 
   private List<String> fundIsins() {
-    return fundValueRepository.findActiveFundKeys();
+    return fundRepository.findAllByStatus(ACTIVE).stream().map(Fund::getIsin).toList();
   }
 }

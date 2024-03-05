@@ -131,7 +131,7 @@ class ReturnCalculatorSpec extends Specification {
     Instant startTime = parseInstant("2010-01-01")
     Instant endTime = parseInstant("2018-07-16")
     mockFundValues(EPIFundValueRetriever.KEY, epiFundValues())
-    fundValueProvider.getLatestValue(UnionStockIndexRetriever.KEY, _) >> {
+    fundValueProvider.getLatestValue(UnionStockIndexRetriever.KEY, _ as LocalDate) >> {
       String givenFund, LocalDate date -> Optional.of(new FundValue(givenFund, date, 123.0))
     }
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
@@ -179,6 +179,7 @@ class ReturnCalculatorSpec extends Specification {
 
   private static Map<String, BigDecimal> epiFundValues() {
     return [
+        "2009-12-31": 133.00,
         "2010-01-01": 133.00,
         "2010-07-01": 127.00,
         "2011-01-01": 140.00,
@@ -201,9 +202,9 @@ class ReturnCalculatorSpec extends Specification {
   }
 
   private void mockFundValues(String fund, Map<String, BigDecimal> values) {
-    fundValueProvider.getLatestValue(fund, _) >> {
+    fundValueProvider.getLatestValue(fund, _ as LocalDate) >> {
       String givenFund, LocalDate date ->
-        Optional.of(new FundValue(UnionStockIndexRetriever.KEY, null, values[date.toString()]))
+        Optional.of(new FundValue(UnionStockIndexRetriever.KEY, date, values[date.toString()]))
     }
   }
 

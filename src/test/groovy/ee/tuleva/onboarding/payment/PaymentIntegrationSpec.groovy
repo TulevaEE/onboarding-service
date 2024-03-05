@@ -170,8 +170,7 @@ class PaymentIntegrationSpec extends Specification {
 
   private void mockEpisTransactions() {
     mockServerClient
-        .when(request("/account-cash-flow-statement")
-            .withHeader("Authorization", "Bearer $aToken"))
+        .when(request("/account-cash-flow-statement"))
         .respond(response()
             .withContentType(APPLICATION_JSON)
             .withBody((mapper.writeValueAsString(cashFlowFixture())))
@@ -180,8 +179,7 @@ class PaymentIntegrationSpec extends Specification {
 
   private void mockEpisApplications() {
     mockServerClient
-        .when(request("/applications")
-            .withHeader("Authorization", "Bearer $aToken"))
+        .when(request("/applications"))
         .respond(response()
             .withContentType(APPLICATION_JSON)
             .withBody((mapper.writeValueAsString(List.of())))
@@ -190,8 +188,7 @@ class PaymentIntegrationSpec extends Specification {
 
   private void mockEpisContactDetails() {
     mockServerClient
-        .when(request("/contact-details")
-            .withHeader("Authorization", "Bearer $aToken"))
+        .when(request("/contact-details"))
         .respond(response()
             .withContentType(APPLICATION_JSON)
             .withBody((mapper.writeValueAsString(contactDetailsFixture())))
@@ -200,8 +197,7 @@ class PaymentIntegrationSpec extends Specification {
 
   private void mockEpisAccountStatement() {
     mockServerClient
-        .when(request("/account-statement")
-            .withHeader("Authorization", "Bearer $aToken"))
+        .when(request("/account-statement"))
         .respond(response()
             .withContentType(APPLICATION_JSON)
             .withBody((mapper.writeValueAsString(

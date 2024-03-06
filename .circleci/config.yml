@@ -112,6 +112,7 @@ workflows:
           auth:
             - aws-cli/setup
           path: build/docker
+          build_path: build/docker
           repo: onboarding-service
           tag: 'latest,${CIRCLE_SHA1}'
           attach_workspace: true

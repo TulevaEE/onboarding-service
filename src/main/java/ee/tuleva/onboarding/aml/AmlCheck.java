@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
-import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -15,14 +15,14 @@ import org.springframework.data.annotation.CreatedDate;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString(exclude = {"user"})
+@ToString
 @EqualsAndHashCode
 public class AmlCheck {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @ManyToOne private User user;
+  @ValidPersonalCode private String personalCode;
 
   @Enumerated(value = EnumType.STRING)
   @NotNull

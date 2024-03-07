@@ -146,8 +146,6 @@ class JwtAuthorizationFilterSpec extends Specification {
         filter.doFilterInternal(request, response, filterChain)
     then:
         SecurityContextHolder.context.getAuthentication() == null
-        1 * filterChain.doFilter(request, response)
+        0 * filterChain.doFilter(request, response)
   }
-
-
 }

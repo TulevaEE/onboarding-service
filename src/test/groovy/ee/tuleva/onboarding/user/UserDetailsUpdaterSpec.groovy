@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.user
 
-import ee.tuleva.onboarding.auth.AccessAndRefreshToken
+import ee.tuleva.onboarding.auth.AuthenticationTokens
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService
 import spock.lang.Specification
@@ -18,7 +18,7 @@ class UserDetailsUpdaterSpec extends Specification {
   def "updates user email and phone number based on epis info"() {
     given:
     def user = sampleUser().email(null).phoneNumber(null).build()
-    def tokens = new AccessAndRefreshToken("access token", "refresh token")
+    def tokens = new AuthenticationTokens("access token", "refresh token")
     def contactDetails = contactDetailsFixture()
     1 * userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
     1 * contactDetailsService.getContactDetails(user, tokens.accessToken()) >> contactDetails

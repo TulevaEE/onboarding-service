@@ -38,23 +38,23 @@ public class AmlAutoChecker {
   @Async
   public void afterLoginAsync(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
-    String jwtToken = event.getTokens().accessToken();
+    String accessToken = event.getAccessToken();
     User user = getUser(person);
 
-    var contactDetails = contactDetailsService.getContactDetails(person, jwtToken);
+    var contactDetails = contactDetailsService.getContactDetails(person, accessToken);
     amlService.addSanctionAndPepCheckIfMissing(user, contactDetails);
   }
 
   @EventListener
   public void afterLogin(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
-    String jwtToken = event.getTokens().accessToken();
+    String accessToken = event.getAccessToken();
 
     userService
         .findByPersonalCode(person.getPersonalCode())
         .ifPresent(
             user -> {
-              var contactDetails = contactDetailsService.getContactDetails(person, jwtToken);
+              var contactDetails = contactDetailsService.getContactDetails(person, accessToken);
               amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails);
             });
   }

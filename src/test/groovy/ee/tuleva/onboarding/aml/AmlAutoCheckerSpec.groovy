@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.aml
 
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException
-import ee.tuleva.onboarding.auth.AccessAndRefreshToken
+import ee.tuleva.onboarding.auth.AuthenticationTokens
 import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
@@ -46,7 +46,7 @@ class AmlAutoCheckerSpec extends Specification {
         given:
         def user = sampleUser().build()
         def contactDetails = contactDetailsFixture()
-        def tokens = new AccessAndRefreshToken("access token", "refresh token")
+        def tokens = new AuthenticationTokens("access token", "refresh token")
         1 * userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
         1 * contactDetailsService.getContactDetails(user, tokens.accessToken()) >> contactDetails
 
@@ -76,7 +76,7 @@ class AmlAutoCheckerSpec extends Specification {
         given:
         def user = sampleUser().build()
         def contactDetails = contactDetailsFixture()
-        def tokens = new AccessAndRefreshToken("access token", "refresh token")
+        def tokens = new AuthenticationTokens("access token", "refresh token")
         1 * userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
         1 * contactDetailsService.getContactDetails(user, tokens.accessToken()) >> contactDetails
 

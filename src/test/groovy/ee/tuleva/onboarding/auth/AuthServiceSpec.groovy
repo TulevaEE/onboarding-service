@@ -42,7 +42,7 @@ class AuthServiceSpec extends Specification {
         jwtTokenUtil.generateRefreshToken(authenticatedPerson, grantedAuthorities) >> refreshToken
 
     when:
-        AccessAndRefreshToken tokens = authService.authenticate(grantType, authenticationHash)
+        AuthenticationTokens tokens = authService.authenticate(grantType, authenticationHash)
 
     then:
         tokens.accessToken == jwtToken
@@ -67,7 +67,7 @@ class AuthServiceSpec extends Specification {
         0 * jwtTokenUtil.generateRefreshToken(authenticatedPerson, grantedAuthorities)
 
     when:
-        AccessAndRefreshToken tokens = authService.refreshToken(refreshToken)
+        AuthenticationTokens tokens = authService.refreshToken(refreshToken)
 
     then:
         tokens.accessToken == newAccessToken
@@ -117,7 +117,7 @@ class AuthServiceSpec extends Specification {
         String authenticationHash = null
 
     when:
-        AccessAndRefreshToken tokens = authService.authenticate(grantType, authenticationHash)
+        AuthenticationTokens tokens = authService.authenticate(grantType, authenticationHash)
 
     then:
         tokens == null
@@ -130,13 +130,13 @@ class AuthServiceSpec extends Specification {
         authProvider.supports(grantType) >> false
 
     when:
-        AccessAndRefreshToken tokens = authService.authenticate(grantType, authenticationHash)
+        AuthenticationTokens tokens = authService.authenticate(grantType, authenticationHash)
 
     then:
         tokens == null
   }
 
-  def "refreshToken throws BadRequestException for non-refresh token types"() {
+  def "refreshToken throws IllegalArgumentException for non-refresh token types"() {
     given:
         String refreshToken = "invalidTypeToken"
         jwtTokenUtil.getTypeFromToken(refreshToken) >> TokenType.ACCESS
@@ -145,7 +145,7 @@ class AuthServiceSpec extends Specification {
         authService.refreshToken(refreshToken)
 
     then:
-        thrown(BadRequestException)
+        thrown(IllegalArgumentException)
   }
 
   def "refreshToken throws ExpiredRefreshJwtException for expired refresh tokens"() {

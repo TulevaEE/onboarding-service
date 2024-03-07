@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
 import java.util.List;
-import javax.ws.rs.BadRequestException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -23,7 +22,7 @@ public class AuthService {
   private final GrantedAuthorityFactory grantedAuthorityFactory;
   private final PrincipalService principalService;
 
-  public AccessAndRefreshToken authenticate(GrantType grantType, String authenticationHash) {
+  public AuthenticationTokens authenticate(GrantType grantType, String authenticationHash) {
 
     final var authenticatedPerson =
         providers.stream()
@@ -38,10 +37,10 @@ public class AuthService {
       eventPublisher.publishEvent(
           new BeforeTokenGrantedEvent(this, authenticatedPerson, grantType));
 
-      String jwtToken = jwtTokenUtil.generateAccessToken(authenticatedPerson, authorities);
+      String accessToken = jwtTokenUtil.generateAccessToken(authenticatedPerson, authorities);
       String refreshToken = jwtTokenUtil.generateRefreshToken(authenticatedPerson, authorities);
 
-      final var tokens = new AccessAndRefreshToken(jwtToken, refreshToken);
+      final var tokens = new AuthenticationTokens(accessToken, refreshToken);
       eventPublisher.publishEvent(new AfterTokenGrantedEvent(this, authenticatedPerson, tokens));
 
       return tokens;
@@ -49,12 +48,12 @@ public class AuthService {
     return null;
   }
 
-  public AccessAndRefreshToken refreshToken(String refreshToken) {
+  public AuthenticationTokens refreshToken(String refreshToken) {
 
     try {
       TokenType tokenType = jwtTokenUtil.getTypeFromToken(refreshToken);
       if (tokenType != TokenType.REFRESH) {
-        throw new BadRequestException("Only refresh token is allowed for refresh request.");
+        throw new IllegalArgumentException("Only refresh token is allowed for refresh request.");
       }
 
       AuthenticatedPerson authenticatedPerson =
@@ -65,7 +64,7 @@ public class AuthService {
       final var authorities = grantedAuthorityFactory.from(authenticatedPerson);
       String newAccessToken = jwtTokenUtil.generateAccessToken(authenticatedPerson, authorities);
 
-      return new AccessAndRefreshToken(newAccessToken, refreshToken);
+      return new AuthenticationTokens(newAccessToken, refreshToken);
     } catch (ExpiredJwtException e) {
       throw new ExpiredRefreshJwtException();
     }

@@ -31,34 +31,35 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) {
     final var requestTokenHeader = request.getHeader("Authorization");
     if (StringUtils.startsWith(requestTokenHeader, "Bearer ")) {
-      final var jwtToken = requestTokenHeader.substring(7);
+      final var accessToken = requestTokenHeader.substring(7);
       // Frontend sends null when token is missing, remove if fixed
-      if (jwtToken.equals("null")) {
+      if (accessToken.equals("null")) {
         filterChain.doFilter(request, response);
         return;
       }
       try {
         if (SecurityContextHolder.getContext().getAuthentication() == null) {
-          TokenType tokenType = jwtTokenUtil.getTypeFromToken(jwtToken);
-          if (tokenType == TokenType.ACCESS) {
-            AuthenticatedPerson principal =
-                principalService.getFrom(
-                    jwtTokenUtil.getPersonFromToken(jwtToken),
-                    jwtTokenUtil.getAttributesFromToken(jwtToken));
-
-            final var authorities =
-                jwtTokenUtil.getAuthoritiesFromToken(jwtToken).stream()
-                    .map(SimpleGrantedAuthority::new)
-                    .toList();
-
-            final var authenticationToken =
-                new UsernamePasswordAuthenticationToken(principal, jwtToken, authorities);
-
-            authenticationToken.setDetails(
-                new WebAuthenticationDetailsSource().buildDetails(request));
-
-            SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+          TokenType tokenType = jwtTokenUtil.getTypeFromToken(accessToken);
+          if (tokenType != TokenType.ACCESS) {
+            return;
           }
+          AuthenticatedPerson principal =
+              principalService.getFrom(
+                  jwtTokenUtil.getPersonFromToken(accessToken),
+                  jwtTokenUtil.getAttributesFromToken(accessToken));
+
+          final var authorities =
+              jwtTokenUtil.getAuthoritiesFromToken(accessToken).stream()
+                  .map(SimpleGrantedAuthority::new)
+                  .toList();
+
+          final var authenticationToken =
+              new UsernamePasswordAuthenticationToken(principal, accessToken, authorities);
+
+          authenticationToken.setDetails(
+              new WebAuthenticationDetailsSource().buildDetails(request));
+
+          SecurityContextHolder.getContext().setAuthentication(authenticationToken);
         }
       } catch (ExpiredJwtException e) {
         logger.info("JWT Token is expired");

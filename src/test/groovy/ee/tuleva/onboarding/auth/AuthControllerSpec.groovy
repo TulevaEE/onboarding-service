@@ -97,7 +97,7 @@ class AuthControllerSpec extends BaseControllerSpec {
     def handoverJwt = "validHandoverJwt"
     def accessToken = "validAccessToken"
     def refreshToken = "refreshToken"
-    def tokens = new AccessAndRefreshToken(accessToken, refreshToken)
+    def tokens = new AuthenticationTokens(accessToken, refreshToken)
     authService.authenticate(PARTNER, handoverJwt) >> tokens
 
     when:
@@ -132,7 +132,7 @@ class AuthControllerSpec extends BaseControllerSpec {
         String validRefreshToken = "validRefreshToken"
         String newAccessToken = "newAccessToken"
         String newRefreshToken = "newRefreshToken"
-        AccessAndRefreshToken refreshedTokens = new AccessAndRefreshToken(newAccessToken, newRefreshToken)
+        AuthenticationTokens refreshedTokens = new AuthenticationTokens(newAccessToken, newRefreshToken)
         authService.refreshToken(validRefreshToken) >> refreshedTokens
 
     when:

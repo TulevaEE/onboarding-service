@@ -75,14 +75,14 @@ public class AuthController {
   }
 
   @PostMapping({"/oauth/token", "/login", "/v1/tokens"})
-  public AccessAndRefreshToken login(
+  public AuthenticationTokens login(
       @RequestParam("grant_type") String grantType,
       @RequestParam(value = "authenticationHash", required = false) String authenticationHash) {
     return authService.authenticate(GrantType.valueOf(grantType.toUpperCase()), authenticationHash);
   }
 
   @PostMapping("/oauth/refresh-token")
-  public AccessAndRefreshToken refreshAccessToken(
+  public AuthenticationTokens refreshAccessToken(
       @RequestBody RefreshTokenRequest refreshTokenRequest) {
     return authService.refreshToken(refreshTokenRequest.refreshToken);
   }

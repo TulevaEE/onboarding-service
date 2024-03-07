@@ -44,11 +44,11 @@ public class UserDetailsUpdater {
   @EventListener
   public void onAfterTokenGrantedEvent(AfterTokenGrantedEvent event) {
     Person person = event.getPerson();
-    String jwtToken = event.getTokens().accessToken();
+    String accessToken = event.getAccessToken();
 
     userService
         .findByPersonalCode(person.getPersonalCode())
-        .ifPresent(user -> updateContactDetails(person, jwtToken, user));
+        .ifPresent(user -> updateContactDetails(person, accessToken, user));
   }
 
   private void updateContactDetails(Person person, String jwtToken, User user) {

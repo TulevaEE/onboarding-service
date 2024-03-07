@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
@@ -169,26 +170,7 @@ public class AmlService {
   }
 
   private Map<String, Object> metadata(Person user, Person person) {
-    return Map.of("user", strip(user), "person", strip(person));
-  }
-
-  private Person strip(Person person) {
-    return new Person() {
-      @Override
-      public String getPersonalCode() {
-        return person.getPersonalCode();
-      }
-
-      @Override
-      public String getFirstName() {
-        return person.getFirstName();
-      }
-
-      @Override
-      public String getLastName() {
-        return person.getLastName();
-      }
-    };
+    return Map.of("user", new PersonImpl(user), "person", new PersonImpl(person));
   }
 
   public void addContactDetailsCheckIfMissing(User user) {

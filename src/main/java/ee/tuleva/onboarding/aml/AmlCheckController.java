@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.aml;
 
-import static java.util.stream.Collectors.toList;
-
 import ee.tuleva.onboarding.aml.dto.AmlCheckAddCommand;
 import ee.tuleva.onboarding.aml.dto.AmlCheckResponse;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -29,10 +27,9 @@ class AmlCheckController {
   @Operation(summary = "Get missing AML checks")
   public List<AmlCheckResponse> getMissing(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    Long userId = authenticatedPerson.getUserId();
-    return amlCheckService.getMissingChecks(userId).stream()
+    return amlCheckService.getMissingChecks(authenticatedPerson).stream()
         .map(type -> AmlCheckResponse.builder().type(type).success(false).build())
-        .collect(toList());
+        .toList();
   }
 
   @PostMapping
@@ -40,8 +37,7 @@ class AmlCheckController {
   public AmlCheckResponse addManualCheck(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody AmlCheckAddCommand command) {
-    Long userId = authenticatedPerson.getUserId();
-    amlCheckService.addCheckIfMissing(userId, command);
+    amlCheckService.addCheckIfMissing(authenticatedPerson, command);
     return new AmlCheckResponse(command);
   }
 }

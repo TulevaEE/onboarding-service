@@ -53,17 +53,17 @@ class AmlServiceSpec extends Specification {
     amlService.checkUserBeforeLogin(user, user, isResident)
     then:
     1 * amlCheckRepository.save({ check ->
-      check.user == user &&
+      check.personalCode == user.personalCode &&
           check.type == DOCUMENT &&
           check.success
     })
     1 * amlCheckRepository.save({ check ->
-      check.user == user &&
+      check.personalCode == user.personalCode &&
           check.type == SK_NAME &&
           check.success
     })
     1 * amlCheckRepository.save({ check ->
-      check.user == user &&
+      check.personalCode == user.personalCode &&
           check.type == RESIDENCY_AUTO &&
           check.success
     })
@@ -78,7 +78,7 @@ class AmlServiceSpec extends Specification {
     amlService.checkUserBeforeLogin(user, user, isResident)
     then:
     2 * amlCheckRepository.save({ check ->
-      check.user == user &&
+      check.personalCode == user.personalCode &&
           check.type != RESIDENCY_AUTO &&
           check.success
     })
@@ -95,9 +95,9 @@ class AmlServiceSpec extends Specification {
     when:
     amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails)
     then:
-    1 * amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, PENSION_REGISTRY_NAME, aYearAgo) >> false
+    1 * amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(user.personalCode, PENSION_REGISTRY_NAME, aYearAgo) >> false
     1 * amlCheckRepository.save({ check ->
-      check.user == user &&
+      check.personalCode == user.personalCode &&
           check.type == PENSION_REGISTRY_NAME &&
           check.success
     })
@@ -109,9 +109,9 @@ class AmlServiceSpec extends Specification {
     when:
     amlService.addContactDetailsCheckIfMissing(user)
     then:
-    1 * amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, CONTACT_DETAILS, aYearAgo) >> false
+    1 * amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(user.personalCode, CONTACT_DETAILS, aYearAgo) >> false
     1 * amlCheckRepository.save({ check ->
-      check.user == user &&
+      check.personalCode == user.personalCode &&
           check.type == CONTACT_DETAILS &&
           check.success
     })
@@ -127,7 +127,7 @@ class AmlServiceSpec extends Specification {
     amlService.addCheckIfMissing(amlCheck)
     then:
     1 * amlCheckRepository.save({ check ->
-      check.user == user &&
+      check.personalCode == user.personalCode &&
           check.type == type &&
           check.success == success
     })
@@ -142,7 +142,7 @@ class AmlServiceSpec extends Specification {
     when:
     amlService.addCheckIfMissing(amlCheck)
     then:
-    1 * amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, type, aYearAgo) >> true
+    1 * amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(user.personalCode, type, aYearAgo) >> true
     0 * amlCheckRepository.save(_)
   }
 
@@ -152,7 +152,7 @@ class AmlServiceSpec extends Specification {
     when:
     amlService.getChecks(user)
     then:
-    1 * amlCheckRepository.findAllByUserAndCreatedTimeAfter(user, aYearAgo)
+    1 * amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(user.personalCode, aYearAgo)
   }
 
   def "does not do checks for second pillar"() {
@@ -173,7 +173,7 @@ class AmlServiceSpec extends Specification {
     def actual = amlService.allChecksPassed(user, pillar)
     then:
     actual == result
-    1 * amlCheckRepository.findAllByUserAndCreatedTimeAfter(user, aYearAgo) >> checks
+    1 * amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(user.personalCode, aYearAgo) >> checks
     if (!result) {
       1 * eventPublisher.publishEvent(new TrackableEvent(user, TrackableEventType.MANDATE_DENIED))
     }
@@ -219,11 +219,10 @@ class AmlServiceSpec extends Specification {
   }
 
   private static List<AmlCheck> successfulChecks(AmlCheckType... checkTypes) {
-    return checkTypes.collect({ type -> check(type)
-    })
+    return checkTypes.collect({ type -> check(type) })
   }
 
   private static AmlCheck check(AmlCheckType type, boolean success = true, User user = null, Map<String, Object> metadata = [:]) {
-    return AmlCheck.builder().type(type).success(success).user(user).metadata(metadata).build()
+    return AmlCheck.builder().type(type).success(success).personalCode(user?.personalCode).metadata(metadata).build()
   }
 }

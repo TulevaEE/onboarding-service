@@ -21,7 +21,7 @@ class AmlCheckControllerSpec extends BaseControllerSpec {
         given:
         def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
 
-        1 * amlCheckService.getMissingChecks(sampleAuthenticatedPerson.userId) >> [RESIDENCY_MANUAL]
+        1 * amlCheckService.getMissingChecks(sampleAuthenticatedPerson) >> [RESIDENCY_MANUAL]
         expect:
         mvc.perform(get("/v1/amlchecks"))
             .andExpect(status().isOk())
@@ -34,7 +34,7 @@ class AmlCheckControllerSpec extends BaseControllerSpec {
         given:
         def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
         def command = AmlCheckAddCommand.builder().type(POLITICALLY_EXPOSED_PERSON).success(true).build()
-        1 * amlCheckService.addCheckIfMissing(sampleAuthenticatedPerson.userId, command)
+        1 * amlCheckService.addCheckIfMissing(sampleAuthenticatedPerson, command)
         expect:
         mvc.perform(post("/v1/amlchecks")
             .content("""{"type": "POLITICALLY_EXPOSED_PERSON", "success": true}""")
@@ -46,7 +46,7 @@ class AmlCheckControllerSpec extends BaseControllerSpec {
         given:
         def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
         def command = AmlCheckAddCommand.builder().type(SK_NAME).success(true).build()
-        0 * amlCheckService.addCheckIfMissing(sampleAuthenticatedPerson.userId, command)
+        0 * amlCheckService.addCheckIfMissing(sampleAuthenticatedPerson, command)
         expect:
         mvc.perform(post("/v1/amlchecks")
             .content("""{"type": "SK_NAME", "success": true}""")
@@ -59,7 +59,7 @@ class AmlCheckControllerSpec extends BaseControllerSpec {
         def mvc = mockMvcWithAuthenticationPrincipal(sampleAuthenticatedPerson, controller)
         def command = AmlCheckAddCommand.builder().type(OCCUPATION).success(true).metadata(["occupation": "asdfg"])
             .build()
-        1 * amlCheckService.addCheckIfMissing(sampleAuthenticatedPerson.userId, command)
+        1 * amlCheckService.addCheckIfMissing(sampleAuthenticatedPerson, command)
         expect:
         mvc.perform(post("/v1/amlchecks")
             .content("""{"type": "OCCUPATION", "success": true, "metadata": { "occupation": "asdfg" }}""")

@@ -12,6 +12,7 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.DOCUMENT
 import static ee.tuleva.onboarding.aml.AmlCheckType.SANCTION
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static java.time.temporal.ChronoUnit.DAYS
 
@@ -29,7 +30,7 @@ class AmlCheckRepositorySpec extends Specification {
         given:
         User sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
 
-        def metadata = ["occupation": "asdfg"]
+        def metadata = ["person": samplePerson()]
         AmlCheck sampleCheck = AmlCheck.builder()
             .user(sampleUser)
             .type(DOCUMENT)

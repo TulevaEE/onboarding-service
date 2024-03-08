@@ -65,7 +65,7 @@ public class SecurityConfiguration {
             "/v1/**")
         .and()
         .sessionManagement()
-        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+        .sessionCreationPolicy(SessionCreationPolicy.NEVER)
         .sessionFixation()
         .newSession()
         .and()

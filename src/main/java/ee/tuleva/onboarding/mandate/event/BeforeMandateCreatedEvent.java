@@ -25,4 +25,8 @@ public class BeforeMandateCreatedEvent extends ApplicationEvent {
   public Address getAddress() {
     return mandate.getAddress();
   }
+
+  public boolean isThirdPillar() {
+    return mandate.isThirdPillar();
+  }
 }

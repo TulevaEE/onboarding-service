@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.user.address.Address;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.util.HashSet;
 import java.util.List;
@@ -36,10 +37,10 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
 
   @Override
   @SneakyThrows
-  public MatchResponse match(Person person, String country) {
+  public MatchResponse match(Person person, Address address) {
     var personalCode = person.getPersonalCode();
     var fullName = person.getFullName();
-    var countries = getCountries(country);
+    var countries = getCountries(address);
     var gender = PersonalCode.getGender(personalCode).name().toLowerCase();
     var birthDate = PersonalCode.getDateOfBirth(personalCode).toString();
     var properties =
@@ -61,11 +62,11 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
     return new MatchResponse((ArrayNode) response.path("results"), response.path("query"));
   }
 
-  private HashSet<String> getCountries(String country) {
+  private HashSet<String> getCountries(Address address) {
     var countries = new HashSet<String>();
     countries.add("ee");
-    if (country != null) {
-      countries.add(country);
+    if (address != null && address.getCountryCode() != null) {
+      countries.add(address.getCountryCode());
     }
     return countries;
   }

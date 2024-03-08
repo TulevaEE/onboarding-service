@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.aml.sanctions
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.auth.principal.PersonImpl
+import ee.tuleva.onboarding.user.address.Address
 import groovy.json.JsonSlurper
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
@@ -39,6 +40,7 @@ class OpenSanctionsServiceSpec extends Specification {
     def personalCode = "36004081234"
     def person = new PersonImpl(personalCode, firstName, lastName)
     def country = "ee"
+    def address = Address.builder().countryCode(country).build()
     def expectedResults = """[
       {
         "id": "Q123",
@@ -94,7 +96,7 @@ class OpenSanctionsServiceSpec extends Specification {
 
 
     when:
-    MatchResponse response = openSanctionsService.match(person, country)
+    MatchResponse response = openSanctionsService.match(person, address)
 
     then:
     new JsonSlurper().parseText(objectMapper.writeValueAsString(response.results())) == new JsonSlurper().parseText(expectedResults)

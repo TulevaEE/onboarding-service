@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
-import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -18,6 +17,7 @@ import static ee.tuleva.onboarding.auth.idcard.IdCardSession.ID_DOCUMENT_TYPE
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
 
 class AmlAutoCheckerSpec extends Specification {
 
@@ -39,22 +39,6 @@ class AmlAutoCheckerSpec extends Specification {
 
         then:
         1 * amlService.checkUserBeforeLogin(user, person, ESTONIAN_CITIZEN_ID_CARD.isResident())
-    }
-
-
-    def "checks user after login async"() {
-        given:
-        def user = sampleUser().build()
-        def contactDetails = contactDetailsFixture()
-        def tokens = new AuthenticationTokens("access token", "refresh token")
-        1 * userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
-        1 * contactDetailsService.getContactDetails(user, tokens.accessToken()) >> contactDetails
-
-        when:
-        amlAutoChecker.afterLoginAsync(new AfterTokenGrantedEvent(this, user, tokens))
-
-        then:
-        1 * amlService.addSanctionAndPepCheckIfMissing(user, contactDetails)
     }
 
     def "throws exception when user not found"() {
@@ -99,7 +83,6 @@ class AmlAutoCheckerSpec extends Specification {
         1 * amlService.addContactDetailsCheckIfMissing(user)
     }
 
-    @Unroll
     def "throws exception when not all checks passed on mandate creation"() {
         given:
         def user = sampleUser().build()
@@ -118,6 +101,20 @@ class AmlAutoCheckerSpec extends Specification {
         true            | NoExceptionThrown
         false           | AmlChecksMissingException
     }
+
+  def "adds pep and sanction checks on 3rd pillar mandates"() {
+    given:
+    def user = sampleUser().build()
+    def mandate = thirdPillarMandate()
+    1 * amlService.addSanctionAndPepCheckIfMissing(user, mandate.address)
+    1 * amlService.allChecksPassed(user, mandate.getPillar()) >> true
+
+    when:
+    amlAutoChecker.beforeMandateCreated(new BeforeMandateCreatedEvent(this, user, mandate))
+
+    then:
+    noExceptionThrown()
+  }
 
     private class NoExceptionThrown extends RuntimeException {}
 }

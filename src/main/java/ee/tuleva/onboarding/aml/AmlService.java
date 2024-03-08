@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.address.Address;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -91,8 +92,8 @@ public class AmlService {
     addCheckIfMissing(skNameCheck);
   }
 
-  public List<AmlCheck> addSanctionAndPepCheckIfMissing(User user, ContactDetails contactDetails) {
-    MatchResponse response = pepAndSanctionCheckService.match(user, contactDetails.getCountry());
+  public List<AmlCheck> addSanctionAndPepCheckIfMissing(User user, Address address) {
+    MatchResponse response = pepAndSanctionCheckService.match(user, address);
     ArrayNode results = response.results();
     JsonNode query = response.query();
 
@@ -140,7 +141,8 @@ public class AmlService {
               val firstName = ""; // todo
               val lastName = ""; // todo
               val person = new PersonImpl(amlCheck.getPersonalCode(), firstName, lastName);
-              MatchResponse matchResponse = pepAndSanctionCheckService.match(person, "ee");
+              Address address = Address.builder().countryCode("ee").build();
+              MatchResponse matchResponse = pepAndSanctionCheckService.match(person, address);
               amlCheck.setMetadata(metadata(matchResponse.results(), matchResponse.query()));
               if (amlCheck.getType() == SANCTION) {
                 amlCheck.setSuccess(!hasMatch(matchResponse.results(), "sanction"));

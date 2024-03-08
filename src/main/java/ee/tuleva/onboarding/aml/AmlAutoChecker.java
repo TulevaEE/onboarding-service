@@ -9,11 +9,11 @@ import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import ee.tuleva.onboarding.user.address.Address;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lombok.val;
 import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -32,17 +32,6 @@ public class AmlAutoChecker {
     User user = getUser(person);
 
     amlService.checkUserBeforeLogin(user, person, isResident);
-  }
-
-  @EventListener
-  @Async
-  public void afterLoginAsync(AfterTokenGrantedEvent event) {
-    Person person = event.getPerson();
-    String accessToken = event.getAccessToken();
-    User user = getUser(person);
-
-    var contactDetails = contactDetailsService.getContactDetails(person, accessToken);
-    amlService.addSanctionAndPepCheckIfMissing(user, contactDetails);
   }
 
   @EventListener
@@ -74,7 +63,15 @@ public class AmlAutoChecker {
 
   @EventListener
   public void beforeMandateCreated(BeforeMandateCreatedEvent event) {
-    if (!amlService.allChecksPassed(event.getUser(), event.getPillar())) {
+    User user = event.getUser();
+    Integer pillar = event.getPillar();
+    Address address = event.getAddress();
+
+    if (event.isThirdPillar()) {
+      amlService.addSanctionAndPepCheckIfMissing(user, address);
+    }
+
+    if (!amlService.allChecksPassed(user, pillar)) {
       throw AmlChecksMissingException.newInstance();
     }
   }

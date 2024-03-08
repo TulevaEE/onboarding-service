@@ -191,7 +191,7 @@ class AmlServiceSpec extends Specification {
   def "checks for pep and sanctions"() {
     given:
     def user = sampleUser().build()
-    def contactDetails = contactDetailsFixture()
+    def address = contactDetailsFixture().address
 
 
     def properties = objectMapper.createObjectNode()
@@ -206,10 +206,10 @@ class AmlServiceSpec extends Specification {
     def query = objectMapper.createObjectNode()
     def matchResponse = new MatchResponse(results, query)
 
-    sanctionCheckService.match(user, "EE") >> matchResponse
+    sanctionCheckService.match(user, address) >> matchResponse
 
     when:
-    List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, contactDetails)
+    List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, address)
 
     then:
     checks == [

@@ -5,8 +5,7 @@ import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.aml.dto.AmlCheckAddCommand;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserService;
+import ee.tuleva.onboarding.auth.principal.Person;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
@@ -17,13 +16,11 @@ import org.springframework.stereotype.Service;
 public class AmlCheckService {
 
   private final AmlService amlService;
-  private final UserService userService;
 
-  public void addCheckIfMissing(Long userId, AmlCheckAddCommand command) {
-    User user = userService.getById(userId);
+  public void addCheckIfMissing(Person person, AmlCheckAddCommand command) {
     AmlCheck check =
         AmlCheck.builder()
-            .user(user)
+            .personalCode(person.getPersonalCode())
             .type(command.getType())
             .success(command.isSuccess())
             .metadata(command.getMetadata())
@@ -31,10 +28,9 @@ public class AmlCheckService {
     amlService.addCheckIfMissing(check);
   }
 
-  public List<AmlCheckType> getMissingChecks(Long userId) {
-    User user = userService.getById(userId);
+  public List<AmlCheckType> getMissingChecks(Person person) {
     val checks = stream(AmlCheckType.values()).filter(AmlCheckType::isManual).collect(toList());
-    val existingChecks = amlService.getChecks(user).stream().map(AmlCheck::getType).toList();
+    val existingChecks = amlService.getChecks(person).stream().map(AmlCheck::getType).toList();
     checks.removeAll(existingChecks);
     if (existingChecks.contains(RESIDENCY_AUTO)) {
       checks.remove(RESIDENCY_MANUAL);

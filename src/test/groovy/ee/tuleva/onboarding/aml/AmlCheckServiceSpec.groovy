@@ -11,11 +11,10 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 class AmlCheckServiceSpec extends Specification {
 
   AmlService amlService = Mock()
-  UserService userService = Mock()
-  AmlCheckService amlCheckService = new AmlCheckService(amlService, userService)
+  AmlCheckService amlCheckService = new AmlCheckService(amlService)
 
   private static AmlCheck check(AmlCheckType type) {
-    return AmlCheck.builder().user(sampleUser().build()).type(type).build()
+    return AmlCheck.builder().personalCode(sampleUser().build().personalCode).type(type).build()
   }
 
 
@@ -24,10 +23,9 @@ class AmlCheckServiceSpec extends Specification {
     given:
     def user = sampleUser().build()
     when:
-    def result = amlCheckService.getMissingChecks(user.id)
+    def result = amlCheckService.getMissingChecks(user)
     then:
     result == missing
-    1 * userService.getById(user.id) >> user
     1 * amlService.getChecks(user) >> checks
     where:
     checks                              | missing
@@ -54,11 +52,10 @@ class AmlCheckServiceSpec extends Specification {
     given:
     def user = sampleUser().build()
     def command = AmlCheckAddCommand.builder().type(DOCUMENT).success(true).build()
-    def amlCheck = AmlCheck.builder().user(user).type(DOCUMENT).success(true).build()
+    def amlCheck = AmlCheck.builder().personalCode(user.personalCode).type(DOCUMENT).success(true).build()
     when:
-    amlCheckService.addCheckIfMissing(user.id, command)
+    amlCheckService.addCheckIfMissing(user, command)
     then:
     1 * amlService.addCheckIfMissing(amlCheck)
-    1 * userService.getById(user.id) >> user
   }
 }

@@ -1,13 +1,13 @@
 package ee.tuleva.onboarding.aml;
 
-import ee.tuleva.onboarding.config.MapJsonConverter;
-import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import javax.persistence.*;
 import javax.validation.constraints.NotNull;
 import lombok.*;
+import org.hibernate.annotations.Type;
 import org.springframework.data.annotation.CreatedDate;
 
 @Entity
@@ -15,14 +15,14 @@ import org.springframework.data.annotation.CreatedDate;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString(exclude = {"user"})
+@ToString
 @EqualsAndHashCode
 public class AmlCheck {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @ManyToOne private User user;
+  @ValidPersonalCode private String personalCode;
 
   @Enumerated(value = EnumType.STRING)
   @NotNull
@@ -32,7 +32,9 @@ public class AmlCheck {
 
   @NotNull
   @Builder.Default
-  @Convert(converter = MapJsonConverter.class)
+  @Type(type = "jsonb")
+  @Column(columnDefinition = "jsonb")
+  @Convert(disableConversion = true)
   private Map<String, Object> metadata = new HashMap<>();
 
   @CreatedDate private Instant createdTime;

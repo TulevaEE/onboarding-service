@@ -71,7 +71,7 @@ public class MandateController {
       throw new ValidationErrorsException(errors);
     }
 
-    log.info("Creating mandate");
+    log.info("Creating mandate: {}", createMandateCommand);
     return mandateService.save(authenticatedPerson, createMandateCommand);
   }
 

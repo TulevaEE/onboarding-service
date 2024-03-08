@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
@@ -56,26 +57,33 @@ public class AmlService {
     addSkNameCheck(user, person);
   }
 
-  private void addDocumentCheck(User user) {
-    AmlCheck documentCheck = AmlCheck.builder().user(user).type(DOCUMENT).success(true).build();
+  private void addDocumentCheck(Person person) {
+    AmlCheck documentCheck =
+        AmlCheck.builder()
+            .personalCode(person.getPersonalCode())
+            .type(DOCUMENT)
+            .success(true)
+            .build();
     addCheckIfMissing(documentCheck);
   }
 
-  private void addResidencyCheck(User user, Boolean isResident) {
+  private void addResidencyCheck(Person person, Boolean isResident) {
     if (isResident != null) {
       AmlCheck check =
-          AmlCheck.builder().user(user).type(RESIDENCY_AUTO).success(isResident).build();
+          AmlCheck.builder()
+              .personalCode(person.getPersonalCode())
+              .type(RESIDENCY_AUTO)
+              .success(isResident)
+              .build();
       addCheckIfMissing(check);
     }
   }
 
   private void addSkNameCheck(User user, Person person) {
-    boolean isSuccess =
-        personDataMatches(
-            user, person.getFirstName(), person.getLastName(), person.getPersonalCode());
+    boolean isSuccess = personDataMatches(user, person);
     AmlCheck skNameCheck =
         AmlCheck.builder()
-            .user(user)
+            .personalCode(user.getPersonalCode())
             .type(SK_NAME)
             .success(isSuccess)
             .metadata(metadata(user, person))
@@ -92,7 +100,7 @@ public class AmlService {
     try {
       pepCheck =
           AmlCheck.builder()
-              .user(user)
+              .personalCode(user.getPersonalCode())
               .type(POLITICALLY_EXPOSED_PERSON_AUTO)
               .success(!hasMatch(results, "role"))
               .metadata(metadata(results, query))
@@ -107,7 +115,7 @@ public class AmlService {
     try {
       sanctionCheck =
           AmlCheck.builder()
-              .user(user)
+              .personalCode(user.getPersonalCode())
               .type(SANCTION)
               .success(!hasMatch(results, "sanction"))
               .metadata(metadata(results, query))
@@ -129,8 +137,10 @@ public class AmlService {
         .findAllByTypeIn(List.of(SANCTION, POLITICALLY_EXPOSED_PERSON_AUTO))
         .forEach(
             amlCheck -> {
-              MatchResponse matchResponse =
-                  pepAndSanctionCheckService.match(amlCheck.getUser(), "ee");
+              val firstName = ""; // todo
+              val lastName = ""; // todo
+              val person = new PersonImpl(amlCheck.getPersonalCode(), firstName, lastName);
+              MatchResponse matchResponse = pepAndSanctionCheckService.match(person, "ee");
               amlCheck.setMetadata(metadata(matchResponse.results(), matchResponse.query()));
               if (amlCheck.getType() == SANCTION) {
                 amlCheck.setSuccess(!hasMatch(matchResponse.results(), "sanction"));
@@ -141,7 +151,7 @@ public class AmlService {
 
               AmlCheck pepCheck =
                   AmlCheck.builder()
-                      .user(amlCheck.getUser())
+                      .personalCode(amlCheck.getPersonalCode())
                       .type(POLITICALLY_EXPOSED_PERSON_AUTO)
                       .success(!hasMatch(matchResponse.results(), "role"))
                       .metadata(metadata(matchResponse.results(), matchResponse.query()))
@@ -168,45 +178,25 @@ public class AmlService {
     return StreamSupport.stream(arrayNode.spliterator(), false);
   }
 
-  private Map<String, Object> metadata(Person user, Person person) {
-    return Map.of("user", strip(user), "person", strip(person));
-  }
-
-  private Person strip(Person person) {
-    return new Person() {
-      @Override
-      public String getPersonalCode() {
-        return person.getPersonalCode();
-      }
-
-      @Override
-      public String getFirstName() {
-        return person.getFirstName();
-      }
-
-      @Override
-      public String getLastName() {
-        return person.getLastName();
-      }
-    };
+  private Map<String, Object> metadata(User user, Person person) {
+    return Map.of("user", new PersonImpl(user), "person", new PersonImpl(person));
   }
 
   public void addContactDetailsCheckIfMissing(User user) {
     AmlCheck contactDetailsCheck =
-        AmlCheck.builder().user(user).type(CONTACT_DETAILS).success(true).build();
+        AmlCheck.builder()
+            .personalCode(user.getPersonalCode())
+            .type(CONTACT_DETAILS)
+            .success(true)
+            .build();
     addCheckIfMissing(contactDetailsCheck);
   }
 
   public void addPensionRegistryNameCheckIfMissing(User user, ContactDetails contactDetails) {
-    boolean isSuccess =
-        personDataMatches(
-            user,
-            contactDetails.getFirstName(),
-            contactDetails.getLastName(),
-            contactDetails.getPersonalCode());
+    boolean isSuccess = personDataMatches(user, contactDetails);
     AmlCheck pensionRegistryNameCheck =
         AmlCheck.builder()
-            .user(user)
+            .personalCode(user.getPersonalCode())
             .type(PENSION_REGISTRY_NAME)
             .success(isSuccess)
             .metadata(metadata(user, contactDetails))
@@ -214,47 +204,48 @@ public class AmlService {
     addCheckIfMissing(pensionRegistryNameCheck);
   }
 
-  private boolean personDataMatches(
-      User user, String firstName, String lastName, String personalCode) {
-    if (!StringUtils.equalsIgnoreCase(user.getFirstName(), firstName)) {
+  private boolean personDataMatches(Person person1, Person person2) {
+    if (!StringUtils.equalsIgnoreCase(person1.getFirstName(), person2.getFirstName())) {
       return false;
     }
-    if (!StringUtils.equalsIgnoreCase(user.getLastName(), lastName)) {
+    if (!StringUtils.equalsIgnoreCase(person1.getLastName(), person2.getLastName())) {
       return false;
     }
-    return StringUtils.equalsIgnoreCase(user.getPersonalCode(), personalCode);
+    return StringUtils.equalsIgnoreCase(person1.getPersonalCode(), person2.getPersonalCode());
   }
 
   public void addCheckIfMissing(AmlCheck amlCheck) {
-    if (!hasCheck(amlCheck.getUser(), amlCheck.getType())) {
+    if (!hasCheck(amlCheck.getPersonalCode(), amlCheck.getType())) {
       addCheck(amlCheck);
     }
   }
 
   private void addCheck(AmlCheck amlCheck) {
     log.info(
-        "Adding check {} to user {} with success {}",
+        "Adding check {} to person {} with success {}",
         amlCheck.getType(),
-        amlCheck.getUser().getId(),
+        amlCheck.getPersonalCode(),
         amlCheck.isSuccess());
     amlCheckRepository.save(amlCheck);
   }
 
-  private boolean hasCheck(User user, AmlCheckType checkType) {
-    return amlCheckRepository.existsByUserAndTypeAndCreatedTimeAfter(user, checkType, aYearAgo());
+  private boolean hasCheck(String personalCode, AmlCheckType checkType) {
+    return amlCheckRepository.existsByPersonalCodeAndTypeAndCreatedTimeAfter(
+        personalCode, checkType, aYearAgo());
   }
 
-  public List<AmlCheck> getChecks(User user) {
-    return amlCheckRepository.findAllByUserAndCreatedTimeAfter(user, aYearAgo());
+  public List<AmlCheck> getChecks(Person person) {
+    return amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
+        person.getPersonalCode(), aYearAgo());
   }
 
-  boolean allChecksPassed(User user, Integer pillar) {
+  boolean allChecksPassed(Person person, Integer pillar) {
     if (pillar == 2) {
       // No checks needed for second pillar
       return true;
     } else if (pillar == 3) {
       val successfulTypes =
-          getChecks(user).stream()
+          getChecks(person).stream()
               .filter(AmlCheck::isSuccess)
               .map(AmlCheck::getType)
               .collect(toSet());
@@ -262,8 +253,8 @@ public class AmlService {
         return true;
       }
     }
-    log.error("All necessary AML checks not passed for user {}!", user.getId());
-    eventPublisher.publishEvent(new TrackableEvent(user, TrackableEventType.MANDATE_DENIED));
+    log.error("All necessary AML checks not passed for person {}!", person.getPersonalCode());
+    eventPublisher.publishEvent(new TrackableEvent(person, TrackableEventType.MANDATE_DENIED));
 
     return false;
   }

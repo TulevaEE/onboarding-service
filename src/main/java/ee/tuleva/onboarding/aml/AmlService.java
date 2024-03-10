@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
+import static java.time.LocalTime.*;
 import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -134,8 +135,11 @@ public class AmlService {
   }
 
   public void runAmlChecksOnThirdPillarCustomers() {
+    LocalDate date = LocalDate.parse("2024-01-01");
     List<AnalyticsThirdPillar> records =
-        analyticsThirdPillarRepository.findAllByReportingDate(LocalDate.parse("2024-01-01"));
+        analyticsThirdPillarRepository.findAllByReportingDateBetween(
+            date.atStartOfDay(), date.atTime(MAX));
+    log.info("Running checks on {} records", records.size());
     records.forEach(
         record -> {
           MatchResponse response =

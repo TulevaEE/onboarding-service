@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.analytics
 
-
 import ee.tuleva.onboarding.user.User
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
@@ -12,6 +11,7 @@ import java.time.LocalDateTime
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.user.address.AddressFixture.getAnAddress
+import static java.time.LocalTime.MAX
 
 @DataJpaTest
 class AnalyticsThirdPillarRepositorySpec extends Specification {
@@ -21,20 +21,20 @@ class AnalyticsThirdPillarRepositorySpec extends Specification {
   @Autowired
   private AnalyticsThirdPillarRepository repository
 
-  def "persisting and findById() works"() {
+  def "findById() works"() {
     given:
     User sampleUser = sampleUser().build()
 
     AnalyticsThirdPillar analyticsThirdPillar = AnalyticsThirdPillar.builder()
-    .personalCode(sampleUser.personalCode)
-       .firstName(sampleUser.firstName)
-    .lastName(sampleUser.lastName)
-    .email(sampleUser.email)
-    .phoneNo(sampleUser.phoneNumber)
-    .country(anAddress.countryCode)
-    .reportingDate(LocalDate.now())
-    .dateCreated(LocalDateTime.now())
-    .build()
+        .personalCode(sampleUser.personalCode)
+        .firstName(sampleUser.firstName)
+        .lastName(sampleUser.lastName)
+        .email(sampleUser.email)
+        .phoneNo(sampleUser.phoneNumber)
+        .country(anAddress.countryCode)
+        .reportingDate(LocalDateTime.now())
+        .dateCreated(LocalDateTime.now())
+        .build()
 
     entityManager.persist(analyticsThirdPillar)
 
@@ -49,7 +49,7 @@ class AnalyticsThirdPillarRepositorySpec extends Specification {
     record.get().personalCode == sampleUser.personalCode
   }
 
-  def "persisting and findAllByReportingDate() works"() {
+  def "findAllByReportingDate() works"() {
     given:
     User sampleUser = sampleUser().build()
 
@@ -60,7 +60,7 @@ class AnalyticsThirdPillarRepositorySpec extends Specification {
         .email(sampleUser.email)
         .phoneNo(sampleUser.phoneNumber)
         .country(anAddress.countryCode)
-        .reportingDate(LocalDate.now())
+        .reportingDate(LocalDateTime.now())
         .dateCreated(LocalDateTime.now())
         .build()
 
@@ -69,13 +69,14 @@ class AnalyticsThirdPillarRepositorySpec extends Specification {
     entityManager.flush()
 
     when:
-    List<AnalyticsThirdPillar> records = repository.findAllByReportingDate(LocalDate.now())
+    List<AnalyticsThirdPillar> records =
+        repository.findAllByReportingDateBetween(LocalDate.now().atStartOfDay(), LocalDate.now().atTime(MAX))
 
     then:
     records == [persistedEntity]
   }
 
-  def "persisting and findAllWithMostRecentReportingDate() works"() {
+  def "findAllWithMostRecentReportingDate() works"() {
     given:
     User sampleUser = sampleUser().build()
 
@@ -86,7 +87,7 @@ class AnalyticsThirdPillarRepositorySpec extends Specification {
         .email(sampleUser.email)
         .phoneNo(sampleUser.phoneNumber)
         .country(anAddress.countryCode)
-        .reportingDate(LocalDate.now())
+        .reportingDate(LocalDateTime.now())
         .dateCreated(LocalDateTime.now())
         .build()
 

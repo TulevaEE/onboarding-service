@@ -5,9 +5,10 @@ import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillar;
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarRepository;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
@@ -15,9 +16,10 @@ import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
-import java.util.ArrayList;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +37,8 @@ public class AmlService {
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
   private final PepAndSanctionCheckService pepAndSanctionCheckService;
+  private final AnalyticsThirdPillarRepository analyticsThirdPillarRepository;
+
   private final List<List<AmlCheckType>> allowedCombinations =
       List.of(
           List.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION),
@@ -92,109 +96,89 @@ public class AmlService {
     addCheckIfMissing(skNameCheck);
   }
 
-  public List<AmlCheck> addSanctionAndPepCheckIfMissing(User user, Address address) {
-    MatchResponse response = pepAndSanctionCheckService.match(user, address);
-    ArrayNode results = response.results();
-    JsonNode query = response.query();
-
-    AmlCheck pepCheck = null;
+  public List<AmlCheck> addSanctionAndPepCheckIfMissing(Person person, Address address) {
+    MatchResponse response;
     try {
-      pepCheck =
-          AmlCheck.builder()
-              .personalCode(user.getPersonalCode())
-              .type(POLITICALLY_EXPOSED_PERSON_AUTO)
-              .success(!hasMatch(results, "role"))
-              .metadata(metadata(results, query))
-              .build();
-
-      addCheckIfMissing(pepCheck);
-    } catch (Exception e) {
-      log.error("Error adding pep check", e);
+      response = pepAndSanctionCheckService.match(person, address);
+    } catch (RuntimeException e) {
+      log.error("Error calling matching service", e);
+      return List.of();
     }
 
-    AmlCheck sanctionCheck = null;
-    try {
-      sanctionCheck =
-          AmlCheck.builder()
-              .personalCode(user.getPersonalCode())
-              .type(SANCTION)
-              .success(!hasMatch(results, "sanction"))
-              .metadata(metadata(results, query))
-              .build();
+    Optional<AmlCheck> pepCheck = addPepCheckIfMissing(person, response);
+    Optional<AmlCheck> sanctionCheck = addSanctionCheckIfMissing(person, response);
 
-      addCheckIfMissing(sanctionCheck);
-    } catch (Exception e) {
-      log.error("Error adding sanction check", e);
-    }
-
-    List<AmlCheck> amlChecks = new ArrayList<>();
-    amlChecks.add(pepCheck);
-    amlChecks.add(sanctionCheck);
-    return amlChecks;
+    return Stream.of(pepCheck, sanctionCheck).flatMap(Optional::stream).toList();
   }
 
-  public void recheckAllPepAndSanctionChecks() {
-    amlCheckRepository
-        .findAllByTypeIn(List.of(SANCTION, POLITICALLY_EXPOSED_PERSON_AUTO))
-        .forEach(
-            amlCheck -> {
-              val firstName = ""; // todo
-              val lastName = ""; // todo
-              val person = new PersonImpl(amlCheck.getPersonalCode(), firstName, lastName);
-              Address address = Address.builder().countryCode("ee").build();
-              MatchResponse matchResponse = pepAndSanctionCheckService.match(person, address);
-              amlCheck.setMetadata(metadata(matchResponse.results(), matchResponse.query()));
-              if (amlCheck.getType() == SANCTION) {
-                amlCheck.setSuccess(!hasMatch(matchResponse.results(), "sanction"));
-              } else if (amlCheck.getType() == POLITICALLY_EXPOSED_PERSON_AUTO) {
-                amlCheck.setSuccess(!hasMatch(matchResponse.results(), "role"));
-              }
-              amlCheckRepository.save(amlCheck);
-
-              AmlCheck pepCheck =
-                  AmlCheck.builder()
-                      .personalCode(amlCheck.getPersonalCode())
-                      .type(POLITICALLY_EXPOSED_PERSON_AUTO)
-                      .success(!hasMatch(matchResponse.results(), "role"))
-                      .metadata(metadata(matchResponse.results(), matchResponse.query()))
-                      .build();
-
-              addCheckIfMissing(pepCheck);
-            });
+  private Optional<AmlCheck> addSanctionCheckIfMissing(Person person, MatchResponse response) {
+    AmlCheck sanctionCheck =
+        AmlCheck.builder()
+            .personalCode(person.getPersonalCode())
+            .type(SANCTION)
+            .success(!hasMatch(response.results(), "sanction"))
+            .metadata(metadata(response.results(), response.query()))
+            .build();
+    return addCheckIfMissing(sanctionCheck);
   }
 
-  private Map<String, Object> metadata(ArrayNode results, JsonNode query) {
+  private Optional<AmlCheck> addPepCheckIfMissing(Person person, MatchResponse response) {
+    AmlCheck pepCheck =
+        AmlCheck.builder()
+            .personalCode(person.getPersonalCode())
+            .type(POLITICALLY_EXPOSED_PERSON_AUTO)
+            .success(!hasMatch(response.results(), "role"))
+            .metadata(metadata(response.results(), response.query()))
+            .build();
+    return addCheckIfMissing(pepCheck);
+  }
+
+  public void runAmlChecksOnThirdPillarCustomers() {
+    List<AnalyticsThirdPillar> records =
+        analyticsThirdPillarRepository.findAllByReportingDate(LocalDate.parse("2024-01-01"));
+    records.forEach(
+        record -> {
+          MatchResponse response =
+              pepAndSanctionCheckService.match(record, new Address(record.getCountry()));
+          addPepCheckIfMissing(record, response);
+          addSanctionCheckIfMissing(record, response);
+        });
+    log.info("Successfully ran checks on {} records", records.size());
+  }
+
+  private Map<String, Object> metadata(JsonNode results, JsonNode query) {
     return Map.of("results", results, "query", query);
   }
 
-  private boolean hasMatch(ArrayNode results, String topicNameStartsWith) {
+  private boolean hasMatch(Iterable<JsonNode> results, String topicNameStartsWith) {
     return stream(results)
         .anyMatch(
             result ->
-                stream((ArrayNode) result.get("properties").get("topics"))
+                stream(result.get("properties").get("topics"))
                         .anyMatch(topic -> topic.asText().startsWith(topicNameStartsWith))
                     && result.get("match").asBoolean());
   }
 
-  private Stream<JsonNode> stream(ArrayNode arrayNode) {
-    return StreamSupport.stream(arrayNode.spliterator(), false);
+  private Stream<JsonNode> stream(Iterable<JsonNode> jsonNodes) {
+    return StreamSupport.stream(jsonNodes.spliterator(), false);
   }
 
   private Map<String, Object> metadata(User user, Person person) {
     return Map.of("user", new PersonImpl(user), "person", new PersonImpl(person));
   }
 
-  public void addContactDetailsCheckIfMissing(User user) {
+  public Optional<AmlCheck> addContactDetailsCheckIfMissing(Person user) {
     AmlCheck contactDetailsCheck =
         AmlCheck.builder()
             .personalCode(user.getPersonalCode())
             .type(CONTACT_DETAILS)
             .success(true)
             .build();
-    addCheckIfMissing(contactDetailsCheck);
+    return addCheckIfMissing(contactDetailsCheck);
   }
 
-  public void addPensionRegistryNameCheckIfMissing(User user, ContactDetails contactDetails) {
+  public Optional<AmlCheck> addPensionRegistryNameCheckIfMissing(
+      User user, ContactDetails contactDetails) {
     boolean isSuccess = personDataMatches(user, contactDetails);
     AmlCheck pensionRegistryNameCheck =
         AmlCheck.builder()
@@ -203,7 +187,7 @@ public class AmlService {
             .success(isSuccess)
             .metadata(metadata(user, contactDetails))
             .build();
-    addCheckIfMissing(pensionRegistryNameCheck);
+    return addCheckIfMissing(pensionRegistryNameCheck);
   }
 
   private boolean personDataMatches(Person person1, Person person2) {
@@ -216,19 +200,21 @@ public class AmlService {
     return StringUtils.equalsIgnoreCase(person1.getPersonalCode(), person2.getPersonalCode());
   }
 
-  public void addCheckIfMissing(AmlCheck amlCheck) {
-    if (!hasCheck(amlCheck.getPersonalCode(), amlCheck.getType())) {
-      addCheck(amlCheck);
+  public Optional<AmlCheck> addCheckIfMissing(AmlCheck amlCheck) {
+    if (hasCheck(amlCheck.getPersonalCode(), amlCheck.getType())) {
+      return Optional.empty();
     }
+    AmlCheck check = addCheck(amlCheck);
+    return Optional.of(check);
   }
 
-  private void addCheck(AmlCheck amlCheck) {
+  private AmlCheck addCheck(AmlCheck amlCheck) {
     log.info(
         "Adding check {} to person {} with success {}",
         amlCheck.getType(),
         amlCheck.getPersonalCode(),
         amlCheck.isSuccess());
-    amlCheckRepository.save(amlCheck);
+    return amlCheckRepository.save(amlCheck);
   }
 
   private boolean hasCheck(String personalCode, AmlCheckType checkType) {

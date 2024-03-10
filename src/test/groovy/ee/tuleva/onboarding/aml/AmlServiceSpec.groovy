@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.BooleanNode
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService
+import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarRepository
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.event.TrackableEventType
@@ -27,12 +28,13 @@ class AmlServiceSpec extends Specification {
   AmlCheckRepository amlCheckRepository = Mock()
   ApplicationEventPublisher eventPublisher = Mock()
   PepAndSanctionCheckService sanctionCheckService = Mock()
+  AnalyticsThirdPillarRepository analyticsThirdPillarRepository = Mock()
 
   ObjectMapper objectMapper = new ObjectMapper()
 
   Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
 
-  AmlService amlService = new AmlService(amlCheckRepository, eventPublisher, sanctionCheckService)
+  AmlService amlService = new AmlService(amlCheckRepository, eventPublisher, sanctionCheckService, analyticsThirdPillarRepository)
 
   def aYearAgo = Instant.now(clock).minus(365, DAYS)
 
@@ -56,17 +58,17 @@ class AmlServiceSpec extends Specification {
       check.personalCode == user.personalCode &&
           check.type == DOCUMENT &&
           check.success
-    })
+    }) >> { AmlCheck check -> check }
     1 * amlCheckRepository.save({ check ->
       check.personalCode == user.personalCode &&
           check.type == SK_NAME &&
           check.success
-    })
+    }) >> { AmlCheck check -> check }
     1 * amlCheckRepository.save({ check ->
       check.personalCode == user.personalCode &&
           check.type == RESIDENCY_AUTO &&
           check.success
-    })
+    }) >> { AmlCheck check -> check }
   }
 
   def "does not add residency check if its null"() {
@@ -81,7 +83,7 @@ class AmlServiceSpec extends Specification {
       check.personalCode == user.personalCode &&
           check.type != RESIDENCY_AUTO &&
           check.success
-    })
+    }) >> { AmlCheck check -> check }
   }
 
   def "add pension registry name check if missing"() {
@@ -100,7 +102,7 @@ class AmlServiceSpec extends Specification {
       check.personalCode == user.personalCode &&
           check.type == PENSION_REGISTRY_NAME &&
           check.success
-    })
+    }) >> { AmlCheck check -> check }
   }
 
   def "add contact details check if missing"() {
@@ -114,7 +116,7 @@ class AmlServiceSpec extends Specification {
       check.personalCode == user.personalCode &&
           check.type == CONTACT_DETAILS &&
           check.success
-    })
+    }) >> { AmlCheck check -> check }
   }
 
   def "adds check if missing"() {
@@ -130,7 +132,7 @@ class AmlServiceSpec extends Specification {
       check.personalCode == user.personalCode &&
           check.type == type &&
           check.success == success
-    })
+    }) >> { AmlCheck check -> check }
   }
 
   def "does not add check if not missing"() {
@@ -212,9 +214,10 @@ class AmlServiceSpec extends Specification {
     List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, address)
 
     then:
+    2 * amlCheckRepository.save(_) >> { AmlCheck check -> check }
     checks == [
         check(POLITICALLY_EXPOSED_PERSON_AUTO, false, user, [results: results, query: query]),
-        check(SANCTION, true, user,  [results: results, query: query]),
+        check(SANCTION, true, user, [results: results, query: query]),
     ]
   }
 

@@ -16,6 +16,10 @@ public class DevSanctionCheckService implements PepAndSanctionCheckService {
 
   @Override
   public MatchResponse match(Person person, Address address) {
+    return emptyResponse();
+  }
+
+  private MatchResponse emptyResponse() {
     return new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());
   }
 }

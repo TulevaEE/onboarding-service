@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.analytics;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -40,7 +41,7 @@ public class AnalyticsThirdPillar implements Person {
 
   private String country;
 
-  private LocalDateTime reportingDate;
+  private LocalDate reportingDate;
 
   private LocalDateTime dateCreated;
 }

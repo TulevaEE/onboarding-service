@@ -13,7 +13,7 @@ class TrackableEventLoggerSpec extends Specification {
 
   def "saves trackable events"() {
     given:
-    TrackableEvent event = new TrackableEvent(samplePerson, LOGIN, "data=true")
+    TrackableEvent event = new TrackableEvent(samplePerson, LOGIN, [data: true])
 
     when:
     service.onTrackableEvent(event)

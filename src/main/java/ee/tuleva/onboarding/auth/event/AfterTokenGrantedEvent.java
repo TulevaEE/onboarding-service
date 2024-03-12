@@ -1,18 +1,19 @@
 package ee.tuleva.onboarding.auth.event;
 
 import ee.tuleva.onboarding.auth.AuthenticationTokens;
-import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.auth.GrantType;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import lombok.Getter;
-import org.springframework.context.ApplicationEvent;
 
 @Getter
-public class AfterTokenGrantedEvent extends ApplicationEvent {
+public class AfterTokenGrantedEvent extends BeforeTokenGrantedEvent {
 
-  private final Person person;
+  private final AuthenticatedPerson person;
   private final AuthenticationTokens tokens;
 
-  public AfterTokenGrantedEvent(Object source, Person person, AuthenticationTokens tokens) {
-    super(source);
+  public AfterTokenGrantedEvent(
+      Object source, AuthenticatedPerson person, GrantType grantType, AuthenticationTokens tokens) {
+    super(source, person, grantType);
     this.person = person;
     this.tokens = tokens;
   }

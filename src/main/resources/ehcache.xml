@@ -16,12 +16,6 @@
            memoryStoreEvictionPolicy="LRU">
     </cache>
 
-    <cache name="transferApplications"
-           maxElementsInMemory="10000"
-           eternal="true"
-           memoryStoreEvictionPolicy="LRU">
-    </cache>
-
     <cache name="cashFlowStatement"
            maxElementsInMemory="1000"
            timeToIdleSeconds="600"

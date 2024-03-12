@@ -42,7 +42,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 public class EpisService {
 
   private final String APPLICATIONS_CACHE_NAME = "applications";
-  private final String TRANSFER_APPLICATIONS_CACHE_NAME = "transferApplications";
   private final String CONTACT_DETAILS_CACHE_NAME = "contactDetails";
   private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
   private final String CASH_FLOW_STATEMENT_CACHE_NAME = "cashFlowStatement";
@@ -87,7 +86,6 @@ public class EpisService {
   @Caching(
       evict = {
         @CacheEvict(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
       })
@@ -95,12 +93,12 @@ public class EpisService {
     log.info("Clearing cache for {}", person.getPersonalCode());
   }
 
-  @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
+  @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode", sync = true)
   public ContactDetails getContactDetails(Person person) {
     return getContactDetails(person, userJwtToken());
   }
 
-  @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
+  @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode", sync = true)
   public ContactDetails getContactDetails(Person person, String jwtToken) {
     String url = episServiceUrl + "/contact-details";
 
@@ -112,7 +110,7 @@ public class EpisService {
     return response.getBody();
   }
 
-  @Cacheable(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode")
+  @Cacheable(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode", sync = true)
   public List<FundBalanceDto> getAccountStatement(Person person) {
     String url = episServiceUrl + "/account-statement";
 
@@ -124,7 +122,7 @@ public class EpisService {
     return asList(response.getBody());
   }
 
-  @Cacheable(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.personalCode")
+  @Cacheable(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.personalCode", sync = true)
   public List<Contribution> getContributions(Person person) {
     String url = episServiceUrl + "/contributions";
 

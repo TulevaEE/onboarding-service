@@ -31,21 +31,22 @@ public class AuthService {
             .findFirst()
             .orElse(null);
 
-    if (authenticatedPerson != null) {
-      final var authorities = grantedAuthorityFactory.from(authenticatedPerson);
-
-      eventPublisher.publishEvent(
-          new BeforeTokenGrantedEvent(this, authenticatedPerson, grantType));
-
-      String accessToken = jwtTokenUtil.generateAccessToken(authenticatedPerson, authorities);
-      String refreshToken = jwtTokenUtil.generateRefreshToken(authenticatedPerson, authorities);
-
-      final var tokens = new AuthenticationTokens(accessToken, refreshToken);
-      eventPublisher.publishEvent(new AfterTokenGrantedEvent(this, authenticatedPerson, tokens));
-
-      return tokens;
+    if (authenticatedPerson == null) {
+      return null;
     }
-    return null;
+
+    final var authorities = grantedAuthorityFactory.from(authenticatedPerson);
+
+    eventPublisher.publishEvent(new BeforeTokenGrantedEvent(this, authenticatedPerson, grantType));
+
+    String accessToken = jwtTokenUtil.generateAccessToken(authenticatedPerson, authorities);
+    String refreshToken = jwtTokenUtil.generateRefreshToken(authenticatedPerson, authorities);
+    final var tokens = new AuthenticationTokens(accessToken, refreshToken);
+
+    eventPublisher.publishEvent(
+        new AfterTokenGrantedEvent(this, authenticatedPerson, grantType, tokens));
+
+    return tokens;
   }
 
   public AuthenticationTokens refreshToken(String refreshToken) {

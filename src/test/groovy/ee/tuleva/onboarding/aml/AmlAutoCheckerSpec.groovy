@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml
 
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException
+import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.AuthenticationTokens
 import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
@@ -12,6 +13,7 @@ import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.GrantType.MOBILE_ID
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.auth.idcard.IdCardSession.ID_DOCUMENT_TYPE
 import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_ID_CARD
@@ -49,7 +51,7 @@ class AmlAutoCheckerSpec extends Specification {
         1 * userService.findByPersonalCode(person.personalCode) >> Optional.empty()
 
         when:
-        amlAutoChecker.beforeLogin(new BeforeTokenGrantedEvent(this, person, GrantType.MOBILE_ID))
+        amlAutoChecker.beforeLogin(new BeforeTokenGrantedEvent(this, person, MOBILE_ID))
 
         then:
         thrown(IllegalStateException)
@@ -59,13 +61,15 @@ class AmlAutoCheckerSpec extends Specification {
     def "adds pension registry name check if missing on login"() {
         given:
         def user = sampleUser().build()
+        def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+        def grantType = MOBILE_ID
         def contactDetails = contactDetailsFixture()
         def tokens = new AuthenticationTokens("access token", "refresh token")
-        1 * userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
-        1 * contactDetailsService.getContactDetails(user, tokens.accessToken()) >> contactDetails
+        1 * userService.findByPersonalCode(authenticatedPerson.personalCode) >> Optional.of(user)
+        1 * contactDetailsService.getContactDetails(authenticatedPerson, tokens.accessToken()) >> contactDetails
 
         when:
-        amlAutoChecker.afterLogin(new AfterTokenGrantedEvent(this, user, tokens))
+        amlAutoChecker.afterLogin(new AfterTokenGrantedEvent(this, authenticatedPerson, grantType, tokens))
 
         then:
         1 * amlService.addPensionRegistryNameCheckIfMissing(user, contactDetails)

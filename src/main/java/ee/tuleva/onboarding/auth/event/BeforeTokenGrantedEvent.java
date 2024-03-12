@@ -12,8 +12,8 @@ import org.springframework.context.ApplicationEvent;
 @Getter
 @Deprecated
 /**
- * @deprecated This class is deprecated and will be removed in the future.
- *     Use {@link AfterTokenGrantedEvent} instead.
+ * @deprecated This class is deprecated and will be removed in the future. Use {@link
+ *     AfterTokenGrantedEvent} instead.
  */
 public class BeforeTokenGrantedEvent extends ApplicationEvent {
 

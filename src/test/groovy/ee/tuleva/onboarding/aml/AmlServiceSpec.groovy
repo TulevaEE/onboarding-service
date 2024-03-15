@@ -253,11 +253,11 @@ class AmlServiceSpec extends Specification {
     checkService.match(user, address) >> matchResponse
 
     amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(user.personalCode, POLITICALLY_EXPOSED_PERSON_OVERRIDE, true) >> [
-        check(POLITICALLY_EXPOSED_PERSON_OVERRIDE, true, user, [results: results, query: query])
+        check(POLITICALLY_EXPOSED_PERSON_OVERRIDE, true, user, [results: [["id":"123"]], query: query])
     ]
 
     amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(user.personalCode, SANCTION_OVERRIDE, true) >> [
-        check(SANCTION_OVERRIDE, true, user, [results: results, query: query])
+        check(SANCTION_OVERRIDE, true, user, [results: [["id":"123"]], query: query])
     ]
 
     when:

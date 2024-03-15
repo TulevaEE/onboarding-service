@@ -114,7 +114,7 @@ public class AmlService {
   }
 
   private Optional<AmlCheck> addSanctionCheckIfMissing(Person person, MatchResponse response) {
-      AmlCheck sanctionCheck =
+    AmlCheck sanctionCheck =
         AmlCheck.builder()
             .personalCode(person.getPersonalCode())
             .type(SANCTION)
@@ -125,7 +125,7 @@ public class AmlService {
   }
 
   private Optional<AmlCheck> addPepCheckIfMissing(Person person, MatchResponse response) {
-      AmlCheck pepCheck =
+    AmlCheck pepCheck =
         AmlCheck.builder()
             .personalCode(person.getPersonalCode())
             .type(POLITICALLY_EXPOSED_PERSON_AUTO)

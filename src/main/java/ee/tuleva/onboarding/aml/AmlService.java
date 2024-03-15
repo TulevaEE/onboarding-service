@@ -6,7 +6,6 @@ import static java.time.LocalTime.MAX;
 import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.analytics.AnalyticsThirdPillar;
@@ -150,9 +149,11 @@ public class AmlService {
             person.getPersonalCode(), overrideType, true);
     return successOverrides.stream()
         .anyMatch(
-            check ->
-                stream((ArrayNode) check.getMetadata().get("results"))
-                    .anyMatch(result -> ids.contains(result.get("id").textValue())));
+            check -> {
+              @SuppressWarnings("unchecked")
+              var foundResults = (Iterable<Map<String, String>>) check.getMetadata().get("results");
+              return stream(foundResults).anyMatch(result -> ids.contains(result.get("id")));
+            });
   }
 
   public void runAmlChecksOnThirdPillarCustomers() {
@@ -184,8 +185,8 @@ public class AmlService {
                     && result.get("match").asBoolean());
   }
 
-  private Stream<JsonNode> stream(Iterable<JsonNode> jsonNodes) {
-    return StreamSupport.stream(jsonNodes.spliterator(), false);
+  private <T> Stream<T> stream(Iterable<T> iterable) {
+    return StreamSupport.stream(iterable.spliterator(), false);
   }
 
   private Map<String, Object> metadata(User user, Person person) {

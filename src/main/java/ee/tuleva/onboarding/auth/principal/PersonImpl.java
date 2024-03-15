@@ -15,7 +15,7 @@ public class PersonImpl implements Person {
 
   public PersonImpl(Person person) {
     this.personalCode = person.getPersonalCode();
-    this.firstName = person.getPersonalCode();
-    this.lastName = person.getPersonalCode();
+    this.firstName = person.getFirstName();
+    this.lastName = person.getLastName();
   }
 }

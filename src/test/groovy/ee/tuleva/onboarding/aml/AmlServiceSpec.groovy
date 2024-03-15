@@ -2,9 +2,11 @@ package ee.tuleva.onboarding.aml
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.BooleanNode
+import com.fasterxml.jackson.databind.node.TextNode
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService
 import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarRepository
+import ee.tuleva.onboarding.auth.principal.PersonImpl
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.event.TrackableEventType
@@ -27,14 +29,14 @@ class AmlServiceSpec extends Specification {
 
   AmlCheckRepository amlCheckRepository = Mock()
   ApplicationEventPublisher eventPublisher = Mock()
-  PepAndSanctionCheckService sanctionCheckService = Mock()
+  PepAndSanctionCheckService checkService = Mock()
   AnalyticsThirdPillarRepository analyticsThirdPillarRepository = Mock()
 
   ObjectMapper objectMapper = new ObjectMapper()
 
   Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
 
-  AmlService amlService = new AmlService(amlCheckRepository, eventPublisher, sanctionCheckService, analyticsThirdPillarRepository)
+  AmlService amlService = new AmlService(amlCheckRepository, eventPublisher, checkService, analyticsThirdPillarRepository)
 
   def aYearAgo = Instant.now(clock).minus(365, DAYS)
 
@@ -62,7 +64,9 @@ class AmlServiceSpec extends Specification {
     1 * amlCheckRepository.save({ check ->
       check.personalCode == user.personalCode &&
           check.type == SK_NAME &&
-          check.success
+          check.success &&
+          check.metadata.person == new PersonImpl(user) &&
+          check.metadata.user == new PersonImpl(user)
     }) >> { AmlCheck check -> check }
     1 * amlCheckRepository.save({ check ->
       check.personalCode == user.personalCode &&
@@ -101,7 +105,9 @@ class AmlServiceSpec extends Specification {
     1 * amlCheckRepository.save({ check ->
       check.personalCode == user.personalCode &&
           check.type == PENSION_REGISTRY_NAME &&
-          check.success
+          check.success &&
+          check.metadata.person == new PersonImpl(user) &&
+          check.metadata.user == new PersonImpl(user)
     }) >> { AmlCheck check -> check }
   }
 
@@ -201,6 +207,7 @@ class AmlServiceSpec extends Specification {
 
     def result1 = objectMapper.createObjectNode()
     result1.set("properties", properties)
+    result1.set("id", new TextNode("123"))
     result1.set("match", BooleanNode.TRUE)
 
 
@@ -208,7 +215,10 @@ class AmlServiceSpec extends Specification {
     def query = objectMapper.createObjectNode()
     def matchResponse = new MatchResponse(results, query)
 
-    sanctionCheckService.match(user, address) >> matchResponse
+    checkService.match(user, address) >> matchResponse
+
+    amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(user.personalCode, POLITICALLY_EXPOSED_PERSON_OVERRIDE, true) >> []
+    amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(user.personalCode, SANCTION_OVERRIDE, true) >> []
 
     when:
     List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, address)
@@ -217,6 +227,46 @@ class AmlServiceSpec extends Specification {
     2 * amlCheckRepository.save(_) >> { AmlCheck check -> check }
     checks == [
         check(POLITICALLY_EXPOSED_PERSON_AUTO, false, user, [results: results, query: query]),
+        check(SANCTION, true, user, [results: results, query: query]),
+    ]
+  }
+
+  def "checks for pep and sanctions and considers overrides"() {
+    given:
+    def user = sampleUser().build()
+    def address = contactDetailsFixture().address
+
+
+    def properties = objectMapper.createObjectNode()
+    properties.set("topics", objectMapper.createArrayNode().add("role.pep"))
+
+    def result1 = objectMapper.createObjectNode()
+    result1.set("properties", properties)
+    result1.set("id", new TextNode("123"))
+    result1.set("match", BooleanNode.TRUE)
+
+
+    def results = objectMapper.createArrayNode().add(result1)
+    def query = objectMapper.createObjectNode()
+    def matchResponse = new MatchResponse(results, query)
+
+    checkService.match(user, address) >> matchResponse
+
+    amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(user.personalCode, POLITICALLY_EXPOSED_PERSON_OVERRIDE, true) >> [
+        check(POLITICALLY_EXPOSED_PERSON_OVERRIDE, true, user, [results: results, query: query])
+    ]
+
+    amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(user.personalCode, SANCTION_OVERRIDE, true) >> [
+        check(SANCTION_OVERRIDE, true, user, [results: results, query: query])
+    ]
+
+    when:
+    List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, address)
+
+    then:
+    2 * amlCheckRepository.save(_) >> { AmlCheck check -> check }
+    checks == [
+        check(POLITICALLY_EXPOSED_PERSON_AUTO, true, user, [results: results, query: query]),
         check(SANCTION, true, user, [results: results, query: query]),
     ]
   }

@@ -2,10 +2,11 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
-import static java.time.LocalTime.*;
+import static java.time.LocalTime.MAX;
 import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.analytics.AnalyticsThirdPillar;
@@ -113,25 +114,45 @@ public class AmlService {
   }
 
   private Optional<AmlCheck> addSanctionCheckIfMissing(Person person, MatchResponse response) {
-    AmlCheck sanctionCheck =
+      AmlCheck sanctionCheck =
         AmlCheck.builder()
             .personalCode(person.getPersonalCode())
             .type(SANCTION)
-            .success(!hasMatch(response.results(), "sanction"))
+            .success(isSuccess(person, SANCTION_OVERRIDE, response, "sanction"))
             .metadata(metadata(response.results(), response.query()))
             .build();
     return addCheckIfMissing(sanctionCheck);
   }
 
   private Optional<AmlCheck> addPepCheckIfMissing(Person person, MatchResponse response) {
-    AmlCheck pepCheck =
+      AmlCheck pepCheck =
         AmlCheck.builder()
             .personalCode(person.getPersonalCode())
             .type(POLITICALLY_EXPOSED_PERSON_AUTO)
-            .success(!hasMatch(response.results(), "role"))
+            .success(isSuccess(person, POLITICALLY_EXPOSED_PERSON_OVERRIDE, response, "role"))
             .metadata(metadata(response.results(), response.query()))
             .build();
     return addCheckIfMissing(pepCheck);
+  }
+
+  private boolean isSuccess(
+      Person person, AmlCheckType overrideType, MatchResponse response, String topic) {
+    boolean hasMatch = hasMatch(response.results(), topic);
+    boolean hasSuccessOverride = hasSuccessOverride(person, overrideType, response.results());
+    return !hasMatch || hasSuccessOverride;
+  }
+
+  private boolean hasSuccessOverride(
+      Person person, AmlCheckType overrideType, Iterable<JsonNode> results) {
+    List<String> ids = stream(results).map(result -> result.path("id").asText()).toList();
+    List<AmlCheck> successOverrides =
+        amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(
+            person.getPersonalCode(), overrideType, true);
+    return successOverrides.stream()
+        .anyMatch(
+            check ->
+                stream((ArrayNode) check.getMetadata().get("results"))
+                    .anyMatch(result -> ids.contains(result.get("id").textValue())));
   }
 
   public void runAmlChecksOnThirdPillarCustomers() {

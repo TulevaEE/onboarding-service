@@ -13,4 +13,7 @@ public interface AmlCheckRepository extends JpaRepository<AmlCheck, Long> {
       String personalCode, Instant createdAfter);
 
   List<AmlCheck> findAllByTypeIn(List<AmlCheckType> types);
+
+  List<AmlCheck> findAllByPersonalCodeAndTypeAndSuccess(
+      String personalCode, AmlCheckType type, boolean success);
 }

@@ -108,6 +108,9 @@ logging:
       zaxxer:
         hikari:
           HikariConfig: DEBUG
+#    org:
+#      hibernate:
+#        SQL: DEBUG
 
 morningstar:
   host: ${MORNINGSTAR_HOST:localhost}

@@ -50,7 +50,7 @@ public class PaymentLinkingService {
   private final PublicHolidays publicHolidays;
 
   public List<Application<PaymentApplicationDetails>> getPaymentApplications(Person person) {
-    val payments = paymentService.getPayments(person);
+    val payments = paymentService.getThirdPillarPayments(person);
     val cashFlowStatement = cashFlowService.getCashFlowStatement(person);
     val locale = localeService.getCurrentLocale();
     val fund = fundRepository.findByIsin(TULEVA_3RD_PILLAR_FUND_ISIN);

@@ -49,7 +49,7 @@ class PaymentLinkingServiceSpec extends Specification {
   def "can get payment applications"() {
     given:
     def person = samplePerson()
-    paymentService.getPayments(person) >> payments
+    paymentService.getThirdPillarPayments(person) >> payments
     cashFlowService.getCashFlowStatement(person) >> CashFlowStatement.builder()
         .transactions(transactions)
         .build()

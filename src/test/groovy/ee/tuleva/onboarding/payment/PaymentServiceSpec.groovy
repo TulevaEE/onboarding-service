@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.payment
 
 import ee.tuleva.onboarding.payment.provider.PaymentProviderCallbackService
-import ee.tuleva.onboarding.payment.provider.PaymentProviderService
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentService
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
@@ -31,9 +30,9 @@ class PaymentServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def payment = aNewSinglePayment()
-    paymentRepository.findAllByRecipientPersonalCode(person.personalCode) >> [payment]
+    paymentRepository.findAllByRecipientPersonalCodeAndPaymentTypeNot(person.personalCode, MEMBER_FEE) >> [payment]
     when:
-    def payments = paymentService.getPayments(person)
+    def payments = paymentService.getThirdPillarPayments(person)
     then:
     payments == [payment]
   }

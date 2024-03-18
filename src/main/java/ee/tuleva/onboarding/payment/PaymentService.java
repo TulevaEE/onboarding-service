@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.payment;
 
 import static ee.tuleva.onboarding.event.TrackableEventType.PAYMENT_LINK;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.event.annotation.Trackable;
@@ -25,8 +26,9 @@ public class PaymentService {
   private final PaymentProviderCallbackService paymentProviderCallbackService;
   private final UserService userService;
 
-  public List<Payment> getPayments(Person person) {
-    return paymentRepository.findAllByRecipientPersonalCode(person.getPersonalCode());
+  public List<Payment> getThirdPillarPayments(Person person) {
+    return paymentRepository.findAllByRecipientPersonalCodeAndPaymentTypeNot(
+        person.getPersonalCode(), MEMBER_FEE);
   }
 
   @Trackable(PAYMENT_LINK)
@@ -42,7 +44,7 @@ public class PaymentService {
         paymentProviderCallbackService.processToken(serializedToken);
     paymentOptional.ifPresent(
         payment -> {
-          if (payment.getPaymentType() == PaymentData.PaymentType.MEMBER_FEE) {
+          if (payment.getPaymentType() == MEMBER_FEE) {
             registerMemberPayment(payment);
           }
         });

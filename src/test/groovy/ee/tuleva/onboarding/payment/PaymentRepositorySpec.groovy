@@ -8,6 +8,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 
 @DataJpaTest
@@ -81,7 +82,7 @@ class PaymentRepositorySpec extends Specification {
     entityManager.flush()
 
     when:
-    def payments = paymentRepository.findAllByRecipientPersonalCode(sampleUser.personalCode)
+    def payments = paymentRepository.findAllByRecipientPersonalCodeAndPaymentTypeNot(sampleUser.personalCode, MEMBER_FEE)
 
     then:
     payments.size() == 1

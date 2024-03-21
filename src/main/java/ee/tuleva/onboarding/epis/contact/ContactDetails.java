@@ -36,8 +36,8 @@ public class ContactDetails implements Person {
   private String activeSecondPillarFundPik;
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
-  private Instant secondPillarActiveDate;
-  private Instant thirdPillarActiveDate;
+  private Instant secondPillarOpenDate;
+  private Instant thirdPillarInitDate;
 
   public Address getAddress() {
     return Address.builder().countryCode(country).build();

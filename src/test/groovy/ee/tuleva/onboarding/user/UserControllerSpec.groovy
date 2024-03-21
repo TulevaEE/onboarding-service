@@ -61,8 +61,8 @@ class UserControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.secondPillarPaymentRates.current',
             is(samplePaymentRates.current)))
         .andExpect(jsonPath('$.memberJoinDate', is(nullValue())))
-        .andExpect(jsonPath('$.secondPillarActiveDate', is(contactDetails.secondPillarActiveDate.toString())))
-        .andExpect(jsonPath('$.thirdPillarActiveDate', is(contactDetails.thirdPillarActiveDate.toString())))
+        .andExpect(jsonPath('$.secondPillarOpenDate', is(contactDetails.secondPillarOpenDate.toString())))
+        .andExpect(jsonPath('$.thirdPillarInitDate', is(contactDetails.thirdPillarInitDate.toString())))
   }
 
   def "serialized no payment rate correctly as null"() {

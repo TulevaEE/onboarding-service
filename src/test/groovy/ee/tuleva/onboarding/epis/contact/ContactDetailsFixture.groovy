@@ -20,8 +20,8 @@ class ContactDetailsFixture {
         .thirdPillarDistribution([new Distribution("EE123", 1.0)])
         .isSecondPillarActive(true)
         .isThirdPillarActive(true)
-        .secondPillarActiveDate(Instant.parse("2019-10-01T12:13:27.141Z"))
-        .thirdPillarActiveDate(Instant.parse("2019-10-01T12:13:27.141Z"))
+        .secondPillarOpenDate(Instant.parse("2019-10-01T12:13:27.141Z"))
+        .thirdPillarInitDate(Instant.parse("2019-10-01T12:13:27.141Z"))
         .build()
   }
 }

@@ -6,6 +6,8 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
+import java.time.LocalDate
+
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.LIQUIDATED
 import static java.util.stream.Collectors.toList
@@ -37,6 +39,7 @@ class FundRepositorySpec extends Specification {
             .ongoingChargesFigure(new BigDecimal("0.005"))
             .status(ACTIVE)
             .fundManager(fundManager)
+            .inceptionDate(LocalDate.parse("2019-01-01"))
             .build()
         entityManager.persist(fund)
         entityManager.flush()
@@ -58,6 +61,7 @@ class FundRepositorySpec extends Specification {
         persistedFund.ongoingChargesFigure == fund.ongoingChargesFigure
         persistedFund.status == fund.status
         persistedFund.fundManager == fundManager
+        persistedFund.inceptionDate == fund.inceptionDate
 
         cleanup:
         entityManager.clear()
@@ -80,6 +84,7 @@ class FundRepositorySpec extends Specification {
             .ongoingChargesFigure(new BigDecimal("0.005"))
             .status(ACTIVE)
             .fundManager(fundManager)
+            .inceptionDate(LocalDate.parse("2019-01-01"))
             .build()
         entityManager.persist(fund)
         entityManager.flush()
@@ -101,6 +106,7 @@ class FundRepositorySpec extends Specification {
         persistedFund.ongoingChargesFigure == fund.ongoingChargesFigure
         persistedFund.status == fund.status
         persistedFund.fundManager == fundManager
+        persistedFund.inceptionDate == fund.inceptionDate
 
         when:
         Iterable<Fund> thirdPillarFunds = repository.findAllByPillar(3)
@@ -126,6 +132,7 @@ class FundRepositorySpec extends Specification {
             .ongoingChargesFigure(new BigDecimal("0.005"))
             .status(ACTIVE)
             .fundManager(fundManager)
+            .inceptionDate(LocalDate.parse("2019-01-01"))
             .build()
         def inactiveFund = Fund.builder()
             .isin("EE000000002")
@@ -138,6 +145,7 @@ class FundRepositorySpec extends Specification {
             .ongoingChargesFigure(new BigDecimal("0.0123"))
             .status(LIQUIDATED)
             .fundManager(fundManager)
+            .inceptionDate(LocalDate.parse("2019-01-01"))
             .build()
         entityManager.persist(activeFund)
         entityManager.persist(inactiveFund)
@@ -170,6 +178,7 @@ class FundRepositorySpec extends Specification {
             .ongoingChargesFigure(new BigDecimal("0.0123"))
             .status(LIQUIDATED)
             .fundManager(fundManager)
+            .inceptionDate(LocalDate.parse("2019-01-01"))
             .build()
         entityManager.persist(inactiveFund)
         entityManager.flush()

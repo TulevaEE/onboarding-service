@@ -2,6 +2,8 @@ package ee.tuleva.onboarding.fund
 
 import ee.tuleva.onboarding.fund.manager.FundManager
 
+import java.time.LocalDate
+
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
 
 class FundFixture {
@@ -17,6 +19,7 @@ class FundFixture {
         .status(ACTIVE)
         .ongoingChargesFigure(0.005)
         .managementFeeRate(0.0034)
+        .inceptionDate(LocalDate.parse("2019-01-01"))
         .fundManager(
             FundManager.builder()
                 .id(123)

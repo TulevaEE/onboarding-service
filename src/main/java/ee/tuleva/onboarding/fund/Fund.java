@@ -4,6 +4,7 @@ import static javax.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Locale;
 import javax.persistence.Entity;
 import javax.persistence.Enumerated;
@@ -60,6 +61,8 @@ public class Fund implements Comparable<Fund> {
   @NotNull
   @Enumerated(STRING)
   private FundStatus status;
+
+  private LocalDate inceptionDate;
 
   public enum FundStatus {
     ACTIVE, // Aktiivne

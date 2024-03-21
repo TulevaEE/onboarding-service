@@ -91,7 +91,7 @@ dependencies {
     implementation("ee.sk.smartid:smart-id-java-client:2.1.4") {
         exclude(group = "org.bouncycastle")
     }
-    implementation("ee.sk.mid:mid-rest-java-client:1.4") {
+    implementation("ee.sk.mid:mid-rest-java-client:1.5") {
         exclude(group = "org.bouncycastle")
     }
     implementation("org.digidoc4j:digidoc4j:5.2.0") {

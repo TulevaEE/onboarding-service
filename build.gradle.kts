@@ -99,7 +99,7 @@ dependencies {
         exclude(group = "org.bouncycastle")
     }
     implementation("org.bouncycastle:bcprov-jdk18on:1.76")
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.76")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.77")
 
     implementation("io.sentry:sentry-spring-boot-starter:7.5.0")
     implementation("io.sentry:sentry-logback:7.5.0")

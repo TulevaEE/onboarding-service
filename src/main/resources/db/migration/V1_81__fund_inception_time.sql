@@ -1,0 +1,2 @@
+ALTER TABLE fund
+  ADD COLUMN inception_date DATE NOT NULL DEFAULT '2003-01-07';

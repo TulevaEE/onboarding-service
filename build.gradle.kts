@@ -98,7 +98,7 @@ dependencies {
         exclude(group = "commons-logging", module = "commons-logging")
         exclude(group = "org.bouncycastle")
     }
-    implementation("org.bouncycastle:bcprov-jdk18on:1.76")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.77")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.76")
 
     implementation("io.sentry:sentry-spring-boot-starter:7.5.0")

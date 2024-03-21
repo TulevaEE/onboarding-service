@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.epis.contact
 
+import java.time.Instant
+
 import static ee.tuleva.onboarding.epis.contact.ContactDetails.*
 
 class ContactDetailsFixture {
@@ -18,6 +20,8 @@ class ContactDetailsFixture {
         .thirdPillarDistribution([new Distribution("EE123", 1.0)])
         .isSecondPillarActive(true)
         .isThirdPillarActive(true)
+        .secondPillarActiveDate(Instant.parse("2019-10-01T12:13:27.141Z"))
+        .thirdPillarActiveDate(Instant.parse("2019-10-01T12:13:27.141Z"))
         .build()
   }
 }

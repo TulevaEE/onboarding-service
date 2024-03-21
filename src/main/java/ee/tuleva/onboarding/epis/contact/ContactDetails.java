@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.epis.contact.ContactDetails.LanguagePreferenc
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.user.address.Address;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,6 +36,8 @@ public class ContactDetails implements Person {
   private String activeSecondPillarFundPik;
   private boolean isSecondPillarActive;
   private boolean isThirdPillarActive;
+  private Instant secondPillarActiveDate;
+  private Instant thirdPillarActiveDate;
 
   public Address getAddress() {
     return Address.builder().countryCode(country).build();

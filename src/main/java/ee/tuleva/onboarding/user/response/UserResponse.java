@@ -34,6 +34,8 @@ public class UserResponse {
   private boolean isThirdPillarActive;
   private PaymentRatesResponse secondPillarPaymentRates;
   private Instant memberJoinDate;
+  private Instant secondPillarActiveDate;
+  private Instant thirdPillarActiveDate;
 
   public static UserResponse from(@NotNull User user) {
     return responseBuilder(user).build();
@@ -53,6 +55,8 @@ public class UserResponse {
             new PaymentRatesResponse(
                 paymentRates.getCurrent(), paymentRates.getPending().orElse(null)))
         .memberJoinDate(user.getMember().map(Member::getCreatedDate).orElse(null))
+        .secondPillarActiveDate(contactDetails.getSecondPillarActiveDate())
+        .thirdPillarActiveDate(contactDetails.getThirdPillarActiveDate())
         .build();
   }
 

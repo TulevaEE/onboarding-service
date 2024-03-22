@@ -44,7 +44,8 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
                 managementFeeRate   : fundBalances[0].fund.managementFeeRate.doubleValue(),
                 pillar              : fundBalances[0].fund.pillar,
                 ongoingChargesFigure: fundBalances[0].fund.ongoingChargesFigure.doubleValue(),
-                status              : fundBalances[0].fund.status.name()
+                status              : fundBalances[0].fund.status.name(),
+                inceptionDate       : fundBalances[0].fund.inceptionDate.toString(),
             ],
             value              : fundBalances[0].value.doubleValue(),
             unavailableValue   : fundBalances[0].unavailableValue.doubleValue(),

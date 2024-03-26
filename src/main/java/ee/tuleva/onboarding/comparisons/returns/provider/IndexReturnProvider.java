@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.comparisons.returns.provider;
 
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.INDEX;
 
-import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CpiValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever;
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever;
@@ -12,7 +11,6 @@ import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator;
 import ee.tuleva.onboarding.comparisons.returns.ReturnDto;
 import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
-import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
@@ -33,9 +31,10 @@ public class IndexReturnProvider implements ReturnProvider {
   private final ReturnCalculator rateOfReturnCalculator;
 
   @Override
-  public Returns getReturns(Person person, Instant startTime, Integer pillar) {
+  public Returns getReturns(ReturnCalculationParameters parameters) {
     AccountOverview accountOverview =
-        accountOverviewProvider.getAccountOverview(person, startTime, pillar);
+        accountOverviewProvider.getAccountOverview(
+            parameters.person(), parameters.startTime(), parameters.pillar());
 
     List<Return> returns =
         comparisonIndexes().stream()

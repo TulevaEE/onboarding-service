@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.comparisons.returns.provider;
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND;
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
 
-import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
 import ee.tuleva.onboarding.comparisons.returns.ReturnCalculator;
@@ -12,7 +11,6 @@ import ee.tuleva.onboarding.comparisons.returns.Returns;
 import ee.tuleva.onboarding.comparisons.returns.Returns.Return;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
-import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,12 +26,15 @@ public class FundReturnProvider implements ReturnProvider {
   private final FundRepository fundRepository;
 
   @Override
-  public Returns getReturns(Person person, Instant startTime, Integer pillar) {
+  public Returns getReturns(ReturnCalculationParameters parameters) {
+
     AccountOverview accountOverview =
-        accountOverviewProvider.getAccountOverview(person, startTime, pillar);
+        accountOverviewProvider.getAccountOverview(
+            parameters.person(), parameters.startTime(), parameters.pillar());
 
     List<Return> returns =
         fundIsins().stream()
+            .filter(it -> parameters.keys().contains(it))
             .map(
                 fundIsin -> {
                   ReturnDto aReturn =

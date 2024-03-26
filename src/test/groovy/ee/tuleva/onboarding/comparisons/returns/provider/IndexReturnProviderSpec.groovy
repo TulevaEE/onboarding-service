@@ -49,7 +49,8 @@ class IndexReturnProviderSpec extends Specification {
 
 
         when:
-        def returns = returnProvider.getReturns(person, startTime, pillar)
+        def returns = returnProvider.getReturns(
+            new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
 
         then:
         with(returns.returns[0]) {

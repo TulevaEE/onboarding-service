@@ -49,7 +49,8 @@ class FundReturnProviderSpec extends Specification {
     fundRepository.findAllByStatus(ACTIVE) >> List.of(tuleva2ndPillarBondFund(), tuleva2ndPillarStockFund())
 
     when:
-    Returns returns = returnProvider.getReturns(person, startTime, pillar)
+    Returns returns = returnProvider.getReturns(
+        new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
 
     then:
     with(returns.returns[0]) {
@@ -64,4 +65,45 @@ class FundReturnProviderSpec extends Specification {
     returns.returns.size() == returnProvider.getKeys().size()
     returns.from == earliestTransactionDate
   }
+
+  def "assemble Returns for only specified keys"() {
+    given:
+        def person = samplePerson()
+        def startTime = Instant.parse("2019-08-28T10:06:01Z")
+        def endTime = Instant.now()
+        def pillar = 2
+        def earliestTransactionDate = LocalDate.parse("2020-09-10")
+        def overview = new AccountOverview(
+            [new Transaction(10.0, Instant.parse("2020-10-11T10:06:01Z")),
+             new Transaction(100.0, Instant.parse("${earliestTransactionDate}T10:06:01Z"))],
+            0.0, 0.0, startTime, endTime, pillar)
+        def expectedReturn = 0.00123
+        def returnAsAmount = 123.12
+        def payments = 234.12
+
+        accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
+        rateOfReturnCalculator.getSimulatedReturn(overview, _ as String) >>
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
+        fundRepository.findAllByStatus(ACTIVE) >> List.of(tuleva2ndPillarBondFund(), tuleva2ndPillarStockFund())
+
+        def specifiedKeys = [tuleva2ndPillarStockFund().isin]
+
+    when:
+        Returns returns = returnProvider.getReturns(
+            new ReturnCalculationParameters(person, startTime, pillar, specifiedKeys))
+
+    then:
+        with(returns.returns[0]) {
+          key == specifiedKeys[0]
+          type == FUND
+          rate == expectedReturn
+          amount == returnAsAmount
+          paymentsSum == payments
+          currency == EUR
+          from == earliestTransactionDate
+        }
+        returns.returns.size() == specifiedKeys.size()
+        returns.from == earliestTransactionDate
+  }
+
 }

@@ -43,7 +43,8 @@ class PersonalReturnProviderSpec extends Specification {
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
 
         when:
-        def returns = returnProvider.getReturns(person, startTime, pillar)
+        def returns = returnProvider.getReturns(
+            new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
 
         then:
         with(returns.returns[0]) {
@@ -78,7 +79,8 @@ class PersonalReturnProviderSpec extends Specification {
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
 
         when:
-        def returns = returnProvider.getReturns(person, startTime, pillar)
+        def returns = returnProvider.getReturns(
+            new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
 
         then:
         with(returns.returns[0]) {
@@ -93,4 +95,31 @@ class PersonalReturnProviderSpec extends Specification {
         returns.returns.size() == 1
         returns.from == earliestTransactionDate
     }
+
+    def "unknown pillar results in an exception"() {
+    given:
+        def person = samplePerson()
+        def startTime = Instant.parse("2019-08-28T10:06:01Z")
+        def endTime = Instant.now()
+        def pillar = 1
+        def earliestTransactionDate = LocalDate.parse("2020-09-10")
+        def overview = new AccountOverview(
+            [new Transaction(100.0, Instant.parse("${earliestTransactionDate}T10:06:01Z"))],
+            0.0, 0.0, startTime, endTime, pillar)
+        def expectedReturn = 0.00123
+        def returnAsAmount = 123.21
+        def payments = 234.45
+
+        accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
+        rateOfReturnCalculator.getReturn(overview) >>
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
+
+    when:
+        returnProvider.getReturns(
+            new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
+
+    then:
+        thrown(IllegalArgumentException)
+  }
+
 }

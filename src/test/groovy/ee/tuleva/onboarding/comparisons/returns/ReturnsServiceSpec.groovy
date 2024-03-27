@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.comparisons.returns
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
+import ee.tuleva.onboarding.comparisons.returns.provider.ReturnCalculationParameters
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnProvider
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.deadline.PublicHolidays
@@ -41,9 +42,11 @@ class ReturnsServiceSpec extends Specification {
     def (return2, returns2) = sampleReturns2(fromDate)
     def (return3, returns3) = sampleReturns3(fromDate)
 
-    returnProvider1.getReturns(person, startTime, pillar) >> returns1
-    returnProvider2.getReturns(person, startTime, pillar) >> returns2
-    returnProvider3.getReturns(person, startTime, pillar) >> returns3
+    def keys = [return1.key, return2.key, return3.key]
+
+    returnProvider1.getReturns(new ReturnCalculationParameters(person, startTime, pillar, keys)) >> returns1
+    returnProvider2.getReturns(new ReturnCalculationParameters(person, startTime, pillar, keys)) >> returns2
+    returnProvider3.getReturns(new ReturnCalculationParameters(person, startTime, pillar, keys)) >> returns3
 
     returnProvider1.getKeys() >> [return1.key]
     returnProvider2.getKeys() >> [return2.key]
@@ -54,7 +57,7 @@ class ReturnsServiceSpec extends Specification {
     fundValueRepository.findEarliestDateForKey(return3.key) >> Optional.of(return3.from)
 
     when:
-    def theReturns = returnsService.get(person, fromDate, [return1.key, return2.key, return3.key])
+    def theReturns = returnsService.get(person, fromDate, keys)
 
     then:
     with(theReturns) {
@@ -67,16 +70,14 @@ class ReturnsServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def fromDate = LocalDate.parse("2019-08-28")
-    def startTime = Instant.parse("2019-08-30T00:00:00Z")
-    def pillar = 2
 
     def (return1, returns1) = sampleReturns1(fromDate)
     def (return2, returns2) = sampleReturns2(fromDate)
     def (return3, returns3) = sampleReturns3(fromDate)
 
-    returnProvider1.getReturns(person, startTime, pillar) >> returns1
-    returnProvider2.getReturns(person, startTime, pillar) >> returns2
-    returnProvider3.getReturns(person, startTime, pillar) >> returns3
+    returnProvider1.getReturns(_ as ReturnCalculationParameters) >> returns1
+    returnProvider2.getReturns(_ as ReturnCalculationParameters) >> returns2
+    returnProvider3.getReturns(_ as ReturnCalculationParameters) >> returns3
 
     returnProvider1.getKeys() >> [return1.key]
     returnProvider2.getKeys() >> [return2.key]
@@ -96,8 +97,6 @@ class ReturnsServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def fromDate = LocalDate.parse("2019-08-28")
-    def startTime = Instant.parse("2019-08-30T00:00:00Z")
-    def pillar = 2
 
     def (return1) = sampleReturns1(fromDate)
     def (return2) = sampleReturns2(fromDate)
@@ -107,9 +106,9 @@ class ReturnsServiceSpec extends Specification {
         .returns([return1, return2, return3])
         .build()
 
-    returnProvider1.getReturns(person, startTime, pillar) >> allReturns
-    returnProvider2.getReturns(person, startTime, pillar) >> []
-    returnProvider3.getReturns(person, startTime, pillar) >> []
+    returnProvider1.getReturns(_ as ReturnCalculationParameters) >> allReturns
+    returnProvider2.getReturns(_ as ReturnCalculationParameters) >> []
+    returnProvider3.getReturns(_ as ReturnCalculationParameters) >> []
 
     returnProvider1.getKeys() >> [return1.key, return2.key, return3.key]
     returnProvider2.getKeys() >> []
@@ -141,15 +140,15 @@ class ReturnsServiceSpec extends Specification {
         def (return2, returns2) = sampleReturns2(adjustedStartDate)
         def (return3, returns3) = sampleReturns3(adjustedStartDate)
 
-        returnProvider1.getReturns(person, adjustedStartTime, 2) >> returns1
-        returnProvider2.getReturns(person, adjustedStartTime, 2) >> returns2
-        returnProvider3.getReturns(person, adjustedStartTime, 2) >> returns3
+        def keys = [return1.key, return2.key]
+
+        returnProvider1.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, 2, keys)) >> returns1
+        returnProvider2.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, 2, keys)) >> returns2
+        returnProvider3.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, 2, keys)) >> returns3
 
         returnProvider1.getKeys() >> [return1.key]
         returnProvider2.getKeys() >> [return2.key]
         returnProvider3.getKeys() >> [return3.key]
-
-        def keys = [return1.key, return2.key]
 
         fundValueRepository.findEarliestDateForKey(return1.key) >> Optional.of(earliestNavDate)
         fundValueRepository.findEarliestDateForKey(return2.key) >> Optional.of(earliestNavDate)
@@ -173,15 +172,16 @@ class ReturnsServiceSpec extends Specification {
         def (return2, returns2) = sampleReturns2(originalFromDate)
         def (return3, returns3) = sampleReturns3(originalFromDate)
 
-        returnProvider1.getReturns(person, fromTime, 3) >> returns1
-        returnProvider2.getReturns(person, fromTime, 3) >> returns2
-        returnProvider3.getReturns(person, fromTime, 3) >> returns3
+
+        def keys = [return1.key, return2.key, return3.key]
+
+        returnProvider1.getReturns(new ReturnCalculationParameters(person, fromTime, 3, keys)) >> returns1
+        returnProvider2.getReturns(new ReturnCalculationParameters(person, fromTime, 3, keys)) >> returns2
+        returnProvider3.getReturns(new ReturnCalculationParameters(person, fromTime, 3, keys)) >> returns3
 
         returnProvider1.getKeys() >> [return1.key]
         returnProvider2.getKeys() >> [return2.key]
         returnProvider3.getKeys() >> [return3.key]
-
-        def keys = [return1.key, return2.key, return3.key]
 
         fundValueRepository.findEarliestDateForKey(return1.key) >> Optional.of(originalFromDate)
         fundValueRepository.findEarliestDateForKey(return2.key) >> Optional.of(originalFromDate)

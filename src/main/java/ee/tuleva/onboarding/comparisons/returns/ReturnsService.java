@@ -14,11 +14,10 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -33,39 +32,21 @@ public class ReturnsService {
     int pillar = getPillar(keys);
     Instant fromTime = getRevisedFromTime(fromDate, keys, pillar);
 
-    List<Return> allReturns = new ArrayList<>();
+    List<Return> returns =
+        returnProviders.stream()
+            .filter(
+                returnProvider ->
+                    keys == null || !Collections.disjoint(keys, returnProvider.getKeys()))
+            .map(
+                returnProvider ->
+                    returnProvider
+                        .getReturns(new ReturnCalculationParameters(person, fromTime, pillar, keys))
+                        .getReturns())
+            .flatMap(List::stream)
+            .filter(aReturn -> keys == null || keys.contains(aReturn.getKey()))
+            .toList();
 
-    for (ReturnProvider provider : returnProviders) {
-      List<String> relevantKeysForTheProvider = getRelevantKeysForTheProvider(keys, provider);
-
-      Returns providerReturns =
-          provider.getReturns(
-              new ReturnCalculationParameters(
-                  person, fromTime, pillar, relevantKeysForTheProvider));
-
-      if (providerReturns != null && providerReturns.getReturns() != null) {
-        allReturns.addAll(providerReturns.getReturns());
-      }
-    }
-
-    return Returns.builder().returns(filterReturnsBasedOnInputKeys(keys, allReturns)).build();
-  }
-
-  private List<Return> filterReturnsBasedOnInputKeys(List<String> keys, List<Return> allReturns) {
-    if (keys != null && !keys.isEmpty()) {
-      allReturns.removeIf(returnObj -> !keys.contains(returnObj.getKey()));
-    }
-    return allReturns;
-  }
-
-  @NotNull
-  private List<String> getRelevantKeysForTheProvider(List<String> keys, ReturnProvider provider) {
-    List<String> relevantKeysForTheProvider = new ArrayList<>(provider.getKeys());
-
-    if (keys != null) {
-      relevantKeysForTheProvider.retainAll(keys);
-    }
-    return relevantKeysForTheProvider;
+    return Returns.builder().returns(returns).build();
   }
 
   private Instant getRevisedFromTime(LocalDate fromDate, List<String> keys, int pillar) {

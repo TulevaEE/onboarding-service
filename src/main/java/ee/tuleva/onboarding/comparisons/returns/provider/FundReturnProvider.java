@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.comparisons.returns.provider;
 
 import static ee.tuleva.onboarding.comparisons.returns.Returns.Return.Type.FUND;
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
+import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview;
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider;
@@ -32,9 +33,11 @@ public class FundReturnProvider implements ReturnProvider {
         accountOverviewProvider.getAccountOverview(
             parameters.person(), parameters.startTime(), parameters.pillar());
 
+    List<String> isins = fundIsins();
+    isins.retainAll(parameters.keys());
+
     List<Return> returns =
-        fundIsins().stream()
-            .filter(it -> parameters.keys().contains(it))
+        isins.stream()
             .map(
                 fundIsin -> {
                   ReturnDto aReturn =
@@ -65,6 +68,6 @@ public class FundReturnProvider implements ReturnProvider {
   }
 
   private List<String> fundIsins() {
-    return fundRepository.findAllByStatus(ACTIVE).stream().map(Fund::getIsin).toList();
+    return fundRepository.findAllByStatus(ACTIVE).stream().map(Fund::getIsin).collect(toList());
   }
 }

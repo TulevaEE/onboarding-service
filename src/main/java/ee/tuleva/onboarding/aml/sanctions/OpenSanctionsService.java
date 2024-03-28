@@ -52,7 +52,7 @@ public class OpenSanctionsService implements PepAndSanctionCheckService {
         restTemplate.postForObject(
             baseUrl
                 + "/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.7"
-                + "&topics=role.pep&topics=role.rca&topics=sanction&topics=sanction.linked"
+                + "&topics=role.pep&topics=role.rca&topics=sanction"
                 + "&facets=countries&facets=topics&facets=datasets&facets=gender",
             new HttpEntity<>(matchRequest, headers()),
             String.class);

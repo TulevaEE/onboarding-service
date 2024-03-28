@@ -72,7 +72,7 @@ class OpenSanctionsServiceSpec extends Specification {
       }
     }"""
 
-    server.expect(requestTo("https://dummyUrl/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.7&topics=role.pep&topics=role.rca&topics=sanction&topics=sanction.linked&facets=countries&facets=topics&facets=datasets&facets=gender"))
+    server.expect(requestTo("https://dummyUrl/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.7&topics=role.pep&topics=role.rca&topics=sanction&facets=countries&facets=topics&facets=datasets&facets=gender"))
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(content().json("""
         {

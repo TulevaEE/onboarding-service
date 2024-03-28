@@ -186,14 +186,17 @@ class AmlServiceSpec extends Specification {
       1 * eventPublisher.publishEvent(new TrackableEvent(user, TrackableEventType.MANDATE_DENIED))
     }
     where:
-    checks                                                                                                      | result
-    []                                                                                                          | false
-    successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION)   | true
-    successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION) | true
-    successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_AUTO, DOCUMENT, SK_NAME, OCCUPATION)                 | true
-    successfulChecks(POLITICALLY_EXPOSED_PERSON, RESIDENCY_MANUAL, DOCUMENT, SK_NAME, OCCUPATION)               | true
-    [check(POLITICALLY_EXPOSED_PERSON, false)] +
-        successfulChecks(RESIDENCY_MANUAL, DOCUMENT, SK_NAME, PENSION_REGISTRY_NAME, OCCUPATION)                | false
+    checks                                                                                                                     | result
+    []                                                                                                                         | false
+    successfulChecks(POLITICALLY_EXPOSED_PERSON_AUTO, SANCTION, RESIDENCY_AUTO, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION)   | true
+    successfulChecks(POLITICALLY_EXPOSED_PERSON_AUTO, SANCTION, RESIDENCY_MANUAL, DOCUMENT, PENSION_REGISTRY_NAME, OCCUPATION) | true
+    successfulChecks(POLITICALLY_EXPOSED_PERSON_AUTO, SANCTION, RESIDENCY_AUTO, DOCUMENT, SK_NAME, OCCUPATION)                 | true
+    successfulChecks(POLITICALLY_EXPOSED_PERSON_AUTO, SANCTION, RESIDENCY_MANUAL, DOCUMENT, SK_NAME, OCCUPATION)               | true
+    successfulChecks(POLITICALLY_EXPOSED_PERSON_OVERRIDE, SANCTION, RESIDENCY_MANUAL, DOCUMENT, SK_NAME, OCCUPATION)           | true
+    successfulChecks(POLITICALLY_EXPOSED_PERSON_AUTO, SANCTION_OVERRIDE, RESIDENCY_MANUAL, DOCUMENT, SK_NAME, OCCUPATION)      | true
+    successfulChecks(POLITICALLY_EXPOSED_PERSON_OVERRIDE, SANCTION_OVERRIDE, RESIDENCY_MANUAL, DOCUMENT, SK_NAME, OCCUPATION)  | true
+    [check(POLITICALLY_EXPOSED_PERSON_AUTO, false)] +
+        successfulChecks(RESIDENCY_MANUAL, DOCUMENT, SK_NAME, PENSION_REGISTRY_NAME, OCCUPATION)                               | false
   }
 
   def "checks for pep and sanctions"() {
@@ -253,11 +256,11 @@ class AmlServiceSpec extends Specification {
     checkService.match(user, address) >> matchResponse
 
     amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(user.personalCode, POLITICALLY_EXPOSED_PERSON_OVERRIDE, true) >> [
-        check(POLITICALLY_EXPOSED_PERSON_OVERRIDE, true, user, [results: [["id":"123"]], query: query])
+        check(POLITICALLY_EXPOSED_PERSON_OVERRIDE, true, user, [results: [["id": "123"]], query: query])
     ]
 
     amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(user.personalCode, SANCTION_OVERRIDE, true) >> [
-        check(SANCTION_OVERRIDE, true, user, [results: [["id":"123"]], query: query])
+        check(SANCTION_OVERRIDE, true, user, [results: [["id": "123"]], query: query])
     ]
 
     when:

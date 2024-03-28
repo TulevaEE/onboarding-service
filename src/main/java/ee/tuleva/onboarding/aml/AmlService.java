@@ -40,23 +40,6 @@ public class AmlService {
   private final PepAndSanctionCheckService pepAndSanctionCheckService;
   private final AnalyticsThirdPillarRepository analyticsThirdPillarRepository;
 
-  private final List<List<AmlCheckType>> allowedCombinations =
-      List.of(
-          List.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION),
-          List.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION),
-          List.of(
-              POLITICALLY_EXPOSED_PERSON,
-              PENSION_REGISTRY_NAME,
-              DOCUMENT,
-              RESIDENCY_AUTO,
-              OCCUPATION),
-          List.of(
-              POLITICALLY_EXPOSED_PERSON,
-              PENSION_REGISTRY_NAME,
-              DOCUMENT,
-              RESIDENCY_MANUAL,
-              OCCUPATION));
-
   public void checkUserBeforeLogin(User user, Person person, Boolean isResident) {
     addDocumentCheck(user);
     addResidencyCheck(user, isResident);
@@ -263,7 +246,16 @@ public class AmlService {
               .filter(AmlCheck::isSuccess)
               .map(AmlCheck::getType)
               .collect(toSet());
-      if (allowedCombinations.stream().anyMatch(successfulTypes::containsAll)) {
+
+      if (successfulTypes.contains(POLITICALLY_EXPOSED_PERSON_AUTO)
+          || successfulTypes.contains(POLITICALLY_EXPOSED_PERSON_OVERRIDE)
+              && (successfulTypes.contains(SANCTION) || successfulTypes.contains(SANCTION_OVERRIDE))
+              && (successfulTypes.contains(PENSION_REGISTRY_NAME)
+                  || successfulTypes.contains(SK_NAME))
+              && successfulTypes.contains(DOCUMENT)
+              && (successfulTypes.contains(RESIDENCY_AUTO)
+                  || successfulTypes.contains(RESIDENCY_MANUAL))
+              && successfulTypes.contains(OCCUPATION)) {
         return true;
       }
     }

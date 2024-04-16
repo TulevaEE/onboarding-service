@@ -69,8 +69,8 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:9.37.3")
 
-    implementation("org.springdoc:springdoc-openapi-ui:1.7.0")
-    implementation("org.springdoc:springdoc-openapi-security:1.7.0")
+    implementation("org.springdoc:springdoc-openapi-ui:1.8.0")
+    implementation("org.springdoc:springdoc-openapi-security:1.8.0")
 
     runtimeOnly("org.postgresql:postgresql")
 
@@ -86,7 +86,7 @@ dependencies {
     implementation("net.sf.ehcache:ehcache:2.10.9.2")
     implementation("org.decampo:xirr:1.2")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.2")
-    implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.1")
+    implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.1.4") {
         exclude(group = "org.bouncycastle")
@@ -101,23 +101,23 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.76")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.76")
 
-    implementation("io.sentry:sentry-spring-boot-starter:7.5.0")
-    implementation("io.sentry:sentry-logback:7.5.0")
+    implementation("io.sentry:sentry-spring-boot-starter:7.8.0")
+    implementation("io.sentry:sentry-logback:7.8.0")
 
     implementation("com.vladmihalcea:hibernate-types-55:2.21.1")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
-    implementation("com.github.ErkoRisthein:mailchimp-transactional-api-java:master-SNAPSHOT")
-    implementation("com.github.ErkoRisthein:mailchimp-marketing-api-java:master-SNAPSHOT")
+    implementation("com.github.ErkoRisthein:mailchimp-transactional-api-java:1.0.55")
+    implementation("com.github.ErkoRisthein:mailchimp-marketing-api-java:3.0.81")
 
     implementation("javax.xml.bind:jaxb-api")
 
-    compileOnly("org.projectlombok:lombok:1.18.30")
-    annotationProcessor("org.projectlombok:lombok:1.18.30")
+    compileOnly("org.projectlombok:lombok:1.18.32")
+    annotationProcessor("org.projectlombok:lombok:1.18.32")
 
-    testCompileOnly("org.projectlombok:lombok:1.18.30")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.30")
+    testCompileOnly("org.projectlombok:lombok:1.18.32")
+    testAnnotationProcessor("org.projectlombok:lombok:1.18.32")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
@@ -130,7 +130,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.3-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.19")
+    testImplementation("org.apache.groovy:groovy-all:4.0.21")
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")

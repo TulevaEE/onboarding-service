@@ -42,9 +42,9 @@ class PartnerAuthProviderSpec extends Specification {
     def sampleUserId = 123L
 
     def handoverToken = Jwts.builder()
-        .setSubject(samplePerson.personalCode)
+        .subject(samplePerson.personalCode)
         .signWith(keyPair.private)
-        .setExpiration(Date.from(clock.instant().plus(1, HOURS)))
+        .expiration(Date.from(clock.instant().plus(1, HOURS)))
         .claim("tokenType", "HANDOVER")
         .claim("firstName", samplePerson.firstName)
         .claim("lastName", samplePerson.lastName)
@@ -94,9 +94,9 @@ class PartnerAuthProviderSpec extends Specification {
     def sampleUserId = 123L
 
     def handoverToken = Jwts.builder()
-        .setSubject(samplePerson.personalCode)
+        .subject(samplePerson.personalCode)
         .signWith(keyPair.private)
-        .setExpiration(Date.from(clock.instant().plus(1, HOURS)))
+        .expiration(Date.from(clock.instant().plus(1, HOURS)))
         .claim("tokenType", "HANDOVER")
         .claim("firstName", samplePerson.firstName)
         .claim("lastName", samplePerson.lastName)

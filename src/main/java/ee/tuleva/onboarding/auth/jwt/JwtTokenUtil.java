@@ -1,14 +1,18 @@
 package ee.tuleva.onboarding.auth.jwt;
 
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.*;
-import static java.time.temporal.ChronoUnit.*;
+import static java.time.temporal.ChronoUnit.HOURS;
+import static java.time.temporal.ChronoUnit.MINUTES;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtParser;
+import io.jsonwebtoken.Jwts;
 import java.security.Key;
 import java.security.KeyStore;
+import java.security.PublicKey;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Collection;
@@ -36,14 +40,12 @@ public class JwtTokenUtil {
       @Value("${jwt.keystore-password}") char[] keystorePassword,
       Clock clock) {
     this.clock = clock;
-    final var keystore = KeyStore.getInstance("PKCS12");
+    KeyStore keystore = KeyStore.getInstance("PKCS12");
     keystore.load(keystoreResource.getInputStream(), keystorePassword);
     this.signingKey = keystore.getKey("jwt", keystorePassword);
+    PublicKey publicKey = keystore.getCertificate("jwt").getPublicKey();
     this.jwtParser =
-        Jwts.parserBuilder()
-            .setSigningKey(signingKey)
-            .setClock(() -> Date.from(clock.instant()))
-            .build();
+        Jwts.parser().verifyWith(publicKey).clock(() -> Date.from(clock.instant())).build();
   }
 
   public Person getPersonFromToken(String token) {
@@ -61,13 +63,13 @@ public class JwtTokenUtil {
   private Claims getAllClaimsFromToken(String token) {
     // When token is expired, this throws ExpiredJwtException, which is handled in
     // ErrorHandlingControllerAdvice
-    return jwtParser.parseClaimsJws(token).getBody();
+    return jwtParser.parseSignedClaims(token).getPayload();
   }
 
   public String generateAccessToken(
       AuthenticatedPerson person, Collection<? extends GrantedAuthority> authorities) {
     return Jwts.builder()
-        .setClaims(
+        .claims(
             Map.of(
                 TOKEN_TYPE.value,
                 TokenType.ACCESS,
@@ -79,9 +81,9 @@ public class JwtTokenUtil {
                 person.getAttributes(),
                 AUTHORITIES.value,
                 authorities.stream().map(GrantedAuthority::getAuthority).toList()))
-        .setSubject(person.getPersonalCode())
-        .setIssuedAt(Date.from(clock.instant()))
-        .setExpiration(Date.from(clock.instant().plus(ACCESS_TOKEN_VALIDITY)))
+        .subject(person.getPersonalCode())
+        .issuedAt(Date.from(clock.instant()))
+        .expiration(Date.from(clock.instant().plus(ACCESS_TOKEN_VALIDITY)))
         .signWith(signingKey)
         .compact();
   }
@@ -89,7 +91,7 @@ public class JwtTokenUtil {
   public String generateRefreshToken(
       AuthenticatedPerson person, Collection<? extends GrantedAuthority> authorities) {
     return Jwts.builder()
-        .setClaims(
+        .claims(
             Map.of(
                 TOKEN_TYPE.value,
                 TokenType.REFRESH,
@@ -101,19 +103,19 @@ public class JwtTokenUtil {
                 person.getAttributes(),
                 AUTHORITIES.value,
                 authorities.stream().map(GrantedAuthority::getAuthority).toList()))
-        .setSubject(person.getPersonalCode())
-        .setIssuedAt(Date.from(clock.instant()))
-        .setExpiration(Date.from(clock.instant().plus(REFRESH_TOKEN_VALIDITY)))
+        .subject(person.getPersonalCode())
+        .issuedAt(Date.from(clock.instant()))
+        .expiration(Date.from(clock.instant().plus(REFRESH_TOKEN_VALIDITY)))
         .signWith(signingKey)
         .compact();
   }
 
   public String generateServiceToken() {
     return Jwts.builder()
-        .setClaims(Map.of(AUTHORITIES.value, List.of()))
-        .setSubject("onboarding-service")
-        .setIssuedAt(Date.from(clock.instant()))
-        .setExpiration(Date.from(clock.instant().plus(ACCESS_TOKEN_VALIDITY)))
+        .claims(Map.of(AUTHORITIES.value, List.of()))
+        .subject("onboarding-service")
+        .issuedAt(Date.from(clock.instant()))
+        .expiration(Date.from(clock.instant().plus(ACCESS_TOKEN_VALIDITY)))
         .signWith(signingKey)
         .compact();
   }

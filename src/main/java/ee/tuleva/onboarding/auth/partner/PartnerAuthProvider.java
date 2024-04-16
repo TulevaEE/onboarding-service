@@ -31,7 +31,6 @@ public class PartnerAuthProvider implements AuthProvider {
   private final JwtParser jwtParser;
   private final PrincipalService principalService;
 
-  // TODO: use a trust store for the public key
   @SneakyThrows
   public PartnerAuthProvider(
       @Value("${partner.publicKey}") Resource partnerPublicKey,
@@ -40,10 +39,7 @@ public class PartnerAuthProvider implements AuthProvider {
     byte[] publicKeyBytes = partnerPublicKey.getInputStream().readAllBytes();
     PublicKey publicKey = toPublicKey(publicKeyBytes);
     this.jwtParser =
-        Jwts.parserBuilder()
-            .setSigningKey(publicKey)
-            .setClock(() -> Date.from(clock.instant()))
-            .build();
+        Jwts.parser().verifyWith(publicKey).clock(() -> Date.from(clock.instant())).build();
     this.principalService = principalService;
   }
 
@@ -54,7 +50,7 @@ public class PartnerAuthProvider implements AuthProvider {
 
   @Override
   public AuthenticatedPerson authenticate(String handoverToken) {
-    Claims claims = jwtParser.parseClaimsJws(handoverToken).getBody();
+    Claims claims = jwtParser.parseSignedClaims(handoverToken).getPayload();
     validate(claims);
     Person person = getPersonFromClaims(claims);
     Map<String, String> attributes = getAttributes(claims);

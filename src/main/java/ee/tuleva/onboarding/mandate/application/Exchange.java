@@ -86,7 +86,7 @@ public class Exchange {
       throw new IllegalStateException(
           "isFullAmount(fundBalanceUnits) is only supported for 3rd pillar");
     }
-    return amount.equals(fundBalanceUnits);
+    return amount.compareTo(fundBalanceUnits) == 0;
   }
 
   @JsonIgnore

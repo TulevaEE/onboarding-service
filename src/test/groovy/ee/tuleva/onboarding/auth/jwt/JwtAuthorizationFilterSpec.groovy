@@ -51,9 +51,9 @@ class JwtAuthorizationFilterSpec extends Specification {
   def "reads user info from a valid authorization header"() {
     given:
     def token = Jwts.builder()
-        .setSubject("38510309519")
+        .subject("38510309519")
         .signWith(KeyStoreFixture.keyPair.private)
-        .setExpiration(Date.from(clock.instant().plus(1, HOURS)))
+        .expiration(Date.from(clock.instant().plus(1, HOURS)))
         .claim("firstName", "Peeter")
         .claim("lastName", "Meeter")
         .claim("authorities", new String[]{"USER"})
@@ -83,9 +83,9 @@ class JwtAuthorizationFilterSpec extends Specification {
   def "does not accept expired tokens"() {
     given:
     def token = Jwts.builder()
-        .setSubject("38510309519")
+        .subject("38510309519")
         .signWith(KeyStoreFixture.keyPair.private)
-        .setExpiration(Date.from(clock.instant().minus(1, HOURS)))
+        .expiration(Date.from(clock.instant().minus(1, HOURS)))
         .claim("firstName", "Peeter")
         .claim("lastName", "Meeter")
         .claim("authorities", new String[]{"USER"})
@@ -110,8 +110,8 @@ class JwtAuthorizationFilterSpec extends Specification {
   def "does not accept unsigned tokens"() {
     given:
     def token = Jwts.builder()
-        .setSubject("38510309519")
-        .setExpiration(Date.from(clock.instant().plus(1, HOURS)))
+        .subject("38510309519")
+        .expiration(Date.from(clock.instant().plus(1, HOURS)))
         .claim("firstName", "Peeter")
         .claim("lastName", "Meeter")
         .claim("authorities", new String[]{"USER"})
@@ -130,9 +130,9 @@ class JwtAuthorizationFilterSpec extends Specification {
   def "does not accept refresh tokens"() {
     given:
         def token = Jwts.builder()
-            .setSubject("38510309519")
+            .subject("38510309519")
             .signWith(KeyStoreFixture.keyPair.private)
-            .setExpiration(Date.from(clock.instant().plus(1, HOURS)))
+            .expiration(Date.from(clock.instant().plus(1, HOURS)))
             .claim("firstName", "Peeter")
             .claim("lastName", "Meeter")
             .claim("authorities", new String[]{"USER"})

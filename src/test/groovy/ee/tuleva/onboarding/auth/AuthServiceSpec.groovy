@@ -13,8 +13,6 @@ import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import spock.lang.Specification
 
-import javax.ws.rs.BadRequestException
-
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 
 class AuthServiceSpec extends Specification {

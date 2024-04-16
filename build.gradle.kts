@@ -1,10 +1,5 @@
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
-import org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED
-import org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED
-import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_ERROR
-import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_OUT
-import org.gradle.api.tasks.testing.logging.TestLogEvent.STARTED
+import org.gradle.api.tasks.testing.logging.TestLogEvent.*
 
 buildscript {
     repositories {
@@ -22,7 +17,12 @@ plugins {
     id("io.spring.dependency-management") version "1.1.4"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.25.0"
+    id("io.freefair.lombok") version "8.6"
     jacoco
+}
+
+lombok {
+    version = "1.18.32"
 }
 
 spotless {
@@ -95,8 +95,7 @@ dependencies {
         exclude(group = "org.bouncycastle")
     }
 
-    // TODO: upgrade to 5.3.0 when it's released
-    implementation("org.digidoc4j:digidoc4j:5.2.0") {
+    implementation("org.digidoc4j:digidoc4j:5.3.0") {
         exclude(group = "commons-logging", module = "commons-logging")
         exclude(group = "org.bouncycastle")
     }
@@ -114,12 +113,6 @@ dependencies {
     implementation("com.github.ErkoRisthein:mailchimp-marketing-api-java:3.0.81")
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
-
-    compileOnly("org.projectlombok:lombok:1.18.32")
-    annotationProcessor("org.projectlombok:lombok:1.18.32")
-
-    testCompileOnly("org.projectlombok:lombok:1.18.32")
-    testAnnotationProcessor("org.projectlombok:lombok:1.18.32")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml;
 
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -32,7 +33,7 @@ public class AmlCheck {
 
   @NotNull
   @Builder.Default
-  @Type(type = "jsonb")
+  @Type(JsonType.class)
   @Column(columnDefinition = "jsonb")
   @Convert(disableConversion = true)
   private Map<String, Object> metadata = new HashMap<>();

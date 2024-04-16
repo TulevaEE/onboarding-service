@@ -2,10 +2,10 @@ package ee.tuleva.onboarding.auth.session;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.time.Instant;
-import javax.persistence.*;
-import javax.validation.constraints.NotNull;
 import lombok.*;
 
 @Entity

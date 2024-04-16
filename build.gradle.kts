@@ -94,7 +94,7 @@ dependencies {
     implementation("ee.sk.mid:mid-rest-java-client:1.4") {
         exclude(group = "org.bouncycastle")
     }
-    implementation("org.digidoc4j:digidoc4j:5.2.0") {
+    implementation("org.digidoc4j:digidoc4j:5.3.0") {
         exclude(group = "commons-logging", module = "commons-logging")
         exclude(group = "org.bouncycastle")
     }

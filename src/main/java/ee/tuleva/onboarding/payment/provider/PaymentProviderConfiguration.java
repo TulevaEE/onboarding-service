@@ -6,16 +6,17 @@ import ee.tuleva.onboarding.payment.PaymentData.PaymentChannel;
 import jakarta.annotation.PostConstruct;
 import java.util.Map;
 import java.util.Map.Entry;
-import lombok.Data;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@RequiredArgsConstructor
 @ConfigurationProperties("payment-provider")
-@Data
 class PaymentProviderConfiguration {
 
-  private Map<PaymentChannel, PaymentProviderChannel> paymentChannels;
+  @Getter private final Map<PaymentChannel, PaymentProviderChannel> paymentChannels;
   private Map<String, PaymentProviderChannel> paymentChannelsByAccessKey;
 
   public PaymentProviderChannel getPaymentProviderChannel(PaymentChannel paymentChannel) {

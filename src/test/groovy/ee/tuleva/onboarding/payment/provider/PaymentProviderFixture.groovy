@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.payment.provider
 
 import ee.tuleva.onboarding.payment.PaymentData
 
-import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.TULUNDUSUHISTU
+
 
 class PaymentProviderFixture {
   static String anAccessKey = "exampleAccessKey"
@@ -22,8 +24,8 @@ class PaymentProviderFixture {
     samplePaymentProviderChannelConfigurationTulundusuhistu.bic = "exampleAspsp"
 
     def configuration = new PaymentProviderConfiguration([
-        (PaymentChannel.LHV)           : samplePaymentProviderChannelConfiguration,
-        (PaymentChannel.TULUNDUSUHISTU): samplePaymentProviderChannelConfigurationTulundusuhistu,
+        (LHV)           : samplePaymentProviderChannelConfiguration,
+        (TULUNDUSUHISTU): samplePaymentProviderChannelConfigurationTulundusuhistu,
     ])
     configuration.mapByAccessKey()
     return configuration

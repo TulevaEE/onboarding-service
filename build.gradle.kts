@@ -104,7 +104,7 @@ dependencies {
     implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.8.0")
     implementation("io.sentry:sentry-logback:7.8.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.7.1")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.7.3")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 

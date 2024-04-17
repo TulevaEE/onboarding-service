@@ -14,13 +14,17 @@ public class DigiDocConfiguration {
   @Bean
   @Profile("production")
   public org.digidoc4j.Configuration digiDocConfigProd() {
-    return new org.digidoc4j.Configuration(PROD);
+    var configuration = new org.digidoc4j.Configuration(PROD);
+    configuration.setTrustedTerritories("EE");
+    return configuration;
   }
 
   @Bean
   @ConditionalOnMissingBean(org.digidoc4j.Configuration.class)
   public org.digidoc4j.Configuration digiDocConfigDev() {
-    // use PROD for testing signing
-    return new org.digidoc4j.Configuration(TEST);
+    var configuration = new org.digidoc4j.Configuration(TEST);
+    configuration.setTrustedTerritories("EE_T");
+    configuration.setPreferAiaOcsp(false);
+    return configuration;
   }
 }

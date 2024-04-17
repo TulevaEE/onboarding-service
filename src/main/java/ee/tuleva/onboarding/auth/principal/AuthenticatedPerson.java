@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.auth.principal;
 
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.validation.constraints.NotBlank;
-
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.HashMap;

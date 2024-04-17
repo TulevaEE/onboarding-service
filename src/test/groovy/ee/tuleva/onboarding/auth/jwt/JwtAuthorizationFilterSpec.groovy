@@ -2,17 +2,20 @@ package ee.tuleva.onboarding.auth.jwt
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.auth.KeyStoreFixture
+import ee.tuleva.onboarding.auth.authority.Authority
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import io.jsonwebtoken.Jwts
-import org.springframework.mock.web.MockHttpServletRequest
-import org.springframework.mock.web.MockHttpServletResponse
-import org.springframework.security.core.authority.SimpleGrantedAuthority
-import org.springframework.security.core.context.SecurityContextHolder
-import spock.lang.Specification
-
 import jakarta.servlet.FilterChain
 import jakarta.servlet.http.HttpServletResponse
+import org.springframework.mock.web.MockHttpServletRequest
+import org.springframework.mock.web.MockHttpServletResponse
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
+import org.springframework.security.core.authority.SimpleGrantedAuthority
+import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource
+import spock.lang.Specification
+
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -94,6 +97,40 @@ class JwtAuthorizationFilterSpec extends Specification {
     request.addHeader("Authorization", "Bearer " + token)
     def response = new MockHttpServletResponse()
     def filterChain = Mock(FilterChain)
+    when:
+    filter.doFilterInternal(request, response, filterChain)
+    then:
+    SecurityContextHolder.context.getAuthentication() == null
+    response.status == HttpServletResponse.SC_UNAUTHORIZED
+    response.contentType == "application/json"
+    def objectMapper = new ObjectMapper()
+    Map<String, Object> actualResponse = objectMapper.readValue(response.contentAsString, Map.class)
+    Map<String, Object> expectedResponse = JwtTokenUtil.getExpiredTokenErrorResponse()
+    assert actualResponse == expectedResponse
+    0 * filterChain.doFilter(request, response)
+  }
+
+  def "does not accept expired tokens even when in security context"() {
+    given:
+    def token = Jwts.builder()
+        .subject("38510309519")
+        .signWith(KeyStoreFixture.keyPair.private)
+        .expiration(Date.from(clock.instant().minus(1, HOURS)))
+        .claim("firstName", "Peeter")
+        .claim("lastName", "Meeter")
+        .claim("authorities", new String[]{"USER"})
+        .compact()
+    def request = new MockHttpServletRequest()
+    request.addHeader("Authorization", "Bearer " + token)
+    def response = new MockHttpServletResponse()
+    def filterChain = Mock(FilterChain)
+
+    def principal = sampleAuthenticatedPersonAndMember().build()
+    def authorities = [new SimpleGrantedAuthority(Authority.USER), new SimpleGrantedAuthority(Authority.MEMBER)]
+    def authenticationToken = new UsernamePasswordAuthenticationToken(principal, token, authorities)
+    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request))
+    SecurityContextHolder.getContext().setAuthentication(authenticationToken)
+
     when:
     filter.doFilterInternal(request, response, filterChain)
     then:

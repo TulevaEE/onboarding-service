@@ -38,31 +38,29 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
         return;
       }
       try {
-        if (SecurityContextHolder.getContext().getAuthentication() == null) {
-          TokenType tokenType = jwtTokenUtil.getTypeFromToken(accessToken);
-          if (tokenType != TokenType.ACCESS) {
-            return;
-          }
-          AuthenticatedPerson principal =
-              principalService.getFrom(
-                  jwtTokenUtil.getPersonFromToken(accessToken),
-                  jwtTokenUtil.getAttributesFromToken(accessToken));
-
-          final var authorities =
-              jwtTokenUtil.getAuthoritiesFromToken(accessToken).stream()
-                  .map(SimpleGrantedAuthority::new)
-                  .toList();
-
-          final var authenticationToken =
-              new UsernamePasswordAuthenticationToken(principal, accessToken, authorities);
-
-          authenticationToken.setDetails(
-              new WebAuthenticationDetailsSource().buildDetails(request));
-
-          SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+        TokenType tokenType = jwtTokenUtil.getTypeFromToken(accessToken);
+        if (tokenType != TokenType.ACCESS) {
+          return;
         }
+        AuthenticatedPerson principal =
+            principalService.getFrom(
+                jwtTokenUtil.getPersonFromToken(accessToken),
+                jwtTokenUtil.getAttributesFromToken(accessToken));
+
+        final var authorities =
+            jwtTokenUtil.getAuthoritiesFromToken(accessToken).stream()
+                .map(SimpleGrantedAuthority::new)
+                .toList();
+
+        final var authenticationToken =
+            new UsernamePasswordAuthenticationToken(principal, accessToken, authorities);
+
+        authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+        SecurityContextHolder.getContext().setAuthentication(authenticationToken);
       } catch (ExpiredJwtException e) {
         logger.info("JWT Token is expired");
+        SecurityContextHolder.clearContext();
         respondWithTokenExpired(response);
         return;
       } catch (Exception e) {

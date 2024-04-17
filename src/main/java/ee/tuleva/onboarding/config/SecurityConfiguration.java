@@ -28,10 +28,9 @@ public class SecurityConfiguration {
     http.csrf()
         .disable()
         .authorizeHttpRequests()
-        .requestMatchers(to("health"))
-        .permitAll()
         .requestMatchers(
             antMatcher("/"),
+            antMatcher("/actuator/health"),
             antMatcher("/swagger-ui/**"),
             antMatcher("/webjars/**"),
             antMatcher("/swagger-resources/**"),

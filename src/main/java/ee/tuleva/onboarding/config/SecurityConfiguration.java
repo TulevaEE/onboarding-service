@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.config;
 
 import static ee.tuleva.onboarding.capital.CapitalController.CAPITAL_URI;
-import static org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest.to;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 import static org.springframework.security.web.util.matcher.RegexRequestMatcher.regexMatcher;

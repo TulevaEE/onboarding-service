@@ -23,10 +23,12 @@ import static java.time.temporal.ChronoUnit.HOURS
 
 class PartnerAuthProviderSpec extends Specification {
 
-  private Resource partnerPublicKey = publicKeyToResource(keyPair.public)
+  Resource partnerPublicKey1 = publicKeyToResource(keyPair.public)
+  Resource partnerPublicKey2 = publicKeyToResource(keyPair.public)
+
   Clock clock = Clock.fixed(Instant.EPOCH, ZoneId.of("UTC"))
   PrincipalService principalService = Mock()
-  PartnerAuthProvider partnerAuthProvider = new PartnerAuthProvider(partnerPublicKey, clock, principalService)
+  PartnerAuthProvider partnerAuthProvider = new PartnerAuthProvider(partnerPublicKey1, partnerPublicKey2, clock, principalService)
 
   def "support PARTNER grant type"() {
     expect:

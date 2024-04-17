@@ -7,7 +7,8 @@ services:
     volumes:
       - /home/webapp/truststore.jks:/truststore.jks
       - /home/webapp/jwt-keystore.p12:/jwt-keystore.p12
-      - /home/webapp/partner-public-key.pem:/partner-public-key.pem
+      - /home/webapp/partner-public-key1.pem:/partner-public-key1.pem
+      - /home/webapp/partner-public-key2.pem:/partner-public-key2.pem
     env_file:
       - .env
 

@@ -12,14 +12,16 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.UnsupportedJwtException;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Clock;
-import java.util.*;
+import java.util.Base64;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -28,18 +30,26 @@ import org.springframework.stereotype.Component;
 @Component
 public class PartnerAuthProvider implements AuthProvider {
   private static final String SUPPORTED_TOKEN_TYPE = "HANDOVER";
-  private final JwtParser jwtParser;
+  private final CompositeJwtParser jwtParser;
   private final PrincipalService principalService;
 
   @SneakyThrows
   public PartnerAuthProvider(
-      @Value("${partner.publicKey}") Resource partnerPublicKey,
+      @Value("${partner.publicKey1}") Resource partnerPublicKey1,
+      @Value("${partner.publicKey2}") Resource partnerPublicKey2,
       Clock clock,
       PrincipalService principalService) {
-    byte[] publicKeyBytes = partnerPublicKey.getInputStream().readAllBytes();
-    PublicKey publicKey = toPublicKey(publicKeyBytes);
+    byte[] publicKey1Bytes = partnerPublicKey1.getInputStream().readAllBytes();
+    byte[] publicKey2Bytes = partnerPublicKey2.getInputStream().readAllBytes();
+
+    PublicKey publicKey1 = toPublicKey(publicKey1Bytes);
+    PublicKey publicKey2 = toPublicKey(publicKey2Bytes);
+
     this.jwtParser =
-        Jwts.parser().verifyWith(publicKey).clock(() -> Date.from(clock.instant())).build();
+        new CompositeJwtParser(
+            Jwts.parser().verifyWith(publicKey1).clock(() -> Date.from(clock.instant())).build(),
+            Jwts.parser().verifyWith(publicKey2).clock(() -> Date.from(clock.instant())).build());
+
     this.principalService = principalService;
   }
 

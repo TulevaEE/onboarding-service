@@ -98,6 +98,7 @@ dependencies {
         exclude(group = "commons-logging", module = "commons-logging")
         exclude(group = "org.bouncycastle")
     }
+    implementation("org.apache.httpcomponents.client5:httpclient5:5.3.1")
     implementation("org.bouncycastle:bcprov-jdk18on:1.76")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.76")
 

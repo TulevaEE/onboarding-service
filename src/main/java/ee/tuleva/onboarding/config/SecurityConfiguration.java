@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.config;
 
 import static ee.tuleva.onboarding.capital.CapitalController.CAPITAL_URI;
-import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpMethod.*;
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 import static org.springframework.security.web.util.matcher.RegexRequestMatcher.regexMatcher;
 
@@ -43,15 +43,15 @@ public class SecurityConfiguration {
         .permitAll()
         .requestMatchers(regexMatcher("/v1" + CAPITAL_URI))
         .hasAuthority(Authority.MEMBER)
-        .requestMatchers(regexMatcher("/v1/funds.*"))
+        .requestMatchers(regexMatcher(GET, "/v1/funds.*"))
         .permitAll()
-        .requestMatchers(regexMatcher("/v1/members.*"))
+        .requestMatchers(regexMatcher(HEAD, "/v1/members"))
         .permitAll()
         .requestMatchers(regexMatcher(GET, "/v1/payments/success.*"))
         .permitAll()
         .requestMatchers(regexMatcher(GET, "/v1/payments/member-success.*"))
         .permitAll()
-        .requestMatchers(regexMatcher(GET, "/v1/payments/notifications.*"))
+        .requestMatchers(regexMatcher(POST, "/v1/payments/notifications.*"))
         .permitAll()
         .requestMatchers(regexMatcher("/v1/.*"))
         .hasAuthority(Authority.USER)

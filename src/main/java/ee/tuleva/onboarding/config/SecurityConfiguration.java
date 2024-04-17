@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.config;
 
 import static ee.tuleva.onboarding.capital.CapitalController.CAPITAL_URI;
 import static org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest.to;
-import static org.springframework.http.HttpMethod.*;
+import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 import static org.springframework.security.web.util.matcher.RegexRequestMatcher.regexMatcher;
 
@@ -10,20 +10,24 @@ import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-@EnableWebSecurity
+@Configuration
+@EnableWebSecurity(debug = true)
 public class SecurityConfiguration {
 
   @Bean
   @SneakyThrows
   public SecurityFilterChain securityFilterChain(
       HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter) {
-    http.authorizeHttpRequests()
+    http.csrf()
+        .disable()
+        .authorizeHttpRequests()
         .requestMatchers(to("health"))
         .permitAll()
         .requestMatchers(
@@ -55,15 +59,6 @@ public class SecurityConfiguration {
         .hasAuthority(Authority.USER)
         .anyRequest()
         .authenticated()
-        .and()
-        .csrf()
-        .ignoringRequestMatchers(
-            antMatcher("/authenticate"),
-            antMatcher("/oauth/token"),
-            antMatcher("/oauth/refresh-token"),
-            antMatcher("/idLogin"),
-            antMatcher("/notifications/payments"),
-            antMatcher("/v1/.*"))
         .and()
         .sessionManagement()
         .sessionCreationPolicy(SessionCreationPolicy.NEVER)

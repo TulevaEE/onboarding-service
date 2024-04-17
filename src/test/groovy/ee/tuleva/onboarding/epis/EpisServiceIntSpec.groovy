@@ -41,7 +41,7 @@ import static org.mockserver.model.JsonBody.json
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @MockServerTest("epis.service.url=http://localhost:\${mockServerPort}")
-@TestPropertySource(properties = "spring.cache.type=JCACHE")
+@TestPropertySource(properties = "spring.cache.type=SIMPLE")
 @Import(Config.class)
 class EpisServiceIntSpec extends Specification {
 

@@ -65,12 +65,11 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
 
     implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
-    implementation("org.springframework.session:spring-session-jdbc")
 
     implementation("com.nimbusds:nimbus-jose-jwt:9.37.3")
 
-    implementation("org.springdoc:springdoc-openapi-ui:1.8.0")
-    implementation("org.springdoc:springdoc-openapi-security:1.8.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
+    implementation("org.springdoc:springdoc-openapi-starter-common:2.5.0")
 
     runtimeOnly("org.postgresql:postgresql")
 
@@ -83,7 +82,6 @@ dependencies {
     implementation("org.jsoup:jsoup:1.17.2")
     implementation("commons-net:commons-net:3.10.0")
     implementation("org.apache.commons:commons-lang3")
-    implementation("org.ehcache:ehcache")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.decampo:xirr:1.2")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.2")
@@ -103,7 +101,7 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.76")
     implementation("org.bouncycastle:bcpkix-jdk18on:1.76")
 
-    implementation("io.sentry:sentry-spring-boot-starter:7.8.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.8.0")
     implementation("io.sentry:sentry-logback:7.8.0")
 
     implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.7.1")

@@ -19,7 +19,7 @@ public class SwaggerConfiguration {
         new Contact()
             .name("Tuleva")
             .url("https://github.com/TulevaEE")
-            .email("tonu.pekk@tuleva.ee");
+            .email("erko.risthein@tuleva.ee");
     return new Info().title("Tuleva onboarding service").contact(contact).version("1.0");
   }
 }

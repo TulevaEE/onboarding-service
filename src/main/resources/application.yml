@@ -9,7 +9,7 @@ server:
       remote-ip-header: x-forwarded-for
       protocol-header: x-forwarded-proto
     redirect-context-root: false
-    relaxed-query-chars: []
+    relaxed-query-chars: [ "[", "]" ]
   servlet:
     session:
       timeout: 3600

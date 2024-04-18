@@ -2,24 +2,8 @@ package ee.tuleva.onboarding.auth.mobileid;
 
 import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError;
 
-import ee.sk.mid.MidAuthentication;
-import ee.sk.mid.MidAuthenticationHashToSign;
-import ee.sk.mid.MidAuthenticationIdentity;
-import ee.sk.mid.MidAuthenticationResponseValidator;
-import ee.sk.mid.MidAuthenticationResult;
-import ee.sk.mid.MidClient;
-import ee.sk.mid.MidDisplayTextFormat;
-import ee.sk.mid.MidLanguage;
-import ee.sk.mid.exception.MidDeliveryException;
-import ee.sk.mid.exception.MidInternalErrorException;
-import ee.sk.mid.exception.MidInvalidUserConfigurationException;
-import ee.sk.mid.exception.MidMissingOrInvalidParameterException;
-import ee.sk.mid.exception.MidNotMidClientException;
-import ee.sk.mid.exception.MidPhoneNotAvailableException;
-import ee.sk.mid.exception.MidSessionNotFoundException;
-import ee.sk.mid.exception.MidSessionTimeoutException;
-import ee.sk.mid.exception.MidUnauthorizedException;
-import ee.sk.mid.exception.MidUserCancellationException;
+import ee.sk.mid.*;
+import ee.sk.mid.exception.*;
 import ee.sk.mid.rest.MidConnector;
 import ee.sk.mid.rest.MidSessionStatusPoller;
 import ee.sk.mid.rest.dao.MidSessionStatus;
@@ -88,15 +72,12 @@ public class MobileIdAuthService {
 
     } catch (MidUserCancellationException e) {
       throw new MobileIdException(
-          ofSingleError("mobile.id.cancelled", "You cancelled operation from " + "your phone."));
+          ofSingleError("mobile.id.cancelled", "You cancelled operation from your phone."));
     } catch (MidNotMidClientException e) {
       throw new MobileIdException(
           ofSingleError(
               "mobile.id.certificates.revoked",
-              """
-              You are not a Mobile-ID client or your Mobile-ID certificates are revoked. Please contact your mobile \
-              operator.\
-              """));
+              "You are not a Mobile-ID client or your Mobile-ID certificates are revoked. Please contact your mobile operator."));
     } catch (MidSessionTimeoutException e) {
       throw new MobileIdException(
           ofSingleError(
@@ -110,19 +91,12 @@ public class MobileIdAuthService {
     } catch (MidDeliveryException e) {
       throw new MobileIdException(
           ofSingleError(
-              "mobile.id.communication.error",
-              """
-              Communication error. Unable to \
-              reach your phone.\
-              """));
+              "mobile.id.communication.error", "Communication error. Unable to reach your phone."));
     } catch (MidInvalidUserConfigurationException e) {
       throw new MobileIdException(
           ofSingleError(
               "mobile.id.configuration.error",
-              """
-              Mobile-ID configuration on your SIM card differs from what is configured on service provider's side. \
-              Please contact your mobile operator.\
-              """));
+              "Mobile-ID configuration on your SIM card differs from what is configured on service provider's side. Please contact your mobile operator."));
     } catch (MidSessionNotFoundException
         | MidMissingOrInvalidParameterException
         | MidUnauthorizedException e) {

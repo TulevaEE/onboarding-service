@@ -1,5 +1,10 @@
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
-import org.gradle.api.tasks.testing.logging.TestLogEvent.*
+import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
+import org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED
+import org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED
+import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_ERROR
+import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_OUT
+import org.gradle.api.tasks.testing.logging.TestLogEvent.STARTED
 
 buildscript {
     repositories {
@@ -8,7 +13,7 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2021.0.9"
+val springCloudVersion = "2023.0.1"
 
 plugins {
     java
@@ -33,7 +38,7 @@ spotless {
     }
     kotlinGradle {
         target("*.gradle.kts")
-        //ktlint() // disable for now, can try if it works after upgrading spring boot to v3+
+        ktlint()
     }
 }
 
@@ -63,7 +68,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-json")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
-    implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
+    implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
     implementation("com.nimbusds:nimbus-jose-jwt:9.37.3")
 
@@ -139,14 +144,15 @@ dependencyManagement {
 tasks {
     test {
         testLogging {
-            events = setOf(
-                STARTED,
-                PASSED,
-                FAILED,
-                SKIPPED,
-                STANDARD_OUT,
-                STANDARD_ERROR,
-            )
+            events =
+                setOf(
+                    STARTED,
+                    PASSED,
+                    FAILED,
+                    SKIPPED,
+                    STANDARD_OUT,
+                    STANDARD_ERROR,
+                )
             showCauses = true
             showExceptions = true
             showStackTraces = true
@@ -175,10 +181,6 @@ tasks {
     }
 }
 
-tasks.withType<JavaCompile>() {
+tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
-}
-
-tasks.withType<GroovyCompile>() {
-    groovyOptions.isParameters = true
 }

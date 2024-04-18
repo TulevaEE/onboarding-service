@@ -104,7 +104,6 @@ dependencies {
     implementation("org.apache.httpcomponents.client5:httpclient5:5.3.1")
 
     implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.8.0")
-    implementation("io.sentry:sentry-logback:7.8.0")
 
     implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.7.3")
 
@@ -120,10 +119,10 @@ dependencies {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }
-    testImplementation("org.spockframework:spock-core:2.4-M1-groovy-4.0") {
+    testImplementation("org.spockframework:spock-core:2.4-M4-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.4-M1-groovy-4.0") {
+    testImplementation("org.spockframework:spock-spring:2.4-M4-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
     testImplementation("org.apache.groovy:groovy-all:4.0.21")

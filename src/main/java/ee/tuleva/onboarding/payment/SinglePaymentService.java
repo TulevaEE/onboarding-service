@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.payment;
 
-import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.PARTNER;
-
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.payment.provider.PaymentProviderService;
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentService;
@@ -17,10 +15,10 @@ public class SinglePaymentService implements PaymentLinkGenerator {
 
   @Override
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
-    if (PARTNER == paymentData.getPaymentChannel()) {
-      // same logic as in RecurringPaymentService
-      return recurringPaymentService.getPaymentLink(paymentData, person);
-    }
-    return paymentProviderService.getPaymentLink(paymentData, person);
+    return switch (paymentData.getPaymentChannel()) {
+        // same logic as in RecurringPaymentService
+      case PARTNER, COOP_WEB -> recurringPaymentService.getPaymentLink(paymentData, person);
+      default -> paymentProviderService.getPaymentLink(paymentData, person);
+    };
   }
 }

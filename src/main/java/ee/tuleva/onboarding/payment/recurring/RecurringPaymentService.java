@@ -59,7 +59,7 @@ public class RecurringPaymentService implements PaymentLinkGenerator {
                   + "&i_date_first_payment="
                   + format(tenthDayOfMonth());
           case LUMINOR -> "https://luminor.ee/auth/#/web/view/autopilot/newpayment";
-          case COOP ->
+          case COOP, COOP_WEB ->
               "https://i.cooppank.ee/newpmt"
                   + "?whatform=PermPaymentNew"
                   + "&SaajaNimi=AS%20Pensionikeskus"

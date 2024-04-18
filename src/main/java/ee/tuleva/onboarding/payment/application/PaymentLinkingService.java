@@ -29,7 +29,6 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -50,21 +49,21 @@ public class PaymentLinkingService {
   private final PublicHolidays publicHolidays;
 
   public List<Application<PaymentApplicationDetails>> getPaymentApplications(Person person) {
-    val payments = paymentService.getThirdPillarPayments(person);
-    val cashFlowStatement = cashFlowService.getCashFlowStatement(person);
-    val locale = localeService.getCurrentLocale();
-    val fund = fundRepository.findByIsin(TULEVA_3RD_PILLAR_FUND_ISIN);
-    val apiFund = new ApiFundResponse(fund, locale);
+    final var payments = paymentService.getThirdPillarPayments(person);
+    final var cashFlowStatement = cashFlowService.getCashFlowStatement(person);
+    final var locale = localeService.getCurrentLocale();
+    final var fund = fundRepository.findByIsin(TULEVA_3RD_PILLAR_FUND_ISIN);
+    final var apiFund = new ApiFundResponse(fund, locale);
 
-    val applications = new ArrayList<Application<PaymentApplicationDetails>>();
+    final var applications = new ArrayList<Application<PaymentApplicationDetails>>();
 
-    val linkedCashFlow = getLinkedCashFlow(payments, cashFlowStatement.getTransactions());
+    final var linkedCashFlow = getLinkedCashFlow(payments, cashFlowStatement.getTransactions());
 
     log.info("Linked cash flow: {}", linkedCashFlow);
 
-    for (val entry : linkedCashFlow.entrySet()) {
-      val payment = entry.getKey();
-      val linkedCash = entry.getValue();
+    for (final var entry : linkedCashFlow.entrySet()) {
+      final var payment = entry.getKey();
+      final var linkedCash = entry.getValue();
       if (linkedCash.isEmpty() || !cashIsBalanced(linkedCash)) {
         if (hasRefund(linkedCash)) {
           log.info("Payment {} has a refund", payment.getId());
@@ -92,7 +91,7 @@ public class PaymentLinkingService {
 
   private boolean isTimeMoreThanThreeDaysEarlierThanReference(
       LocalDate referencePoint, Instant timeToCheck) {
-    val timeToCheckPlusThreeWorkingDays =
+    final var timeToCheckPlusThreeWorkingDays =
         publicHolidays.addWorkingDays(LocalDate.ofInstant(timeToCheck, clock.getZone()), 3);
     return !timeToCheckPlusThreeWorkingDays.isAfter(referencePoint);
   }
@@ -118,19 +117,16 @@ public class PaymentLinkingService {
 
   private Map<Payment, List<CashFlow>> getLinkedCashFlow(
       List<Payment> payments, List<CashFlow> cashFlow) {
-    val remainingCashFlow = new ArrayList<>(cashFlow.stream().sorted().toList());
-    val linkedCashFlow = new TreeMap<Payment, List<CashFlow>>();
+    final var remainingCashFlow = new ArrayList<>(cashFlow.stream().sorted().toList());
+    final var linkedCashFlow = new TreeMap<Payment, List<CashFlow>>();
     for (Payment payment : payments.stream().sorted().toList()) {
-      val payIn = linkedPayIn(remainingCashFlow, payment);
-      val refund = linkedRefund(remainingCashFlow, payIn);
-      val payOut = linkedPayOut(remainingCashFlow, payIn);
-      val contribution = linkedContribution(remainingCashFlow, payOut);
+      final var payIn = linkedPayIn(remainingCashFlow, payment);
+      final var refund = linkedRefund(remainingCashFlow, payIn);
+      final var payOut = linkedPayOut(remainingCashFlow, payIn);
+      final var contribution = linkedContribution(remainingCashFlow, payOut);
 
-      val paymentCashFlow =
-          Stream.of(payIn, refund, payOut, contribution)
-              .filter(Optional::isPresent)
-              .map(Optional::get)
-              .toList();
+      final var paymentCashFlow =
+          Stream.of(payIn, refund, payOut, contribution).flatMap(Optional::stream).toList();
 
       log.info("Payment {} has linked cash flow: {}", payment.getId(), paymentCashFlow);
 
@@ -195,7 +191,7 @@ public class PaymentLinkingService {
 
   private Predicate<CashFlow> isLessThanThreeWorkingDaysAfter(Instant paymentTime) {
     return cashFlow -> {
-      val timeToCheckPlusThreeWorkingDays =
+      final var timeToCheckPlusThreeWorkingDays =
           publicHolidays.addWorkingDays(LocalDate.ofInstant(paymentTime, clock.getZone()), 3);
       return !timeToCheckPlusThreeWorkingDays.isBefore(
           LocalDate.ofInstant(cashFlow.getTime(), clock.getZone()));

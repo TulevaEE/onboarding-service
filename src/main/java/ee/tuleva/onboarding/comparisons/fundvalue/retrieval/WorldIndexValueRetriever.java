@@ -69,8 +69,7 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
   private List<FundValue> parseLines(Stream<String> lines, LocalDate startDate, LocalDate endDate) {
     return lines
         .map(this::parseLine)
-        .filter(Optional::isPresent)
-        .map(Optional::get)
+        .flatMap(Optional::stream)
         .filter(
             (FundValue value) -> {
               LocalDate date = value.getDate();
@@ -95,7 +94,7 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
     Optional<LocalDate> date = parseDate(parts[0]);
     Optional<BigDecimal> value = parseAmount(parts[5]);
 
-    if (!date.isPresent() || !value.isPresent()) {
+    if (date.isEmpty() || value.isEmpty()) {
       return Optional.empty();
     }
 

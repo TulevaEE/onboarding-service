@@ -25,7 +25,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -73,9 +72,9 @@ public class MockEpisService extends EpisService {
   public CashFlowStatement getCashFlowStatement(
       Person person, LocalDate fromDate, LocalDate toDate) {
 
-    val time = Instant.parse("2022-01-02T01:23:45Z");
-    val currency = Currency.EUR;
-    val amount = new BigDecimal("2000");
+    final var time = Instant.parse("2022-01-02T01:23:45Z");
+    final var currency = Currency.EUR;
+    final var amount = new BigDecimal("2000");
 
     return CashFlowStatement.builder()
         .startBalance(

@@ -2,9 +2,6 @@ package ee.tuleva.onboarding.mandate;
 
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
 import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
-import static org.springframework.web.bind.annotation.RequestMethod.GET;
-import static org.springframework.web.bind.annotation.RequestMethod.POST;
-import static org.springframework.web.bind.annotation.RequestMethod.PUT;
 
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -38,10 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.tomcat.util.http.fileupload.IOUtils;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.Errors;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.LocaleResolver;
 
 @Slf4j
@@ -60,7 +54,7 @@ public class MandateController {
   private final LocaleResolver localeResolver;
 
   @Operation(summary = "Create a mandate")
-  @RequestMapping(method = POST)
+  @PostMapping
   @JsonView(MandateView.Default.class)
   public Mandate create(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
@@ -76,7 +70,7 @@ public class MandateController {
   }
 
   @Operation(summary = "Start signing mandate with mobile ID")
-  @RequestMapping(method = PUT, value = "/{id}/signature/mobileId")
+  @PutMapping("/{id}/signature/mobileId")
   public MobileSignatureResponse startMobileIdSignature(
       @PathVariable("id") Long mandateId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
@@ -92,7 +86,7 @@ public class MandateController {
   }
 
   @Operation(summary = "Is mandate successfully signed with mobile ID")
-  @RequestMapping(method = GET, value = "/{id}/signature/mobileId/status")
+  @GetMapping("/{id}/signature/mobileId/status")
   public MobileSignatureStatusResponse getMobileIdSignatureStatus(
       @PathVariable("id") Long mandateId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
@@ -113,7 +107,7 @@ public class MandateController {
   }
 
   @Operation(summary = "Start signing mandate with Smart ID")
-  @RequestMapping(method = PUT, value = "/{id}/signature/smartId")
+  @PutMapping("/{id}/signature/smartId")
   public MobileSignatureResponse startSmartIdSignature(
       @PathVariable("id") Long mandateId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
@@ -125,7 +119,7 @@ public class MandateController {
   }
 
   @Operation(summary = "Is mandate successfully signed with Smart ID")
-  @RequestMapping(method = GET, value = "/{id}/signature/smartId/status")
+  @GetMapping("/{id}/signature/smartId/status")
   public MobileSignatureStatusResponse getSmartIdSignatureStatus(
       @PathVariable("id") Long mandateId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
@@ -146,7 +140,7 @@ public class MandateController {
   }
 
   @Operation(summary = "Start signing mandate with ID card")
-  @RequestMapping(method = PUT, value = "/{id}/signature/idCard")
+  @PutMapping("/{id}/signature/idCard")
   public IdCardSignatureResponse startIdCardSign(
       @PathVariable("id") Long mandateId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
@@ -162,7 +156,7 @@ public class MandateController {
   }
 
   @Operation(summary = "Is mandate successfully signed with ID card")
-  @RequestMapping(method = PUT, value = "/{id}/signature/idCard/status")
+  @PutMapping("/{id}/signature/idCard/status")
   public IdCardSignatureStatusResponse getIdCardSignatureStatus(
       @PathVariable("id") Long mandateId,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
@@ -188,7 +182,7 @@ public class MandateController {
   }
 
   @Operation(summary = "Get mandate file")
-  @RequestMapping(method = GET, value = "/{id}/file")
+  @GetMapping("/{id}/file")
   public void getMandateFile(
       @PathVariable("id") Long mandateId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
@@ -206,7 +200,7 @@ public class MandateController {
   }
 
   @Operation(summary = "Get mandate file")
-  @RequestMapping(method = GET, value = "/{id}/file/preview", produces = "application/zip")
+  @GetMapping(value = "/{id}/file/preview", produces = "application/zip")
   public void getMandateFilePreview(
       @PathVariable("id") Long mandateId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,

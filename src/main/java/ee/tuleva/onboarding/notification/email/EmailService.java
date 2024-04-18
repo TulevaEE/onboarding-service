@@ -29,7 +29,6 @@ public class EmailService {
   private final EmailConfiguration emailConfiguration;
   private final MandrillApi mandrillApi;
 
-  @Autowired
   public EmailService(
       EmailConfiguration emailConfiguration, @Autowired(required = false) MandrillApi mandrillApi) {
     this.emailConfiguration = emailConfiguration;

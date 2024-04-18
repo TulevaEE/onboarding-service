@@ -17,7 +17,6 @@ import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -61,7 +60,7 @@ public class CancellationMandateBuilder {
       ApplicationDTO applicationToCancel, Mandate mandate) {
     Fund sourceFund = fundRepository.findByIsin(applicationToCancel.getSourceFundIsin());
 
-    val exchange =
+    final var exchange =
         FundTransferExchange.builder()
             .sourceFundIsin(sourceFund.getIsin())
             .targetFundIsin(null)

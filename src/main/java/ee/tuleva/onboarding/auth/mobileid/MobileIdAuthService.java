@@ -93,8 +93,10 @@ public class MobileIdAuthService {
       throw new MobileIdException(
           ofSingleError(
               "mobile.id.certificates.revoked",
-              "You are not a Mobile-ID client or your Mobile-ID certificates are revoked. Please contact your mobile "
-                  + "operator."));
+              """
+              You are not a Mobile-ID client or your Mobile-ID certificates are revoked. Please contact your mobile \
+              operator.\
+              """));
     } catch (MidSessionTimeoutException e) {
       throw new MobileIdException(
           ofSingleError(
@@ -109,13 +111,18 @@ public class MobileIdAuthService {
       throw new MobileIdException(
           ofSingleError(
               "mobile.id.communication.error",
-              "Communication error. Unable to " + "reach your phone."));
+              """
+              Communication error. Unable to \
+              reach your phone.\
+              """));
     } catch (MidInvalidUserConfigurationException e) {
       throw new MobileIdException(
           ofSingleError(
               "mobile.id.configuration.error",
-              "Mobile-ID configuration on your SIM card differs from what is configured on service provider's side. "
-                  + "Please contact your mobile operator."));
+              """
+              Mobile-ID configuration on your SIM card differs from what is configured on service provider's side. \
+              Please contact your mobile operator.\
+              """));
     } catch (MidSessionNotFoundException
         | MidMissingOrInvalidParameterException
         | MidUnauthorizedException e) {

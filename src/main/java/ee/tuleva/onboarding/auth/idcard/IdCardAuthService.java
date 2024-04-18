@@ -18,7 +18,6 @@ import java.util.Objects;
 import javax.security.auth.x500.X500Principal;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.bouncycastle.asn1.DLSequence;
 import org.springframework.stereotype.Service;
 
@@ -64,10 +63,10 @@ public class IdCardAuthService {
     try {
       byte[] encodedExtensionValue = certificate.getExtensionValue(certificatePolicies.getId());
       if (encodedExtensionValue != null) {
-        val extensionValue = (DLSequence) parseExtensionValue(encodedExtensionValue);
+        final var extensionValue = (DLSequence) parseExtensionValue(encodedExtensionValue);
         try {
-          val first = (DLSequence) extensionValue.getObjectAt(POLICY_NO_1);
-          val second = (DLSequence) extensionValue.getObjectAt(POLICY_NO_2);
+          final var first = (DLSequence) extensionValue.getObjectAt(POLICY_NO_1);
+          final var second = (DLSequence) extensionValue.getObjectAt(POLICY_NO_2);
           if (Objects.equals(second.getObjectAt(0).toString(), AUTHENTICATION_POLICY_ID)) {
             return IdDocumentType.findByIdentifier(first.getObjectAt(POLICY_NO_1).toString());
           } else {
@@ -89,8 +88,8 @@ public class IdCardAuthService {
     try {
       byte[] encodedExtendedKeyUsage = certificate.getExtensionValue(extendedKeyUsage.getId());
       if (encodedExtendedKeyUsage != null) {
-        val extendedKeyUsage = (DLSequence) parseExtensionValue(encodedExtendedKeyUsage);
-        for (val element : extendedKeyUsage) {
+        final var extendedKeyUsage = (DLSequence) parseExtensionValue(encodedExtendedKeyUsage);
+        for (final var element : extendedKeyUsage) {
           if (element.toString().equals(CLIENT_AUTHENTICATION_ID)) {
             return;
           }
@@ -106,7 +105,7 @@ public class IdCardAuthService {
   }
 
   private void checkIssuer(X509Certificate certificate) {
-    val issuer = certificate.getIssuerX500Principal().getName(X500Principal.RFC1779);
+    final var issuer = certificate.getIssuerX500Principal().getName(X500Principal.RFC1779);
     if (VALID_ISSUERS.contains(issuer)) {
       return;
     }

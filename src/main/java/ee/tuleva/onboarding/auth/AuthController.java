@@ -47,10 +47,7 @@ public class AuthController {
   private String frontendUrl;
 
   @Operation(summary = "Initiate authentication")
-  @RequestMapping(
-      method = POST,
-      value = "/authenticate",
-      consumes = MediaType.APPLICATION_JSON_VALUE)
+  @PostMapping(value = "/authenticate", consumes = MediaType.APPLICATION_JSON_VALUE)
   public ResponseEntity<AuthenticateResponse> authenticate(
       @Valid @RequestBody AuthenticateCommand authenticateCommand,
       @Parameter(hidden = true) Errors errors) {
@@ -77,7 +74,7 @@ public class AuthController {
   @PostMapping({"/oauth/token", "/login", "/v1/tokens"})
   public AuthenticationTokens login(
       @RequestParam("grant_type") String grantType,
-      @RequestParam(value = "authenticationHash", required = false) String authenticationHash) {
+      @RequestParam(required = false) String authenticationHash) {
     return authService.authenticate(GrantType.valueOf(grantType.toUpperCase()), authenticationHash);
   }
 

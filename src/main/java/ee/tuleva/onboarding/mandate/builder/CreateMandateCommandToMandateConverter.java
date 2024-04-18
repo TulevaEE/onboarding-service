@@ -18,7 +18,6 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.val;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
@@ -36,7 +35,7 @@ public class CreateMandateCommandToMandateConverter
   @NonNull
   public Mandate convert(CreateMandateCommandWrapper wrapper) {
     User user = wrapper.getUser();
-    val createMandateCommand = wrapper.getCreateMandateCommand();
+    final var createMandateCommand = wrapper.getCreateMandateCommand();
     ConversionResponse conversion = wrapper.getConversion();
     ContactDetails contactDetails = wrapper.getContactDetails();
     AuthenticatedPerson authenticatedPerson = wrapper.getAuthenticatedPerson();
@@ -67,13 +66,13 @@ public class CreateMandateCommandToMandateConverter
   }
 
   private Integer getPillar(CreateMandateCommand createMandateCommand) {
-    val sourceIsin = getIsin(createMandateCommand);
+    final var sourceIsin = getIsin(createMandateCommand);
 
     if (sourceIsin == null) {
       throw new IllegalArgumentException("Source isin not found: " + createMandateCommand);
     }
 
-    val fund = fundRepository.findByIsin(sourceIsin);
+    final var fund = fundRepository.findByIsin(sourceIsin);
 
     if (fund == null) {
       throw new IllegalArgumentException(
@@ -93,13 +92,13 @@ public class CreateMandateCommandToMandateConverter
   }
 
   private BigDecimal getAmount(MandateFundTransferExchangeCommand exchange, Mandate mandate) {
-    val pillar = mandate.getPillar();
+    final var pillar = mandate.getPillar();
     if (pillar == 2) {
       return exchange.getAmount();
     } else if (pillar == 3) {
-      val statement = accountStatementService.getAccountStatement(mandate.getUser());
-      val balance = getFundBalance(statement, exchange.getSourceFundIsin());
-      val exchangeAmount = balance.getUnits().multiply(exchange.getAmount());
+      final var statement = accountStatementService.getAccountStatement(mandate.getUser());
+      final var balance = getFundBalance(statement, exchange.getSourceFundIsin());
+      final var exchangeAmount = balance.getUnits().multiply(exchange.getAmount());
       return exchangeAmount.setScale(4, RoundingMode.HALF_UP);
     } else {
       throw new IllegalStateException("Unknown pillar " + pillar);

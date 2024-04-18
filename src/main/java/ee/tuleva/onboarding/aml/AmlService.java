@@ -25,7 +25,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -258,7 +257,7 @@ public class AmlService {
       // No checks needed for second pillar
       return true;
     } else if (pillar == 3) {
-      val successfulTypes =
+      final var successfulTypes =
           getChecks(person).stream()
               .filter(AmlCheck::isSuccess)
               .map(AmlCheck::getType)

@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.decampo.xirr.Xirr;
 import org.springframework.stereotype.Service;
 
@@ -58,7 +57,7 @@ public class ReturnCalculator {
       AccountOverview accountOverview, String comparisonFund) {
     List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
-    val sellAmount =
+    final var sellAmount =
         getSimulatedEndingBalanceForAFund(accountOverview, comparisonFund, purchaseTransactions);
 
     if (sellAmount.isEmpty()) {
@@ -103,7 +102,7 @@ public class ReturnCalculator {
   }
 
   private CashReturn getPersonalCashReturn(AccountOverview accountOverview) {
-    val paymentsSum =
+    final var paymentsSum =
         accountOverview.getTransactions().stream()
             .map(Transaction::amount)
             .reduce(BigDecimal::add)
@@ -123,14 +122,14 @@ public class ReturnCalculator {
       AccountOverview accountOverview, String comparisonFund) {
     List<Transaction> purchaseTransactions = getPurchaseTransactions(accountOverview);
 
-    val endingBalance =
+    final var endingBalance =
         getSimulatedEndingBalanceForAFund(accountOverview, comparisonFund, purchaseTransactions);
 
     if (endingBalance.isEmpty()) {
       return new CashReturn();
     }
 
-    val paymentsSum =
+    final var paymentsSum =
         accountOverview.getTransactions().stream()
             .map(Transaction::amount)
             .reduce(BigDecimal::add)

@@ -24,49 +24,52 @@ public class SecurityConfiguration {
   @SneakyThrows
   public SecurityFilterChain securityFilterChain(
       HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter) {
-    http.csrf()
-        .disable()
-        .authorizeHttpRequests()
-        .requestMatchers(
-            antMatcher("/"),
-            antMatcher("/actuator/health"),
-            antMatcher("/swagger-ui/**"),
-            antMatcher("/webjars/**"),
-            antMatcher("/swagger-resources/**"),
-            antMatcher("/v3/api-docs/**"),
-            antMatcher("/authenticate"),
-            antMatcher("/oauth/token"),
-            antMatcher("/oauth/refresh-token"),
-            antMatcher("/idLogin"),
-            antMatcher("/notifications/payments"),
-            antMatcher("/error"))
-        .permitAll()
-        .requestMatchers(regexMatcher("/v1" + CAPITAL_URI))
-        .hasAuthority(Authority.MEMBER)
-        .requestMatchers(regexMatcher(GET, "/v1/funds.*"))
-        .permitAll()
-        .requestMatchers(regexMatcher(HEAD, "/v1/members"))
-        .permitAll()
-        .requestMatchers(regexMatcher(GET, "/v1/payments/success.*"))
-        .permitAll()
-        .requestMatchers(regexMatcher(GET, "/v1/payments/member-success.*"))
-        .permitAll()
-        .requestMatchers(regexMatcher(POST, "/v1/payments/notifications.*"))
-        .permitAll()
-        .requestMatchers(regexMatcher("/v1/.*"))
-        .hasAuthority(Authority.USER)
-        .anyRequest()
-        .authenticated()
-        .and()
-        .sessionManagement()
-        .sessionCreationPolicy(SessionCreationPolicy.NEVER)
-        .sessionFixation()
-        .newSession()
-        .and()
-        .logout()
-        .logoutRequestMatcher(antMatcher(GET, "/v1/logout"))
-        .logoutSuccessHandler((request, response, authentication) -> response.setStatus(200))
-        .and()
+    http.csrf(csrf -> csrf.disable())
+        .authorizeHttpRequests(
+            requests ->
+                requests
+                    .requestMatchers(
+                        antMatcher("/"),
+                        antMatcher("/actuator/health"),
+                        antMatcher("/swagger-ui/**"),
+                        antMatcher("/webjars/**"),
+                        antMatcher("/swagger-resources/**"),
+                        antMatcher("/v3/api-docs/**"),
+                        antMatcher("/authenticate"),
+                        antMatcher("/oauth/token"),
+                        antMatcher("/oauth/refresh-token"),
+                        antMatcher("/idLogin"),
+                        antMatcher("/notifications/payments"),
+                        antMatcher("/error"))
+                    .permitAll()
+                    .requestMatchers(regexMatcher("/v1" + CAPITAL_URI))
+                    .hasAuthority(Authority.MEMBER)
+                    .requestMatchers(regexMatcher(GET, "/v1/funds.*"))
+                    .permitAll()
+                    .requestMatchers(regexMatcher(HEAD, "/v1/members"))
+                    .permitAll()
+                    .requestMatchers(regexMatcher(GET, "/v1/payments/success.*"))
+                    .permitAll()
+                    .requestMatchers(regexMatcher(GET, "/v1/payments/member-success.*"))
+                    .permitAll()
+                    .requestMatchers(regexMatcher(POST, "/v1/payments/notifications.*"))
+                    .permitAll()
+                    .requestMatchers(regexMatcher("/v1/.*"))
+                    .hasAuthority(Authority.USER)
+                    .anyRequest()
+                    .authenticated())
+        .sessionManagement(
+            management ->
+                management
+                    .sessionCreationPolicy(SessionCreationPolicy.NEVER)
+                    .sessionFixation()
+                    .newSession())
+        .logout(
+            logout ->
+                logout
+                    .logoutRequestMatcher(antMatcher(GET, "/v1/logout"))
+                    .logoutSuccessHandler(
+                        (request, response, authentication) -> response.setStatus(200)))
         .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();

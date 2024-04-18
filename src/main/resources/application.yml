@@ -32,8 +32,6 @@ spring:
     properties:
       hibernate:
         jdbc.lob.non_contextual_creation: true
-  mvc:
-    throw-exception-if-no-handler-found: true
   cache:
     type: simple
 

@@ -27,7 +27,6 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
@@ -99,7 +98,7 @@ public class ApplicationService {
       Predicate<Entry<ApplicationType, List<ApplicationDTO>>> filterPredicate,
       Function<Entry<ApplicationType, List<ApplicationDTO>>, Stream<? extends Application<T>>>
           toApplicationMapper) {
-    val applicationsByType =
+    final var applicationsByType =
         episService.getApplications(person).stream().collect(groupingBy(ApplicationDTO::getType));
     return applicationsByType.entrySet().stream()
         .filter(filterPredicate)
@@ -125,13 +124,13 @@ public class ApplicationService {
     return transferApplications.stream()
         .map(
             applicationDto -> {
-              val deadlines = mandateDeadlinesService.getDeadlines(applicationDto.getDate());
-              val application = Application.<TransferApplicationDetails>builder();
+              final var deadlines = mandateDeadlinesService.getDeadlines(applicationDto.getDate());
+              final var application = Application.<TransferApplicationDetails>builder();
               application.id(applicationDto.getId());
               application.creationTime(applicationDto.getDate());
               application.status(applicationDto.getStatus());
-              val sourceFund = fundRepository.findByIsin(applicationDto.getSourceFundIsin());
-              val details =
+              final var sourceFund = fundRepository.findByIsin(applicationDto.getSourceFundIsin());
+              final var details =
                   TransferApplicationDetails.builder()
                       .type(applicationDto.getType())
                       .sourceFund(new ApiFundResponse(sourceFund, locale))
@@ -171,13 +170,13 @@ public class ApplicationService {
 
   private Application<WithdrawalApplicationDetails> convertWithdrawal(
       ApplicationDTO applicationDTO) {
-    val applicationBuilder =
+    final var applicationBuilder =
         Application.<WithdrawalApplicationDetails>builder()
             .creationTime(applicationDTO.getDate())
             .status(applicationDTO.getStatus())
             .id(applicationDTO.getId());
 
-    val deadlines = mandateDeadlinesService.getDeadlines(applicationDTO.getDate());
+    final var deadlines = mandateDeadlinesService.getDeadlines(applicationDTO.getDate());
     applicationBuilder.details(
         WithdrawalApplicationDetails.builder()
             .type(applicationDTO.getType())
@@ -190,13 +189,13 @@ public class ApplicationService {
 
   private Application<PaymentRateApplicationDetails> convertPaymentRate(
       ApplicationDTO applicationDTO) {
-    val applicationBuilder =
+    final var applicationBuilder =
         Application.<PaymentRateApplicationDetails>builder()
             .creationTime(applicationDTO.getDate())
             .status(applicationDTO.getStatus())
             .id(applicationDTO.getId());
 
-    val deadlines = mandateDeadlinesService.getDeadlines(applicationDTO.getDate());
+    final var deadlines = mandateDeadlinesService.getDeadlines(applicationDTO.getDate());
     applicationBuilder.details(
         PaymentRateApplicationDetails.builder()
             .type(applicationDTO.getType())

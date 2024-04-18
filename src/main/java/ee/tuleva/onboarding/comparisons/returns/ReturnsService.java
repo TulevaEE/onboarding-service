@@ -91,8 +91,7 @@ public class ReturnsService {
     Optional<LocalDate> latestKeyDataStartDate =
         keys.stream()
             .map(fundValueRepository::findEarliestDateForKey)
-            .filter(Optional::isPresent)
-            .map(Optional::get)
+            .flatMap(Optional::stream)
             .max(LocalDate::compareTo);
 
     return latestKeyDataStartDate

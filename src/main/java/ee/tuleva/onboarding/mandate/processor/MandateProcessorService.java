@@ -17,7 +17,6 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 
@@ -35,19 +34,19 @@ public class MandateProcessorService {
         "Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
 
     if (mandate.isWithdrawalCancellation()) {
-      val response = episService.sendCancellation(getCancellationDto(mandate));
+      final var response = episService.sendCancellation(getCancellationDto(mandate));
       handleApplicationProcessResponse(new ApplicationResponseDTO(response));
     } else if (mandate.isPaymentRateApplication()) {
-      val response = episService.sendPaymentRateApplication(getPaymentRateDto(mandate));
+      final var response = episService.sendPaymentRateApplication(getPaymentRateDto(mandate));
       handleApplicationProcessResponse(new ApplicationResponseDTO(response));
     } else {
-      val response = episService.sendMandate(getMandateDto(mandate));
+      final var response = episService.sendMandate(getMandateDto(mandate));
       handleApplicationProcessResponse(response);
     }
   }
 
   private MandateDto getMandateDto(Mandate mandate) {
-    val mandateDtoBuilder =
+    final var mandateDtoBuilder =
         MandateDto.builder()
             .id(mandate.getId())
             .createdDate(mandate.getCreatedDate())
@@ -62,7 +61,7 @@ public class MandateProcessorService {
   }
 
   private CancellationDto getCancellationDto(Mandate mandate) {
-    val mandateDtoBuilder =
+    final var mandateDtoBuilder =
         CancellationDto.builder()
             .id(mandate.getId())
             .createdDate(mandate.getCreatedDate())
@@ -71,13 +70,13 @@ public class MandateProcessorService {
             .email(mandate.getEmail())
             .phoneNumber(mandate.getPhoneNumber());
 
-    val process = createMandateProcess(mandate, ApplicationType.CANCELLATION);
+    final var process = createMandateProcess(mandate, ApplicationType.CANCELLATION);
     mandateDtoBuilder.processId(process.getProcessId());
     return mandateDtoBuilder.build();
   }
 
   private PaymentRateDto getPaymentRateDto(Mandate mandate) {
-    val mandateDtoBuilder =
+    final var mandateDtoBuilder =
         PaymentRateDto.builder()
             .id(mandate.getId())
             .createdDate(mandate.getCreatedDate())
@@ -86,7 +85,7 @@ public class MandateProcessorService {
             .email(mandate.getEmail())
             .phoneNumber(mandate.getPhoneNumber());
 
-    val process = createMandateProcess(mandate, ApplicationType.PAYMENT_RATE);
+    final var process = createMandateProcess(mandate, ApplicationType.PAYMENT_RATE);
     mandateDtoBuilder.processId(process.getProcessId());
     return mandateDtoBuilder.build();
   }
@@ -123,7 +122,7 @@ public class MandateProcessorService {
     return mandate.getFundTransferExchangesBySourceIsin().entrySet().stream()
         .flatMap(
             entry -> {
-              val process = createMandateProcess(mandate, ApplicationType.TRANSFER);
+              final var process = createMandateProcess(mandate, ApplicationType.TRANSFER);
               return entry.getValue().stream().map(it -> dtoFromExchange(process, it));
             })
         .collect(toList());
@@ -141,7 +140,7 @@ public class MandateProcessorService {
 
   private void addSelectionApplication(Mandate mandate, MandateDto.MandateDtoBuilder mandateDto) {
     if (mandate.getFutureContributionFundIsin().isPresent()) {
-      val process = createMandateProcess(mandate, ApplicationType.SELECTION);
+      final var process = createMandateProcess(mandate, ApplicationType.SELECTION);
       mandateDto.futureContributionFundIsin(mandate.getFutureContributionFundIsin().get());
       mandateDto.processId(process.getProcessId());
     }
@@ -149,7 +148,7 @@ public class MandateProcessorService {
 
   private void addPaymentRateApplication(Mandate mandate, MandateDto.MandateDtoBuilder mandateDto) {
     if (mandate.isPaymentRateApplication()) {
-      val process = createMandateProcess(mandate, ApplicationType.PAYMENT_RATE);
+      final var process = createMandateProcess(mandate, ApplicationType.PAYMENT_RATE);
       mandateDto.paymentRate(Optional.of(mandate.getPaymentRate()));
       mandateDto.processId(process.getProcessId());
     }

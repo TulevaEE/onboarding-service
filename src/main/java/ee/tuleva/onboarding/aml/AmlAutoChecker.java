@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.address.Address;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -89,7 +88,7 @@ public class AmlAutoChecker {
   }
 
   private Boolean isResident(BeforeTokenGrantedEvent event) {
-    val documentType = event.getIdDocumentType();
+    final var documentType = event.getIdDocumentType();
     if (documentType == null) {
       return null;
     }

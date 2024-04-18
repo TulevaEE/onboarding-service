@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.aml.dto.AmlCheckAddCommand;
 import ee.tuleva.onboarding.auth.principal.Person;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.val;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -29,8 +28,10 @@ public class AmlCheckService {
   }
 
   public List<AmlCheckType> getMissingChecks(Person person) {
-    val checks = stream(AmlCheckType.values()).filter(AmlCheckType::isManual).collect(toList());
-    val existingChecks = amlService.getChecks(person).stream().map(AmlCheck::getType).toList();
+    final var checks =
+        stream(AmlCheckType.values()).filter(AmlCheckType::isManual).collect(toList());
+    final var existingChecks =
+        amlService.getChecks(person).stream().map(AmlCheck::getType).toList();
     checks.removeAll(existingChecks);
     if (existingChecks.contains(RESIDENCY_AUTO)) {
       checks.remove(RESIDENCY_MANUAL);

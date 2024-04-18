@@ -13,7 +13,7 @@ val springCloudVersion = "2021.0.9"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.0.13"
+    id("org.springframework.boot") version "3.2.4"
     id("io.spring.dependency-management") version "1.1.4"
     id("com.gorylenko.gradle-git-properties") version "2.4.1"
     id("com.diffplug.spotless") version "6.25.0"
@@ -63,7 +63,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-json")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
-
     implementation("org.springframework.cloud:spring-cloud-starter-sleuth")
 
     implementation("com.nimbusds:nimbus-jose-jwt:9.37.3")
@@ -174,4 +173,12 @@ tasks {
     check {
         dependsOn(jacocoTestReport)
     }
+}
+
+tasks.withType<JavaCompile>() {
+    options.compilerArgs.add("-parameters")
+}
+
+tasks.withType<GroovyCompile>() {
+    groovyOptions.isParameters = true
 }

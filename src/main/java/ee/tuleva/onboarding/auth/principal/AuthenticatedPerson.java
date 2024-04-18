@@ -6,7 +6,8 @@ import java.io.Serial;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.*;
+import lombok.Builder;
+import lombok.Value;
 
 @Builder
 @Value

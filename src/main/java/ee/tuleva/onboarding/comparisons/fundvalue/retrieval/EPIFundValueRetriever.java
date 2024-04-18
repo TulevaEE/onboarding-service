@@ -81,11 +81,7 @@ public class EPIFundValueRetriever implements ComparisonIndexRetriever {
   }
 
   private List<FundValue> parseLines(Stream<String> lines) {
-    return lines
-        .map(this::parseLine)
-        .filter(Optional::isPresent)
-        .map(Optional::get)
-        .collect(toList());
+    return lines.map(this::parseLine).flatMap(Optional::stream).collect(toList());
   }
 
   private Optional<FundValue> parseLine(String line) {
@@ -103,7 +99,7 @@ public class EPIFundValueRetriever implements ComparisonIndexRetriever {
     Optional<LocalDate> date = parseDate(parts[0]);
     Optional<BigDecimal> value = parseAmount(parts[2]);
 
-    if (!date.isPresent() || !value.isPresent()) {
+    if (date.isEmpty() || value.isEmpty()) {
       return Optional.empty();
     }
 

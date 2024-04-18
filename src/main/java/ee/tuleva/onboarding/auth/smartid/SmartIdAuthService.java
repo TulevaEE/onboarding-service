@@ -28,7 +28,6 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
 import org.apache.commons.collections4.map.LRUMap;
 import org.springframework.stereotype.Service;
 
@@ -89,7 +88,7 @@ public class SmartIdAuthService {
     log.info("Starting to poll");
     poller.submit(
         () -> {
-          val resultBuilder = SmartIdResult.builder();
+          final var resultBuilder = SmartIdResult.builder();
           try {
             SmartIdAuthenticationResponse response =
                 requestBuilder(session.getPersonalCode(), session.getAuthenticationHash())

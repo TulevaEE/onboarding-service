@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.mandate.payment.rate;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder

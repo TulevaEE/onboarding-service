@@ -38,7 +38,7 @@ class ApplicationController {
   @GetMapping
   public List<Application<?>> getApplications(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      @RequestParam("status") ApplicationStatus status) {
+      @RequestParam ApplicationStatus status) {
     return applicationService.getApplications(status, authenticatedPerson);
   }
 

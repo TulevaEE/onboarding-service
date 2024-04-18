@@ -120,7 +120,6 @@ public class OCSPService {
     HttpHeaders headers = new HttpHeaders();
     headers.set("Content-Type", "application/ocsp-request");
     headers.set("Accept", "application/ocsp-response");
-    headers.set("Content-Length", "4096");
     HttpEntity<byte[]> entity = new HttpEntity<>(request.getOcspRequest().getEncoded(), headers);
     ResponseEntity<byte[]> result =
         restTemplate.exchange(request.getOcspServer(), POST, entity, byte[].class);

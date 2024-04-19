@@ -12,4 +12,8 @@ public class LocaleService {
   public Locale getCurrentLocale() {
     return LocaleContextHolder.getLocale();
   }
+
+  public String getCurrentLanguage() {
+    return getCurrentLocale().getLanguage();
+  }
 }

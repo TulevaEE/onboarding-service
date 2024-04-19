@@ -28,7 +28,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PaymentProviderService implements PaymentLinkGenerator {
+public class PaymentProviderLinkGenerator implements PaymentLinkGenerator {
 
   private final Clock clock;
 
@@ -50,6 +50,7 @@ public class PaymentProviderService implements PaymentLinkGenerator {
   @Value("${payment.member-fee-test-personal-code}")
   private String memberFeeTestPersonalCode;
 
+  @Override
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
     Map<String, Object> payload = new LinkedHashMap<>();
     PaymentProviderChannel paymentChannelConfiguration =

@@ -3,10 +3,9 @@ package ee.tuleva.onboarding.payment.recurring
 
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.PaymentData
 import spock.lang.Specification
-
-import java.time.LocalDate
 
 import static com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -16,14 +15,17 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.*
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
 import static ee.tuleva.onboarding.time.TestClockHolder.clock
 
-class RecurringPaymentServiceSpec extends Specification {
+class RecurringPaymentLinkGeneratorSpec extends Specification {
 
   def contactDetailsService = stubContactDetailsService()
+  def paymentDateProvider = new PaymentDateProvider(clock)
   def objectMapper = JsonMapper.builder()
       .addModule(new JavaTimeModule())
       .disable(WRITE_DATES_AS_TIMESTAMPS)
       .build()
-  def recurringPaymentService = new RecurringPaymentService(contactDetailsService, objectMapper, clock)
+  def localeService = new LocaleService()
+  def coopPankPaymentLinkGenerator = new CoopPankPaymentLinkGenerator(contactDetailsService, objectMapper, localeService, paymentDateProvider)
+  def recurringPaymentLinkGenerator = new RecurringPaymentLinkGenerator(contactDetailsService, paymentDateProvider, coopPankPaymentLinkGenerator)
 
   def "can get a recurring payment link"() {
     given:
@@ -31,7 +33,7 @@ class RecurringPaymentServiceSpec extends Specification {
     def paymentData = new PaymentData(samplePerson.personalCode, 12.34, EUR, RECURRING, paymentChannel)
 
     when:
-    def link = recurringPaymentService.getPaymentLink(paymentData, person)
+    def link = recurringPaymentLinkGenerator.getPaymentLink(paymentData, person)
 
     then:
     link.url() == url
@@ -45,8 +47,8 @@ class RecurringPaymentServiceSpec extends Specification {
     SEB            | "https://e.seb.ee/web/ipank?act=PENSION3_STPAYM&saajakonto=EE141010220263146225&saajanimi=" +
         "AS%20Pensionikeskus&selgitus=30101119828%2C%20EE3600001707&viitenr=993432432&summa=12.34&alguskuup=10.01.2020&sagedus=M"
     LUMINOR        | "https://luminor.ee/auth/#/web/view/autopilot/newpayment"
-    COOP           | "https://i.cooppank.ee/newpmt?whatform=PermPaymentNew&SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MakseSumma=12.34&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432&MakseSagedus=3&MakseEsimene=10.01.2020"
-    COOP_WEB       | "https://i.cooppank.ee/newpmt?whatform=PermPaymentNew&SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MakseSumma=12.34&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432&MakseSagedus=3&MakseEsimene=10.01.2020"
+    COOP           | "https://i.cooppank.ee/commonpmts-eng?whatform=PermPaymentNew&SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MakseSumma=12.34&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432&MakseSagedus=3&MakseEsimene=10.01.2020"
+    COOP_WEB       | "commonpmts-eng?whatform=PermPaymentNew&SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MakseSumma=12.34&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432&MakseSagedus=3&MakseEsimene=10.01.2020"
     PARTNER        | """{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":12.34,"currency":"EUR","description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}"""
   }
 
@@ -56,7 +58,7 @@ class RecurringPaymentServiceSpec extends Specification {
     def paymentData = new PaymentData(samplePerson.personalCode, null, null, RECURRING, PARTNER)
 
     when:
-    def link = recurringPaymentService.getPaymentLink(paymentData, person)
+    def link = recurringPaymentLinkGenerator.getPaymentLink(paymentData, person)
 
     then:
     link.url() == """{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":null,"currency":null,"description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}"""
@@ -68,22 +70,9 @@ class RecurringPaymentServiceSpec extends Specification {
     def paymentData = new PaymentData(samplePerson.personalCode, 12.34, EUR, RECURRING, TULUNDUSUHISTU)
 
     when:
-    recurringPaymentService.getPaymentLink(paymentData, person)
+    recurringPaymentLinkGenerator.getPaymentLink(paymentData, person)
 
     then:
     thrown(IllegalArgumentException)
-  }
-
-  def "chooses the 10th day of month for recurring payment"() {
-    when:
-    def date = recurringPaymentService.tenthDayOfMonth(now)
-    def formattedDate = recurringPaymentService.format(date)
-    then:
-    formattedDate == expectedPaymentDate
-    where:
-    now                       | expectedPaymentDate
-    LocalDate.of(2022, 3, 9)  | "10.03.2022"
-    LocalDate.of(2022, 3, 10) | "10.03.2022"
-    LocalDate.of(2022, 3, 11) | "10.04.2022"
   }
 }

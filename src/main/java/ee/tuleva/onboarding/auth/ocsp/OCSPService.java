@@ -16,8 +16,8 @@ import java.io.IOException;
 import java.security.cert.X509Certificate;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.cert.ocsp.BasicOCSPResp;
 import org.bouncycastle.cert.ocsp.OCSPException;
@@ -39,7 +39,7 @@ import org.springframework.web.client.RestOperations;
 public class OCSPService {
   public static final String BEGIN_CERT = "-----BEGIN CERTIFICATE-----";
   public static final String END_CERT = "-----END CERTIFICATE-----";
-  public static final String LINE_SEPARATOR = System.getProperty("line.separator");
+  public static final String LINE_SEPARATOR = System.lineSeparator();
   private final RestOperations restTemplate;
   private final Clock clock;
 
@@ -65,8 +65,8 @@ public class OCSPService {
   public String getIssuerCertificate(String url) {
 
     HttpHeaders headers = new HttpHeaders();
-    headers.setAccept(Arrays.asList(MediaType.APPLICATION_OCTET_STREAM));
-    HttpEntity<String> entity = new HttpEntity<String>(headers);
+    headers.setAccept(List.of(MediaType.APPLICATION_OCTET_STREAM));
+    HttpEntity<String> entity = new HttpEntity<>(headers);
 
     ResponseEntity<byte[]> response =
         restTemplate.exchange(url, HttpMethod.GET, entity, byte[].class);

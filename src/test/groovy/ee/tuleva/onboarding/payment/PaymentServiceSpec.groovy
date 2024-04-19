@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.payment
 
 import ee.tuleva.onboarding.payment.provider.PaymentProviderCallbackService
-import ee.tuleva.onboarding.payment.recurring.RecurringPaymentService
+import ee.tuleva.onboarding.payment.recurring.RecurringPaymentLinkGenerator
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
@@ -18,13 +18,13 @@ import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSeri
 class PaymentServiceSpec extends Specification {
 
   PaymentRepository paymentRepository = Mock()
-  SinglePaymentService singlePaymentService = Mock()
-  RecurringPaymentService recurringPaymentService = Mock()
+  SinglePaymentLinkGenerator singlePaymentLinkGenerator = Mock()
+  RecurringPaymentLinkGenerator recurringPaymentLinkGenerator = Mock()
   PaymentProviderCallbackService paymentProviderCallbackService = Mock()
   UserService userService = Mock()
 
   PaymentService paymentService = new PaymentService(
-      paymentRepository, singlePaymentService, recurringPaymentService, paymentProviderCallbackService, userService)
+      paymentRepository, singlePaymentLinkGenerator, recurringPaymentLinkGenerator, paymentProviderCallbackService, userService)
 
   def "can get payments"() {
     given:
@@ -42,7 +42,7 @@ class PaymentServiceSpec extends Specification {
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = SINGLE }
     def link = new PaymentLink("https://single.payment.url")
-    singlePaymentService.getPaymentLink(paymentData, person) >> link
+    singlePaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:
     def returnedLink = paymentService.getLink(paymentData, person)
@@ -56,7 +56,7 @@ class PaymentServiceSpec extends Specification {
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = MEMBER_FEE }
     def link = new PaymentLink("https://member.payment.url")
-    singlePaymentService.getPaymentLink(paymentData, person) >> link
+    singlePaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:
     def returnedLink = paymentService.getLink(paymentData, person)
@@ -70,7 +70,7 @@ class PaymentServiceSpec extends Specification {
     def person = samplePerson
     def paymentData = aPaymentData().tap { type = RECURRING }
     def link = new PaymentLink("https://recurring.payment.url")
-    recurringPaymentService.getPaymentLink(paymentData, person) >> link
+    recurringPaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
     when:
     def returnedLink = paymentService.getLink(paymentData, person)

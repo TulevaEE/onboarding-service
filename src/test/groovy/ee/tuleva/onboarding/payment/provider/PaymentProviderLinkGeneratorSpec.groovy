@@ -15,16 +15,16 @@ import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentDataWithoutAnA
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 import static java.time.ZoneOffset.UTC
 
-class PaymentProviderServiceSpec extends Specification {
+class PaymentProviderLinkGeneratorSpec extends Specification {
 
   Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
 
   PaymentInternalReferenceService paymentInternalReferenceService = Mock()
   LocaleService localeService = new MockLocaleService("et")
-  PaymentProviderService paymentLinkService
+  PaymentProviderLinkGenerator paymentLinkService
 
   void setup() {
-    paymentLinkService = new PaymentProviderService(
+    paymentLinkService = new PaymentProviderLinkGenerator(
         clock,
         paymentInternalReferenceService,
         aPaymentProviderConfiguration(),

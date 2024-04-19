@@ -68,7 +68,7 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
   }
 
   private String recurringPaymentPath(PaymentData paymentData, ContactDetails contactDetails) {
-    return "commonpmts"
+    return "newpmt"
         + language()
         + "?whatform=PermPaymentNew"
         + "&SaajaNimi=AS%20Pensionikeskus"

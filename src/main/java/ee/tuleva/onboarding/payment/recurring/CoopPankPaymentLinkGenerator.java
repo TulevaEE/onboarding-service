@@ -60,8 +60,7 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
         + language()
         + "?SaajaNimi=AS%20Pensionikeskus"
         + "&SaajaKonto=EE362200221067235244" // Swedbank account
-        + "&MuutMakseSumma="
-        + paymentData.getAmount()
+        + (paymentData.getAmount() != null ? "&MuutMakseSumma=" + paymentData.getAmount() : "")
         + "&MaksePohjus=30101119828%2c%20EE3600001707"
         + "&ViiteNumber="
         + contactDetails.getPensionAccountNumber();
@@ -73,8 +72,7 @@ public class CoopPankPaymentLinkGenerator implements PaymentLinkGenerator {
         + "?whatform=PermPaymentNew"
         + "&SaajaNimi=AS%20Pensionikeskus"
         + "&SaajaKonto=EE362200221067235244" // Swedbank account
-        + "&MakseSumma="
-        + paymentData.getAmount()
+        + (paymentData.getAmount() != null ? "&MakseSumma=" + paymentData.getAmount() : "")
         + "&MaksePohjus=30101119828%2c%20EE3600001707"
         + "&ViiteNumber="
         + contactDetails.getPensionAccountNumber()

@@ -50,25 +50,32 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
   def "can get a partner payment json"() {
     given:
     def person = samplePerson
-    def paymentData = aPaymentData().tap { paymentChannel = PARTNER }
-
+    def paymentData = aPaymentData().tap {
+      paymentChannel = PARTNER
+      amount = null
+      currency = null
+    }
     when:
     def returnedLink = singlePaymentLinkGenerator.getPaymentLink(paymentData, person)
 
     then:
-    returnedLink == new PaymentLink("""{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":10.00,"currency":"EUR","description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}""")
+    returnedLink == new PaymentLink("""{"accountNumber":"EE362200221067235244","recipientName":"AS Pensionikeskus","amount":null,"currency":null,"description":"30101119828, EE3600001707","reference":"993432432","interval":"MONTHLY","firstPaymentDate":"2020-01-10"}""")
   }
 
   def "can get a coop web payment link"() {
     given:
     def person = samplePerson
-    def paymentData = aPaymentData().tap { paymentChannel = COOP_WEB }
+    def paymentData = aPaymentData().tap {
+      paymentChannel = COOP_WEB
+      amount = null
+      currency = null
+    }
 
     when:
     def returnedLink = singlePaymentLinkGenerator.getPaymentLink(paymentData, person)
 
     then:
-    returnedLink == new PaymentLink("newpmt-eng?SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MuutMakseSumma=10.00&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432")
+    returnedLink == new PaymentLink("newpmt-eng?SaajaNimi=AS%20Pensionikeskus&SaajaKonto=EE362200221067235244&MaksePohjus=30101119828%2c%20EE3600001707&ViiteNumber=993432432")
   }
 
 }

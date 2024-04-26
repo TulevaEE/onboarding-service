@@ -9,7 +9,7 @@ import spock.lang.Specification
 import java.time.LocalDate
 
 @DataJdbcTest
-@Import(AnalyticsLeaversRepository.class)
+@Import(AnalyticsLeaversRepository)
 class AnalyticsLeaversRepositorySpec extends Specification {
 
   @Autowired

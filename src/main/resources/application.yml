@@ -39,6 +39,7 @@ mandrill:
   url: https://mandrillapp.com/api/1.0
 mailchimp:
   url: https://us13.api.mailchimp.com/3.0
+  listId: abc
 opensanctions:
   url: https://yente.tuleva.ee
 

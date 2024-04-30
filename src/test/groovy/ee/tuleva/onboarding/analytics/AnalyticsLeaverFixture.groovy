@@ -6,7 +6,7 @@ import java.time.LocalDateTime
 
 class AnalyticsLeaverFixture {
 
-  static AnalyticsLeaver leaverFixture() {
+  static AnalyticsLeaver leaverFixture(LocalDateTime lastEmailSent = LocalDateTime.parse("2019-04-30T00:00:00")) {
     new AnalyticsLeaver(
         "TUK75",
         "LXK75",
@@ -21,7 +21,7 @@ class AnalyticsLeaverFixture {
         "john@doe.com",
         "ENG",
         30,
-        LocalDateTime.parse("2019-04-30T00:00:00"),
+        lastEmailSent,
     )
   }
 

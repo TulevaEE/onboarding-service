@@ -1,15 +1,13 @@
 package ee.tuleva.onboarding.fund.statistics;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
-@Configuration
-@EnableScheduling
 @RequiredArgsConstructor
 @Profile({"!dev & !staging"})
+@Component
 public class PensionFundStatisticsScheduledUpdate {
 
   private final PensionFundStatisticsService pensionFundStatisticsService;

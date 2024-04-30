@@ -29,12 +29,13 @@ public class AutoEmailSender {
 
   // once per month on the second working day of the month at 19:10
   // @Scheduled(cron = "0 10 19 2W * *", zone = "Europe/Tallinn")
-  @Scheduled(cron = "0 10 17 * * *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 10 18 * * *", zone = "Europe/Tallinn")
   public void sendMonthlyLeaverEmail() {
+    log.info("Sending monthly leaver email to leavers");
     LocalDate startDate = LocalDate.now(clock).withDayOfMonth(1);
     LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
     List<AnalyticsLeaver> leavers = leaversRepository.fetchLeavers(startDate, endDate);
-
+    log.info("Sending monthly leaver email to {} leavers", leavers.size());
     for (AnalyticsLeaver leaver : leavers) {
       if (leaver.lastEmailSentDate() != null
           && leaver.lastEmailSentDate().isAfter(LocalDateTime.now(clock).minusMonths(4))) {

@@ -49,6 +49,7 @@ public class AutoEmailSender {
         mailchimpService.sendEvent(leaver.email(), "new_leaver");
       } catch (HttpClientErrorException.NotFound e) {
         log.info("Leaver not found in Mailchimp, skipping {}", leaver.personalCode());
+        continue;
       }
       emailPersistenceService.save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
     }

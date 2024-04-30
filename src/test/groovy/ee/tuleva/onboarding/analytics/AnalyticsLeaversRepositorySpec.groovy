@@ -8,6 +8,8 @@ import spock.lang.Specification
 
 import java.time.LocalDate
 
+import static ee.tuleva.onboarding.analytics.AnalyticsLeaverFixture.leaverFixture
+
 @DataJdbcTest
 @Import(AnalyticsLeaversRepository)
 class AnalyticsLeaversRepositorySpec extends Specification {
@@ -20,52 +22,51 @@ class AnalyticsLeaversRepositorySpec extends Specification {
 
   def "can fetch leavers"() {
     given:
+    def aLeaver = leaverFixture()
+
+
     jdbcClient.sql("""
     INSERT INTO analytics.change_application 
       (personal_id, current_fund, new_fund, first_name, last_name, share_amount, share_percentage, reporting_date, date_created)
     VALUES (:personal_id, :current_fund, :new_fund, :first_name, :last_name, :share_amount, :share_percentage, :reporting_date, :date_created)""")
-        .param("personal_id", "123456789")
-        .param("current_fund", "TUK75")
-        .param("new_fund", "LXK75")
-        .param("first_name", "John")
-        .param("last_name", "Doe")
-        .param("share_amount", 1000)
-        .param("share_percentage", 100)
-        .param("reporting_date", "2021-01-01")
-        .param("date_created", "2021-01-01")
+        .param("personal_id", aLeaver.personalCode)
+        .param("current_fund", aLeaver.currentFund())
+        .param("new_fund", aLeaver.newFund())
+        .param("first_name", aLeaver.firstName)
+        .param("last_name", aLeaver.lastName)
+        .param("share_amount", aLeaver.shareAmount())
+        .param("share_percentage", aLeaver.sharePercentage())
+        .param("reporting_date", aLeaver.dateCreated())
+        .param("date_created", aLeaver.dateCreated())
         .update()
 
     jdbcClient.sql("""
     INSERT INTO analytics.mv_crm_mailchimp 
     (isikukood, email, keel, vanus)
     VALUES (:isikukood, :email, :keel, :vanus)""")
-        .param("isikukood", "123456789")
-        .param("email", "john@doe.com")
-        .param("keel", "ENG")
-        .param("vanus", 30)
+        .param("isikukood", aLeaver.personalCode)
+        .param("email", aLeaver.email())
+        .param("keel", aLeaver.language())
+        .param("vanus", aLeaver.age())
+        .update()
+
+
+    jdbcClient.sql("""
+    INSERT INTO public.email 
+    (personal_code, type, status, created_date)
+    VALUES (:personal_code, :type, :status, :created_date)""")
+        .param("personal_code", aLeaver.personalCode)
+        .param("type", "SECOND_PILLAR_LEAVERS")
+        .param("status", "SCHEDULED")
+        .param("created_date", aLeaver.lastEmailSentDate())
         .update()
 
     when:
     List<AnalyticsLeaver> leavers =
         analyticsLeaversRepository.fetchLeavers(LocalDate.parse("2021-01-01"), LocalDate.parse("2021-02-01"))
 
+
     then:
-    leavers == [
-        new AnalyticsLeaver(
-            "TUK75",
-            "LXK75",
-            "123456789",
-            "John",
-            "Doe",
-            1000,
-            100,
-            LocalDate.parse("2021-01-01"),
-            0.0113,
-            "LHV Pensionifond XL",
-            "john@doe.com",
-            "ENG",
-            30
-        )
-    ]
+    leavers == [aLeaver]
   }
 }

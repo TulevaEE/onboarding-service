@@ -56,7 +56,7 @@ class PaymentEmailServiceSpec extends Specification {
     def mandate = new Mandate(mandate: new byte[0])
 
     emailPersistenceService.cancel(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE) >> [new Email(
-        userId: user.id, mandrillMessageId: mandrillMessageId,
+        personalCode: user.personalCode, mandrillMessageId: mandrillMessageId,
         type: THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandate: mandate
     )]
     mandateEmailService.getMandateAttachments(user, mandate) >> [mandateAttachment]

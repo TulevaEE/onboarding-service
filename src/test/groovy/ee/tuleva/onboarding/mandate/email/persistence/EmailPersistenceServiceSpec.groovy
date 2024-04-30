@@ -1,16 +1,18 @@
 package ee.tuleva.onboarding.mandate.email.persistence
 
 import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo
+import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.time.TestClockHolder
-import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 
 import java.time.Clock
 import java.time.Instant
 
 import static EmailType.THIRD_PILLAR_SUGGEST_SECOND
+import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.*
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS
 
 class EmailPersistenceServiceSpec extends Specification {
 
@@ -23,39 +25,37 @@ class EmailPersistenceServiceSpec extends Specification {
 
   def "creates scheduled email with correct attributes"() {
     given:
-    User user = new User(id: 13);
-    String messageId = "12345"
-    EmailType type = THIRD_PILLAR_SUGGEST_SECOND
-    String status = "scheduled"
+    Person person = samplePerson()
+    Email email = new Email(
+        personalCode: person.personalCode,
+        mandrillMessageId: "12345",
+        type: THIRD_PILLAR_SUGGEST_SECOND,
+        status: SCHEDULED,
+    )
+    emailRepository.save(email) >> email
 
     when:
-    emailPersistenceService.save(user, messageId, type, status)
+    Email savedEmail = emailPersistenceService.save(person, email.mandrillMessageId, email.type, email.status.toString())
 
     then:
-    1 * emailRepository.save({
-      Email email ->
-        email.userId == user.getId() &&
-            email.type == THIRD_PILLAR_SUGGEST_SECOND &&
-            email.mandrillMessageId == messageId &&
-            email.status == SCHEDULED
-    })
+    savedEmail == email
   }
 
   def "returns cancelled emails and deletes them from the database"() {
     given:
-    User user = new User(id: 13)
+    Person person = samplePerson()
     EmailType type = THIRD_PILLAR_SUGGEST_SECOND
     List<Email> emails = [
-        new Email(userId: user.id, mandrillMessageId: "100", type: type),
-        new Email(userId: user.id, mandrillMessageId: "200", type: type)
+        new Email(personalCode: person.personalCode, mandrillMessageId: "100", type: type),
+        new Email(personalCode: person.personalCode, mandrillMessageId: "200", type: type)
     ]
     def scheduledMessageInfo = Optional.of(new MandrillScheduledMessageInfo())
-    emailRepository.findAllByUserIdAndTypeAndStatusOrderByCreatedDateDesc(user.id, type, SCHEDULED) >> emails
+    emailRepository.findAllByPersonalCodeAndTypeAndStatusOrderByCreatedDateDesc(person.personalCode, type, SCHEDULED) >> emails
     emailService.cancelScheduledEmail("100") >> scheduledMessageInfo
     emailService.cancelScheduledEmail("200") >> scheduledMessageInfo
 
     when:
-    def cancelledEmails = emailPersistenceService.cancel(user, type)
+    def cancelledEmails = emailPersistenceService.cancel(person, type)
 
     then:
     cancelledEmails == emails
@@ -65,10 +65,10 @@ class EmailPersistenceServiceSpec extends Specification {
 
   def "can check for todays emails"() {
     given:
-    def user = new User(id: 13)
+    def person = samplePerson()
     def type = THIRD_PILLAR_SUGGEST_SECOND
     def email = new Email(
-        userId: user.id,
+        personalCode: person.personalCode,
         mandrillMessageId: "100",
         type: type,
         status: SCHEDULED,
@@ -77,12 +77,30 @@ class EmailPersistenceServiceSpec extends Specification {
     )
     def statuses = [SENT, QUEUED, SCHEDULED]
     emailRepository.
-        findFirstByUserIdAndTypeAndStatusInOrderByCreatedDateDesc(user.id, type, statuses) >> Optional.of(email)
+        findFirstByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(person.personalCode, type, statuses) >> Optional.of(email)
 
     when:
-    def hasEmailsToday = emailPersistenceService.hasEmailsToday(user, type)
+    def hasEmailsToday = emailPersistenceService.hasEmailsToday(person, type)
 
     then:
     hasEmailsToday
+  }
+
+  def "can save a scheduled email"() {
+    given:
+    def person = samplePerson()
+    def email = new Email(
+        personalCode: person.personalCode,
+        mandrillMessageId: null,
+        type: SECOND_PILLAR_LEAVERS,
+        status: SCHEDULED,
+    )
+    emailRepository.save(email) >> email
+
+    when:
+    def savedEmail = emailPersistenceService.save(person, email.type, email.status)
+
+    then:
+    savedEmail == email
   }
 }

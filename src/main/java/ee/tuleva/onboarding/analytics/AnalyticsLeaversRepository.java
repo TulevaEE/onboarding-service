@@ -28,13 +28,16 @@ public class AnalyticsLeaversRepository {
             fund.name_estonian AS "fundNameEstonian",
             mcmp.email AS "email",
             mcmp.keel AS "language",
-            mcmp.vanus AS "age"
+            mcmp.vanus AS "age",
+            MAX(em.created_date) AS "lastEmailSentDate"
         FROM
             analytics.change_application ca
         LEFT JOIN
             public.fund fund ON ca.new_fund = fund.short_name
         LEFT JOIN
             analytics.mv_crm_mailchimp mcmp ON ca.personal_id = mcmp.isikukood
+        LEFT JOIN
+            public.email em ON ca.personal_id = em.personal_code
         WHERE
             ca.date_created >= :startDate AND
             ca.date_created < :endDate AND
@@ -45,7 +48,13 @@ public class AnalyticsLeaversRepository {
             mcmp.vanus < 55 AND
             mcmp.email IS NOT NULL AND
             (mcmp.keel = 'ENG' OR mcmp.keel = 'EST') AND
-            ca.share_percentage >= 10;
+            ca.share_percentage >= 10 AND
+            em.type = 'SECOND_PILLAR_LEAVERS'
+        GROUP BY
+            ca.current_fund, ca.new_fund, ca.personal_id, ca.first_name, ca.last_name,
+            ca.share_amount, ca.share_percentage, ca.date_created,
+            fund.ongoing_charges_figure, fund.name_estonian,
+            mcmp.email, mcmp.keel, mcmp.vanus;
         """;
 
     return jdbcClient

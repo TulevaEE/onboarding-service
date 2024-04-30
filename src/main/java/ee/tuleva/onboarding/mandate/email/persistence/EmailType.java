@@ -11,11 +11,13 @@ public enum EmailType {
   SECOND_PILLAR_WITHDRAWAL_CANCELLATION("second_pillar_withdrawal_cancellation"),
   SECOND_PILLAR_TRANSFER_CANCELLATION("second_pillar_transfer_cancellation"),
   SECOND_PILLAR_PAYMENT_RATE("second_pillar_payment_rate"),
+  SECOND_PILLAR_LEAVERS("second_pillar_leavers"),
+
   THIRD_PILLAR_SUGGEST_SECOND("third_pillar_suggest_second"),
   THIRD_PILLAR_PAYMENT_REMINDER_MANDATE("third_pillar_payment_reminder_mandate"),
   THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE("third_pillar_payment_success_mandate"),
-  MEMBERSHIP("membership"),
-  ;
+
+  MEMBERSHIP("membership");
 
   private final String templateName;
 

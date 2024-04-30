@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.mandate.email.persistence;
 
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.*;
 
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.email.EmailService;
-import ee.tuleva.onboarding.user.User;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,25 +22,30 @@ public class EmailPersistenceService {
   private final EmailService emailService;
   private final Clock clock;
 
-  public void save(User user, String messageId, EmailType type, String status) {
-    save(user, messageId, type, status, null);
+  public Email save(Person person, EmailType type, EmailStatus status) {
+    return save(person, null, type, status.name(), null);
   }
 
-  public void save(User user, String messageId, EmailType type, String status, Mandate mandate) {
+  public Email save(Person person, String messageId, EmailType type, String status) {
+    return save(person, messageId, type, status, null);
+  }
+
+  public Email save(
+      Person person, String messageId, EmailType type, String status, Mandate mandate) {
     Email scheduledEmail =
         Email.builder()
-            .userId(user.getId())
+            .personalCode(person.getPersonalCode())
             .mandrillMessageId(messageId)
             .type(type)
             .status(EmailStatus.valueOf(status.toUpperCase()))
             .mandate(mandate)
             .build();
     log.info("Saving an email: email={}", scheduledEmail);
-    emailRepository.save(scheduledEmail);
+    return emailRepository.save(scheduledEmail);
   }
 
-  public List<Email> cancel(User user, EmailType type) {
-    List<Email> scheduledEmails = getScheduledEmails(user, type);
+  public List<Email> cancel(Person person, EmailType type) {
+    List<Email> scheduledEmails = getScheduledEmails(person, type);
     log.info("Cancelling scheduled emails: emails={}", scheduledEmails);
     List<Email> cancelled = new ArrayList<>();
     scheduledEmails.forEach(
@@ -56,16 +61,16 @@ public class EmailPersistenceService {
     return cancelled;
   }
 
-  public boolean hasEmailsToday(User user, EmailType type) {
+  public boolean hasEmailsToday(Person person, EmailType type) {
     var statuses = List.of(SENT, QUEUED, SCHEDULED);
     Optional<Email> latestEmail =
-        emailRepository.findFirstByUserIdAndTypeAndStatusInOrderByCreatedDateDesc(
-            user.getId(), type, statuses);
+        emailRepository.findFirstByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(
+            person.getPersonalCode(), type, statuses);
     return latestEmail.map(email -> email.isToday(clock)).orElse(false);
   }
 
-  private List<Email> getScheduledEmails(User user, EmailType type) {
-    return emailRepository.findAllByUserIdAndTypeAndStatusOrderByCreatedDateDesc(
-        user.getId(), type, SCHEDULED);
+  private List<Email> getScheduledEmails(Person person, EmailType type) {
+    return emailRepository.findAllByPersonalCodeAndTypeAndStatusOrderByCreatedDateDesc(
+        person.getPersonalCode(), type, SCHEDULED);
   }
 }

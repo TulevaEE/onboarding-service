@@ -5,6 +5,7 @@ import static jakarta.persistence.EnumType.STRING;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Clock;
@@ -26,8 +27,9 @@ public class Email {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
-  @NotNull private Long userId;
-  @NotNull private String mandrillMessageId;
+  @ValidPersonalCode private String personalCode;
+
+  private String mandrillMessageId;
 
   @NotNull
   @Enumerated(STRING)

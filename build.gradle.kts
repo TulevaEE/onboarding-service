@@ -82,6 +82,7 @@ dependencies {
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
 
     implementation("org.flywaydb:flyway-core")
+    // implementation("org.flywaydb:flyway-database-postgresql") // TODO: add this when upgrading to flyway 10
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.jsoup:jsoup:1.17.2")
@@ -111,7 +112,7 @@ dependencies {
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
-    implementation("com.github.ErkoRisthein:mailchimp-transactional-api-java:1.0.55")
+    implementation("com.github.ErkoRisthein:mailchimp-transactional-api-java:1.0.59")
     implementation("com.github.ErkoRisthein:mailchimp-marketing-api-java:3.0.55")
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")

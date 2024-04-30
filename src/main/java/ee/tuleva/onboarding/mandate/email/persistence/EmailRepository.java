@@ -7,9 +7,9 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface EmailRepository extends CrudRepository<Email, Long> {
 
-  List<Email> findAllByUserIdAndTypeAndStatusOrderByCreatedDateDesc(
-      long userId, EmailType type, EmailStatus status);
+  List<Email> findAllByPersonalCodeAndTypeAndStatusOrderByCreatedDateDesc(
+      String personalCode, EmailType type, EmailStatus status);
 
-  Optional<Email> findFirstByUserIdAndTypeAndStatusInOrderByCreatedDateDesc(
-      long userId, EmailType type, Collection<EmailStatus> statuses);
+  Optional<Email> findFirstByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(
+      String personalCode, EmailType type, Collection<EmailStatus> statuses);
 }

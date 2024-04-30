@@ -29,14 +29,15 @@ public class AutoEmailSender {
   private final EmailPersistenceService emailPersistenceService;
 
   // once per month on the second working day of the month at 19:10
-  // @Scheduled(cron = "0 10 19 2W * *", zone = "Europe/Tallinn")
-  @Scheduled(cron = "0 40 21 * * *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 10 19 2W * *", zone = "Europe/Tallinn")
   public void sendMonthlyLeaverEmail() {
     log.info("Sending monthly leaver email to leavers");
     LocalDate startDate = LocalDate.now(clock).withDayOfMonth(1);
     LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
     List<AnalyticsLeaver> leavers = leaversRepository.fetchLeavers(startDate, endDate);
     log.info("Sending monthly leaver email to {} leavers", leavers.size());
+    int emailsSent = 0;
+
     for (AnalyticsLeaver leaver : leavers) {
       if (leaver.lastEmailSentDate() != null
           && leaver.lastEmailSentDate().isAfter(LocalDateTime.now(clock).minusMonths(4))) {
@@ -47,11 +48,14 @@ public class AutoEmailSender {
 
       try {
         mailchimpService.sendEvent(leaver.email(), "new_leaver");
+        emailsSent++;
       } catch (HttpClientErrorException.NotFound e) {
         log.info("Leaver not found in Mailchimp, skipping {}", leaver.personalCode());
         continue;
       }
       emailPersistenceService.save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
     }
+
+    log.info("Successfully sent leaver emails: {}", emailsSent);
   }
 }

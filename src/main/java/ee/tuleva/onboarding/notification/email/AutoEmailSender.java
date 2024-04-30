@@ -29,7 +29,7 @@ public class AutoEmailSender {
 
   // once per month on the second working day of the month at 19:10
   // @Scheduled(cron = "0 10 19 2W * *", zone = "Europe/Tallinn")
-  @Scheduled(cron = "0 10 19 * * *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 40 20 * * *", zone = "Europe/Tallinn")
   public void sendMonthlyLeaverEmail() {
     log.info("Sending monthly leaver email to leavers");
     LocalDate startDate = LocalDate.now(clock).withDayOfMonth(1);

@@ -43,7 +43,9 @@ public class EmailConfiguration {
 
   @Bean
   public io.github.erkoristhein.mailchimp.ApiClient mailchimpTransactionalApiClient() {
-    return new ApiClient().setBasePath(mandrillUrl);
+    ApiClient apiClient = new ApiClient().setBasePath(mandrillUrl);
+    apiClient.setDebugging(true);
+    return apiClient;
   }
 
   @Bean
@@ -52,6 +54,7 @@ public class EmailConfiguration {
     apiClient.setBasePath(mailchimpUrl);
     apiClient.setUsername("any");
     apiClient.setPassword(mailchimpKey);
+    apiClient.setDebugging(true);
     return apiClient;
   }
 

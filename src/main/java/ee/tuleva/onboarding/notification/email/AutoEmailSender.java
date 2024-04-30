@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 
 @Component
 @RequiredArgsConstructor
@@ -29,7 +30,7 @@ public class AutoEmailSender {
 
   // once per month on the second working day of the month at 19:10
   // @Scheduled(cron = "0 10 19 2W * *", zone = "Europe/Tallinn")
-  @Scheduled(cron = "0 40 20 * * *", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 00 21 * * *", zone = "Europe/Tallinn")
   public void sendMonthlyLeaverEmail() {
     log.info("Sending monthly leaver email to leavers");
     LocalDate startDate = LocalDate.now(clock).withDayOfMonth(1);
@@ -43,7 +44,12 @@ public class AutoEmailSender {
         continue;
       }
       log.info("Sending email to leaver {}", leaver.personalCode());
-      mailchimpService.sendEvent(leaver.email(), "new_leaver");
+
+      try {
+        mailchimpService.sendEvent(leaver.email(), "new_leaver");
+      } catch (HttpClientErrorException.NotFound e) {
+        log.info("Leaver not found in Mailchimp, skipping {}", leaver.personalCode());
+      }
       emailPersistenceService.save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
     }
   }

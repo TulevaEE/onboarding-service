@@ -28,14 +28,14 @@ public class AutoEmailSender {
   private final MailchimpService mailchimpService;
   private final EmailPersistenceService emailPersistenceService;
 
-  // once per month on the second working day of the month at 19:10
-  @Scheduled(cron = "0 10 19 2W * *", zone = "Europe/Tallinn")
+  // checks every day at 12:00
+  @Scheduled(cron = "0 0 12 * * *", zone = "Europe/Tallinn")
   public void sendMonthlyLeaverEmail() {
-    log.info("Sending monthly leaver email to leavers");
+    log.info("Checking leavers");
     LocalDate startDate = LocalDate.now(clock).withDayOfMonth(1);
     LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
     List<AnalyticsLeaver> leavers = leaversRepository.fetchLeavers(startDate, endDate);
-    log.info("Sending monthly leaver email to {} leavers", leavers.size());
+    log.info("Sending leaver email to {} leavers", leavers.size());
     int emailsSent = 0;
 
     for (AnalyticsLeaver leaver : leavers) {

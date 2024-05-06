@@ -20,7 +20,7 @@ class AutoEmailSenderSpec extends Specification {
   EmailPersistenceService emailPersistenceService = Mock()
   AutoEmailSender autoEmailSender = new AutoEmailSender(clock, leaversRepository, mailchimpService, emailPersistenceService)
 
-  def "sends monthly leaver emails"() {
+  def "sends leaver emails"() {
     given:
     def leaver = leaverFixture()
     def startDate = LocalDate.now(clock).withDayOfMonth(1)

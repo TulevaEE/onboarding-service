@@ -10,6 +10,7 @@ import java.time.Clock
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.analytics.AnalyticsLeaverFixture.leaverFixture
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS
 
 class AutoEmailSenderSpec extends Specification {
 
@@ -31,5 +32,20 @@ class AutoEmailSenderSpec extends Specification {
 
     then:
     1 * mailchimpService.sendEvent(leaver.email(), "new_leaver")
+  }
+
+  def "does not send duplicates"() {
+    given:
+    def leaver = leaverFixture()
+    def startDate = LocalDate.now(clock).withDayOfMonth(1)
+    def endDate = startDate.withDayOfMonth(startDate.lengthOfMonth())
+    leaversRepository.fetchLeavers(startDate, endDate) >> [leaver]
+    emailPersistenceService.hasEmailsToday(leaver, SECOND_PILLAR_LEAVERS) >> true
+
+    when:
+    autoEmailSender.sendMonthlyLeaverEmail()
+
+    then:
+    0 * mailchimpService.sendEvent(leaver.email(), "new_leaver")
   }
 }

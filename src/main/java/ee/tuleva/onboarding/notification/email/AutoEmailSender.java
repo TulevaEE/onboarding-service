@@ -44,6 +44,13 @@ public class AutoEmailSender {
         log.info("Already sent email to leaver, skipping {}", leaver.personalCode());
         continue;
       }
+      if (emailPersistenceService.hasEmailsToday(leaver, SECOND_PILLAR_LEAVERS)) {
+        log.info(
+            "Leaver already has email today, skipping: leaver={}, emailType={}",
+            leaver.personalCode(),
+            SECOND_PILLAR_LEAVERS);
+        continue;
+      }
       log.info("Sending email to leaver {}", leaver.personalCode());
 
       try {

@@ -18,9 +18,9 @@ val springCloudVersion = "2023.0.1"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.2.4"
+    id("org.springframework.boot") version "3.2.5"
     id("io.spring.dependency-management") version "1.1.4"
-    id("com.gorylenko.gradle-git-properties") version "2.4.1"
+    id("com.gorylenko.gradle-git-properties") version "2.4.2"
     id("com.diffplug.spotless") version "6.25.0"
     id("io.freefair.lombok") version "8.6"
     jacoco
@@ -108,7 +108,7 @@ dependencies {
     implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.8.0")
     implementation("io.sentry:sentry-logback:7.8.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.7.3")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.7.5")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
@@ -133,8 +133,8 @@ dependencies {
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.1.0")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.7")
-    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.7")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.8")
+    testImplementation("io.github.origin-energy:java-snapshot-testing-plugin-jackson:4.0.8")
 }
 
 dependencyManagement {

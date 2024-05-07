@@ -24,9 +24,21 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class CapitalService {
-
   private final MemberCapitalEventRepository memberCapitalEventRepository;
+
   private final AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
+
+  public List<ApiCapitalEvent> getCapitalEvents(Long memberId) {
+    return memberCapitalEventRepository.findAllByMemberId(memberId).stream()
+        .map(
+            event ->
+                new ApiCapitalEvent(
+                    event.getAccountingDate(),
+                    event.getType(),
+                    event.getFiatValue().setScale(2, HALF_DOWN),
+                    EUR))
+        .toList();
+  }
 
   List<CapitalRow> getCapitalRows(Long memberId) {
     List<MemberCapitalEvent> events = memberCapitalEventRepository.findAllByMemberId(memberId);

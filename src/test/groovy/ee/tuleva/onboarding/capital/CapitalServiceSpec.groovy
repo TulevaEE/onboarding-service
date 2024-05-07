@@ -135,6 +135,25 @@ class CapitalServiceSpec extends Specification {
     }
   }
 
+  def "can get capital events"() {
+    given:
+    Member member = memberFixture().build()
+    def event1 = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(1000.00).build()
+    def event2 = memberCapitalEventFixture(member).type(CAPITAL_PAYMENT).fiatValue(0.123456).build()
+    def event3 = memberCapitalEventFixture(member).type(MEMBERSHIP_BONUS).fiatValue(2000.00).build()
+    memberCapitalEventRepository.findAllByMemberId(member.id) >> [event1, event2, event3]
+
+    when:
+    List<ApiCapitalEvent> capitalEvents = service.getCapitalEvents(member.id)
+
+    then:
+    capitalEvents == [
+        new ApiCapitalEvent(event1.accountingDate, CAPITAL_PAYMENT, 1000.00, EUR),
+        new ApiCapitalEvent(event2.accountingDate, CAPITAL_PAYMENT, 0.12, EUR),
+        new ApiCapitalEvent(event3.accountingDate, MEMBERSHIP_BONUS, 2000.00, EUR)
+    ]
+  }
+
   private AggregatedCapitalEvent getAggregatedCapitalEvent(BigDecimal ownershipUnitPrice) {
     new AggregatedCapitalEvent(0,
         INVESTMENT_RETURN,

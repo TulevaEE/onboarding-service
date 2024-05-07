@@ -38,4 +38,14 @@ public class CapitalController {
         .map(member -> capitalService.getCapitalRows(member.getId()))
         .orElseThrow(NotAMemberException::new);
   }
+
+  @GetMapping("/v1/me/capital/events")
+  public List<ApiCapitalEvent> capitalEvents(
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    Long userId = authenticatedPerson.getUserId();
+    User user = userService.getById(userId);
+    return user.getMember()
+        .map(member -> capitalService.getCapitalEvents(member.getId()))
+        .orElseThrow(NotAMemberException::new);
+  }
 }

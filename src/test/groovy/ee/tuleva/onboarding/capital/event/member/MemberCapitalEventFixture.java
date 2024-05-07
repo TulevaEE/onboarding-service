@@ -12,8 +12,8 @@ public class MemberCapitalEventFixture {
   public static MemberCapitalEventBuilder memberCapitalEventFixture(Member forMember) {
     return builder()
         .type(CAPITAL_PAYMENT)
-        .fiatValue(new BigDecimal((new Random()).nextDouble() * 1000))
-        .ownershipUnitAmount(new BigDecimal((new Random()).nextDouble() * 1000))
+        .fiatValue(BigDecimal.valueOf((new Random()).nextDouble() * 1000))
+        .ownershipUnitAmount(BigDecimal.valueOf((new Random()).nextDouble() * 1000))
         .member(forMember)
         .accountingDate(LocalDate.now())
         .effectiveDate(LocalDate.now());

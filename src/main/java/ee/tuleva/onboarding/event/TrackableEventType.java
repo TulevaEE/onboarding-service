@@ -8,4 +8,5 @@ public enum TrackableEventType {
   MANDATE_DENIED,
   PAGE_VIEW,
   PAYMENT_LINK,
+  CLICK
 }

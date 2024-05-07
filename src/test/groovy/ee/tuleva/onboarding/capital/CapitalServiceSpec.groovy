@@ -112,25 +112,25 @@ class CapitalServiceSpec extends Specification {
     with(capitalRows.find({ it.type() == MEMBERSHIP_BONUS })) {
       contributions() == 2000.23
       profit() == 979.07
-      value() == 2000.23 + 979.07
+      getValue() == 2000.23 + 979.07
       currency() == EUR
     }
     with(capitalRows.find({ it.type() == CAPITAL_PAYMENT })) {
       contributions() == 1000.12
       profit() == 567.92
-      value() == 1000.12 + 567.92
+      getValue() == 1000.12 + 567.92
       currency() == EUR
     }
     with(capitalRows.find({ it.type() == WORK_COMPENSATION })) {
       contributions() == 4000.46
       profit() == 2114.94
-      value() == 4000.46 + 2114.94
+      getValue() == 4000.46 + 2114.94
       currency() == EUR
     }
     with(capitalRows.find({ it.type() == UNVESTED_WORK_COMPENSATION })) {
       contributions() == 3000.35
       profit() == 1547.00
-      value() == 3000.35 + 1547.00
+      getValue() == 3000.35 + 1547.00
       currency() == EUR
     }
   }

@@ -8,7 +8,8 @@ import java.math.BigDecimal;
 
 public record CapitalRow(
     MemberCapitalEventType type, BigDecimal contributions, BigDecimal profit, Currency currency) {
-  public BigDecimal value() {
+
+  public BigDecimal getValue() {
     return ZERO.add(contributions != null ? contributions : ZERO)
         .add(profit != null ? profit : ZERO);
   }

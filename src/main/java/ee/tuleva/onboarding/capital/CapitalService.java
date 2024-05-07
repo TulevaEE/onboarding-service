@@ -1,23 +1,22 @@
 package ee.tuleva.onboarding.capital;
 
-import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT;
-import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYOUT;
-import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS;
-import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION;
-import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.WORK_COMPENSATION;
-import static java.math.BigDecimal.ROUND_HALF_DOWN;
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
+import static ee.tuleva.onboarding.currency.Currency.EUR;
 import static java.math.BigDecimal.ZERO;
+import static java.math.RoundingMode.HALF_DOWN;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.reducing;
 
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent;
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
-import ee.tuleva.onboarding.currency.Currency;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -29,16 +28,51 @@ public class CapitalService {
   private final MemberCapitalEventRepository memberCapitalEventRepository;
   private final AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
 
+  List<CapitalRow> getCapitalRows(Long memberId) {
+    List<MemberCapitalEvent> events = memberCapitalEventRepository.findAllByMemberId(memberId);
+
+    Map<MemberCapitalEventType, CapitalRow> grouped =
+        events.stream()
+            .filter(pastEvents())
+            .collect(
+                groupingBy(
+                    MemberCapitalEvent::getType,
+                    reducing(
+                        new CapitalRow(null, ZERO, ZERO, EUR),
+                        event ->
+                            new CapitalRow(
+                                event.getType(),
+                                event.getFiatValue(),
+                                getProfit(List.of(event)),
+                                EUR),
+                        (CapitalRow a, CapitalRow b) ->
+                            new CapitalRow(
+                                a.type() != null ? a.type() : b.type(),
+                                a.contributions().add(b.contributions()),
+                                a.profit().add(b.profit()),
+                                EUR))));
+
+    return grouped.values().stream()
+        .map(
+            row ->
+                new CapitalRow(
+                    row.type(),
+                    row.contributions().setScale(2, HALF_DOWN),
+                    row.profit().setScale(2, HALF_DOWN),
+                    row.currency()))
+        .toList();
+  }
+
   CapitalStatement getCapitalStatement(Long memberId) {
     List<MemberCapitalEvent> events = memberCapitalEventRepository.findAllByMemberId(memberId);
 
     return new CapitalStatement(
         getCapitalAmount(events, List.of(MEMBERSHIP_BONUS)),
-        getCapitalAmount(events, List.of(CAPITAL_PAYMENT, CAPITAL_PAYOUT)),
+        getCapitalAmount(events, List.of(CAPITAL_PAYMENT)),
         getCapitalAmount(events, List.of(UNVESTED_WORK_COMPENSATION)),
         getCapitalAmount(events, List.of(WORK_COMPENSATION)),
         getProfit(events),
-        Currency.EUR);
+        EUR);
   }
 
   @NotNull
@@ -49,7 +83,7 @@ public class CapitalService {
         .filter(pastEvents())
         .map(MemberCapitalEvent::getFiatValue)
         .reduce(ZERO, BigDecimal::add)
-        .setScale(2, ROUND_HALF_DOWN);
+        .setScale(2, HALF_DOWN);
   }
 
   private BigDecimal getProfit(List<MemberCapitalEvent> events) {
@@ -76,14 +110,14 @@ public class CapitalService {
     BigDecimal investmentFiatValue =
         latestAggregatedCapitalEvent.getOwnershipUnitPrice().multiply(totalOwnershipUnitAmount);
 
-    return investmentFiatValue.subtract(totalFiatValue).setScale(2, ROUND_HALF_DOWN);
+    return investmentFiatValue.subtract(totalFiatValue).setScale(2, HALF_DOWN);
   }
 
   private Predicate<MemberCapitalEvent> pastEvents() {
-    return event -> isBeforeOrEqual(event.getAccountingDate(), LocalDate.now());
-  }
-
-  private boolean isBeforeOrEqual(LocalDate first, LocalDate second) {
-    return first.isBefore(second) || first.isEqual(second);
+    return event -> {
+      LocalDate date = event.getAccountingDate();
+      LocalDate now = LocalDate.now();
+      return date.isBefore(now) || date.isEqual(now);
+    };
   }
 }

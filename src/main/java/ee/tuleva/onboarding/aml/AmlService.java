@@ -39,23 +39,6 @@ public class AmlService {
   private final PepAndSanctionCheckService pepAndSanctionCheckService;
   private final AnalyticsThirdPillarRepository analyticsThirdPillarRepository;
 
-  private final List<List<AmlCheckType>> allowedCombinations =
-      List.of(
-          List.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_AUTO, OCCUPATION),
-          List.of(POLITICALLY_EXPOSED_PERSON, SK_NAME, DOCUMENT, RESIDENCY_MANUAL, OCCUPATION),
-          List.of(
-              POLITICALLY_EXPOSED_PERSON,
-              PENSION_REGISTRY_NAME,
-              DOCUMENT,
-              RESIDENCY_AUTO,
-              OCCUPATION),
-          List.of(
-              POLITICALLY_EXPOSED_PERSON,
-              PENSION_REGISTRY_NAME,
-              DOCUMENT,
-              RESIDENCY_MANUAL,
-              OCCUPATION));
-
   public void checkUserBeforeLogin(User user, Person person, Boolean isResident) {
     addDocumentCheck(user);
     addResidencyCheck(user, isResident);
@@ -256,15 +239,33 @@ public class AmlService {
     if (pillar == 2) {
       // No checks needed for second pillar
       return true;
-    } else if (pillar == 3) {
-      final var successfulTypes =
-          getChecks(person).stream()
-              .filter(AmlCheck::isSuccess)
-              .map(AmlCheck::getType)
-              .collect(toSet());
-      if (allowedCombinations.stream().anyMatch(successfulTypes::containsAll)) {
-        return true;
-      }
+    }
+    var successfulTypes =
+        getChecks(person).stream()
+            .filter(AmlCheck::isSuccess)
+            .map(AmlCheck::getType)
+            .collect(toSet());
+
+    var pepCheck =
+        successfulTypes.contains(POLITICALLY_EXPOSED_PERSON)
+            || successfulTypes.contains(POLITICALLY_EXPOSED_PERSON_AUTO)
+            || successfulTypes.contains(POLITICALLY_EXPOSED_PERSON_OVERRIDE);
+    var sanctionCheck =
+        successfulTypes.contains(SANCTION) || successfulTypes.contains(SANCTION_OVERRIDE);
+    var nameCheck =
+        successfulTypes.contains(SK_NAME) || successfulTypes.contains(PENSION_REGISTRY_NAME);
+    var documentCheck = successfulTypes.contains(DOCUMENT);
+    var occupationCheck = successfulTypes.contains(OCCUPATION);
+    var residencyCheck =
+        successfulTypes.contains(RESIDENCY_AUTO) || successfulTypes.contains(RESIDENCY_MANUAL);
+
+    if (pepCheck
+        && sanctionCheck
+        && nameCheck
+        && documentCheck
+        && occupationCheck
+        && residencyCheck) {
+      return true;
     }
     log.error("All necessary AML checks not passed for person {}!", person.getPersonalCode());
     eventPublisher.publishEvent(new TrackableEvent(person, TrackableEventType.MANDATE_DENIED));

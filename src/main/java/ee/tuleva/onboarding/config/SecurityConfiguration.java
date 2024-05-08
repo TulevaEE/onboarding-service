@@ -64,7 +64,7 @@ public class SecurityConfiguration {
         .sessionManagement(
             management ->
                 management
-                    .sessionCreationPolicy(SessionCreationPolicy.NEVER)
+                    .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                     .sessionFixation()
                     .newSession())
         .logout(

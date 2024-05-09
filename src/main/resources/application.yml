@@ -22,6 +22,9 @@ spring:
     url: jdbc:postgresql://localhost:5432/tuleva-onboarding
     username: tuleva-onboarding
     password: tuleva-onboarding
+  session:
+    store-type: jdbc
+
   sql:
     init:
       mode: never

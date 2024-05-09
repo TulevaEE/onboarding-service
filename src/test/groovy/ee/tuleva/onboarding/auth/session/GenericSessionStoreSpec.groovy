@@ -25,6 +25,10 @@ class GenericSessionStoreSpec extends Specification {
 
     then: "The attribute can be retrieved using its class"
         Optional<String> retrievedAttribute = sessionStore.get(String.class)
-        retrievedAttribute.isPresent() && retrievedAttribute.get() == testAttribute
+        assert retrievedAttribute.isPresent()
+        assert retrievedAttribute.get() == testAttribute
+
+    cleanup: "Clear the request attributes after test"
+        RequestContextHolder.resetRequestAttributes()
   }
 }

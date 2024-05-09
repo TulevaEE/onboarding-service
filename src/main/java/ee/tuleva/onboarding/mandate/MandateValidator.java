@@ -66,12 +66,18 @@ public class MandateValidator {
   private boolean isFutureContributionsToSameFund(
       CreateMandateCommand createMandateCommand, Person person) {
     List<FundBalance> accountStatement = accountStatementService.getAccountStatement(person);
-    return accountStatement.stream()
-        .anyMatch(
-            fundBalance ->
-                fundBalance.isActiveContributions()
-                    && fundBalance
-                        .getIsin()
-                        .equals(createMandateCommand.getFutureContributionFundIsin()));
+    long activeFundCount =
+        accountStatement.stream().filter(FundBalance::isActiveContributions).count();
+
+    if (activeFundCount == 1) {
+      return accountStatement.stream()
+          .anyMatch(
+              fundBalance ->
+                  fundBalance
+                      .getIsin()
+                      .equals(createMandateCommand.getFutureContributionFundIsin()));
+    }
+
+    return false;
   }
 }

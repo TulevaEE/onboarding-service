@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.mandate;
 import ee.tuleva.onboarding.account.AccountStatementService;
 import ee.tuleva.onboarding.account.FundBalance;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.fund.Fund;
+import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import java.math.BigDecimal;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 public class MandateValidator {
 
   private final AccountStatementService accountStatementService;
+  private final FundRepository fundRepository;
 
   public void validate(CreateMandateCommand createMandateCommand, Person person) {
     if (countValuesBiggerThanOne(summariseSourceFundTransferAmounts(createMandateCommand)) > 0) {
@@ -65,17 +68,15 @@ public class MandateValidator {
 
   private boolean isFutureContributionsToSameFund(
       CreateMandateCommand createMandateCommand, Person person) {
+    String isin = createMandateCommand.getFutureContributionFundIsin();
     List<FundBalance> accountStatement = accountStatementService.getAccountStatement(person);
-    long activeFundCount =
-        accountStatement.stream().filter(FundBalance::isActiveContributions).count();
+    Fund fund = fundRepository.findByIsin(isin);
 
-    if (activeFundCount == 1) {
+    if (fund.getPillar() == 2) {
       return accountStatement.stream()
           .anyMatch(
               fundBalance ->
-                  fundBalance
-                      .getIsin()
-                      .equals(createMandateCommand.getFutureContributionFundIsin()));
+                  fundBalance.isActiveContributions() && fundBalance.getIsin().equals(isin));
     }
 
     return false;

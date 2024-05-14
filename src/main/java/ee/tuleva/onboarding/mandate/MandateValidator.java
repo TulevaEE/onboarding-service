@@ -72,6 +72,10 @@ public class MandateValidator {
     List<FundBalance> accountStatement = accountStatementService.getAccountStatement(person);
     Fund fund = fundRepository.findByIsin(isin);
 
+    if (isin == null || fund == null) {
+      return false;
+    }
+
     if (fund.getPillar() == 2) {
       return accountStatement.stream()
           .anyMatch(

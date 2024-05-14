@@ -108,6 +108,35 @@ class MandateValidatorSpec extends Specification {
     noExceptionThrown()
   }
 
+  def "works with null isin"() {
+    given:
+    Person person = samplePerson()
+    CreateMandateCommand createMandateCmd = sampleCreateMandateCommand().tap {
+      futureContributionFundIsin = null
+    }
+
+    when:
+    mandateValidator.validate(createMandateCmd, person)
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "works when no fund found"() {
+    given:
+    Person person = samplePerson()
+    CreateMandateCommand createMandateCmd = sampleCreateMandateCommand().tap {
+      futureContributionFundIsin = tuleva3rdPillarFund().isin
+    }
+    fundRepository.findByIsin(createMandateCmd.futureContributionFundIsin) >> null
+
+    when:
+    mandateValidator.validate(createMandateCmd, person)
+
+    then:
+    noExceptionThrown()
+  }
+
   def "validates"() {
     given:
     Person person = samplePerson()

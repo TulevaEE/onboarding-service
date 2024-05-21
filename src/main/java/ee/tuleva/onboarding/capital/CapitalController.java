@@ -9,28 +9,20 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("/v1")
 @RequiredArgsConstructor
 public class CapitalController {
 
   private final UserService userService;
   private final CapitalService capitalService;
 
-  @Operation(summary = "Get info about current user initial capital")
-  @GetMapping("/v1/me/capital")
-  public CapitalStatement capitalStatement(
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    Long userId = authenticatedPerson.getUserId();
-    User user = userService.getById(userId);
-    return user.getMember()
-        .map(member -> capitalService.getCapitalStatement(member.getId()))
-        .orElseThrow(NotAMemberException::new);
-  }
-
-  @GetMapping("/v2/me/capital")
-  public List<CapitalRow> capitalStatement2(
+  @Operation(summary = "Get info about current user capital")
+  @GetMapping("/me/capital")
+  public List<CapitalRow> capitalStatement(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();
     User user = userService.getById(userId);
@@ -39,7 +31,7 @@ public class CapitalController {
         .orElseThrow(NotAMemberException::new);
   }
 
-  @GetMapping("/v1/me/capital/events")
+  @GetMapping("/me/capital/events")
   public List<ApiCapitalEvent> capitalEvents(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();

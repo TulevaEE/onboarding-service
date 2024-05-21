@@ -22,8 +22,7 @@ class CapitalControllerSpec extends BaseControllerSpec {
 
   UserService userService = Mock(UserService)
   CapitalService capitalService = Mock(CapitalService)
-  CapitalController controller =
-      new CapitalController(userService, capitalService)
+  CapitalController controller = new CapitalController(userService, capitalService)
   User user = sampleUser().build()
   AuthenticatedPerson authenticatedPerson = authenticatedPersonFromUser(user).build()
 
@@ -33,27 +32,6 @@ class CapitalControllerSpec extends BaseControllerSpec {
 
   def "Member capital statement"() {
     given:
-    CapitalStatement capitalStatement = CapitalStatementFixture.fixture().build()
-    User user = sampleUser().build()
-    1 * userService.getById(user.id) >> user
-    1 * capitalService.getCapitalStatement(user.memberOrThrow.id) >>
-        capitalStatement
-
-    expect:
-    mockMvc.perform(get("/v1/me/capital"))
-        .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath('$.membershipBonus', is(capitalStatement.membershipBonus)))
-        .andExpect(jsonPath('$.capitalPayment', is(capitalStatement.capitalPayment)))
-        .andExpect(jsonPath('$.unvestedWorkCompensation', is(capitalStatement.unvestedWorkCompensation)))
-        .andExpect(jsonPath('$.workCompensation', is(capitalStatement.workCompensation)))
-        .andExpect(jsonPath('$.profit', is(capitalStatement.profit)))
-        .andExpect(jsonPath('$.total', is(capitalStatement.total)))
-        .andExpect(jsonPath('$.currency', is(EUR.name())))
-  }
-
-  def "Member capital statement v2"() {
-    given:
     User user = sampleUser().build()
     1 * userService.getById(user.id) >> user
     1 * capitalService.getCapitalRows(user.memberOrThrow.id) >> [
@@ -62,7 +40,7 @@ class CapitalControllerSpec extends BaseControllerSpec {
     ]
 
     expect:
-    mockMvc.perform(get("/v2/me/capital"))
+    mockMvc.perform(get("/v1/me/capital"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$[0].type', is(MEMBERSHIP_BONUS.name())))
@@ -77,5 +55,4 @@ class CapitalControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$[1].value', is(700.0.doubleValue())))
         .andExpect(jsonPath('$[1].currency', is(EUR.name())))
   }
-
 }

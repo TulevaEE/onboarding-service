@@ -43,8 +43,6 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(regexMatcher(GET, "/v1/me/capital"))
                     .hasAuthority(Authority.MEMBER)
-                    .requestMatchers(regexMatcher(GET, "/v2/me/capital"))
-                    .hasAuthority(Authority.MEMBER)
                     .requestMatchers(regexMatcher(GET, "/v1/me/capital/events"))
                     .hasAuthority(Authority.MEMBER)
                     .requestMatchers(regexMatcher(GET, "/v1/funds.*"))

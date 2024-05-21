@@ -230,7 +230,7 @@ class AmlServiceSpec extends Specification {
     amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(user.personalCode, POLITICALLY_EXPOSED_PERSON_OVERRIDE, true) >> []
     amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(user.personalCode, SANCTION_OVERRIDE, true) >> []
 
-    1 * eventPublisher.publishEvent(_ as AmlCheckCreatedEvent)
+    2 * eventPublisher.publishEvent(_ as AmlCheckCreatedEvent)
 
     when:
     List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, address)

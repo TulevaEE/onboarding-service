@@ -222,7 +222,9 @@ public class AmlService {
         amlCheck.getType(),
         amlCheck.getPersonalCode(),
         amlCheck.isSuccess());
-    return amlCheckRepository.save(amlCheck);
+    AmlCheck saved = amlCheckRepository.save(amlCheck);
+    eventPublisher.publishEvent(new AmlCheckCreatedEvent(this, saved));
+    return saved;
   }
 
   private boolean hasCheck(String personalCode, AmlCheckType checkType) {

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.epis;
 
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
+import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH_WORKPLACE;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
 import static java.time.LocalDate.parse;
 
@@ -122,6 +123,14 @@ public class MockEpisService extends EpisService {
                     .currency(currency)
                     .isin("EE3600001707")
                     .type(CONTRIBUTION_CASH)
+                    .build(),
+                CashFlow.builder()
+                    .time(time.plusSeconds(1))
+                    .priceTime(time.plusSeconds(1))
+                    .amount(BigDecimal.valueOf(10.01))
+                    .currency(currency)
+                    .isin("EE3600109435")
+                    .type(CONTRIBUTION_CASH_WORKPLACE)
                     .build()))
         .build();
   }

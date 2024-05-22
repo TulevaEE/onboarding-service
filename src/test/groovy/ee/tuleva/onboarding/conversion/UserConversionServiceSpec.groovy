@@ -192,6 +192,24 @@ class UserConversionServiceSpec extends Specification {
     activeExternal2ndPillarFundBalance | false                         | false
   }
 
+  def "GetConversion 2nd pillar: works with pending transfers from own fund to own fund"() {
+    given:
+    1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
+    applicationService.getTransferApplications(PENDING, samplePerson) >> [partialPending2ndPillarFromOwnToOwnApplication]
+    cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
+
+    when:
+    ConversionResponse response = service.getConversion(samplePerson)
+
+    then:
+    response.secondPillar.selectionComplete == secondPillarSelectionComplete
+    response.secondPillar.transfersComplete == secondPillarTransfersComplete
+
+    where:
+    accountBalanceResponse             | secondPillarSelectionComplete | secondPillarTransfersComplete
+    activeTuleva2ndPillarFundBalance   | true                          | true
+  }
+
   def "get partial conversion for 2nd pillar given pending mandates cover the lack"() {
     given:
     1 * accountStatementService.getAccountStatement(samplePerson) >> accountBalanceResponse
@@ -507,4 +525,23 @@ class UserConversionServiceSpec extends Specification {
           )
           .build()
 
+
+  Application<TransferApplicationDetails> partialPending2ndPillarFromOwnToOwnApplication =
+      Application.<TransferApplicationDetails> builder()
+          .status(PENDING)
+          .details(
+              TransferApplicationDetails.builder()
+                  .sourceFund(new ApiFundResponse(tuleva2ndPillarStockFund(), Locale.ENGLISH)
+                  )
+                  .exchange(
+                      new Exchange(
+                          new ApiFundResponse(tuleva2ndPillarStockFund(), Locale.ENGLISH),
+                          new ApiFundResponse(tuleva2ndPillarBondFund(), Locale.ENGLISH),
+                          null,
+                          0.01
+                      )
+                  )
+                  .build()
+          )
+          .build()
 }

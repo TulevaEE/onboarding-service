@@ -203,7 +203,8 @@ public class UserConversionService {
 
   private boolean hasAnyPendingTransfersAwayFromConvertedFundManager(
       Person person, Integer pillar) {
-    return getPendingExchanges(pillar, person).anyMatch(Exchange::isFromOwnFund);
+    return getPendingExchanges(pillar, person)
+        .anyMatch(exchange -> exchange.isFromOwnFund() && !exchange.isToOwnFund());
   }
 
   private boolean isTransfersPartial(

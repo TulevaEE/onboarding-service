@@ -9,10 +9,7 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -27,9 +24,10 @@ public class AccountOverviewProvider {
 
   private final FundRepository fundRepository;
   private final CashFlowService cashFlowService;
+  private final Clock clock;
 
   public AccountOverview getAccountOverview(Person person, Instant startTime, Integer pillar) {
-    Instant endTime = Instant.now();
+    Instant endTime = startTime.isAfter(clock.instant()) ? startTime : clock.instant();
     CashFlowStatement cashFlowStatement =
         cashFlowService.getCashFlowStatement(person, toLocalDate(startTime), toLocalDate(endTime));
 

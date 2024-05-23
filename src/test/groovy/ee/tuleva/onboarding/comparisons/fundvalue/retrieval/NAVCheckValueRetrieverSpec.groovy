@@ -57,8 +57,8 @@ class NAVCheckValueRetrieverSpec extends Specification {
 }
     """;
 
-    NAVCheckValueRetriever.FUND_NAMES.forEach {
-      fund -> server.expect(requestTo(String.format("https://query1.finance.yahoo.com/v7/finance/chart/%s.F?interval=1d&events=history&includeAdjustedClose=true&period1=1514764800&period2=1515110400", fund)))
+    NAVCheckValueRetriever.FUND_TICKERS.forEach {
+      fund -> server.expect(requestTo(String.format("https://query1.finance.yahoo.com/v7/finance/chart/%s?interval=1d&events=history&includeAdjustedClose=true&period1=1514764800&period2=1515110400", fund)))
         .andRespond(withSuccess(mockApiResponse, MediaType.APPLICATION_JSON))
     }
 
@@ -68,7 +68,7 @@ class NAVCheckValueRetrieverSpec extends Specification {
     def result = navCheckValueRetriever.retrieveValuesForRange(startDate, endDate)
 
     then:
-    result == NAVCheckValueRetriever.FUND_NAMES.collect {
+    result == NAVCheckValueRetriever.FUND_TICKERS.collect {
       [
         new FundValue(it, LocalDate.of(2018, 1, 2), 13.5799999237061),
         new FundValue(it, LocalDate.of(2018, 1, 3), 13.6680002212524),

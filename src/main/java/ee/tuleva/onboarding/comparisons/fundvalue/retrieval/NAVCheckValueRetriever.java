@@ -60,7 +60,8 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
     List<BigDecimal> fundValues = parseFundValues(resultNode);
 
     if (fundValues.size() != timestamps.size()) {
-      throw new RuntimeException("NAV checker response timestamp and fund values count do not match");
+      throw new RuntimeException(
+          "NAV checker response timestamp and fund values count do not match");
     }
 
     return IntStream.range(0, fundValues.size())
@@ -68,9 +69,7 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
         .toList();
   }
 
-  private List<LocalDate> parseTimestamps (
-    JsonNode resultNode
-  ) {
+  private List<LocalDate> parseTimestamps(JsonNode resultNode) {
     ZoneId utcZoneId = ZoneId.of("UTC");
 
     List<LocalDate> timestamps = new ArrayList<>();
@@ -85,9 +84,7 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
     return timestamps;
   }
 
-  private List<BigDecimal> parseFundValues (
-      JsonNode resultNode
-  ) {
+  private List<BigDecimal> parseFundValues(JsonNode resultNode) {
     JsonNode adjCloseNode = resultNode.path("indicators").path("adjclose").get(0).path("adjclose");
 
     List<BigDecimal> fundValues = new ArrayList<>();

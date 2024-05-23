@@ -10,7 +10,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 import lombok.extern.slf4j.Slf4j;
@@ -24,8 +23,7 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
   public static final String KEY = "NAV_CHECK_VALUE";
 
   public static final List<String> FUND_TICKERS =
-      Arrays.asList(
-          "0P000152G5.F", "0P0001N0Z0.F", "SGAS.DE", "SLMC.DE", "SGAJ.DE", "0P0001MGOG.F");
+      List.of("0P000152G5.F", "0P0001N0Z0.F", "SGAS.DE", "SLMC.DE", "SGAJ.DE", "0P0001MGOG.F");
 
   private final RestClient restClient;
 

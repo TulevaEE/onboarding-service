@@ -6,7 +6,7 @@ import static ee.tuleva.onboarding.fund.FundFixture.*
 
 class AccountStatementFixture {
 
-  public static List<FundBalance> activeTuleva2ndPillarFundBalance = Lists.asList(
+  public static List<FundBalance> activeTuleva2ndPillarFundBalance = [
       FundBalance.builder()
           .value(100.0)
           .unavailableValue(0.0)
@@ -27,9 +27,9 @@ class AccountStatementFixture {
           .fund(tuleva2ndPillarBondFund())
           .units(234.5678)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> activeExternal2ndPillarFundBalance = Lists.asList(
+  public static List<FundBalance> activeExternal2ndPillarFundBalance = [
       FundBalance.builder()
           .value(100.0)
           .unavailableValue(0.0)
@@ -50,9 +50,9 @@ class AccountStatementFixture {
           .fund(tuleva2ndPillarBondFund())
           .units(456.7890)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> inactiveTuleva2ndPillarFundBalance = Lists.asList(
+  public static List<FundBalance> inactiveTuleva2ndPillarFundBalance = [
       FundBalance.builder()
           .value(0.0)
           .unavailableValue(0.0)
@@ -73,9 +73,9 @@ class AccountStatementFixture {
           .fund(tuleva2ndPillarBondFund())
           .units(234.5678)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> inactiveExternal2ndPillarFundBalance = Lists.asList(
+  public static List<FundBalance> inactiveExternal2ndPillarFundBalance = [
       FundBalance.builder()
           .value(100.0)
           .unavailableValue(0.0)
@@ -96,9 +96,9 @@ class AccountStatementFixture {
           .fund(lhv2ndPillarFund())
           .units(345.6789)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> fullyExternal2ndPillarFundBalance = Lists.asList(
+  public static List<FundBalance> fullyExternal2ndPillarFundBalance = [
       FundBalance.builder()
           .value(100.0)
           .unavailableValue(0.0)
@@ -109,9 +109,9 @@ class AccountStatementFixture {
           .fund(lhv2ndPillarFund())
           .units(345.6789)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> onlyActiveTuleva2ndPillarFundBalance = Lists.asList(
+  public static List<FundBalance> onlyActiveTuleva2ndPillarFundBalance = [
       FundBalance.builder()
           .value(0.0)
           .unavailableValue(0.0)
@@ -132,9 +132,9 @@ class AccountStatementFixture {
           .fund(lhv2ndPillarFund())
           .units(345.6789)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> activeTuleva3rdPillarFundBalance = Lists.asList(
+  public static List<FundBalance> activeTuleva3rdPillarFundBalance = [
       FundBalance.builder()
           .value(100.0)
           .unavailableValue(0.0)
@@ -155,9 +155,9 @@ class AccountStatementFixture {
           .fund(exitRestricted3rdPillarFund())
           .units(345.67)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> activeExternal3rdPillarFundBalance = Lists.asList(
+  public static List<FundBalance> activeExternal3rdPillarFundBalance = [
       FundBalance.builder()
           .value(100.0)
           .unavailableValue(0.0)
@@ -178,9 +178,9 @@ class AccountStatementFixture {
           .fund(tuleva3rdPillarFund())
           .units(234.56)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> pendingExternal3rdPillarFundBalance = Lists.asList(
+  public static List<FundBalance> pendingExternal3rdPillarFundBalance = [
       FundBalance.builder()
           .value(100.0)
           .unavailableValue(0.0)
@@ -202,9 +202,9 @@ class AccountStatementFixture {
           .fund(tuleva3rdPillarFund())
           .units(0.0)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> activeTuleva3rdPillarFund = Lists.asList(
+  public static List<FundBalance> activeTuleva3rdPillarFund = [
       FundBalance.builder()
           .value(100.0)
           .unavailableValue(0.0)
@@ -215,9 +215,9 @@ class AccountStatementFixture {
           .fund(tuleva3rdPillarFund())
           .units(234.56)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> inactiveTuleva3rdPillarFundBalance = Lists.asList(
+  public static List<FundBalance> inactiveTuleva3rdPillarFundBalance = [
       FundBalance.builder()
           .value(0.0)
           .unavailableValue(0.0)
@@ -238,9 +238,9 @@ class AccountStatementFixture {
           .fund(tuleva3rdPillarFund())
           .units(234.56)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> inactiveExternal3rdPillarFundBalance = Lists.asList(
+  public static List<FundBalance> inactiveExternal3rdPillarFundBalance = [
       FundBalance.builder()
           .value(100.0)
           .unavailableValue(0.0)
@@ -261,9 +261,9 @@ class AccountStatementFixture {
           .fund(lhv3rdPillarFund())
           .units(456.78)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> fullyExternal3rdPillarFundBalance = Lists.asList(
+  public static List<FundBalance> fullyExternal3rdPillarFundBalance = [
       FundBalance.builder()
           .value(100.0)
           .unavailableValue(0.0)
@@ -274,9 +274,9 @@ class AccountStatementFixture {
           .fund(lhv3rdPillarFund())
           .units(456.78)
           .build()
-  )
+  ]
 
-  public static List<FundBalance> onlyActiveTuleva3rdPillarFundBalance = Lists.asList(
+  public static List<FundBalance> onlyActiveTuleva3rdPillarFundBalance = [
       FundBalance.builder()
           .value(0.0)
           .unavailableValue(0.0)
@@ -297,6 +297,6 @@ class AccountStatementFixture {
           .fund(lhv3rdPillarFund())
           .units(456.78)
           .build()
-  )
+  ]
 
 }

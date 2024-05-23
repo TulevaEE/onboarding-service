@@ -88,7 +88,7 @@ class FundFixture {
 
   static exitRestricted3rdPillarFund() {
     return Fund.builder()
-        .isin(Fund.EXIT_RESTRICTED_FUND_ISIN)
+        .isin(Fund.EXIT_RESTRICTED_FUND_ISINS.get(0))
         .nameEstonian("Swedbank Pensionifond V100 indeks (väljumine piiratud)")
         .nameEnglish("Swedbank V100 Index Pension Fund (exit restricted)")
         .shortName("SWV100")

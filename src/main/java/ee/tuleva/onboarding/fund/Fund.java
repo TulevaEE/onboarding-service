@@ -16,6 +16,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Locale;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,7 +32,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Getter
 public class Fund implements Comparable<Fund> {
-  private static final String EXIT_RESTRICTED_FUND_ISIN = "EE3600109484";
+  private static final List<String> EXIT_RESTRICTED_FUND_ISINS =
+      List.of("EE3600109484", "EE3600001749", "EE3600001731");
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -81,7 +83,7 @@ public class Fund implements Comparable<Fund> {
   }
 
   public boolean isExitRestricted() {
-    return EXIT_RESTRICTED_FUND_ISIN.equals(isin);
+    return EXIT_RESTRICTED_FUND_ISINS.contains(isin);
   }
 
   @Override

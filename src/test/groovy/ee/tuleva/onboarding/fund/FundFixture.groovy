@@ -29,7 +29,6 @@ class FundFixture {
   }
 
   static Fund tuleva2ndPillarBondFund() {
-
     return Fund.builder()
         .isin("AE123232332")
         .nameEstonian("Tuleva maailma võlakirjade pensionifond")
@@ -48,7 +47,7 @@ class FundFixture {
         ).build()
   }
 
-  static tuleva3rdPillarFund() {
+  static Fund tuleva3rdPillarFund() {
     return Fund.builder()
         .isin("EE645")
         .nameEstonian("Tuleva III Samba Pensionifond")
@@ -67,7 +66,7 @@ class FundFixture {
         ).build()
   }
 
-  public static lhv2ndPillarFund() {
+  static Fund lhv2ndPillarFund() {
     return Fund.builder()
         .isin("AE123232337")
         .nameEstonian("LHV XL")
@@ -86,7 +85,7 @@ class FundFixture {
         ).build()
   }
 
-  static exitRestricted3rdPillarFund() {
+  static Fund exitRestricted3rdPillarFund() {
     return Fund.builder()
         .isin(Fund.EXIT_RESTRICTED_FUND_ISINS.get(0))
         .nameEstonian("Swedbank Pensionifond V100 indeks (väljumine piiratud)")
@@ -105,7 +104,7 @@ class FundFixture {
         ).build()
   }
 
-  static lhv3rdPillarFund() {
+  static Fund lhv3rdPillarFund() {
     return Fund.builder()
         .isin("EE7654")
         .nameEstonian("LHV Pensionifond Indeks Pluss")

@@ -45,7 +45,6 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
 
   private List<FundValue> retrieveValuesForFund(
       String fundName, LocalDate startDate, LocalDate endDate) {
-    ZoneId utcZoneId = ZoneId.of("UTC");
 
     RestClient restClient = restClientBuilder.build();
 
@@ -55,32 +54,49 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
     JsonNode response =
         restClient.get().uri(fetchUri).accept(APPLICATION_JSON).retrieve().body(JsonNode.class);
 
-    JsonNode result = response.path("chart").path("result").path(0);
+    JsonNode resultNode = response.path("chart").path("result").path(0);
+
+    List<LocalDate> timestamps = parseTimestamps(resultNode);
+    List<BigDecimal> fundValues = parseFundValues(resultNode);
+
+    if (fundValues.size() != timestamps.size()) {
+      throw new RuntimeException("NAV checker response timestamp and fund values count do not match");
+    }
+
+    return IntStream.range(0, fundValues.size())
+        .mapToObj(i -> new FundValue(fundName, timestamps.get(i), fundValues.get(i)))
+        .toList();
+  }
+
+  private List<LocalDate> parseTimestamps (
+    JsonNode resultNode
+  ) {
+    ZoneId utcZoneId = ZoneId.of("UTC");
 
     List<LocalDate> timestamps = new ArrayList<>();
 
-    for (Iterator<JsonNode> it = result.path("timestamp").elements(); it.hasNext(); ) {
+    for (Iterator<JsonNode> it = resultNode.path("timestamp").elements(); it.hasNext(); ) {
       long timestamp = it.next().asLong();
       Instant instant = Instant.ofEpochSecond(timestamp);
 
       timestamps.add(instant.atZone(utcZoneId).toLocalDate());
     }
 
-    JsonNode adjCloseValues = result.path("indicators").path("adjclose").get(0).path("adjclose");
+    return timestamps;
+  }
+
+  private List<BigDecimal> parseFundValues (
+      JsonNode resultNode
+  ) {
+    JsonNode adjCloseNode = resultNode.path("indicators").path("adjclose").get(0).path("adjclose");
 
     List<BigDecimal> fundValues = new ArrayList<>();
 
-    for (Iterator<JsonNode> it = adjCloseValues.elements(); it.hasNext(); ) {
+    for (Iterator<JsonNode> it = adjCloseNode.elements(); it.hasNext(); ) {
       fundValues.add(BigDecimal.valueOf(it.next().asDouble()));
     }
 
-    if (fundValues.size() != timestamps.size()) {
-      log.error("NAV checker response timestamp and fund values count do not match");
-    }
-
-    return IntStream.range(0, fundValues.size())
-        .mapToObj(i -> new FundValue(fundName, timestamps.get(i), fundValues.get(i)))
-        .toList();
+    return fundValues;
   }
 
   private String buildFetchUri(String fundName, LocalDate startDate, LocalDate endDate) {

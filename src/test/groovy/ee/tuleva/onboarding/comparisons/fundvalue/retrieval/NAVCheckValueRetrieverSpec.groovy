@@ -1,0 +1,80 @@
+package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
+
+import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
+import org.springframework.http.MediaType
+import org.springframework.test.web.client.MockRestServiceServer
+import spock.lang.Specification
+
+import java.nio.charset.StandardCharsets
+import java.time.LocalDate
+import java.util.zip.GZIPOutputStream
+
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
+
+@RestClientTest(NAVCheckValueRetriever)
+class NAVCheckValueRetrieverSpec extends Specification {
+
+  @Autowired
+  NAVCheckValueRetriever navCheckValueRetriever
+
+  @Autowired
+  MockRestServiceServer server
+
+  def cleanup() {
+    server.reset()
+  }
+
+  def "it is configured for the right fund"() {
+    when:
+    def retrievalFund = navCheckValueRetriever.getKey()
+    then:
+    retrievalFund == NAVCheckValueRetriever.KEY
+  }
+
+  def "it successfully fetches quotes for all funds"() {
+    given:
+    def mockApiResponse = """
+{
+  "chart": {
+    "result": [
+      {
+        "timestamp": [1514876400, 1514962800, 1515049200],
+        "indicators": {
+
+          "adjclose": [
+            {
+              "adjclose": [13.5799999237061, 13.6680002212524, 13.7229995727539]
+            }
+          ]
+        }
+      }
+    ],
+    "error": null
+  }
+}
+    """;
+
+    NAVCheckValueRetriever.FUND_NAMES.forEach {
+      fund -> server.expect(requestTo(String.format("https://query1.finance.yahoo.com/v7/finance/chart/%s.F?interval=1d&events=history&includeAdjustedClose=true&period1=1514764800&period2=1515110400", fund)))
+        .andRespond(withSuccess(mockApiResponse, MediaType.APPLICATION_JSON))
+    }
+
+    when:
+    LocalDate startDate = LocalDate.of(2018, 1, 2)
+    LocalDate endDate = LocalDate.of(2018, 1, 4)
+    def result = navCheckValueRetriever.retrieveValuesForRange(startDate, endDate)
+
+    then:
+    result == NAVCheckValueRetriever.FUND_NAMES.collect {
+      [
+        new FundValue(it, LocalDate.of(2018, 1, 2), 13.5799999237061),
+        new FundValue(it, LocalDate.of(2018, 1, 3), 13.6680002212524),
+        new FundValue(it, LocalDate.of(2018, 1, 4), 13.7229995727539)
+      ]
+    }.flatten()
+  }
+}
+

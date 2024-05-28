@@ -11,6 +11,7 @@ import java.time.Instant
 
 import static EmailType.THIRD_PILLAR_SUGGEST_SECOND
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.*
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS
 
@@ -66,6 +67,7 @@ class EmailPersistenceServiceSpec extends Specification {
   def "can check for todays emails"() {
     given:
     def person = samplePerson()
+    def mandate = sampleMandate()
     def type = THIRD_PILLAR_SUGGEST_SECOND
     def email = new Email(
         personalCode: person.personalCode,
@@ -76,11 +78,11 @@ class EmailPersistenceServiceSpec extends Specification {
         updatedDate: Instant.now(clock)
     )
     def statuses = [SENT, QUEUED, SCHEDULED]
-    emailRepository.
-        findFirstByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(person.personalCode, type, statuses) >> Optional.of(email)
+    emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDesc(
+            person.personalCode, type, mandate, statuses) >> Optional.of(email)
 
     when:
-    def hasEmailsToday = emailPersistenceService.hasEmailsToday(person, type)
+    def hasEmailsToday = emailPersistenceService.hasEmailsToday(person, type, mandate)
 
     then:
     hasEmailsToday

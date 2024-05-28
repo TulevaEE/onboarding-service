@@ -138,8 +138,12 @@ public class MandateEmailService {
     EmailType emailType = EmailType.from(mandate);
     String templateName = emailType.getTemplateName(locale);
 
-    if (emailPersistenceService.hasEmailsToday(user, emailType)) {
-      log.info("Already has email today: userId={}, emailType={}", user.getId(), emailType);
+    if (emailPersistenceService.hasEmailsToday(user, emailType, mandate)) {
+      log.info(
+          "Already has email today: personalCode={}, emailType={}, mandateId={}",
+          user.getPersonalCode(),
+          emailType,
+          mandate.getId());
       return;
     }
 
@@ -171,8 +175,12 @@ public class MandateEmailService {
     EmailType emailType = EmailType.from(mandate, pillarSuggestion);
     String templateName = emailType.getTemplateName(locale);
 
-    if (emailPersistenceService.hasEmailsToday(user, emailType)) {
-      log.info("Already has email today: userId={}, emailType={}", user.getId(), emailType);
+    if (emailPersistenceService.hasEmailsToday(user, emailType, mandate)) {
+      log.info(
+          "Already has email today: personalCode={}, emailType={}, mandateId={}",
+          user.getPersonalCode(),
+          emailType,
+          mandate.getId());
       return;
     }
 

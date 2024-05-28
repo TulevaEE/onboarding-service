@@ -78,6 +78,8 @@ class MandateFixture {
     builder()
         .futureContributionFundIsin("isin")
         .fundTransferExchanges([])
+        .address(addressFixture().build())
+        .metadata([:])
         .pillar(2)
   }
 
@@ -111,6 +113,7 @@ class MandateFixture {
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
     mandate.setPillar(2)
+    mandate.setMetadata(Map.of())
     return mandate
   }
 

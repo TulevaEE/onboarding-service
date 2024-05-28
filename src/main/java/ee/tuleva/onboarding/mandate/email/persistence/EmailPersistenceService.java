@@ -62,10 +62,14 @@ public class EmailPersistenceService {
   }
 
   public boolean hasEmailsToday(Person person, EmailType type) {
+    return hasEmailsToday(person, type, null);
+  }
+
+  public boolean hasEmailsToday(Person person, EmailType type, Mandate mandate) {
     var statuses = List.of(SENT, QUEUED, SCHEDULED);
     Optional<Email> latestEmail =
-        emailRepository.findFirstByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(
-            person.getPersonalCode(), type, statuses);
+        emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDesc(
+            person.getPersonalCode(), type, mandate, statuses);
     return latestEmail.map(email -> email.isToday(clock)).orElse(false);
   }
 

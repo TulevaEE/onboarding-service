@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.aml
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.BooleanNode
 import com.fasterxml.jackson.databind.node.TextNode
+import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService
 import ee.tuleva.onboarding.analytics.AnalyticsThirdPillarRepository

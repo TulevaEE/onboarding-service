@@ -1,0 +1,8 @@
+ReportDate;NAVDate;Portfolio;AssetType;FundCurr;ISIN;AssetName;Quantity;AssetCurr;PricePC;PriceQC;BookCostPC;BookCostQC;BookPriceQC;ValuationPC; MarketValuePC ;ValuationQC;InterestPC;InterestQC; ;GainPC;GainQC;PriceEffect;FxEffect;InstrumentType;PrctNav;IssuerName; TNA ;pGroupCode;MaturityDate;FxRate;Security_ID;Detailed Asset Type;Trade ID;Trade Date;ClassCode
+31.05.2024;30.05.2024;Tuleva Maailma Aktsiate Pensionifond;Equities;EUR;ISIN1;Asset 1;100;EUR;12.2;12.2;100;100;12.2;12.2;12.2;12.2;0;0;;12.2;12.2;12.2;0;Equity Fund;12.2;An Issuer; -   ;18;;1;Security1;Equity Fund;;;
+31.05.2024;30.05.2024;Tuleva Maailma Aktsiate Pensionifond;Equities;EUR;ISIN2;Asset 2;200;EUR;12.2;12.2;200;200;12.2;12.2;12.2;12.2;0;0;;12.2;12.2;12.2;0;Equity Fund;12.2;An Issuer; -   ;18;;1;Security2;Equity Fund;;;
+31.05.2024;30.05.2024;Tuleva Maailma Aktsiate Pensionifond;Cash;EUR;CASH1              ;An Account;10;EUR;0;0;0;0;0;10;10;10;0;0;;0;0;0;0;Cash;0;A Bank; -   ;18;;1;;Cash;;;
+31.05.2024;30.05.2024;Tuleva Maailma Aktsiate Pensionifond;Asset;EUR;;Other receivables;12;EUR;0;0;0;0;0;12;12;12;0;0;;0;0;0;0;Asset;0;; -   ;18;;1;;;;;
+31.05.2024;30.05.2024;Tuleva Maailma Aktsiate Pensionifond;Liabilities;EUR;;Management Fee Payable;-12;EUR;0;0;0;0;0;-12;-12;-12;0;0;;0;0;0;0;Liabilities;0;; -   ;18;;1;;;;;
+31.05.2024;30.05.2024;Tuleva Maailma Aktsiate Pensionifond;TotalNetAsset;EUR;;;0;;0;0;0;0;;0;;0;0;0;;0;0;0;0;TotalNetAsset;0;;100;18;;;;;;;
+31.05.2024;30.05.2024;Tuleva Maailma Volakirjade Pensionifond;Fixed Income;EUR;ISIN3;Asset 3;30;EUR;12.2;12.2;30;30;30;30;30;30;0;0;;0;0;0;0;Fixed Income Fund;10;An Issuer; -   ;18;;1;Security3;Fixed Income Fund;;;

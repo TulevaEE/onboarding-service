@@ -117,6 +117,10 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
+    implementation("com.amazonaws:aws-java-sdk-s3:1.12.732")
+    implementation("commons-io:commons-io:2.16.1")
+    implementation("org.apache.commons:commons-csv:1.11.0")
+
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "spock-core")

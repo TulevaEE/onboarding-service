@@ -13,13 +13,13 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2023.0.1"
+val springCloudVersion = "2023.0.2"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.2.5"
-    id("io.spring.dependency-management") version "1.1.4"
+    id("org.springframework.boot") version "3.3.0"
+    id("io.spring.dependency-management") version "1.1.5"
     id("com.gorylenko.gradle-git-properties") version "2.4.2"
     id("com.diffplug.spotless") version "6.25.0"
     id("io.freefair.lombok") version "8.6"
@@ -70,7 +70,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.37.3")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.39.3")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
     implementation("org.springdoc:springdoc-openapi-starter-common:2.5.0")
@@ -87,11 +87,11 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.jsoup:jsoup:1.17.2")
-    implementation("commons-net:commons-net:3.10.0")
+    implementation("commons-net:commons-net:3.11.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.2")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.3")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.3") {
@@ -106,8 +106,8 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5:5.3.1")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.8.0")
-    implementation("io.sentry:sentry-logback:7.8.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.9.0")
+    implementation("io.sentry:sentry-logback:7.9.0")
 
     implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.7.5")
 

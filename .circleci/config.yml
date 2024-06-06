@@ -10,7 +10,7 @@ jobs:
     environment:
       TERM: dumb
     docker:
-      - image: cimg/openjdk:17.0
+      - image: cimg/openjdk:21.0
     steps:
       - attach_workspace:
           at: .

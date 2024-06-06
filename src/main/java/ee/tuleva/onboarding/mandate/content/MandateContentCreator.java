@@ -117,7 +117,7 @@ public class MandateContentCreator {
       Mandate mandate,
       List<Fund> funds,
       ContactDetails contactDetails) {
-    String documentNumber = fundTransferExchanges.get(0).getId().toString();
+    String documentNumber = fundTransferExchanges.getFirst().getId().toString();
 
     String html =
         mandateContentService.getFundTransferHtml(

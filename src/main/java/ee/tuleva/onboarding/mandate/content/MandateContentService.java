@@ -28,7 +28,7 @@ class MandateContentService {
       List<Fund> funds,
       ContactDetails contactDetails) {
     String transactionId = UUID.randomUUID().toString();
-    String documentNumber = fundTransferExchanges.get(0).getId().toString();
+    String documentNumber = fundTransferExchanges.getFirst().getId().toString();
 
     Context ctx =
         ContextBuilder.builder()

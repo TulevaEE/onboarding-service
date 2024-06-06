@@ -53,7 +53,7 @@ public class OCSPUtils {
       }
       List<String> urls =
           findUrlsFromAccessDescriptions(authorityInformationAccess, accessDescriptionToFind);
-      return new URI(urls.get(0));
+      return new URI(urls.getFirst());
     } catch (Exception e) {
       throw new AuthenticationException(INVALID_INPUT, "Unable to read certificate", e);
     }

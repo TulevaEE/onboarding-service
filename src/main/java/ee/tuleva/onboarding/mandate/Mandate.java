@@ -173,9 +173,9 @@ public class Mandate implements Serializable {
   public boolean isTransferCancellation() {
     return fundTransferExchanges != null
         && fundTransferExchanges.size() == 1
-        && fundTransferExchanges.get(0).getSourceFundIsin() != null
-        && fundTransferExchanges.get(0).getTargetFundIsin() == null
-        && fundTransferExchanges.get(0).getAmount() == null;
+        && fundTransferExchanges.getFirst().getSourceFundIsin() != null
+        && fundTransferExchanges.getFirst().getTargetFundIsin() == null
+        && fundTransferExchanges.getFirst().getAmount() == null;
   }
 
   @JsonIgnore

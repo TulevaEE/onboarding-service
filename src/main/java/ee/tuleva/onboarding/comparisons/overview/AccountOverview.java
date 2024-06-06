@@ -31,7 +31,7 @@ public class AccountOverview {
       return getStartDate();
     }
     if (transactions != null && !transactions.isEmpty()) {
-      return transactions.get(0).date();
+      return transactions.getFirst().date();
     }
     // fallback
     return getStartDate();

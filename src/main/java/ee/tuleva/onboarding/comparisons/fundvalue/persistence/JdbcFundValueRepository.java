@@ -87,7 +87,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
             FIND_EARLIEST_DATE_FOR_KEY_QUERY,
             Map.of("key", key),
             (rs, rowNum) -> rs.getDate("earliest_date").toLocalDate());
-    return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
   }
 
   @Override
@@ -154,7 +154,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   public Optional<FundValue> findLastValueForFund(String fund) {
     List<FundValue> result =
         jdbcTemplate.query(FIND_LAST_VALUE_QUERY, Map.of("key", fund), new FundValueRowMapper());
-    return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
   }
 
   @Override
@@ -167,7 +167,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
                 "date", fundValue.getDate(),
                 "value", fundValue.getValue()),
             new FundValueRowMapper());
-    return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
   }
 
   @Override
@@ -175,7 +175,7 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
     List<FundValue> result =
         jdbcTemplate.query(
             FIND_LATEST_VALUE_QUERY, Map.of("key", key, "date", date), new FundValueRowMapper());
-    return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
+    return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
   }
 
   @Override

@@ -84,7 +84,7 @@ public class PaymentEmailService {
       return emptyList();
     }
 
-    Email latestScheduledEmail = cancelledEmails.get(0);
+    Email latestScheduledEmail = cancelledEmails.getFirst();
     return mandateEmailService.getMandateAttachments(user, latestScheduledEmail.getMandate());
   }
 }

@@ -28,7 +28,6 @@ public class PortfolioAnalyticsScheduler {
   private void processForDate(LocalDate date) {
     portfolioAnalyticsSource
         .fetchCsv(date)
-        .ifPresent(
-            inputStream -> portfolioCsvProcessor.process(date, inputStream));
+        .ifPresent(inputStream -> portfolioCsvProcessor.process(date, inputStream));
   }
 }

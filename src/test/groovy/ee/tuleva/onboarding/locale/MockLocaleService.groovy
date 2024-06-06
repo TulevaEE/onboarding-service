@@ -8,7 +8,7 @@ class MockLocaleService extends LocaleService {
   }
 
   MockLocaleService(String language) {
-    this.locale = Locale.forLanguageTag(language);
+    this.locale = Locale.forLanguageTag(language)
   }
 
   @Override

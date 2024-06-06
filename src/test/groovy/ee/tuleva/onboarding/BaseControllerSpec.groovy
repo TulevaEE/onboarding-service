@@ -49,9 +49,9 @@ class BaseControllerSpec extends Specification {
 
     private ErrorHandlingControllerAdvice errorHandlingControllerAdvice() {
         ErrorHandlingControllerAdvice controllerAdvice =
-                new ErrorHandlingControllerAdvice(new ErrorResponseEntityFactory(new InputErrorsConverter()));
+                new ErrorHandlingControllerAdvice(new ErrorResponseEntityFactory(new InputErrorsConverter()))
 
-        return controllerAdvice;
+        return controllerAdvice
     }
 
     private MappingJackson2HttpMessageConverter jacksonMessageConverter() {

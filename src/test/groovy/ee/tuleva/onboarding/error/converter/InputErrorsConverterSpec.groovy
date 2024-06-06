@@ -53,7 +53,7 @@ class InputErrorsConverterSpec extends Specification {
     }
 
     static Errors createErrorsFor(Object target) {
-        return ErrorFactory.manufactureErrors(target);
+        return ErrorFactory.manufactureErrors(target)
     }
 
 }

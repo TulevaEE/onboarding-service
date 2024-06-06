@@ -37,7 +37,7 @@ class HoldingDetailsJobSpec extends Specification {
     private String ftpHost = "localhost"
 
     @Shared
-    private FtpClient ftpClient;
+    private FtpClient ftpClient
 
     private static final String PATH = "/Monthly/AllHoldings/XI_MSTAR"
 

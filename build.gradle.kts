@@ -40,6 +40,10 @@ spotless {
         target("*.gradle.kts")
         ktlint()
     }
+    groovy {
+        target("src/*/groovy/**/*.groovy")
+        removeSemicolons()
+    }
 }
 
 gitProperties {

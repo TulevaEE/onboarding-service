@@ -131,6 +131,6 @@ broken
         ClientHttpResponse response = Mock(ClientHttpResponse)
         response.getStatusCode() >> status
         response.getBody() >> new ByteArrayInputStream(csvBody.getBytes(StandardCharsets.UTF_8))
-        return response;
+        return response
     }
 }

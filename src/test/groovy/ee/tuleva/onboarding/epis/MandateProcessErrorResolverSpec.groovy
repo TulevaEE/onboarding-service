@@ -10,7 +10,7 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 
 class MandateProcessErrorResolverSpec extends Specification {
 
-    MandateProcessErrorResolver service = new MandateProcessErrorResolver();
+    MandateProcessErrorResolver service = new MandateProcessErrorResolver()
 
     def "getErrors: get errors response"() {
         when:

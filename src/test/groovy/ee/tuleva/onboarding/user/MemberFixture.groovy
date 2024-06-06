@@ -12,13 +12,13 @@ class MemberFixture {
             .user(sampleUser().build())
             .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
             .memberNumber(1234567)
-    .build();
+    .build()
 
     static Member.MemberBuilder memberFixture() {
         return Member.builder()
             .user(sampleUser().build())
             .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
-            .memberNumber(1234567);
+            .memberNumber(1234567)
     }
 
 }

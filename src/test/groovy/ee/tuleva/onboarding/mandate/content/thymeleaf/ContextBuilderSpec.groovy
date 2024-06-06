@@ -49,7 +49,7 @@ class ContextBuilderSpec extends Specification {
 
   def "Mandate"() {
     when:
-    Mandate sampleMandate = sampleMandate();
+    Mandate sampleMandate = sampleMandate()
     Instant createdDate = Instant.ofEpochMilli(1000)
     sampleMandate.setCreatedDate(createdDate)
 

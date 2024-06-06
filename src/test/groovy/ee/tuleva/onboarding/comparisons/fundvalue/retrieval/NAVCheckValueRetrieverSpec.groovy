@@ -55,7 +55,7 @@ class NAVCheckValueRetrieverSpec extends Specification {
     "error": null
   }
 }
-    """;
+    """
 
     NAVCheckValueRetriever.FUND_TICKERS.forEach {
       fund -> server.expect(requestTo(String.format("https://query1.finance.yahoo.com/v7/finance/chart/%s?interval=1d&events=history&includeAdjustedClose=true&period1=1514764800&period2=1515110400", fund)))

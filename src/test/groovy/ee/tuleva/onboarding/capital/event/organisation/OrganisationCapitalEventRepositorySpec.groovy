@@ -1,9 +1,9 @@
-package ee.tuleva.onboarding.capital.event.organisation;
+package ee.tuleva.onboarding.capital.event.organisation
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
-import spock.lang.Specification;
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
+import spock.lang.Specification
 
 @DataJpaTest
 public class OrganisationCapitalEventRepositorySpec extends Specification {

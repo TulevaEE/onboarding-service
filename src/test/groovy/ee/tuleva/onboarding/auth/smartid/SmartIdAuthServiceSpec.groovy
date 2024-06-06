@@ -105,7 +105,7 @@ class SmartIdAuthServiceSpec extends Specification {
         response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "OK", "signature")
     1 * validator.validate(_) >> {
-      throw new UnprocessableSmartIdResponseException("Something went wrong");
+      throw new UnprocessableSmartIdResponseException("Something went wrong")
     }
     when:
     SmartIdSession session = smartIdAuthService.startLogin(personalCode)

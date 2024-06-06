@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.auth;
+package ee.tuleva.onboarding.auth
 
 import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
@@ -40,13 +40,13 @@ class KeyStoreFixture {
 
   private static X509Certificate generateSelfSignedCertificate(KeyPair keyPair) {
     // Create a self-signed X.509 certificate using X509v3CertificateBuilder
-    X500Name issuer = new X500Name("CN=SelfSignedCA");
-    X500Name subject = new X500Name("CN=SelfSignedCertificate");
-    BigInteger serialNumber = BigInteger.valueOf(System.currentTimeMillis());
+    X500Name issuer = new X500Name("CN=SelfSignedCA")
+    X500Name subject = new X500Name("CN=SelfSignedCertificate")
+    BigInteger serialNumber = BigInteger.valueOf(System.currentTimeMillis())
     Date notBefore = new Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000); // Yesterday
     Date notAfter = new Date(System.currentTimeMillis() + 365 * 24 * 60 * 60 * 1000); // One year
 
-    SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded());
+    SubjectPublicKeyInfo publicKeyInfo = SubjectPublicKeyInfo.getInstance(keyPair.getPublic().getEncoded())
 
     X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(
         issuer,
@@ -60,8 +60,8 @@ class KeyStoreFixture {
     // Build the certificate
     ContentSigner contentSigner = new JcaContentSignerBuilder("SHA256WithRSA")
         .build(keyPair.getPrivate())
-    X509CertificateHolder certHolder = certBuilder.build(contentSigner);
-    return new JcaX509CertificateConverter().getCertificate(certHolder);
+    X509CertificateHolder certHolder = certBuilder.build(contentSigner)
+    return new JcaX509CertificateConverter().getCertificate(certHolder)
   }
 
   public static char[] keyStorePassword = "changeit".toCharArray()

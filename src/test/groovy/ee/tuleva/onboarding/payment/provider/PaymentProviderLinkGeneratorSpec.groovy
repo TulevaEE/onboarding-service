@@ -68,8 +68,8 @@ class PaymentProviderLinkGeneratorSpec extends Specification {
     given:
     String internalReference = anInternalReferenceSerialized
     String testPersonalCode = "38888888888"
-    paymentLinkService.memberFeeTestPersonalCode = testPersonalCode;
-    def testPaymentData = aPaymentDataForMemberPayment;
+    paymentLinkService.memberFeeTestPersonalCode = testPersonalCode
+    def testPaymentData = aPaymentDataForMemberPayment
     testPaymentData.recipientPersonalCode = testPersonalCode
     1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, testPaymentData) >> internalReference
     when:

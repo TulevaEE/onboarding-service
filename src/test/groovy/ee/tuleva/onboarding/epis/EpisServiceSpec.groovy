@@ -183,7 +183,7 @@ class EpisServiceSpec extends Specification {
     given:
     def navDto = Mock(NavDto)
     1 * restTemplate.exchange("http://epis/navs/EE666?date=2018-10-20", GET, _, NavDto.class) >>
-        new ResponseEntity<NavDto>(navDto, OK);
+        new ResponseEntity<NavDto>(navDto, OK)
     when:
     def result = service.getNav("EE666", LocalDate.parse("2018-10-20"))
     then:

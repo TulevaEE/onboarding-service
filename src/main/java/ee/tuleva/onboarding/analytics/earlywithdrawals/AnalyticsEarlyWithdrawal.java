@@ -1,23 +1,17 @@
-package ee.tuleva.onboarding.analytics;
+package ee.tuleva.onboarding.analytics.earlywithdrawals;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-public record AnalyticsLeaver(
-    String currentFund,
-    String newFund,
+public record AnalyticsEarlyWithdrawal(
     String personalCode,
     String firstName,
     String lastName,
-    Double shareAmount,
-    Double sharePercentage,
-    LocalDate dateCreated,
-    Double fundOngoingChargesFigure,
-    String fundNameEstonian,
     String email,
     String language,
-    Integer age,
+    LocalDate earlyWithdrawalDate,
+    String earlyWithdrawalStatus,
     LocalDateTime lastEmailSentDate)
     implements Person {
   @Override

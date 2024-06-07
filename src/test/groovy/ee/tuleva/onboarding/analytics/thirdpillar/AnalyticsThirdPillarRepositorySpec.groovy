@@ -1,6 +1,8 @@
-package ee.tuleva.onboarding.analytics
+package ee.tuleva.onboarding.analytics.thirdpillar
+
 
 import ee.tuleva.onboarding.user.User
+import ee.tuleva.onboarding.user.address.AddressFixture
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
@@ -10,7 +12,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.user.address.AddressFixture.getAnAddress
 import static java.time.LocalTime.MAX
 
 @DataJpaTest
@@ -31,7 +32,7 @@ class AnalyticsThirdPillarRepositorySpec extends Specification {
         .lastName(sampleUser.lastName)
         .email(sampleUser.email)
         .phoneNo(sampleUser.phoneNumber)
-        .country(anAddress.countryCode)
+        .country(AddressFixture.anAddress.countryCode)
         .reportingDate(LocalDateTime.now())
         .dateCreated(LocalDateTime.now())
         .build()
@@ -59,7 +60,7 @@ class AnalyticsThirdPillarRepositorySpec extends Specification {
         .lastName(sampleUser.lastName)
         .email(sampleUser.email)
         .phoneNo(sampleUser.phoneNumber)
-        .country(anAddress.countryCode)
+        .country(AddressFixture.anAddress.countryCode)
         .reportingDate(LocalDateTime.now())
         .dateCreated(LocalDateTime.now())
         .build()
@@ -86,7 +87,7 @@ class AnalyticsThirdPillarRepositorySpec extends Specification {
         .lastName(sampleUser.lastName)
         .email(sampleUser.email)
         .phoneNo(sampleUser.phoneNumber)
-        .country(anAddress.countryCode)
+        .country(AddressFixture.anAddress.countryCode)
         .reportingDate(LocalDateTime.now())
         .dateCreated(LocalDateTime.now())
         .build()

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.analytics
+package ee.tuleva.onboarding.analytics.leavers
 
 
 import java.time.LocalDate
@@ -10,7 +10,7 @@ class AnalyticsLeaverFixture {
     new AnalyticsLeaver(
         "TUK75",
         "LXK75",
-        "123456789",
+        "38510309513",
         "John",
         "Doe",
         1000,

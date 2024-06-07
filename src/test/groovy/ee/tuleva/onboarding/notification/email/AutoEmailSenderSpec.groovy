@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.notification.email
 
 
-import ee.tuleva.onboarding.analytics.AnalyticsLeaversRepository
+import ee.tuleva.onboarding.analytics.leavers.AnalyticsLeaversRepository
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
@@ -9,7 +9,7 @@ import spock.lang.Specification
 import java.time.Clock
 import java.time.LocalDate
 
-import static ee.tuleva.onboarding.analytics.AnalyticsLeaverFixture.leaverFixture
+import static ee.tuleva.onboarding.analytics.leavers.AnalyticsLeaverFixture.leaverFixture
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS
 
 class AutoEmailSenderSpec extends Specification {

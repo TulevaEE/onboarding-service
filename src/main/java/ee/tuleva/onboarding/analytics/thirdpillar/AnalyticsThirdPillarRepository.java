@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.analytics;
+package ee.tuleva.onboarding.analytics.thirdpillar;
 
 import java.time.LocalDateTime;
 import java.util.List;

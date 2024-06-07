@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.analytics;
+package ee.tuleva.onboarding.analytics.leavers;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -49,7 +49,7 @@ public class AnalyticsLeaversRepository {
             mcmp.email IS NOT NULL AND
             (mcmp.keel = 'ENG' OR mcmp.keel = 'EST') AND
             ca.share_percentage >= 10 AND
-            (em.type = 'SECOND_PILLAR_LEAVERS' or em.type IS NULL)
+            (em.type = 'SECOND_PILLAR_LEAVERS' or em.type IS NULL) -- type is null = no email sent yet
         GROUP BY
             ca.current_fund, ca.new_fund, ca.personal_id, ca.first_name, ca.last_name,
             ca.share_amount, ca.share_percentage, ca.date_created,

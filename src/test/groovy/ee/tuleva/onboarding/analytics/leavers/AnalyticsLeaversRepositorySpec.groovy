@@ -1,4 +1,5 @@
-package ee.tuleva.onboarding.analytics
+package ee.tuleva.onboarding.analytics.leavers
+
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest
@@ -8,7 +9,7 @@ import spock.lang.Specification
 
 import java.time.LocalDate
 
-import static ee.tuleva.onboarding.analytics.AnalyticsLeaverFixture.leaverFixture
+import static AnalyticsLeaverFixture.leaverFixture
 
 @DataJdbcTest
 @Import(AnalyticsLeaversRepository)

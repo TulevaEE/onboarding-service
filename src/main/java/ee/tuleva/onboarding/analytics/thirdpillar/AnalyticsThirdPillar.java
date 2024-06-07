@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.analytics;
+package ee.tuleva.onboarding.analytics.thirdpillar;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;

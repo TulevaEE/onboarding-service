@@ -1,5 +1,6 @@
-package ee.tuleva.onboarding.notification.email;
+package ee.tuleva.onboarding.notification.email.provider;
 
+import ee.tuleva.onboarding.notification.email.auto.EmailEvent;
 import io.github.erkoristhein.mailchimp.api.MessagesApi;
 import io.github.erkoristhein.mailchimp.marketing.api.ListsApi;
 import io.github.erkoristhein.mailchimp.marketing.model.Events;
@@ -21,8 +22,8 @@ public class MailchimpService {
   @Value("${mailchimp.listId}")
   private String mailchimpListId;
 
-  public void sendEvent(String email, String eventName) {
-    Events event = new Events().name(eventName);
+  public void sendEvent(String email, EmailEvent emailEvent) {
+    Events event = new Events().name(emailEvent.name().toLowerCase());
     mailchimpMarketingListsApi.postListMemberEvents(mailchimpListId, email, event);
   }
 

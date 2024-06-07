@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -61,16 +62,18 @@ public class EmailPersistenceService {
     return cancelled;
   }
 
-  public boolean hasEmailsToday(Person person, EmailType type) {
-    return hasEmailsToday(person, type, null);
-  }
-
   public boolean hasEmailsToday(Person person, EmailType type, Mandate mandate) {
     var statuses = List.of(SENT, QUEUED, SCHEDULED);
     Optional<Email> latestEmail =
         emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDesc(
             person.getPersonalCode(), type, mandate, statuses);
     return latestEmail.map(email -> email.isToday(clock)).orElse(false);
+  }
+
+  public Optional<Instant> getLastEmailSendDate(Person person, EmailType type) {
+    return emailRepository
+        .findFirstByPersonalCodeAndTypeOrderByCreatedDateDesc(person.getPersonalCode(), type)
+        .map(Email::getCreatedDate);
   }
 
   private List<Email> getScheduledEmails(Person person, EmailType type) {

@@ -13,6 +13,7 @@ import static EmailType.THIRD_PILLAR_SUGGEST_SECOND
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.*
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS
 
 class EmailPersistenceServiceSpec extends Specification {
@@ -79,7 +80,7 @@ class EmailPersistenceServiceSpec extends Specification {
     )
     def statuses = [SENT, QUEUED, SCHEDULED]
     emailRepository.findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDesc(
-            person.personalCode, type, mandate, statuses) >> Optional.of(email)
+        person.personalCode, type, mandate, statuses) >> Optional.of(email)
 
     when:
     def hasEmailsToday = emailPersistenceService.hasEmailsToday(person, type, mandate)
@@ -104,5 +105,26 @@ class EmailPersistenceServiceSpec extends Specification {
 
     then:
     savedEmail == email
+  }
+
+  def "can find last email sent date"() {
+    given:
+    def person = samplePerson()
+    def type = SECOND_PILLAR_EARLY_WITHDRAWAL
+    def date = Instant.now(clock)
+    def email = new Email(
+        personalCode: person.personalCode,
+        type: type,
+        status: SCHEDULED,
+        createdDate: date,
+        updatedDate: date
+    )
+    emailRepository.findFirstByPersonalCodeAndTypeOrderByCreatedDateDesc(person.personalCode, type) >> Optional.of(email)
+
+    when:
+    def lastEmailDate = emailPersistenceService.getLastEmailSendDate(person, type)
+
+    then:
+    lastEmailDate.get() == date
   }
 }

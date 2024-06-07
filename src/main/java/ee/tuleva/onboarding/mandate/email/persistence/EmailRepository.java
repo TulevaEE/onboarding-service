@@ -13,4 +13,7 @@ public interface EmailRepository extends CrudRepository<Email, Long> {
 
   Optional<Email> findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDesc(
       String personalCode, EmailType type, Mandate mandate, Collection<EmailStatus> statuses);
+
+  Optional<Email> findFirstByPersonalCodeAndTypeOrderByCreatedDateDesc(
+      String personalCode, EmailType type);
 }

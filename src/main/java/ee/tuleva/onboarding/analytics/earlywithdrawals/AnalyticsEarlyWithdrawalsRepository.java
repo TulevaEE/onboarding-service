@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.analytics.earlywithdrawals;
 
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL;
+
+import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.notification.email.auto.AutoEmailRepository;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -8,12 +12,13 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
-public class AnalyticsEarlyWithdrawalsRepository {
+public class AnalyticsEarlyWithdrawalsRepository
+    implements AutoEmailRepository<AnalyticsEarlyWithdrawal> {
 
   private final JdbcClient jdbcClient;
 
-  public List<AnalyticsEarlyWithdrawal> fetchEarlyWithdrawals(
-      LocalDate startDate, LocalDate endDate) {
+  @Override
+  public List<AnalyticsEarlyWithdrawal> fetch(LocalDate startDate, LocalDate endDate) {
     String sql =
         """
             SELECT
@@ -70,5 +75,10 @@ public class AnalyticsEarlyWithdrawalsRepository {
         .param("endDate", endDate)
         .query(AnalyticsEarlyWithdrawal.class)
         .list();
+  }
+
+  @Override
+  public EmailType getEmailType() {
+    return SECOND_PILLAR_EARLY_WITHDRAWAL;
   }
 }

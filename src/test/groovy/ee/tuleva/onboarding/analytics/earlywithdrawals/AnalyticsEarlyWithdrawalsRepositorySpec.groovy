@@ -50,7 +50,7 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
 
     when:
     List<AnalyticsEarlyWithdrawal> withdrawals =
-        analyticsEarlyWithdrawalsRepository.fetchEarlyWithdrawals(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
+        analyticsEarlyWithdrawalsRepository.fetch(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
 
     then:
     withdrawals == [aWithdrawal]
@@ -99,7 +99,7 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
 
     when:
     List<AnalyticsEarlyWithdrawal> withdrawals =
-        analyticsEarlyWithdrawalsRepository.fetchEarlyWithdrawals(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
+        analyticsEarlyWithdrawalsRepository.fetch(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
 
     then:
     withdrawals == [aWithdrawal, anotherWithdrawal]

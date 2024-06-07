@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.user;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.notification.email.Emailable;
 import ee.tuleva.onboarding.user.exception.NotAMemberException;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
@@ -24,7 +25,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(exclude = {"member"})
-public class User implements Person, Serializable {
+public class User implements Person, Emailable, Serializable {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

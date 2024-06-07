@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.user.response;
 
 import static org.apache.commons.lang3.text.WordUtils.capitalizeFully;
 
+import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.notification.email.Emailable;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
@@ -18,7 +20,7 @@ import org.jetbrains.annotations.NotNull;
 @Builder
 @Getter
 @Setter
-public class UserResponse {
+public class UserResponse implements Person, Emailable {
 
   private Long id;
   private String personalCode;

@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.mandate.MandateFixture.emptyMandate
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SCHEDULED
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE
 
 @DataJpaTest
@@ -80,5 +81,22 @@ class EmailRepositorySpec extends Specification {
 
     then:
     latestEmail.get() == scheduledEmail2
+  }
+
+  def "can find last email sent"() {
+    given:
+    def emailType = SECOND_PILLAR_EARLY_WITHDRAWAL
+    def sampleUser = entityManager.persist(sampleUserNonMember().id(null).build())
+    def email = entityManager.persist(
+        new Email(personalCode: sampleUser.personalCode, type: emailType, status: SCHEDULED)
+    )
+    entityManager.flush()
+
+    when:
+    Optional<Email> latestEmail = emailRepository.findFirstByPersonalCodeAndTypeOrderByCreatedDateDesc(
+        sampleUser.personalCode, emailType)
+
+    then:
+    latestEmail.get() == email
   }
 }

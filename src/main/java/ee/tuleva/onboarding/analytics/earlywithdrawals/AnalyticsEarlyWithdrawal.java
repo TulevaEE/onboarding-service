@@ -1,31 +1,18 @@
 package ee.tuleva.onboarding.analytics.earlywithdrawals;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.notification.email.Emailable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.Getter;
 
 public record AnalyticsEarlyWithdrawal(
-    String personalCode,
-    String firstName,
-    String lastName,
-    String email,
+    @Getter String personalCode,
+    @Getter String firstName,
+    @Getter String lastName,
+    @Getter String email,
     String language,
     LocalDate earlyWithdrawalDate,
     String earlyWithdrawalStatus,
-    LocalDateTime lastEmailSentDate)
-    implements Person {
-  @Override
-  public String getPersonalCode() {
-    return personalCode;
-  }
-
-  @Override
-  public String getFirstName() {
-    return firstName;
-  }
-
-  @Override
-  public String getLastName() {
-    return lastName;
-  }
-}
+    @Getter LocalDateTime lastEmailSentDate)
+    implements Person, Emailable {}

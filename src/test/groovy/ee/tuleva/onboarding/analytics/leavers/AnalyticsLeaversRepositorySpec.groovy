@@ -52,7 +52,7 @@ class AnalyticsLeaversRepositorySpec extends Specification {
 
     when:
     List<AnalyticsLeaver> leavers =
-        analyticsLeaversRepository.fetchLeavers(LocalDate.parse("2021-01-01"), LocalDate.parse("2021-02-01"))
+        analyticsLeaversRepository.fetch(LocalDate.parse("2021-01-01"), LocalDate.parse("2021-02-01"))
 
 
     then:
@@ -102,7 +102,7 @@ class AnalyticsLeaversRepositorySpec extends Specification {
 
     when:
     List<AnalyticsLeaver> leavers =
-        analyticsLeaversRepository.fetchLeavers(LocalDate.parse("2021-01-01"), LocalDate.parse("2021-02-01"))
+        analyticsLeaversRepository.fetch(LocalDate.parse("2021-01-01"), LocalDate.parse("2021-02-01"))
 
 
     then:

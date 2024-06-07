@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.epis.contact;
 import static ee.tuleva.onboarding.epis.contact.ContactDetails.LanguagePreferenceType.EST;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.notification.email.Emailable;
 import ee.tuleva.onboarding.user.address.Address;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -20,7 +21,7 @@ import org.jetbrains.annotations.Nullable;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ContactDetails implements Person {
+public class ContactDetails implements Person, Emailable {
 
   private String firstName;
   private String lastName;

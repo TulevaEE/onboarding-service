@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.analytics.leavers;
 
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS;
+
+import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.notification.email.auto.AutoEmailRepository;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -8,11 +12,12 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 @RequiredArgsConstructor
-public class AnalyticsLeaversRepository {
+public class AnalyticsLeaversRepository implements AutoEmailRepository<AnalyticsLeaver> {
 
   private final JdbcClient jdbcClient;
 
-  public List<AnalyticsLeaver> fetchLeavers(LocalDate startDate, LocalDate endDate) {
+  @Override
+  public List<AnalyticsLeaver> fetch(LocalDate startDate, LocalDate endDate) {
     String sql =
         """
         SELECT
@@ -63,5 +68,10 @@ public class AnalyticsLeaversRepository {
         .param("endDate", endDate)
         .query(AnalyticsLeaver.class)
         .list();
+  }
+
+  @Override
+  public EmailType getEmailType() {
+    return SECOND_PILLAR_LEAVERS;
   }
 }

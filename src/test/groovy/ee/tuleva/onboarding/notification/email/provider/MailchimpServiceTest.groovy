@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.notification.email
+package ee.tuleva.onboarding.notification.email.provider
 
 
 import org.springframework.beans.factory.annotation.Autowired

@@ -156,6 +156,9 @@ We use AWS Client VPN. To get started, log into [AWS SSO Portal](https://tuleva.
 - Configure AWS Profile and login `aws sso login`
 - Connect to the DB using AWS IAM authentication where user is `iamuser` and profile `tuleva`.
 
+### Development Environment
+Configuration is available AWS S3 `s3://tulevasecrets/development-configuration/`
+
 ### References
 
 [hwcrypto.js](https://github.com/hwcrypto/hwcrypto.js)

@@ -16,7 +16,7 @@ class AnalyticsLeaverFixture {
         1000,
         100,
         LocalDate.parse("2021-01-01"),
-        0.0113,
+        0.0122,
         "LHV Pensionifond XL",
         "john@doe.com",
         "ENG",

@@ -69,6 +69,7 @@ class FundRepositorySpec extends Specification {
 
     def "finding by pillar works"() {
         given:
+        def previousFundCount = repository.findAllByPillar(3).size()
         def fundManager = FundManager.builder()
             .id(1)
             .name("Tuleva")
@@ -78,7 +79,7 @@ class FundRepositorySpec extends Specification {
             .nameEstonian("Tuleva Maailma Aktsiate Pensionifond")
             .nameEnglish("Tuleva Maailma Aktsiate Pensionifond")
             .shortName("TUK75")
-            .pillar(2)
+            .pillar(3)
             .equityShare(0.0)
             .managementFeeRate(new BigDecimal("0.0034"))
             .ongoingChargesFigure(new BigDecimal("0.005"))
@@ -90,7 +91,7 @@ class FundRepositorySpec extends Specification {
         entityManager.flush()
 
         when:
-        Iterable<Fund> funds = repository.findAllByPillar(2)
+        Iterable<Fund> funds = repository.findAllByPillar(3)
         Fund persistedFund = stream(funds.spliterator(), false)
             .filter({ f -> f.isin == fund.isin })
             .findFirst()
@@ -112,11 +113,18 @@ class FundRepositorySpec extends Specification {
         Iterable<Fund> thirdPillarFunds = repository.findAllByPillar(3)
 
         then:
-        thirdPillarFunds.size() == 24 // TODO: bad assert, depends on flyway migrations
+        thirdPillarFunds.size() == previousFundCount + 1
     }
 
     def "does not ignore inactive funds"() {
         given:
+        Iterable<Fund> previousFunds = repository.findAll()
+        List<Fund> previousInactiveFunds = stream(previousFunds.spliterator(), false)
+            .filter({ fund -> fund.status != ACTIVE })
+            .collect(toList())
+        def previousInactiveFundCount = previousInactiveFunds.size()
+
+
         def fundManager = FundManager.builder()
             .id(1)
             .name("Tuleva")
@@ -158,7 +166,7 @@ class FundRepositorySpec extends Specification {
             .collect(toList())
 
         then:
-        inactiveFunds.size() == 12 // TODO: bad assert, depends on flyway migrations
+        inactiveFunds.size() == previousInactiveFundCount + 1
     }
 
     def "can find inactive funds by isin"() {

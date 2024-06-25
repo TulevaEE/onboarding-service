@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @RequiredArgsConstructor
 @ConfigurationProperties("payment-provider")
-class PaymentProviderConfiguration {
+public class PaymentProviderConfiguration {
 
   @Getter private final Map<PaymentChannel, PaymentProviderChannel> paymentChannels;
   private Map<String, PaymentProviderChannel> paymentChannelsByAccessKey;

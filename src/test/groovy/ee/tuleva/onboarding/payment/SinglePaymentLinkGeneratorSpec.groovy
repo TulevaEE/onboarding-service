@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.payment
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import ee.tuleva.onboarding.locale.LocaleService
-import ee.tuleva.onboarding.payment.provider.PaymentProviderLinkGenerator
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.recurring.CoopPankPaymentLinkGenerator
 import ee.tuleva.onboarding.payment.recurring.PaymentDateProvider
 import spock.lang.Specification
@@ -28,7 +28,7 @@ class SinglePaymentLinkGeneratorSpec extends Specification {
   def localeService = new LocaleService()
   CoopPankPaymentLinkGenerator coopPankPaymentLinkGenerator =
       new CoopPankPaymentLinkGenerator(contactDetailsService, objectMapper, localeService, paymentDateProvider)
-  PaymentProviderLinkGenerator paymentProviderLinkGenerator = Mock()
+  MontonioPaymentLinkGenerator paymentProviderLinkGenerator = Mock()
   SinglePaymentLinkGenerator singlePaymentLinkGenerator =
       new SinglePaymentLinkGenerator(coopPankPaymentLinkGenerator, paymentProviderLinkGenerator)
 

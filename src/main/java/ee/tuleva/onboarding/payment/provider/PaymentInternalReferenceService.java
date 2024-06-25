@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-class PaymentInternalReferenceService {
+public class PaymentInternalReferenceService {
 
   private final ObjectMapper mapper;
 

@@ -1,30 +1,34 @@
-package ee.tuleva.onboarding.payment.provider
+package ee.tuleva.onboarding.payment.provider.montonio
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.locale.MockLocaleService
+import ee.tuleva.onboarding.payment.PaymentFixture
 import ee.tuleva.onboarding.payment.PaymentLink
+import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService
+import ee.tuleva.onboarding.payment.provider.PaymentProviderFixture
 import spock.lang.Specification
 
 import java.time.Clock
 import java.time.Instant
 
-import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
-import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentDataForMemberPayment
-import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentDataWithoutAnAmount
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 import static java.time.ZoneOffset.UTC
 
-class PaymentProviderLinkGeneratorSpec extends Specification {
+class MontonioPaymentLinkGeneratorSpec extends Specification {
+
+  ObjectMapper objectMapper = new ObjectMapper()
 
   Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
 
   PaymentInternalReferenceService paymentInternalReferenceService = Mock()
   LocaleService localeService = new MockLocaleService("et")
-  PaymentProviderLinkGenerator paymentLinkService
+  MontonioPaymentLinkGenerator paymentLinkService
 
   void setup() {
-    paymentLinkService = new PaymentProviderLinkGenerator(
+    paymentLinkService = new MontonioPaymentLinkGenerator(
+        objectMapper,
         clock,
         paymentInternalReferenceService,
         aPaymentProviderConfiguration(),
@@ -43,9 +47,9 @@ class PaymentProviderLinkGeneratorSpec extends Specification {
   def "can get a payment link"() {
     given:
     String internalReference = anInternalReferenceSerialized
-    1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, aPaymentData) >> internalReference
+    1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, PaymentFixture.aPaymentData) >> internalReference
     when:
-    PaymentLink paymentLink = paymentLinkService.getPaymentLink(aPaymentData, sampleAuthenticatedPerson)
+    PaymentLink paymentLink = paymentLinkService.getPaymentLink(PaymentFixture.aPaymentData, sampleAuthenticatedPerson)
 
     then:
     paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderToken
@@ -55,9 +59,9 @@ class PaymentProviderLinkGeneratorSpec extends Specification {
   def "can get a member fee payment link"() {
     given:
     String internalReference = anInternalReferenceSerialized
-    1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, aPaymentDataForMemberPayment) >> internalReference
+    1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, PaymentFixture.aPaymentDataForMemberPayment) >> internalReference
     when:
-    PaymentLink paymentLink = paymentLinkService.getPaymentLink(aPaymentDataForMemberPayment, sampleAuthenticatedPerson)
+    PaymentLink paymentLink = paymentLinkService.getPaymentLink(PaymentFixture.aPaymentDataForMemberPayment, sampleAuthenticatedPerson)
 
     then:
     paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderTokenForMemberFeePayment
@@ -69,7 +73,7 @@ class PaymentProviderLinkGeneratorSpec extends Specification {
     String internalReference = anInternalReferenceSerialized
     String testPersonalCode = "38888888888"
     paymentLinkService.memberFeeTestPersonalCode = testPersonalCode
-    def testPaymentData = aPaymentDataForMemberPayment
+    def testPaymentData = PaymentFixture.aPaymentDataForMemberPayment
     testPaymentData.recipientPersonalCode = testPersonalCode
     1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, testPaymentData) >> internalReference
     when:
@@ -84,7 +88,7 @@ class PaymentProviderLinkGeneratorSpec extends Specification {
     given:
     paymentLinkService.memberFee = null
     when:
-    paymentLinkService.getPaymentLink(aPaymentDataForMemberPayment, sampleAuthenticatedPerson)
+    paymentLinkService.getPaymentLink(PaymentFixture.aPaymentDataForMemberPayment, sampleAuthenticatedPerson)
 
     then:
     thrown(IllegalArgumentException)
@@ -95,7 +99,7 @@ class PaymentProviderLinkGeneratorSpec extends Specification {
 
   def "can not get a payment link when anmount is not set"() {
     when:
-    paymentLinkService.getPaymentLink(aPaymentDataWithoutAnAmount, sampleAuthenticatedPerson)
+    paymentLinkService.getPaymentLink(PaymentFixture.aPaymentDataWithoutAnAmount, sampleAuthenticatedPerson)
 
     then:
     thrown(IllegalArgumentException)

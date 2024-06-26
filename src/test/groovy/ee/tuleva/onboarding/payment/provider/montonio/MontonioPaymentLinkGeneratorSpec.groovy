@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.locale.MockLocaleService
 import ee.tuleva.onboarding.payment.PaymentFixture
 import ee.tuleva.onboarding.payment.PaymentLink
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService
-import ee.tuleva.onboarding.payment.provider.PaymentProviderFixture
 import spock.lang.Specification
 
 import java.time.Clock
@@ -44,6 +43,7 @@ class MontonioPaymentLinkGeneratorSpec extends Specification {
   }
 
   /* Flaky test: the jwt token uses a HashMap which does not guarantee order, so the jwt payload might change */
+
   def "can get a payment link"() {
     given:
     String internalReference = anInternalReferenceSerialized
@@ -56,6 +56,7 @@ class MontonioPaymentLinkGeneratorSpec extends Specification {
   }
 
   /* Flaky test: the jwt token uses a HashMap which does not guarantee order, so the jwt payload might change */
+
   def "can get a member fee payment link"() {
     given:
     String internalReference = anInternalReferenceSerialized
@@ -68,6 +69,7 @@ class MontonioPaymentLinkGeneratorSpec extends Specification {
   }
 
   /* Flaky test: the jwt token uses a HashMap which does not guarantee order, so the jwt payload might change */
+
   def "can get a member fee test payment link"() {
     given:
     String internalReference = anInternalReferenceSerialized

@@ -210,7 +210,8 @@ public class EpisService {
   }
 
   private String userJwtToken() {
-    final var authentication = SecurityContextHolder.getContext().getAuthentication(); //Use Authenticqation Holder Ath
+    final var authentication =
+        SecurityContextHolder.getContext().getAuthentication(); // Use Authenticqation Holder Ath
     if (authentication != null) {
       return (String) authentication.getCredentials();
     }

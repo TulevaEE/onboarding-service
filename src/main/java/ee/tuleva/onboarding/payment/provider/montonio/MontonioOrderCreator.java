@@ -1,32 +1,27 @@
 package ee.tuleva.onboarding.payment.provider.montonio;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nimbusds.jose.JWSObject;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
-import ee.tuleva.onboarding.payment.PaymentLink;
+import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService;
 import ee.tuleva.onboarding.payment.provider.PaymentProviderChannel;
 import ee.tuleva.onboarding.payment.provider.PaymentProviderConfiguration;
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.util.Locale;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.net.URL;
-import java.time.Clock;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class MontonioOrderCreator {
-
-
-  private final ObjectMapper objectMapper;
 
   private final Clock clock;
 
@@ -34,6 +29,7 @@ public class MontonioOrderCreator {
 
   private final PaymentProviderConfiguration paymentProviderConfiguration;
 
+  private final LocaleService localeService;
 
   @Value("${api.url}")
   private String apiUrl;
@@ -41,20 +37,31 @@ public class MontonioOrderCreator {
   @Value("${payment.member-fee}")
   private BigDecimal memberFee;
 
+  @Value("${payment.member-fee-test-personal-code}")
+  private String memberFeeTestPersonalCode;
 
+  private static String getEpisPaymentDescription(PaymentData paymentData) {
+    return (paymentData.getType() == PaymentType.MEMBER_FEE)
+        ? String.format("member:%s", paymentData.getRecipientPersonalCode())
+        : String.format(
+            "30101119828, IK:%s, EE3600001707",
+            paymentData
+                .getRecipientPersonalCode()); // https://www.pensionikeskus.ee/iii-sammas/sissemaksed/sissemaksed-iii-samba-fondidesse/
+  }
 
   @SneakyThrows
-  @Override
-  private String getOrderString(PaymentData paymentData, Person person) {
-    //TODO: implement new JSON token for Order API
+  public MontonioOrder getOrder(PaymentData paymentData, Person person) {
+    // TODO: implement new JSON token for Order API
     PaymentProviderChannel paymentChannelConfiguration =
         paymentProviderConfiguration.getPaymentProviderChannel(paymentData.getPaymentChannel());
 
     BigDecimal amount = getPaymentAmount(paymentData);
     Currency currency = paymentData.getCurrency();
 
-
-    MontonioOrder order = MontonioOrder.builder()
+    // TODO first name, last name to order billing address?
+    // payload.put("checkout_first_name", person.getFirstName());
+    // payload.put("checkout_last_name", person.getLastName());
+    return MontonioOrder.builder()
         .accessKey(paymentChannelConfiguration.getAccessKey())
         .merchantReference(paymentInternalReferenceService.getPaymentReference(person, paymentData))
         .returnUrl(getPaymentSuccessReturnUrl(paymentData.getType()))
@@ -62,28 +69,48 @@ public class MontonioOrderCreator {
         .grandTotal(amount)
         .currency(currency)
         .exp(clock.instant().getEpochSecond() + 600)
-        .payment(MontonioPaymentMethod.builder()
-            .amount(amount)
-            .currency(currency)
-            .methodOptions(
-                MontonioPaymentMethodOptions.builder()
-                    .preferredProvider(paymentChannelConfiguration.getBic())
-                    .preferredLocale(getLanguage())
-                    .build()
-            )
-            .build()
-        )
+        .payment(
+            MontonioPaymentMethod.builder()
+                .amount(amount)
+                .currency(currency)
+                .methodOptions(
+                    MontonioPaymentMethodOptions.builder()
+                        .preferredProvider(paymentChannelConfiguration.getBic())
+                        .preferredLocale(getLanguage())
+                        .paymentDescription(getEpisPaymentDescription(paymentData))
+                        .build())
+                .build())
         .build();
+  }
 
-    // TODO first name, last name to order billing address?
-    // payload.put("checkout_first_name", person.getFirstName());
-    // payload.put("checkout_last_name", person.getLastName());
+  private String getPaymentSuccessReturnUrl(PaymentType paymentType) {
+    if (paymentType == PaymentType.MEMBER_FEE) {
+      return apiUrl + "/payments/member-success";
+    } else {
+      return apiUrl + "/payments/success";
+    }
+  }
 
+  private BigDecimal getPaymentAmount(PaymentData paymentData) {
+    if (paymentData.getType() == PaymentData.PaymentType.MEMBER_FEE) {
+      if (memberFee == null) {
+        throw new IllegalArgumentException("Member fee must not be null");
+      }
+      if (Objects.equals(paymentData.getRecipientPersonalCode(), memberFeeTestPersonalCode)
+          && memberFeeTestPersonalCode != null) {
+        return BigDecimal.ONE;
+      }
+      return memberFee;
+    } else {
+      if (paymentData.getAmount() == null) {
+        throw new IllegalArgumentException("Payment amount must not be null");
+      }
+      return paymentData.getAmount();
+    }
+  }
 
-    // TODO api call to montonio, submit order token to get paymentLink
-    JWSObject jwsObject = getSignedJws(objectMapper.writeValueAsString(order), paymentChannelConfiguration);
-    URL url = getUrl(jwsObject);
-
-    return new PaymentLink(url.toString());
+  private String getLanguage() {
+    Locale locale = localeService.getCurrentLocale();
+    return Locale.ENGLISH.getLanguage().equals(locale.getLanguage()) ? "en" : locale.getLanguage();
   }
 }

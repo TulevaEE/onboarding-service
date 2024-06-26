@@ -1,10 +1,8 @@
 package ee.tuleva.onboarding.payment.provider.montonio;
 
 import ee.tuleva.onboarding.currency.Currency;
-import lombok.Builder;
-import lombok.Data;
-
 import java.math.BigDecimal;
+import lombok.Builder;
 
 @Builder
 class MontonioOrder {
@@ -21,16 +19,16 @@ class MontonioOrder {
 
 @Builder
 class MontonioPaymentMethod {
+  private final String method = "paymentInitiation";
   private BigDecimal amount;
   private Currency currency;
-  private final String method = "paymentInitiation";
   private MontonioPaymentMethodOptions methodOptions;
-
 }
 
 @Builder
 class MontonioPaymentMethodOptions {
-  private String preferredProvider;
   private final String preferredCountry = "EE";
+  private String preferredProvider;
   private String preferredLocale;
+  private String paymentDescription;
 }

@@ -120,7 +120,7 @@ async:
   enabled: true
 
 payment-provider:
-  url: https://sandbox-payments.montonio.com
+  url: https://sandbox-stargate.montonio.com/api
   payment-channels:
     luminor:
       access-key: 0be260f2-1966-4d18-bb9d-1f0909a663f7
@@ -221,7 +221,7 @@ morningstar:
   password: ${MORNINGSTAR_PASSWORD}
 
 payment-provider:
-  url: https://payments.montonio.com
+  url: https://stargate.montonio.com/api
   payment-channels:
     luminor:
       access-key: fb673dc3-d898-4592-844f-83491aa430cc

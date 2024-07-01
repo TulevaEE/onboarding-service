@@ -11,13 +11,12 @@ import ee.tuleva.onboarding.payment.provider.PaymentProviderConfiguration;
 
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -122,7 +121,7 @@ public class MontonioOrderCreator {
 
 
   private String getNotificationUrl() {
-    if (Arrays.asList(environment.getActiveProfiles()).contains("dev")) {
+    if (List.of(environment.getActiveProfiles()).contains("dev")) {
       // Montonio doesn't support localhost notification urls
       return "https://tuleva.ee/fake-return-url";
     }

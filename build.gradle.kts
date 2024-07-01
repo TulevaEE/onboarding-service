@@ -18,7 +18,7 @@ val springCloudVersion = "2023.0.2"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.3.0"
+    id("org.springframework.boot") version "3.3.1"
     id("io.spring.dependency-management") version "1.1.5"
     id("com.gorylenko.gradle-git-properties") version "2.4.2"
     id("com.diffplug.spotless") version "6.25.0"
@@ -27,7 +27,7 @@ plugins {
 }
 
 lombok {
-    version = "1.18.32"
+    version = "1.18.34"
 }
 
 spotless {
@@ -74,23 +74,23 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.39.3")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.40")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
-    implementation("org.springdoc:springdoc-openapi-starter-common:2.5.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
+    implementation("org.springdoc:springdoc-openapi-starter-common:2.6.0")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
 
-    implementation("io.jsonwebtoken:jjwt-api:0.12.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
-    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
+    implementation("io.jsonwebtoken:jjwt-api:0.12.6")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
 
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
     implementation("org.jsoup:jsoup:1.17.2")
-    implementation("commons-net:commons-net:3.11.0")
+    implementation("commons-net:commons-net:3.11.1")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.decampo:xirr:1.2")
@@ -104,15 +104,15 @@ dependencies {
         exclude(group = "org.bouncycastle")
     }
 
-    implementation("org.digidoc4j:digidoc4j:5.3.0") {
+    implementation("org.digidoc4j:digidoc4j:5.3.1") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
     implementation("org.apache.httpcomponents.client5:httpclient5:5.3.1")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.9.0")
-    implementation("io.sentry:sentry-logback:7.9.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.10.0")
+    implementation("io.sentry:sentry-logback:7.10.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.7.5")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.8.0")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
@@ -121,7 +121,7 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("com.amazonaws:aws-java-sdk-s3:1.12.732")
+    implementation("com.amazonaws:aws-java-sdk-s3:1.12.753")
     implementation("commons-io:commons-io:2.16.1")
     implementation("org.apache.commons:commons-csv:1.11.0")
 
@@ -136,7 +136,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-M4-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.21")
+    testImplementation("org.apache.groovy:groovy-all:4.0.22")
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")

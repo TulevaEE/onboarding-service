@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.error;
 
-import static org.springframework.boot.web.error.ErrorAttributeOptions.Include.MESSAGE;
-import static org.springframework.boot.web.error.ErrorAttributeOptions.Include.STACK_TRACE;
+import static org.springframework.boot.web.error.ErrorAttributeOptions.Include.*;
 import static org.springframework.boot.web.error.ErrorAttributeOptions.of;
 
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
@@ -30,7 +29,7 @@ public class ErrorHandlingController implements ErrorController {
   ErrorsResponse error(HttpServletRequest request) {
     WebRequest webRequest = new ServletWebRequest(request);
     Map<String, Object> errors =
-        errorAttributes.getErrorAttributes(webRequest, of(STACK_TRACE, MESSAGE));
+        errorAttributes.getErrorAttributes(webRequest, of(STACK_TRACE, MESSAGE, STATUS, ERROR));
     return errorAttributesConverter.convert(errors);
   }
 }

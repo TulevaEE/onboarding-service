@@ -74,7 +74,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.39.3")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.40")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0")
     implementation("org.springdoc:springdoc-openapi-starter-common:2.5.0")

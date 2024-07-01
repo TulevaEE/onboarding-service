@@ -5,28 +5,29 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.util.Map;
+
+import static org.springframework.http.MediaType.*;
+
 @Service
 public class MontonioApiClient {
-  private final RestClient restClient;
 
   @Value("${payment-provider.url}")
   private String montonioUrl;
 
-  public MontonioApiClient(RestClient.Builder restClientBuilder) {
-    this.restClient =
-        restClientBuilder.defaultHeader("Accept", "application/json").baseUrl(montonioUrl).build();
+  public MontonioApiClient() {
   }
 
   @SneakyThrows
-  public String getPaymentUrl(String payloadJson) {
+  public String getPaymentUrl(Map<String, Object> payloadJson) {
     var orderResponse =
-        restClient
+        RestClient.create()
             .post()
-            .uri("orders")
+            .uri(montonioUrl + "/orders")
             .body(payloadJson)
+            .accept(APPLICATION_JSON)
             .retrieve()
             .body(MontonioOrderResponse.class);
-
     return orderResponse.paymentUrl();
   }
 }

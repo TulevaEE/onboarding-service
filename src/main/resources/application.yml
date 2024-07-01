@@ -121,6 +121,7 @@ async:
 
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api
+  use-fake-notification-url: true
   payment-channels:
     luminor:
       access-key: 0be260f2-1966-4d18-bb9d-1f0909a663f7
@@ -222,6 +223,7 @@ morningstar:
 
 payment-provider:
   url: https://stargate.montonio.com/api
+  use-fake-notification-url: false
   payment-channels:
     luminor:
       access-key: fb673dc3-d898-4592-844f-83491aa430cc

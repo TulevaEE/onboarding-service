@@ -10,9 +10,11 @@ import ee.tuleva.onboarding.payment.PaymentRepository;
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -38,8 +40,8 @@ public class PaymentProviderCallbackService {
     verifyToken(token);
 
     Map<String, Object> json = token.getPayload().toJSONObject();
-    String serializedInternalReference = json.get("merchant_reference").toString();
-    BigDecimal amount = new BigDecimal(json.get("amount").toString());
+    String serializedInternalReference = json.get("merchantReference").toString();
+    BigDecimal amount = new BigDecimal(json.get("grandTotal").toString());
 
     PaymentReference internalReference = getInternalReference(serializedInternalReference);
 
@@ -74,7 +76,7 @@ public class PaymentProviderCallbackService {
   }
 
   private boolean isPaymentFinalized(JWSObject token) {
-    return token.getPayload().toJSONObject().get("status").toString().equals("finalized");
+    return token.getPayload().toJSONObject().get("paymentStatus").toString().equals("PAID");
   }
 
   @SneakyThrows
@@ -84,7 +86,7 @@ public class PaymentProviderCallbackService {
 
   @SneakyThrows
   private void verifyToken(JWSObject token) {
-    String accessKey = token.getPayload().toJSONObject().get("access_key").toString();
+    String accessKey = token.getPayload().toJSONObject().get("accessKey").toString();
     PaymentProviderChannel paymentChannelConfiguration =
         paymentProviderConfiguration.getPaymentProviderChannel(accessKey);
 

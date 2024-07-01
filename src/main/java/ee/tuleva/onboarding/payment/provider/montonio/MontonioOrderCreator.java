@@ -36,6 +36,9 @@ public class MontonioOrderCreator {
   private final Environment environment;
 
 
+  @Value("${payment-provider.use-fake-notification-url}")
+  private Boolean useFakeNotificationsUrl;
+
   @Value("${api.url}")
   private String apiUrl;
 
@@ -121,7 +124,7 @@ public class MontonioOrderCreator {
 
 
   private String getNotificationUrl() {
-    if (List.of(environment.getActiveProfiles()).contains("dev")) {
+    if (useFakeNotificationsUrl) {
       // Montonio doesn't support localhost notification urls
       return "https://tuleva.ee/fake-return-url";
     }

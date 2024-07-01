@@ -8,19 +8,22 @@ import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService;
 import ee.tuleva.onboarding.payment.provider.PaymentProviderChannel;
 import ee.tuleva.onboarding.payment.provider.PaymentProviderConfiguration;
+
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-@Slf4j
 public class MontonioOrderCreator {
 
   private final Clock clock;
@@ -30,6 +33,9 @@ public class MontonioOrderCreator {
   private final PaymentProviderConfiguration paymentProviderConfiguration;
 
   private final LocaleService localeService;
+
+  private final Environment environment;
+
 
   @Value("${api.url}")
   private String apiUrl;
@@ -44,14 +50,13 @@ public class MontonioOrderCreator {
     return (paymentData.getType() == PaymentType.MEMBER_FEE)
         ? String.format("member:%s", paymentData.getRecipientPersonalCode())
         : String.format(
-            "30101119828, IK:%s, EE3600001707",
-            paymentData
-                .getRecipientPersonalCode()); // https://www.pensionikeskus.ee/iii-sammas/sissemaksed/sissemaksed-iii-samba-fondidesse/
+        "30101119828, IK:%s, EE3600001707",
+        paymentData
+            .getRecipientPersonalCode()); // https://www.pensionikeskus.ee/iii-sammas/sissemaksed/sissemaksed-iii-samba-fondidesse/
   }
 
   @SneakyThrows
   public MontonioOrder getOrder(PaymentData paymentData, Person person) {
-    // TODO: implement new JSON token for Order API
     PaymentProviderChannel paymentChannelConfiguration =
         paymentProviderConfiguration.getPaymentProviderChannel(paymentData.getPaymentChannel());
 
@@ -65,10 +70,11 @@ public class MontonioOrderCreator {
         .accessKey(paymentChannelConfiguration.getAccessKey())
         .merchantReference(paymentInternalReferenceService.getPaymentReference(person, paymentData))
         .returnUrl(getPaymentSuccessReturnUrl(paymentData.getType()))
-        .notificationUrl(apiUrl + "/payments/notification")
+        .notificationUrl(getNotificationUrl())
         .grandTotal(amount)
         .currency(currency)
         .exp(clock.instant().getEpochSecond() + 600)
+        .locale(getLanguage())
         .payment(
             MontonioPaymentMethod.builder()
                 .amount(amount)
@@ -112,5 +118,15 @@ public class MontonioOrderCreator {
   private String getLanguage() {
     Locale locale = localeService.getCurrentLocale();
     return Locale.ENGLISH.getLanguage().equals(locale.getLanguage()) ? "en" : locale.getLanguage();
+  }
+
+
+  private String getNotificationUrl() {
+    if (Arrays.asList(environment.getActiveProfiles()).contains("dev")) {
+      // Montonio doesn't support localhost notification urls
+      return "https://tuleva.ee/fake-return-url";
+    }
+
+    return apiUrl + "/payments/notification";
   }
 }

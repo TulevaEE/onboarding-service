@@ -1,17 +1,17 @@
 package ee.tuleva.onboarding.payment.provider.montonio;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.JWSObject;
-import com.nimbusds.jose.Payload;
+import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.provider.PaymentProviderChannel;
 import ee.tuleva.onboarding.payment.provider.PaymentProviderConfiguration;
+
 import java.util.Map;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -32,20 +32,20 @@ public class MontonioOrderClient {
   }
 
   @SneakyThrows
-  private String getSignedOrderPayload(MontonioOrder order, PaymentData paymentData) {
+  private Map<String, Object> getSignedOrderPayload(MontonioOrder order, PaymentData paymentData) {
     PaymentProviderChannel paymentChannelConfiguration =
         paymentProviderConfiguration.getPaymentProviderChannel(paymentData.getPaymentChannel());
 
     JWSObject jwsObject =
         getSignedJws(objectMapper.writeValueAsString(order), paymentChannelConfiguration);
 
-    return objectMapper.writeValueAsString(Map.of("data", jwsObject.toString()));
+    return Map.of("data", jwsObject.serialize());
   }
 
   @SneakyThrows
   private JWSObject getSignedJws(
       String payload, PaymentProviderChannel paymentChannelConfiguration) {
-    JWSObject jwsObject = new JWSObject(new JWSHeader(JWSAlgorithm.HS256), new Payload(payload));
+    JWSObject jwsObject = new JWSObject(new JWSHeader.Builder(JWSAlgorithm.HS256).type(JOSEObjectType.JWT).build(), new Payload(payload));
     jwsObject.sign(new MACSigner(paymentChannelConfiguration.getSecretKey().getBytes()));
     return jwsObject;
   }

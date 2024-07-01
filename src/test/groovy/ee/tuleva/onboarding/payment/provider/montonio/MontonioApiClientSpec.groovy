@@ -28,7 +28,7 @@ class MontonioApiClientSpec extends Specification {
     server.reset()
   }
 
-  def "it successfully fetches quotes for all funds"() {
+  def "it successfully fetches payment URL"() {
     given:
     def anOrder = MontonioOrder.builder()
         .accessKey("testAccessKey")

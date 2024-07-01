@@ -3,7 +3,9 @@ package ee.tuleva.onboarding.payment;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+
 import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,10 +23,9 @@ import org.springframework.web.servlet.view.RedirectView;
 @RequiredArgsConstructor
 public class PaymentController {
 
+  private final PaymentService paymentService;
   @Value("${frontend.url}")
   private String frontendUrl;
-
-  private final PaymentService paymentService;
 
   @GetMapping("/link")
   @Operation(summary = "Get a payment link")
@@ -37,7 +38,7 @@ public class PaymentController {
   @GetMapping("/success")
   @Operation(summary = "Redirects user to payment success")
   public RedirectView getPaymentSuccessRedirect(
-      @RequestParam("payment_token") String serializedToken) {
+      @RequestParam("order-token") String serializedToken) {
     Optional<Payment> paymentOptional = paymentService.processToken(serializedToken);
 
     return paymentOptional

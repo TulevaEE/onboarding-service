@@ -97,7 +97,6 @@ class PaymentIntegrationSpec extends Specification {
 
     String responseBody = objectMapper.writeValueAsString(new MontonioApiClient.MontonioOrderResponse("https://payment.test"))
 
-
     new MockServerClient(host, uri.getPort())
         .when(
             request()

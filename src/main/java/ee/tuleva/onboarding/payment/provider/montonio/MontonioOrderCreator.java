@@ -125,7 +125,7 @@ public class MontonioOrderCreator {
   private String getNotificationUrl() {
     if (useFakeNotificationsUrl) {
       // Montonio doesn't support localhost notification urls
-      return "https://tuleva.ee/fake-return-url";
+      return "https://tuleva.ee/fake-notification-url";
     }
 
     return apiUrl + "/payments/notification";

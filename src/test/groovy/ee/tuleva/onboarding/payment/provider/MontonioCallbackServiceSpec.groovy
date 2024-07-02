@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.payment.provider
 import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.payment.PaymentRepository
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
@@ -10,14 +11,14 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 
-class PaymentProviderCallbackServiceSpec extends Specification {
+class MontonioCallbackServiceSpec extends Specification {
   UserService userService = Mock()
-  PaymentProviderCallbackService paymentProviderCallbackService
+  MontonioCallbackService paymentProviderCallbackService
   PaymentRepository paymentRepository = Mock()
   ApplicationEventPublisher eventPublisher = Mock()
 
   void setup() {
-    paymentProviderCallbackService = new PaymentProviderCallbackService(
+    paymentProviderCallbackService = new MontonioCallbackService(
         aPaymentProviderConfiguration(),
         userService,
         paymentRepository,

@@ -37,5 +37,11 @@ morningstar:
   username: someUsername
   password: somePassword
 
+payment-provider:
+  url: http://localhost:4321/api
+  use-fake-notification-url: false
+
 async:
   enabled: false
+
+

@@ -9,9 +9,11 @@ import ee.tuleva.onboarding.epis.account.FundBalanceDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.event.EventLogRepository
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioApiClient
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserRepository
 import org.mockserver.client.MockServerClient
+import org.mockserver.model.Header
 import org.mockserver.springtest.MockServerTest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -33,17 +35,16 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUserNonMember
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowStatementFor3rdPillarPayment
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
-import static ee.tuleva.onboarding.payment.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentAmount
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedCallbackFinalizedSinglePaymentToken
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.getAnInternalReference
+import static ee.tuleva.onboarding.payment.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
 import static org.mockserver.model.HttpRequest.request
 import static org.mockserver.model.HttpResponse.response
 import static org.mockserver.model.MediaType.APPLICATION_JSON
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
-@MockServerTest("epis.service.url=http://localhost:\${mockServerPort}")
+@MockServerTest(["epis.service.url=http://localhost:\${mockServerPort}", "payment-provider.url=http://localhost:\${mockServerPort}/api"])
 @Import(Config.class)
 @TestPropertySource(properties = "PAYMENT_SECRET_LHV=exampleSecretKeyexampleSecretKeyexampleSecretKey")
 @TestPropertySource(properties = "payment-provider.payment-channels.lhv.access-key=exampleAccessKey")
@@ -57,16 +58,26 @@ class PaymentIntegrationSpec extends Specification {
     }
   }
 
-  @Autowired PaymentController paymentController
-  @Autowired UserRepository userRepository
-  @Autowired PaymentRepository paymentRepository
-  @Autowired EventLogRepository eventLogRepository
+  @Autowired
+  PaymentController paymentController
+  @Autowired
+  UserRepository userRepository
+  @Autowired
+  PaymentRepository paymentRepository
+  @Autowired
+  EventLogRepository eventLogRepository
+
+  @Autowired
+  ObjectMapper objectMapper
 
   @Autowired
   PaymentLinkingService paymentApplicationService
 
   @Value('${frontend.url}')
   String frontendUrl
+
+  @Value('${payment-provider.url}')
+  String montonioUrl
 
   MockServerClient mockServerClient
 
@@ -78,6 +89,30 @@ class PaymentIntegrationSpec extends Specification {
 
   def setup() {
     mockSecurityContext()
+  }
+
+  def mockMontonioOrderApi() {
+    URI uri = new URI(montonioUrl)
+    String host = uri.getHost()
+
+    String responseBody = objectMapper.writeValueAsString(new MontonioApiClient.MontonioOrderResponse("https://payment.test"))
+
+
+    new MockServerClient(host, uri.getPort())
+        .when(
+            request()
+                .withMethod("POST")
+                .withPath("/api/orders")
+                .withHeader(new Header("Content-Type", "application/json"))
+        )
+        .respond(
+            response()
+                .withStatusCode(200)
+                .withHeader(
+                    new Header("Content-Type", "application/json; charset=utf-8")
+                )
+                .withBody(responseBody)
+        )
   }
 
   def mockSecurityContext() {
@@ -104,6 +139,7 @@ class PaymentIntegrationSpec extends Specification {
     mockEpisTransactions()
     mockEpisApplications()
     mockEpisAccountStatement()
+    mockMontonioOrderApi()
 
     expect:
     expectAPaymentLink(anAuthenticatedPerson)
@@ -134,7 +170,7 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private void expectToBeAbleToReceivePaymentNotification() {
-    paymentController.paymentCallback(aSerializedCallbackFinalizedSinglePaymentToken)
+    paymentController.paymentCallback(aSerializedCallbackFinalizedSinglePaymentTokenV2Api)
     assert paymentRepository.findAll().size() == 1
   }
 
@@ -147,7 +183,7 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private void expectThatPaymentCallbackRedirectsUser() {
-    RedirectView result = paymentController.getPaymentSuccessRedirect(aSerializedCallbackFinalizedSinglePaymentToken)
+    RedirectView result = paymentController.getPaymentSuccessRedirect(aSerializedCallbackFinalizedSinglePaymentTokenV2Api)
     assert result.url == frontendUrl + "/3rd-pillar-success"
   }
 

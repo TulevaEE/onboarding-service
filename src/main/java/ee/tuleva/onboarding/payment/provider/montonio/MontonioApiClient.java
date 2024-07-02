@@ -13,19 +13,25 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Service
 public class MontonioApiClient {
 
+  private final RestClient restClient;
   @Value("${payment-provider.url}")
   private String montonioUrl;
+
+  public MontonioApiClient(RestClient.Builder restClientBuilder) {
+    this.restClient = restClientBuilder.build();
+  }
 
   @SneakyThrows
   public String getPaymentUrl(Map<String, Object> payloadJson) {
     var orderResponse =
-        RestClient.create()
+        restClient
             .post()
             .uri(buildRequestUri())
             .body(payloadJson)
             .accept(APPLICATION_JSON)
             .retrieve()
             .body(MontonioOrderResponse.class);
+
     return orderResponse.paymentUrl();
   }
 

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.payment.provider;
+package ee.tuleva.onboarding.payment.provider.montonio;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 
@@ -8,11 +8,16 @@ import com.nimbusds.jose.crypto.MACVerifier;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentRepository;
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent;
+import ee.tuleva.onboarding.payment.provider.PaymentProviderChannel;
+import ee.tuleva.onboarding.payment.provider.PaymentProviderConfiguration;
+import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +28,7 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class PaymentProviderCallbackService {
+public class MontonioCallbackService {
 
   private final PaymentProviderConfiguration paymentProviderConfiguration;
   private final UserService userService;
@@ -88,7 +93,7 @@ public class PaymentProviderCallbackService {
     PaymentProviderChannel paymentChannelConfiguration =
         paymentProviderConfiguration.getPaymentProviderChannel(accessKey);
 
-    if (!token.verify(new MACVerifier(paymentChannelConfiguration.secretKey.getBytes()))) {
+    if (!token.verify(new MACVerifier(paymentChannelConfiguration.getSecretKey().getBytes()))) {
       throw new BadCredentialsException("Token not verified");
     }
   }

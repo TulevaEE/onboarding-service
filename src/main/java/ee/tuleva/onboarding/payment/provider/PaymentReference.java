@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.payment.PaymentData.*;
 
 import java.util.Locale;
 import java.util.UUID;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 @Data
 @AllArgsConstructor
 @RequiredArgsConstructor
-class PaymentReference {
+public class PaymentReference {
 
   private String personalCode;
 

@@ -7,7 +7,7 @@ import lombok.Data;
 
 @Data
 @Builder
-class MontonioOrder {
+public class MontonioOrder {
   private String accessKey;
   private String merchantReference;
   private String returnUrl;
@@ -17,22 +17,4 @@ class MontonioOrder {
   private long exp;
   private MontonioPaymentMethod payment;
   private String locale;
-}
-
-@Data
-@Builder
-class MontonioPaymentMethod {
-  private final String method = "paymentInitiation";
-  private BigDecimal amount;
-  private Currency currency;
-  private MontonioPaymentMethodOptions methodOptions;
-}
-
-@Data
-@Builder
-class MontonioPaymentMethodOptions {
-  private final String preferredCountry = "EE";
-  private String preferredProvider;
-  private String preferredLocale;
-  private String paymentDescription;
 }

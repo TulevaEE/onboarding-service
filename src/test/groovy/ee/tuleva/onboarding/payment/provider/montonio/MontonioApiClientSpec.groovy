@@ -23,7 +23,7 @@ class MontonioApiClientSpec extends Specification {
   MockRestServiceServer server
 
   @Value('${payment-provider.url}')
-  private String montonioUrl;
+  private String montonioUrl
 
   def cleanup() {
     server.reset()

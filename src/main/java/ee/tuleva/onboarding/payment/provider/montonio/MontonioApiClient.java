@@ -8,6 +8,7 @@ import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 public class MontonioApiClient {
@@ -20,12 +21,16 @@ public class MontonioApiClient {
     var orderResponse =
         RestClient.create()
             .post()
-            .uri(montonioUrl + "/orders")
+            .uri(buildRequestUri())
             .body(payloadJson)
             .accept(APPLICATION_JSON)
             .retrieve()
             .body(MontonioOrderResponse.class);
     return orderResponse.paymentUrl();
+  }
+
+  private String buildRequestUri() {
+    return UriComponentsBuilder.fromHttpUrl(montonioUrl).path("/orders").build().toUriString();
   }
 
   public record MontonioOrderResponse(String paymentUrl) {

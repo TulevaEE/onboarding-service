@@ -6,9 +6,7 @@ import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.provider.PaymentProviderChannel;
 import ee.tuleva.onboarding.payment.provider.PaymentProviderConfiguration;
-
 import java.util.Map;
-
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;

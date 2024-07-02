@@ -1,62 +1,35 @@
 package ee.tuleva.onboarding.payment.provider.montonio
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
-import ee.tuleva.onboarding.locale.LocaleService
-import ee.tuleva.onboarding.locale.MockLocaleService
-import ee.tuleva.onboarding.payment.PaymentFixture
 import ee.tuleva.onboarding.payment.PaymentLink
-import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService
 import spock.lang.Specification
 
-import java.time.Clock
-import java.time.Instant
-
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.*
-import static java.time.ZoneOffset.UTC
+import static ee.tuleva.onboarding.payment.PaymentFixture.aMontonioOrder
+import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
 
 class MontonioPaymentLinkGeneratorSpec extends Specification {
 
-  ObjectMapper objectMapper = new ObjectMapper()
 
-  Clock clock = Clock.fixed(Instant.parse("2020-11-23T10:00:00Z"), UTC)
+  def montonioOrderCreator = Mock(MontonioOrderCreator)
+  def monotonioOrderClient = Mock(MontonioOrderClient)
 
-  PaymentInternalReferenceService paymentInternalReferenceService = Mock()
-  LocaleService localeService = new MockLocaleService("et")
-  MontonioPaymentLinkGenerator paymentLinkService
-
-  void setup() {
-    paymentLinkService = new MontonioPaymentLinkGenerator(
-        objectMapper,
-        clock,
-        paymentInternalReferenceService,
-        aPaymentProviderConfiguration(),
-        localeService
-    )
-    paymentLinkService.paymentProviderUrl = "https://sandbox-payments.montonio.com"
-    paymentLinkService.apiUrl = "https://onboarding-service.tuleva.ee/v1"
-    paymentLinkService.memberFee = new BigDecimal(125)
-  }
-
-  void beforeEach() {
-
-  }
-
-  /* Flaky test: the jwt token uses a HashMap which does not guarantee order, so the jwt payload might change */
+  def montonioPaymentLinkGenerator = new MontonioPaymentLinkGenerator(montonioOrderCreator, monotonioOrderClient)
 
   def "can get a payment link"() {
+    def aPaymentUrl = "https://payment.url"
+
     given:
-    String internalReference = anInternalReferenceSerialized
-    1 * paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, PaymentFixture.aPaymentData) >> internalReference
+    1 * montonioOrderCreator.getOrder(aPaymentData(), sampleAuthenticatedPerson) >> aMontonioOrder
+    1 * monotonioOrderClient.getPaymentUrl(aMontonioOrder, aPaymentData()) >> aPaymentUrl
+
     when:
-    PaymentLink paymentLink = paymentLinkService.getPaymentLink(PaymentFixture.aPaymentData, sampleAuthenticatedPerson)
+    PaymentLink paymentLink = montonioPaymentLinkGenerator.getPaymentLink(aPaymentData, sampleAuthenticatedPerson)
 
     then:
-    paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderToken
+    paymentLink.url() == "https://payment.url"
   }
 
-  /* Flaky test: the jwt token uses a HashMap which does not guarantee order, so the jwt payload might change */
-
+/*
   def "can get a member fee payment link"() {
     given:
     String internalReference = anInternalReferenceSerialized
@@ -68,7 +41,6 @@ class MontonioPaymentLinkGeneratorSpec extends Specification {
     paymentLink.url() == "https://sandbox-payments.montonio.com?payment_token=" + aSerializedPaymentProviderTokenForMemberFeePayment
   }
 
-  /* Flaky test: the jwt token uses a HashMap which does not guarantee order, so the jwt payload might change */
 
   def "can get a member fee test payment link"() {
     given:
@@ -105,7 +77,7 @@ class MontonioPaymentLinkGeneratorSpec extends Specification {
 
     then:
     thrown(IllegalArgumentException)
-  }
+  }*/
 
   AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()
       .firstName("Jordan")

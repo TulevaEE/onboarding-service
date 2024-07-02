@@ -1,9 +1,7 @@
 package ee.tuleva.onboarding.payment.provider.montonio;
 
 import ee.tuleva.onboarding.currency.Currency;
-
 import java.math.BigDecimal;
-
 import lombok.Builder;
 import lombok.Data;
 

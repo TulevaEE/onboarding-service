@@ -11,14 +11,12 @@ import ee.tuleva.onboarding.payment.provider.PaymentProviderConfiguration;
 
 import java.math.BigDecimal;
 import java.time.Clock;
-import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -33,9 +31,6 @@ public class MontonioOrderCreator {
 
   private final LocaleService localeService;
 
-  private final Environment environment;
-
-
   @Value("${payment-provider.use-fake-notification-url}")
   private Boolean useFakeNotificationsUrl;
 
@@ -49,12 +44,12 @@ public class MontonioOrderCreator {
   private String memberFeeTestPersonalCode;
 
   private static String getEpisPaymentDescription(PaymentData paymentData) {
-    return (paymentData.getType() == PaymentType.MEMBER_FEE)
-        ? String.format("member:%s", paymentData.getRecipientPersonalCode())
-        : String.format(
-        "30101119828, IK:%s, EE3600001707",
-        paymentData
-            .getRecipientPersonalCode()); // https://www.pensionikeskus.ee/iii-sammas/sissemaksed/sissemaksed-iii-samba-fondidesse/
+    if (paymentData.getType() == PaymentType.MEMBER_FEE) {
+      return String.format("member:%s", paymentData.getRecipientPersonalCode());
+    }
+
+    return String.format(
+        "30101119828, IK:%s, EE3600001707", paymentData.getRecipientPersonalCode());
   }
 
   @SneakyThrows
@@ -94,34 +89,38 @@ public class MontonioOrderCreator {
   private String getPaymentSuccessReturnUrl(PaymentType paymentType) {
     if (paymentType == PaymentType.MEMBER_FEE) {
       return apiUrl + "/payments/member-success";
-    } else {
-      return apiUrl + "/payments/success";
     }
+
+    return apiUrl + "/payments/success";
   }
 
   private BigDecimal getPaymentAmount(PaymentData paymentData) {
     if (paymentData.getType() == PaymentData.PaymentType.MEMBER_FEE) {
-      if (memberFee == null) {
-        throw new IllegalArgumentException("Member fee must not be null");
-      }
-      if (Objects.equals(paymentData.getRecipientPersonalCode(), memberFeeTestPersonalCode)
-          && memberFeeTestPersonalCode != null) {
-        return BigDecimal.ONE;
-      }
-      return memberFee;
-    } else {
-      if (paymentData.getAmount() == null) {
-        throw new IllegalArgumentException("Payment amount must not be null");
-      }
-      return paymentData.getAmount();
+      return this.getMemberPaymentAmount(paymentData);
     }
+
+    if (paymentData.getAmount() == null) {
+      throw new IllegalArgumentException("Payment amount must not be null");
+    }
+
+    return paymentData.getAmount();
+  }
+
+  private BigDecimal getMemberPaymentAmount(PaymentData paymentData) {
+    if (memberFee == null) {
+      throw new IllegalArgumentException("Member fee must not be null");
+    }
+    if (Objects.equals(paymentData.getRecipientPersonalCode(), memberFeeTestPersonalCode)
+        && memberFeeTestPersonalCode != null) {
+      return BigDecimal.ONE;
+    }
+    return memberFee;
   }
 
   private String getLanguage() {
     Locale locale = localeService.getCurrentLocale();
     return Locale.ENGLISH.getLanguage().equals(locale.getLanguage()) ? "en" : locale.getLanguage();
   }
-
 
   private String getNotificationUrl() {
     if (useFakeNotificationsUrl) {

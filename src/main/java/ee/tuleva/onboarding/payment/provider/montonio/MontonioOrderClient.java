@@ -11,12 +11,10 @@ import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-// @AllArgsConstructor
 public class MontonioOrderClient {
 
   private final ObjectMapper objectMapper;
@@ -45,7 +43,11 @@ public class MontonioOrderClient {
   @SneakyThrows
   private JWSObject getSignedJws(
       String payload, PaymentProviderChannel paymentChannelConfiguration) {
-    JWSObject jwsObject = new JWSObject(new JWSHeader.Builder(JWSAlgorithm.HS256).type(JOSEObjectType.JWT).build(), new Payload(payload));
+    JWSObject jwsObject =
+        new JWSObject(
+            new JWSHeader.Builder(JWSAlgorithm.HS256).type(JOSEObjectType.JWT).build(),
+            new Payload(payload));
+
     jwsObject.sign(new MACSigner(paymentChannelConfiguration.getSecretKey().getBytes()));
     return jwsObject;
   }

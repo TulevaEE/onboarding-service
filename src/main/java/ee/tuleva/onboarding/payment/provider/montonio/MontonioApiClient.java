@@ -1,22 +1,19 @@
 package ee.tuleva.onboarding.payment.provider.montonio;
 
+import static org.springframework.http.MediaType.*;
+
+import java.util.Map;
+
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
-
-import java.util.Map;
-
-import static org.springframework.http.MediaType.*;
 
 @Service
 public class MontonioApiClient {
 
   @Value("${payment-provider.url}")
   private String montonioUrl;
-
-  public MontonioApiClient() {
-  }
 
   @SneakyThrows
   public String getPaymentUrl(Map<String, Object> payloadJson) {
@@ -29,5 +26,8 @@ public class MontonioApiClient {
             .retrieve()
             .body(MontonioOrderResponse.class);
     return orderResponse.paymentUrl();
+  }
+
+  public record MontonioOrderResponse(String paymentUrl) {
   }
 }

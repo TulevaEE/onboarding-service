@@ -63,7 +63,7 @@ class MontonioOrderClientSpec extends Specification {
 
     // def paymentProviderChannel = new PaymentProviderChannel(secretKey: "testSecrettestSecrettestSecrettestSecrettestSecrettestSecrettestSecrettestSecret")
     def jwsObject = new JWSObject(new JWSHeader(JWSAlgorithm.HS256), new Payload("orderJson"))
-    def orderResponse = new MontonioOrderResponse(aPaymentUrl)
+    def orderResponse = new MontonioApiClient.MontonioOrderResponse(aPaymentUrl)
 
     /*def requestBodyUriSpec = Mock(RequestBodyUriSpec)
     def requestBodySpec = Mock(RequestBodySpec)

@@ -13,11 +13,9 @@ import ee.tuleva.onboarding.payment.provider.PaymentProviderConfiguration;
 import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;

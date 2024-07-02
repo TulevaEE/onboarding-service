@@ -2,6 +2,9 @@ package ee.tuleva.onboarding.payment
 
 
 import ee.tuleva.onboarding.currency.Currency
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrder
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentMethod
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentMethodOptions
 import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.user.User
 
@@ -26,6 +29,26 @@ class PaymentFixture {
   static PaymentData aPaymentDataWithoutAnAmount = new PaymentData(sampleUser.personalCode, null, aPaymentCurrency, aPaymentType, aPaymentChannel)
   static PaymentData aPaymentDataForMemberPayment = new PaymentData(sampleUserNonMember.personalCode, aPaymentAmount, aPaymentCurrency, PaymentType.MEMBER_FEE, PaymentChannel.TULUNDUSUHISTU)
   static aPaymentCreationTime = TestClockHolder.now - Duration.ofDays(1)
+
+  static MontonioOrder aMontonioOrder = MontonioOrder.builder()
+      .accessKey("testAccessKey")
+      .merchantReference("testMerchantReference")
+      .returnUrl("http://return.url")
+      .notificationUrl("http://notification.url")
+      .grandTotal(BigDecimal.valueOf(100.00))
+      .currency(Currency.EUR)
+      .exp(BigDecimal.valueOf(System.currentTimeMillis() / 1000L + 3600L).toLong())
+      .payment(MontonioPaymentMethod.builder()
+          .amount(BigDecimal.valueOf(100.00))
+          .currency(Currency.EUR)
+          .methodOptions(MontonioPaymentMethodOptions.builder()
+              .preferredProvider("testProvider")
+              .preferredLocale("en")
+              .paymentDescription("testPayment")
+              .build())
+          .build())
+      .locale("en")
+      .build()
 
   static PaymentData aPaymentData() {
     return new PaymentData(sampleUser.personalCode, aPaymentAmount, aPaymentCurrency, aPaymentType, aPaymentChannel)

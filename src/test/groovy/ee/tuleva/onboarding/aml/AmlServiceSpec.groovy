@@ -66,7 +66,7 @@ class AmlServiceSpec extends Specification {
       check.personalCode == user.personalCode &&
           check.type == SK_NAME &&
           check.success &&
-          check.metadata.aPerson == new PersonImpl(user) &&
+          check.metadata.person == new PersonImpl(user) &&
           check.metadata.user == new PersonImpl(user)
     }) >> { AmlCheck check -> check }
     1 * amlCheckRepository.save({ check ->
@@ -107,7 +107,7 @@ class AmlServiceSpec extends Specification {
       check.personalCode == user.personalCode &&
           check.type == PENSION_REGISTRY_NAME &&
           check.success &&
-          check.metadata.aPerson == new PersonImpl(user) &&
+          check.metadata.person == new PersonImpl(user) &&
           check.metadata.user == new PersonImpl(user)
     }) >> { AmlCheck check -> check }
   }

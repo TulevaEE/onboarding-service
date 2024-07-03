@@ -12,7 +12,7 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.PARTNER
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.*
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSinglePaymentFinishedTokenV2Api
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSinglePaymentFinishedToken
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
@@ -97,20 +97,20 @@ class PaymentControllerSpec extends BaseControllerSpec {
   def "GET /success redirects to success screen on successful payment"() {
     given:
     def mvc = mockMvc(paymentController)
-    1 * paymentService.processToken(aSerializedSinglePaymentFinishedTokenV2Api) >> Optional.of(aNewSinglePayment())
+    1 * paymentService.processToken(aSerializedSinglePaymentFinishedToken) >> Optional.of(aNewSinglePayment())
     expect:
     mvc.perform(get("/v1/payments/success")
-        .param("order-token", aSerializedSinglePaymentFinishedTokenV2Api))
+        .param("order-token", aSerializedSinglePaymentFinishedToken))
         .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-success"))
   }
 
   def "GET /success redirects back to payment screen on cancelled payment"() {
     given:
     def mvc = mockMvc(paymentController)
-    1 * paymentService.processToken(aSerializedSinglePaymentFinishedTokenV2Api) >> Optional.empty()
+    1 * paymentService.processToken(aSerializedSinglePaymentFinishedToken) >> Optional.empty()
     expect:
     mvc.perform(get("/v1/payments/success")
-        .param("order-token", aSerializedSinglePaymentFinishedTokenV2Api))
+        .param("order-token", aSerializedSinglePaymentFinishedToken))
         .andExpect(redirectedUrl(frontendUrl + "/3rd-pillar-payment"))
   }
 
@@ -123,21 +123,21 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
     payment.setUser(user)
 
-    1 * paymentService.processToken(aSerializedSinglePaymentFinishedTokenV2Api) >> Optional.of(payment)
+    1 * paymentService.processToken(aSerializedSinglePaymentFinishedToken) >> Optional.of(payment)
 
     expect:
     mvc.perform(get("/v1/payments/member-success")
-        .param("payment_token", aSerializedSinglePaymentFinishedTokenV2Api))
+        .param("payment_token", aSerializedSinglePaymentFinishedToken))
         .andExpect(redirectedUrl(frontendUrl))
   }
 
   def "GET /member-success redirects back to account page on cancelled payment"() {
     given:
     def mvc = mockMvc(paymentController)
-    1 * paymentService.processToken(aSerializedSinglePaymentFinishedTokenV2Api) >> Optional.empty()
+    1 * paymentService.processToken(aSerializedSinglePaymentFinishedToken) >> Optional.empty()
     expect:
     mvc.perform(get("/v1/payments/member-success")
-        .param("payment_token", aSerializedSinglePaymentFinishedTokenV2Api))
+        .param("payment_token", aSerializedSinglePaymentFinishedToken))
         .andExpect(redirectedUrl(frontendUrl + "/account"))
   }
 
@@ -145,10 +145,10 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentService.processToken(aSerializedSinglePaymentFinishedTokenV2Api)
+    1 * paymentService.processToken(aSerializedSinglePaymentFinishedToken)
     expect:
     mvc.perform(post("/v1/payments/notifications")
-        .param("payment_token", aSerializedSinglePaymentFinishedTokenV2Api))
+        .param("payment_token", aSerializedSinglePaymentFinishedToken))
         .andExpect(status().isOk())
   }
 

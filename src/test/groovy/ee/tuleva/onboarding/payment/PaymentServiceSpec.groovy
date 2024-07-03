@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.payment
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentLinkGenerator
 import ee.tuleva.onboarding.user.UserService
-import org.mockserver.client.MockServerClient
-import org.springframework.beans.factory.annotation.Value
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
@@ -15,8 +13,8 @@ import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPaymentForExistingMember
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSinglePaymentFinishedTokenV2Api
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedMemberPaymentFinishedTokenV2Api
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSinglePaymentFinishedToken
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedMemberPaymentFinishedToken
 
 class PaymentServiceSpec extends Specification {
 
@@ -84,7 +82,7 @@ class PaymentServiceSpec extends Specification {
 
   def "can process a payment provider token"() {
     given:
-    def token = aSerializedSinglePaymentFinishedTokenV2Api
+    def token = aSerializedSinglePaymentFinishedToken
     def payment = Optional.of(aNewSinglePayment())
     paymentProviderCallbackService.processToken(token) >> payment
 
@@ -97,7 +95,7 @@ class PaymentServiceSpec extends Specification {
 
   def "can process a member payment confirmation token and register a new member"() {
     given:
-    def token = aSerializedMemberPaymentFinishedTokenV2Api
+    def token = aSerializedMemberPaymentFinishedToken
     def payment = aNewMemberPayment()
     def optionalPayment = Optional.of(payment)
     paymentProviderCallbackService.processToken(token) >> optionalPayment
@@ -112,7 +110,7 @@ class PaymentServiceSpec extends Specification {
 
   def "can process a member payment confirmation token and do not register an already member"() {
     given:
-    def token = aSerializedMemberPaymentFinishedTokenV2Api
+    def token = aSerializedMemberPaymentFinishedToken
     def paymentOptional = Optional.of(aNewMemberPaymentForExistingMember())
     paymentProviderCallbackService.processToken(token) >> paymentOptional
     0 * userService.registerAsMember(_)

@@ -169,7 +169,7 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private void expectToBeAbleToReceivePaymentNotification() {
-    paymentController.paymentCallback(aSerializedSinglePaymentFinishedTokenV2Api)
+    paymentController.paymentCallback(aSerializedSinglePaymentFinishedToken)
     assert paymentRepository.findAll().size() == 1
   }
 
@@ -182,7 +182,7 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private void expectThatPaymentCallbackRedirectsUser() {
-    RedirectView result = paymentController.getPaymentSuccessRedirect(aSerializedSinglePaymentFinishedTokenV2Api)
+    RedirectView result = paymentController.getPaymentSuccessRedirect(aSerializedSinglePaymentFinishedToken)
     assert result.url == frontendUrl + "/3rd-pillar-success"
   }
 

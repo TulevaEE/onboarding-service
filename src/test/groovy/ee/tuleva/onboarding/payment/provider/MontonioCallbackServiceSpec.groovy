@@ -39,7 +39,7 @@ class MontonioCallbackServiceSpec extends Specification {
 
   def "if returning payment token is complete and no other payment exists in the database, create one"() {
     given:
-    def token = aSerializedMemberPaymentFinishedTokenV2Api
+    def token = aSerializedMemberPaymentFinishedToken
     def payment = aNewMemberPayment()
     1 * userService.findByPersonalCode(anInternalReference.getPersonalCode()) >>
         Optional.of(payment.user)
@@ -54,7 +54,7 @@ class MontonioCallbackServiceSpec extends Specification {
 
   def "if payment with a given internal reference exists, then do not create a new one"() {
     given:
-    def token = aSerializedMemberPaymentFinishedTokenV2Api
+    def token = aSerializedMemberPaymentFinishedToken
     def existingPayment = Optional.of(aNewMemberPayment())
     1 * paymentRepository.findByInternalReference(anInternalReference.getUuid()) >> existingPayment
     when:
@@ -66,7 +66,7 @@ class MontonioCallbackServiceSpec extends Specification {
 
   def "if payment callback token is pending then do not create a new one"() {
     given:
-    def token = aSerializedPaymentPendingTokenV2Api
+    def token = aSerializedPaymentPendingToken
     when:
     def returnedPayment = paymentProviderCallbackService.processToken(token)
     then:
@@ -76,7 +76,7 @@ class MontonioCallbackServiceSpec extends Specification {
 
   def "if payment callback token is failed then do not create a new one"() {
     given:
-    def token = aSerializedPaymentFailedTokenV2Api
+    def token = aSerializedPaymentFailedToken
     when:
     def returnedPayment = paymentProviderCallbackService.processToken(token)
     then:
@@ -86,7 +86,7 @@ class MontonioCallbackServiceSpec extends Specification {
 
   def "publish payment created event"() {
     given:
-    def token = aSerializedMemberPaymentFinishedTokenV2Api
+    def token = aSerializedMemberPaymentFinishedToken
     def payment = aNewMemberPayment()
     def user = payment.user
     userService.findByPersonalCode(anInternalReference.getPersonalCode()) >> Optional.of(user)

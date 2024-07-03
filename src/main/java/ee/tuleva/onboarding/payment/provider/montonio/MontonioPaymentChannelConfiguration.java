@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.payment.provider;
+package ee.tuleva.onboarding.payment.provider.montonio;
 
 import static java.util.stream.Collectors.toMap;
 
@@ -14,16 +14,16 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @RequiredArgsConstructor
 @ConfigurationProperties("payment-provider")
-public class PaymentProviderConfiguration {
+public class MontonioPaymentChannelConfiguration {
 
-  @Getter private final Map<PaymentChannel, PaymentProviderChannel> paymentChannels;
-  private Map<String, PaymentProviderChannel> paymentChannelsByAccessKey;
+  @Getter private final Map<PaymentChannel, MontonioPaymentChannel> paymentChannels;
+  private Map<String, MontonioPaymentChannel> paymentChannelsByAccessKey;
 
-  public PaymentProviderChannel getPaymentProviderChannel(PaymentChannel paymentChannel) {
+  public MontonioPaymentChannel getPaymentProviderChannel(PaymentChannel paymentChannel) {
     return paymentChannels.get(paymentChannel);
   }
 
-  public PaymentProviderChannel getPaymentProviderChannel(String accessKey) {
+  public MontonioPaymentChannel getPaymentProviderChannel(String accessKey) {
     return paymentChannelsByAccessKey.get(accessKey);
   }
 

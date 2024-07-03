@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.payment.provider
 
 import ee.tuleva.onboarding.payment.PaymentData
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentChannel
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentChannelConfiguration
 
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.TULUNDUSUHISTU
@@ -12,18 +14,18 @@ class PaymentProviderFixture {
   static String anAccessKeyTulundusuhistu = "exampleAccessKeyTulundusuhistu"
   static String aSecretKeyTulundusuhistu = "exampleSecretKeyexampleSecretKeyexampleSecretKeyTulundusuhistu"
 
-  static PaymentProviderConfiguration aPaymentProviderConfiguration() {
-    PaymentProviderChannel samplePaymentProviderChannelConfiguration = new PaymentProviderChannel()
+  static MontonioPaymentChannelConfiguration aPaymentProviderConfiguration() {
+    MontonioPaymentChannel samplePaymentProviderChannelConfiguration = new MontonioPaymentChannel()
     samplePaymentProviderChannelConfiguration.accessKey = anAccessKey
     samplePaymentProviderChannelConfiguration.secretKey = aSecretKey
     samplePaymentProviderChannelConfiguration.bic = "exampleAspsp"
 
-    PaymentProviderChannel samplePaymentProviderChannelConfigurationTulundusuhistu = new PaymentProviderChannel()
+    MontonioPaymentChannel samplePaymentProviderChannelConfigurationTulundusuhistu = new MontonioPaymentChannel()
     samplePaymentProviderChannelConfigurationTulundusuhistu.accessKey = anAccessKeyTulundusuhistu
     samplePaymentProviderChannelConfigurationTulundusuhistu.secretKey = aSecretKeyTulundusuhistu
     samplePaymentProviderChannelConfigurationTulundusuhistu.bic = "exampleAspsp"
 
-    def configuration = new PaymentProviderConfiguration([
+    def configuration = new MontonioPaymentChannelConfiguration([
         (LHV)           : samplePaymentProviderChannelConfiguration,
         (TULUNDUSUHISTU): samplePaymentProviderChannelConfigurationTulundusuhistu,
     ])

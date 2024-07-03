@@ -6,12 +6,10 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService;
-
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.Locale;
 import java.util.Objects;
-
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;

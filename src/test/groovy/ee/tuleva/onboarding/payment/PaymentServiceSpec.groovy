@@ -15,8 +15,8 @@ import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPaymentForExistingMember
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedPaymentProviderToken
-import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedPaymentProviderTokenForMemberFeePayment
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSinglePaymentFinishedTokenV2Api
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedMemberPaymentFinishedTokenV2Api
 
 class PaymentServiceSpec extends Specification {
 
@@ -84,7 +84,7 @@ class PaymentServiceSpec extends Specification {
 
   def "can process a payment provider token"() {
     given:
-    def token = aSerializedPaymentProviderToken
+    def token = aSerializedSinglePaymentFinishedTokenV2Api
     def payment = Optional.of(aNewSinglePayment())
     paymentProviderCallbackService.processToken(token) >> payment
 
@@ -97,7 +97,7 @@ class PaymentServiceSpec extends Specification {
 
   def "can process a member payment confirmation token and register a new member"() {
     given:
-    def token = aSerializedPaymentProviderTokenForMemberFeePayment
+    def token = aSerializedMemberPaymentFinishedTokenV2Api
     def payment = aNewMemberPayment()
     def optionalPayment = Optional.of(payment)
     paymentProviderCallbackService.processToken(token) >> optionalPayment
@@ -112,7 +112,7 @@ class PaymentServiceSpec extends Specification {
 
   def "can process a member payment confirmation token and do not register an already member"() {
     given:
-    def token = aSerializedPaymentProviderTokenForMemberFeePayment
+    def token = aSerializedMemberPaymentFinishedTokenV2Api
     def paymentOptional = Optional.of(aNewMemberPaymentForExistingMember())
     paymentProviderCallbackService.processToken(token) >> paymentOptional
     0 * userService.registerAsMember(_)

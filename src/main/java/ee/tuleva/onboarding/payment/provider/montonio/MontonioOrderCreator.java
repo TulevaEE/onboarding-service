@@ -6,10 +6,12 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService;
+
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.Locale;
 import java.util.Objects;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
@@ -57,9 +59,6 @@ public class MontonioOrderCreator {
     BigDecimal amount = getPaymentAmount(paymentData);
     Currency currency = paymentData.getCurrency();
 
-    // TODO first name, last name to order billing address?
-    // payload.put("checkout_first_name", person.getFirstName());
-    // payload.put("checkout_last_name", person.getLastName());
     return MontonioOrder.builder()
         .accessKey(paymentChannelConfiguration.getAccessKey())
         .merchantReference(paymentInternalReferenceService.getPaymentReference(person, paymentData))

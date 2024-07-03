@@ -6,8 +6,6 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService;
-import ee.tuleva.onboarding.payment.provider.PaymentProviderChannel;
-import ee.tuleva.onboarding.payment.provider.PaymentProviderConfiguration;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.Locale;
@@ -25,7 +23,7 @@ public class MontonioOrderCreator {
 
   private final PaymentInternalReferenceService paymentInternalReferenceService;
 
-  private final PaymentProviderConfiguration paymentProviderConfiguration;
+  private final MontonioPaymentChannelConfiguration montonioPaymentChannelConfiguration;
 
   private final LocaleService localeService;
 
@@ -52,8 +50,9 @@ public class MontonioOrderCreator {
 
   @SneakyThrows
   public MontonioOrder getOrder(PaymentData paymentData, Person person) {
-    PaymentProviderChannel paymentChannelConfiguration =
-        paymentProviderConfiguration.getPaymentProviderChannel(paymentData.getPaymentChannel());
+    MontonioPaymentChannel paymentChannelConfiguration =
+        montonioPaymentChannelConfiguration.getPaymentProviderChannel(
+            paymentData.getPaymentChannel());
 
     BigDecimal amount = getPaymentAmount(paymentData);
     Currency currency = paymentData.getCurrency();

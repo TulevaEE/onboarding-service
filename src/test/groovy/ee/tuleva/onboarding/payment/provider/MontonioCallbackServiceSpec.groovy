@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.security.authentication.BadCredentialsException
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
@@ -27,7 +28,16 @@ class MontonioCallbackServiceSpec extends Specification {
     )
   }
 
-  void "if returning payment token is complete and no other payment exists in the database, create one"() {
+  def "it rejects payment token with invalid signature"() {
+    given:
+    def token = anInvalidSinglePaymentFinishedToken
+    when:
+    paymentProviderCallbackService.processToken(token)
+    then:
+    thrown(BadCredentialsException)
+  }
+
+  def "if returning payment token is complete and no other payment exists in the database, create one"() {
     given:
     def token = aSerializedMemberPaymentFinishedTokenV2Api
     def payment = aNewMemberPayment()
@@ -74,7 +84,7 @@ class MontonioCallbackServiceSpec extends Specification {
     0 * paymentRepository.save(_)
   }
 
-  void "publish payment created event"() {
+  def "publish payment created event"() {
     given:
     def token = aSerializedMemberPaymentFinishedTokenV2Api
     def payment = aNewMemberPayment()

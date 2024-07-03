@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.payment
 
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrder
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentChannel
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentMethod
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioPaymentMethodOptions
 import ee.tuleva.onboarding.time.TestClockHolder
@@ -54,6 +55,10 @@ class PaymentFixture {
     return new PaymentData(sampleUser.personalCode, aPaymentAmount, aPaymentCurrency, aPaymentType, aPaymentChannel)
   }
 
+  static PaymentData aNewMemberPaymentData() {
+    return new PaymentData(sampleUser.personalCode, aPaymentAmount, aPaymentCurrency, PaymentType.MEMBER_FEE, aPaymentChannel)
+  }
+
   static Payment aNewSinglePayment() {
     return new Payment(
         null, sampleUser, UUID.fromString("3ab94f11-fb71-4401-8043-5e911227037e"), aPaymentAmount, Currency.EUR, sampleUser.personalCode, null, PaymentType.SINGLE)
@@ -74,6 +79,13 @@ class PaymentFixture {
       it.id = id
       it.createdTime = createdTime
     }
+  }
+
+  static MontonioPaymentChannel aMontonioPaymentChannel() {
+    return new MontonioPaymentChannel(
+        accessKey: "an-access-key",
+        bic: "a-bic"
+    )
   }
 
 }

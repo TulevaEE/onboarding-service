@@ -8,8 +8,6 @@ import com.nimbusds.jose.crypto.MACVerifier;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentRepository;
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent;
-import ee.tuleva.onboarding.payment.provider.PaymentProviderChannel;
-import ee.tuleva.onboarding.payment.provider.PaymentProviderConfiguration;
 import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -28,7 +26,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class MontonioCallbackService {
 
-  private final PaymentProviderConfiguration paymentProviderConfiguration;
+  private final MontonioPaymentChannelConfiguration montonioPaymentChannelConfiguration;
   private final UserService userService;
   private final PaymentRepository paymentRepository;
   private final ObjectMapper objectMapper;
@@ -88,8 +86,8 @@ public class MontonioCallbackService {
   @SneakyThrows
   private void verifyToken(JWSObject token) {
     String accessKey = token.getPayload().toJSONObject().get("accessKey").toString();
-    PaymentProviderChannel paymentChannelConfiguration =
-        paymentProviderConfiguration.getPaymentProviderChannel(accessKey);
+    MontonioPaymentChannel paymentChannelConfiguration =
+        montonioPaymentChannelConfiguration.getPaymentProviderChannel(accessKey);
 
     if (!token.verify(new MACVerifier(paymentChannelConfiguration.getSecretKey().getBytes()))) {
       throw new BadCredentialsException("Token not verified");

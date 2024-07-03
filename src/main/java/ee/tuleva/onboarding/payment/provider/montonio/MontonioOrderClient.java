@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.payment.PaymentData;
-import ee.tuleva.onboarding.payment.provider.PaymentProviderChannel;
-import ee.tuleva.onboarding.payment.provider.PaymentProviderConfiguration;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -19,7 +17,7 @@ public class MontonioOrderClient {
 
   private final MontonioApiClient montonioApiClient;
 
-  private final PaymentProviderConfiguration paymentProviderConfiguration;
+  private final MontonioPaymentChannelConfiguration montonioPaymentChannelConfiguration;
 
   @SneakyThrows
   public String getPaymentUrl(MontonioOrder order, PaymentData paymentData) {
@@ -29,8 +27,9 @@ public class MontonioOrderClient {
 
   @SneakyThrows
   private Map<String, Object> getSignedOrderPayload(MontonioOrder order, PaymentData paymentData) {
-    PaymentProviderChannel paymentChannelConfiguration =
-        paymentProviderConfiguration.getPaymentProviderChannel(paymentData.getPaymentChannel());
+    MontonioPaymentChannel paymentChannelConfiguration =
+        montonioPaymentChannelConfiguration.getPaymentProviderChannel(
+            paymentData.getPaymentChannel());
 
     JWSObject jwsObject =
         getSignedJws(objectMapper.writeValueAsString(order), paymentChannelConfiguration);
@@ -40,7 +39,7 @@ public class MontonioOrderClient {
 
   @SneakyThrows
   private JWSObject getSignedJws(
-      String payload, PaymentProviderChannel paymentChannelConfiguration) {
+      String payload, MontonioPaymentChannel paymentChannelConfiguration) {
     JWSObject jwsObject =
         new JWSObject(
             new JWSHeader.Builder(JWSAlgorithm.HS256).type(JOSEObjectType.JWT).build(),

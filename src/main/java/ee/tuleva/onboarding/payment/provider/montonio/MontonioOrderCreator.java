@@ -93,7 +93,7 @@ public class MontonioOrderCreator {
 
   private BigDecimal getPaymentAmount(PaymentData paymentData) {
     //TODO: Use polymorphism to get payment fee?
-    if (paymentData.getType() == PaymentData.PaymentType.MEMBER_FEE) {
+    if (paymentData.getType() == PaymentType.MEMBER_FEE) {
       return this.getMemberPaymentAmount(paymentData);
     }
 

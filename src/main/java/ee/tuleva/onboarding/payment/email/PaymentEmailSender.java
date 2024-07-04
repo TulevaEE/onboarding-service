@@ -28,8 +28,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-// TODO: Rename to third pillar payment email sender
-// TODO: or is this event based implementation even needed?
 public class PaymentEmailSender {
 
   private final PaymentEmailService emailService;

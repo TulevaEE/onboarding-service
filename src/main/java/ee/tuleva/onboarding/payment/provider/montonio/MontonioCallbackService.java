@@ -77,7 +77,7 @@ public class MontonioCallbackService {
   }
 
   private boolean isPaymentFinalized(JWSObject token) {
-    return token.getPayload().toJSONObject().get("paymentStatus").toString().equals("PAID");
+    return token.getPayload().toJSONObject().get("paymentStatus").toString().equalsIgnoreCase("PAID");
   }
 
   @SneakyThrows

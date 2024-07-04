@@ -11,9 +11,11 @@ import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -34,7 +36,7 @@ public class MontonioCallbackService {
 
   @SneakyThrows
   public Optional<Payment> processToken(String serializedToken) {
-
+    // TODO: can we create a separate class for the token and encapsulate the verify() and isFinalized() logic there?
     JWSObject token = JWSObject.parse(serializedToken);
     verifyToken(token);
 

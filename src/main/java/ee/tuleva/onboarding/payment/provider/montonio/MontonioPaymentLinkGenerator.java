@@ -17,10 +17,10 @@ public class MontonioPaymentLinkGenerator implements PaymentLinkGenerator {
   private final MontonioOrderCreator montonioOrderCreator;
   private final MontonioOrderClient montonioOrderClient;
 
-  @SneakyThrows
   @Override
   public PaymentLink getPaymentLink(PaymentData paymentData, Person person) {
     var order = montonioOrderCreator.getOrder(paymentData, person);
-    return new PaymentLink(montonioOrderClient.getPaymentUrl(order, paymentData));
+    var url = montonioOrderClient.getPaymentUrl(order, paymentData);
+    return new PaymentLink(url);
   }
 }

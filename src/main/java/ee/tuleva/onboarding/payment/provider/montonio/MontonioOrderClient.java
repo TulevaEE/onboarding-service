@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import ee.tuleva.onboarding.payment.PaymentData;
+
 import java.util.Map;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
@@ -19,7 +21,6 @@ public class MontonioOrderClient {
 
   private final MontonioPaymentChannelConfiguration montonioPaymentChannelConfiguration;
 
-  @SneakyThrows
   public String getPaymentUrl(MontonioOrder order, PaymentData paymentData) {
     var payload = getSignedOrderPayload(order, paymentData);
     return montonioApiClient.getPaymentUrl(payload);

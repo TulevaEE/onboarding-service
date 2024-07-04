@@ -3,7 +3,9 @@ package ee.tuleva.onboarding.payment;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+
 import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,7 +50,7 @@ public class PaymentController {
   @GetMapping("/member-success")
   @Operation(summary = "Redirects user to payment success")
   public RedirectView getMemberPaymentSuccessRedirect(
-      @RequestParam("payment_token") String serializedToken) {
+      @RequestParam("order-token") String serializedToken) {
     Optional<Payment> paymentOptional = paymentService.processToken(serializedToken);
 
     return paymentOptional
@@ -58,6 +60,7 @@ public class PaymentController {
 
   @PostMapping("/notifications")
   @Operation(summary = "Payment callback")
+  // TODO: use orderToken from request body
   public void paymentCallback(@RequestParam("payment_token") String serializedToken) {
     paymentService.processToken(serializedToken);
   }

@@ -6,12 +6,13 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService;
+
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.Locale;
 import java.util.Objects;
+
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -33,22 +34,24 @@ public class MontonioOrderCreator {
   @Value("${api.url}")
   private String apiUrl;
 
+  // TODO: can we extract knowledge about member fee / EPIS out of this class?
   @Value("${payment.member-fee}")
   private BigDecimal memberFee;
 
   @Value("${payment.member-fee-test-personal-code}")
   private String memberFeeTestPersonalCode;
 
-  private static String getEpisPaymentDescription(PaymentData paymentData) {
+  //TODO: Move this method to PaymentData class?
+  private static String getPaymentDescription(PaymentData paymentData) {
     if (paymentData.getType() == PaymentType.MEMBER_FEE) {
       return String.format("member:%s", paymentData.getRecipientPersonalCode());
     }
 
-    return String.format(
-        "30101119828, IK:%s, EE3600001707", paymentData.getRecipientPersonalCode());
+    final var episPaymentDescription = "30101119828, IK:%s, EE3600001707";
+
+    return String.format(episPaymentDescription, paymentData.getRecipientPersonalCode());
   }
 
-  @SneakyThrows
   public MontonioOrder getOrder(PaymentData paymentData, Person person) {
     MontonioPaymentChannel paymentChannelConfiguration =
         montonioPaymentChannelConfiguration.getPaymentProviderChannel(
@@ -74,7 +77,7 @@ public class MontonioOrderCreator {
                     MontonioPaymentMethodOptions.builder()
                         .preferredProvider(paymentChannelConfiguration.getBic())
                         .preferredLocale(getLanguage())
-                        .paymentDescription(getEpisPaymentDescription(paymentData))
+                        .paymentDescription(getPaymentDescription(paymentData))
                         .build())
                 .build())
         .build();
@@ -89,6 +92,7 @@ public class MontonioOrderCreator {
   }
 
   private BigDecimal getPaymentAmount(PaymentData paymentData) {
+    //TODO: Use polymorphism to get payment fee?
     if (paymentData.getType() == PaymentData.PaymentType.MEMBER_FEE) {
       return this.getMemberPaymentAmount(paymentData);
     }
@@ -117,6 +121,7 @@ public class MontonioOrderCreator {
   }
 
   private String getNotificationUrl() {
+    // TODO move boolean to string, use interpolation in yaml for production link
     if (useFakeNotificationsUrl) {
       // Montonio doesn't support localhost notification urls
       return "https://tuleva.ee/fake-notification-url";

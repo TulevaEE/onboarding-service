@@ -6,12 +6,10 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService;
-
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.Locale;
 import java.util.Objects;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -41,7 +39,7 @@ public class MontonioOrderCreator {
   @Value("${payment.member-fee-test-personal-code}")
   private String memberFeeTestPersonalCode;
 
-  //TODO: Move this method to PaymentData class?
+  // TODO: Move this method to PaymentData class?
   private static String getPaymentDescription(PaymentData paymentData) {
     if (paymentData.getType() == PaymentType.MEMBER_FEE) {
       return String.format("member:%s", paymentData.getRecipientPersonalCode());
@@ -92,7 +90,7 @@ public class MontonioOrderCreator {
   }
 
   private BigDecimal getPaymentAmount(PaymentData paymentData) {
-    //TODO: Use polymorphism to get payment fee?
+    // TODO: Use polymorphism to get payment fee?
     if (paymentData.getType() == PaymentType.MEMBER_FEE) {
       return this.getMemberPaymentAmount(paymentData);
     }

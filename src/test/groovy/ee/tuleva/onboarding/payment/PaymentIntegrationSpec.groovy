@@ -169,7 +169,7 @@ class PaymentIntegrationSpec extends Specification {
   }
 
   private void expectToBeAbleToReceivePaymentNotification() {
-    paymentController.paymentCallback(aSerializedSinglePaymentFinishedToken)
+    paymentController.paymentCallback(montonioNotification)
     assert paymentRepository.findAll().size() == 1
   }
 

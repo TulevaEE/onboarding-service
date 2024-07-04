@@ -1,20 +1,15 @@
 package ee.tuleva.onboarding.payment;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioNotificationBody;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
-
 import java.util.Optional;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.view.RedirectView;
 
 @RestController
@@ -60,8 +55,7 @@ public class PaymentController {
 
   @PostMapping("/notifications")
   @Operation(summary = "Payment callback")
-  // TODO: use orderToken from request body
-  public void paymentCallback(@RequestParam("payment_token") String serializedToken) {
-    paymentService.processToken(serializedToken);
+  public void paymentCallback(@RequestBody MontonioNotificationBody montonioNotificationBody) {
+    paymentService.processToken(montonioNotificationBody.orderToken());
   }
 }

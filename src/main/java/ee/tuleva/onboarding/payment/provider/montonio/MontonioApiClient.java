@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.payment.provider.montonio;
 import static org.springframework.http.MediaType.*;
 
 import java.util.Map;
-
-import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -39,6 +37,5 @@ public class MontonioApiClient {
     return UriComponentsBuilder.fromHttpUrl(montonioUrl).path("/orders").build().toUriString();
   }
 
-  public record MontonioOrderResponse(String paymentUrl) {
-  }
+  public record MontonioOrderResponse(String paymentUrl) {}
 }

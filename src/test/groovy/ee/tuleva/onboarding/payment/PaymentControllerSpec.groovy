@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.payment
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.user.User
@@ -13,12 +14,15 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.*
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSinglePaymentFinishedToken
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.montonioNotification
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*
 
 class PaymentControllerSpec extends BaseControllerSpec {
+
+  ObjectMapper objectMapper = new ObjectMapper()
 
   PaymentService paymentService = Mock()
 
@@ -127,7 +131,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
 
     expect:
     mvc.perform(get("/v1/payments/member-success")
-        .param("payment_token", aSerializedSinglePaymentFinishedToken))
+        .param("order-token", aSerializedSinglePaymentFinishedToken))
         .andExpect(redirectedUrl(frontendUrl))
   }
 
@@ -137,7 +141,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     1 * paymentService.processToken(aSerializedSinglePaymentFinishedToken) >> Optional.empty()
     expect:
     mvc.perform(get("/v1/payments/member-success")
-        .param("payment_token", aSerializedSinglePaymentFinishedToken))
+        .param("order-token", aSerializedSinglePaymentFinishedToken))
         .andExpect(redirectedUrl(frontendUrl + "/account"))
   }
 
@@ -148,7 +152,8 @@ class PaymentControllerSpec extends BaseControllerSpec {
     1 * paymentService.processToken(aSerializedSinglePaymentFinishedToken)
     expect:
     mvc.perform(post("/v1/payments/notifications")
-        .param("payment_token", aSerializedSinglePaymentFinishedToken))
+        .content(objectMapper.writeValueAsString(montonioNotification))
+        .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
   }
 

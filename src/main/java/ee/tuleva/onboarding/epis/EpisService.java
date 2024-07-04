@@ -17,10 +17,8 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
-
 import java.time.LocalDate;
 import java.util.List;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -87,9 +85,9 @@ public class EpisService {
 
   @Caching(
       evict = {
-          @CacheEvict(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
-          @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
-          @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
+        @CacheEvict(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
+        @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
+        @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
       })
   public void clearCache(Person person) {
     log.info("Clearing cache for {}", person.getPersonalCode());

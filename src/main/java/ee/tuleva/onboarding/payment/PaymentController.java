@@ -35,6 +35,7 @@ public class PaymentController {
   @Operation(summary = "Redirects user to payment success")
   public RedirectView getPaymentSuccessRedirect(
       @RequestParam("order-token") String serializedToken) {
+    log.info("Processing payment success redirect");
     Optional<Payment> paymentOptional = paymentService.processToken(serializedToken);
 
     return paymentOptional
@@ -46,6 +47,7 @@ public class PaymentController {
   @Operation(summary = "Redirects user to payment success")
   public RedirectView getMemberPaymentSuccessRedirect(
       @RequestParam("order-token") String serializedToken) {
+    log.info("Processing payment member success redirect");
     Optional<Payment> paymentOptional = paymentService.processToken(serializedToken);
 
     return paymentOptional
@@ -56,6 +58,7 @@ public class PaymentController {
   @PostMapping("/notifications")
   @Operation(summary = "Payment callback")
   public void paymentCallback(@RequestBody MontonioNotificationBody montonioNotificationBody) {
+    log.info("Processing payment notification token");
     paymentService.processToken(montonioNotificationBody.orderToken());
   }
 }

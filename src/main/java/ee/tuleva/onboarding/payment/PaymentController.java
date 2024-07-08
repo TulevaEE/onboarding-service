@@ -61,4 +61,12 @@ public class PaymentController {
     log.info("Processing payment notification token");
     paymentService.processToken(montonioNotificationBody.orderToken());
   }
+
+  // TODO: delete after existing tokens expired
+  @PostMapping("/notification")
+  @Operation(summary = "Payment callback")
+  public void paymentCallback2(@RequestBody MontonioNotificationBody montonioNotificationBody) {
+    log.info("Processing payment notification token");
+    paymentService.processToken(montonioNotificationBody.orderToken());
+  }
 }

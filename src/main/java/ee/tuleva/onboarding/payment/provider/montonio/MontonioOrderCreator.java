@@ -125,6 +125,6 @@ public class MontonioOrderCreator {
       return "https://tuleva.ee/fake-notification-url";
     }
 
-    return apiUrl + "/payments/notification";
+    return apiUrl + "/payments/notifications";
   }
 }

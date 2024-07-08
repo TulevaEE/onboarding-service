@@ -61,7 +61,7 @@ class MontonioOrderCreatorSpec extends Specification {
     order.accessKey == aPaymentChannel.accessKey
     order.merchantReference == aReference
     order.returnUrl == apiUrl + "/payments/member-success"
-    order.notificationUrl == apiUrl + "/payments/notification"
+    order.notificationUrl == apiUrl + "/payments/notifications"
     order.grandTotal == memberFee
     order.currency == Currency.EUR
     order.exp == clock.instant().epochSecond + 600
@@ -90,7 +90,7 @@ class MontonioOrderCreatorSpec extends Specification {
     order.accessKey == aPaymentChannel.accessKey
     order.merchantReference == aReference
     order.returnUrl == apiUrl + "/payments/success"
-    order.notificationUrl == apiUrl + "/payments/notification"
+    order.notificationUrl == apiUrl + "/payments/notifications"
     order.grandTotal == memberFee
     order.currency == Currency.EUR
     order.exp == clock.instant().epochSecond + 600

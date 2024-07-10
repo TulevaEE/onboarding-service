@@ -55,7 +55,7 @@ public class PaymentService {
   private void registerMemberPayment(Payment payment) {
     User user = payment.getUser();
     if (user.isMember()) {
-      log.error(
+      log.info(
           "Member payment {} for user {}. User already is a member.",
           payment.getId(),
           user.getId());

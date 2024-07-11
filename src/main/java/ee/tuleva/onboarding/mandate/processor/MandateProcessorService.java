@@ -3,8 +3,10 @@ package ee.tuleva.onboarding.mandate.processor;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.cancellation.CancellationDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
+import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
+import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
+import ee.tuleva.onboarding.epis.mandate.details.CancellationMandateDetails;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
@@ -34,7 +36,7 @@ public class MandateProcessorService {
         "Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
 
     if (mandate.isWithdrawalCancellation()) {
-      final var response = episService.sendCancellation(getCancellationDto(mandate));
+      final var response = episService.sendMandateV2(getMandateCommand(getCancellationDto(mandate)));
       handleApplicationProcessResponse(new ApplicationResponseDTO(response));
     } else if (mandate.isPaymentRateApplication()) {
       final var response = episService.sendPaymentRateApplication(getPaymentRateDto(mandate));
@@ -60,19 +62,26 @@ public class MandateProcessorService {
     return mandateDtoBuilder.build();
   }
 
-  private CancellationDto getCancellationDto(Mandate mandate) {
-    final var mandateDtoBuilder =
-        CancellationDto.builder()
+  private MandateCommand getMandateCommand(MandateDto<?> mandateDto) {
+
+    final var process = createMandateProcess(mandateDto, ApplicationType.CANCELLATION);
+    mandateDtoBuilder.processId(process.getProcessId());
+
+    return new MandateCommand(mandate);
+  }
+
+  private GenericMandateDto<CancellationMandateDetails> getCancellationDto(Mandate mandate) {
+    final var genericMandateDtoBuilder =
+        GenericMandateDto.<CancellationMandateDetails>builder()
             .id(mandate.getId())
             .createdDate(mandate.getCreatedDate())
-            .applicationTypeToCancel(mandate.getApplicationTypeToCancel())
             .address(mandate.getAddress())
             .email(mandate.getEmail())
-            .phoneNumber(mandate.getPhoneNumber());
+            .phoneNumber(mandate.getPhoneNumber())
+            .details(new CancellationMandateDetails(mandate.getApplicationTypeToCancel()))
+        ;
 
-    final var process = createMandateProcess(mandate, ApplicationType.CANCELLATION);
-    mandateDtoBuilder.processId(process.getProcessId());
-    return mandateDtoBuilder.build();
+    return genericMandateDtoBuilder.build();
   }
 
   private PaymentRateDto getPaymentRateDto(Mandate mandate) {

@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.contribution.Contribution;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.application.ApplicationResponse;
-import ee.tuleva.onboarding.epis.cancellation.CancellationDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.fund.FundDto;
@@ -16,11 +15,14 @@ import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
+import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
+import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.NotImplementedException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -154,18 +156,17 @@ public class EpisService {
         .getBody();
   }
 
+  public MandateCommandResponse sendMandateV2(MandateCommand mandate) {
+    String url = episServiceUrl + "/mandates-v2";
+
+    throw new NotImplementedException("Not yet implemented!");
+  }
+
   public ApplicationResponseDTO sendMandate(MandateDto mandate) {
     String url = episServiceUrl + "/mandates";
 
     return restTemplate.postForObject(
         url, new HttpEntity<>(mandate, getUserHeaders()), ApplicationResponseDTO.class);
-  }
-
-  public ApplicationResponse sendCancellation(CancellationDto cancellation) {
-    String url = episServiceUrl + "/cancellations";
-
-    return restTemplate.postForObject(
-        url, new HttpEntity<>(cancellation, getUserHeaders()), ApplicationResponse.class);
   }
 
   public ApplicationResponse sendPaymentRateApplication(PaymentRateDto paymentRateDto) {

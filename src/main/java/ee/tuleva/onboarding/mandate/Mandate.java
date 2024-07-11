@@ -4,6 +4,10 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
+import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
+import ee.tuleva.onboarding.epis.mandate.MandateDto;
+import ee.tuleva.onboarding.epis.mandate.details.CancellationMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
@@ -52,23 +56,17 @@ public class Mandate implements Serializable {
 
   @JsonView(MandateView.Default.class)
   @Nullable
-  private String futureContributionFundIsin;
+  private String futureContributionFundIsin;// TODO: refactor this field into details
 
   @NotNull
   @Min(2)
   @Max(3)
   @JsonView(MandateView.Default.class)
-  private Integer pillar;
+  private Integer pillar ;// TODO: refactor this field into details
 
   @NotNull
   @JsonView(MandateView.Default.class)
   private Instant createdDate;
-
-  @PrePersist
-  protected void onCreate() {
-    createdDate = clock().instant();
-  }
-
   @Nullable private byte[] mandate;
 
   @OneToMany(
@@ -76,7 +74,7 @@ public class Mandate implements Serializable {
       mappedBy = "mandate")
   @JsonView(MandateView.Default.class)
   @Nullable
-  private List<FundTransferExchange> fundTransferExchanges;
+  private List<FundTransferExchange> fundTransferExchanges; // TODO: refactor this field into details
 
   @Type(JsonType.class)
   @Column(columnDefinition = "jsonb")
@@ -88,11 +86,17 @@ public class Mandate implements Serializable {
   @Column(columnDefinition = "jsonb")
   @Convert(disableConversion = true)
   @NotNull
-  private Map<String, Object> metadata = new HashMap<>();
+  private Map<String, Object> metadata = new HashMap<>(); // TODO: refactor this field into details
+
+  @Type(JsonType.class)
+  @Column(columnDefinition = "jsonb")
+  @Convert(disableConversion = true)
+  @NotNull
+  private Map<String, Object> details = new HashMap<>();
 
   @ValidPaymentRate
   @JsonView(MandateView.Default.class)
-  private BigDecimal paymentRate;
+  private BigDecimal paymentRate; // TODO: refactor this field into details
 
   @Builder
   Mandate(
@@ -110,6 +114,25 @@ public class Mandate implements Serializable {
     this.address = address;
     this.metadata = metadata;
     this.paymentRate = paymentRate;
+  }
+
+  public GenericMandateDto<?> getGenericMandateDto() {
+    if (details.containsKey("applicationTypeToCancel")) {
+      return GenericMandateDto.<CancellationMandateDetails>builder()
+          .id(id)
+          .createdDate(createdDate)
+          .address(address)
+          .email(getEmail())
+          .phoneNumber(getPhoneNumber())
+          .details(new CancellationMandateDetails((ApplicationType) details.get("applicationTypeToCancel"))).build();
+    }
+
+    throw new IllegalStateException("Mandate DTO not yet supported for given application");
+  }
+
+  @PrePersist
+  protected void onCreate() {
+    createdDate = clock().instant();
   }
 
   public Optional<byte[]> getMandate() {

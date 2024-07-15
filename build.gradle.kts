@@ -193,4 +193,5 @@ tasks {
 
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
+    options.compilerArgs.add("--enable-preview")
 }

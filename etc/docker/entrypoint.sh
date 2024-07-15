@@ -12,7 +12,7 @@ MEMORY_GC_OPTS="${MEMORY_GC_OPTS} -XX:-TieredCompilation"
 MEMORY_GC_OPTS="${MEMORY_GC_OPTS} -Djava.security.egd=file:/dev/urandom"
 
 
-JVM_OPTS="-Duser.timezone=${TIMEZONE:-"GMT"} $JVM_OPTS $MEMORY_GC_OPTS"
+JVM_OPTS="-Duser.timezone=${TIMEZONE:-"GMT"} --enable-preview $JVM_OPTS $MEMORY_GC_OPTS"
 
 exec java $JVM_OPTS -cp app:app/lib/* ee.tuleva.onboarding.OnboardingServiceApplication
 

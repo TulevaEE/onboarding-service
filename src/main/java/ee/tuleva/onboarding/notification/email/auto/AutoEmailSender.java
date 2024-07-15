@@ -34,9 +34,13 @@ public class AutoEmailSender {
   public void sendMonthlyEmails() {
     for (final var autoEmailRepository : autoEmailRepositories) {
       EmailType emailType = autoEmailRepository.getEmailType();
-      log.info("Checking monthly emails for: emailType={}", emailType);
       LocalDate startDate = LocalDate.now(clock).withDayOfMonth(1);
-      LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
+      LocalDate endDate = startDate.plusMonths(1);
+      log.info(
+          "Checking monthly emails for: emailType={}, startDate={}, endDate={}",
+          emailType,
+          startDate,
+          endDate);
       final var emailablePeople = autoEmailRepository.fetch(startDate, endDate);
       log.info("Sending monthly emails: emailType={}, to={}", emailType, emailablePeople.size());
       int emailsSent = sendEmails(emailablePeople, emailType);

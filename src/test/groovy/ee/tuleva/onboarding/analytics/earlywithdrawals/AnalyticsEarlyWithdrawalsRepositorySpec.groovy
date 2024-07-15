@@ -7,7 +7,6 @@ import org.springframework.jdbc.core.simple.JdbcClient
 import spock.lang.Specification
 
 import java.time.LocalDate
-import java.time.LocalDateTime
 
 import static ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalFixture.anEarlyWithdrawal
 
@@ -43,14 +42,14 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
     (personal_code, type, status, created_date)
     VALUES (:personal_code, :type, :status, :created_date)""")
         .param("personal_code", aWithdrawal.personalCode())
-        .param("type", "EARLY_WITHDRAWAL")
+        .param("type", "SECOND_PILLAR_EARLY_WITHDRAWAL")
         .param("status", "SCHEDULED")
         .param("created_date", aWithdrawal.lastEmailSentDate())
         .update()
 
     when:
     List<AnalyticsEarlyWithdrawal> withdrawals =
-        analyticsEarlyWithdrawalsRepository.fetch(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
+        analyticsEarlyWithdrawalsRepository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
 
     then:
     withdrawals == [aWithdrawal]
@@ -92,14 +91,14 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
     (personal_code, type, status, created_date)
     VALUES (:personal_code, :type, :status, :created_date)""")
         .param("personal_code", anotherWithdrawal.personalCode())
-        .param("type", "EARLY_WITHDRAWAL")
+        .param("type", "SECOND_PILLAR_EARLY_WITHDRAWAL")
         .param("status", "SCHEDULED")
         .param("created_date", anotherWithdrawal.lastEmailSentDate())
         .update()
 
     when:
     List<AnalyticsEarlyWithdrawal> withdrawals =
-        analyticsEarlyWithdrawalsRepository.fetch(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
+        analyticsEarlyWithdrawalsRepository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
 
     then:
     withdrawals == [aWithdrawal, anotherWithdrawal]

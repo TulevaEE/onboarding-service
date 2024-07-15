@@ -20,7 +20,7 @@ public class AnalyticsEarlyWithdrawalsRepository
   @Override
   public List<AnalyticsEarlyWithdrawal> fetch(LocalDate startDate, LocalDate endDate) {
     String sql =
-        """
+        STR."""
             SELECT
                 w.personal_id AS personalCode,
                 w.first_name AS firstName,
@@ -63,16 +63,20 @@ public class AnalyticsEarlyWithdrawalsRepository
             ) w
             LEFT JOIN public.email em ON w.personal_id = em.personal_code
             WHERE
-                em.type = 'EARLY_WITHDRAWAL' or em.type IS NULL -- type is null = no email sent yet
+                em.type = '\{
+            getEmailType()}' OR em.type IS NULL -- type is null = no email sent yet
             GROUP BY
                 w.personal_id, w.first_name, w.last_name,
                 w.email, w.language, w.early_withdrawal_date, w.early_withdrawal_status
             """;
 
+    LocalDate adjustedStartDate = startDate.minusMonths(1);
+    LocalDate adjustedEndDate = endDate.minusMonths(1);
+
     return jdbcClient
         .sql(sql)
-        .param("startDate", startDate)
-        .param("endDate", endDate)
+        .param("startDate", adjustedStartDate)
+        .param("endDate", adjustedEndDate)
         .query(AnalyticsEarlyWithdrawal.class)
         .list();
   }

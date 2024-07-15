@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.notification.email.auto
 
-
 import ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalsRepository
 import ee.tuleva.onboarding.analytics.leavers.AnalyticsLeaversRepository
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
@@ -32,9 +31,7 @@ class AutoEmailSenderSpec extends Specification {
   def "sends leaver emails"() {
     given:
     def leaver = leaverFixture()
-    def startDate = LocalDate.now(clock).withDayOfMonth(1)
-    def endDate = startDate.withDayOfMonth(startDate.lengthOfMonth())
-    leaversRepository.fetch(startDate, endDate) >> [leaver]
+    leaversRepository.fetch(_ as LocalDate, _ as LocalDate) >> [leaver]
     withdrawalsRepository.fetch(_ as LocalDate, _ as LocalDate) >> []
     emailPersistenceService.getLastEmailSendDate(leaver, SECOND_PILLAR_LEAVERS) >> Optional.empty()
 
@@ -48,9 +45,7 @@ class AutoEmailSenderSpec extends Specification {
   def "does not send duplicates"() {
     given:
     def leaver = leaverFixture()
-    def startDate = LocalDate.now(clock).withDayOfMonth(1)
-    def endDate = startDate.withDayOfMonth(startDate.lengthOfMonth())
-    leaversRepository.fetch(startDate, endDate) >> [leaver]
+    leaversRepository.fetch(_ as LocalDate, _ as LocalDate) >> [leaver]
     withdrawalsRepository.fetch(_ as LocalDate, _ as LocalDate) >> []
     emailPersistenceService.getLastEmailSendDate(leaver, SECOND_PILLAR_LEAVERS) >> Optional.of(Instant.now(clock))
 
@@ -64,9 +59,7 @@ class AutoEmailSenderSpec extends Specification {
   def "sends withdrawal emails"() {
     given:
     def earlyWithdrawal = anEarlyWithdrawal()
-    def startDate = LocalDate.now(clock).withDayOfMonth(1)
-    def endDate = startDate.withDayOfMonth(startDate.lengthOfMonth())
-    withdrawalsRepository.fetch(startDate, endDate) >> [earlyWithdrawal]
+    withdrawalsRepository.fetch(_ as LocalDate, _ as LocalDate) >> [earlyWithdrawal]
     leaversRepository.fetch(_ as LocalDate, _ as LocalDate) >> []
     emailPersistenceService.getLastEmailSendDate(earlyWithdrawal, SECOND_PILLAR_EARLY_WITHDRAWAL) >> Optional.empty()
 

@@ -19,7 +19,7 @@ public class AnalyticsLeaversRepository implements AutoEmailRepository<Analytics
   @Override
   public List<AnalyticsLeaver> fetch(LocalDate startDate, LocalDate endDate) {
     String sql =
-        """
+        STR."""
         SELECT
             ca.current_fund AS "currentFund",
             ca.new_fund AS "newFund",
@@ -54,7 +54,8 @@ public class AnalyticsLeaversRepository implements AutoEmailRepository<Analytics
             mcmp.email IS NOT NULL AND
             (mcmp.keel = 'ENG' OR mcmp.keel = 'EST') AND
             ca.share_percentage >= 10 AND
-            (em.type = 'SECOND_PILLAR_LEAVERS' or em.type IS NULL) -- type is null = no email sent yet
+            (em.type = '\{
+            getEmailType()}' OR em.type IS NULL) -- type is null = no email sent yet
         GROUP BY
             ca.current_fund, ca.new_fund, ca.personal_id, ca.first_name, ca.last_name,
             ca.share_amount, ca.share_percentage, ca.date_created,

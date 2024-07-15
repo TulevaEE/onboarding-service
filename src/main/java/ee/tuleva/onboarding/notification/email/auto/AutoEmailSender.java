@@ -38,9 +38,10 @@ public class AutoEmailSender {
       LocalDate startDate = LocalDate.now(clock).withDayOfMonth(1);
       LocalDate endDate = startDate.withDayOfMonth(startDate.lengthOfMonth());
       final var emailablePeople = autoEmailRepository.fetch(startDate, endDate);
-      log.info("Sending monthly emails: to={}", emailablePeople.size());
+      log.info("Sending monthly emails: emailType={}, to={}", emailType, emailablePeople.size());
       int emailsSent = sendEmails(emailablePeople, emailType);
-      log.info("Successfully sent monthly emails: emailsSent={}", emailsSent);
+      log.info(
+          "Successfully sent monthly emails: emailType={}, emailsSent={}", emailType, emailsSent);
     }
   }
 
@@ -54,17 +55,25 @@ public class AutoEmailSender {
       if (lastEmailSendDate.isPresent()
           && lastEmailSendDate.get().isAfter(ZonedDateTime.now(clock).minusMonths(4).toInstant())) {
         log.info(
-            "Already sent email, skipping: personalCode={}, emailType={}", personalCode, emailType);
+            "Already sent monthly email, skipping: personalCode={}, emailType={}",
+            personalCode,
+            emailType);
         continue;
       }
-      log.info("Sending email to person: personalCode={}", personalCode);
+      log.info(
+          "Sending monthly email to person: personalCode={}, emailType={}",
+          personalCode,
+          emailType);
 
       try {
         mailchimpService.sendEvent(
             emailablePerson.getEmail(), EmailEvent.getByEmailType(emailType));
         emailsSent++;
       } catch (HttpClientErrorException.NotFound e) {
-        log.info("Email not found in Mailchimp, skipping: personalCode={}", personalCode);
+        log.info(
+            "Email not found in Mailchimp, skipping monthly email: personalCode={}, emailType={}",
+            personalCode,
+            emailType);
         continue;
       }
       emailPersistenceService.save(emailablePerson, emailType, SCHEDULED);

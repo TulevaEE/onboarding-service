@@ -5,9 +5,7 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
-import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.details.CancellationMandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
@@ -56,17 +54,23 @@ public class Mandate implements Serializable {
 
   @JsonView(MandateView.Default.class)
   @Nullable
-  private String futureContributionFundIsin;// TODO: refactor this field into details
+  private String futureContributionFundIsin; // TODO: refactor this field into details
+
+  @JsonView(MandateView.Default.class)
+  @Nullable
+  // TODO: check if ApplicationType serialized correctly, not using the Estonian translation
+  private ApplicationType mandateType;
 
   @NotNull
   @Min(2)
   @Max(3)
   @JsonView(MandateView.Default.class)
-  private Integer pillar ;// TODO: refactor this field into details
+  private Integer pillar; // TODO: refactor this field into details
 
   @NotNull
   @JsonView(MandateView.Default.class)
   private Instant createdDate;
+
   @Nullable private byte[] mandate;
 
   @OneToMany(
@@ -74,7 +78,8 @@ public class Mandate implements Serializable {
       mappedBy = "mandate")
   @JsonView(MandateView.Default.class)
   @Nullable
-  private List<FundTransferExchange> fundTransferExchanges; // TODO: refactor this field into details
+  private List<FundTransferExchange>
+      fundTransferExchanges; // TODO: refactor this field into details
 
   @Type(JsonType.class)
   @Column(columnDefinition = "jsonb")
@@ -106,7 +111,9 @@ public class Mandate implements Serializable {
       Integer pillar,
       @Nullable Address address,
       Map<String, Object> metadata,
-      @Nullable BigDecimal paymentRate) {
+      @Nullable BigDecimal paymentRate,
+      ApplicationType mandateType,
+      Map<String, Object> details) {
     this.user = user;
     this.futureContributionFundIsin = futureContributionFundIsin;
     this.fundTransferExchanges = fundTransferExchanges;
@@ -114,17 +121,22 @@ public class Mandate implements Serializable {
     this.address = address;
     this.metadata = metadata;
     this.paymentRate = paymentRate;
+    this.mandateType = mandateType;
+    this.details = details;
   }
 
   public GenericMandateDto<?> getGenericMandateDto() {
-    if (details.containsKey("applicationTypeToCancel")) {
+    if (isWithdrawalCancellation()) {
       return GenericMandateDto.<CancellationMandateDetails>builder()
           .id(id)
           .createdDate(createdDate)
           .address(address)
           .email(getEmail())
           .phoneNumber(getPhoneNumber())
-          .details(new CancellationMandateDetails((ApplicationType) details.get("applicationTypeToCancel"))).build();
+          .details(
+              new CancellationMandateDetails(
+                  ApplicationType.valueOf((String) details.get("applicationTypeToCancel"))))
+          .build();
     }
 
     throw new IllegalStateException("Mandate DTO not yet supported for given application");
@@ -132,7 +144,16 @@ public class Mandate implements Serializable {
 
   @PrePersist
   protected void onCreate() {
-    createdDate = clock().instant();
+    createdDate = clock().instant(); // TODO column default value NOW() in database
+    enforceMandateType();
+  }
+
+  private void enforceMandateType() {
+    if (details.containsKey("applicationTypeToCancel")
+        && mandateType != ApplicationType.CANCELLATION) {
+      throw new IllegalStateException(
+          "Enforcing saving types on mandates that use GenericMandateDto");
+    }
   }
 
   public Optional<byte[]> getMandate() {
@@ -149,6 +170,10 @@ public class Mandate implements Serializable {
 
   public Map<String, List<FundTransferExchange>> getFundTransferExchangesBySourceIsin() {
     Map<String, List<FundTransferExchange>> exchangeMap = new HashMap<>();
+
+    if (isWithdrawalCancellation()) {
+      return Map.of();
+    }
 
     fundTransferExchanges.stream()
         .filter(
@@ -171,7 +196,7 @@ public class Mandate implements Serializable {
 
   @JsonIgnore
   public boolean isWithdrawalCancellation() {
-    return metadata != null && metadata.containsKey("applicationTypeToCancel");
+    return mandateType == ApplicationType.CANCELLATION;
   }
 
   @JsonIgnore
@@ -182,7 +207,8 @@ public class Mandate implements Serializable {
   @JsonIgnore
   public ApplicationType getApplicationTypeToCancel() {
     if (isWithdrawalCancellation()) {
-      return ApplicationType.valueOf((String) metadata.get("applicationTypeToCancel"));
+      // TODO use genericDTO here?
+      return ApplicationType.valueOf((String) details.get("applicationTypeToCancel"));
     }
     return null;
   }

@@ -97,8 +97,7 @@ class MandateContentCreatorSpec extends Specification {
 
   def "Generate mandate content for mandate cancellation"() {
     given:
-    def mandate = sampleMandate()
-    mandate.setMetadata(["applicationTypeToCancel": "WITHDRAWAL"])
+    def mandate = sampleWithdrawalCancellationMandate()
 
     when:
     List<MandateContentFile> mandateContentFiles =
@@ -110,11 +109,11 @@ class MandateContentCreatorSpec extends Specification {
         )
 
     then:
-    mandateContentFiles[3].name == "avalduse_tyhistamise_avaldus_123.html"
-    mandateContentFiles[3].mimeType == "text/html"
-    mandateContentFiles[3].content == "mandateCancellationContent".bytes
+    mandateContentFiles[0].name == "avalduse_tyhistamise_avaldus_123.html"
+    mandateContentFiles[0].mimeType == "text/html"
+    mandateContentFiles[0].content == "mandateCancellationContent".bytes
 
-    mandateContentFiles.size() == 4
+    mandateContentFiles.size() == 1
   }
 
   def "Generate mandate content for payment rate change"() {

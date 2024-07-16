@@ -43,14 +43,15 @@ public class CancellationMandateBuilder {
 
     if (applicationToCancel.getType() == WITHDRAWAL
         || applicationToCancel.getType() == EARLY_WITHDRAWAL) {
-      return buildWithdrawalMandate(applicationToCancel, mandate);
+      return buildWithdrawalCancellationMandate(applicationToCancel, mandate);
     } else if (applicationToCancel.getType() == TRANSFER) {
       return buildTransferCancellationMandate(applicationToCancel, mandate);
     }
     return null;
   }
 
-  public Mandate buildWithdrawalMandate(ApplicationDTO applicationToCancel, Mandate mandate) {
+  public Mandate buildWithdrawalCancellationMandate(
+      ApplicationDTO applicationToCancel, Mandate mandate) {
     mandate.setPillar(2);
     mandate.putMetadata("applicationTypeToCancel", applicationToCancel.getType());
     return mandate;

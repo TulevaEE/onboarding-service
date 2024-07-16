@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.epis.fund.NavDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
+import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto
 import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
@@ -200,7 +201,7 @@ class EpisServiceSpec extends Specification {
     }, ApplicationResponse.class)
 
     when:
-    service.sendCancellation(sampleCancellation)
+    service.sendMandateV2(new MandateCommand( "1", sampleCancellation))
 
     then:
     true

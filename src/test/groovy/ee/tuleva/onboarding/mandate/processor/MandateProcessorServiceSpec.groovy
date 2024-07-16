@@ -2,20 +2,22 @@ package ee.tuleva.onboarding.mandate.processor
 
 import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
-import ee.tuleva.onboarding.epis.cancellation.CancellationDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
+import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
+import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
+import ee.tuleva.onboarding.epis.mandate.details.CancellationMandateDetails
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.Mandate
+import ee.tuleva.onboarding.mandate.MandateRepository
+import ee.tuleva.onboarding.mandate.application.ApplicationType
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleWithdrawalCancellationMandate
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandateWithPaymentRate
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class MandateProcessorServiceSpec extends Specification {
@@ -23,9 +25,10 @@ class MandateProcessorServiceSpec extends Specification {
   MandateProcessRepository mandateProcessRepository = Mock(MandateProcessRepository)
   MandateProcessErrorResolver mandateProcessErrorResolver = Mock(MandateProcessErrorResolver)
   EpisService episService = Mock(EpisService)
+  MandateRepository mandateRepository = Mock(MandateRepository)
 
   MandateProcessorService service = new MandateProcessorService(
-    mandateProcessRepository, mandateProcessErrorResolver, episService)
+    mandateProcessRepository, mandateProcessErrorResolver, episService, mandateRepository)
 
 
   User sampleUser = sampleUser().build()
@@ -63,17 +66,17 @@ class MandateProcessorServiceSpec extends Specification {
     Mandate mandate = sampleWithdrawalCancellationMandate()
     mandate.address = addressFixture().build()
     mandate.user = sampleUser
-    def response = new ApplicationResponse()
+    def response = new MandateCommandResponse("1", true)
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
+    1 * mandateRepository.findById(mandate.id) >> Optional.ofNullable(mandate)
     when:
     service.start(sampleUser, mandate)
     then:
     1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
-    1 * episService.sendCancellation({ CancellationDto dto ->
-      dto.applicationTypeToCancel.toString() == mandate.metadata.get("applicationTypeToCancel")
-      dto.address == mandate.address
+    1 * episService.sendMandateV2({ MandateCommand mandateCommand ->
+      mandateCommand.getMandateDto().details.getType() == ApplicationType.CANCELLATION
     }) >> response
   }
 

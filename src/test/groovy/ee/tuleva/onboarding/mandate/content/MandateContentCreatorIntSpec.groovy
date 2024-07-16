@@ -12,6 +12,7 @@ import spock.lang.Unroll
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleWithdrawalCancellationMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 
 @SpringBootTest
@@ -52,8 +53,8 @@ class MandateContentCreatorIntSpec extends Specification {
 
   def "mandate cancellation mandate can be generated from template"() {
     given:
-    Mandate mandate = sampleMandate()
-    mandate.setMetadata(["applicationTypeToCancel": "WITHDRAWAL"])
+    Mandate mandate = sampleWithdrawalCancellationMandate()
+    mandate.setDetails(["applicationTypeToCancel": "WITHDRAWAL"])
 
     when:
     List<MandateContentFile> mandateContentFiles =
@@ -65,9 +66,9 @@ class MandateContentCreatorIntSpec extends Specification {
         )
 
     then:
-    mandateContentFiles[3].name == "avalduse_tyhistamise_avaldus_123.html"
-    mandateContentFiles[3].mimeType == "text/html"
-    DigestUtils.md5Hex(mandateContentFiles[3].content) == "61bffb8dd76aa1f8a4c18e5ca280af07"
+    mandateContentFiles[0].name == "avalduse_tyhistamise_avaldus_123.html"
+    mandateContentFiles[0].mimeType == "text/html"
+    DigestUtils.md5Hex(mandateContentFiles[0].content) == "61bffb8dd76aa1f8a4c18e5ca280af07"
   }
 
   def "mandate transfer cancellation mandate can be generated from template"() {

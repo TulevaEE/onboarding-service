@@ -5,13 +5,14 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
-import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
-import ee.tuleva.onboarding.epis.mandate.details.CancellationMandateDetails;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
+import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
+import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateRepository;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
@@ -30,14 +31,16 @@ public class MandateProcessorService {
   private final MandateProcessRepository mandateProcessRepository;
   private final MandateProcessErrorResolver mandateProcessErrorResolver;
   private final EpisService episService;
+  private final MandateRepository mandateRepository;
 
   public void start(User user, Mandate mandate) {
     log.info(
         "Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
 
     if (mandate.isWithdrawalCancellation()) {
-      final var response = episService.sendMandateV2(getMandateCommand(getCancellationDto(mandate)));
-      handleApplicationProcessResponse(new ApplicationResponseDTO(response));
+      final var response =
+          episService.sendMandateV2(getMandateCommand(mandate.getGenericMandateDto()));
+      handleMandateCommandResponse(response);
     } else if (mandate.isPaymentRateApplication()) {
       final var response = episService.sendPaymentRateApplication(getPaymentRateDto(mandate));
       handleApplicationProcessResponse(new ApplicationResponseDTO(response));
@@ -62,26 +65,9 @@ public class MandateProcessorService {
     return mandateDtoBuilder.build();
   }
 
-  private MandateCommand getMandateCommand(MandateDto<?> mandateDto) {
-
+  private MandateCommand getMandateCommand(GenericMandateDto<?> mandateDto) {
     final var process = createMandateProcess(mandateDto, ApplicationType.CANCELLATION);
-    mandateDtoBuilder.processId(process.getProcessId());
-
-    return new MandateCommand(mandate);
-  }
-
-  private GenericMandateDto<CancellationMandateDetails> getCancellationDto(Mandate mandate) {
-    final var genericMandateDtoBuilder =
-        GenericMandateDto.<CancellationMandateDetails>builder()
-            .id(mandate.getId())
-            .createdDate(mandate.getCreatedDate())
-            .address(mandate.getAddress())
-            .email(mandate.getEmail())
-            .phoneNumber(mandate.getPhoneNumber())
-            .details(new CancellationMandateDetails(mandate.getApplicationTypeToCancel()))
-        ;
-
-    return genericMandateDtoBuilder.build();
+    return new MandateCommand(process.getProcessId(), mandateDto);
   }
 
   private PaymentRateDto getPaymentRateDto(Mandate mandate) {
@@ -99,6 +85,30 @@ public class MandateProcessorService {
     return mandateDtoBuilder.build();
   }
 
+  private void handleMandateCommandResponse(MandateCommandResponse response) {
+    log.info("Process result with id {} received", response.getProcessId());
+    MandateProcess process = mandateProcessRepository.findOneByProcessId(response.getProcessId());
+    process.setSuccessful(response.isSuccessful());
+    process.setErrorCode(response.getErrorCode());
+
+    saveFinalizedProcess(process);
+  }
+
+  private void saveFinalizedProcess(MandateProcess process) {
+    if (process.getErrorCode().isPresent()) {
+      log.error(
+          "Process with id {} is {} with error code {}",
+          process.getId(),
+          process.isSuccessful().toString(),
+          process.getErrorCode());
+    } else {
+      log.info("Process with id {} is {}", process.getId(), process.isSuccessful().toString());
+    }
+
+    mandateProcessRepository.save(process);
+  }
+
+  // TODO: delete when all mandates have migrated to GenericMandateTdo
   private void handleApplicationProcessResponse(ApplicationResponseDTO response) {
     response
         .getMandateResponses()
@@ -110,18 +120,7 @@ public class MandateProcessorService {
               process.setSuccessful(mandateProcessResult.isSuccessful());
               process.setErrorCode(mandateProcessResult.getErrorCode());
 
-              if (process.getErrorCode().isPresent()) {
-                log.info(
-                    "Process with id {} is {} with error code {}",
-                    process.getId(),
-                    process.isSuccessful().toString(),
-                    process.getErrorCode().toString());
-              } else {
-                log.info(
-                    "Process with id {} is {}", process.getId(), process.isSuccessful().toString());
-              }
-
-              mandateProcessRepository.save(process);
+              saveFinalizedProcess(process);
             });
   }
 
@@ -163,10 +162,29 @@ public class MandateProcessorService {
     }
   }
 
+  // TODO: delete this method when all mandates use GenericMandateDto
   private MandateProcess createMandateProcess(Mandate mandate, ApplicationType type) {
     String processId = UUID.randomUUID().toString().replace("-", "");
     return mandateProcessRepository.save(
         MandateProcess.builder().mandate(mandate).processId(processId).type(type).build());
+  }
+
+  private MandateProcess createMandateProcess(
+      GenericMandateDto<?> genericMandateDto, ApplicationType type) {
+    String processId = UUID.randomUUID().toString().replace("-", "");
+    final Optional<Mandate> mandate = mandateRepository.findById(genericMandateDto.getId());
+
+    if (mandate.isEmpty()) {
+      throw new IllegalStateException(
+          "Mandate with id " + genericMandateDto.getId() + " not found");
+    } else {
+      return mandateProcessRepository.save(
+          MandateProcess.builder()
+              .mandate((mandate.get()))
+              .processId(processId)
+              .type(type)
+              .build());
+    }
   }
 
   public boolean isFinished(Mandate mandate) {

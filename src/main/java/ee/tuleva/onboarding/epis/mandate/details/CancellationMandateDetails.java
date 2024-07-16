@@ -2,24 +2,21 @@ package ee.tuleva.onboarding.epis.mandate.details;
 
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import jakarta.validation.constraints.NotNull;
-import lombok.Getter;
-
 import java.util.EnumSet;
+import lombok.Getter;
 
 public class CancellationMandateDetails implements MandateDetails {
 
-  private static EnumSet<ApplicationType> PERMITTED_APPLICATION_TYPES = EnumSet.of(
-      ApplicationType.TRANSFER,
-      ApplicationType.SELECTION,
-      ApplicationType.EARLY_WITHDRAWAL,
-      ApplicationType.WITHDRAWAL,
-      ApplicationType.PAYMENT,
-      ApplicationType.PAYMENT_RATE
-  );
+  private static EnumSet<ApplicationType> PERMITTED_APPLICATION_TYPES =
+      EnumSet.of(
+          ApplicationType.TRANSFER,
+          ApplicationType.SELECTION,
+          ApplicationType.EARLY_WITHDRAWAL,
+          ApplicationType.WITHDRAWAL,
+          ApplicationType.PAYMENT,
+          ApplicationType.PAYMENT_RATE);
 
-  @NotNull
-  @Getter
-  private ApplicationType applicationTypeToCancel;
+  @NotNull @Getter private ApplicationType applicationTypeToCancel;
 
   public CancellationMandateDetails(ApplicationType type) {
     if (!PERMITTED_APPLICATION_TYPES.contains(type)) {
@@ -31,6 +28,6 @@ public class CancellationMandateDetails implements MandateDetails {
 
   @Override
   public ApplicationType getType() {
-    return null;
+    return ApplicationType.CANCELLATION;
   }
 }

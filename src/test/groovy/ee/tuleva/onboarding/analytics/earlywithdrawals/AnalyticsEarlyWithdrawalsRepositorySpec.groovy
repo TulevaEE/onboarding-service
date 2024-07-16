@@ -9,6 +9,7 @@ import spock.lang.Specification
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalFixture.anEarlyWithdrawal
+import static ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalFixture.anEarlyWithdrawalWithMissingEmail
 
 @DataJdbcTest
 @Import(AnalyticsEarlyWithdrawalsRepository)
@@ -24,28 +25,8 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
     given:
     def aWithdrawal = anEarlyWithdrawal(1)
 
-    jdbcClient.sql("""
-    INSERT INTO analytics.tuk75 
-      (personal_id, first_name, last_name, email, language, early_withdrawal_date, early_withdrawal_status)
-    VALUES (:personal_id, :first_name, :last_name, :email, :language, :early_withdrawal_date, :early_withdrawal_status)""")
-        .param("personal_id", aWithdrawal.personalCode())
-        .param("first_name", aWithdrawal.firstName())
-        .param("last_name", aWithdrawal.lastName())
-        .param("email", aWithdrawal.email())
-        .param("language", aWithdrawal.language())
-        .param("early_withdrawal_date", aWithdrawal.earlyWithdrawalDate())
-        .param("early_withdrawal_status", aWithdrawal.earlyWithdrawalStatus())
-        .update()
-
-    jdbcClient.sql("""
-    INSERT INTO public.email 
-    (personal_code, type, status, created_date)
-    VALUES (:personal_code, :type, :status, :created_date)""")
-        .param("personal_code", aWithdrawal.personalCode())
-        .param("type", "SECOND_PILLAR_EARLY_WITHDRAWAL")
-        .param("status", "SCHEDULED")
-        .param("created_date", aWithdrawal.lastEmailSentDate())
-        .update()
+    insertStockFund(aWithdrawal)
+    insertEmail(aWithdrawal)
 
     when:
     List<AnalyticsEarlyWithdrawal> withdrawals =
@@ -60,41 +41,9 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
     def aWithdrawal = anEarlyWithdrawal(1, null)
     def anotherWithdrawal = anEarlyWithdrawal(2)
 
-    jdbcClient.sql("""
-    INSERT INTO analytics.tuk75 
-      (personal_id, first_name, last_name, email, language, early_withdrawal_date, early_withdrawal_status)
-    VALUES (:personal_id, :first_name, :last_name, :email, :language, :early_withdrawal_date, :early_withdrawal_status)""")
-        .param("personal_id", aWithdrawal.personalCode())
-        .param("first_name", aWithdrawal.firstName())
-        .param("last_name", aWithdrawal.lastName())
-        .param("email", aWithdrawal.email())
-        .param("language", aWithdrawal.language())
-        .param("early_withdrawal_date", aWithdrawal.earlyWithdrawalDate())
-        .param("early_withdrawal_status", aWithdrawal.earlyWithdrawalStatus())
-        .update()
-
-    jdbcClient.sql("""
-    INSERT INTO analytics.tuk00 
-      (personal_id, first_name, last_name, email, language, early_withdrawal_date, early_withdrawal_status)
-    VALUES (:personal_id, :first_name, :last_name, :email, :language, :early_withdrawal_date, :early_withdrawal_status)""")
-        .param("personal_id", anotherWithdrawal.personalCode())
-        .param("first_name", anotherWithdrawal.firstName())
-        .param("last_name", anotherWithdrawal.lastName())
-        .param("email", anotherWithdrawal.email())
-        .param("language", anotherWithdrawal.language())
-        .param("early_withdrawal_date", anotherWithdrawal.earlyWithdrawalDate())
-        .param("early_withdrawal_status", anotherWithdrawal.earlyWithdrawalStatus())
-        .update()
-
-    jdbcClient.sql("""
-    INSERT INTO public.email 
-    (personal_code, type, status, created_date)
-    VALUES (:personal_code, :type, :status, :created_date)""")
-        .param("personal_code", anotherWithdrawal.personalCode())
-        .param("type", "SECOND_PILLAR_EARLY_WITHDRAWAL")
-        .param("status", "SCHEDULED")
-        .param("created_date", anotherWithdrawal.lastEmailSentDate())
-        .update()
+    insertStockFund(aWithdrawal)
+    insertBondFund(anotherWithdrawal)
+    insertEmail(anotherWithdrawal)
 
     when:
     List<AnalyticsEarlyWithdrawal> withdrawals =
@@ -102,5 +51,63 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
 
     then:
     withdrawals == [aWithdrawal, anotherWithdrawal]
+  }
+
+  def "ignores missing emails"() {
+    given:
+    def aWithdrawal = anEarlyWithdrawalWithMissingEmail(3)
+    def anotherWithdrawal = anEarlyWithdrawalWithMissingEmail(4)
+
+    insertStockFund(aWithdrawal)
+    insertBondFund(anotherWithdrawal)
+
+    when:
+    List<AnalyticsEarlyWithdrawal> withdrawals =
+        analyticsEarlyWithdrawalsRepository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+
+    then:
+    withdrawals == []
+  }
+
+  private void insertBondFund(AnalyticsEarlyWithdrawal withdrawal) {
+    jdbcClient.sql("""
+    INSERT INTO analytics.tuk00 
+      (personal_id, first_name, last_name, email, language, early_withdrawal_date, early_withdrawal_status)
+    VALUES (:personal_id, :first_name, :last_name, :email, :language, :early_withdrawal_date, :early_withdrawal_status)""")
+        .param("personal_id", withdrawal.personalCode())
+        .param("first_name", withdrawal.firstName())
+        .param("last_name", withdrawal.lastName())
+        .param("email", withdrawal.email())
+        .param("language", withdrawal.language())
+        .param("early_withdrawal_date", withdrawal.earlyWithdrawalDate())
+        .param("early_withdrawal_status", withdrawal.earlyWithdrawalStatus())
+        .update()
+  }
+
+  private void insertStockFund(AnalyticsEarlyWithdrawal withdrawal) {
+    jdbcClient.sql("""
+    INSERT INTO analytics.tuk75 
+      (personal_id, first_name, last_name, email, language, early_withdrawal_date, early_withdrawal_status)
+    VALUES (:personal_id, :first_name, :last_name, :email, :language, :early_withdrawal_date, :early_withdrawal_status)""")
+        .param("personal_id", withdrawal.personalCode())
+        .param("first_name", withdrawal.firstName())
+        .param("last_name", withdrawal.lastName())
+        .param("email", withdrawal.email())
+        .param("language", withdrawal.language())
+        .param("early_withdrawal_date", withdrawal.earlyWithdrawalDate())
+        .param("early_withdrawal_status", withdrawal.earlyWithdrawalStatus())
+        .update()
+  }
+
+  private void insertEmail(AnalyticsEarlyWithdrawal withdrawal) {
+    jdbcClient.sql("""
+    INSERT INTO public.email 
+    (personal_code, type, status, created_date)
+    VALUES (:personal_code, :type, :status, :created_date)""")
+        .param("personal_code", withdrawal.personalCode())
+        .param("type", "SECOND_PILLAR_EARLY_WITHDRAWAL")
+        .param("status", "SCHEDULED")
+        .param("created_date", withdrawal.lastEmailSentDate())
+        .update()
   }
 }

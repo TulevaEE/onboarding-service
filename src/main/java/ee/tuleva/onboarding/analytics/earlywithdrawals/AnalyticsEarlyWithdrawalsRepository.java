@@ -44,7 +44,8 @@ public class AnalyticsEarlyWithdrawalsRepository
                 WHERE
                     tuk75.early_withdrawal_date >= :startDate AND
                     tuk75.early_withdrawal_date < :endDate AND
-                    tuk75.early_withdrawal_status = 'A'
+                    tuk75.early_withdrawal_status = 'A' AND
+                    tuk75.email IS NOT NULL
                 UNION ALL
                 SELECT
                     tuk00.personal_id,
@@ -59,7 +60,8 @@ public class AnalyticsEarlyWithdrawalsRepository
                 WHERE
                     tuk00.early_withdrawal_date >= :startDate AND
                     tuk00.early_withdrawal_date < :endDate AND
-                    tuk00.early_withdrawal_status = 'A'
+                    tuk00.early_withdrawal_status = 'A' AND
+                    tuk00.email IS NOT NULL
             ) w
             LEFT JOIN public.email em ON w.personal_id = em.personal_code
             WHERE

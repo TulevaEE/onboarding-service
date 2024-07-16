@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.epis.mandate;
 
 import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.address.Address;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -22,4 +23,8 @@ public class GenericMandateDto<TDetails extends MandateDetails> {
   private String email;
 
   private String phoneNumber;
+
+  public ApplicationType getType() {
+    return details.getType();
+  }
 }

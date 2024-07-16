@@ -140,6 +140,10 @@ public class MandateService {
     }
   }
 
+  public Mandate get(Long id) {
+    return mandateRepository.findById(id).orElseThrow(IllegalStateException::new);
+  }
+
   private String handleSignedMandate(User user, Mandate mandate, Locale locale) {
     if (mandateProcessor.isFinished(mandate)) {
       episService.clearCache(user);

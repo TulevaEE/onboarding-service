@@ -43,6 +43,7 @@ class MandateRepositorySpec extends Specification {
       .pillar(2)
       .address(address)
       .metadata(metadata)
+      .details(Map.of())
       .build()
     def fundTransferExchange = FundTransferExchange.builder()
       .sourceFundIsin("AE123232331")

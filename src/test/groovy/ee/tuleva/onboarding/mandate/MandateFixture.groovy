@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
+import ee.tuleva.onboarding.mandate.application.ApplicationType
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
@@ -11,6 +12,7 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.mandate.Mandate.MandateBuilder
 import static ee.tuleva.onboarding.mandate.Mandate.builder
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.CANCELLATION
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class MandateFixture {
@@ -79,6 +81,7 @@ class MandateFixture {
         .futureContributionFundIsin("isin")
         .fundTransferExchanges([])
         .address(addressFixture().build())
+        .details([:])
         .metadata([:])
         .pillar(2)
   }
@@ -153,12 +156,13 @@ class MandateFixture {
   static Mandate sampleWithdrawalCancellationMandate() {
     Mandate mandate = builder()
         .address(addressFixture().build())
+        .mandateType(CANCELLATION)
+        .details(Map.of("applicationTypeToCancel", "SELECTION"))
         .build()
 
     mandate.setId(123)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
-    mandate.metadata = ["applicationTypeToCancel": "SELECTION"]
     mandate.pillar = 2
     return mandate
   }

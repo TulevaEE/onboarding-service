@@ -12,6 +12,7 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.mandate.Mandate.MandateBuilder
 import static ee.tuleva.onboarding.mandate.Mandate.builder
+import static ee.tuleva.onboarding.mandate.MandateType.WITHDRAWAL_CANCELLATION
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.CANCELLATION
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
@@ -156,7 +157,7 @@ class MandateFixture {
   static Mandate sampleWithdrawalCancellationMandate() {
     Mandate mandate = builder()
         .address(addressFixture().build())
-        .mandateType(CANCELLATION)
+        .mandateType(WITHDRAWAL_CANCELLATION)
         .details(Map.of("applicationTypeToCancel", "SELECTION"))
         .build()
 

@@ -1,12 +1,16 @@
 package ee.tuleva.onboarding.epis.mandate;
 
 import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
+import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.address.Address;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
+
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
 @Data
@@ -24,7 +28,6 @@ public class GenericMandateDto<TDetails extends MandateDetails> {
 
   private String phoneNumber;
 
-  public ApplicationType getType() {
-    return details.getType();
-  }
+  @Getter(AccessLevel.NONE)
+  private MandateType mandateType;
 }

@@ -1,12 +1,15 @@
 package ee.tuleva.onboarding.mandate;
 
+import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
-import ee.tuleva.onboarding.epis.mandate.details.CancellationMandateDetails;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
@@ -28,14 +31,9 @@ import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.util.*;
+
+import lombok.*;
 import org.hibernate.annotations.Type;
 import org.jetbrains.annotations.Nullable;
 
@@ -58,8 +56,9 @@ public class Mandate implements Serializable {
 
   @JsonView(MandateView.Default.class)
   @Nullable
+  @Getter(AccessLevel.NONE)
   // TODO: check if ApplicationType serialized correctly, not using the Estonian translation
-  private ApplicationType mandateType;
+  private MandateType mandateType;
 
   @NotNull
   @Min(2)
@@ -112,7 +111,7 @@ public class Mandate implements Serializable {
       @Nullable Address address,
       Map<String, Object> metadata,
       @Nullable BigDecimal paymentRate,
-      ApplicationType mandateType,
+      MandateType mandateType,
       Map<String, Object> details) {
     this.user = user;
     this.futureContributionFundIsin = futureContributionFundIsin;
@@ -125,35 +124,32 @@ public class Mandate implements Serializable {
     this.details = details;
   }
 
+  private <T extends MandateDetails> GenericMandateDto<T> buildGenericMandateDto(MandateType mandateType, T details) {
+    return GenericMandateDto.<T>builder()
+        .mandateType(mandateType)
+        .id(id)
+        .createdDate(createdDate)
+        .address(address)
+        .email(getEmail())
+        .phoneNumber(getPhoneNumber())
+        .details(details)
+        .build();
+  }
+
   public GenericMandateDto<?> getGenericMandateDto() {
     if (isWithdrawalCancellation()) {
-      return GenericMandateDto.<CancellationMandateDetails>builder()
-          .id(id)
-          .createdDate(createdDate)
-          .address(address)
-          .email(getEmail())
-          .phoneNumber(getPhoneNumber())
-          .details(
-              new CancellationMandateDetails(
-                  ApplicationType.valueOf((String) details.get("applicationTypeToCancel"))))
-          .build();
+      return buildGenericMandateDto(MandateType.WITHDRAWAL_CANCELLATION, new WithdrawalCancellationMandateDetails());
+    } else if (isEarlyWithdrawalCancellation()) {
+      return buildGenericMandateDto(MandateType.EARLY_WITHDRAWAL_CANCELLATION, new EarlyWithdrawalCancellationMandateDetails());
+    } else if (isTransferCancellation()) {
+      return buildGenericMandateDto(MandateType.TRANSFER_CANCELLATION, new TransferCancellationMandateDetails());
     }
-
     throw new IllegalStateException("Mandate DTO not yet supported for given application");
   }
 
   @PrePersist
   protected void onCreate() {
     createdDate = clock().instant(); // TODO column default value NOW() in database
-    enforceMandateType();
-  }
-
-  private void enforceMandateType() {
-    if (details.containsKey("applicationTypeToCancel")
-        && mandateType != ApplicationType.CANCELLATION) {
-      throw new IllegalStateException(
-          "Enforcing saving types on mandates that use GenericMandateDto");
-    }
   }
 
   public Optional<byte[]> getMandate() {
@@ -171,10 +167,6 @@ public class Mandate implements Serializable {
   public Map<String, List<FundTransferExchange>> getFundTransferExchangesBySourceIsin() {
     Map<String, List<FundTransferExchange>> exchangeMap = new HashMap<>();
 
-    if (isWithdrawalCancellation()) {
-      return Map.of();
-    }
-
     fundTransferExchanges.stream()
         .filter(
             exchange ->
@@ -190,27 +182,19 @@ public class Mandate implements Serializable {
     return exchangeMap;
   }
 
-  public void putMetadata(String key, Object value) {
-    metadata.put(key, value);
+  @JsonIgnore
+  public boolean isWithdrawalCancellation() {
+    return mandateType == WITHDRAWAL_CANCELLATION;
   }
 
   @JsonIgnore
-  public boolean isWithdrawalCancellation() {
-    return mandateType == ApplicationType.CANCELLATION;
+  public boolean isEarlyWithdrawalCancellation() {
+    return mandateType == EARLY_WITHDRAWAL_CANCELLATION;
   }
 
   @JsonIgnore
   public boolean isPaymentRateApplication() {
     return paymentRate != null;
-  }
-
-  @JsonIgnore
-  public ApplicationType getApplicationTypeToCancel() {
-    if (isWithdrawalCancellation()) {
-      // TODO use genericDTO here?
-      return ApplicationType.valueOf((String) details.get("applicationTypeToCancel"));
-    }
-    return null;
   }
 
   public byte[] getSignedFile() {
@@ -220,12 +204,17 @@ public class Mandate implements Serializable {
 
   @JsonIgnore
   public boolean isTransferCancellation() {
-    return fundTransferExchanges != null
+    return mandateType == TRANSFER_CANCELLATION;
+    /*
+        return fundTransferExchanges != null
         && fundTransferExchanges.size() == 1
         && fundTransferExchanges.getFirst().getSourceFundIsin() != null
         && fundTransferExchanges.getFirst().getTargetFundIsin() == null
         && fundTransferExchanges.getFirst().getAmount() == null;
+     */
   }
+
+
 
   @JsonIgnore
   public String getEmail() {

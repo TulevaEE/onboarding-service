@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
@@ -41,19 +42,25 @@ public class CancellationMandateBuilder {
     conversionDecorator.addConversionMetadata(
         mandate.getMetadata(), conversion, contactDetails, authenticatedPerson);
 
-    if (applicationToCancel.getType() == WITHDRAWAL
-        || applicationToCancel.getType() == EARLY_WITHDRAWAL) {
-      return buildWithdrawalCancellationMandate(applicationToCancel, mandate);
+    if (applicationToCancel.getType() == WITHDRAWAL) {
+      return buildWithdrawalCancellationMandate(mandate);
+    } else if(applicationToCancel.getType() == EARLY_WITHDRAWAL) {
+      return buildEarlyWithdrawalCancellationMandate(mandate);
     } else if (applicationToCancel.getType() == TRANSFER) {
       return buildTransferCancellationMandate(applicationToCancel, mandate);
     }
     return null;
   }
 
-  public Mandate buildWithdrawalCancellationMandate(
-      ApplicationDTO applicationToCancel, Mandate mandate) {
+  public Mandate buildWithdrawalCancellationMandate(Mandate mandate) {
     mandate.setPillar(2);
-    mandate.putMetadata("applicationTypeToCancel", applicationToCancel.getType());
+    mandate.setMandateType(MandateType.WITHDRAWAL_CANCELLATION);
+    return mandate;
+  }
+
+  public Mandate buildEarlyWithdrawalCancellationMandate(Mandate mandate) {
+    mandate.setPillar(2);
+    mandate.setMandateType(MandateType.EARLY_WITHDRAWAL_CANCELLATION);
     return mandate;
   }
 
@@ -69,6 +76,7 @@ public class CancellationMandateBuilder {
             .mandate(mandate)
             .build();
 
+    mandate.setMandateType(MandateType.TRANSFER_CANCELLATION);
     mandate.setPillar(sourceFund.getPillar());
     mandate.setFundTransferExchanges(singletonList(exchange));
     return mandate;

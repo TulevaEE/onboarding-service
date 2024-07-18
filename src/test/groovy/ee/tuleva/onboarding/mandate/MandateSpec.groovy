@@ -20,21 +20,6 @@ class MandateSpec extends Specification {
     validator = Validation.buildDefaultValidatorFactory().validator
   }
 
-  def "can get applicationTypeToCancel"() {
-    when:
-    Mandate mandate = Mandate.builder().details(details).mandateType(type).build()
-
-    then:
-    mandate.isWithdrawalCancellation() == isCancellation
-    mandate.getApplicationTypeToCancel() == applicationTypeToCancel
-
-    where:
-    type         | details                                         | isCancellation | applicationTypeToCancel
-    null         | new HashMap<String, Object>()                   | false          | null
-    CANCELLATION | ["applicationTypeToCancel": "WITHDRAWAL"]       | true           | WITHDRAWAL
-    CANCELLATION | ["applicationTypeToCancel": "EARLY_WITHDRAWAL"] | true           | EARLY_WITHDRAWAL
-  }
-
   def "can group exchanges by source isin"() {
     given:
     FundTransferExchange withAmount = FundTransferExchange.builder().sourceFundIsin("isin")

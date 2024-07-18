@@ -1,7 +1,8 @@
 package ee.tuleva.onboarding.epis.cancellation
 
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto
-import ee.tuleva.onboarding.epis.mandate.details.CancellationMandateDetails
+import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails
+import ee.tuleva.onboarding.mandate.MandateType
 
 import java.time.Instant
 
@@ -10,14 +11,15 @@ import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class CancellationFixture {
 
-    static GenericMandateDto<CancellationMandateDetails> sampleCancellation() {
-        return  GenericMandateDto.<CancellationMandateDetails>builder()
+    static GenericMandateDto<WithdrawalCancellationMandateDetails> sampleCancellation() {
+        return  GenericMandateDto.<WithdrawalCancellationMandateDetails>builder()
             .id(875L)
             .createdDate(Instant.parse("2021-03-09T10:00:00Z"))
             .address(addressFixture().build())
             .email("email@override.ee")
             .phoneNumber("+37288888888")
-            .details(new CancellationMandateDetails(WITHDRAWAL))
+            .mandateType(MandateType.WITHDRAWAL_CANCELLATION)
+            .details(new WithdrawalCancellationMandateDetails())
             .build()
     }
 

@@ -98,6 +98,7 @@ class MandateContentCreatorSpec extends Specification {
   def "Generate mandate content for mandate cancellation"() {
     given:
     def mandate = sampleWithdrawalCancellationMandate()
+    mandate.fundTransferExchanges = List.of()
 
     when:
     List<MandateContentFile> mandateContentFiles =

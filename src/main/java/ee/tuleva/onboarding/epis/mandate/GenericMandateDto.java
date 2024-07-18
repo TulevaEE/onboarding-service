@@ -27,7 +27,4 @@ public class GenericMandateDto<TDetails extends MandateDetails> {
   private String email;
 
   private String phoneNumber;
-
-  @Getter(AccessLevel.NONE)
-  private MandateType mandateType;
 }

@@ -18,7 +18,6 @@ class CancellationFixture {
             .address(addressFixture().build())
             .email("email@override.ee")
             .phoneNumber("+37288888888")
-            .mandateType(MandateType.WITHDRAWAL_CANCELLATION)
             .details(new WithdrawalCancellationMandateDetails())
             .build()
     }

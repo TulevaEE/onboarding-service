@@ -118,6 +118,8 @@ class MandateFixture {
     mandate.setMandate("file".getBytes())
     mandate.setPillar(2)
     mandate.setMetadata(Map.of())
+    mandate.setDetails(Map.of())
+    mandate.setMandateType(MandateType.SELECTION)
     return mandate
   }
 

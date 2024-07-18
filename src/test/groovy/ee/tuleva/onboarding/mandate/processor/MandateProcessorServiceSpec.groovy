@@ -6,11 +6,11 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
-import ee.tuleva.onboarding.epis.mandate.details.CancellationMandateDetails
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateRepository
+import ee.tuleva.onboarding.mandate.MandateType
 import ee.tuleva.onboarding.mandate.application.ApplicationType
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
@@ -18,6 +18,7 @@ import spock.lang.Unroll
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
+import static ee.tuleva.onboarding.mandate.MandateType.*
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class MandateProcessorServiceSpec extends Specification {
@@ -76,7 +77,7 @@ class MandateProcessorServiceSpec extends Specification {
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
     1 * episService.sendMandateV2({ MandateCommand mandateCommand ->
-      mandateCommand.getMandateDto().details.getType() == ApplicationType.CANCELLATION
+      mandateCommand.getMandateDto().mandateType == WITHDRAWAL_CANCELLATION
     }) >> response
   }
 

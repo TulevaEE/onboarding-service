@@ -95,6 +95,7 @@ public class Mandate implements Serializable {
   @Type(JsonType.class)
   @Column(columnDefinition = "jsonb")
   @Convert(disableConversion = true)
+  @JsonView(MandateView.Default.class)
   @NotNull
   private Map<String, Object> details = new HashMap<>();
 
@@ -124,9 +125,9 @@ public class Mandate implements Serializable {
     this.details = details;
   }
 
-  private <T extends MandateDetails> GenericMandateDto<T> buildGenericMandateDto(MandateType mandateType, T details) {
+  @JsonIgnore
+  private <T extends MandateDetails> GenericMandateDto<T> buildGenericMandateDto(T details) {
     return GenericMandateDto.<T>builder()
-        .mandateType(mandateType)
         .id(id)
         .createdDate(createdDate)
         .address(address)
@@ -136,13 +137,14 @@ public class Mandate implements Serializable {
         .build();
   }
 
+  @JsonIgnore
   public GenericMandateDto<?> getGenericMandateDto() {
     if (isWithdrawalCancellation()) {
-      return buildGenericMandateDto(MandateType.WITHDRAWAL_CANCELLATION, new WithdrawalCancellationMandateDetails());
+      return buildGenericMandateDto(new WithdrawalCancellationMandateDetails());
     } else if (isEarlyWithdrawalCancellation()) {
-      return buildGenericMandateDto(MandateType.EARLY_WITHDRAWAL_CANCELLATION, new EarlyWithdrawalCancellationMandateDetails());
+      return buildGenericMandateDto( new EarlyWithdrawalCancellationMandateDetails());
     } else if (isTransferCancellation()) {
-      return buildGenericMandateDto(MandateType.TRANSFER_CANCELLATION, new TransferCancellationMandateDetails());
+      return buildGenericMandateDto(TransferCancellationMandateDetails.fromFundTransferExchanges(fundTransferExchanges));
     }
     throw new IllegalStateException("Mandate DTO not yet supported for given application");
   }
@@ -205,13 +207,6 @@ public class Mandate implements Serializable {
   @JsonIgnore
   public boolean isTransferCancellation() {
     return mandateType == TRANSFER_CANCELLATION;
-    /*
-        return fundTransferExchanges != null
-        && fundTransferExchanges.size() == 1
-        && fundTransferExchanges.getFirst().getSourceFundIsin() != null
-        && fundTransferExchanges.getFirst().getTargetFundIsin() == null
-        && fundTransferExchanges.getFirst().getAmount() == null;
-     */
   }
 
 

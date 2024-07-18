@@ -77,7 +77,7 @@ class MandateProcessorServiceSpec extends Specification {
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
     1 * episService.sendMandateV2({ MandateCommand mandateCommand ->
-      mandateCommand.getMandateDto().mandateType == WITHDRAWAL_CANCELLATION
+      mandateCommand.getMandateDto().details.mandateType == WITHDRAWAL_CANCELLATION
     }) >> response
   }
 

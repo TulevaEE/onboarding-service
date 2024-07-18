@@ -54,7 +54,7 @@ class MandateContentCreatorIntSpec extends Specification {
   def "mandate cancellation mandate can be generated from template"() {
     given:
     Mandate mandate = sampleWithdrawalCancellationMandate()
-    mandate.setDetails(["applicationTypeToCancel": "WITHDRAWAL"])
+    mandate.fundTransferExchanges = List.of()
 
     when:
     List<MandateContentFile> mandateContentFiles =

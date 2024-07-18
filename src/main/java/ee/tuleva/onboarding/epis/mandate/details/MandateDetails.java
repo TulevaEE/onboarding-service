@@ -4,6 +4,4 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 
 public interface MandateDetails {
-  @JsonIgnore
-  ApplicationType getType();
 }

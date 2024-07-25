@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import java.util.ArrayList;
@@ -30,17 +29,16 @@ public class MandateContentCreator {
       files.add(getFutureContributionsFundMandateContentFile(user, mandate, funds, contactDetails));
     }
 
-
     if (mandate.isWithdrawalCancellation()) {
-        files.add(
+      files.add(
           getContentFileForMandateCancellation(
               user, mandate, contactDetails, ApplicationType.WITHDRAWAL));
     }
 
     if (mandate.isEarlyWithdrawalCancellation()) {
-        files.add(
-            getContentFileForMandateCancellation(
-                user, mandate, contactDetails, ApplicationType.EARLY_WITHDRAWAL));
+      files.add(
+          getContentFileForMandateCancellation(
+              user, mandate, contactDetails, ApplicationType.EARLY_WITHDRAWAL));
     }
 
     if (mandate.isPaymentRateApplication()) {

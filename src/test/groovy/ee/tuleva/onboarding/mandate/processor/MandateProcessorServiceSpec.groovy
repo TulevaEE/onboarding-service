@@ -67,7 +67,7 @@ class MandateProcessorServiceSpec extends Specification {
     Mandate mandate = sampleWithdrawalCancellationMandate()
     mandate.address = addressFixture().build()
     mandate.user = sampleUser
-    def response = new MandateCommandResponse("1", true)
+    def response = new MandateCommandResponse("1", true, null, null )
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
     1 * mandateRepository.findById(mandate.id) >> Optional.ofNullable(mandate)
     when:

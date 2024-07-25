@@ -6,8 +6,12 @@ import lombok.Getter;
 public class MandateCommandResponse extends MandateInProcess {
 
   private boolean successful;
-  private Integer errorCode;
-  private String errorMessage;
+  private Integer errorCode; // TODO remove when implementing command that creates multiple mandates
+  private String errorMessage; // TODO remove when 👆
+
+  public MandateCommandResponse() {
+    super(null);
+  }
 
   public MandateCommandResponse(String processId, boolean successful) {
     super(processId);

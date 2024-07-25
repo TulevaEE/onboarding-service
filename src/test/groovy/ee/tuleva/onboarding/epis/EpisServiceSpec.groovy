@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
+import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto
 import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
@@ -23,6 +24,7 @@ import java.time.Instant
 import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMandateCommandResponse
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleCancellation
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
@@ -194,17 +196,19 @@ class EpisServiceSpec extends Specification {
   def "can send cancellations"() {
     given:
     def sampleCancellation = sampleCancellation()
+    def mandateCommandResponse = sampleMandateCommandResponse("1", true, null, null)
 
     1 * restTemplate.postForObject(_ as String, {HttpEntity httpEntity ->
       doesHttpEntityContainToken(httpEntity, sampleToken) &&
-          httpEntity.body.id == sampleCancellation.id
-    }, ApplicationResponse.class)
+          httpEntity.body.mandateDto.id == sampleCancellation.id
+    }, MandateCommandResponse.class) >> mandateCommandResponse
 
     when:
-    service.sendMandateV2(new MandateCommand( "1", sampleCancellation))
+    def response = service.sendMandateV2(new MandateCommand( "1", sampleCancellation))
 
     then:
-    true
+    response.processId == "1"
+    response.successful == true
   }
 
   def "can send payment rate application"() {

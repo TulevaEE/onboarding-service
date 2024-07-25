@@ -22,7 +22,6 @@ import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.NotImplementedException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -156,10 +155,11 @@ public class EpisService {
         .getBody();
   }
 
-  public MandateCommandResponse sendMandateV2(MandateCommand mandate) {
+  public MandateCommandResponse sendMandateV2(MandateCommand<?> mandate) {
     String url = episServiceUrl + "/mandates-v2";
 
-    throw new NotImplementedException("Not yet implemented!");
+    return restTemplate.postForObject(
+        url, new HttpEntity<>(mandate, getUserHeaders()), MandateCommandResponse.class);
   }
 
   public ApplicationResponseDTO sendMandate(MandateDto mandate) {

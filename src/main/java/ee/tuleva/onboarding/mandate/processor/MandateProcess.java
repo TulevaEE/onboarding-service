@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -36,7 +37,7 @@ public class MandateProcess {
 
   private Boolean successful;
 
-  private Integer errorCode;
+  @Nullable private Integer errorCode;
 
   @NotNull private Instant createdDate;
 

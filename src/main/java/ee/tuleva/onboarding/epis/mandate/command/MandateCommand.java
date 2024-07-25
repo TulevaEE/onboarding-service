@@ -1,16 +1,17 @@
 package ee.tuleva.onboarding.epis.mandate.command;
 
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
+import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 
-public class MandateCommand extends MandateInProcess {
-  private final GenericMandateDto mandateDto;
+public class MandateCommand<TDetails extends MandateDetails> extends MandateInProcess {
+  private final GenericMandateDto<TDetails> mandateDto;
 
-  public MandateCommand(String processId, GenericMandateDto mandateDto) {
+  public MandateCommand(String processId, GenericMandateDto<TDetails> mandateDto) {
     super(processId);
     this.mandateDto = mandateDto;
   }
 
-  public GenericMandateDto getMandateDto() {
+  public GenericMandateDto<TDetails> getMandateDto() {
     return mandateDto;
   }
 }

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate;
 
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -13,9 +12,4 @@ public enum MandateType {
   PAYMENT,
   PAYMENT_RATE,
   UNKNOWN;
-
-//  public fromApplicationType() {
-//    return MandateType.valueOf("");
-//  }
-
 }

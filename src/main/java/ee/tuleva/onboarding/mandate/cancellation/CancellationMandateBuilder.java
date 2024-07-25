@@ -44,7 +44,7 @@ public class CancellationMandateBuilder {
 
     if (applicationToCancel.getType() == WITHDRAWAL) {
       return buildWithdrawalCancellationMandate(mandate);
-    } else if(applicationToCancel.getType() == EARLY_WITHDRAWAL) {
+    } else if (applicationToCancel.getType() == EARLY_WITHDRAWAL) {
       return buildEarlyWithdrawalCancellationMandate(mandate);
     } else if (applicationToCancel.getType() == TRANSFER) {
       return buildTransferCancellationMandate(applicationToCancel, mandate);

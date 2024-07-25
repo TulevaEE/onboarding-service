@@ -32,7 +32,6 @@ import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
-
 import lombok.*;
 import org.hibernate.annotations.Type;
 import org.jetbrains.annotations.Nullable;
@@ -142,9 +141,10 @@ public class Mandate implements Serializable {
     if (isWithdrawalCancellation()) {
       return buildGenericMandateDto(new WithdrawalCancellationMandateDetails());
     } else if (isEarlyWithdrawalCancellation()) {
-      return buildGenericMandateDto( new EarlyWithdrawalCancellationMandateDetails());
+      return buildGenericMandateDto(new EarlyWithdrawalCancellationMandateDetails());
     } else if (isTransferCancellation()) {
-      return buildGenericMandateDto(TransferCancellationMandateDetails.fromFundTransferExchanges(fundTransferExchanges));
+      return buildGenericMandateDto(
+          TransferCancellationMandateDetails.fromFundTransferExchanges(fundTransferExchanges));
     }
     throw new IllegalStateException("Mandate DTO not yet supported for given application");
   }
@@ -208,8 +208,6 @@ public class Mandate implements Serializable {
   public boolean isTransferCancellation() {
     return mandateType == TRANSFER_CANCELLATION;
   }
-
-
 
   @JsonIgnore
   public String getEmail() {

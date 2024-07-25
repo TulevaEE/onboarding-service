@@ -37,7 +37,9 @@ public class MandateProcessorService {
     log.info(
         "Start mandate processing user id {} and mandate id {}", user.getId(), mandate.getId());
 
-    if (mandate.isWithdrawalCancellation() || mandate.isEarlyWithdrawalCancellation() || mandate.isTransferCancellation()) {
+    if (mandate.isWithdrawalCancellation()
+        || mandate.isEarlyWithdrawalCancellation()
+        || mandate.isTransferCancellation()) {
       final var response =
           episService.sendMandateV2(getMandateCommand(mandate.getGenericMandateDto()));
       handleMandateCommandResponse(response);

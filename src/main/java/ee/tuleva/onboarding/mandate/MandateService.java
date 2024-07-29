@@ -1,12 +1,19 @@
 package ee.tuleva.onboarding.mandate;
 
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.*;
+import static java.util.Arrays.asList;
+
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConverter;
+import ee.tuleva.onboarding.mandate.cancellation.CancellationMandateBuilder;
+import ee.tuleva.onboarding.mandate.cancellation.InvalidApplicationTypeException;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
@@ -39,6 +46,7 @@ public class MandateService {
   private final SignatureService signService;
   private final CreateMandateCommandToMandateConverter mandateConverter;
   private final MandateProcessorService mandateProcessor;
+  private final CancellationMandateBuilder cancellationMandateBuilder;
   private final MandateFileService mandateFileService;
   private final UserService userService;
   private final EpisService episService;
@@ -56,6 +64,23 @@ public class MandateService {
         new CreateMandateCommandWrapper(
             createMandateCommand, authenticatedPerson, user, conversion, contactDetails);
     Mandate mandate = mandateConverter.convert(wrapper);
+    return save(user, mandate);
+  }
+
+  public Mandate saveCancellation(
+      AuthenticatedPerson authenticatedPerson, ApplicationDTO applicationToCancel) {
+    ApplicationType applicationTypeToCancel = applicationToCancel.getType();
+    if (!asList(WITHDRAWAL, EARLY_WITHDRAWAL, TRANSFER).contains(applicationTypeToCancel)) {
+      throw new InvalidApplicationTypeException(
+          "Invalid application type: " + applicationTypeToCancel);
+    }
+
+    User user = userService.getById(authenticatedPerson.getUserId());
+    ConversionResponse conversion = conversionService.getConversion(user);
+    ContactDetails contactDetails = episService.getContactDetails(user);
+    Mandate mandate =
+        cancellationMandateBuilder.build(
+            applicationToCancel, authenticatedPerson, user, conversion, contactDetails);
     return save(user, mandate);
   }
 

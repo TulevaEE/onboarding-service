@@ -10,6 +10,8 @@ import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
 import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConverter
+import ee.tuleva.onboarding.mandate.cancellation.CancellationMandateBuilder
+import ee.tuleva.onboarding.mandate.cancellation.InvalidApplicationTypeException
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
@@ -29,6 +31,8 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticated
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
+import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION
 import static java.util.Locale.ENGLISH
 
 class MandateServiceSpec extends Specification {
@@ -45,8 +49,9 @@ class MandateServiceSpec extends Specification {
   ApplicationEventPublisher eventPublisher = Mock()
   UserConversionService conversionService = Mock()
   MandateValidator mandateValidator = Mock()
+  CancellationMandateBuilder cancellationMandateBuilder = Mock()
 
-  MandateService service = new MandateService(mandateRepository, signService, converter, mandateProcessor,
+  MandateService service = new MandateService(mandateRepository, signService, converter, mandateProcessor, cancellationMandateBuilder,
       mandateFileService, userService, episService, eventPublisher, conversionService, mandateValidator)
 
   Long sampleMandateId = 1L
@@ -98,6 +103,40 @@ class MandateServiceSpec extends Specification {
     1 * conversionService.getConversion(sampleUser) >> fullyConverted()
     1 * episService.getContactDetails(sampleUser) >> contactDetailsFixture()
     1 * mandateValidator.validate(createMandateCmd, person)
+  }
+
+  def "save: saves cancellation mandate"() {
+    given:
+    def user = sampleUser
+    def person = authenticatedPersonFromUser(user).build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+    def applicationToCancel = sampleTransferApplicationDto()
+    def mandate = sampleMandate()
+
+    1 * conversionService.getConversion(user) >> conversion
+    1 * episService.getContactDetails(user) >> contactDetails
+    1 * cancellationMandateBuilder.build(applicationToCancel, person, user, conversion, contactDetails) >> mandate
+
+    when:
+    service.saveCancellation(person, applicationToCancel)
+
+    then:
+    1 * mandateRepository.save(mandate)
+  }
+
+  def "save: validates application type to cancel before saving"() {
+    given:
+    def user = sampleUser
+    def person = authenticatedPersonFromUser(user).build()
+    def applicationToCancel = sampleTransferApplicationDto()
+    applicationToCancel.type = SELECTION
+
+    when:
+    service.saveCancellation(person, applicationToCancel)
+
+    then:
+    thrown(InvalidApplicationTypeException)
   }
 
   def "mobile id signing works"() {

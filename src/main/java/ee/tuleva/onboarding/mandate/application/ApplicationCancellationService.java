@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.cancellation.MandateCancellationService;
+import ee.tuleva.onboarding.mandate.MandateService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,15 +14,13 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ApplicationCancellationService {
 
-  private final MandateCancellationService mandateCancellationService;
+  private final MandateService mandateService;
   private final EpisService episService;
 
   public ApplicationCancellationResponse createCancellationMandate(
       AuthenticatedPerson authenticatedPerson, Long applicationId) {
     ApplicationDTO applicationToCancel = getApplication(applicationId, authenticatedPerson);
-    Mandate mandate =
-        mandateCancellationService.saveCancellationMandate(
-            authenticatedPerson, applicationToCancel);
+    Mandate mandate = mandateService.saveCancellation(authenticatedPerson, applicationToCancel);
     return new ApplicationCancellationResponse(mandate.getId());
   }
 

@@ -62,6 +62,7 @@ public class CreateMandateCommandToMandateConverter
     mandate.setFundTransferExchanges(fundTransferExchanges);
     mandate.setFutureContributionFundIsin(createMandateCommand.getFutureContributionFundIsin());
 
+    // TODO calculate mandateType here heuristically and set it for non-cancellations
     return mandate;
   }
 

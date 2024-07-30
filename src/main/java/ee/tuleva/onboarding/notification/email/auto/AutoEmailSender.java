@@ -8,9 +8,12 @@ import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.Emailable;
 import ee.tuleva.onboarding.notification.email.provider.MailchimpService;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -54,10 +57,7 @@ public class AutoEmailSender {
     int emailsSent = 0;
     for (EmailablePerson emailablePerson : emailablePeople) {
       String personalCode = emailablePerson.getPersonalCode();
-      var lastEmailSendDate =
-          emailPersistenceService.getLastEmailSendDate(emailablePerson, emailType);
-      if (lastEmailSendDate.isPresent()
-          && lastEmailSendDate.get().isAfter(ZonedDateTime.now(clock).minusMonths(4).toInstant())) {
+      if (userHasGottenAnEmailRecently(emailablePerson, emailType)) {
         log.info(
             "Already sent monthly email, skipping: personalCode={}, emailType={}",
             personalCode,
@@ -83,5 +83,13 @@ public class AutoEmailSender {
       emailPersistenceService.save(emailablePerson, emailType, SCHEDULED);
     }
     return emailsSent;
+  }
+
+  private <EmailablePerson extends Emailable & Person> boolean userHasGottenAnEmailRecently(EmailablePerson emailablePerson, EmailType emailType) {
+    var lastEmailSendDate =
+        emailPersistenceService.getLastEmailSendDate(emailablePerson, emailType);
+
+    return lastEmailSendDate.isPresent()
+        && lastEmailSendDate.get().isAfter(ZonedDateTime.now(clock).minusMonths(4).toInstant());
   }
 }

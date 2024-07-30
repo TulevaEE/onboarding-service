@@ -18,16 +18,14 @@ public enum EmailType {
   THIRD_PILLAR_PAYMENT_REMINDER_MANDATE("third_pillar_payment_reminder_mandate"),
   THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE("third_pillar_payment_success_mandate"),
 
+  ANNIVERSARY("anniversary"),
   MEMBERSHIP("membership");
+
 
   private final String templateName;
 
   EmailType(String templateName) {
     this.templateName = templateName;
-  }
-
-  public String getTemplateName(Locale locale) {
-    return templateName + "_" + locale.getLanguage();
   }
 
   public static EmailType from(Mandate mandate) {
@@ -59,5 +57,9 @@ public enum EmailType {
 
   public static EmailType from(Member member) {
     return MEMBERSHIP;
+  }
+
+  public String getTemplateName(Locale locale) {
+    return templateName + "_" + locale.getLanguage();
   }
 }

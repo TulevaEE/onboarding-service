@@ -26,9 +26,10 @@ public class AnalyticsAnniversaryRepository
                     w.personal_id AS personalCode,
                     w.email,
                     w.language,
-                    BOOL_OR(w.secondPillar) as secondPillar,
-                    BOOL_OR(w.thirdPillar) as thirdPillar,
-                    MAX(w.fullYears) AS fullYears
+                    BOOL_OR(w.secondPillar) as secondPillar, -- secondPillar is defined as literals in tuk75 and tuk00 subquery to identify which table is II and III pillar
+                    BOOL_OR(w.thirdPillar) as thirdPillar, -- same as above but for thirdPillar
+                    -- logical OR is true when they appear in secondPillar or thirdPillar queries respectively
+                    MAX(w.fullYears) AS fullYears -- whenever they started saving earliest
                 FROM
                     email e
                 INNER JOIN (
@@ -102,9 +103,7 @@ public class AnalyticsAnniversaryRepository
                 ) w
                 ON e.personal_code = w.personal_id
                 GROUP BY
-                    personalCode, w.email,
-                    w.email, w.language, w.fullYears
-                -- TODO exclude duplicates, those who collect in II and III pillar
+                    personalCode, email, language
         """;
 
     return jdbcClient

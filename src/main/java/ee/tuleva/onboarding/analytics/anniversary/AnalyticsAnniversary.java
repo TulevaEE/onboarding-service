@@ -1,4 +1,14 @@
 package ee.tuleva.onboarding.analytics.anniversary;
 
-public record AnalyticsAnniversary() {
+import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.notification.email.Emailable;
+import lombok.Getter;
+
+public record AnalyticsAnniversary(
+    @Getter String personalCode,
+    @Getter String firstName,
+    @Getter String lastName,
+    @Getter String email,
+    Integer fullYears
+) implements Person, Emailable {
 }

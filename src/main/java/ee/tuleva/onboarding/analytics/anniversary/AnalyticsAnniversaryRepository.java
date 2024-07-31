@@ -9,6 +9,8 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
 
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.ANNIVERSARY;
+
 @Repository
 @RequiredArgsConstructor
 public class AnalyticsAnniversaryRepository
@@ -20,69 +22,90 @@ public class AnalyticsAnniversaryRepository
   public List<AnalyticsAnniversary> fetch(LocalDate _startDate, LocalDate _endDate) {
     String sql =
         """
-                SELECT 
+                SELECT
                     w.personal_id AS personalCode,
-                    w.first_name AS firstName,
-                    w.last_name AS lastName,
                     w.email,
                     w.language,
-                    w.fullYears AS fullYears
-                FROM 
+                    BOOL_OR(w.secondPillar) as secondPillar,
+                    BOOL_OR(w.thirdPillar) as thirdPillar,
+                    MAX(w.fullYears) AS fullYears
+                FROM
                     email e
                 INNER JOIN (
-                    SELECT 
+                    SELECT
                         personal_id,
+                        email,
+                        language,
+                        true as secondPillar,
+                        false as thirdPillar,
                         EXTRACT(YEAR FROM AGE(MAX(reporting_date), MIN(reporting_date))) AS fullYears
-                    FROM 
+                    FROM
                         analytics.tuk75
-                    WHERE 
-                        active = 'A' -- selection is active 
+                    WHERE
+                        active = 'A' -- selection is active
                         AND early_withdrawal_status IS NULL -- they haven't withdrawn
                         AND share_amount != 0  -- they haven't been given Tuleva via lottery, with no contributions
-                    GROUP BY 
-                        personal_id
-                    HAVING 
+                        AND email IS NOT NULL
+                        AND death_date IS NULL
+                    GROUP BY
+                        personal_id, email, language
+                    HAVING
                         EXTRACT(YEAR FROM AGE(MAX(reporting_date), MIN(reporting_date))) >= 1 -- they have been saving with Tuleva II pillar for at least 1 year
                         AND EXTRACT(MONTH FROM AGE(MAX(reporting_date), MIN(reporting_date))) = 0 -- they have been saving for x years 0 months z days
                         AND MAX(reporting_date) >= (CURRENT_DATE - INTERVAL '1 month') -- since this table contains older records, make sure that it's based on latest reporting date
 
                     UNION ALL
 
-                    SELECT 
+                    SELECT
                         personal_id,
+                        email,
+                        language,
+                        true as secondPillar,
+                        false as thirdPillar,
                         EXTRACT(YEAR FROM AGE(MAX(reporting_date), MIN(reporting_date))) AS fullYears
-                    FROM 
+                    FROM
                         analytics.tuk00
-                    WHERE 
+                    WHERE
                         active = 'A'  -- selection is active
                         AND early_withdrawal_status IS NULL -- they haven't withdrawn
                         AND share_amount != 0 -- they haven't been given Tuleva via lottery, with no contributions
-                    GROUP BY 
-                        personal_id
-                    HAVING 
+                        AND email IS NOT NULL
+                        AND death_date IS NULL
+                    GROUP BY
+                        personal_id, email, language
+                    HAVING
                         EXTRACT(YEAR FROM AGE(MAX(reporting_date), MIN(reporting_date))) >= 1 -- they have been saving with Tuleva II pillar for at least 1 year
                         AND EXTRACT(MONTH FROM AGE(MAX(reporting_date), MIN(reporting_date))) = 0 -- they have been saving for x years 0 months z days
                               AND MAX(reporting_date) >= (CURRENT_DATE - INTERVAL '1 month') -- since this table contains older records, make sure that it's based on latest reporting date
 
                     UNION ALL
-        
+       
                     SELECT
                         personal_id,
-                        AGE(MAX(reporting_date), MIN(reporting_date)) AS fullYears
+                        email,
+                        language,
+                        false as secondPillar,
+                        true as thirdPillar,
+                        EXTRACT(YEAR FROM AGE(MAX(reporting_date), MIN(reporting_date))) AS fullYears
                     FROM
-            analytics.third_pillar
+                        analytics.third_pillar
                     WHERE
-            share_amount != 0 -- they have contributed to third pillar
+                        share_amount != 0 -- they have contributed to third pillar
+                        AND email IS NOT NULL
+                        AND death_date IS NULL
                     GROUP BY
-            personal_id, first_name, last_name
+                        personal_id, first_name, last_name, email, language
                     HAVING
                         EXTRACT(YEAR FROM AGE(MAX(reporting_date), MIN(reporting_date))) >= 1 -- they have been saving with Tuleva III pillar for at least 1 year
-                      AND EXTRACT(MONTH FROM AGE(MAX(reporting_date), MIN(reporting_date))) = 0 -- they have been saving for x years 0 months z days
-                      AND MAX(reporting_date) >= (CURRENT_DATE - INTERVAL '1 month') -- make sure that it's based on latest reporting date
-                       ) w
-                ON e.personal_code = sub.personal_id
+                        AND EXTRACT(MONTH FROM AGE(MAX(reporting_date), MIN(reporting_date))) = 0 -- they have been saving for x years 0 months z days
+                        AND MAX(reporting_date) >= (CURRENT_DATE - INTERVAL '1 month') -- make sure that it's based on latest reporting date
+                ) w
+                ON e.personal_code = w.personal_id
+                GROUP BY
+                    personalCode, w.email,
+                    w.email, w.language, w.fullYears
                 -- TODO exclude duplicates, those who collect in II and III pillar
-                """;
+        """;
 
     return jdbcClient
         .sql(sql)
@@ -92,6 +115,6 @@ public class AnalyticsAnniversaryRepository
 
   @Override
   public EmailType getEmailType() {
-    return EmailType.ANNIVER;
+    return ANNIVERSARY;
   }
 }

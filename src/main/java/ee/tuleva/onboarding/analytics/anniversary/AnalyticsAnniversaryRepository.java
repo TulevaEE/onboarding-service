@@ -30,9 +30,7 @@ public class AnalyticsAnniversaryRepository
                     BOOL_OR(w.thirdPillar) as thirdPillar, -- same as above but for thirdPillar
                     -- logical OR is true when they appear in secondPillar or thirdPillar queries respectively
                     MAX(w.fullYears) AS fullYears -- whenever they started saving earliest
-                FROM
-                    email e
-                INNER JOIN (
+                FROM (
                     SELECT
                         personal_id,
                         email,
@@ -101,7 +99,6 @@ public class AnalyticsAnniversaryRepository
                         AND EXTRACT(MONTH FROM AGE(MAX(reporting_date), MIN(reporting_date))) = 0 -- they have been saving for x years 0 months z days
                         AND MAX(reporting_date) >= (CURRENT_DATE - INTERVAL '1 month') -- make sure that it's based on latest reporting date
                 ) w
-                ON e.personal_code = w.personal_id
                 GROUP BY
                     personalCode, email, language
         """;

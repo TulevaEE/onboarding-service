@@ -9,6 +9,8 @@ public record AnalyticsAnniversary(
     @Getter String firstName,
     @Getter String lastName,
     @Getter String email,
-    Integer fullYears
+    Integer fullYears,
+    Boolean secondPillar,
+    Boolean thirdPillar
 ) implements Person, Emailable {
 }

@@ -144,7 +144,8 @@ public class Mandate implements Serializable {
       return buildGenericMandateDto(new EarlyWithdrawalCancellationMandateDetails());
     } else if (isTransferCancellation()) {
       return buildGenericMandateDto(
-          TransferCancellationMandateDetails.fromFundTransferExchanges(fundTransferExchanges, pillar));
+          TransferCancellationMandateDetails.fromFundTransferExchanges(
+              fundTransferExchanges, pillar));
     }
     throw new IllegalStateException("Mandate DTO not yet supported for given application");
   }

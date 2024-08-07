@@ -1,10 +1,15 @@
 package ee.tuleva.onboarding.mandate;
 
+import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
+import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
+import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
@@ -26,14 +31,8 @@ import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.util.*;
+import lombok.*;
 import org.hibernate.annotations.Type;
 import org.jetbrains.annotations.Nullable;
 
@@ -52,22 +51,23 @@ public class Mandate implements Serializable {
 
   @JsonView(MandateView.Default.class)
   @Nullable
-  private String futureContributionFundIsin;
+  private String futureContributionFundIsin; // TODO: refactor this field into details
+
+  @JsonView(MandateView.Default.class)
+  @Nullable
+  @Getter(AccessLevel.NONE)
+  // TODO: check if ApplicationType serialized correctly, not using the Estonian translation
+  private MandateType mandateType;
 
   @NotNull
   @Min(2)
   @Max(3)
   @JsonView(MandateView.Default.class)
-  private Integer pillar;
+  private Integer pillar; // TODO: refactor this field into details
 
   @NotNull
   @JsonView(MandateView.Default.class)
   private Instant createdDate;
-
-  @PrePersist
-  protected void onCreate() {
-    createdDate = clock().instant();
-  }
 
   @Nullable private byte[] mandate;
 
@@ -76,7 +76,8 @@ public class Mandate implements Serializable {
       mappedBy = "mandate")
   @JsonView(MandateView.Default.class)
   @Nullable
-  private List<FundTransferExchange> fundTransferExchanges;
+  private List<FundTransferExchange>
+      fundTransferExchanges; // TODO: refactor this field into details
 
   @Type(JsonType.class)
   @Column(columnDefinition = "jsonb")
@@ -88,11 +89,18 @@ public class Mandate implements Serializable {
   @Column(columnDefinition = "jsonb")
   @Convert(disableConversion = true)
   @NotNull
-  private Map<String, Object> metadata = new HashMap<>();
+  private Map<String, Object> metadata = new HashMap<>(); // TODO: refactor this field into details
+
+  @Type(JsonType.class)
+  @Column(columnDefinition = "jsonb")
+  @Convert(disableConversion = true)
+  @JsonView(MandateView.Default.class)
+  @NotNull
+  private Map<String, Object> details = new HashMap<>();
 
   @ValidPaymentRate
   @JsonView(MandateView.Default.class)
-  private BigDecimal paymentRate;
+  private BigDecimal paymentRate; // TODO: refactor this field into details
 
   @Builder
   Mandate(
@@ -102,7 +110,9 @@ public class Mandate implements Serializable {
       Integer pillar,
       @Nullable Address address,
       Map<String, Object> metadata,
-      @Nullable BigDecimal paymentRate) {
+      @Nullable BigDecimal paymentRate,
+      MandateType mandateType,
+      Map<String, Object> details) {
     this.user = user;
     this.futureContributionFundIsin = futureContributionFundIsin;
     this.fundTransferExchanges = fundTransferExchanges;
@@ -110,6 +120,39 @@ public class Mandate implements Serializable {
     this.address = address;
     this.metadata = metadata;
     this.paymentRate = paymentRate;
+    this.mandateType = mandateType;
+    this.details = details;
+  }
+
+  @JsonIgnore
+  private <T extends MandateDetails> GenericMandateDto<T> buildGenericMandateDto(T details) {
+    return GenericMandateDto.<T>builder()
+        .id(id)
+        .createdDate(createdDate)
+        .address(address)
+        .email(getEmail())
+        .phoneNumber(getPhoneNumber())
+        .details(details)
+        .build();
+  }
+
+  @JsonIgnore
+  public GenericMandateDto<?> getGenericMandateDto() {
+    if (isWithdrawalCancellation()) {
+      return buildGenericMandateDto(new WithdrawalCancellationMandateDetails());
+    } else if (isEarlyWithdrawalCancellation()) {
+      return buildGenericMandateDto(new EarlyWithdrawalCancellationMandateDetails());
+    } else if (isTransferCancellation()) {
+      return buildGenericMandateDto(
+          TransferCancellationMandateDetails.fromFundTransferExchanges(
+              fundTransferExchanges, pillar));
+    }
+    throw new IllegalStateException("Mandate DTO not yet supported for given application");
+  }
+
+  @PrePersist
+  protected void onCreate() {
+    createdDate = clock().instant(); // TODO column default value NOW() in database
   }
 
   public Optional<byte[]> getMandate() {
@@ -142,26 +185,19 @@ public class Mandate implements Serializable {
     return exchangeMap;
   }
 
-  public void putMetadata(String key, Object value) {
-    metadata.put(key, value);
+  @JsonIgnore
+  public boolean isWithdrawalCancellation() {
+    return mandateType == WITHDRAWAL_CANCELLATION;
   }
 
   @JsonIgnore
-  public boolean isWithdrawalCancellation() {
-    return metadata != null && metadata.containsKey("applicationTypeToCancel");
+  public boolean isEarlyWithdrawalCancellation() {
+    return mandateType == EARLY_WITHDRAWAL_CANCELLATION;
   }
 
   @JsonIgnore
   public boolean isPaymentRateApplication() {
     return paymentRate != null;
-  }
-
-  @JsonIgnore
-  public ApplicationType getApplicationTypeToCancel() {
-    if (isWithdrawalCancellation()) {
-      return ApplicationType.valueOf((String) metadata.get("applicationTypeToCancel"));
-    }
-    return null;
   }
 
   public byte[] getSignedFile() {
@@ -171,11 +207,7 @@ public class Mandate implements Serializable {
 
   @JsonIgnore
   public boolean isTransferCancellation() {
-    return fundTransferExchanges != null
-        && fundTransferExchanges.size() == 1
-        && fundTransferExchanges.getFirst().getSourceFundIsin() != null
-        && fundTransferExchanges.getFirst().getTargetFundIsin() == null
-        && fundTransferExchanges.getFirst().getAmount() == null;
+    return mandateType == TRANSFER_CANCELLATION;
   }
 
   @JsonIgnore

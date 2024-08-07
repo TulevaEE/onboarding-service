@@ -32,7 +32,13 @@ public class MandateContentCreator {
     if (mandate.isWithdrawalCancellation()) {
       files.add(
           getContentFileForMandateCancellation(
-              user, mandate, contactDetails, mandate.getApplicationTypeToCancel()));
+              user, mandate, contactDetails, ApplicationType.WITHDRAWAL));
+    }
+
+    if (mandate.isEarlyWithdrawalCancellation()) {
+      files.add(
+          getContentFileForMandateCancellation(
+              user, mandate, contactDetails, ApplicationType.EARLY_WITHDRAWAL));
     }
 
     if (mandate.isPaymentRateApplication()) {

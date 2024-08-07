@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.FundTransferExchange
 import ee.tuleva.onboarding.mandate.Mandate
+import ee.tuleva.onboarding.mandate.MandateType
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
 import spock.lang.Specification
 
@@ -41,8 +42,8 @@ class CancellationMandateBuilderSpec extends Specification {
     mandate.address == contactDetails.address
     mandate.futureContributionFundIsin == Optional.empty()
     mandate.fundTransferExchanges == null
+    mandate.mandateType == MandateType.WITHDRAWAL_CANCELLATION
     mandate.metadata == [
-        applicationTypeToCancel         : applicationToCancel.type,
         isSecondPillarActive            : contactDetails.secondPillarActive,
         isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,
         isThirdPillarActive             : contactDetails.thirdPillarActive,

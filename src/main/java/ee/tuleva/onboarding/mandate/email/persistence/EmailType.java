@@ -26,15 +26,11 @@ public enum EmailType {
     this.templateName = templateName;
   }
 
-  public String getTemplateName(Locale locale) {
-    return templateName + "_" + locale.getLanguage();
-  }
-
   public static EmailType from(Mandate mandate) {
     if (mandate.isPaymentRateApplication()) {
       return SECOND_PILLAR_PAYMENT_RATE;
     }
-    if (mandate.isWithdrawalCancellation()) {
+    if (mandate.isWithdrawalCancellation() || mandate.isEarlyWithdrawalCancellation()) {
       return SECOND_PILLAR_WITHDRAWAL_CANCELLATION;
     }
     if (mandate.isTransferCancellation()) {
@@ -59,5 +55,9 @@ public enum EmailType {
 
   public static EmailType from(Member member) {
     return MEMBERSHIP;
+  }
+
+  public String getTemplateName(Locale locale) {
+    return templateName + "_" + locale.getLanguage();
   }
 }

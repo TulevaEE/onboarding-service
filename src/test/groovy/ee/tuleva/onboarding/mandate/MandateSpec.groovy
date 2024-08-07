@@ -1,11 +1,12 @@
 package ee.tuleva.onboarding.mandate
 
-
+import ee.tuleva.onboarding.mandate.application.ApplicationType
 import spock.lang.Specification
 import spock.lang.Unroll
 
 import jakarta.validation.ConstraintViolation
 
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.CANCELLATION
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
 import jakarta.validation.Validation
@@ -17,21 +18,6 @@ class MandateSpec extends Specification {
 
   def setup() {
     validator = Validation.buildDefaultValidatorFactory().validator
-  }
-
-  def "can get applicationTypeToCancel"() {
-    when:
-    Mandate mandate = Mandate.builder().metadata(metadata).build()
-
-    then:
-    mandate.isWithdrawalCancellation() == isCancellation
-    mandate.getApplicationTypeToCancel() == applicationTypeToCancel
-
-    where:
-    metadata                                        | isCancellation | applicationTypeToCancel
-    new HashMap<String, Object>()                   | false          | null
-    ["applicationTypeToCancel": "WITHDRAWAL"]       | true           | WITHDRAWAL
-    ["applicationTypeToCancel": "EARLY_WITHDRAWAL"] | true           | EARLY_WITHDRAWAL
   }
 
   def "can group exchanges by source isin"() {

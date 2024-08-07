@@ -5,7 +5,6 @@ import ee.tuleva.onboarding.mandate.MandateType;
 import java.util.List;
 import lombok.Getter;
 
-
 public class TransferCancellationMandateDetails extends MandateDetails {
   @Getter private final String sourceFundIsinOfTransferToCancel;
   @Getter private final Integer pillar;
@@ -29,8 +28,7 @@ public class TransferCancellationMandateDetails extends MandateDetails {
         && fundTransferExchanges.getFirst().getTargetFundIsin() == null
         && fundTransferExchanges.getFirst().getAmount() == null) {
       return new TransferCancellationMandateDetails(
-          fundTransferExchanges.getFirst().getSourceFundIsin(), pillar
-      );
+          fundTransferExchanges.getFirst().getSourceFundIsin(), pillar);
     } else {
       throw new IllegalArgumentException(
           "Cannot construct TransferCancellationMandateDetails from invalid fundTransferExchanges");

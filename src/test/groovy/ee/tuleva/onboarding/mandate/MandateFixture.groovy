@@ -10,11 +10,16 @@ import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand
 
 import java.time.Instant
 
+import static ee.tuleva.onboarding.auth.UserFixture.*
 import static ee.tuleva.onboarding.mandate.Mandate.MandateBuilder
 import static ee.tuleva.onboarding.mandate.Mandate.builder
+import static ee.tuleva.onboarding.mandate.MandateType.EARLY_WITHDRAWAL_CANCELLATION
+import static ee.tuleva.onboarding.mandate.MandateType.TRANSFER_CANCELLATION
 import static ee.tuleva.onboarding.mandate.MandateType.WITHDRAWAL_CANCELLATION
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.CANCELLATION
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
+
+import ee.tuleva.onboarding.auth.UserFixture
 
 class MandateFixture {
 
@@ -161,6 +166,22 @@ class MandateFixture {
         .address(addressFixture().build())
         .mandateType(WITHDRAWAL_CANCELLATION)
         .details(Map.of("applicationTypeToCancel", "SELECTION"))
+        .user(sampleUser().build())
+        .build()
+
+    mandate.setId(123)
+    mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
+    mandate.setMandate("file".getBytes())
+    mandate.pillar = 2
+    return mandate
+  }
+
+  static Mandate sampleEarlyWithdrawalCancellationMandate() {
+    Mandate mandate = builder()
+        .address(addressFixture().build())
+        .mandateType(EARLY_WITHDRAWAL_CANCELLATION)
+        .details(Map.of("applicationTypeToCancel", "SELECTION"))
+        .user(sampleUser().build())
         .build()
 
     mandate.setId(123)
@@ -195,7 +216,9 @@ class MandateFixture {
                 .amount(null)
                 .build(),
         ])
+        .mandateType(TRANSFER_CANCELLATION)
         .futureContributionFundIsin(null)
+        .user(sampleUser().build())
         .address(addressFixture().build())
         .build()
 

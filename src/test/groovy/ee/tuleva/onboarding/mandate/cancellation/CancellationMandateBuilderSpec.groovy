@@ -12,6 +12,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticated
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
+import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleEarlyWithdrawalApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleWithdrawalApplicationDto
 
@@ -43,6 +44,37 @@ class CancellationMandateBuilderSpec extends Specification {
     mandate.futureContributionFundIsin == Optional.empty()
     mandate.fundTransferExchanges == null
     mandate.mandateType == MandateType.WITHDRAWAL_CANCELLATION
+    mandate.metadata == [
+        isSecondPillarActive            : contactDetails.secondPillarActive,
+        isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,
+        isThirdPillarActive             : contactDetails.thirdPillarActive,
+        isThirdPillarFullyConverted     : conversion.thirdPillarFullyConverted,
+        isSecondPillarPartiallyConverted: conversion.secondPillarPartiallyConverted,
+        isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
+        secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
+        thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee,
+        authAttributes                  : [:]
+    ]
+  }
+
+  def "can build early withdrawal cancellation mandates"() {
+    given:
+    def applicationToCancel = sampleEarlyWithdrawalApplicationDto()
+    def user = sampleUser().build()
+    def person = authenticatedPersonFromUser(user).build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+
+    when:
+    Mandate mandate = cancellationMandateBuilder.build(applicationToCancel, person, user, conversion, contactDetails)
+
+    then:
+    mandate.pillar == 2
+    mandate.user == user
+    mandate.address == contactDetails.address
+    mandate.futureContributionFundIsin == Optional.empty()
+    mandate.fundTransferExchanges == null
+    mandate.mandateType == MandateType.EARLY_WITHDRAWAL_CANCELLATION
     mandate.metadata == [
         isSecondPillarActive            : contactDetails.secondPillarActive,
         isSecondPillarFullyConverted    : conversion.secondPillarFullyConverted,

@@ -56,7 +56,6 @@ public class Mandate implements Serializable {
   @JsonView(MandateView.Default.class)
   @Nullable
   @Getter(AccessLevel.NONE)
-  // TODO: check if ApplicationType serialized correctly, not using the Estonian translation
   private MandateType mandateType;
 
   @NotNull

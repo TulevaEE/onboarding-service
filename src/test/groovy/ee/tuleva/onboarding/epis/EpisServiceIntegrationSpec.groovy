@@ -59,12 +59,6 @@ class EpisServiceIntegrationSpec extends Specification {
     DefaultErrorAttributes errorAttributes() {
       return new DefaultErrorAttributes()
     }
-
-    /*
-    @Bean
-    public ObjectMapper objectMapper() {
-      return new ObjectMapper().registerModule(new Jdk8Module())
-    }*/
   }
 
   @Autowired

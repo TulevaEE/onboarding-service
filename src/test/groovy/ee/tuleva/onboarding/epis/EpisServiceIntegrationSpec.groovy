@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.epis
 
-import com.fasterxml.jackson.databind.ObjectMapper
-import com.fasterxml.jackson.datatype.jdk8.Jdk8Module
+
 import ee.tuleva.onboarding.contribution.Contribution
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
@@ -10,8 +9,6 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
-import ee.tuleva.onboarding.epis.mandate.details.MandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails
 import org.mockserver.client.MockServerClient
 import org.mockserver.matchers.MatchType
 import org.mockserver.model.MediaType
@@ -40,7 +37,9 @@ import java.util.concurrent.TimeUnit
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMandateCommandResponse
-import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleCancellation
+import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleEarlyWithdrawalCancellation
+import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleTransferCancellation
+import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleWithdrawalCancellation
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 import static org.mockserver.model.HttpRequest.request
@@ -263,10 +262,9 @@ class EpisServiceIntegrationSpec extends Specification {
     response == expectedResponse
   }
 
-  def "can send mandates v2"() {
+  def "can send withdrawal cancellation mandate v2"() {
     given:
-    // TODO tests for other mandate details types
-    def sampleCancellation = sampleCancellation()
+    def sampleCancellation = sampleWithdrawalCancellation()
     def mandateCommandResponse = sampleMandateCommandResponse("1", true, null, null)
 
     MandateCommandResponse expectedResponse = sampleMandateCommandResponse("1", true, null, null)
@@ -283,6 +281,104 @@ class EpisServiceIntegrationSpec extends Specification {
                 "id" : ${sampleCancellation.id},
                 "details" : {
                   "mandateType" : "WITHDRAWAL_CANCELLATION"
+                },
+                "createdDate" : "${sampleCancellation.createdDate}",
+                "address" : {
+                  "countryCode" : "${sampleCancellation.address.countryCode}"
+                },
+                "email" : "${sampleCancellation.email}",
+                "phoneNumber" : "${sampleCancellation.phoneNumber}"
+              }
+            }
+          """, MatchType.STRICT))
+        )
+
+        .respond(
+            response()
+                .withContentType(MediaType.APPLICATION_JSON)
+                .withBody(json(expectedResponse, MatchType.STRICT))
+        )
+
+    when:
+    MandateCommandResponse response = episService.sendMandateV2(new MandateCommand<>("1", sampleCancellation))
+
+    then:
+    response.successful == expectedResponse.successful
+    response.processId == expectedResponse.processId
+    response.errorCode == expectedResponse.errorCode
+    response.errorMessage == expectedResponse.errorMessage
+  }
+
+  def "can send early withdrawal cancellation mandate v2"() {
+    given:
+    def sampleCancellation = sampleEarlyWithdrawalCancellation()
+    def mandateCommandResponse = sampleMandateCommandResponse("1", true, null, null)
+
+    MandateCommandResponse expectedResponse = sampleMandateCommandResponse("1", true, null, null)
+
+    mockServerClient
+        .when(
+            request()
+                .withMethod("POST")
+                .withPath("/mandates-v2")
+                .withBody(json("""
+            {
+              "processId" : "${mandateCommandResponse.processId}",
+              "mandateDto" : {
+                "id" : ${sampleCancellation.id},
+                "details" : {
+                  "mandateType" : "EARLY_WITHDRAWAL_CANCELLATION"
+                },
+                "createdDate" : "${sampleCancellation.createdDate}",
+                "address" : {
+                  "countryCode" : "${sampleCancellation.address.countryCode}"
+                },
+                "email" : "${sampleCancellation.email}",
+                "phoneNumber" : "${sampleCancellation.phoneNumber}"
+              }
+            }
+          """, MatchType.STRICT))
+        )
+
+        .respond(
+            response()
+                .withContentType(MediaType.APPLICATION_JSON)
+                .withBody(json(expectedResponse, MatchType.STRICT))
+        )
+
+    when:
+    MandateCommandResponse response = episService.sendMandateV2(new MandateCommand<>("1", sampleCancellation))
+
+    then:
+    response.successful == expectedResponse.successful
+    response.processId == expectedResponse.processId
+    response.errorCode == expectedResponse.errorCode
+    response.errorMessage == expectedResponse.errorMessage
+  }
+
+  def "can send transfer cancellation mandate v2"() {
+    given:
+
+    def anIsin = "EE_TEST_ISIN_TO_CANCEL"
+    def sampleCancellation = sampleTransferCancellation(anIsin, 2)
+    def mandateCommandResponse = sampleMandateCommandResponse("1", true, null, null)
+
+    MandateCommandResponse expectedResponse = sampleMandateCommandResponse("1", true, null, null)
+
+    mockServerClient
+        .when(
+            request()
+                .withMethod("POST")
+                .withPath("/mandates-v2")
+                .withBody(json("""
+            {
+              "processId" : "${mandateCommandResponse.processId}",
+              "mandateDto" : {
+                "id" : ${sampleCancellation.id},
+                "details" : {
+                  "mandateType" : "TRANSFER_CANCELLATION",
+                  "sourceFundIsinOfTransferToCancel" : "${anIsin}",
+                  "pillar" : 2
                 },
                 "createdDate" : "${sampleCancellation.createdDate}",
                 "address" : {

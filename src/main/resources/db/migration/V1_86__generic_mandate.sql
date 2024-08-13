@@ -1,6 +1,6 @@
 ALTER TABLE mandate
-  ADD COLUMN details jsonb NOT NULL DEFAULT '{}'::jsonb;
+  ADD COLUMN IF NOT EXISTS details jsonb NOT NULL DEFAULT '{}'::jsonb;
 
 
 ALTER TABLE mandate
-  ADD COLUMN mandate_type VARCHAR(255) DEFAULT 'UNKNOWN';
+  ADD COLUMN IF NOT EXISTS mandate_type VARCHAR(255) DEFAULT 'UNKNOWN';

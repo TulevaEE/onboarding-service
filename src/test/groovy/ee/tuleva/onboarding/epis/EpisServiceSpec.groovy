@@ -25,12 +25,11 @@ import java.time.LocalDate
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMandateCommandResponse
-import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleCancellation
+import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleWithdrawalCancellation
 import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 import static org.springframework.http.HttpMethod.GET
 import static org.springframework.http.HttpStatus.OK
@@ -195,7 +194,7 @@ class EpisServiceSpec extends Specification {
 
   def "can send cancellations"() {
     given:
-    def sampleCancellation = sampleCancellation()
+    def sampleCancellation = sampleWithdrawalCancellation()
     def mandateCommandResponse = sampleMandateCommandResponse("1", true, null, null)
 
     1 * restTemplate.postForObject(_ as String, {HttpEntity httpEntity ->

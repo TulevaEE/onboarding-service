@@ -1,17 +1,17 @@
 package ee.tuleva.onboarding.epis.cancellation
 
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto
+import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
+import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails
-import ee.tuleva.onboarding.mandate.MandateType
 
 import java.time.Instant
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class CancellationFixture {
 
-    static GenericMandateDto<WithdrawalCancellationMandateDetails> sampleCancellation() {
+    static GenericMandateDto<WithdrawalCancellationMandateDetails> sampleWithdrawalCancellation() {
         return  GenericMandateDto.<WithdrawalCancellationMandateDetails>builder()
             .id(875L)
             .createdDate(Instant.parse("2021-03-09T10:00:00Z"))
@@ -21,5 +21,29 @@ class CancellationFixture {
             .details(new WithdrawalCancellationMandateDetails())
             .build()
     }
+
+
+  static GenericMandateDto<EarlyWithdrawalCancellationMandateDetails> sampleEarlyWithdrawalCancellation() {
+    return  GenericMandateDto.<EarlyWithdrawalCancellationMandateDetails>builder()
+        .id(875L)
+        .createdDate(Instant.parse("2021-03-09T10:00:00Z"))
+        .address(addressFixture().build())
+        .email("email@override.ee")
+        .phoneNumber("+37288888888")
+        .details(new EarlyWithdrawalCancellationMandateDetails())
+        .build()
+  }
+
+
+  static GenericMandateDto<TransferCancellationMandateDetails> sampleTransferCancellation(String isinToCancel, int pillar) {
+    return GenericMandateDto.<TransferCancellationMandateDetails>builder()
+        .id(875L)
+        .createdDate(Instant.parse("2021-03-09T10:00:00Z"))
+        .address(addressFixture().build())
+        .email("email@override.ee")
+        .phoneNumber("+37288888888")
+        .details(new TransferCancellationMandateDetails(isinToCancel, pillar))
+        .build()
+  }
 
 }

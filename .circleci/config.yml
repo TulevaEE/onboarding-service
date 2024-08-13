@@ -52,13 +52,6 @@ jobs:
           root: .
           paths:
             - build
-  clear-cache:
-    docker:
-      - image: cimg/base:stable
-    steps:
-      - run:
-          name: Clear Docker Cache
-          command: docker system prune -af
   deploy-staging:
     docker:
       - image: cimg/base:stable

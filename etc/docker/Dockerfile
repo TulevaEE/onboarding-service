@@ -3,7 +3,7 @@ VOLUME /tmp
 
 RUN apt update && apt install curl jq openssl -y
 
-COPY rds-ca-2019-root.pem rds.pem
+COPY rds-ca-eu-central-1-bundle-2024.pem rds.pem
 RUN openssl x509 -in rds.pem -inform pem -out rds.der -outform der
 RUN echo yes | keytool -importcert -alias rdsroot -cacerts -storepass changeit -file rds.der
 

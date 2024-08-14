@@ -10,5 +10,6 @@ for N in $(seq 0 $(($CERTS - 1))); do
   ALIAS="${PEM_FILE%.*}-$N"
   cat $PEM_FILE |
     awk "n==$N { print }; /END CERTIFICATE/ { n++ }" |
+    openssl x509 -inform pem -outform der |
     keytool -noprompt -importcert -alias $ALIAS -trustcacerts -storepass changeit
 done

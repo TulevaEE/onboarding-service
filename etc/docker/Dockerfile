@@ -4,9 +4,14 @@ VOLUME /tmp
 RUN apt update && apt install curl jq openssl -y
 
 # This file is referenced from packaging.gradle.kts
-COPY rds-ca-eu-central-1-bundle-2024.pem rds.pem
-RUN openssl x509 -in rds.pem -inform pem -out rds.der -outform der
-RUN echo yes | keytool -importcert -alias rdsroot -cacerts -storepass changeit -file rds.der
+COPY rds-ca-2019-root.pem rds-2019.pem
+COPY rds-ca-2024-root.pem rds-2024.pem
+
+RUN openssl x509 -in rds-2019.pem -inform pem -out rds-2019.der -outform der
+RUN echo yes | keytool -importcert -alias rdsroot-2019 -cacerts -storepass changeit -file rds-2019.der
+
+RUN openssl x509 -in rds-2024.pem -inform pem -out rds-2024.der -outform der
+RUN echo yes | keytool -importcert -alias rdsroot -cacerts -storepass changeit -file rds-2024.der
 
 COPY dependency/BOOT-INF/lib /app/lib
 COPY dependency/META-INF /app/META-INF

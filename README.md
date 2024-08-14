@@ -159,6 +159,14 @@ We use AWS Client VPN. To get started, log into [AWS SSO Portal](https://tuleva.
 ### Development Environment
 Configuration is available AWS S3 `s3://tulevasecrets/development-configuration/`
 
+
+### RDS certificate upgrade
+
+1. Update `.pem` file in `etc/docker`
+2. If file was renamed, rename it in `gradle/packaging.gradle.kts`
+
+In case file has multiple certificate chains, `import-certs.sh` will add all of them.
+
 ### References
 
 [hwcrypto.js](https://github.com/hwcrypto/hwcrypto.js)

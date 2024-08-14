@@ -123,17 +123,17 @@ workflows:
           filters:
             branches:
               only: master
-#      - deploy-production:
-#          requires:
-#            - aws-ecr/build_and_push_image
-#          context: aws
-#          filters:
-#            branches:
-#              only: master
-#      - notify-sentry-deploy:
-#          requires:
-#            - deploy-production
-#          context: sentry
-#          filters:
-#            branches:
-#              only: master
+      - deploy-production:
+          requires:
+            - aws-ecr/build_and_push_image
+          context: aws
+          filters:
+            branches:
+              only: master
+      - notify-sentry-deploy:
+          requires:
+            - deploy-production
+          context: sentry
+          filters:
+            branches:
+              only: master

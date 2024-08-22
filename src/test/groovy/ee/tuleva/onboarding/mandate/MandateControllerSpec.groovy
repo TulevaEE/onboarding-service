@@ -4,7 +4,11 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
+import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto
+import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
+import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
+import ee.tuleva.onboarding.mandate.generic.GenericMandateService
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
@@ -29,9 +33,10 @@ class MandateControllerSpec extends BaseControllerSpec {
   SignatureFileArchiver signatureFileArchiver = Mock(SignatureFileArchiver)
   MandateFileService mandateFileService = Mock(MandateFileService)
   LocaleResolver localeResolver = Mock(LocaleResolver)
+  GenericMandateService genericMandateService = Mock(GenericMandateService)
 
   MandateController controller =
-      new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver, mandateFileService,
+      new MandateController(mandateRepository, mandateService, genericMandateService, sessionStore, signatureFileArchiver, mandateFileService,
           localeResolver)
   AuthenticatedPerson authenticatedPerson = AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember().build()
   MockMvc mvc = mockMvcWithAuthenticationPrincipal(authenticatedPerson, controller)
@@ -56,6 +61,43 @@ class MandateControllerSpec extends BaseControllerSpec {
             jsonPath('$.fundTransferExchanges[0].targetFundIsin', is(mandate.fundTransferExchanges[0].targetFundIsin)))
         .andExpect(
             jsonPath('$.fundTransferExchanges[0].amount', is(mandate.fundTransferExchanges[0].amount.doubleValue())))
+  }
+
+
+  def "save a generic mandate"() {
+    when:
+    def mandate = sampleEarlyWithdrawalCancellationMandate()
+    genericMandateService.createGenericMandate(_ as AuthenticatedPerson, _ as GenericMandateCreationDto) >> mandate
+    then:
+    mvc
+        .perform(post("/v1/mandates/generic")
+            .content(mapper.writeValueAsString(sampleGenericMandateCreationDto(new EarlyWithdrawalCancellationMandateDetails())))
+            .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.mandateType', is(mandate.mandateType.toString())))
+        .andExpect(jsonPath('$.address.countryCode', is(mandate.address.countryCode)))
+  }
+
+  def "save a fund pension opening generic mandate"() {
+    when:
+    def mandate = sampleFundPensionOpeningMandate()
+    def castDetails = (FundPensionOpeningMandateDetails) mandate.details
+    genericMandateService.createGenericMandate(_ as AuthenticatedPerson, _ as GenericMandateCreationDto) >> mandate
+    then:
+    mvc
+        .perform(post("/v1/mandates/generic")
+            .content(mapper.writeValueAsString(sampleGenericMandateCreationDto(mandate.details)))
+            .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.mandateType', is(mandate.mandateType.toString())))
+        .andExpect(jsonPath('$.details.pillar', is(castDetails.pillar)))
+        .andExpect(jsonPath('$.details.frequency', is(castDetails.frequency.toString())))
+        .andExpect(jsonPath('$.details.durationYears', is(castDetails.durationYears)))
+        .andExpect(jsonPath('$.details.bankAccountDetails.type', is(castDetails.bankAccountDetails.type().toString())))
+        .andExpect(jsonPath('$.details.bankAccountDetails.accountIban', is(castDetails.bankAccountDetails.accountIban())))
+        .andExpect(jsonPath('$.address.countryCode', is(mandate.address.countryCode)))
   }
 
   def "mobile id signature start returns the mobile id challenge code"() {

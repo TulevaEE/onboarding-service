@@ -39,7 +39,8 @@ public class MandateProcessorService {
 
     if (mandate.isWithdrawalCancellation()
         || mandate.isEarlyWithdrawalCancellation()
-        || mandate.isTransferCancellation()) {
+        || mandate.isTransferCancellation()
+        || mandate.isFundPensionOpening()) {
       final var response =
           episService.sendMandateV2(getMandateCommand(mandate.getGenericMandateDto()));
       handleMandateCommandResponse(response);

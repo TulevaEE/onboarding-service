@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.mandate
 
+import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto
+import ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails
+import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails
+import ee.tuleva.onboarding.epis.mandate.details.MandateDetails
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
-import ee.tuleva.onboarding.mandate.application.ApplicationType
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
@@ -10,18 +13,17 @@ import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand
 
 import java.time.Instant
 
-import static ee.tuleva.onboarding.auth.UserFixture.*
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN
+import static ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails.FundPensionFrequency.MONTHLY
 import static ee.tuleva.onboarding.mandate.Mandate.MandateBuilder
 import static ee.tuleva.onboarding.mandate.Mandate.builder
-import static ee.tuleva.onboarding.mandate.MandateType.EARLY_WITHDRAWAL_CANCELLATION
-import static ee.tuleva.onboarding.mandate.MandateType.TRANSFER_CANCELLATION
-import static ee.tuleva.onboarding.mandate.MandateType.WITHDRAWAL_CANCELLATION
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.CANCELLATION
+import static ee.tuleva.onboarding.mandate.MandateType.*
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
-import ee.tuleva.onboarding.auth.UserFixture
-
 class MandateFixture {
+
+  public static aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(2, MONTHLY, 20, new BankAccountDetails(ESTONIAN, "EE_TEST_IBAN"))
 
   public static futureContibutionFundIsin = "AE123232334"
 
@@ -37,6 +39,10 @@ class MandateFixture {
         "futureContributionFundIsin": futureContibutionFundIsin,
         "address": addressFixture().build()
     )
+  }
+
+  static <TDetails extends MandateDetails> GenericMandateCreationDto<TDetails> sampleGenericMandateCreationDto(TDetails details) {
+    return GenericMandateCreationDto.builder().details(details).build()
   }
 
   static sampleStartIdCardSignCommand(String clientCertificate) {
@@ -124,7 +130,6 @@ class MandateFixture {
     mandate.setPillar(2)
     mandate.setMetadata(Map.of())
     mandate.setDetails(Map.of())
-    mandate.setMandateType(MandateType.SELECTION)
     return mandate
   }
 
@@ -165,7 +170,6 @@ class MandateFixture {
     Mandate mandate = builder()
         .address(addressFixture().build())
         .mandateType(WITHDRAWAL_CANCELLATION)
-        .details(Map.of("applicationTypeToCancel", "SELECTION"))
         .user(sampleUser().build())
         .build()
 
@@ -180,7 +184,24 @@ class MandateFixture {
     Mandate mandate = builder()
         .address(addressFixture().build())
         .mandateType(EARLY_WITHDRAWAL_CANCELLATION)
-        .details(Map.of("applicationTypeToCancel", "SELECTION"))
+        .fundTransferExchanges([])
+        .user(sampleUser().build())
+        .build()
+
+    mandate.setId(123)
+    mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
+    mandate.setMandate("file".getBytes())
+    mandate.pillar = 2
+    return mandate
+  }
+
+  static Mandate sampleFundPensionOpeningMandate(FundPensionOpeningMandateDetails details = aFundPensionOpeningMandateDetails) {
+    Mandate mandate = builder()
+        .address(addressFixture().build())
+        .mandateType(FUND_PENSION_OPENING)
+        .pillar(details.pillar)
+        .details(details)
+        .fundTransferExchanges([])
         .user(sampleUser().build())
         .build()
 

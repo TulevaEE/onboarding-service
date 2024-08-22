@@ -87,7 +87,7 @@ public class Mandate implements Serializable {
   @Convert(disableConversion = true)
   @JsonView(MandateView.Default.class)
   @NotNull
-  private Map<String, Object> details = new HashMap<>();
+  private MandateDetails details;
 
   @ValidPaymentRate
   @JsonView(MandateView.Default.class)
@@ -103,7 +103,7 @@ public class Mandate implements Serializable {
       Map<String, Object> metadata,
       @Nullable BigDecimal paymentRate,
       MandateType mandateType,
-      Map<String, Object> details) {
+      MandateDetails details) {
     this.user = user;
     this.futureContributionFundIsin = futureContributionFundIsin;
     this.fundTransferExchanges = fundTransferExchanges;
@@ -185,6 +185,9 @@ public class Mandate implements Serializable {
   public boolean isEarlyWithdrawalCancellation() {
     return mandateType == EARLY_WITHDRAWAL_CANCELLATION;
   }
+
+  @JsonIgnore
+  public boolean isFundPensionOpening () { return mandateType == FUND_PENSION_OPENING; }
 
   @JsonIgnore
   public boolean isPaymentRateApplication() {

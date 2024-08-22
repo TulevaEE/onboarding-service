@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.epis.mandate.details;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.mandate.MandateType;
 import lombok.Getter;
 
@@ -23,10 +24,12 @@ public class FundPensionOpeningMandateDetails extends MandateDetails {
     this.bankAccountDetails = bankAccountDetails;
   }
 
+  @JsonIgnore
   public boolean isSecondPillar() {
     return pillar == 2;
   }
 
+  @JsonIgnore
   public boolean isThirdPillar() {
     return pillar == 3;
   }

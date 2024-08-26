@@ -7,7 +7,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.epis.mandate.details.*;
 import ee.tuleva.onboarding.mandate.MandateType;
-
 import java.io.IOException;
 
 public class GenericMandateCreationDtoDeserializer
@@ -29,15 +28,12 @@ public class GenericMandateCreationDtoDeserializer
           case EARLY_WITHDRAWAL_CANCELLATION ->
               mapper.treeToValue(detailsNode, EarlyWithdrawalCancellationMandateDetails.class);
           case TRANSFER_CANCELLATION ->
-            mapper.treeToValue(detailsNode, TransferCancellationMandateDetails.class);
+              mapper.treeToValue(detailsNode, TransferCancellationMandateDetails.class);
           case FUND_PENSION_OPENING ->
-            mapper.treeToValue(detailsNode, FundPensionOpeningMandateDetails.class);
+              mapper.treeToValue(detailsNode, FundPensionOpeningMandateDetails.class);
           default -> throw new IllegalArgumentException("Unknown mandateType: " + type);
         };
 
-
-    return GenericMandateCreationDto.builder()
-        .details(details)
-        .build();
+    return GenericMandateCreationDto.builder().details(details).build();
   }
 }

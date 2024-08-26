@@ -12,9 +12,8 @@ import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import lombok.RequiredArgsConstructor;
-
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 public abstract class MandateFactory<TDetails extends MandateDetails> {
@@ -25,11 +24,14 @@ public abstract class MandateFactory<TDetails extends MandateDetails> {
   private final ConversionDecorator conversionDecorator;
 
   abstract Mandate createMandate(
-      AuthenticatedPerson authenticatedPerson, GenericMandateCreationDto<TDetails> mandateCreationDto);
+      AuthenticatedPerson authenticatedPerson,
+      GenericMandateCreationDto<TDetails> mandateCreationDto);
 
   abstract boolean supports(MandateType mandateType);
 
-  Mandate setupMandate(AuthenticatedPerson authenticatedPerson, GenericMandateCreationDto<TDetails> mandateCreationDto) {
+  Mandate setupMandate(
+      AuthenticatedPerson authenticatedPerson,
+      GenericMandateCreationDto<TDetails> mandateCreationDto) {
     User user = userService.getById(authenticatedPerson.getUserId());
     ConversionResponse conversion = conversionService.getConversion(user);
     ContactDetails contactDetails = episService.getContactDetails(user);

@@ -187,7 +187,9 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
-  public boolean isFundPensionOpening () { return mandateType == FUND_PENSION_OPENING; }
+  public boolean isFundPensionOpening() {
+    return mandateType == FUND_PENSION_OPENING;
+  }
 
   @JsonIgnore
   public boolean isPaymentRateApplication() {

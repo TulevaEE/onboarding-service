@@ -125,11 +125,6 @@ dependencies {
     implementation("commons-io:commons-io:2.16.1")
     implementation("org.apache.commons:commons-csv:1.11.0")
 
-    //TODO: check if needed
-    testImplementation("org.junit.jupiter:junit-jupiter-api")
-    //TODO: check if needed
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine")
-
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "spock-core")

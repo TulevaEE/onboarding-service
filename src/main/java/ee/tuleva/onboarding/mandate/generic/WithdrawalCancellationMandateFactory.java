@@ -12,14 +12,21 @@ import ee.tuleva.onboarding.user.UserService;
 import org.springframework.stereotype.Component;
 
 @Component
-public class WithdrawalCancellationMandateFactory extends MandateFactory<WithdrawalCancellationMandateDetails>  {
+public class WithdrawalCancellationMandateFactory
+    extends MandateFactory<WithdrawalCancellationMandateDetails> {
 
-  public WithdrawalCancellationMandateFactory(UserService userService, EpisService episService, UserConversionService conversionService, ConversionDecorator conversionDecorator) {
+  public WithdrawalCancellationMandateFactory(
+      UserService userService,
+      EpisService episService,
+      UserConversionService conversionService,
+      ConversionDecorator conversionDecorator) {
     super(userService, episService, conversionService, conversionDecorator);
   }
 
   @Override
-  public Mandate createMandate(AuthenticatedPerson authenticatedPerson, GenericMandateCreationDto<WithdrawalCancellationMandateDetails> mandateCreationDto) {
+  public Mandate createMandate(
+      AuthenticatedPerson authenticatedPerson,
+      GenericMandateCreationDto<WithdrawalCancellationMandateDetails> mandateCreationDto) {
     Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
 
     mandate.setPillar(2);

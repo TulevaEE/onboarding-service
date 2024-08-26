@@ -5,10 +5,9 @@ import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto;
 import ee.tuleva.onboarding.mandate.*;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -17,7 +16,8 @@ public class GenericMandateService {
   private final MandateService mandateService;
   private final UserService userService;
 
-  public Mandate createGenericMandate(AuthenticatedPerson authenticatedPerson, GenericMandateCreationDto<?> mandateCreationDto) {
+  public Mandate createGenericMandate(
+      AuthenticatedPerson authenticatedPerson, GenericMandateCreationDto<?> mandateCreationDto) {
     MandateType mandateType = mandateCreationDto.getDetails().getMandateType();
 
     Mandate mandate =
@@ -32,5 +32,4 @@ public class GenericMandateService {
 
     return mandate;
   }
-
 }

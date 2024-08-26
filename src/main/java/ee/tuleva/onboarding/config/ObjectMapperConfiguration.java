@@ -17,7 +17,8 @@ public class ObjectMapperConfiguration {
   public Jackson2ObjectMapperBuilderCustomizer customizeObjectMapper() {
     return jacksonObjectMapperBuilder ->
         jacksonObjectMapperBuilder
-            .deserializerByType(GenericMandateCreationDto.class, new GenericMandateCreationDtoDeserializer())
+            .deserializerByType(
+                GenericMandateCreationDto.class, new GenericMandateCreationDtoDeserializer())
             .featuresToEnable(WRITE_BIGDECIMAL_AS_PLAIN)
             .modules(new Jdk8Module(), new JavaTimeModule());
   }

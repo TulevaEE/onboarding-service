@@ -23,7 +23,7 @@ import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class MandateFixture {
 
-  public static aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(2, MONTHLY, 20, new BankAccountDetails(ESTONIAN, "EE_TEST_IBAN"))
+  public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(2, MONTHLY, 20, new BankAccountDetails(ESTONIAN, "EE_TEST_IBAN"))
 
   public static futureContibutionFundIsin = "AE123232334"
 

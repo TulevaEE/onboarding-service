@@ -51,7 +51,7 @@ public class TransferCancellationMandateFactory
 
     mandate.setMandateType(MandateType.TRANSFER_CANCELLATION);
     mandate.setPillar(sourceFund.getPillar());
-    mandate.setFundTransferExchanges(singletonList(exchange));
+    mandate.setFundTransferExchanges(singletonList(exchange)); // TODO no need to save?
 
     return mandate;
   }

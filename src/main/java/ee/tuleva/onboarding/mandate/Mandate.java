@@ -7,10 +7,7 @@ import static jakarta.persistence.EnumType.STRING;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
-import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails;
-import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.*;
 import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
@@ -137,6 +134,10 @@ public class Mandate implements Serializable {
       return buildGenericMandateDto(
           TransferCancellationMandateDetails.fromFundTransferExchanges(
               fundTransferExchanges, pillar));
+    } else if (isFundPensionOpening()) {
+      return buildGenericMandateDto(
+          (FundPensionOpeningMandateDetails) details // TODO ?
+          );
     }
     throw new IllegalStateException("Mandate DTO not yet supported for given application");
   }

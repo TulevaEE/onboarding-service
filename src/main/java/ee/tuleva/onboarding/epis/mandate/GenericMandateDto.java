@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.epis.mandate;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
+import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.user.address.Address;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
@@ -22,4 +24,9 @@ public class GenericMandateDto<TDetails extends MandateDetails> {
   private String email;
 
   private String phoneNumber;
+
+  @JsonIgnore
+  public MandateType getMandateType() {
+    return details.getMandateType();
+  }
 }

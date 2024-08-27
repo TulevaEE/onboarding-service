@@ -43,6 +43,7 @@ public abstract class MandateFactory<TDetails extends MandateDetails> {
         mandate.getMetadata(), conversion, contactDetails, authenticatedPerson);
 
     mandate.setFundTransferExchanges(List.of());
+    mandate.setDetails(mandateCreationDto.getDetails());
 
     return mandate;
   }

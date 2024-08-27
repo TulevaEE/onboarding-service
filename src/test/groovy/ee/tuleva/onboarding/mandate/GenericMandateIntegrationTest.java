@@ -1,86 +1,70 @@
 package ee.tuleva.onboarding.mandate;
 
+// import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture;
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.*;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import ee.tuleva.onboarding.auth.JwtTokenGenerator;
+import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto;
-import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.web.servlet.error.DefaultErrorAttributes;
-import org.springframework.boot.web.servlet.error.ErrorAttributes;
-import org.springframework.context.annotation.Bean;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.web.client.TestRestTemplate;
+import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.*;
-import org.springframework.web.client.RestTemplate;
 
-@SpringBootTest
+@SpringBootTest(webEnvironment = RANDOM_PORT)
 class GenericMandateIntegrationTest {
 
-  @Autowired private RestTemplate restTemplate;
+  @LocalServerPort int randomServerPort;
 
-  static <TDetails extends MandateDetails>
-      GenericMandateCreationDto sampleGenericMandateCreationDto(TDetails details) {
-    return GenericMandateCreationDto.builder().details(details).build();
-  }
+  @Autowired private TestRestTemplate restTemplate;
 
-  //  @Autowired
-  //  private CacheManager cacheManager;
-  //
-  //  private MockServerClient mockServerClient;
+  @MockBean private EpisService episService;
 
-  private void setUpSecurityContext() {
-    //    SecurityContext sc = SecurityContextHolder.createEmptyContext()
-    //    TestingAuthenticationToken authentication = new TestingAuthenticationToken("test",
-    // "dummy")
-    //    sc.authentication = authentication
-    //    SecurityContextHolder.context = sc
-  }
-
-  @BeforeEach
-  void setUp() {
-    setUpSecurityContext();
-  }
-
-  //  def cleanup() {
-  //    SecurityContextHolder.clearContext()
-  //    cacheManager.cacheNames.stream().forEach(cache -> cacheManager.getCache(cache).clear())
-  //  }
-
-  @Test
-  void testMandateCreation() {
-    String url = "/v1/mandates/generic";
+  static HttpHeaders getHeaders() {
+    var jwtToken = JwtTokenGenerator.generateDefaultJwtToken();
 
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(APPLICATION_JSON);
+    headers.add("Authorization", "Bearer " + jwtToken);
 
-    //    var aDto = sampleGenericMandateCreationDto(new WithdrawalCancellationMandateDetails());
+    return headers;
+  }
+
+  @Test
+  @DisplayName("create generic mandate")
+  void testMandateCreation() throws Exception {
+    String url = "http://localhost:" + randomServerPort + "/v1/mandates/generic";
+
+    var headers = getHeaders();
+
     var aDto =
         GenericMandateCreationDto.builder()
             .details(new WithdrawalCancellationMandateDetails())
             .build();
 
+    when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
+    when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
+
     HttpEntity<GenericMandateCreationDto<?>> request = new HttpEntity<>(aDto, headers);
 
-    ResponseEntity<Mandate> response = restTemplate.postForEntity(url, request, Mandate.class);
+    ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-    assertThat(response.getBody()).isNotNull();
-
-    // 0. bootstrap the data
-    // 1. call endpoint with json and a token
-    // 2. assert the respojnse
-
-  }
-
-  static class Config {
-    @Bean
-    @ConditionalOnMissingBean(value = ErrorAttributes.class)
-    DefaultErrorAttributes errorAttributes() {
-      return new DefaultErrorAttributes();
-    }
+    JsonNode jsonNode = (new ObjectMapper()).readTree(response.getBody());
+    assertThat(jsonNode.get("mandateType").asText()).isEqualTo("WITHDRAWAL_CANCELLATION");
+    assertThat(jsonNode.get("pillar").asInt()).isEqualTo(2);
   }
 }

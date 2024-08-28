@@ -8,5 +8,4 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public abstract class MandateDetails {
   protected final MandateType mandateType;
-  // public static MandateDetails fromJsonNode(JsonNode detailsNode);
 }

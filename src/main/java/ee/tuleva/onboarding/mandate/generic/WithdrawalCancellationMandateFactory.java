@@ -29,8 +29,11 @@ public class WithdrawalCancellationMandateFactory
       GenericMandateCreationDto<WithdrawalCancellationMandateDetails> mandateCreationDto) {
     Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
 
+    // TODO legacy fields
     mandate.setPillar(2);
     mandate.setMandateType(MandateType.WITHDRAWAL_CANCELLATION);
+
+    mandate.setDetails(new WithdrawalCancellationMandateDetails());
 
     return mandate;
   }

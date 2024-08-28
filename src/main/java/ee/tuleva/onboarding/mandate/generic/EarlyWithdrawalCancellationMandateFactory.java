@@ -29,8 +29,11 @@ public class EarlyWithdrawalCancellationMandateFactory
       GenericMandateCreationDto<EarlyWithdrawalCancellationMandateDetails> mandateCreationDto) {
     Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
 
+    // TODO legacy fields
     mandate.setPillar(2);
     mandate.setMandateType(MandateType.EARLY_WITHDRAWAL_CANCELLATION);
+
+    mandate.setDetails(new EarlyWithdrawalCancellationMandateDetails());
 
     return mandate;
   }

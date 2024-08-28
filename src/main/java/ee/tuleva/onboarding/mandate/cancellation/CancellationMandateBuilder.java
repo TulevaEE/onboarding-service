@@ -9,6 +9,9 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
+import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
@@ -53,14 +56,20 @@ public class CancellationMandateBuilder {
   }
 
   public Mandate buildWithdrawalCancellationMandate(Mandate mandate) {
+    // TODO legacy fields
     mandate.setPillar(2);
     mandate.setMandateType(MandateType.WITHDRAWAL_CANCELLATION);
+
+    mandate.setDetails(new WithdrawalCancellationMandateDetails());
     return mandate;
   }
 
   public Mandate buildEarlyWithdrawalCancellationMandate(Mandate mandate) {
+    // TODO legacy fields
     mandate.setPillar(2);
     mandate.setMandateType(MandateType.EARLY_WITHDRAWAL_CANCELLATION);
+
+    mandate.setDetails(new EarlyWithdrawalCancellationMandateDetails());
     return mandate;
   }
 
@@ -76,9 +85,17 @@ public class CancellationMandateBuilder {
             .mandate(mandate)
             .build();
 
-    mandate.setMandateType(MandateType.TRANSFER_CANCELLATION);
+    var exchanges = singletonList(exchange);
+
+    // TODO legacy fields
     mandate.setPillar(sourceFund.getPillar());
-    mandate.setFundTransferExchanges(singletonList(exchange));
+    mandate.setFundTransferExchanges(exchanges);
+
+    mandate.setMandateType(MandateType.TRANSFER_CANCELLATION);
+    mandate.setDetails(
+        TransferCancellationMandateDetails.fromFundTransferExchanges(
+            exchanges, sourceFund.getPillar()));
+
     return mandate;
   }
 }

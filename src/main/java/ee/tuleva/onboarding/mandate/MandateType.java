@@ -1,16 +1,22 @@
 package ee.tuleva.onboarding.mandate;
 
-import lombok.RequiredArgsConstructor;
+import ee.tuleva.onboarding.epis.mandate.details.*;
+import lombok.Getter;
 
-@RequiredArgsConstructor
 public enum MandateType {
-  FUND_PENSION_OPENING,
-  WITHDRAWAL_CANCELLATION,
-  EARLY_WITHDRAWAL_CANCELLATION,
-  TRANSFER_CANCELLATION,
+  FUND_PENSION_OPENING(FundPensionOpeningMandateDetails.class),
+  WITHDRAWAL_CANCELLATION(WithdrawalCancellationMandateDetails.class),
+  EARLY_WITHDRAWAL_CANCELLATION(EarlyWithdrawalCancellationMandateDetails.class),
+  TRANSFER_CANCELLATION(TransferCancellationMandateDetails.class),
   /*TRANSFER,
   SELECTION,
   PAYMENT,
   PAYMENT_RATE,*/
-  UNKNOWN;
+  UNKNOWN(null);
+
+  @Getter private final Class<? extends MandateDetails> mandateDetailsClass;
+
+  MandateType(Class<? extends MandateDetails> mandateDetailsClass) {
+    this.mandateDetailsClass = mandateDetailsClass;
+  }
 }

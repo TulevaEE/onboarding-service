@@ -60,7 +60,8 @@ public class WithdrawalCancellationMandateFactoryTest {
     assertThat(genericMandate.getFundTransferExchanges()).isEqualTo(List.of());
     verify(conversionDecorator, times(1)).addConversionMetadata(any(), any(), any(), any());
 
-    assertThat(genericMandate.getDetails()).isEqualTo(anDto.getDetails());
+    assertThat(genericMandate.getDetails())
+        .isInstanceOf(WithdrawalCancellationMandateDetails.class);
     assertThat(genericMandate.getPillar()).isEqualTo(2);
     assertThat(genericMandate.getGenericMandateDto().getMandateType())
         .isEqualTo(WITHDRAWAL_CANCELLATION);

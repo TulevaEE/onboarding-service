@@ -21,18 +21,11 @@ public class GenericMandateCreationDtoDeserializer
     JsonNode detailsNode = root.get("details");
     MandateType type = MandateType.valueOf(detailsNode.get("mandateType").asText());
 
-    MandateDetails details =
-        switch (type) {
-          case WITHDRAWAL_CANCELLATION ->
-              mapper.treeToValue(detailsNode, WithdrawalCancellationMandateDetails.class);
-          case EARLY_WITHDRAWAL_CANCELLATION ->
-              mapper.treeToValue(detailsNode, EarlyWithdrawalCancellationMandateDetails.class);
-          case TRANSFER_CANCELLATION ->
-              mapper.treeToValue(detailsNode, TransferCancellationMandateDetails.class);
-          case FUND_PENSION_OPENING ->
-              mapper.treeToValue(detailsNode, FundPensionOpeningMandateDetails.class);
-          default -> throw new IllegalArgumentException("Unknown mandateType: " + type);
-        };
+    if (type == MandateType.UNKNOWN) {
+      throw new IllegalArgumentException("Unknown mandateType: " + type);
+    }
+
+    MandateDetails details = mapper.treeToValue(detailsNode, type.getMandateDetailsClass());
 
     return GenericMandateCreationDto.builder().details(details).build();
   }

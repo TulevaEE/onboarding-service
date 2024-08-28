@@ -2,8 +2,11 @@ package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto
 import ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails
+import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.MandateDetails
+import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
+import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
@@ -129,7 +132,6 @@ class MandateFixture {
     mandate.setMandate("file".getBytes())
     mandate.setPillar(2)
     mandate.setMetadata(Map.of())
-    mandate.setDetails(Map.of())
     return mandate
   }
 
@@ -171,6 +173,7 @@ class MandateFixture {
         .address(addressFixture().build())
         .mandateType(WITHDRAWAL_CANCELLATION)
         .user(sampleUser().build())
+        .details(new WithdrawalCancellationMandateDetails())
         .build()
 
     mandate.setId(123)
@@ -186,6 +189,7 @@ class MandateFixture {
         .mandateType(EARLY_WITHDRAWAL_CANCELLATION)
         .fundTransferExchanges([])
         .user(sampleUser().build())
+        .details(new EarlyWithdrawalCancellationMandateDetails())
         .build()
 
     mandate.setId(123)
@@ -228,19 +232,22 @@ class MandateFixture {
   }
 
   static Mandate sampleTransferCancellationMandate() {
+    var fundTransferExchanges = [FundTransferExchange.builder()
+        .id(1234)
+        .sourceFundIsin("EE3600109435")
+        .targetFundIsin(null)
+        .amount(null)
+        .build()]
+
     Mandate mandate = builder()
-        .fundTransferExchanges([
-            FundTransferExchange.builder()
-                .id(1234)
-                .sourceFundIsin("EE3600109435")
-                .targetFundIsin(null)
-                .amount(null)
-                .build(),
-        ])
+        .fundTransferExchanges(
+            fundTransferExchanges
+        )
         .mandateType(TRANSFER_CANCELLATION)
         .futureContributionFundIsin(null)
         .user(sampleUser().build())
         .address(addressFixture().build())
+        .details(TransferCancellationMandateDetails.fromFundTransferExchanges(fundTransferExchanges, 2))
         .build()
 
     mandate.setId(123)

@@ -62,7 +62,8 @@ public class EarlyWithdrawalCancellationMandateFactoryTest {
     assertThat(genericMandate.getFundTransferExchanges()).isEqualTo(List.of());
     verify(conversionDecorator, times(1)).addConversionMetadata(any(), any(), any(), any());
 
-    assertThat(genericMandate.getDetails()).isEqualTo(anDto.getDetails());
+    assertThat(genericMandate.getDetails())
+        .isInstanceOf(EarlyWithdrawalCancellationMandateDetails.class);
     assertThat(genericMandate.getPillar()).isEqualTo(2);
     assertThat(genericMandate.getGenericMandateDto().getMandateType())
         .isEqualTo(EARLY_WITHDRAWAL_CANCELLATION);

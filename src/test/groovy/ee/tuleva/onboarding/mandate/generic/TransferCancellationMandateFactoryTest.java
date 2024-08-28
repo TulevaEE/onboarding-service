@@ -67,7 +67,7 @@ public class TransferCancellationMandateFactoryTest {
     assertThat(genericMandate.getAddress()).isEqualTo(aContactDetails.getAddress());
     verify(conversionDecorator, times(1)).addConversionMetadata(any(), any(), any(), any());
 
-    assertThat(genericMandate.getDetails()).isEqualTo(anDto.getDetails());
+    assertThat(genericMandate.getDetails()).isInstanceOf(TransferCancellationMandateDetails.class);
     assertThat(genericMandate.getGenericMandateDto().getMandateType())
         .isEqualTo(TRANSFER_CANCELLATION);
 

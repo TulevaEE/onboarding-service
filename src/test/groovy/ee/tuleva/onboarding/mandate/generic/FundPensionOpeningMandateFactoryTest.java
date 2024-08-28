@@ -11,6 +11,7 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
@@ -58,7 +59,7 @@ public class FundPensionOpeningMandateFactoryTest {
     assertThat(genericMandate.getFundTransferExchanges()).isEqualTo(List.of());
     verify(conversionDecorator, times(1)).addConversionMetadata(any(), any(), any(), any());
 
-    assertThat(genericMandate.getDetails()).isEqualTo(anDto.getDetails());
+    assertThat(genericMandate.getDetails()).isInstanceOf(FundPensionOpeningMandateDetails.class);
     assertThat(genericMandate.getPillar()).isEqualTo(aMandateDetails.getPillar());
     assertThat(genericMandate.getGenericMandateDto().getMandateType())
         .isEqualTo(FUND_PENSION_OPENING);

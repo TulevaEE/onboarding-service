@@ -49,9 +49,16 @@ public class TransferCancellationMandateFactory
             .mandate(mandate)
             .build();
 
-    mandate.setMandateType(MandateType.TRANSFER_CANCELLATION);
+    var exchanges = singletonList(exchange);
+
+    // TODO legacy fields
     mandate.setPillar(sourceFund.getPillar());
     mandate.setFundTransferExchanges(singletonList(exchange)); // TODO no need to save?
+
+    mandate.setDetails(
+        TransferCancellationMandateDetails.fromFundTransferExchanges(
+            exchanges, sourceFund.getPillar()));
+    mandate.setMandateType(MandateType.TRANSFER_CANCELLATION);
 
     return mandate;
   }

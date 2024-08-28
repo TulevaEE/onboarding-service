@@ -83,7 +83,6 @@ public class Mandate implements Serializable {
   @Column(columnDefinition = "jsonb")
   @Convert(disableConversion = true)
   @JsonView(MandateView.Default.class)
-  @NotNull
   private MandateDetails details;
 
   @ValidPaymentRate
@@ -126,20 +125,16 @@ public class Mandate implements Serializable {
 
   @JsonIgnore
   public GenericMandateDto<?> getGenericMandateDto() {
-    if (isWithdrawalCancellation()) {
-      return buildGenericMandateDto(new WithdrawalCancellationMandateDetails());
-    } else if (isEarlyWithdrawalCancellation()) {
-      return buildGenericMandateDto(new EarlyWithdrawalCancellationMandateDetails());
-    } else if (isTransferCancellation()) {
-      return buildGenericMandateDto(
-          TransferCancellationMandateDetails.fromFundTransferExchanges(
-              fundTransferExchanges, pillar));
-    } else if (isFundPensionOpening()) {
-      return buildGenericMandateDto(
-          (FundPensionOpeningMandateDetails) details // TODO ?
-          );
+    if (!supportsGenericMandateDto()) {
+      throw new IllegalStateException("Mandate DTO not yet supported for given application");
     }
-    throw new IllegalStateException("Mandate DTO not yet supported for given application");
+
+    return buildGenericMandateDto(details);
+  }
+
+  @JsonIgnore
+  public boolean supportsGenericMandateDto() {
+    return details != null;
   }
 
   @PrePersist
@@ -185,11 +180,6 @@ public class Mandate implements Serializable {
   @JsonIgnore
   public boolean isEarlyWithdrawalCancellation() {
     return mandateType == EARLY_WITHDRAWAL_CANCELLATION;
-  }
-
-  @JsonIgnore
-  public boolean isFundPensionOpening() {
-    return mandateType == FUND_PENSION_OPENING;
   }
 
   @JsonIgnore

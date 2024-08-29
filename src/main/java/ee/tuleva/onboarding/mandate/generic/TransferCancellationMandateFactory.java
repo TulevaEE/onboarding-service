@@ -58,7 +58,6 @@ public class TransferCancellationMandateFactory
     mandate.setDetails(
         TransferCancellationMandateDetails.fromFundTransferExchanges(
             exchanges, sourceFund.getPillar()));
-    mandate.setMandateType(MandateType.TRANSFER_CANCELLATION);
 
     return mandate;
   }

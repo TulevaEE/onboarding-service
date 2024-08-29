@@ -96,7 +96,6 @@ class MandateFixture {
         .futureContributionFundIsin("isin")
         .fundTransferExchanges([])
         .address(addressFixture().build())
-        .details([:])
         .metadata([:])
         .pillar(2)
   }
@@ -171,7 +170,6 @@ class MandateFixture {
   static Mandate sampleWithdrawalCancellationMandate() {
     Mandate mandate = builder()
         .address(addressFixture().build())
-        .mandateType(WITHDRAWAL_CANCELLATION)
         .user(sampleUser().build())
         .details(new WithdrawalCancellationMandateDetails())
         .build()
@@ -186,7 +184,6 @@ class MandateFixture {
   static Mandate sampleEarlyWithdrawalCancellationMandate() {
     Mandate mandate = builder()
         .address(addressFixture().build())
-        .mandateType(EARLY_WITHDRAWAL_CANCELLATION)
         .fundTransferExchanges([])
         .user(sampleUser().build())
         .details(new EarlyWithdrawalCancellationMandateDetails())
@@ -202,7 +199,6 @@ class MandateFixture {
   static Mandate sampleFundPensionOpeningMandate(FundPensionOpeningMandateDetails details = aFundPensionOpeningMandateDetails) {
     Mandate mandate = builder()
         .address(addressFixture().build())
-        .mandateType(FUND_PENSION_OPENING)
         .pillar(details.pillar)
         .details(details)
         .fundTransferExchanges([])
@@ -243,7 +239,6 @@ class MandateFixture {
         .fundTransferExchanges(
             fundTransferExchanges
         )
-        .mandateType(TRANSFER_CANCELLATION)
         .futureContributionFundIsin(null)
         .user(sampleUser().build())
         .address(addressFixture().build())

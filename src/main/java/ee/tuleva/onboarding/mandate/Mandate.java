@@ -164,7 +164,8 @@ public class Mandate implements Serializable {
     return exchangeMap;
   }
 
-  private MandateType getMandateType() {
+  @JsonIgnore
+  public MandateType getMandateType() {
     return Optional.ofNullable(details).map(MandateDetails::getMandateType).orElse(UNKNOWN);
   }
 

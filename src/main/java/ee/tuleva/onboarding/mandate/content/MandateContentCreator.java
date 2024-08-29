@@ -29,7 +29,8 @@ public class MandateContentCreator {
       files.add(getFutureContributionsFundMandateContentFile(user, mandate, funds, contactDetails));
     }
 
-    if (mandate.isWithdrawalCancellation()) {
+    // TODO remove after using MandateFileCreator
+    /*if (mandate.isWithdrawalCancellation()) {
       files.add(
           getContentFileForMandateCancellation(
               user, mandate, contactDetails, ApplicationType.WITHDRAWAL));
@@ -39,7 +40,7 @@ public class MandateContentCreator {
       files.add(
           getContentFileForMandateCancellation(
               user, mandate, contactDetails, ApplicationType.EARLY_WITHDRAWAL));
-    }
+    }*/
 
     if (mandate.isPaymentRateApplication()) {
       files.add(getContentFileForPaymentRateChange(user, mandate, contactDetails));

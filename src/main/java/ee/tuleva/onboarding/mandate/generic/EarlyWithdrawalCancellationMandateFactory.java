@@ -31,7 +31,6 @@ public class EarlyWithdrawalCancellationMandateFactory
 
     // TODO legacy fields
     mandate.setPillar(2);
-    mandate.setMandateType(MandateType.EARLY_WITHDRAWAL_CANCELLATION);
 
     mandate.setDetails(new EarlyWithdrawalCancellationMandateDetails());
 

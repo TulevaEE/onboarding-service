@@ -41,12 +41,6 @@ public class Mandate implements Serializable {
   @Nullable
   private String futureContributionFundIsin; // TODO: refactor this field into details
 
-  @JsonView(MandateView.Default.class)
-  @Nullable
-  @Getter(AccessLevel.NONE)
-  @Enumerated(STRING)
-  private MandateType mandateType;
-
   @NotNull
   @Min(2)
   @Max(3)
@@ -98,7 +92,6 @@ public class Mandate implements Serializable {
       @Nullable Address address,
       Map<String, Object> metadata,
       @Nullable BigDecimal paymentRate,
-      MandateType mandateType,
       MandateDetails details) {
     this.user = user;
     this.futureContributionFundIsin = futureContributionFundIsin;
@@ -107,7 +100,6 @@ public class Mandate implements Serializable {
     this.address = address;
     this.metadata = metadata;
     this.paymentRate = paymentRate;
-    this.mandateType = mandateType;
     this.details = details;
   }
 
@@ -172,14 +164,18 @@ public class Mandate implements Serializable {
     return exchangeMap;
   }
 
+  private MandateType getMandateType() {
+    return Optional.ofNullable(details).map(MandateDetails::getMandateType).orElse(UNKNOWN);
+  }
+
   @JsonIgnore
   public boolean isWithdrawalCancellation() {
-    return mandateType == WITHDRAWAL_CANCELLATION;
+    return getMandateType() == WITHDRAWAL_CANCELLATION;
   }
 
   @JsonIgnore
   public boolean isEarlyWithdrawalCancellation() {
-    return mandateType == EARLY_WITHDRAWAL_CANCELLATION;
+    return getMandateType() == EARLY_WITHDRAWAL_CANCELLATION;
   }
 
   @JsonIgnore
@@ -194,7 +190,7 @@ public class Mandate implements Serializable {
 
   @JsonIgnore
   public boolean isTransferCancellation() {
-    return mandateType == TRANSFER_CANCELLATION;
+    return getMandateType() == TRANSFER_CANCELLATION;
   }
 
   @JsonIgnore

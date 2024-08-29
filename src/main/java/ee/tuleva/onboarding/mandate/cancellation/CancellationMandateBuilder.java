@@ -16,7 +16,6 @@ import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
@@ -58,7 +57,6 @@ public class CancellationMandateBuilder {
   public Mandate buildWithdrawalCancellationMandate(Mandate mandate) {
     // TODO legacy fields
     mandate.setPillar(2);
-    mandate.setMandateType(MandateType.WITHDRAWAL_CANCELLATION);
 
     mandate.setDetails(new WithdrawalCancellationMandateDetails());
     return mandate;
@@ -67,7 +65,6 @@ public class CancellationMandateBuilder {
   public Mandate buildEarlyWithdrawalCancellationMandate(Mandate mandate) {
     // TODO legacy fields
     mandate.setPillar(2);
-    mandate.setMandateType(MandateType.EARLY_WITHDRAWAL_CANCELLATION);
 
     mandate.setDetails(new EarlyWithdrawalCancellationMandateDetails());
     return mandate;
@@ -91,7 +88,6 @@ public class CancellationMandateBuilder {
     mandate.setPillar(sourceFund.getPillar());
     mandate.setFundTransferExchanges(exchanges);
 
-    mandate.setMandateType(MandateType.TRANSFER_CANCELLATION);
     mandate.setDetails(
         TransferCancellationMandateDetails.fromFundTransferExchanges(
             exchanges, sourceFund.getPillar()));

@@ -75,7 +75,7 @@ class MandateControllerSpec extends BaseControllerSpec {
             .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath('$.mandateType', is(mandate.mandateType.toString())))
+        .andExpect(jsonPath('$.details.mandateType', is(mandate.getGenericMandateDto().getDetails().getMandateType().toString())))
         .andExpect(jsonPath('$.address.countryCode', is(mandate.address.countryCode)))
   }
 
@@ -91,7 +91,7 @@ class MandateControllerSpec extends BaseControllerSpec {
             .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath('$.mandateType', is(mandate.mandateType.toString())))
+        .andExpect(jsonPath('$.details.mandateType', is(castDetails.mandateType.toString())))
         .andExpect(jsonPath('$.details.pillar', is(castDetails.pillar)))
         .andExpect(jsonPath('$.details.frequency', is(castDetails.frequency.toString())))
         .andExpect(jsonPath('$.details.durationYears', is(castDetails.durationYears)))

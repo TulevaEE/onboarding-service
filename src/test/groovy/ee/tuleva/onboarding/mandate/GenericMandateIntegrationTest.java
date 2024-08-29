@@ -64,7 +64,8 @@ class GenericMandateIntegrationTest {
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     JsonNode jsonNode = (new ObjectMapper()).readTree(response.getBody());
-    assertThat(jsonNode.get("mandateType").asText()).isEqualTo("WITHDRAWAL_CANCELLATION");
+    assertThat(jsonNode.get("details").get("mandateType").asText())
+        .isEqualTo("WITHDRAWAL_CANCELLATION");
     assertThat(jsonNode.get("pillar").asInt()).isEqualTo(2);
   }
 }

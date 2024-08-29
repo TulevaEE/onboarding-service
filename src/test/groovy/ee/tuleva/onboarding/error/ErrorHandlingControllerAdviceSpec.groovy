@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.mandate.*
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
+import ee.tuleva.onboarding.mandate.generic.GenericMandateService
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.web.servlet.LocaleResolver
@@ -16,13 +17,14 @@ class ErrorHandlingControllerAdviceSpec extends BaseControllerSpec {
 
   MandateRepository mandateRepository = Mock()
   MandateService mandateService = Mock()
+  GenericMandateService genericMandateService = Mock()
   GenericSessionStore sessionStore = Mock()
   SignatureFileArchiver signatureFileArchiver = Mock()
   MandateFileService mandateFileService = Mock()
   LocaleResolver localeResolver = Mock()
 
   MandateController controller =
-      new MandateController(mandateRepository, mandateService, sessionStore, signatureFileArchiver, mandateFileService, localeResolver)
+      new MandateController(mandateRepository, mandateService, genericMandateService, sessionStore, signatureFileArchiver, mandateFileService, localeResolver)
 
   MockMvc mvc = mockMvc(controller)
 

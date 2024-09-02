@@ -21,12 +21,14 @@ import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankA
 import static ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails.FundPensionFrequency.MONTHLY
 import static ee.tuleva.onboarding.mandate.Mandate.MandateBuilder
 import static ee.tuleva.onboarding.mandate.Mandate.builder
-import static ee.tuleva.onboarding.mandate.MandateType.*
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class MandateFixture {
 
-  public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(2, MONTHLY, 20, new BankAccountDetails(ESTONIAN, "EE_TEST_IBAN"))
+  public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(2, MONTHLY,
+      new FundPensionOpeningMandateDetails.FundPensionDuration(20, false),
+      new BankAccountDetails(ESTONIAN, "EE_TEST_IBAN")
+  )
 
   public static futureContibutionFundIsin = "AE123232334"
 

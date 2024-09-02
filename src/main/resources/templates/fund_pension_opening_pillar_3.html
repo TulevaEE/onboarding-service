@@ -85,7 +85,11 @@
     </div>
     <div class="form-group">
       <div class="form-label">Väljamaksete sagedus</div>
-      <div class="form-value">1 kord kuus TODO</div>
+      <div class="form-value" th:switch="${fundPensionOpeningDetails.frequency.toString()}">
+        <span th:case="'MONTHLY'">1 kord kuus</span>
+        <span th:case="'EVERY_3_MONTHS'">Iga 3 kuu tagant</span>
+        <span th:case="'EVERY_12_MONTHS'">Iga 12 kuu tagant</span>
+      </div>
     </div>
   </div>
 
@@ -93,7 +97,7 @@
   <div class="form-grouping">
     <div class="form-group">
       <div class="form-label">Pangakonto number</div>
-      <div class="form-value">EE3412312312312 TODO</div>
+      <div class="form-value" th:text="${fundPensionOpeningDetails.bankAccountDetails.accountIban()}"></div>
     </div>
     <div class="form-group">
       <div class="form-label">Pank</div>
@@ -133,11 +137,11 @@
   <div class="form-grouping no-separator" style="padding-bottom: 100px">
     <div class="form-group">
       <div class="form-label">Kuupäev</div>
-      <div class="form-value">15.08.2024 TODO</div>
+      <div class="form-value" th:text="${documentDatePPKKAAAA}"></div>
     </div>
     <div class="form-group">
       <div class="form-label">Allkiri</div>
-      <div class="form-value">Test Kasutaja TODO</div>
+      <div class="form-value"><span th:text="${firstName+' '+lastName}"></span></div>
     </div>
   </div>
 

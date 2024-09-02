@@ -9,7 +9,7 @@ public class FundPensionOpeningMandateDetails extends MandateDetails {
 
   private final Integer pillar;
   private final FundPensionFrequency frequency;
-  private final Integer durationYears;
+  private final Integer durationYears; // TODO recommended frequency
   private final BankAccountDetails bankAccountDetails;
 
   public FundPensionOpeningMandateDetails(

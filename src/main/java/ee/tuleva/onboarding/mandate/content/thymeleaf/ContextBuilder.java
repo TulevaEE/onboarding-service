@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.content.thymeleaf;
 
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
+import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -74,6 +75,11 @@ public class ContextBuilder {
 
   public ContextBuilder documentNumber(String documentNumber) {
     ctx.setVariable("documentNumber", documentNumber);
+    return this;
+  }
+
+  public ContextBuilder fundPensionOpeningDetails(FundPensionOpeningMandateDetails details) {
+    ctx.setVariable("fundPensionOpeningDetails", details);
     return this;
   }
 

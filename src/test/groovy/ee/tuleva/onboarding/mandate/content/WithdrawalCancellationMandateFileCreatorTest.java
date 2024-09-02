@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.mandate.content;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleTransferCancellationMandate;
+import static ee.tuleva.onboarding.mandate.MandateType.EARLY_WITHDRAWAL_CANCELLATION;
+import static ee.tuleva.onboarding.mandate.MandateType.WITHDRAWAL_CANCELLATION;
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.Mockito.when;
@@ -41,5 +43,13 @@ public class WithdrawalCancellationMandateFileCreatorTest {
     assertThat(file.getName()).isEqualTo("avalduse_tyhistamise_avaldus_123.html");
     assertThat(file.getMimeType()).isEqualTo("text/html");
     assertThat(file.getContent()).isEqualTo("withdrawalCancellationContent".getBytes());
+  }
+
+  @Test
+  @DisplayName("supports withdrawal cancellation mandates")
+  void test_supportsTransferCancellationMandates() {
+    assertThat(withdrawalCancellationMandateFileCreator.supports(WITHDRAWAL_CANCELLATION)).isTrue();
+    assertThat(withdrawalCancellationMandateFileCreator.supports(EARLY_WITHDRAWAL_CANCELLATION))
+        .isFalse();
   }
 }

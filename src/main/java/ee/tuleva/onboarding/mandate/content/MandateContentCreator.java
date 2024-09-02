@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import java.util.ArrayList;
 import java.util.List;
@@ -29,41 +28,11 @@ public class MandateContentCreator {
       files.add(getFutureContributionsFundMandateContentFile(user, mandate, funds, contactDetails));
     }
 
-    // TODO remove after using MandateFileCreator
-    /*if (mandate.isWithdrawalCancellation()) {
-      files.add(
-          getContentFileForMandateCancellation(
-              user, mandate, contactDetails, ApplicationType.WITHDRAWAL));
-    }
-
-    if (mandate.isEarlyWithdrawalCancellation()) {
-      files.add(
-          getContentFileForMandateCancellation(
-              user, mandate, contactDetails, ApplicationType.EARLY_WITHDRAWAL));
-    }*/
-
     if (mandate.isPaymentRateApplication()) {
       files.add(getContentFileForPaymentRateChange(user, mandate, contactDetails));
     }
 
     return files;
-  }
-
-  private MandateContentFile getContentFileForMandateCancellation(
-      User user,
-      Mandate mandate,
-      ContactDetails contactDetails,
-      ApplicationType applicationTypeToCancel) {
-    String htmlContent =
-        mandateContentService.getMandateCancellationHtml(
-            user, mandate, contactDetails, applicationTypeToCancel);
-    String documentNumber = mandate.getId().toString();
-
-    return MandateContentFile.builder()
-        .name("avalduse_tyhistamise_avaldus_" + documentNumber + ".html")
-        .mimeType("text/html")
-        .content(htmlContent.getBytes())
-        .build();
   }
 
   private MandateContentFile getContentFileForPaymentRateChange(

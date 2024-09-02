@@ -9,18 +9,18 @@ public class FundPensionOpeningMandateDetails extends MandateDetails {
 
   private final Integer pillar;
   private final FundPensionFrequency frequency;
-  private final Integer durationYears; // TODO recommended frequency
+  private final FundPensionDuration duration;
   private final BankAccountDetails bankAccountDetails;
 
   public FundPensionOpeningMandateDetails(
       int pillar,
       FundPensionFrequency frequency,
-      int durationYears,
+      FundPensionDuration duration,
       BankAccountDetails bankAccountDetails) {
     super(MandateType.FUND_PENSION_OPENING);
     this.pillar = pillar;
     this.frequency = frequency;
-    this.durationYears = durationYears;
+    this.duration = duration;
     this.bankAccountDetails = bankAccountDetails;
   }
 
@@ -39,4 +39,6 @@ public class FundPensionOpeningMandateDetails extends MandateDetails {
     EVERY_3_MONTHS,
     EVERY_12_MONTHS,
   }
+
+  public record FundPensionDuration(int durationYears, boolean recommendedDuration) {}
 }

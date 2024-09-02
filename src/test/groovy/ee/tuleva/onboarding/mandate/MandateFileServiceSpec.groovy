@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.epis.EpisService
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.FundRepository
+import ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreator
 import ee.tuleva.onboarding.mandate.content.MandateContentCreator
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
@@ -18,13 +19,12 @@ import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE
 class MandateFileServiceSpec extends Specification {
 
   MandateRepository mandateRepository = Mock(MandateRepository)
-  FundRepository fundRepository = Mock(FundRepository)
   EpisService episService = Mock(EpisService)
-  MandateContentCreator mandateContentCreator = Mock(MandateContentCreator)
+  CompositeMandateFileCreator compositeMandateFileCreator = Mock(CompositeMandateFileCreator)
   UserService userService = Mock(UserService)
 
-  MandateFileService service = new MandateFileService(mandateRepository, fundRepository,
-      episService, mandateContentCreator, userService)
+  MandateFileService service = new MandateFileService(mandateRepository,
+      episService, compositeMandateFileCreator, userService)
 
   User user = sampleUser().build()
   Mandate mandate = MandateFixture.sampleMandate()
@@ -34,10 +34,9 @@ class MandateFileServiceSpec extends Specification {
     ContactDetails sampleContactDetails = contactDetailsFixture()
     mockMandateFiles(user, mandate.id, sampleContactDetails)
 
-    1 * mandateContentCreator.
+    1 * compositeMandateFileCreator.
         getContentFiles(_ as User,
             _ as Mandate,
-            _ as List,
             sampleContactDetails) >> sampleFiles()
 
     when:
@@ -56,7 +55,6 @@ class MandateFileServiceSpec extends Specification {
   def mockMandateFiles(User user, Long mandateId, ContactDetails contactDetails) {
     1 * userService.getById(user.id) >> user
     1 * mandateRepository.findByIdAndUserId(mandateId, user.id) >> Mandate.builder().pillar(2).build()
-    1 * fundRepository.findAllByPillarAndStatus(mandate.pillar, ACTIVE) >> [new Fund(), new Fund()]
     1 * episService.getContactDetails(user) >> contactDetails
   }
 

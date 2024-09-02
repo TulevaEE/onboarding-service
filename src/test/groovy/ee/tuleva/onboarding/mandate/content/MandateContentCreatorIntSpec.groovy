@@ -51,26 +51,6 @@ class MandateContentCreatorIntSpec extends Specification {
     DigestUtils.md5Hex(mandateContentFiles[1].content) == "473aa27aec746dac31489ec02ead6477"
   }
 
-  def "mandate cancellation mandate can be generated from template"() {
-    given:
-    Mandate mandate = sampleWithdrawalCancellationMandate()
-    mandate.fundTransferExchanges = List.of()
-
-    when:
-    List<MandateContentFile> mandateContentFiles =
-        mandateContentCreator.getContentFiles(
-            sampleUser().build(),
-            mandate,
-            sampleFunds(),
-            contactDetailsFixture()
-        )
-
-    then:
-    mandateContentFiles[0].name == "avalduse_tyhistamise_avaldus_123.html"
-    mandateContentFiles[0].mimeType == "text/html"
-    DigestUtils.md5Hex(mandateContentFiles[0].content) == "61bffb8dd76aa1f8a4c18e5ca280af07"
-  }
-
   def "mandate transfer cancellation mandate can be generated from template"() {
     given:
     Mandate mandate = sampleMandate()

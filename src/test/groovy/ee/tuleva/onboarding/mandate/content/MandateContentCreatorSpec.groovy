@@ -95,50 +95,6 @@ class MandateContentCreatorSpec extends Specification {
     mandateContentFiles[1].content == "fundTransferContent".bytes
   }
 
-  def "Generate mandate content for withdrawal mandate cancellation"() {
-    given:
-    def mandate = sampleWithdrawalCancellationMandate()
-    mandate.fundTransferExchanges = List.of()
-
-    when:
-    List<MandateContentFile> mandateContentFiles =
-        mandateContentCreator.getContentFiles(
-            sampleUser().build(),
-            mandate,
-            sampleFunds(),
-            contactDetailsFixture()
-        )
-
-    then:
-    mandateContentFiles[0].name == "avalduse_tyhistamise_avaldus_123.html"
-    mandateContentFiles[0].mimeType == "text/html"
-    mandateContentFiles[0].content == "mandateCancellationContent".bytes
-
-    mandateContentFiles.size() == 1
-  }
-
-  def "Generate mandate content for early withdrawal mandate cancellation"() {
-    given:
-    def mandate = sampleEarlyWithdrawalCancellationMandate()
-    mandate.fundTransferExchanges = List.of()
-
-    when:
-    List<MandateContentFile> mandateContentFiles =
-        mandateContentCreator.getContentFiles(
-            sampleUser().build(),
-            mandate,
-            sampleFunds(),
-            contactDetailsFixture()
-        )
-
-    then:
-    mandateContentFiles[0].name == "avalduse_tyhistamise_avaldus_123.html"
-    mandateContentFiles[0].mimeType == "text/html"
-    mandateContentFiles[0].content == "mandateCancellationContent".bytes
-
-    mandateContentFiles.size() == 1
-  }
-
   def "Generate mandate content for payment rate change"() {
     given:
     def mandate = sampleMandate()

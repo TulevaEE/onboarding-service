@@ -27,7 +27,12 @@ class MandateFixture {
 
   public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(2, MONTHLY,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, false),
-      new BankAccountDetails(ESTONIAN, "EE_TEST_IBAN")
+      new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
+  )
+
+  public static FundPensionOpeningMandateDetails aThirdPillarFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(3, MONTHLY,
+      new FundPensionOpeningMandateDetails.FundPensionDuration(20, true),
+      new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
   )
 
   public static futureContibutionFundIsin = "AE123232334"
@@ -210,7 +215,7 @@ class MandateFixture {
     mandate.setId(123)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
-    mandate.pillar = 2
+    mandate.pillar = details.getPillar()
     return mandate
   }
 

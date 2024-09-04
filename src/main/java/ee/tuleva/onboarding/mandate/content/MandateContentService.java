@@ -86,7 +86,7 @@ class MandateContentService {
             .fundPensionOpeningDetails(mandateDetails)
             .build();
 
-    return templateEngine.process("fund_pension_opening_pillar_" + mandate.getPillar(), ctx);
+    return templateEngine.process("fund_pension_opening_pillar_" + mandateDetails.getPillar(), ctx);
   }
 
   String getMandateCancellationHtml(

@@ -28,6 +28,7 @@ public class TemplateEngineConfiguration implements ApplicationContextAware {
     resolver.setSuffix(".html");
     resolver.setTemplateMode(HTML);
     resolver.setCharacterEncoding("UTF-8");
+    resolver.setCacheable(true);
     return resolver;
   }
 

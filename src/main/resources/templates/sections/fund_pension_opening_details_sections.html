@@ -1,0 +1,43 @@
+<h2>3. Fondipensioni tingimused</h2>
+<div class="form-grouping">
+  <div class="form-group">
+    <div class="form-label">Fondipensioni kestus</div>
+    <div class="form-value" th:text="${fundPensionOpeningDetails.duration.recommendedDuration() ? 'Soovituslik kestus' : fundPensionOpeningDetails.duration.durationYears() + ' aastat'}">
+    </div>
+  </div>
+  <div class="form-group">
+    <div class="form-label">Väljamaksete sagedus</div>
+    <div class="form-value" th:switch="${fundPensionOpeningDetails.frequency.toString()}">
+      <span th:case="'MONTHLY'">1 kord kuus</span>
+      <span th:case="'EVERY_3_MONTHS'">Iga 3 kuu tagant</span>
+      <span th:case="'EVERY_12_MONTHS'">Iga 12 kuu tagant</span>
+    </div>
+  </div>
+</div>
+
+<h2>4. Pensionikonto omaniku pangakonto</h2>
+<div class="form-grouping">
+  <div class="form-group">
+    <div class="form-label">Pangakonto number</div>
+    <div class="form-value" th:text="${fundPensionOpeningDetails.bankAccountDetails.accountIban()}"></div>
+  </div>
+  <div class="form-group">
+    <div class="form-label">Pank</div>
+    <div class="form-value" th:text="${fundPensionOpeningDetails.bankAccountDetails.bank().getDisplayName()}"></div>
+  </div>
+
+  <div class="form-group">
+    <div class="form-label">Swift/BIC</div>
+    <div class="form-value"><br></div>
+  </div>
+
+  <div class="form-group">
+    <div class="form-label">Välisriigi panga aadress</div>
+    <div class="form-value"><br></div>
+  </div>
+
+  <div class="form-group">
+    <div class="form-label">Täiendavad andmed välismaksete kohta</div>
+    <div class="form-value"><br></div>
+  </div>
+</div>

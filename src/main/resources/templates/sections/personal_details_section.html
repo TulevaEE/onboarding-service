@@ -1,35 +1,3 @@
-<style>
-  .form-grouping {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    padding: 48px 0;
-    border-bottom: 1px solid #DCDCDC;
-  }
-
-  .form-group {
-    flex-basis: 50%;
-    flex-grow: 0;
-    flex-shrink: 0;
-    font-family: 'Helvetica', sans-serif;
-    font-size: 16px;
-    line-height: 24px;
-    padding-bottom: 24px;
-
-    .form-label {
-      display: block;
-      font-weight: 400;
-      padding-bottom: 8px;
-    }
-
-    .form-value {
-      display: block;
-      font-weight: 700;
-    }
-  }
-</style>
-
-
 <h2>1. Avalduse esitaja</h2>
 <div class="form-grouping">
   <div class="form-group">
@@ -61,8 +29,15 @@
 
 <div class="form-grouping">
   <div class="form-group">
-    <div class="form-label">Soovin pensioniregistri teatist pensionikonto jäägi kohta: <span th:text="${contactDetails.noticeNeeded.equalsIgnoreCase('Y') ? 'Jah' : 'Ei' }"></span></div>
-    <!-- TODO confirm -->
-    <div class="form-label">Keel: <span th:text="${contactDetails.languagePreference.toString()}"></span></div>
+    <div class="form-label">Soovin pensioniregistri teatist pensionikonto jäägi kohta</div>
+    <div class="form-value" th:text="${contactDetails.noticeNeeded.equalsIgnoreCase('Y') ? 'Jah' : 'Ei' }"></div>
+  </div>
+  <div class="form-group">
+    <div class="form-label">Keel</div>
+    <div class="form-value" th:switch="${contactDetails.languagePreference.toString()}">
+      <span th:case="'EST'">Eesti keel</span>
+      <span th:case="'ENG'">Inglise keel</span>
+      <span th:case="'RUS'">Vene keel</span>
+    </div>
   </div>
 </div>

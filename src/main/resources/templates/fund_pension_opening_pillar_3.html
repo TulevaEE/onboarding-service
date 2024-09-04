@@ -3,123 +3,13 @@
 <head>
   <title>Täiendava fondipensioni avamise avaldus</title>
   <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
-  <style>
-    body {
-      padding: 96px 96px 48px;
-    }
-    h1 {
-      font-family: serif;
-      font-size: 32px;
-      line-height: 40px;
-    }
-
-    .form-grouping {
-      display: flex;
-      flex-direction: row;
-      flex-wrap: wrap;
-      padding: 48px 0;
-      border-bottom: 1px solid #DCDCDC;
-    }
-    .form-grouping.no-separator {
-      border-bottom: none;
-    }
-
-    .form-group {
-      flex-basis: 50%;
-      flex-grow: 0;
-      flex-shrink: 0;
-      font-family: 'Helvetica', sans-serif;
-      font-size: 16px;
-      line-height: 24px;
-      padding-bottom: 24px;
-
-      .form-label {
-        display: block;
-        font-weight: 400;
-        padding-bottom: 8px;
-      }
-
-      .form-value {
-        display: block;
-        font-weight: 700;
-      }
-    }
-
-
-    .disclaimer {
-      font-size: 16px;
-      line-height: 24px;
-      text-align: justify;
-      padding: 24px 0;
-      font-family: sans-serif;
-      border-bottom: 1px solid #DCDCDC;
-    }
-
-    .footer {
-      display: flex;
-      justify-content: space-between;
-      .address {
-        color: #808080;
-        font-size: 16px;
-        line-height: 24px;
-        font-family: sans-serif;
-      }
-
-      .logo {
-        width: 100px;
-      }
-    }
-  </style>
+  <div th:insert="sections/new_styles" th:remove="tag"></div>
 </head>
 <body>
   <h1>Täiendava fondipensioni avamise avaldus nr <span
       th:text="${documentNumber}"></span></h1>
-  <div th:insert="new_top_2_sections" th:remove="tag"></div>
-
-
-  <h2>3. Fondipensioni tingimused</h2>
-  <div class="form-grouping">
-    <div class="form-group">
-      <div class="form-label">Fondipensioni kestus</div>
-      <div class="form-value">Soovituslik kestus TODO</div>
-    </div>
-    <div class="form-group">
-      <div class="form-label">Väljamaksete sagedus</div>
-      <div class="form-value" th:switch="${fundPensionOpeningDetails.frequency.toString()}">
-        <span th:case="'MONTHLY'">1 kord kuus</span>
-        <span th:case="'EVERY_3_MONTHS'">Iga 3 kuu tagant</span>
-        <span th:case="'EVERY_12_MONTHS'">Iga 12 kuu tagant</span>
-      </div>
-    </div>
-  </div>
-
-  <h2>4. Pensionikonto omaniku pangakonto</h2>
-  <div class="form-grouping">
-    <div class="form-group">
-      <div class="form-label">Pangakonto number</div>
-      <div class="form-value" th:text="${fundPensionOpeningDetails.bankAccountDetails.accountIban()}"></div>
-    </div>
-    <div class="form-group">
-      <div class="form-label">Pank</div>
-      <div class="form-value">LHV TODO?</div>
-    </div>
-
-    <div class="form-group">
-      <div class="form-label">Swift/BIC</div>
-      <div class="form-value"><br></div>
-    </div>
-
-    <div class="form-group">
-      <div class="form-label">Välisriigi panga aadress</div>
-      <div class="form-value"><br></div>
-    </div>
-
-    <div class="form-group">
-      <div class="form-label">Täiendavad andmed välismaksete kohta</div>
-      <div class="form-value"><br></div>
-    </div>
-  </div>
-
+  <div th:insert="sections/personal_details_section" th:remove="tag"></div>
+  <div th:insert="sections/fund_pension_opening_details_sections" th:remove="tag"></div>
   <div class="disclaimer">
     Olen teadlik, et: <br>
     1) valides fondipensioni soovitusliku kestuse, arvestatakse minu fondipensioni kestus vastavalt kogumispensionide seaduse § 523 lõikes 3 nimetatule ja Eesti Statistikaameti poolt avaldatud meeste ja naiste keskmiselt elada jäänud aastate alusel. Vastavalt tulumaksuseaduse § 21 lõikele 4 77 ei maksustata tulumaksuga soovitusliku kestusega sõlmitud fondipensioni väljamakseid, mida tehakse perioodiliselt vähemalt üks kord kolme kuu jooksul.<br>
@@ -132,37 +22,6 @@
     5) fondipensioni väljamaksed on erineva suurusega tulenevalt osakute arvu või puhasväärtuse muutustest.<br>
     Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.  NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS Pensionikeskus veebilehel.<br>
   </div>
-
-
-  <div class="form-grouping no-separator" style="padding-bottom: 100px">
-    <div class="form-group">
-      <div class="form-label">Kuupäev</div>
-      <div class="form-value" th:text="${documentDatePPKKAAAA}"></div>
-    </div>
-    <div class="form-group">
-      <div class="form-label">Allkiri</div>
-      <div class="form-value"><span th:text="${firstName+' '+lastName}"></span></div>
-    </div>
-  </div>
-
-  <div class="footer">
-    <div class="address">
-      Telliskivi 60/1, Tallinn, 10412<br>
-      +372 644 5100 · tuleva@tuleva.ee
-    </div>
-    <div class="logo">
-      <svg fill="none" height="48" viewBox="0 0 107 48" width="107" xmlns="http://www.w3.org/2000/svg">
-        <path clip-rule="evenodd" d="M69.6827 36.8483C68.9344 34.3312 67.0631 33.0047 64.818 33.0047C62.5737 33.0047 60.7366 34.3989 60.1577 36.8483H69.6827ZM72.9482 43.2098C70.9751 45.6927 68.2537 47.1894 65.2944 47.2236C59.546 47.2236 56.2122 42.9036 56.2122 38.5487C56.2122 34.1952 59.546 29.8752 65.2944 29.8752C68.73 29.8752 73.8326 32.6985 73.8326 39.1276V39.7734H60.1577C60.3627 42.2905 62.7097 44.0942 65.1926 44.0942C67.0973 44.0942 68.73 43.1756 69.9548 41.5429L72.9482 43.2098ZM101.813 38.995C100.773 39.1987 99.7782 39.3812 98.7891 39.5921C97.9374 39.7732 97.0749 39.9339 96.2509 40.2045C95.5491 40.4343 94.9651 40.8896 94.864 41.7041C94.7265 42.8052 95.3585 43.5783 96.4974 43.7667C97.3949 43.9143 98.2873 43.883 99.1636 43.659C100.402 43.3427 101.431 42.7208 101.687 41.3703C101.836 40.5783 101.78 39.7478 101.813 38.995ZM106.999 46.6648C105.763 47.1187 104.529 47.1601 103.444 46.4918C102.971 46.2008 102.72 45.7267 102.541 45.1667C102.323 45.3696 102.142 45.5579 101.941 45.7223C101.132 46.3841 100.182 46.7332 99.1687 46.9208C97.6283 47.2067 96.0894 47.2714 94.5564 46.8503C92.5556 46.2998 91.2982 44.9361 91.0924 42.9448C90.8822 40.9085 91.6407 39.3063 93.4233 38.2336C94.7658 37.4256 96.2531 37.0518 97.7745 36.7834C98.7556 36.611 99.7447 36.4787 100.723 36.2925C101.153 36.2103 101.635 36.1034 101.743 35.5739C101.862 34.9885 101.79 34.4219 101.345 33.9652C100.809 33.4139 100.108 33.2518 99.3818 33.1965C97.3476 33.043 95.8313 33.7688 94.1389 35.4394C93.336 34.6823 92.6182 34.0067 91.8713 33.3034C92.9018 31.9558 93.9753 31.1587 95.408 30.595C97.1571 29.9063 98.9636 29.8154 100.801 30.0961C102.003 30.2794 103.119 30.6758 104.039 31.5085C104.948 32.331 105.394 33.3856 105.502 34.5834C105.559 35.2219 105.555 35.8678 105.557 36.5107C105.564 38.363 105.559 40.2154 105.559 42.0678C105.559 42.1674 105.559 42.267 105.561 42.3667C105.59 43.3441 105.84 43.5987 106.809 43.6358C106.863 43.6379 106.918 43.6387 106.999 43.6387V46.6648ZM37.648 47.1154C38.9629 47.1307 40.2494 46.8936 41.4887 46.3038C43.5178 45.3365 44.6545 43.7016 44.9811 41.4958C45.0502 41.0259 45.072 40.3619 45.072 40.071V30.4776H41.1818V39.6827C41.1789 40.1765 41.1222 40.6798 41.0131 41.1612C40.7105 42.4972 39.8196 43.2434 38.5033 43.4878C38.2174 43.5408 37.9316 43.5707 37.6473 43.5736C37.3629 43.5707 37.0771 43.5408 36.7913 43.4878C35.4756 43.2434 34.584 42.4972 34.2814 41.1612C34.1724 40.6798 34.1156 40.1765 34.1134 39.6827V30.4776H30.2225V40.071C30.2225 40.3619 30.2444 41.0259 30.3142 41.4958C30.6407 43.7016 31.7767 45.3365 33.8058 46.3038C35.0451 46.8936 36.3331 47.1307 37.648 47.1154Z" fill="#002F63" fill-rule="evenodd"/>
-        <path clip-rule="evenodd" d="M91.2794 30.1614L82.5266 47.5389L73.7746 30.1614L77.6721 30.1418L82.5266 39.7811L87.3724 30.1614H91.2794Z" fill="#002F63" fill-rule="evenodd"/>
-        <path clip-rule="evenodd" d="M54.0823 43.6538C53.15 43.6051 52.6358 43.1411 52.4947 42.2174C52.4372 41.8407 52.4198 41.4553 52.4198 41.0742V24.2742H48.4896V41.4989C48.4903 42.0938 48.5071 42.6967 48.5943 43.2844C48.8016 44.6793 49.3791 45.8662 50.6685 46.5884C51.5158 47.0633 52.4481 47.2269 53.4009 47.232C54.1129 47.2364 54.8256 47.1556 55.5361 47.1134V43.6582C55.0409 43.6582 54.5601 43.6793 54.0823 43.6538Z" fill="#002F63" fill-rule="evenodd"/>
-        <path clip-rule="evenodd" d="M1.59192 20.3636L19.7272 30.4466V24.2756L12.8181 20.3636H1.59192Z" fill="#002F63" fill-rule="evenodd"/>
-        <path clip-rule="evenodd" d="M5.14106 0L3.94324 5.55636L19.4 13.8182H30.7752L5.14106 0Z" fill="#002F63" fill-rule="evenodd"/>
-        <path clip-rule="evenodd" d="M14.6364 46.9091H19.7273V31.6364L14.6364 28.7273V46.9091Z" fill="#00AEEA" fill-rule="evenodd"/>
-        <path clip-rule="evenodd" d="M2.01884 14.5774L0.818115 19.6363H30.509L31.6596 14.5774H2.01884Z" fill="#00AEEA" fill-rule="evenodd"/>
-        <path clip-rule="evenodd" d="M20.4545 24.2742V27.8749V46.9091H24.1519V27.8749H30.2225V24.2742H20.4545Z" fill="#002F63" fill-rule="evenodd"/>
-      </svg>
-
-    </div>
-  </div>
+  <div th:insert="sections/footer_section" th:remove="tag"></div>
 </body>
 </html>

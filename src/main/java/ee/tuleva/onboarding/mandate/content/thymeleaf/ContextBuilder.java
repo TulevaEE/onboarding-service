@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.user.address.Address;
 import java.math.BigDecimal;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.thymeleaf.context.Context;
@@ -52,14 +53,15 @@ public class ContextBuilder {
   }
 
   public ContextBuilder funds(List<Fund> funds) {
+    List<Fund> sortableFunds = new ArrayList<>(funds);
     // sort because by law, funds need to be in alphabetical order
-    funds.sort(
+    sortableFunds.sort(
         (Fund fund1, Fund fund2) ->
             fund1.getNameEstonian().compareToIgnoreCase(fund2.getNameEstonian()));
-    ctx.setVariable("funds", funds);
+    ctx.setVariable("funds", sortableFunds);
     ctx.setVariable(
         "fundIsinNames",
-        funds.stream().collect(Collectors.toMap(Fund::getIsin, Fund::getNameEstonian)));
+        sortableFunds.stream().collect(Collectors.toMap(Fund::getIsin, Fund::getNameEstonian)));
     return this;
   }
 

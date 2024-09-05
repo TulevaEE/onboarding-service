@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto
 import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails
+import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService
 import ee.tuleva.onboarding.mandate.signature.SignatureFile

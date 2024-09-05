@@ -10,7 +10,9 @@ class FundFixture {
 
   static Fund tuleva2ndPillarStockFund() {
     return Fund.builder()
-        .isin("AE123232331")
+        //TODO: use data that is actually initialized in V1_85.1__add_funds.sql
+        .isin("EE3600109435")
+//        .isin("AE123232331")
         .nameEstonian("Tuleva maailma aktsiate pensionifond")
         .nameEnglish("Tuleva world stock pensionfund")
         .shortName("TUK75")
@@ -30,7 +32,8 @@ class FundFixture {
 
   static Fund tuleva2ndPillarBondFund() {
     return Fund.builder()
-        .isin("AE123232332")
+        .isin("EE3600109443")
+//        .isin("AE123232332")
         .nameEstonian("Tuleva maailma võlakirjade pensionifond")
         .nameEnglish("Tuleva world bond pensionfund")
         .shortName("TUK00")
@@ -49,7 +52,8 @@ class FundFixture {
 
   static Fund tuleva3rdPillarFund() {
     return Fund.builder()
-        .isin("EE645")
+        .isin("EE3600001707")
+//        .isin("EE645")
         .nameEstonian("Tuleva III Samba Pensionifond")
         .nameEnglish("Tuleva III Pillar Pension Fund")
         .shortName("TUV100")
@@ -68,7 +72,8 @@ class FundFixture {
 
   static Fund lhv2ndPillarFund() {
     return Fund.builder()
-        .isin("AE123232337")
+        .isin("EE3600019766")
+//        .isin("AE123232337")
         .nameEstonian("LHV XL")
         .nameEnglish("LHV XL")
         .shortName("LXK75")
@@ -106,7 +111,8 @@ class FundFixture {
 
   static Fund lhv3rdPillarFund() {
     return Fund.builder()
-        .isin("EE7654")
+//        .isin("EE7654")
+        .isin("EE3600109419")
         .nameEstonian("LHV Pensionifond Indeks Pluss")
         .nameEnglish("LHV Pension Fund Index Plus")
         .shortName("LIT100")

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.epis.mandate.details;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.mandate.MandateType;
 import lombok.Getter;
 
@@ -12,11 +14,12 @@ public class FundPensionOpeningMandateDetails extends MandateDetails {
   private final FundPensionDuration duration;
   private final BankAccountDetails bankAccountDetails;
 
+  @JsonCreator
   public FundPensionOpeningMandateDetails(
-      int pillar,
-      FundPensionFrequency frequency,
-      FundPensionDuration duration,
-      BankAccountDetails bankAccountDetails) {
+      @JsonProperty("pillar") int pillar,
+      @JsonProperty("frequency") FundPensionFrequency frequency,
+      @JsonProperty("duration") FundPensionDuration duration,
+      @JsonProperty("bankAccountDetails") BankAccountDetails bankAccountDetails) {
     super(MandateType.FUND_PENSION_OPENING);
     this.pillar = pillar;
     this.frequency = frequency;

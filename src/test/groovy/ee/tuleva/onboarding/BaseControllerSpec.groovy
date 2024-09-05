@@ -19,6 +19,13 @@ import spock.lang.Specification
 
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup
 
+/*
+Deprecated since
+seems that BaseControllerSpecs do not test serialization and other things like it runs in actually.
+For example serialization for generic MandateDetails that works here can fail in integration tests. Feel free to use @SpringBootTest instead
+*/
+
+@Deprecated(since = "Use @SpringBootTest")
 class BaseControllerSpec extends Specification {
 
     protected final static ObjectMapper mapper = new ObjectMapper()

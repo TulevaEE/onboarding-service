@@ -6,6 +6,9 @@ import ee.tuleva.onboarding.mandate.MandateView;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+/*
+ * Note that a @JsonCreator is required on non-empty constructor for deserializing.
+ */
 @Getter
 @RequiredArgsConstructor
 public abstract class MandateDetails {

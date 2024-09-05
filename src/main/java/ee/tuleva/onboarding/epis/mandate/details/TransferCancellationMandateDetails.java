@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.epis.mandate.details;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.MandateType;
 import java.util.List;
@@ -9,7 +11,10 @@ public class TransferCancellationMandateDetails extends MandateDetails {
   @Getter private final String sourceFundIsinOfTransferToCancel;
   @Getter private final Integer pillar;
 
-  public TransferCancellationMandateDetails(String sourceFundIsinOfTransferToCancel, int pillar) {
+  @JsonCreator
+  public TransferCancellationMandateDetails(
+      @JsonProperty("sourceFundIsinOfTransferToCancel") String sourceFundIsinOfTransferToCancel,
+      @JsonProperty("pillar") int pillar) {
     super(MandateType.TRANSFER_CANCELLATION);
 
     if (pillar != 2 && pillar != 3) {

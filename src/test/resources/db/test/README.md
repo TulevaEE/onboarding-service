@@ -1,0 +1,1 @@
+When adding a new migration for H2 <-> Postgres compatibility, the name must be `V1_{n-1}_1__.sql` for Flyway to execute the compatibility migration **before** it tries to execute the migration numbered `n`, for which the compatibility migration is required.

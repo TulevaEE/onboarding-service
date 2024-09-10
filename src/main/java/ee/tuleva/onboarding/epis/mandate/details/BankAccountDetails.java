@@ -17,7 +17,8 @@ public record BankAccountDetails(BankAccountType type, Bank bank, String account
     LUMINOR("96", "Luminor Bank AS"),
     LUMINOR_2("17", "Luminor Bank AS"),
     LHV("77", "AS LHV Pank"),
-    BIGBANK("75", "BigBank AS");
+    BIGBANK("75", "BigBank AS"),
+    CITADELE("12", "AS Citadele banka Eesti filiaal");
 
     @Getter private final String displayName;
 

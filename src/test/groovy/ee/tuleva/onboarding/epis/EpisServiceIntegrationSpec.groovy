@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
+import ee.tuleva.onboarding.epis.mandate.details.Pillar
 import org.mockserver.client.MockServerClient
 import org.mockserver.matchers.MatchType
 import org.mockserver.model.MediaType
@@ -40,6 +41,7 @@ import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMand
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleEarlyWithdrawalCancellation
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleTransferCancellation
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleWithdrawalCancellation
+import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 import static org.mockserver.model.HttpRequest.request
@@ -354,7 +356,7 @@ class EpisServiceIntegrationSpec extends Specification {
     given:
 
     def anIsin = "EE_TEST_ISIN_TO_CANCEL"
-    def sampleCancellation = sampleTransferCancellation(anIsin, 2)
+    def sampleCancellation = sampleTransferCancellation(anIsin, SECOND)
     def mandateCommandResponse = sampleMandateCommandResponse("1", true, null, null)
 
     MandateCommandResponse expectedResponse = sampleMandateCommandResponse("1", true, null, null)
@@ -372,7 +374,7 @@ class EpisServiceIntegrationSpec extends Specification {
                 "details" : {
                   "mandateType" : "TRANSFER_CANCELLATION",
                   "sourceFundIsinOfTransferToCancel" : "${anIsin}",
-                  "pillar" : 2
+                  "pillar" : "SECOND"
                 },
                 "createdDate" : "${sampleCancellation.createdDate}",
                 "address" : {

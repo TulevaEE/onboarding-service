@@ -60,7 +60,7 @@ public class FundPensionOpeningMandateFactoryTest {
     verify(conversionDecorator, times(1)).addConversionMetadata(any(), any(), any(), any());
 
     assertThat(genericMandate.getDetails()).isInstanceOf(FundPensionOpeningMandateDetails.class);
-    assertThat(genericMandate.getPillar()).isEqualTo(aMandateDetails.getPillar());
+    assertThat(genericMandate.getPillar()).isEqualTo(aMandateDetails.getPillar().toInt());
     assertThat(genericMandate.getGenericMandateDto().getMandateType())
         .isEqualTo(FUND_PENSION_OPENING);
   }

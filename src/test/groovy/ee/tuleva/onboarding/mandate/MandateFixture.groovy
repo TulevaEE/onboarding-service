@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails
 import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.MandateDetails
+import ee.tuleva.onboarding.epis.mandate.details.Pillar
 import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails
 import ee.tuleva.onboarding.fund.Fund
@@ -19,18 +20,23 @@ import java.time.Instant
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN
 import static ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails.FundPensionFrequency.MONTHLY
+import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
+import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
+import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
+import static ee.tuleva.onboarding.epis.mandate.details.Pillar.THIRD
+import static ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails.fromFundTransferExchanges
 import static ee.tuleva.onboarding.mandate.Mandate.MandateBuilder
 import static ee.tuleva.onboarding.mandate.Mandate.builder
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class MandateFixture {
 
-  public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(2, MONTHLY,
+  public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(SECOND, MONTHLY,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, false),
       new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
   )
 
-  public static FundPensionOpeningMandateDetails aThirdPillarFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(3, MONTHLY,
+  public static FundPensionOpeningMandateDetails aThirdPillarFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(THIRD, MONTHLY,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, true),
       new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
   )
@@ -104,7 +110,7 @@ class MandateFixture {
         .fundTransferExchanges([])
         .address(addressFixture().build())
         .metadata([:])
-        .pillar(2)
+        .pillar(SECOND.toInt())
   }
 
   static Mandate sampleMandate() {
@@ -136,7 +142,7 @@ class MandateFixture {
     mandate.setId(123)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
-    mandate.setPillar(2)
+    mandate.setPillar(SECOND.toInt())
     mandate.setMetadata(Map.of())
     return mandate
   }
@@ -170,7 +176,7 @@ class MandateFixture {
     mandate.setId(124)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
-    mandate.setPillar(3)
+    mandate.setPillar(THIRD.toInt())
     return mandate
   }
 
@@ -184,7 +190,7 @@ class MandateFixture {
     mandate.setId(123)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
-    mandate.pillar = 2
+    mandate.pillar = SECOND.toInt()
     return mandate
   }
 
@@ -199,14 +205,14 @@ class MandateFixture {
     mandate.setId(123)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
-    mandate.pillar = 2
+    mandate.pillar = SECOND.toInt()
     return mandate
   }
 
   static Mandate sampleFundPensionOpeningMandate(FundPensionOpeningMandateDetails details = aFundPensionOpeningMandateDetails) {
     Mandate mandate = builder()
         .address(addressFixture().build())
-        .pillar(details.pillar)
+        .pillar(details.pillar.toInt())
         .details(details)
         .fundTransferExchanges([])
         .user(sampleUser().build())
@@ -215,7 +221,7 @@ class MandateFixture {
     mandate.setId(123)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
-    mandate.pillar = details.getPillar()
+    mandate.pillar = details.getPillar().toInt()
     return mandate
   }
 
@@ -230,7 +236,7 @@ class MandateFixture {
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
     mandate.setPaymentRate(new BigDecimal(6.0))
-    mandate.setPillar(2)
+    mandate.setPillar(SECOND.toInt())
     return mandate
   }
 
@@ -249,13 +255,13 @@ class MandateFixture {
         .futureContributionFundIsin(null)
         .user(sampleUser().build())
         .address(addressFixture().build())
-        .details(TransferCancellationMandateDetails.fromFundTransferExchanges(fundTransferExchanges, 2))
+        .details(fromFundTransferExchanges(fundTransferExchanges, SECOND.toInt()))
         .build()
 
     mandate.setId(123)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
-    mandate.setPillar(2)
+    mandate.setPillar(SECOND.toInt())
     return mandate
   }
 
@@ -295,7 +301,7 @@ class MandateFixture {
     mandate.setId(123)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
-    mandate.setPillar(2)
+    mandate.setPillar(SECOND.toInt())
     return mandate
   }
 

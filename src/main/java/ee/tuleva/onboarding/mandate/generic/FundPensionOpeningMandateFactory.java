@@ -32,7 +32,7 @@ public class FundPensionOpeningMandateFactory
     FundPensionOpeningMandateDetails details = mandateCreationDto.getDetails();
 
     // TODO legacy field
-    mandate.setPillar(details.getPillar());
+    mandate.setPillar(details.getPillar().toInt());
 
     mandate.setDetails(details); // TODO check serialization
 

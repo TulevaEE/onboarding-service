@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate;
 // import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN;
+import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -51,12 +52,12 @@ class GenericMandateIntegrationTest {
 
   static Stream<Arguments> testMandateDetails() {
     return Stream.of(
-        Arguments.of(new TransferCancellationMandateDetails("EE3600109435", 2)),
+        Arguments.of(new TransferCancellationMandateDetails("EE3600109435", SECOND)),
         Arguments.of(new EarlyWithdrawalCancellationMandateDetails()),
         Arguments.of(new WithdrawalCancellationMandateDetails()),
         Arguments.of(
             new FundPensionOpeningMandateDetails(
-                2,
+                SECOND,
                 FundPensionOpeningMandateDetails.FundPensionFrequency.MONTHLY,
                 new FundPensionOpeningMandateDetails.FundPensionDuration(20, false),
                 new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.LHV, "EE_TEST_IBAN"))));

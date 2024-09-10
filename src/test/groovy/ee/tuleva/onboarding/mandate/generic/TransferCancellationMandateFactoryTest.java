@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.generic;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.epis.mandate.details.Pillar.*;
 import static ee.tuleva.onboarding.fund.FundFixture.lhv3rdPillarFund;
 import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -48,7 +49,7 @@ public class TransferCancellationMandateFactoryTest {
     var aFund = lhv3rdPillarFund();
 
     var testIsin = aFund.getIsin();
-    var testPillar = 3;
+    var testPillar = THIRD;
 
     var anDto =
         MandateFixture.sampleGenericMandateCreationDto(
@@ -71,7 +72,7 @@ public class TransferCancellationMandateFactoryTest {
     assertThat(genericMandate.getGenericMandateDto().getMandateType())
         .isEqualTo(TRANSFER_CANCELLATION);
 
-    assertThat(genericMandate.getPillar()).isEqualTo(testPillar);
+    assertThat(genericMandate.getPillar()).isEqualTo(testPillar.toInt());
     assertThat(genericMandate.getFundTransferExchanges().size()).isEqualTo(1);
 
     var fundTransferExchange = genericMandate.getFundTransferExchanges().getFirst();

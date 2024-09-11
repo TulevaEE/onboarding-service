@@ -167,6 +167,12 @@ Configuration is available AWS S3 `s3://tulevasecrets/development-configuration/
 
 In case file has multiple certificate chains, `import-certs.sh` will add all of them.
 
+### PostgreSQL <-> H2 compatibility for integration tests
+
+PostgreSQL (used while running the application) and H2 (used while running integration tests) have slightly different support for features, requiring some to be stubbed.  
+When adding a new migration for H2 <-> Postgres compatibility, the name must be `V1_{n-1}_1__.sql` for Flyway to execute the compatibility migration **before** it tries to execute the migration numbered `n`, for which the compatibility migration is required.
+
+
 ### References
 
 [hwcrypto.js](https://github.com/hwcrypto/hwcrypto.js)

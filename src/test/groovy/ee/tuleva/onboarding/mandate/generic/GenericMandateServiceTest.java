@@ -36,7 +36,7 @@ public class GenericMandateServiceTest {
 
   @Mock private WithdrawalCancellationMandateFactory withdrawalCancellationMandateFactory;
 
-  private List<MandateFactory> mandateFactories;
+  private List<MandateFactory<?>> mandateFactories;
 
   @BeforeEach
   void setUp() {

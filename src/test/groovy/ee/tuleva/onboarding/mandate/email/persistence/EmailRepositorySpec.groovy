@@ -32,7 +32,7 @@ class EmailRepositorySpec extends Specification {
 
     when:
     def scheduledEmails =
-        emailRepository.findAllByPersonalCodeAndTypeAndStatusOrderByCreatedDateDesc(person.personalCode, emailType, SCHEDULED)
+        emailRepository.findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(person.personalCode, emailType, [SCHEDULED])
 
     then:
     scheduledEmails == [scheduledEmail]

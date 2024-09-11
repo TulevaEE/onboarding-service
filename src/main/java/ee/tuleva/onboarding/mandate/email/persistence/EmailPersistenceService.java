@@ -77,7 +77,7 @@ public class EmailPersistenceService {
   }
 
   private List<Email> getScheduledEmails(Person person, EmailType type) {
-    return emailRepository.findAllByPersonalCodeAndTypeAndStatusOrderByCreatedDateDesc(
-        person.getPersonalCode(), type, SCHEDULED);
+    return emailRepository.findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(
+        person.getPersonalCode(), type, List.of(SCHEDULED, QUEUED));
   }
 }

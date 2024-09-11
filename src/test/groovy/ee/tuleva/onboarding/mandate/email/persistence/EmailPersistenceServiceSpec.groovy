@@ -52,7 +52,7 @@ class EmailPersistenceServiceSpec extends Specification {
         new Email(personalCode: person.personalCode, mandrillMessageId: "200", type: type)
     ]
     def scheduledMessageInfo = Optional.of(new MandrillScheduledMessageInfo())
-    emailRepository.findAllByPersonalCodeAndTypeAndStatusOrderByCreatedDateDesc(person.personalCode, type, SCHEDULED) >> emails
+    emailRepository.findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(person.personalCode, type, [SCHEDULED, QUEUED]) >> emails
     emailService.cancelScheduledEmail("100") >> scheduledMessageInfo
     emailService.cancelScheduledEmail("200") >> scheduledMessageInfo
 

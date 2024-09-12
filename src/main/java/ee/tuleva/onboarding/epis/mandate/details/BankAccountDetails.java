@@ -4,7 +4,6 @@ import java.util.Arrays;
 import lombok.Getter;
 
 public record BankAccountDetails(BankAccountType type, Bank bank, String accountIban) {
-  // TODO bank name missing, required in form
   public enum BankAccountType {
     ESTONIAN,
     // EUROPEAN(E) and OTHER(V) not supported

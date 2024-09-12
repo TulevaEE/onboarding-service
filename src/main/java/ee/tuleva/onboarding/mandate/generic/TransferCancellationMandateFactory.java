@@ -54,7 +54,7 @@ public class TransferCancellationMandateFactory
 
     // TODO legacy fields
     mandate.setPillar(sourceFund.getPillar());
-    mandate.setFundTransferExchanges(List.of(exchange)); // TODO no need to save?
+    mandate.setFundTransferExchanges(List.of(exchange));
 
     mandate.setDetails(
         TransferCancellationMandateDetails.fromFundTransferExchanges(

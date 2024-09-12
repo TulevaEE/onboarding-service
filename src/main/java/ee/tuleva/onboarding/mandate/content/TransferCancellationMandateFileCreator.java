@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class TransferCancellationMandateFileCreator implements MandateFileCreator {
+class TransferCancellationMandateFileCreator implements MandateFileCreator {
 
   private final FundRepository fundRepository;
 

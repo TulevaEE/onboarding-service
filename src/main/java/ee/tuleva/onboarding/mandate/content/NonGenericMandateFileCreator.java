@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class NonGenericMandateFileCreator implements MandateFileCreator {
+class NonGenericMandateFileCreator implements MandateFileCreator {
 
   private final FundRepository fundRepository;
 

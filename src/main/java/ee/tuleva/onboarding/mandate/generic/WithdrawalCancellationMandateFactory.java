@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.mandate.generic;
 
+import static ee.tuleva.onboarding.mandate.MandateType.*;
+
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
@@ -39,6 +41,6 @@ public class WithdrawalCancellationMandateFactory
 
   @Override
   public boolean supports(MandateType mandateType) {
-    return mandateType == MandateType.WITHDRAWAL_CANCELLATION;
+    return mandateType == WITHDRAWAL_CANCELLATION;
   }
 }

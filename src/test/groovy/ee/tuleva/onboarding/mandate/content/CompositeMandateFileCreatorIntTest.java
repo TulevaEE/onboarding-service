@@ -54,7 +54,6 @@ public class CompositeMandateFileCreatorIntTest {
         Paths.get("src/test/groovy/ee/tuleva/onboarding/mandate/content/__snapshots__");
 
     Path filePath = snapshotDirectory.resolve(snapshotName + "_" + file.getName());
-    System.out.println(filePath);
     try (FileOutputStream outputStream = new FileOutputStream(filePath.toFile())) {
       outputStream.write(file.getContent());
     } catch (IOException e) {

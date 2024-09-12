@@ -25,7 +25,7 @@ seems that BaseControllerSpecs do not test serialization and other things like i
 For example serialization for generic MandateDetails that works here can fail in integration tests. Feel free to use @SpringBootTest instead
 */
 
-@Deprecated(since = "Use @SpringBootTest")
+@Deprecated(since = "Use @SpringBootTest or @WebMvcTest instead")
 class BaseControllerSpec extends Specification {
 
     protected final static ObjectMapper mapper = new ObjectMapper()

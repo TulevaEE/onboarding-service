@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class FundPensionOpeningMandateFileCreator implements MandateFileCreator {
+class FundPensionOpeningMandateFileCreator implements MandateFileCreator {
 
   private final MandateContentService mandateContentService;
 

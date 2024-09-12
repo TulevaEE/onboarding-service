@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate.generic;
 
-import static java.util.Collections.singletonList;
+import static ee.tuleva.onboarding.mandate.MandateType.*;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.UserConversionService;
@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.user.UserService;
+import java.util.List;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -49,11 +50,11 @@ public class TransferCancellationMandateFactory
             .mandate(mandate)
             .build();
 
-    var exchanges = singletonList(exchange);
+    var exchanges = List.of(exchange);
 
     // TODO legacy fields
     mandate.setPillar(sourceFund.getPillar());
-    mandate.setFundTransferExchanges(singletonList(exchange)); // TODO no need to save?
+    mandate.setFundTransferExchanges(List.of(exchange)); // TODO no need to save?
 
     mandate.setDetails(
         TransferCancellationMandateDetails.fromFundTransferExchanges(
@@ -64,6 +65,6 @@ public class TransferCancellationMandateFactory
 
   @Override
   public boolean supports(MandateType mandateType) {
-    return mandateType == MandateType.TRANSFER_CANCELLATION;
+    return mandateType == TRANSFER_CANCELLATION;
   }
 }

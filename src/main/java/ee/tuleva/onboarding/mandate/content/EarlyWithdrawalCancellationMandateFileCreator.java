@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class EarlyWithdrawalCancellationMandateFileCreator implements MandateFileCreator {
+class EarlyWithdrawalCancellationMandateFileCreator implements MandateFileCreator {
 
   private final MandateContentService mandateContentService;
 

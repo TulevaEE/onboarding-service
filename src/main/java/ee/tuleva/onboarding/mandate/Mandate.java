@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.mandate;
 
 import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
-import static jakarta.persistence.EnumType.STRING;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;

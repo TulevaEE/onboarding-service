@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.mandate
 
+import ee.tuleva.onboarding.epis.mandate.details.Pillar
+import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
 import ee.tuleva.onboarding.user.User
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
@@ -9,6 +11,8 @@ import spock.lang.Specification
 
 import java.time.Instant
 
+import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
+import static ee.tuleva.onboarding.mandate.MandateType.TRANSFER_CANCELLATION
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 @DataJpaTest
@@ -41,6 +45,7 @@ class MandateRepositorySpec extends Specification {
       .user(savedUser)
       .futureContributionFundIsin("isin")
       .pillar(2)
+      .details(new TransferCancellationMandateDetails("EE_TEST_ISIN", SECOND))
       .address(address)
       .metadata(metadata)
       .build()
@@ -56,13 +61,18 @@ class MandateRepositorySpec extends Specification {
     when:
     def mandate = repository.findByIdAndUserId(savedMandate.id, savedUser.id)
 
+    // does not actually check for deserialization, unlike @SpringBootTest
+    def castDetails = (TransferCancellationMandateDetails) mandate.details
+
     then:
     mandate.user == savedUser
     mandate.futureContributionFundIsin == Optional.of("isin")
     mandate.fundTransferExchanges == [fundTransferExchange]
     mandate.address == address
     mandate.metadata == metadata
-
+    castDetails.mandateType == TRANSFER_CANCELLATION
+    castDetails.pillar == SECOND
+    castDetails.sourceFundIsinOfTransferToCancel == "EE_TEST_ISIN"
   }
 
 }

@@ -31,7 +31,7 @@ public class MandateDetailsDeserializer extends JsonDeserializer<MandateDetails>
     }
 
     // initializing new ObjectMapper, disabling annotation inspector used to find deserializer
-    // to prevent infinite loop where it
+    // to prevent infinite loop
     ObjectMapper anotherMapper = mapper.copy();
     anotherMapper.setAnnotationIntrospector(customIntrospector);
 

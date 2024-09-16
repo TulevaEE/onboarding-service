@@ -18,7 +18,9 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto;
 import ee.tuleva.onboarding.epis.mandate.details.*;
+import java.util.List;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -29,6 +31,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.data.util.Streamable;
 import org.springframework.http.*;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
@@ -37,6 +40,8 @@ class GenericMandateIntegrationTest {
   @LocalServerPort int randomServerPort;
 
   @Autowired private TestRestTemplate restTemplate;
+
+  @Autowired private MandateRepository mandateRepository;
 
   @MockBean private EpisService episService;
 
@@ -63,6 +68,20 @@ class GenericMandateIntegrationTest {
                 new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.LHV, "EE_TEST_IBAN"))));
   }
 
+  @AfterEach
+  void cleanup() {
+    mandateRepository.deleteAll();
+  }
+
+  void assertCanReadMandate(MandateDetails details) {
+    List<Mandate> readMandates = Streamable.of(mandateRepository.findAll()).toList();
+
+    assertThat(readMandates.size()).isEqualTo(1);
+
+    Mandate firstMandate = readMandates.getFirst();
+    assertThat(firstMandate.getDetails().getMandateType()).isEqualTo(details.getMandateType());
+  }
+
   @Test
   @DisplayName("create generic mandate")
   void testMandateCreation() throws Exception {
@@ -87,10 +106,12 @@ class GenericMandateIntegrationTest {
     assertThat(jsonNode.get("details").get("mandateType").asText())
         .isEqualTo("WITHDRAWAL_CANCELLATION");
     assertThat(jsonNode.get("pillar").asInt()).isEqualTo(2);
+
+    assertCanReadMandate(aDto.getDetails());
   }
 
   @ParameterizedTest
-  @DisplayName("create all generic mandate types")
+  @DisplayName("create all generic mandate types and fetch")
   @MethodSource("testMandateDetails")
   void testAllMandateDetails(MandateDetails details) {
     String url = "http://localhost:" + randomServerPort + "/v1/mandates/generic";
@@ -108,5 +129,6 @@ class GenericMandateIntegrationTest {
     ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+    assertCanReadMandate(details);
   }
 }

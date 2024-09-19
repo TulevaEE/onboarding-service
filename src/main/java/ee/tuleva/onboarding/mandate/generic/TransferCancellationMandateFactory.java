@@ -50,15 +50,9 @@ public class TransferCancellationMandateFactory
             .mandate(mandate)
             .build();
 
-    var exchanges = List.of(exchange);
-
     // TODO legacy fields
     mandate.setPillar(sourceFund.getPillar());
     mandate.setFundTransferExchanges(List.of(exchange));
-
-    mandate.setDetails(
-        TransferCancellationMandateDetails.fromFundTransferExchanges(
-            exchanges, sourceFund.getPillar()));
 
     return mandate;
   }

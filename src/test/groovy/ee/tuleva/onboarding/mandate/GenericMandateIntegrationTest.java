@@ -65,7 +65,8 @@ class GenericMandateIntegrationTest {
                 SECOND,
                 FundPensionOpeningMandateDetails.FundPensionFrequency.MONTHLY,
                 new FundPensionOpeningMandateDetails.FundPensionDuration(20, false),
-                new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.LHV, "EE_TEST_IBAN"))));
+                new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.LHV, "EE_TEST_IBAN"))),
+        Arguments.of(aPartialWithdrawalMandateDetails));
   }
 
   @AfterEach

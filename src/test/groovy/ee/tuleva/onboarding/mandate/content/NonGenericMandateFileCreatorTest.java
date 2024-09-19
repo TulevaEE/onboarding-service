@@ -41,7 +41,7 @@ public class NonGenericMandateFileCreatorTest {
     when(fundRepository.findAllByPillarAndStatus(eq(aMandate.getPillar()), any()))
         .thenReturn(List.of(aFund));
     when(mandateContentCreator.getContentFiles(aUser, aMandate, List.of(aFund), aContactDetails))
-        .thenReturn(List.of(new MandateContentFile(aTestFileName, "text/html", new byte[0])));
+        .thenReturn(List.of(new MandateContentFile(aTestFileName, new byte[0])));
 
     List<MandateContentFile> files =
         nonGenericMandateFileCreator.getContentFiles(aUser, aMandate, aContactDetails);

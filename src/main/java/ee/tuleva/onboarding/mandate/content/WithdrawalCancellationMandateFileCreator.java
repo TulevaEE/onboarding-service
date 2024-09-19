@@ -29,7 +29,6 @@ class WithdrawalCancellationMandateFileCreator implements MandateFileCreator {
     return List.of(
         MandateContentFile.builder()
             .name("avalduse_tyhistamise_avaldus_" + documentNumber + ".html")
-            .mimeType("text/html")
             .content(htmlContent.getBytes())
             .build());
   }

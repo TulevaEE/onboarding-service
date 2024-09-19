@@ -1,0 +1,55 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Kohustuslikust kogumispensionist osalise väljamakse avaldus</title>
+  <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
+  <div th:insert="sections/new_styles" th:remove="tag"></div>
+</head>
+<body>
+  <h1>Kohustuslikust kogumispensionist osalise väljamakse avaldus nr <span
+      th:text="${documentNumber}"></span></h1>
+  <div th:insert="sections/personal_details_section" th:remove="tag"></div>
+
+  <h2>3. Tagasivõtmisele kuuluvad osakud</h2>
+  <table>
+    <thead>
+      <tr>
+        <td>Pensionifondi nimetus, mille osakute
+        tagasivõtmist summa väljamaksmiseks soovin kasutada</td>
+        <td>Tagasivõetavate osakute osakaal saldost (%)</td>
+      </tr>
+    </thead>
+
+    <tbody>
+      <tr th:each="fundWithdrawalAmount : ${partialWithdrawalDetails.getFundWithdrawalAmounts()}">
+        <td th:text="${fundIsinNames.get(fundWithdrawalAmount.isin())}"></td>
+        <td ><span th:text="${fundWithdrawalAmount.percentage()}"></span><span>%</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div th:insert="sections/withdrawals_bank_account_details_section" th:remove="tag"></div>
+  <div class="disclaimer">
+    Olen teadlik, et:<br>
+    1) käesoleva avalduse esitamisel tehakse väljamakse minu avaldusel märgitud kogumispensioni
+    fondi(de)st avalduse esitamisele järgneval kuul kogumispensionide seaduses sätestatud tähtajal.
+    Väljamakselt peetakse kinni tulumaks vastavalt tulumaksuseadusele ja kogu tulumaksu arvestuse
+    aluseks olev summa deklareeritakse Maksu- ja Tolliametis füüsilise isiku tuludeklaratsioonis
+    minu tuluna.<br>
+    2) käesoleva avalduse esitamisega peatub minu kohustusliku kogumispensioni maksete tasumise
+    kohustus automaatselt alates kogumispensionide seaduses sätestatud tähtajast, vastavalt kas 1.
+    jaanuarist, 1. maist või 1. septembrist. Eraldi avaldust ei ole maksete peatamiseks vaja esitada.
+    Makse tasumist ei saa hiljem taastada.<br>
+    3) esitatud avaldust saab tühistada avalduse esitamisega samal kalendrikuul vastavalt
+    kogumispensionide seadusele.<br>
+    4) kui avalduse esitajal on pensioniregistris registreeritud kehtivaid aresti või pankroti nõudeid, ei
+    ole võimalik väljamakse avaldust tühistada. Avalduse tühistamiseks peab olema nõue lõpetatud
+    (täidetud või tühistatud).<br>
+    Olen teadlik, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses
+    ja väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires.
+    NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS
+    Pensionikeskus veebilehel.<br>
+  </div>
+  <div th:insert="sections/footer_section" th:remove="tag"></div>
+</body>
+</html>

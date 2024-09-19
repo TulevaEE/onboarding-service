@@ -27,7 +27,6 @@ class FundPensionOpeningMandateFileCreator implements MandateFileCreator {
     return List.of(
         MandateContentFile.builder()
             .name("fondipensioni_avamise_avaldus_" + documentNumber + ".html")
-            .mimeType("text/html")
             .content(htmlContent.getBytes())
             .build());
   }

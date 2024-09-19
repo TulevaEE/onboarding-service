@@ -1,12 +1,10 @@
 package ee.tuleva.onboarding.mandate.generic;
 
-import static ee.tuleva.onboarding.mandate.MandateType.*;
-
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto;
-import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
@@ -14,10 +12,10 @@ import ee.tuleva.onboarding.user.UserService;
 import org.springframework.stereotype.Component;
 
 @Component
-public class EarlyWithdrawalCancellationMandateFactory
-    extends MandateFactory<EarlyWithdrawalCancellationMandateDetails> {
+public class PartialWithdrawalMandateFactory
+    extends MandateFactory<PartialWithdrawalMandateDetails> {
 
-  public EarlyWithdrawalCancellationMandateFactory(
+  public PartialWithdrawalMandateFactory(
       UserService userService,
       EpisService episService,
       UserConversionService conversionService,
@@ -28,17 +26,18 @@ public class EarlyWithdrawalCancellationMandateFactory
   @Override
   public Mandate createMandate(
       AuthenticatedPerson authenticatedPerson,
-      GenericMandateCreationDto<EarlyWithdrawalCancellationMandateDetails> mandateCreationDto) {
+      GenericMandateCreationDto<PartialWithdrawalMandateDetails> mandateCreationDto) {
     Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
+    PartialWithdrawalMandateDetails details = mandateCreationDto.getDetails();
 
-    // TODO legacy fields
-    mandate.setPillar(2);
+    // TODO legacy field
+    mandate.setPillar(details.getPillar().toInt());
 
     return mandate;
   }
 
   @Override
   public boolean supports(MandateType mandateType) {
-    return mandateType == EARLY_WITHDRAWAL_CANCELLATION;
+    return mandateType == MandateType.PARTIAL_WITHDRAWAL;
   }
 }

@@ -357,7 +357,7 @@ class MandateServiceSpec extends Specification {
   ErrorsResponse sampleEmptyErrorsResponse = new ErrorsResponse([])
 
   private List<MandateContentFile> sampleFiles() {
-    return [new MandateContentFile("file", "html/text", "file".getBytes())]
+    return [new MandateContentFile("file",  "file".getBytes())]
   }
 
 }

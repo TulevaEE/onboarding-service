@@ -6,7 +6,7 @@ import lombok.Getter;
 @Getter
 @Builder
 public class MandateContentFile {
+  private final String mimeType = "text/html";
   private String name;
-  private String mimeType;
   private byte[] content;
 }

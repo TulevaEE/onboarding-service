@@ -45,7 +45,11 @@ public class CompositeMandateFileCreatorIntTest {
         Arguments.of(sampleFundPensionOpeningMandate(), "SecondPillarFundPensionOpeningMandate"),
         Arguments.of(
             sampleFundPensionOpeningMandate(aThirdPillarFundPensionOpeningMandateDetails),
-            "ThirdPillarFundPensionOpeningMandate"));
+            "ThirdPillarFundPensionOpeningMandate"),
+        Arguments.of(samplePartialWithdrawalMandate(), "SecondPillarPartialWithdrawalMandate"),
+        Arguments.of(
+            samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails),
+            "ThirdPillarPartialWithdrawalMandate"));
   }
 
   void writeMandateFile(MandateContentFile file, String snapshotName) {
@@ -66,6 +70,10 @@ public class CompositeMandateFileCreatorIntTest {
   void testMandatesSnapshot(Mandate aMandate, String snapshotName) {
     var anUser = sampleUser().build();
     var anContactDetails = contactDetailsFixture();
+
+    var aFund = tuleva2ndPillarStockFund();
+    var aFund2 = lhv2ndPillarFund();
+    when(fundRepository.findAllByPillarAndStatus(any(), any())).thenReturn(List.of(aFund, aFund2));
 
     List<MandateContentFile> files =
         compositeMandateFileCreator.getContentFiles(anUser, aMandate, anContactDetails);

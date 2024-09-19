@@ -44,12 +44,12 @@ class MandateFileServiceSpec extends Specification {
 
     then:
     files.size() == 1
-    files.get(0).mimeType == "html/text"
+    files.get(0).mimeType == "text/html"
     files.get(0).content.length == 4
   }
 
   List<MandateContentFile> sampleFiles() {
-    return [new MandateContentFile("file", "html/text", "file".getBytes())]
+    return [new MandateContentFile("file", "file".getBytes())]
   }
 
   def mockMandateFiles(User user, Long mandateId, ContactDetails contactDetails) {

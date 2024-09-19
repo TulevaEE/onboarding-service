@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.content;
 
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -65,6 +66,30 @@ class MandateContentService {
             .build();
 
     return templateEngine.process("future_contributions_fund_pillar_" + mandate.getPillar(), ctx);
+  }
+
+  String getPartialWithdrawalHtml(
+      User user, Mandate mandate, ContactDetails contactDetails, List<Fund> funds) {
+    String transactionId = UUID.randomUUID().toString();
+
+    String documentNumber = mandate.getId().toString();
+
+    PartialWithdrawalMandateDetails mandateDetails =
+        (PartialWithdrawalMandateDetails) mandate.getGenericMandateDto().getDetails();
+
+    Context ctx =
+        ContextBuilder.builder()
+            .mandate(mandate)
+            .user(user)
+            .address(mandate.getAddress())
+            .contactDetails(contactDetails)
+            .transactionId(transactionId)
+            .documentNumber(documentNumber)
+            .partialWithdrawalDetails(mandateDetails, funds)
+            .build();
+
+    return templateEngine.process(
+        "partial_withdrawal_pillar_" + mandateDetails.getPillar().toInt(), ctx);
   }
 
   String getFundPensionOpeningHtml(User user, Mandate mandate, ContactDetails contactDetails) {

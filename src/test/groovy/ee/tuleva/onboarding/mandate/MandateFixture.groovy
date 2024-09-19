@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails
 import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.MandateDetails
+import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.Pillar
 import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails
@@ -30,6 +31,20 @@ import static ee.tuleva.onboarding.mandate.Mandate.builder
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 
 class MandateFixture {
+
+  public static PartialWithdrawalMandateDetails aPartialWithdrawalMandateDetails = new PartialWithdrawalMandateDetails(SECOND,
+      new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN"),
+      List.of(new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600109435", 10, BigDecimal.valueOf(20)),
+          new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600019766", 5, BigDecimal.valueOf(30))),
+      "EST"
+  )
+
+  public static PartialWithdrawalMandateDetails aThirdPillarPartialWithdrawalMandateDetails = new PartialWithdrawalMandateDetails(THIRD,
+      new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN"),
+      List.of(new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600109435", 10, BigDecimal.valueOf(20)),
+          new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600019766", 5, BigDecimal.valueOf(30))),
+      "EST"
+  )
 
   public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(SECOND, MONTHLY,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, false),
@@ -206,6 +221,22 @@ class MandateFixture {
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
     mandate.pillar = SECOND.toInt()
+    return mandate
+  }
+
+  static Mandate samplePartialWithdrawalMandate(PartialWithdrawalMandateDetails details = aPartialWithdrawalMandateDetails) {
+    Mandate mandate = builder()
+        .address(addressFixture().build())
+        .pillar(details.pillar.toInt())
+        .details(details)
+        .fundTransferExchanges([])
+        .user(sampleUser().build())
+        .build()
+
+    mandate.setId(123)
+    mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
+    mandate.setMandate("file".getBytes())
+    mandate.pillar = details.getPillar().toInt()
     return mandate
   }
 

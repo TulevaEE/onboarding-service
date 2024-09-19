@@ -45,7 +45,7 @@ public class CompositeMandateFileCreatorTest {
     when(mandateFileCreator2.supports(aMandate.getMandateType())).thenReturn(true);
 
     when(mandateFileCreator2.getContentFiles(aUser, aMandate, aContactDetails))
-        .thenReturn(List.of(new MandateContentFile("test", "text/html", new byte[0])));
+        .thenReturn(List.of(new MandateContentFile("test", new byte[0])));
 
     List<MandateContentFile> files =
         compositeMandateFileCreator.getContentFiles(aUser, aMandate, aContactDetails);

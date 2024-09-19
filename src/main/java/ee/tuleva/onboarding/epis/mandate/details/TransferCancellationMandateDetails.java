@@ -4,13 +4,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.MandateType;
+import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.Getter;
 
 @Getter
 public class TransferCancellationMandateDetails extends MandateDetails {
-  private final String sourceFundIsinOfTransferToCancel;
-  private final Pillar pillar;
+  @NotNull private final String sourceFundIsinOfTransferToCancel;
+  @NotNull private final Pillar pillar;
 
   @JsonCreator
   public TransferCancellationMandateDetails(

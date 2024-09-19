@@ -44,7 +44,6 @@ class MandateContentCreator {
 
     return MandateContentFile.builder()
         .name("makse_maara_muutmise_avaldus_" + documentNumber + ".html")
-        .mimeType("text/html")
         .content(htmlContent.getBytes())
         .build();
   }
@@ -58,7 +57,6 @@ class MandateContentCreator {
 
     return MandateContentFile.builder()
         .name("valikuavaldus_" + documentNumber + ".html")
-        .mimeType("text/html")
         .content(html.getBytes())
         .build();
   }
@@ -101,7 +99,6 @@ class MandateContentCreator {
 
     return MandateContentFile.builder()
         .name("vahetuseavaldus_" + documentNumber + ".html")
-        .mimeType("text/html")
         .content(html.getBytes())
         .build();
   }

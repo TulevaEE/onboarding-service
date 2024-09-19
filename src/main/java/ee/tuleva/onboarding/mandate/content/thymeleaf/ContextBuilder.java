@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.content.thymeleaf;
 
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -82,7 +83,15 @@ public class ContextBuilder {
 
   public ContextBuilder fundPensionOpeningDetails(FundPensionOpeningMandateDetails details) {
     ctx.setVariable("fundPensionOpeningDetails", details);
+    ctx.setVariable("bankAccountDetails", details.getBankAccountDetails());
     return this;
+  }
+
+  public ContextBuilder partialWithdrawalDetails(
+      PartialWithdrawalMandateDetails details, List<Fund> funds) {
+    ctx.setVariable("partialWithdrawalDetails", details);
+    ctx.setVariable("bankAccountDetails", details.getBankAccountDetails());
+    return this.funds(funds);
   }
 
   public ContextBuilder fundTransferExchanges(List<FundTransferExchange> fundTransferExchanges) {

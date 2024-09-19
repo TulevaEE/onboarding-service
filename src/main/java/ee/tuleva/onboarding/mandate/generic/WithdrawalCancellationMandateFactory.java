@@ -34,8 +34,6 @@ public class WithdrawalCancellationMandateFactory
     // TODO legacy fields
     mandate.setPillar(2);
 
-    mandate.setDetails(new WithdrawalCancellationMandateDetails());
-
     return mandate;
   }
 

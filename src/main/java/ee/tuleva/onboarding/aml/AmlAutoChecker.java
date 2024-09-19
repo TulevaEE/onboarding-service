@@ -62,17 +62,6 @@ public class AmlAutoChecker {
   }
 
   @EventListener
-  @Async
-  public void afterLoginAsync(AfterTokenGrantedEvent event) {
-    Person person = event.getPerson();
-    String accessToken = event.getAccessToken();
-    User user = getUser(person);
-
-    var contactDetails = contactDetailsService.getContactDetails(person, accessToken);
-    amlService.addSanctionAndPepCheckIfMissing(user, contactDetails.getAddress());
-  }
-
-  @EventListener
   public void beforeMandateCreated(BeforeMandateCreatedEvent event) {
     User user = event.getUser();
     Integer pillar = event.getPillar();

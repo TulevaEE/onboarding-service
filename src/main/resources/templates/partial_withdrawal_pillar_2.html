@@ -9,25 +9,24 @@
   <h1>Kohustuslikust kogumispensionist osalise väljamakse avaldus nr <span
       th:text="${documentNumber}"></span></h1>
   <div th:insert="sections/personal_details_section" th:remove="tag"></div>
-
   <h2>3. Tagasivõtmisele kuuluvad osakud</h2>
-  <table>
-    <thead>
-      <tr>
-        <td>Pensionifondi nimetus, mille osakute
-        tagasivõtmist summa väljamaksmiseks soovin kasutada</td>
-        <td>Tagasivõetavate osakute osakaal saldost (%)</td>
-      </tr>
-    </thead>
-
-    <tbody>
-      <tr th:each="fundWithdrawalAmount : ${partialWithdrawalDetails.getFundWithdrawalAmounts()}">
-        <td th:text="${fundIsinNames.get(fundWithdrawalAmount.isin())}"></td>
-        <td ><span th:text="${fundWithdrawalAmount.percentage()}"></span><span>%</span></td>
-      </tr>
-    </tbody>
+  <div class="form-grouping">
+    <table>
+      <thead>
+        <tr>
+          <td>Pensionifondi nimetus, mille osakute
+          tagasivõtmist summa väljamaksmiseks soovin kasutada</td>
+          <td>Tagasivõetavate osakute osakaal saldost (%)</td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="fundWithdrawalAmount : ${partialWithdrawalDetails.getFundWithdrawalAmounts()}">
+          <td th:text="${fundIsinNames.get(fundWithdrawalAmount.isin())}"></td>
+          <td ><span th:text="${fundWithdrawalAmount.percentage()}"></span><span>%</span></td>
+        </tr>
+      </tbody>
   </table>
-
+  </div>
   <div th:insert="sections/withdrawals_bank_account_details_section" th:remove="tag"></div>
   <div class="disclaimer">
     Olen teadlik, et:<br>

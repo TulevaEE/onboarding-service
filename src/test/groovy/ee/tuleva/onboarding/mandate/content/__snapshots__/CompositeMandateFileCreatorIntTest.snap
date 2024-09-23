@@ -653,6 +653,14 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     td {
       padding: 8px 16px;
     }
+
+    td:first-child {
+      padding-left: 0;
+    }
+
+    td:last-child {
+      padding-right: 0;
+    }
   }
 </style>
 
@@ -687,7 +695,6 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
   </div>
 </div>
 <h2>2. Isiku eelistused</h2>
-
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Soovin pensioniregistri teatist pensionikonto jäägi kohta</div>
@@ -728,17 +735,14 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     <div class="form-label">Pank</div>
     <div class="form-value">AS LHV Pank</div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Swift/BIC</div>
     <div class="form-value"><br></div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Välisriigi panga aadress</div>
     <div class="form-value"><br></div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Täiendavad andmed välismaksete kohta</div>
     <div class="form-value"><br></div>
@@ -886,6 +890,14 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     td {
       padding: 8px 16px;
     }
+
+    td:first-child {
+      padding-left: 0;
+    }
+
+    td:last-child {
+      padding-right: 0;
+    }
   }
 </style>
 
@@ -920,7 +932,6 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
   </div>
 </div>
 <h2>2. Isiku eelistused</h2>
-
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Soovin pensioniregistri teatist pensionikonto jäägi kohta</div>
@@ -961,17 +972,14 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     <div class="form-label">Pank</div>
     <div class="form-value">AS LHV Pank</div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Swift/BIC</div>
     <div class="form-value"><br></div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Välisriigi panga aadress</div>
     <div class="form-value"><br></div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Täiendavad andmed välismaksete kohta</div>
     <div class="form-value"><br></div>
@@ -1119,6 +1127,14 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     td {
       padding: 8px 16px;
     }
+
+    td:first-child {
+      padding-left: 0;
+    }
+
+    td:last-child {
+      padding-right: 0;
+    }
   }
 </style>
 
@@ -1153,7 +1169,6 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
   </div>
 </div>
 <h2>2. Isiku eelistused</h2>
-
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Soovin pensioniregistri teatist pensionikonto jäägi kohta</div>
@@ -1168,30 +1183,29 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     </div>
   </div>
 </div>
-.
-.
+
   <h2>3. Tagasivõtmisele kuuluvad osakud</h2>
-  <table>
-    <thead>
-      <tr>
-        <td>Pensionifondi nimetus, mille osakute
-        tagasivõtmist summa väljamaksmiseks soovin kasutada</td>
-        <td>Tagasivõetavate osakute osakaal saldost (%)</td>
-      </tr>
-    </thead>
-
-    <tbody>
-      <tr>
-        <td>Tuleva maailma aktsiate pensionifond</td>
-        <td ><span>10</span><span>%</span></td>
-      </tr>
-      <tr>
-        <td>LHV XL</td>
-        <td ><span>5</span><span>%</span></td>
-      </tr>
-    </tbody>
+  <div class="form-grouping">
+    <table>
+      <thead>
+        <tr>
+          <td>Pensionifondi nimetus, mille osakute
+          tagasivõtmist summa väljamaksmiseks soovin kasutada</td>
+          <td>Tagasivõetavate osakute osakaal saldost (%)</td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Tuleva maailma aktsiate pensionifond</td>
+          <td ><span>10</span><span>%</span></td>
+        </tr>
+        <tr>
+          <td>LHV XL</td>
+          <td ><span>5</span><span>%</span></td>
+        </tr>
+      </tbody>
   </table>
-
+  </div>
   <h2>4. Pensionikonto omaniku pangakonto</h2>
 <div class="form-grouping">
   <div class="form-group">
@@ -1202,17 +1216,14 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     <div class="form-label">Pank</div>
     <div class="form-value">AS LHV Pank</div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Swift/BIC</div>
     <div class="form-value"><br></div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Välisriigi panga aadress</div>
     <div class="form-value"><br></div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Täiendavad andmed välismaksete kohta</div>
     <div class="form-value"><br></div>
@@ -1366,6 +1377,14 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     td {
       padding: 8px 16px;
     }
+
+    td:first-child {
+      padding-left: 0;
+    }
+
+    td:last-child {
+      padding-right: 0;
+    }
   }
 </style>
 
@@ -1400,7 +1419,6 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
   </div>
 </div>
 <h2>2. Isiku eelistused</h2>
-
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Soovin pensioniregistri teatist pensionikonto jäägi kohta</div>
@@ -1441,17 +1459,14 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     <div class="form-label">Pank</div>
     <div class="form-value">AS LHV Pank</div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Swift/BIC</div>
     <div class="form-value"><br></div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Välisriigi panga aadress</div>
     <div class="form-value"><br></div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Täiendavad andmed välismaksete kohta</div>
     <div class="form-value"><br></div>
@@ -1597,6 +1612,14 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     td {
       padding: 8px 16px;
     }
+
+    td:first-child {
+      padding-left: 0;
+    }
+
+    td:last-child {
+      padding-right: 0;
+    }
   }
 </style>
 
@@ -1631,7 +1654,6 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
   </div>
 </div>
 <h2>2. Isiku eelistused</h2>
-
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Soovin pensioniregistri teatist pensionikonto jäägi kohta</div>
@@ -1646,36 +1668,34 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     </div>
   </div>
 </div>
-.
-.
+
   <h2>3. Vabatahtlik(ud) pensionifond(id), mille osakute tagasivõtmist taotlen</h2>
-  <table>
-    <thead>
-      <tr>
-        <td>Pensionifond</td>
-        <td>Tagasivõetavate osakute arv</td>
-      </tr>
-    </thead>
-
-    <tbody>
-      <tr>
-        <td>Tuleva maailma aktsiate pensionifond</td>
-        <td>20</td>
-      </tr>
-      <tr>
-        <td>LHV XL</td>
-        <td>30</td>
-      </tr>
-    </tbody>
-  </table>
-
+  <div class="form-grouping">
+    <table>
+      <thead>
+        <tr>
+          <td>Pensionifond</td>
+          <td>Tagasivõetavate osakute arv</td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Tuleva maailma aktsiate pensionifond</td>
+          <td>20</td>
+        </tr>
+        <tr>
+          <td>LHV XL</td>
+          <td>30</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
   <div class="form-grouping">
     <div class="form-group">
       <div class="form-label">Maksuresidentsus</div>
       <div class="form-value">EST</div>
     </div>
   </div>
-
   <h2>4. Pensionikonto omaniku pangakonto</h2>
 <div class="form-grouping">
   <div class="form-group">
@@ -1686,17 +1706,14 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     <div class="form-label">Pank</div>
     <div class="form-value">AS LHV Pank</div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Swift/BIC</div>
     <div class="form-value"><br></div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Välisriigi panga aadress</div>
     <div class="form-value"><br></div>
   </div>
-
   <div class="form-group">
     <div class="form-label">Täiendavad andmed välismaksete kohta</div>
     <div class="form-value"><br></div>

@@ -9,31 +9,29 @@
   <h1>Vabatahtlikust pensionifondist väljamakse avaldus nr <span
       th:text="${documentNumber}"></span></h1>
   <div th:insert="sections/personal_details_section" th:remove="tag"></div>
-
   <h2>3. Vabatahtlik(ud) pensionifond(id), mille osakute tagasivõtmist taotlen</h2>
-  <table>
-    <thead>
-      <tr>
-        <td>Pensionifond</td>
-        <td>Tagasivõetavate osakute arv</td>
-      </tr>
-    </thead>
-
-    <tbody>
-      <tr th:each="fundWithdrawalAmount : ${partialWithdrawalDetails.getFundWithdrawalAmounts()}">
-        <td th:text="${fundIsinNames.get(fundWithdrawalAmount.isin())}"></td>
-        <td th:text="${fundWithdrawalAmount.units()}"></td>
-      </tr>
-    </tbody>
-  </table>
-
+  <div class="form-grouping">
+    <table>
+      <thead>
+        <tr>
+          <td>Pensionifond</td>
+          <td>Tagasivõetavate osakute arv</td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr th:each="fundWithdrawalAmount : ${partialWithdrawalDetails.getFundWithdrawalAmounts()}">
+          <td th:text="${fundIsinNames.get(fundWithdrawalAmount.isin())}"></td>
+          <td th:text="${fundWithdrawalAmount.units()}"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
   <div class="form-grouping">
     <div class="form-group">
       <div class="form-label">Maksuresidentsus</div>
       <div class="form-value" th:text="${partialWithdrawalDetails.getTaxResidency()}"></div>
     </div>
   </div>
-
   <div th:insert="sections/withdrawals_bank_account_details_section" th:remove="tag"></div>
   <div class="disclaimer">
     Olen teadlik, et osakute tagasivõtmisel ja raha arvelduskontole kandmisel peetakse väljamakstavalt

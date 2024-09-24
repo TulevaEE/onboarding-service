@@ -1,14 +1,7 @@
 package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto
-import ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails
-import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.MandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.Pillar
-import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails
+import ee.tuleva.onboarding.epis.mandate.details.*
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
@@ -19,10 +12,9 @@ import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.Bank
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN
 import static ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails.FundPensionFrequency.MONTHLY
-import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
-import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
 import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
 import static ee.tuleva.onboarding.epis.mandate.details.Pillar.THIRD
 import static ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails.fromFundTransferExchanges
@@ -33,14 +25,14 @@ import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 class MandateFixture {
 
   public static PartialWithdrawalMandateDetails aPartialWithdrawalMandateDetails = new PartialWithdrawalMandateDetails(SECOND,
-      new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN"),
+      new BankAccountDetails(ESTONIAN, Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN"),
       List.of(new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600109435", 10, BigDecimal.valueOf(20)),
           new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600019766", 5, BigDecimal.valueOf(30))),
       "EST"
   )
 
   public static PartialWithdrawalMandateDetails aThirdPillarPartialWithdrawalMandateDetails = new PartialWithdrawalMandateDetails(THIRD,
-      new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN"),
+      new BankAccountDetails(ESTONIAN, Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN"),
       List.of(new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600109435", 10, BigDecimal.valueOf(20)),
           new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600019766", 5, BigDecimal.valueOf(30))),
       "EST"
@@ -48,12 +40,12 @@ class MandateFixture {
 
   public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(SECOND, MONTHLY,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, false),
-      new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
+      new BankAccountDetails(ESTONIAN, Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
   )
 
   public static FundPensionOpeningMandateDetails aThirdPillarFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(THIRD, MONTHLY,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, true),
-      new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
+      new BankAccountDetails(ESTONIAN, Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
   )
 
   public static futureContibutionFundIsin = "AE123232334"

@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.mandate;
 
 // import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.Bank.*;
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN;
+import static ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails.FundPensionFrequency.*;
 import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -18,6 +20,7 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto;
 import ee.tuleva.onboarding.epis.mandate.details.*;
+import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails.FundPensionDuration;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -63,9 +66,9 @@ class GenericMandateIntegrationTest {
         Arguments.of(
             new FundPensionOpeningMandateDetails(
                 SECOND,
-                FundPensionOpeningMandateDetails.FundPensionFrequency.MONTHLY,
-                new FundPensionOpeningMandateDetails.FundPensionDuration(20, false),
-                new BankAccountDetails(ESTONIAN, BankAccountDetails.Bank.LHV, "EE_TEST_IBAN"))),
+                MONTHLY,
+                new FundPensionDuration(20, false),
+                new BankAccountDetails(ESTONIAN, LHV, "EE_TEST_IBAN"))),
         Arguments.of(aPartialWithdrawalMandateDetails));
   }
 

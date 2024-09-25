@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.auth
 
+import ee.tuleva.onboarding.user.User
 
 import java.time.Instant
 
@@ -23,7 +24,7 @@ class UserFixture {
                 .member(sampleMember)
     }
 
-  static sampleUser = sampleUser().build()
+   static User sampleUser = sampleUser().build()
 
     static UserBuilder sampleUserNonMember() {
         return builder()

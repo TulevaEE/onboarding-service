@@ -7,10 +7,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
 import ee.tuleva.onboarding.epis.mandate.details.*;
+import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -21,7 +23,6 @@ import java.time.Instant;
 import java.util.*;
 import lombok.*;
 import org.hibernate.annotations.Type;
-import org.jetbrains.annotations.Nullable;
 
 @Data
 @Entity
@@ -78,6 +79,14 @@ public class Mandate implements Serializable {
   @JsonView(MandateView.Default.class)
   private MandateDetails details;
 
+  @Nullable
+  @ManyToOne
+  @JoinColumn(
+      name = "mandate_batch_id",
+      referencedColumnName = "id",
+      foreignKey = @ForeignKey(name = "fk_mandate_batch"))
+  private MandateBatch mandateBatch;
+
   @ValidPaymentRate
   @JsonView(MandateView.Default.class)
   private BigDecimal paymentRate; // TODO: refactor this field into details
@@ -130,7 +139,7 @@ public class Mandate implements Serializable {
 
   @PrePersist
   protected void onCreate() {
-    createdDate = clock().instant(); // TODO column default value NOW() in database
+    createdDate = clock().instant();
   }
 
   public Optional<byte[]> getMandate() {

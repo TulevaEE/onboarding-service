@@ -80,7 +80,7 @@ public class MandateBatchServiceTest {
     MandateBatch createdMandateBatch =
         mandateBatchService.createMandateBatch(List.of(mandate1, mandate2));
 
-    // verify(mandateBatchRepository, times(1)).save(any(MandateBatch.class));
+    verify(mandateBatchRepository, times(1)).save(any(MandateBatch.class));
     assertThat(createdMandateBatch).isNotNull();
     assertThat(createdMandateBatch.getStatus()).isEqualTo(INITIALIZED);
     assertThat(createdMandateBatch.getMandates().size()).isEqualTo(2);

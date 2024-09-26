@@ -52,7 +52,7 @@ public class TransferCancellationMandateFactoryTest {
     var testPillar = THIRD;
 
     var anDto =
-        MandateFixture.sampleGenericMandateCreationDto(
+        MandateFixture.sampleMandateCreationDto(
             new TransferCancellationMandateDetails(testIsin, testPillar));
 
     when(userService.getById(any())).thenReturn(anUser);

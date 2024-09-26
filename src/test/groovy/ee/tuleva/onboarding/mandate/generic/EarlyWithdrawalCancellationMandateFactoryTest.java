@@ -46,8 +46,7 @@ public class EarlyWithdrawalCancellationMandateFactoryTest {
     var aContactDetails = contactDetailsFixture();
 
     var anDto =
-        MandateFixture.sampleGenericMandateCreationDto(
-            new EarlyWithdrawalCancellationMandateDetails());
+        MandateFixture.sampleMandateCreationDto(new EarlyWithdrawalCancellationMandateDetails());
 
     when(userService.getById(any())).thenReturn(anUser);
     when(conversionService.getConversion(any())).thenReturn(fullyConverted());

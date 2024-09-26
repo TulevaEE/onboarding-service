@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.mandate.MandateController.MANDATES_URI;
 import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
-import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
@@ -14,6 +13,7 @@ import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
+import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureStatusResponse;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
@@ -77,15 +77,15 @@ public class MandateController {
   @JsonView(MandateView.Default.class)
   public Mandate createGenericMandate(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      @Valid @RequestBody GenericMandateCreationDto<?> createGenericMandateDto,
+      @Valid @RequestBody MandateDto<?> mandateDto,
       @Parameter(hidden = true) Errors errors) {
     if (errors.hasErrors()) {
       log.info("Generic mandate creation dto is not valid: {}", errors);
       throw new ValidationErrorsException(errors);
     }
 
-    log.info("Creating mandate: {}", createGenericMandateDto);
-    return genericMandateService.createGenericMandate(authenticatedPerson, createGenericMandateDto);
+    log.info("Creating mandate: {}", mandateDto);
+    return genericMandateService.createGenericMandate(authenticatedPerson, mandateDto);
   }
 
   @Operation(summary = "Start signing mandate with mobile ID")

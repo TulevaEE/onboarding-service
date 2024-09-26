@@ -4,12 +4,12 @@ import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
-import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto
 import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService
+import ee.tuleva.onboarding.mandate.generic.MandateDto
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
@@ -68,11 +68,11 @@ class MandateControllerSpec extends BaseControllerSpec {
   def "save a generic mandate"() {
     when:
     def mandate = sampleEarlyWithdrawalCancellationMandate()
-    genericMandateService.createGenericMandate(_ as AuthenticatedPerson, _ as GenericMandateCreationDto) >> mandate
+    genericMandateService.createGenericMandate(_ as AuthenticatedPerson, _ as MandateDto) >> mandate
     then:
     mvc
         .perform(post("/v1/mandates/generic")
-            .content(mapper.writeValueAsString(sampleGenericMandateCreationDto(new EarlyWithdrawalCancellationMandateDetails())))
+            .content(mapper.writeValueAsString(sampleMandateCreationDto(new EarlyWithdrawalCancellationMandateDetails())))
             .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -84,11 +84,11 @@ class MandateControllerSpec extends BaseControllerSpec {
     when:
     def mandate = sampleFundPensionOpeningMandate()
     def castDetails = (FundPensionOpeningMandateDetails) mandate.details
-    genericMandateService.createGenericMandate(_ as AuthenticatedPerson, _ as GenericMandateCreationDto) >> mandate
+    genericMandateService.createGenericMandate(_ as AuthenticatedPerson, _ as MandateDto) >> mandate
     then:
     mvc
         .perform(post("/v1/mandates/generic")
-            .content(mapper.writeValueAsString(sampleGenericMandateCreationDto(mandate.details)))
+            .content(mapper.writeValueAsString(sampleMandateCreationDto(mandate.details)))
             .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))

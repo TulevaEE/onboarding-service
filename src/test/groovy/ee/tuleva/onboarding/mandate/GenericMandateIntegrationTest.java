@@ -18,9 +18,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.JwtTokenGenerator;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
-import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto;
 import ee.tuleva.onboarding.epis.mandate.details.*;
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails.FundPensionDuration;
+import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
@@ -93,15 +93,12 @@ class GenericMandateIntegrationTest {
 
     var headers = getHeaders();
 
-    var aDto =
-        GenericMandateCreationDto.builder()
-            .details(new WithdrawalCancellationMandateDetails())
-            .build();
+    var aDto = MandateDto.builder().details(new WithdrawalCancellationMandateDetails()).build();
 
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
-    HttpEntity<GenericMandateCreationDto<?>> request = new HttpEntity<>(aDto, headers);
+    HttpEntity<MandateDto<?>> request = new HttpEntity<>(aDto, headers);
 
     ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
 
@@ -122,13 +119,13 @@ class GenericMandateIntegrationTest {
 
     var headers = getHeaders();
 
-    var aDto = GenericMandateCreationDto.builder().details(details).build();
+    var aDto = MandateDto.builder().details(details).build();
 
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
-    HttpEntity<GenericMandateCreationDto<?>> request = new HttpEntity<>(aDto, headers);
+    HttpEntity<MandateDto<?>> request = new HttpEntity<>(aDto, headers);
 
     ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
 

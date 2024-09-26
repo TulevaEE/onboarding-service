@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto
 import ee.tuleva.onboarding.epis.mandate.details.*
 import ee.tuleva.onboarding.fund.Fund
 import ee.tuleva.onboarding.fund.manager.FundManager
@@ -8,6 +7,7 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand
+import ee.tuleva.onboarding.mandate.generic.MandateDto
 
 import java.time.Instant
 
@@ -64,8 +64,8 @@ class MandateFixture {
     )
   }
 
-  static <TDetails extends MandateDetails> GenericMandateCreationDto<TDetails> sampleGenericMandateCreationDto(TDetails details) {
-    return GenericMandateCreationDto.builder().details(details).build()
+  static <TDetails extends MandateDetails> MandateDto<TDetails> sampleMandateCreationDto(TDetails details) {
+    return MandateDto.builder().details(details).build()
   }
 
   static sampleStartIdCardSignCommand(String clientCertificate) {

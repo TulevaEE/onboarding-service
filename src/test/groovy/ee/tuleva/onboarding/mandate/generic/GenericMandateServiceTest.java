@@ -60,8 +60,7 @@ public class GenericMandateServiceTest {
     var aMandate = sampleEarlyWithdrawalCancellationMandate();
 
     var anDto =
-        MandateFixture.sampleGenericMandateCreationDto(
-            new EarlyWithdrawalCancellationMandateDetails());
+        MandateFixture.sampleMandateCreationDto(new EarlyWithdrawalCancellationMandateDetails());
 
     when(userService.getById(any())).thenReturn(anUser);
     when(mandateService.save(any(User.class), any(Mandate.class))).thenReturn(aMandate);
@@ -87,7 +86,7 @@ public class GenericMandateServiceTest {
     var aMandate = sampleEarlyWithdrawalCancellationMandate();
 
     var anDto =
-        MandateFixture.sampleGenericMandateCreationDto(
+        MandateFixture.sampleMandateCreationDto(
             new MandateDetails(UNKNOWN) {
               @Override
               public MandateType getMandateType() {

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonView;
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
 import ee.tuleva.onboarding.epis.mandate.details.*;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
+import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.payment.rate.ValidPaymentRate;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
@@ -124,12 +125,26 @@ public class Mandate implements Serializable {
   }
 
   @JsonIgnore
+  private <T extends MandateDetails> MandateDto<T> buildMandateDto(T details) {
+    return MandateDto.<T>builder().id(id).createdDate(createdDate).details(details).build();
+  }
+
+  @JsonIgnore
   public GenericMandateDto<?> getGenericMandateDto() {
     if (!supportsGenericMandateDto()) {
       throw new IllegalStateException("Mandate DTO not yet supported for given application");
     }
 
     return buildGenericMandateDto(details);
+  }
+
+  @JsonIgnore
+  public MandateDto<?> getMandateDto() {
+    if (!supportsGenericMandateDto()) {
+      throw new IllegalStateException("Mandate DTO not yet supported for given application");
+    }
+
+    return buildMandateDto(details);
   }
 
   @JsonIgnore

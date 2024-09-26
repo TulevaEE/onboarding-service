@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.mandate.MandateType.*;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto;
 import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.FundRepository;
@@ -35,7 +34,7 @@ public class TransferCancellationMandateFactory
   @Override
   public Mandate createMandate(
       AuthenticatedPerson authenticatedPerson,
-      GenericMandateCreationDto<TransferCancellationMandateDetails> mandateCreationDto) {
+      MandateDto<TransferCancellationMandateDetails> mandateCreationDto) {
     Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
 
     Fund sourceFund =

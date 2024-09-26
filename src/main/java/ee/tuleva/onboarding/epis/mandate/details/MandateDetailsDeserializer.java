@@ -19,16 +19,23 @@ public class MandateDetailsDeserializer extends JsonDeserializer<MandateDetails>
         }
       };
 
+  public static MandateType deserializeMandateTypeField(JsonNode mandateDetailsRoot)
+      throws IOException {
+    MandateType type = MandateType.valueOf(mandateDetailsRoot.get("mandateType").asText());
+
+    if (type == MandateType.UNKNOWN) {
+      throw new IllegalArgumentException("Unknown mandateType: " + type);
+    }
+
+    return type;
+  }
+
   @Override
   public MandateDetails deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
     ObjectMapper mapper = (ObjectMapper) p.getCodec();
     JsonNode root = mapper.readTree(p);
 
-    MandateType type = MandateType.valueOf(root.get("mandateType").asText());
-
-    if (type == MandateType.UNKNOWN) {
-      throw new IllegalArgumentException("Unknown mandateType: " + type);
-    }
+    MandateType type = MandateDetailsDeserializer.deserializeMandateTypeField(root);
 
     // initializing new ObjectMapper, disabling annotation inspector used to find deserializer
     // to prevent infinite loop

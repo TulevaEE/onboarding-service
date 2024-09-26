@@ -44,8 +44,7 @@ public class WithdrawalCancellationMandateFactoryTest {
     var anUser = sampleUser().build();
     var aContactDetails = contactDetailsFixture();
 
-    var anDto =
-        MandateFixture.sampleGenericMandateCreationDto(new WithdrawalCancellationMandateDetails());
+    var anDto = MandateFixture.sampleMandateCreationDto(new WithdrawalCancellationMandateDetails());
 
     when(userService.getById(any())).thenReturn(anUser);
     when(conversionService.getConversion(any())).thenReturn(fullyConverted());

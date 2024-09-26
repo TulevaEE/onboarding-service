@@ -2,8 +2,9 @@ package ee.tuleva.onboarding.mandate.batch;
 
 import static java.util.stream.Collectors.toList;
 
-import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.mandate.MandateFileService;
+import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.user.User;
 import java.util.List;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Service;
 public class MandateBatchService {
   private final MandateBatchRepository mandateBatchRepository;
   private final MandateFileService mandateFileService;
+  private final GenericMandateService genericMandateService;
 
   public Optional<MandateBatch> getByIdAndUser(Long id, User user) {
     var batch =
@@ -35,7 +37,15 @@ public class MandateBatchService {
     return batch;
   }
 
-  public MandateBatch createMandateBatch(List<Mandate> mandates) {
+  public MandateBatch createMandateBatch(
+      AuthenticatedPerson authenticatedPerson, MandateBatchDto mandateBatchDto) {
+    var mandates =
+        mandateBatchDto.getMandates().stream()
+            .map(
+                mandateDto ->
+                    genericMandateService.createGenericMandate(authenticatedPerson, mandateDto))
+            .toList();
+
     var mandateBatch =
         MandateBatch.builder().status(MandateBatchStatus.INITIALIZED).mandates(mandates).build();
 

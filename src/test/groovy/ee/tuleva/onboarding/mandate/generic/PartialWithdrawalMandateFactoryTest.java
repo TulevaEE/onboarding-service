@@ -44,7 +44,7 @@ public class PartialWithdrawalMandateFactoryTest {
     var aContactDetails = contactDetailsFixture();
     var aMandateDetails = MandateFixture.aPartialWithdrawalMandateDetails;
 
-    var anDto = MandateFixture.sampleGenericMandateCreationDto(aMandateDetails);
+    var anDto = MandateFixture.sampleMandateCreationDto(aMandateDetails);
 
     when(userService.getById(any())).thenReturn(anUser);
     when(conversionService.getConversion(any())).thenReturn(fullyConverted());

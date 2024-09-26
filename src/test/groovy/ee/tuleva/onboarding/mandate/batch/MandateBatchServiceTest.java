@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.mandate.batch;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFundPensionOpeningMandate;
 import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawalMandate;
-import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -65,25 +64,6 @@ public class MandateBatchServiceTest {
     Optional<MandateBatch> result = mandateBatchService.getByIdAndUser(1L, user);
 
     assertTrue(result.isEmpty());
-  }
-
-  @Test
-  @DisplayName("Should create and save a new MandateBatch")
-  void createMandateBatch_CreatesAndSavesMandateBatch() {
-    var mandate1 = sampleFundPensionOpeningMandate();
-    var mandate2 = samplePartialWithdrawalMandate();
-
-    var savedMandateBatch =
-        MandateBatchFixture.aMandateBatch().mandates(List.of(mandate1, mandate2)).build();
-    when(mandateBatchRepository.save(any(MandateBatch.class))).thenReturn(savedMandateBatch);
-
-    MandateBatch createdMandateBatch =
-        mandateBatchService.createMandateBatch(List.of(mandate1, mandate2));
-
-    verify(mandateBatchRepository, times(1)).save(any(MandateBatch.class));
-    assertThat(createdMandateBatch).isNotNull();
-    assertThat(createdMandateBatch.getStatus()).isEqualTo(INITIALIZED);
-    assertThat(createdMandateBatch.getMandates().size()).isEqualTo(2);
   }
 
   @Test

@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.mandate.generic;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.mandate.GenericMandateCreationDto;
 import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
@@ -26,7 +25,7 @@ public class PartialWithdrawalMandateFactory
   @Override
   public Mandate createMandate(
       AuthenticatedPerson authenticatedPerson,
-      GenericMandateCreationDto<PartialWithdrawalMandateDetails> mandateCreationDto) {
+      MandateDto<PartialWithdrawalMandateDetails> mandateCreationDto) {
     Mandate mandate = this.setupMandate(authenticatedPerson, mandateCreationDto);
     PartialWithdrawalMandateDetails details = mandateCreationDto.getDetails();
 

@@ -34,7 +34,6 @@ public class MandateFileService {
         .collect(toList());
   }
 
-  // TODO: test
   public List<SignatureFile> getMandateFiles(Mandate mandate) {
     var user = mandate.getUser();
     ContactDetails contactDetails = episService.getContactDetails(user);

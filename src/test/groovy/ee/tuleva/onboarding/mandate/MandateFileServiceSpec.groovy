@@ -32,7 +32,10 @@ class MandateFileServiceSpec extends Specification {
   def "getMandateFiles: generates mandate content files"() {
     given:
     ContactDetails sampleContactDetails = contactDetailsFixture()
-    mockMandateFiles(user, mandate.id, sampleContactDetails)
+
+    1 * userService.getById(user.id) >> user
+    1 * mandateRepository.findByIdAndUserId(mandate.id, user.id) >> Mandate.builder().pillar(2).build()
+    1 * episService.getContactDetails(user) >> sampleContactDetails
 
     1 * compositeMandateFileCreator.
         getContentFiles(_ as User,
@@ -52,10 +55,25 @@ class MandateFileServiceSpec extends Specification {
     return [new MandateContentFile("file", "file".getBytes())]
   }
 
-  def mockMandateFiles(User user, Long mandateId, ContactDetails contactDetails) {
-    1 * userService.getById(user.id) >> user
-    1 * mandateRepository.findByIdAndUserId(mandateId, user.id) >> Mandate.builder().pillar(2).build()
-    1 * episService.getContactDetails(user) >> contactDetails
+  def "getMandateFiles based on mandate: generates mandate content files"() {
+    given:
+    ContactDetails sampleContactDetails = contactDetailsFixture()
+
+    mandate.setUser(user)
+
+    1 * episService.getContactDetails(user) >> sampleContactDetails
+    1 * compositeMandateFileCreator.
+        getContentFiles(_ as User,
+            _ as Mandate,
+            _) >> sampleFiles()
+
+    when:
+    List<SignatureFile> files = service.getMandateFiles(mandate)
+
+    then:
+    files.size() == 1
+    files.get(0).mimeType == "text/html"
+    files.get(0).content.length == 4
   }
 
 }

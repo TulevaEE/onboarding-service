@@ -31,8 +31,7 @@ public class MandateBatch {
   @Enumerated(STRING)
   private MandateBatchStatus status;
 
-  @NotNull
-  @OneToMany(mappedBy = "mandateBatch")
+  @OneToMany(mappedBy = "mandateBatch", fetch = FetchType.EAGER)
   private List<Mandate> mandates;
 
   @NotNull

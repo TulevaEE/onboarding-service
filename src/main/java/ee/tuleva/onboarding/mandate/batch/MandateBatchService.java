@@ -39,15 +39,19 @@ public class MandateBatchService {
 
   public MandateBatch createMandateBatch(
       AuthenticatedPerson authenticatedPerson, MandateBatchDto mandateBatchDto) {
+
+    var mandateBatch = MandateBatch.builder().status(MandateBatchStatus.INITIALIZED).build();
+
+    var savedMandateBatch = mandateBatchRepository.save(mandateBatch);
     var mandates =
         mandateBatchDto.getMandates().stream()
             .map(
                 mandateDto ->
-                    genericMandateService.createGenericMandate(authenticatedPerson, mandateDto))
-            .toList();
+                    genericMandateService.createGenericMandate(
+                        authenticatedPerson, mandateDto, mandateBatch))
+            .collect(toList());
 
-    var mandateBatch =
-        MandateBatch.builder().status(MandateBatchStatus.INITIALIZED).mandates(mandates).build();
+    savedMandateBatch.setMandates(mandates);
 
     return mandateBatchRepository.save(mandateBatch);
   }

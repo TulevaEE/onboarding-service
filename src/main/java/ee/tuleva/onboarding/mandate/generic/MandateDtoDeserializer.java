@@ -9,10 +9,12 @@ import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.epis.mandate.details.MandateDetailsDeserializer;
 import ee.tuleva.onboarding.mandate.MandateType;
 import java.io.IOException;
+import java.time.Instant;
 
 public class MandateDtoDeserializer extends JsonDeserializer<MandateDto<? extends MandateDetails>> {
-
-  public static MandateDetails deserializeDetailsField(JsonParser p) throws IOException {
+  @Override
+  public MandateDto<? extends MandateDetails> deserialize(JsonParser p, DeserializationContext ctxt)
+      throws IOException {
     ObjectMapper mapper = (ObjectMapper) p.getCodec();
 
     JsonNode root = mapper.readTree(p);
@@ -20,14 +22,18 @@ public class MandateDtoDeserializer extends JsonDeserializer<MandateDto<? extend
     JsonNode detailsNode = root.get("details");
     MandateType type = MandateDetailsDeserializer.deserializeMandateTypeField(detailsNode);
 
-    return mapper.treeToValue(detailsNode, type.getMandateDetailsClass());
-  }
+    MandateDetails details = mapper.treeToValue(detailsNode, type.getMandateDetailsClass());
 
-  @Override
-  public MandateDto<? extends MandateDetails> deserialize(JsonParser p, DeserializationContext ctxt)
-      throws IOException {
-    MandateDetails details = deserializeDetailsField(p);
+    var mandateDtoBuilder = MandateDto.builder();
 
-    return MandateDto.builder().details(details).build();
+    if (root.hasNonNull("id")) {
+      mandateDtoBuilder.id(root.get("id").asLong());
+    }
+
+    if (root.hasNonNull("createdDate")) {
+      mandateDtoBuilder.createdDate(Instant.parse(root.get("createdDate").asText()));
+    }
+
+    return mandateDtoBuilder.details(details).build();
   }
 }

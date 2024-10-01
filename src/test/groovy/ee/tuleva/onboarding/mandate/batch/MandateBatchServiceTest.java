@@ -1,14 +1,16 @@
 package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFundPensionOpeningMandate;
-import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawalMandate;
+import static ee.tuleva.onboarding.mandate.MandateFixture.*;
+import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
 import ee.tuleva.onboarding.mandate.MandateFileService;
+import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -26,12 +28,13 @@ public class MandateBatchServiceTest {
   @Mock private MandateBatchRepository mandateBatchRepository;
 
   @Mock private MandateFileService mandateFileService;
+  @Mock private GenericMandateService genericMandateService;
 
   @InjectMocks private MandateBatchService mandateBatchService;
 
   @Test
-  @DisplayName("Should return MandateBatch by id and user when all mandates belong to the user")
-  void getByIdAndUser_ReturnsMandateBatch_WhenMandatesMatchUser() {
+  @DisplayName("return MandateBatch by id and user when all mandates belong to the user")
+  void returnMandateBatch() {
     var user = sampleUser().build();
     var mandate1 = sampleFundPensionOpeningMandate();
     var mandate2 = samplePartialWithdrawalMandate();
@@ -47,8 +50,8 @@ public class MandateBatchServiceTest {
   }
 
   @Test
-  @DisplayName("Should return empty when all mandates do not match the user")
-  void getByIdAndUser_ReturnsEmpty_WhenMandatesDoNotMatchUser() {
+  @DisplayName("return empty when all mandates do not match the user")
+  void mandatesDontMatch() {
     var user = sampleUser().build();
     var differentUser = sampleUser().id(2L).build();
 
@@ -67,8 +70,8 @@ public class MandateBatchServiceTest {
   }
 
   @Test
-  @DisplayName("Should return mandate batch content files for user")
-  void getMandateBatchContentFiles_ReturnsContentFiles_ForUser() {
+  @DisplayName("return mandate batch content files for user")
+  void getMandateBatchContentFiles() {
     var mandate1 = sampleFundPensionOpeningMandate();
     var mandate2 = samplePartialWithdrawalMandate();
     var user = mandate1.getUser();
@@ -92,8 +95,8 @@ public class MandateBatchServiceTest {
   }
 
   @Test
-  @DisplayName("Should throw exception when MandateBatch not found for user")
-  void getMandateBatchContentFiles_ThrowsException_WhenMandateBatchNotFound() {
+  @DisplayName("throw exception when MandateBatch not found for user")
+  void notFoundMandateBatch() {
     var user = sampleUser().build();
 
     when(mandateBatchRepository.findById(1L)).thenReturn(Optional.empty());
@@ -102,5 +105,35 @@ public class MandateBatchServiceTest {
         NoSuchElementException.class,
         () -> mandateBatchService.getMandateBatchContentFiles(1L, user));
     verify(mandateBatchRepository, times(1)).findById(1L);
+  }
+
+  @Test
+  @DisplayName("create MandateBatch")
+  void createMandateBatch() {
+    var authenticatedPerson =
+        AuthenticatedPersonFixture.authenticatedPersonFromUser(sampleUser().build()).build();
+    var aFundPensionOpeningMandate = sampleFundPensionOpeningMandate();
+
+    var aMandateBatch =
+        MandateBatch.builder()
+            .mandates(List.of(aFundPensionOpeningMandate, aFundPensionOpeningMandate))
+            .status(INITIALIZED)
+            .build();
+    var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
+
+    when(genericMandateService.createGenericMandate(any(), any()))
+        .thenReturn(aFundPensionOpeningMandate);
+    when(mandateBatchRepository.save(
+            argThat(
+                mandateBatch ->
+                    mandateBatch.getStatus().equals(INITIALIZED)
+                        && mandateBatch.getMandates().size() == 2)))
+        .thenReturn(aMandateBatch);
+
+    MandateBatch result =
+        mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
+
+    assertThat(result.getMandates().size()).isEqualTo(2);
+    assertThat(result.getStatus()).isEqualTo(INITIALIZED);
   }
 }

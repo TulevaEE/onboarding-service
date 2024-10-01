@@ -7,20 +7,18 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import java.util.stream.Collectors;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 @Getter
 @Setter
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
 @ToString
 public class MandateBatchDto {
 
-  @Nullable private Long id;
-
   @Valid @NotNull private List<MandateDto<?>> mandates;
+  @Nullable private Long id;
 
   public static MandateBatchDto from(MandateBatch mandateBatch) {
     List<MandateDto<?>> mandateDtos =

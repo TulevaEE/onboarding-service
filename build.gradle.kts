@@ -18,7 +18,7 @@ val springCloudVersion = "2023.0.3"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.3.3"
+    id("org.springframework.boot") version "3.3.4"
     id("io.spring.dependency-management") version "1.1.6"
     id("com.gorylenko.gradle-git-properties") version "2.4.2"
     id("com.diffplug.spotless") version "6.25.0"
@@ -74,7 +74,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.40")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.41.1")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
     implementation("org.springdoc:springdoc-openapi-starter-common:2.6.0")
@@ -107,12 +107,12 @@ dependencies {
     implementation("org.digidoc4j:digidoc4j:5.3.1") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
-    implementation("org.apache.httpcomponents.client5:httpclient5:5.3.1")
+    implementation("org.apache.httpcomponents.client5:httpclient5")
 
     implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.14.0")
     implementation("io.sentry:sentry-logback:7.14.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.8.2")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.8.3")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
@@ -124,6 +124,9 @@ dependencies {
     implementation("com.amazonaws:aws-java-sdk-s3:1.12.770")
     implementation("commons-io:commons-io:2.16.1")
     implementation("org.apache.commons:commons-csv:1.11.0")
+    implementation("com.amazonaws:aws-java-sdk-s3:1.12.772")
+    implementation("commons-io:commons-io:2.17.0")
+    implementation("org.apache.commons:commons-csv:1.12.0")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
@@ -136,7 +139,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-M4-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.22")
+    testImplementation("org.apache.groovy:groovy-all:4.0.23")
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")

@@ -107,7 +107,7 @@ dependencies {
     implementation("org.digidoc4j:digidoc4j:5.3.1") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
-    implementation("org.apache.httpcomponents.client5:httpclient5:5.3.1")
+    implementation("org.apache.httpcomponents.client5:httpclient5:5.4")
 
     implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.14.0")
     implementation("io.sentry:sentry-logback:7.14.0")

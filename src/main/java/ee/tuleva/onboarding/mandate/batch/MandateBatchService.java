@@ -62,6 +62,6 @@ public class MandateBatchService {
     return mandateBatch.getMandates().stream()
         .map(mandateFileService::getMandateFiles)
         .flatMap(List::stream)
-        .collect(toList());
+        .toList();
   }
 }

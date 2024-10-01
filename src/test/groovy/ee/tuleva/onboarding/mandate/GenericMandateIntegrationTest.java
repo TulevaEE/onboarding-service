@@ -93,12 +93,13 @@ class GenericMandateIntegrationTest {
 
     var headers = getHeaders();
 
-    var aDto = MandateDto.builder().details(new WithdrawalCancellationMandateDetails()).build();
+    var aMandateDto =
+        MandateDto.builder().details(new WithdrawalCancellationMandateDetails()).build();
 
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
-    HttpEntity<MandateDto<?>> request = new HttpEntity<>(aDto, headers);
+    HttpEntity<MandateDto<?>> request = new HttpEntity<>(aMandateDto, headers);
 
     ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
 
@@ -108,7 +109,7 @@ class GenericMandateIntegrationTest {
         .isEqualTo("WITHDRAWAL_CANCELLATION");
     assertThat(jsonNode.get("pillar").asInt()).isEqualTo(2);
 
-    assertCanReadMandate(aDto.getDetails());
+    assertCanReadMandate(aMandateDto.getDetails());
   }
 
   @ParameterizedTest

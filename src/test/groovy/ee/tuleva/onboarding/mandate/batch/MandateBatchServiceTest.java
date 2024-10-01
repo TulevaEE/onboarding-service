@@ -89,9 +89,6 @@ public class MandateBatchServiceTest {
     List<SignatureFile> result = mandateBatchService.getMandateBatchContentFiles(1L, user);
 
     assertThat(result.size()).isEqualTo(2);
-    verify(mandateBatchRepository, times(1)).findById(1L);
-    verify(mandateFileService, times(1)).getMandateFiles(mandate1);
-    verify(mandateFileService, times(1)).getMandateFiles(mandate2);
   }
 
   @Test

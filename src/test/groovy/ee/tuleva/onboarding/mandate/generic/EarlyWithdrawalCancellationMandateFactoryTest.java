@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.*;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.*;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -14,7 +15,6 @@ import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
-import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -45,8 +45,7 @@ public class EarlyWithdrawalCancellationMandateFactoryTest {
     var anUser = sampleUser().build();
     var aContactDetails = contactDetailsFixture();
 
-    var anDto =
-        MandateFixture.sampleMandateCreationDto(new EarlyWithdrawalCancellationMandateDetails());
+    var anDto = sampleMandateCreationDto(new EarlyWithdrawalCancellationMandateDetails());
 
     when(userService.getById(any())).thenReturn(anUser);
     when(conversionService.getConversion(any())).thenReturn(fullyConverted());

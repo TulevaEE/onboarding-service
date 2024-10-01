@@ -19,8 +19,7 @@ public class MandateDetailsDeserializer extends JsonDeserializer<MandateDetails>
         }
       };
 
-  public static MandateType deserializeMandateTypeField(JsonNode mandateDetailsRoot)
-      throws IOException {
+  public static MandateType deserializeMandateTypeField(JsonNode mandateDetailsRoot) {
     MandateType type = MandateType.valueOf(mandateDetailsRoot.get("mandateType").asText());
 
     if (type == MandateType.UNKNOWN) {
@@ -31,11 +30,12 @@ public class MandateDetailsDeserializer extends JsonDeserializer<MandateDetails>
   }
 
   @Override
-  public MandateDetails deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-    ObjectMapper mapper = (ObjectMapper) p.getCodec();
-    JsonNode root = mapper.readTree(p);
+  public MandateDetails deserialize(JsonParser parser, DeserializationContext context)
+      throws IOException {
+    ObjectMapper mapper = (ObjectMapper) parser.getCodec();
+    JsonNode root = mapper.readTree(parser);
 
-    MandateType type = MandateDetailsDeserializer.deserializeMandateTypeField(root);
+    MandateType type = deserializeMandateTypeField(root);
 
     // initializing new ObjectMapper, disabling annotation inspector used to find deserializer
     // to prevent infinite loop

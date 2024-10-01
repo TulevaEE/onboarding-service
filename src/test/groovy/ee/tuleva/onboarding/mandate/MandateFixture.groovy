@@ -150,7 +150,7 @@ class MandateFixture {
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
     mandate.setPillar(SECOND.toInt())
-    mandate.setMetadata(Map.of())
+    mandate.setMetadata([:])
     return mandate
   }
 

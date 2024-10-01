@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.batch;
 
+import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static jakarta.persistence.EnumType.STRING;
 
@@ -56,5 +57,9 @@ public class MandateBatch {
     //    mandates.stream()..
     //    this.file = fileCreator.getContentFiles();
 
+  }
+
+  public boolean isSigned() {
+    return this.status == SIGNED;
   }
 }

@@ -74,7 +74,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.41.1")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.41.2")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
     implementation("org.springdoc:springdoc-openapi-starter-common:2.6.0")
@@ -121,9 +121,6 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("com.amazonaws:aws-java-sdk-s3:1.12.770")
-    implementation("commons-io:commons-io:2.16.1")
-    implementation("org.apache.commons:commons-csv:1.11.0")
     implementation("com.amazonaws:aws-java-sdk-s3:1.12.772")
     implementation("commons-io:commons-io:2.17.0")
     implementation("org.apache.commons:commons-csv:1.12.0")

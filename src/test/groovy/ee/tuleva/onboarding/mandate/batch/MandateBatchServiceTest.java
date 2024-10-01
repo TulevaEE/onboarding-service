@@ -121,13 +121,10 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
-    when(genericMandateService.createGenericMandate(any(), any()))
+    when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
-            argThat(
-                mandateBatch ->
-                    mandateBatch.getStatus().equals(INITIALIZED)
-                        && mandateBatch.getMandates().size() == 2)))
+            argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
         .thenReturn(aMandateBatch);
 
     MandateBatch result =

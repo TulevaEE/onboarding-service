@@ -40,7 +40,7 @@ public class MandateBatchController {
         mandateBatchService.createMandateBatch(authenticatedPerson, mandateBatchDto));
   }
 
-  @Operation(summary = "Start signing mandate with Smart ID")
+  @Operation(summary = "Start signing mandate batch with Smart ID")
   @PutMapping("/{id}/signature/smartId")
   public MobileSignatureResponse startSmartIdSignature(
       @PathVariable("id") Long mandateBatchId,
@@ -52,7 +52,7 @@ public class MandateBatchController {
     return new MobileSignatureResponse(signatureSession.getVerificationCode());
   }
 
-  @Operation(summary = "Is mandate successfully signed with Smart ID")
+  @Operation(summary = "Is mandate batch successfully signed with Smart ID")
   @GetMapping("/{id}/signature/smartId/status")
   public MobileSignatureStatusResponse getSmartIdSignatureStatus(
       @PathVariable("id") Long mandateBatchId,
@@ -66,7 +66,7 @@ public class MandateBatchController {
 
     Locale locale = localeResolver.resolveLocale(request);
 
-    MandateBatchStatus statusCode =
+    MandateBatchSignatureStatus statusCode =
         mandateBatchService.finalizeSmartIdSignature(
             authenticatedPerson.getUserId(), mandateBatchId, session, locale);
 

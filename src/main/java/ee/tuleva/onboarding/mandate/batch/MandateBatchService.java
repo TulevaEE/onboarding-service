@@ -129,8 +129,8 @@ public class MandateBatchService {
 
     ErrorsResponse errorsResponse = new ErrorsResponse(errorResponses);
 
-    log.info("Mandate batch processing errors {}", errorsResponse);
     if (errorsResponse.hasErrors()) {
+      log.info("Mandate batch processing errors {}", errorsResponse);
       throw new InvalidMandateException(errorsResponse);
     }
   }

@@ -10,7 +10,7 @@ import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.MandateFileService;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
-import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
+import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
@@ -83,16 +83,17 @@ public class MandateBatchService {
         .toList();
   }
 
-  public SmartIdSignatureSession smartIdSign(Long mandateId, Long userId) {
+  public SmartIdSignatureSession smartIdSign(Long mandateBatchId, Long userId) {
     User user = userService.getById(userId);
-    List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
+
+    List<SignatureFile> files = getMandateBatchContentFiles(mandateBatchId, user);
     return signService.startSmartIdSign(files, user.getPersonalCode());
   }
 
   public MandateBatchSignatureStatus finalizeSmartIdSignature(
-      Long userId, Long mandateId, SmartIdSignatureSession session, Locale locale) {
+      Long userId, Long mandateBatchId, SmartIdSignatureSession session, Locale locale) {
     User user = userService.getById(userId);
-    MandateBatch mandateBatch = getByIdAndUser(mandateId, user).orElseThrow();
+    MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (mandateBatch.isSigned()) {
       return handleSignedMandate(user, mandateBatch, locale);
@@ -131,7 +132,7 @@ public class MandateBatchService {
 
     if (errorsResponse.hasErrors()) {
       log.info("Mandate batch processing errors {}", errorsResponse);
-      throw new InvalidMandateException(errorsResponse);
+      throw new MandateProcessingException(errorsResponse);
     }
   }
 

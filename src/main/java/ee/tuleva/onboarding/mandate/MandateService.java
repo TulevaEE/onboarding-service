@@ -18,7 +18,7 @@ import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
-import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
+import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
@@ -185,7 +185,7 @@ public class MandateService {
 
     log.info("Mandate processing errors {}", errorsResponse);
     if (errorsResponse.hasErrors()) {
-      throw new InvalidMandateException(errorsResponse);
+      throw new MandateProcessingException(errorsResponse);
     }
   }
 

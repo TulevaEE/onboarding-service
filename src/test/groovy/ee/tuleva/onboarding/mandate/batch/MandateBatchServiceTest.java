@@ -23,6 +23,8 @@ import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
+import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
+import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -31,6 +33,7 @@ import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -154,191 +157,601 @@ public class MandateBatchServiceTest {
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
   }
 
-  @Test
-  @DisplayName("smart-id signing works")
-  void smartIdSigningWorks() {
-    var mandate1 = sampleFundPensionOpeningMandate();
-    var mandate2 = samplePartialWithdrawalMandate();
+  @DisplayName("smart-id")
+  @Nested
+  class SmartIdTests {
 
-    var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+    @Test
+    @DisplayName("smart-id signing works")
+    void smartIdSigningWorks() {
+      var mandate1 = sampleFundPensionOpeningMandate();
+      var mandate2 = samplePartialWithdrawalMandate();
 
-    var user = sampleUser().build();
-    var signatureSession =
-        new SmartIdSignatureSession("sampleId", user.getPersonalCode(), List.of());
+      var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
 
-    when(mandateBatchRepository.findById(any())).thenReturn(Optional.of(mandateBatch));
-    when(userService.getById(any())).thenReturn(user);
-    when(mandateFileService.getMandateFiles(mandate1))
-        .thenReturn(List.of(new SignatureFile("file.html", "text/html", new byte[0])));
-    when(mandateFileService.getMandateFiles(mandate2))
-        .thenReturn(List.of(new SignatureFile("file2.html", "text/html", new byte[0])));
+      var user = sampleUser().build();
+      var signatureSession =
+          new SmartIdSignatureSession("sampleId", user.getPersonalCode(), List.of());
 
-    when(signService.startSmartIdSign(any(), any())).thenReturn(signatureSession);
+      when(mandateBatchRepository.findById(any())).thenReturn(Optional.of(mandateBatch));
+      when(userService.getById(any())).thenReturn(user);
+      when(mandateFileService.getMandateFiles(mandate1))
+          .thenReturn(List.of(new SignatureFile("file.html", "text/html", new byte[0])));
+      when(mandateFileService.getMandateFiles(mandate2))
+          .thenReturn(List.of(new SignatureFile("file2.html", "text/html", new byte[0])));
 
-    var session = mandateBatchService.smartIdSign(mandateBatch.getId(), user.getId());
-    assertThat(session).isEqualTo(signatureSession);
+      when(signService.startSmartIdSign(any(), any())).thenReturn(signatureSession);
+
+      var session = mandateBatchService.smartIdSign(mandateBatch.getId(), user.getId());
+      assertThat(session).isEqualTo(signatureSession);
+    }
+
+    @Test
+    @DisplayName(
+        "finalizeSmartIdSignature handles signed mandate and all mandates processed successfully")
+    void finalizeSmartIdSignatureHandlesSignedMandate_AllProcessed_Success() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(SIGNED);
+
+      User user = sampleUser().build();
+      SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+
+      when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
+      when(mandateProcessor.isFinished(mandate2)).thenReturn(true);
+
+      when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
+      when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
+
+      MandateBatchSignatureStatus status =
+          mandateBatchService.finalizeSmartIdSignature(
+              user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+
+      assertThat(SIGNATURE).isEqualTo(status);
+      verify(episService, times(1)).clearCache(user);
+      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
+    }
+
+    @Test
+    @DisplayName("finalizeSmartIdSignature handles signed mandate with processing errors")
+    void finalizeSmartIdSignatureHandlesSignedMandate_WithProcessingErrors() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(SIGNED);
+
+      User user = sampleUser().build();
+      SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+
+      when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
+      when(mandateProcessor.isFinished(mandate2)).thenReturn(true);
+
+      List<ErrorResponse> errors =
+          List.of(
+              new ErrorResponse("ERROR_CODE_1", "Error message 1", null, List.of()),
+              new ErrorResponse("ERROR_CODE_2", "Error message 2", null, List.of()));
+      when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
+      when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(errors));
+
+      MandateProcessingException exception =
+          assertThrows(
+              MandateProcessingException.class,
+              () ->
+                  mandateBatchService.finalizeSmartIdSignature(
+                      user.getId(), mandateBatch.getId(), session, Locale.ENGLISH));
+
+      assertThat(exception).isNotNull();
+      assertThat(errors.size()).isEqualTo(2);
+
+      verify(episService, times(1)).clearCache(user);
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName(
+        "finalizeSmartIdSignature handles signed mandate but mandates are still processing")
+    void finalizeSmartIdSignatureHandlesSignedMandate_MandatesStillProcessing() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(SIGNED);
+
+      User user = sampleUser().build();
+      SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+
+      when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
+      when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
+
+      MandateBatchSignatureStatus status =
+          mandateBatchService.finalizeSmartIdSignature(
+              user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+
+      assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
+      verify(episService, never()).clearCache(any());
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("finalizeSmartIdSignature handles unsigned mandate with signed file")
+    void finalizeSmartIdSignatureHandlesUnsignedMandate_WithSignedFile() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      byte[] signedFile = "signedFileBytes".getBytes();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(INITIALIZED);
+
+      User user = sampleUser().build();
+      SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+      when(signService.getSignedFile(session)).thenReturn(signedFile);
+
+      ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
+
+      MandateBatchSignatureStatus status =
+          mandateBatchService.finalizeSmartIdSignature(
+              user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+
+      assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
+      verify(mandateBatchRepository, times(1)).save(mandateBatchCaptor.capture());
+      MandateBatch savedBatch = mandateBatchCaptor.getValue();
+      assertThat(signedFile).isEqualTo(savedBatch.getFile());
+      assertThat(SIGNED).isEqualTo(savedBatch.getStatus());
+      verify(mandateProcessor, times(1)).start(user, mandate1);
+      verify(mandateProcessor, times(1)).start(user, mandate2);
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("finalizeSmartIdSignature handles unsigned mandate without signed file")
+    void finalizeSmartIdSignatureHandlesUnsignedMandate_WithoutSignedFile() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(INITIALIZED);
+
+      User user = sampleUser().build();
+      SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+      when(signService.getSignedFile(session)).thenReturn(null);
+
+      MandateBatchSignatureStatus status =
+          mandateBatchService.finalizeSmartIdSignature(
+              user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+
+      assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
+      verify(signService, times(1)).getSignedFile(session);
+      verify(mandateBatchRepository, never()).save(any());
+      verify(mandateProcessor, never()).start(any(), any());
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
   }
 
-  @Test
-  @DisplayName(
-      "finalizeSmartIdSignature handles signed mandate and all mandates processed successfully")
-  void finalizeSmartIdSignatureHandlesSignedMandate_AllProcessed_Success() {
-    Mandate mandate1 = sampleFundPensionOpeningMandate();
-    Mandate mandate2 = samplePartialWithdrawalMandate();
+  @DisplayName("mobile id")
+  @Nested
+  class MobileIdTests {
 
-    MandateBatch mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
-    mandateBatch.setStatus(SIGNED);
+    @Test
+    @DisplayName("mobile id signing works")
+    void mobileIdSigningWorks() {
+      var mandate1 = sampleFundPensionOpeningMandate();
+      var mandate2 = samplePartialWithdrawalMandate();
 
-    User user = sampleUser().build();
-    SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
+      var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
 
-    when(userService.getById(user.getId())).thenReturn(user);
-    when(mandateBatchRepository.findById(mandateBatch.getId()))
-        .thenReturn(Optional.of(mandateBatch));
+      var user = sampleUser().build();
+      var signatureSession = MobileIdSignatureSession.builder().build();
 
-    when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
-    when(mandateProcessor.isFinished(mandate2)).thenReturn(true);
+      when(mandateBatchRepository.findById(any())).thenReturn(Optional.of(mandateBatch));
+      when(userService.getById(any())).thenReturn(user);
+      when(mandateFileService.getMandateFiles(mandate1))
+          .thenReturn(List.of(new SignatureFile("file.html", "text/html", new byte[0])));
+      when(mandateFileService.getMandateFiles(mandate2))
+          .thenReturn(List.of(new SignatureFile("file2.html", "text/html", new byte[0])));
 
-    when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
-    when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
+      when(signService.startMobileIdSign(any(), any(), any())).thenReturn(signatureSession);
 
-    MandateBatchSignatureStatus status =
-        mandateBatchService.finalizeSmartIdSignature(
-            user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+      var session =
+          mandateBatchService.mobileIdSign(
+              mandateBatch.getId(), user.getId(), user.getPhoneNumber());
+      assertThat(session).isEqualTo(signatureSession);
+    }
 
-    assertThat(SIGNATURE).isEqualTo(status);
-    verify(episService, times(1)).clearCache(user);
-    verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
+    @Test
+    @DisplayName(
+        "finalizeMobileIdSignature handles signed mandate and all mandates processed successfully")
+    void finalizeMobileIdSignatureHandlesSignedMandateAndAllMandatesProcessedSuccessfully() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(SIGNED);
+
+      User user = sampleUser().build();
+      MobileIdSignatureSession session = mock(MobileIdSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+
+      when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
+      when(mandateProcessor.isFinished(mandate2)).thenReturn(true);
+
+      when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
+      when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
+
+      MandateBatchSignatureStatus status =
+          mandateBatchService.finalizeMobileIdSignature(
+              user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+
+      assertThat(SIGNATURE).isEqualTo(status);
+      verify(episService, times(1)).clearCache(user);
+      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
+    }
+
+    @Test
+    @DisplayName("finalizeMobileIdSignature handles signed mandate with processing errors")
+    void finalizeMobileIdSignatureHandlesSignedMandateWithProcessingErrors() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(SIGNED);
+
+      User user = sampleUser().build();
+      MobileIdSignatureSession session = mock(MobileIdSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+
+      when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
+      when(mandateProcessor.isFinished(mandate2)).thenReturn(true);
+
+      List<ErrorResponse> errors =
+          List.of(
+              new ErrorResponse("ERROR_CODE_1", "Error message 1", null, List.of()),
+              new ErrorResponse("ERROR_CODE_2", "Error message 2", null, List.of()));
+      when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
+      when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(errors));
+
+      MandateProcessingException exception =
+          assertThrows(
+              MandateProcessingException.class,
+              () ->
+                  mandateBatchService.finalizeMobileIdSignature(
+                      user.getId(), mandateBatch.getId(), session, Locale.ENGLISH));
+
+      assertThat(exception).isNotNull();
+      assertThat(errors.size()).isEqualTo(2);
+
+      verify(episService, times(1)).clearCache(user);
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName(
+        "finalizeMobileIdSignature handles signed mandate but mandates are still processing")
+    void finalizeMobileIdSignatureHandlesSignedMandateButMandateIsNotProcessing() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(SIGNED);
+
+      User user = sampleUser().build();
+      MobileIdSignatureSession session = mock(MobileIdSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+
+      when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
+      when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
+
+      MandateBatchSignatureStatus status =
+          mandateBatchService.finalizeMobileIdSignature(
+              user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+
+      assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
+      verify(episService, never()).clearCache(any());
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("finalizeMobileIdSignature handles unsigned mandate with signed file")
+    void finalizeMobileIdSignatureHandlesUnsignedMandateWithSignedFile() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      byte[] signedFile = "signedFileBytes".getBytes();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(INITIALIZED);
+
+      User user = sampleUser().build();
+      MobileIdSignatureSession session = mock(MobileIdSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+      when(signService.getSignedFile(session)).thenReturn(signedFile);
+
+      ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
+
+      MandateBatchSignatureStatus status =
+          mandateBatchService.finalizeMobileIdSignature(
+              user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+
+      assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
+      verify(mandateBatchRepository, times(1)).save(mandateBatchCaptor.capture());
+      MandateBatch savedBatch = mandateBatchCaptor.getValue();
+      assertThat(signedFile).isEqualTo(savedBatch.getFile());
+      assertThat(SIGNED).isEqualTo(savedBatch.getStatus());
+      verify(mandateProcessor, times(1)).start(user, mandate1);
+      verify(mandateProcessor, times(1)).start(user, mandate2);
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("finalizeMobileIdSignature handles unsigned mandate without signed file")
+    void finalizeMobileIdSignatureHandlesUnsignedMandateWithoutSignedFile() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(INITIALIZED);
+
+      User user = sampleUser().build();
+      MobileIdSignatureSession session = mock(MobileIdSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+      when(signService.getSignedFile(session)).thenReturn(null);
+
+      MandateBatchSignatureStatus status =
+          mandateBatchService.finalizeMobileIdSignature(
+              user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+
+      assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
+      verify(signService, times(1)).getSignedFile(session);
+      verify(mandateBatchRepository, never()).save(any());
+      verify(mandateProcessor, never()).start(any(), any());
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
   }
 
-  @Test
-  @DisplayName("finalizeSmartIdSignature handles signed mandate with processing errors")
-  void finalizeSmartIdSignatureHandlesSignedMandate_WithProcessingErrors() {
-    Mandate mandate1 = sampleFundPensionOpeningMandate();
-    Mandate mandate2 = samplePartialWithdrawalMandate();
+  @DisplayName("id card")
+  @Nested
+  class IdCardTests {
 
-    MandateBatch mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
-    mandateBatch.setStatus(SIGNED);
+    @Test
+    @DisplayName("id card signing works")
+    void idCardSigningWorks() {
+      var mandate1 = sampleFundPensionOpeningMandate();
+      var mandate2 = samplePartialWithdrawalMandate();
 
-    User user = sampleUser().build();
-    SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
+      var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
 
-    when(userService.getById(user.getId())).thenReturn(user);
-    when(mandateBatchRepository.findById(mandateBatch.getId()))
-        .thenReturn(Optional.of(mandateBatch));
+      var user = sampleUser().build();
+      var signatureSession = IdCardSignatureSession.builder().build();
 
-    when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
-    when(mandateProcessor.isFinished(mandate2)).thenReturn(true);
+      when(mandateBatchRepository.findById(any())).thenReturn(Optional.of(mandateBatch));
+      when(userService.getById(any())).thenReturn(user);
+      when(mandateFileService.getMandateFiles(mandate1))
+          .thenReturn(List.of(new SignatureFile("file.html", "text/html", new byte[0])));
+      when(mandateFileService.getMandateFiles(mandate2))
+          .thenReturn(List.of(new SignatureFile("file2.html", "text/html", new byte[0])));
 
-    List<ErrorResponse> errors =
-        List.of(
-            new ErrorResponse("ERROR_CODE_1", "Error message 1", null, List.of()),
-            new ErrorResponse("ERROR_CODE_2", "Error message 2", null, List.of()));
-    when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
-    when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(errors));
+      when(signService.startIdCardSign(any(), any())).thenReturn(signatureSession);
 
-    MandateProcessingException exception =
-        assertThrows(
-            MandateProcessingException.class,
-            () ->
-                mandateBatchService.finalizeSmartIdSignature(
-                    user.getId(), mandateBatch.getId(), session, Locale.ENGLISH));
+      var session =
+          mandateBatchService.idCardSign(mandateBatch.getId(), user.getId(), user.getPhoneNumber());
+      assertThat(session).isEqualTo(signatureSession);
+    }
 
-    assertThat(exception).isNotNull();
-    assertThat(errors.size()).isEqualTo(2);
+    @Test
+    @DisplayName(
+        "finalizeIdCardSignature handles signed mandate and all mandates processed successfully")
+    void finalizeIdCardSignatureHandlesSignedMandateAndAllMandatesProcessedSuccessfully() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
 
-    verify(episService, times(1)).clearCache(user);
-    verify(applicationEventPublisher, never()).publishEvent(any());
-  }
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(SIGNED);
 
-  @Test
-  @DisplayName("finalizeSmartIdSignature handles signed mandate but mandates are still processing")
-  void finalizeSmartIdSignatureHandlesSignedMandate_MandatesStillProcessing() {
-    Mandate mandate1 = sampleFundPensionOpeningMandate();
-    Mandate mandate2 = samplePartialWithdrawalMandate();
+      User user = sampleUser().build();
+      IdCardSignatureSession session = mock(IdCardSignatureSession.class);
 
-    MandateBatch mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
-    mandateBatch.setStatus(SIGNED);
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
 
-    User user = sampleUser().build();
-    SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
+      when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
+      when(mandateProcessor.isFinished(mandate2)).thenReturn(true);
 
-    when(userService.getById(user.getId())).thenReturn(user);
-    when(mandateBatchRepository.findById(mandateBatch.getId()))
-        .thenReturn(Optional.of(mandateBatch));
+      when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
+      when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
 
-    when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
-    when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
+      MandateBatchSignatureStatus status =
+          mandateBatchService.finalizeIdCardSignature(
+              user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 
-    MandateBatchSignatureStatus status =
-        mandateBatchService.finalizeSmartIdSignature(
-            user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+      assertThat(SIGNATURE).isEqualTo(status);
+      verify(episService, times(1)).clearCache(user);
+      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
+    }
 
-    assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
-    verify(episService, never()).clearCache(any());
-    verify(applicationEventPublisher, never()).publishEvent(any());
-  }
+    @Test
+    @DisplayName("finalizeIdCardSignature handles signed mandate with processing errors")
+    void finalizeIdCardSignatureHandlesSignedMandateWithProcessingErrors() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
 
-  @Test
-  @DisplayName("finalizeSmartIdSignature handles unsigned mandate with signed file")
-  void finalizeSmartIdSignatureHandlesUnsignedMandate_WithSignedFile() {
-    Mandate mandate1 = sampleFundPensionOpeningMandate();
-    Mandate mandate2 = samplePartialWithdrawalMandate();
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(SIGNED);
 
-    byte[] signedFile = "signedFileBytes".getBytes();
+      User user = sampleUser().build();
+      IdCardSignatureSession session = mock(IdCardSignatureSession.class);
 
-    MandateBatch mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
-    mandateBatch.setStatus(INITIALIZED);
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
 
-    User user = sampleUser().build();
-    SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
+      when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
+      when(mandateProcessor.isFinished(mandate2)).thenReturn(true);
 
-    when(userService.getById(user.getId())).thenReturn(user);
-    when(mandateBatchRepository.findById(mandateBatch.getId()))
-        .thenReturn(Optional.of(mandateBatch));
-    when(signService.getSignedFile(session)).thenReturn(signedFile);
+      List<ErrorResponse> errors =
+          List.of(
+              new ErrorResponse("ERROR_CODE_1", "Error message 1", null, List.of()),
+              new ErrorResponse("ERROR_CODE_2", "Error message 2", null, List.of()));
+      when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
+      when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(errors));
 
-    ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
+      MandateProcessingException exception =
+          assertThrows(
+              MandateProcessingException.class,
+              () ->
+                  mandateBatchService.finalizeIdCardSignature(
+                      user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH));
 
-    MandateBatchSignatureStatus status =
-        mandateBatchService.finalizeSmartIdSignature(
-            user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+      assertThat(exception).isNotNull();
+      assertThat(errors.size()).isEqualTo(2);
 
-    assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
-    verify(mandateBatchRepository, times(1)).save(mandateBatchCaptor.capture());
-    MandateBatch savedBatch = mandateBatchCaptor.getValue();
-    assertThat(signedFile).isEqualTo(savedBatch.getFile());
-    assertThat(SIGNED).isEqualTo(savedBatch.getStatus());
-    verify(mandateProcessor, times(1)).start(user, mandate1);
-    verify(mandateProcessor, times(1)).start(user, mandate2);
-    verify(applicationEventPublisher, never()).publishEvent(any());
-  }
+      verify(episService, times(1)).clearCache(user);
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
 
-  @Test
-  @DisplayName("finalizeSmartIdSignature handles unsigned mandate without signed file")
-  void finalizeSmartIdSignatureHandlesUnsignedMandate_WithoutSignedFile() {
-    Mandate mandate1 = sampleFundPensionOpeningMandate();
-    Mandate mandate2 = samplePartialWithdrawalMandate();
+    @Test
+    @DisplayName("finalizeIdCardSignature handles signed mandate but mandates are still processing")
+    void finalizeIdCardSignatureHandlesSignedMandateButMandateIsProcessing() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
 
-    MandateBatch mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
-    mandateBatch.setStatus(INITIALIZED);
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(SIGNED);
 
-    User user = sampleUser().build();
-    SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
+      User user = sampleUser().build();
+      IdCardSignatureSession session = mock(IdCardSignatureSession.class);
 
-    when(userService.getById(user.getId())).thenReturn(user);
-    when(mandateBatchRepository.findById(mandateBatch.getId()))
-        .thenReturn(Optional.of(mandateBatch));
-    when(signService.getSignedFile(session)).thenReturn(null);
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
 
-    MandateBatchSignatureStatus status =
-        mandateBatchService.finalizeSmartIdSignature(
-            user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
+      when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
+      when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
 
-    assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
-    verify(signService, times(1)).getSignedFile(session);
-    verify(mandateBatchRepository, never()).save(any());
-    verify(mandateProcessor, never()).start(any(), any());
-    verify(applicationEventPublisher, never()).publishEvent(any());
+      MandateBatchSignatureStatus status =
+          mandateBatchService.finalizeIdCardSignature(
+              user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
+
+      assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
+      verify(episService, never()).clearCache(any());
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("finalizeIdCardSignature handles unsigned mandate with signed file")
+    void finalizeIdCardSignatureHandlesUnsignedMandateWithSignedFile() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      byte[] signedFile = "signedFileBytes".getBytes();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(INITIALIZED);
+
+      User user = sampleUser().build();
+      IdCardSignatureSession session = mock(IdCardSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+      when(signService.getSignedFile(eq(session), any())).thenReturn(signedFile);
+
+      ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
+
+      MandateBatchSignatureStatus status =
+          mandateBatchService.finalizeIdCardSignature(
+              user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
+
+      assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
+      verify(mandateBatchRepository, times(1)).save(mandateBatchCaptor.capture());
+      MandateBatch savedBatch = mandateBatchCaptor.getValue();
+      assertThat(signedFile).isEqualTo(savedBatch.getFile());
+      assertThat(SIGNED).isEqualTo(savedBatch.getStatus());
+      verify(mandateProcessor, times(1)).start(user, mandate1);
+      verify(mandateProcessor, times(1)).start(user, mandate2);
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    @DisplayName("finalizeIdCardSignature handles unsigned mandate without signed file")
+    void finalizeIdCardSignatureHandlesUnsignedMandateWithoutSignedFile() {
+      Mandate mandate1 = sampleFundPensionOpeningMandate();
+      Mandate mandate2 = samplePartialWithdrawalMandate();
+
+      MandateBatch mandateBatch =
+          MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
+      mandateBatch.setStatus(INITIALIZED);
+
+      User user = sampleUser().build();
+      IdCardSignatureSession session = mock(IdCardSignatureSession.class);
+
+      when(userService.getById(user.getId())).thenReturn(user);
+      when(mandateBatchRepository.findById(mandateBatch.getId()))
+          .thenReturn(Optional.of(mandateBatch));
+      when(signService.getSignedFile(eq(session), any())).thenReturn(null);
+
+      assertThrows(
+          IllegalStateException.class,
+          () ->
+              mandateBatchService.finalizeIdCardSignature(
+                  user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH));
+
+      verify(signService, times(1)).getSignedFile(eq(session), any());
+      verify(mandateBatchRepository, never()).save(any());
+      verify(mandateProcessor, never()).start(any(), any());
+      verify(applicationEventPublisher, never()).publishEvent(any());
+    }
   }
 }

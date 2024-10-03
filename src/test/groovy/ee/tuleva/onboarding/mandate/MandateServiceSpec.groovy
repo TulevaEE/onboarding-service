@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
+import ee.tuleva.onboarding.mandate.exception.MandateProcessingException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.SignatureService
@@ -239,7 +240,7 @@ class MandateServiceSpec extends Specification {
     service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
 
     then:
-    thrown InvalidMandateException
+    thrown MandateProcessingException
 
   }
 
@@ -343,7 +344,7 @@ class MandateServiceSpec extends Specification {
     service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
 
     then:
-    thrown InvalidMandateException
+    thrown MandateProcessingException
   }
 
   User sampleUser() {

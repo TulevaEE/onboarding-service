@@ -10,6 +10,8 @@ import ee.tuleva.onboarding.error.exception.ErrorsResponseException;
 import ee.tuleva.onboarding.error.response.ErrorResponseEntityFactory;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
+import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
+import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import io.jsonwebtoken.ExpiredJwtException;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -81,5 +83,17 @@ public class ErrorHandlingControllerAdvice {
         Map.of(
             "error", "REFRESH_TOKEN_EXPIRED", "error_description", "The refresh token is expired."),
         FORBIDDEN);
+  }
+
+  @ExceptionHandler(InvalidMandateException.class)
+  public ResponseEntity<Object> handleErrors(InvalidMandateException exception) {
+    log.debug("InvalidMandateException {}", exception.toString());
+    return new ResponseEntity<>(exception.getErrorsResponse(), BAD_REQUEST);
+  }
+
+  @ExceptionHandler(MandateProcessingException.class)
+  public ResponseEntity<Object> handleErrors(MandateProcessingException exception) {
+    log.debug("MandateProcessingException {}", exception.toString());
+    return new ResponseEntity<>(exception.getErrorsResponse(), INTERNAL_SERVER_ERROR);
   }
 }

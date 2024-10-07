@@ -2,10 +2,10 @@ package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
-import static ee.tuleva.onboarding.mandate.batch.MandateBatchSignatureStatus.OUTSTANDING_TRANSACTION;
-import static ee.tuleva.onboarding.mandate.batch.MandateBatchSignatureStatus.SIGNATURE;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
+import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.OUTSTANDING_TRANSACTION;
+import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -21,6 +21,7 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
+import ee.tuleva.onboarding.mandate.response.MandateSignatureStatus;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
@@ -157,6 +158,13 @@ public class MandateBatchServiceTest {
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
   }
 
+  User mockUser() {
+    var user = sampleUser().build();
+    when(userService.getById(user.getId())).thenReturn(user);
+
+    return user;
+  }
+
   @DisplayName("smart-id")
   @Nested
   class SmartIdTests {
@@ -169,12 +177,11 @@ public class MandateBatchServiceTest {
 
       var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
 
-      var user = sampleUser().build();
+      var user = mockUser();
       var signatureSession =
           new SmartIdSignatureSession("sampleId", user.getPersonalCode(), List.of());
 
       when(mandateBatchRepository.findById(any())).thenReturn(Optional.of(mandateBatch));
-      when(userService.getById(any())).thenReturn(user);
       when(mandateFileService.getMandateFiles(mandate1))
           .thenReturn(List.of(new SignatureFile("file.html", "text/html", new byte[0])));
       when(mandateFileService.getMandateFiles(mandate2))
@@ -197,10 +204,9 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(SIGNED);
 
-      User user = sampleUser().build();
+      User user = mockUser();
       SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
 
@@ -210,7 +216,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
       when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
 
-      MandateBatchSignatureStatus status =
+      MandateSignatureStatus status =
           mandateBatchService.finalizeSmartIdSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -229,10 +235,9 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(SIGNED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
 
@@ -271,17 +276,16 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(SIGNED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
 
       when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
       when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
 
-      MandateBatchSignatureStatus status =
+      MandateSignatureStatus status =
           mandateBatchService.finalizeSmartIdSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -302,17 +306,16 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(INITIALIZED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
       when(signService.getSignedFile(session)).thenReturn(signedFile);
 
       ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
 
-      MandateBatchSignatureStatus status =
+      MandateSignatureStatus status =
           mandateBatchService.finalizeSmartIdSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -336,15 +339,14 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(INITIALIZED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       SmartIdSignatureSession session = mock(SmartIdSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
       when(signService.getSignedFile(session)).thenReturn(null);
 
-      MandateBatchSignatureStatus status =
+      MandateSignatureStatus status =
           mandateBatchService.finalizeSmartIdSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -397,10 +399,9 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(SIGNED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       MobileIdSignatureSession session = mock(MobileIdSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
 
@@ -410,7 +411,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
       when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
 
-      MandateBatchSignatureStatus status =
+      MandateSignatureStatus status =
           mandateBatchService.finalizeMobileIdSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -429,10 +430,9 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(SIGNED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       MobileIdSignatureSession session = mock(MobileIdSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
 
@@ -471,17 +471,16 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(SIGNED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       MobileIdSignatureSession session = mock(MobileIdSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
 
       when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
       when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
 
-      MandateBatchSignatureStatus status =
+      MandateSignatureStatus status =
           mandateBatchService.finalizeMobileIdSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -502,17 +501,16 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(INITIALIZED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       MobileIdSignatureSession session = mock(MobileIdSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
       when(signService.getSignedFile(session)).thenReturn(signedFile);
 
       ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
 
-      MandateBatchSignatureStatus status =
+      MandateSignatureStatus status =
           mandateBatchService.finalizeMobileIdSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -536,15 +534,14 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(INITIALIZED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       MobileIdSignatureSession session = mock(MobileIdSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
       when(signService.getSignedFile(session)).thenReturn(null);
 
-      MandateBatchSignatureStatus status =
+      MandateSignatureStatus status =
           mandateBatchService.finalizeMobileIdSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -596,10 +593,9 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(SIGNED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       IdCardSignatureSession session = mock(IdCardSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
 
@@ -609,7 +605,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
       when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
 
-      MandateBatchSignatureStatus status =
+      MandateSignatureStatus status =
           mandateBatchService.finalizeIdCardSignature(
               user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 
@@ -628,10 +624,9 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(SIGNED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       IdCardSignatureSession session = mock(IdCardSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
 
@@ -669,17 +664,16 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(SIGNED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       IdCardSignatureSession session = mock(IdCardSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
 
       when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
       when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
 
-      MandateBatchSignatureStatus status =
+      MandateSignatureStatus status =
           mandateBatchService.finalizeIdCardSignature(
               user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 
@@ -700,17 +694,16 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(INITIALIZED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       IdCardSignatureSession session = mock(IdCardSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
       when(signService.getSignedFile(eq(session), any())).thenReturn(signedFile);
 
       ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
 
-      MandateBatchSignatureStatus status =
+      MandateSignatureStatus status =
           mandateBatchService.finalizeIdCardSignature(
               user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 
@@ -734,10 +727,9 @@ public class MandateBatchServiceTest {
           MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
       mandateBatch.setStatus(INITIALIZED);
 
-      User user = sampleUser().build();
+      var user = mockUser();
       IdCardSignatureSession session = mock(IdCardSignatureSession.class);
 
-      when(userService.getById(user.getId())).thenReturn(user);
       when(mandateBatchRepository.findById(mandateBatch.getId()))
           .thenReturn(Optional.of(mandateBatch));
       when(signService.getSignedFile(eq(session), any())).thenReturn(null);

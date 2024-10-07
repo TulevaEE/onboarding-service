@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.mandate;
 
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.*;
+import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.OUTSTANDING_TRANSACTION;
+import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE;
 import static java.util.Arrays.asList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -20,6 +22,7 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
+import ee.tuleva.onboarding.mandate.response.MandateSignatureStatus;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
@@ -38,9 +41,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 @Slf4j
 public class MandateService {
-
-  private static final String OUTSTANDING_TRANSACTION = "OUTSTANDING_TRANSACTION";
-  private static final String SIGNATURE = "SIGNATURE";
 
   private final MandateRepository mandateRepository;
   private final SignatureService signService;
@@ -102,7 +102,7 @@ public class MandateService {
     return signService.startSmartIdSign(files, user.getPersonalCode());
   }
 
-  public String finalizeSmartIdSignature(
+  public MandateSignatureStatus finalizeSmartIdSignature(
       Long userId, Long mandateId, SmartIdSignatureSession session, Locale locale) {
     User user = userService.getById(userId);
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
@@ -114,12 +114,12 @@ public class MandateService {
     }
   }
 
-  private String handleUnsignedMandateSmartId(
+  private MandateSignatureStatus handleUnsignedMandateSmartId(
       User user, Mandate mandate, SmartIdSignatureSession session) {
     return getStatus(user, mandate, signService.getSignedFile(session));
   }
 
-  private String getStatus(User user, Mandate mandate, byte[] signedFile) {
+  private MandateSignatureStatus getStatus(User user, Mandate mandate, byte[] signedFile) {
     if (signedFile != null) {
       persistSignedFile(mandate, signedFile);
       mandateProcessor.start(user, mandate);
@@ -132,7 +132,7 @@ public class MandateService {
     return signService.startIdCardSign(files, signingCertificate);
   }
 
-  public String finalizeMobileIdSignature(
+  public MandateSignatureStatus finalizeMobileIdSignature(
       Long userId, Long mandateId, MobileIdSignatureSession session, Locale locale) {
     User user = userService.getById(userId);
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
@@ -144,12 +144,12 @@ public class MandateService {
     }
   }
 
-  private String handleUnsignedMandateMobileId(
+  private MandateSignatureStatus handleUnsignedMandateMobileId(
       User user, Mandate mandate, MobileIdSignatureSession session) {
     return getStatus(user, mandate, signService.getSignedFile(session));
   }
 
-  public String finalizeIdCardSignature(
+  public MandateSignatureStatus finalizeIdCardSignature(
       Long userId,
       Long mandateId,
       IdCardSignatureSession session,
@@ -169,7 +169,7 @@ public class MandateService {
     return mandateRepository.findById(id).orElseThrow(IllegalStateException::new);
   }
 
-  private String handleSignedMandate(User user, Mandate mandate, Locale locale) {
+  private MandateSignatureStatus handleSignedMandate(User user, Mandate mandate, Locale locale) {
     if (mandateProcessor.isFinished(mandate)) {
       episService.clearCache(user);
       handleMandateProcessingErrors(mandate);
@@ -189,7 +189,7 @@ public class MandateService {
     }
   }
 
-  private String handleUnsignedMandateIdCard(
+  private MandateSignatureStatus handleUnsignedMandateIdCard(
       User user, Mandate mandate, IdCardSignatureSession session, String signedHashInHex) {
     byte[] signedFile = signService.getSignedFile(session, signedHashInHex);
     if (signedFile != null) { // TODO: use Optional

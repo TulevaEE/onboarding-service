@@ -14,10 +14,7 @@ import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
-import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
-import ee.tuleva.onboarding.mandate.response.IdCardSignatureStatusResponse;
-import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
-import ee.tuleva.onboarding.mandate.response.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.mandate.response.*;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
@@ -118,7 +115,7 @@ public class MandateController {
 
     Locale locale = localeResolver.resolveLocale(request);
 
-    String statusCode =
+    MandateSignatureStatus statusCode =
         mandateService.finalizeMobileIdSignature(
             authenticatedPerson.getUserId(), mandateId, session, locale);
 
@@ -151,7 +148,7 @@ public class MandateController {
 
     Locale locale = localeResolver.resolveLocale(request);
 
-    String statusCode =
+    MandateSignatureStatus statusCode =
         mandateService.finalizeSmartIdSignature(
             authenticatedPerson.getUserId(), mandateId, session, locale);
 
@@ -189,7 +186,7 @@ public class MandateController {
 
     Locale locale = localeResolver.resolveLocale(request);
 
-    String statusCode =
+    MandateSignatureStatus statusCode =
         mandateService.finalizeIdCardSignature(
             authenticatedPerson.getUserId(),
             mandateId,

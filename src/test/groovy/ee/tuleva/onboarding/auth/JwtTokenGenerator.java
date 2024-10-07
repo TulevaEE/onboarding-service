@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson;
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.*;
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.TOKEN_TYPE;
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.jwt.TokenType;
@@ -15,8 +16,19 @@ import java.security.PrivateKey;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.HttpHeaders;
 
 public class JwtTokenGenerator {
+
+  public static HttpHeaders getHeaders() {
+    var jwtToken = JwtTokenGenerator.generateDefaultJwtToken();
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(APPLICATION_JSON);
+    headers.add("Authorization", "Bearer " + jwtToken);
+
+    return headers;
+  }
 
   public static String generateDefaultJwtToken() {
     return JwtTokenGenerator.generateToken(

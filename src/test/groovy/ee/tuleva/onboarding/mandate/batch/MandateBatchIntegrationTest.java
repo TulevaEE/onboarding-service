@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.batch;
 
+import static ee.tuleva.onboarding.auth.JwtTokenGenerator.getHeaders;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
@@ -8,12 +9,10 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
-import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ee.tuleva.onboarding.auth.JwtTokenGenerator;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.mandate.MandateFixture;
@@ -30,7 +29,6 @@ import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.data.util.Streamable;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
@@ -46,16 +44,6 @@ public class MandateBatchIntegrationTest {
   @Autowired private MandateRepository mandateRepository;
 
   @MockBean private EpisService episService;
-
-  static HttpHeaders getHeaders() {
-    var jwtToken = JwtTokenGenerator.generateDefaultJwtToken();
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(APPLICATION_JSON);
-    headers.add("Authorization", "Bearer " + jwtToken);
-
-    return headers;
-  }
 
   @AfterEach
   void cleanup() {

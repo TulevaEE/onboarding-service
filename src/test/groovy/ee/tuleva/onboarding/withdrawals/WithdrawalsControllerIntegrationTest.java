@@ -1,15 +1,14 @@
 package ee.tuleva.onboarding.withdrawals;
 
+import static ee.tuleva.onboarding.auth.JwtTokenGenerator.getHeaders;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.HttpMethod.*;
-import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ee.tuleva.onboarding.auth.JwtTokenGenerator;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
@@ -30,16 +29,6 @@ class WithdrawalsControllerIntegrationTest {
   @Autowired private TestRestTemplate restTemplate;
 
   @MockBean private EpisService episService;
-
-  static HttpHeaders getHeaders() {
-    var jwtToken = JwtTokenGenerator.generateDefaultJwtToken();
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(APPLICATION_JSON);
-    headers.add("Authorization", "Bearer " + jwtToken);
-
-    return headers;
-  }
 
   @Test
   @DisplayName("get withdrawal eligibility")

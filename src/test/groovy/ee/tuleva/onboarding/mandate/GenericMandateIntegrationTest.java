@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate;
 
 // import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture;
+import static ee.tuleva.onboarding.auth.JwtTokenGenerator.getHeaders;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.Bank.*;
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN;
@@ -11,11 +12,9 @@ import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.*;
-import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ee.tuleva.onboarding.auth.JwtTokenGenerator;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.mandate.details.*;
@@ -47,16 +46,6 @@ class GenericMandateIntegrationTest {
   @Autowired private MandateRepository mandateRepository;
 
   @MockBean private EpisService episService;
-
-  static HttpHeaders getHeaders() {
-    var jwtToken = JwtTokenGenerator.generateDefaultJwtToken();
-
-    HttpHeaders headers = new HttpHeaders();
-    headers.setContentType(APPLICATION_JSON);
-    headers.add("Authorization", "Bearer " + jwtToken);
-
-    return headers;
-  }
 
   static Stream<Arguments> testMandateDetails() {
     return Stream.of(

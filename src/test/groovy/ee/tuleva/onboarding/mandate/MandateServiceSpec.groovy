@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.exception.InvalidMandateException
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
+import ee.tuleva.onboarding.mandate.response.MandateSignatureStatus
 import ee.tuleva.onboarding.mandate.signature.SignatureFile
 import ee.tuleva.onboarding.mandate.signature.SignatureService
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
@@ -34,6 +35,9 @@ import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDet
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION
+import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.OUTSTANDING_TRANSACTION
+import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.OUTSTANDING_TRANSACTION
+import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE
 import static java.util.Locale.ENGLISH
 
 class MandateServiceSpec extends Specification {
@@ -168,7 +172,7 @@ class MandateServiceSpec extends Specification {
     def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
 
     then:
-    status == "OUTSTANDING_TRANSACTION"
+    status == OUTSTANDING_TRANSACTION
   }
 
   def "finalizeMobileIdSignature: get correct status if currently signed a mandate and start processing"() {
@@ -186,7 +190,7 @@ class MandateServiceSpec extends Specification {
 
     then:
     1 * mandateProcessor.start(sampleUser, sampleMandate)
-    status == "OUTSTANDING_TRANSACTION"
+    status == OUTSTANDING_TRANSACTION
   }
 
   def "finalizeMobileIdSignature: get correct status if mandate is signed and being processed"() {
@@ -202,7 +206,7 @@ class MandateServiceSpec extends Specification {
     def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
 
     then:
-    status == "OUTSTANDING_TRANSACTION"
+    status == OUTSTANDING_TRANSACTION
   }
 
   def "finalizeMobileIdSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
@@ -219,7 +223,7 @@ class MandateServiceSpec extends Specification {
     def status = service.finalizeMobileIdSignature(sampleUser.id, sampleMandate.id, signatureSession, ENGLISH)
 
     then:
-    status == "SIGNATURE"
+    status == SIGNATURE
     1 * eventPublisher.publishEvent({ AfterMandateSignedEvent event ->
       event.user == sampleUser
       event.mandate == sampleMandate
@@ -290,7 +294,7 @@ class MandateServiceSpec extends Specification {
 
     then:
     1 * mandateProcessor.start(sampleUser, sampleMandate)
-    status == "OUTSTANDING_TRANSACTION"
+    status == OUTSTANDING_TRANSACTION
   }
 
   def "finalizeIdCardSignature: get correct status if mandate is signed and being processed"() {
@@ -306,7 +310,7 @@ class MandateServiceSpec extends Specification {
     def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
 
     then:
-    status == "OUTSTANDING_TRANSACTION"
+    status == OUTSTANDING_TRANSACTION
   }
 
   def "finalizeIdCardSignature: get correct status and notify and invalidate EPIS cache if mandate is signed and processed"() {
@@ -323,7 +327,7 @@ class MandateServiceSpec extends Specification {
     def status = service.finalizeIdCardSignature(sampleUser.id, sampleMandate.id, signatureSession, "signedHash", ENGLISH)
 
     then:
-    status == "SIGNATURE"
+    status == SIGNATURE
     1 * eventPublisher.publishEvent({ AfterMandateSignedEvent event ->
       event.user == sampleUser
       event.mandate == sampleMandate

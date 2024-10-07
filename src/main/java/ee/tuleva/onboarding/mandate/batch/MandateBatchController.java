@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureStatusResponse;
+import ee.tuleva.onboarding.mandate.response.MandateSignatureStatus;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureStatusResponse;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
@@ -49,7 +50,7 @@ public class MandateBatchController {
   }
 
   @Operation(summary = "Start signing mandate batch with Smart ID")
-  @PutMapping("/{id}/signature/smartId")
+  @PutMapping("/{id}/signature/smart-id")
   public MobileSignatureResponse startSmartIdSignature(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
@@ -61,7 +62,7 @@ public class MandateBatchController {
   }
 
   @Operation(summary = "Is mandate batch successfully signed with Smart ID")
-  @GetMapping("/{id}/signature/smartId/status")
+  @GetMapping("/{id}/signature/smart-id/status")
   public MobileSignatureStatusResponse getSmartIdSignatureStatus(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
@@ -74,16 +75,15 @@ public class MandateBatchController {
 
     Locale locale = localeResolver.resolveLocale(request);
 
-    MandateBatchSignatureStatus statusCode =
+    MandateSignatureStatus statusCode =
         mandateBatchService.finalizeSmartIdSignature(
             authenticatedPerson.getUserId(), mandateBatchId, session, locale);
 
-    // TODO status as string?
-    return new MobileSignatureStatusResponse(statusCode.toString(), session.getVerificationCode());
+    return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
   }
 
   @Operation(summary = "Start signing mandate batch with ID card")
-  @PutMapping("/{id}/signature/idCard")
+  @PutMapping("/{id}/signature/id-card")
   public IdCardSignatureResponse startIdCardSign(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
@@ -99,7 +99,7 @@ public class MandateBatchController {
   }
 
   @Operation(summary = "Is mandate batch successfully signed with ID card")
-  @PutMapping("/{id}/signature/idCard/status")
+  @PutMapping("/{id}/signature/id-card/status")
   public IdCardSignatureStatusResponse getIdCardSignatureStatus(
       @PathVariable("id") Long mandateBatchId,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
@@ -113,7 +113,7 @@ public class MandateBatchController {
 
     Locale locale = localeResolver.resolveLocale(request);
 
-    MandateBatchSignatureStatus statusCode =
+    MandateSignatureStatus statusCode =
         mandateBatchService.finalizeIdCardSignature(
             authenticatedPerson.getUserId(),
             mandateBatchId,
@@ -121,11 +121,11 @@ public class MandateBatchController {
             signCommand.getSignedHash(),
             locale);
 
-    return new IdCardSignatureStatusResponse(statusCode.toString());
+    return new IdCardSignatureStatusResponse(statusCode);
   }
 
   @Operation(summary = "Start signing mandate batch with mobile ID")
-  @PutMapping("/{id}/signature/mobileId")
+  @PutMapping("/{id}/signature/mobile-id")
   public MobileSignatureResponse startMobileIdSignature(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
@@ -141,9 +141,9 @@ public class MandateBatchController {
   }
 
   @Operation(summary = "Is mandate batch successfully signed with mobile ID")
-  @GetMapping("/{id}/signature/mobileId/status")
+  @GetMapping("/{id}/signature/mobile-id/status")
   public MobileSignatureStatusResponse getMobileIdSignatureStatus(
-      @PathVariable("id") Long mandateId,
+      @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Parameter(hidden = true) HttpServletRequest request) {
 
@@ -154,10 +154,10 @@ public class MandateBatchController {
 
     Locale locale = localeResolver.resolveLocale(request);
 
-    MandateBatchSignatureStatus statusCode =
+    MandateSignatureStatus statusCode =
         mandateBatchService.finalizeMobileIdSignature(
-            authenticatedPerson.getUserId(), mandateId, session, locale);
+            authenticatedPerson.getUserId(), mandateBatchId, session, locale);
 
-    return new MobileSignatureStatusResponse(statusCode.toString(), session.getVerificationCode());
+    return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
   }
 }

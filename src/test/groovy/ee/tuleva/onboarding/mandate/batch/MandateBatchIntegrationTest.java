@@ -34,6 +34,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+// Signing tests are in MandateBatchSigningController (non-integration test)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 public class MandateBatchIntegrationTest {
 

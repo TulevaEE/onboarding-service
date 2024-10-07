@@ -9,6 +9,6 @@ import lombok.Data;
 @AllArgsConstructor
 public class MobileSignatureStatusResponse {
 
-  private final String statusCode;
+  private final MandateSignatureStatus statusCode;
   private final String challengeCode;
 }

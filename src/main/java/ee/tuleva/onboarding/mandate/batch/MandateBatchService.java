@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.mandate.batch;
 
-import static ee.tuleva.onboarding.mandate.batch.MandateBatchSignatureStatus.*;
-import static ee.tuleva.onboarding.mandate.batch.MandateBatchSignatureStatus.SIGNATURE;
+import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.*;
+import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
+import ee.tuleva.onboarding.mandate.response.MandateSignatureStatus;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
@@ -92,7 +93,7 @@ public class MandateBatchService {
     return signService.startSmartIdSign(files, user.getPersonalCode());
   }
 
-  public MandateBatchSignatureStatus finalizeSmartIdSignature(
+  public MandateSignatureStatus finalizeSmartIdSignature(
       Long userId, Long mandateBatchId, SmartIdSignatureSession session, Locale locale) {
     User user = userService.getById(userId);
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
@@ -112,7 +113,7 @@ public class MandateBatchService {
     return signService.startIdCardSign(files, signingCertificate);
   }
 
-  private MandateBatchSignatureStatus handleUnsignedMandateIdCard(
+  private MandateSignatureStatus handleUnsignedMandateIdCard(
       User user,
       MandateBatch mandateBatch,
       IdCardSignatureSession session,
@@ -127,7 +128,7 @@ public class MandateBatchService {
     }
   }
 
-  public MandateBatchSignatureStatus finalizeIdCardSignature(
+  public MandateSignatureStatus finalizeIdCardSignature(
       Long userId,
       Long mandateBatchId,
       IdCardSignatureSession session,
@@ -151,12 +152,12 @@ public class MandateBatchService {
     return signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber);
   }
 
-  private MandateBatchSignatureStatus handleUnsignedMandateMobileId(
+  private MandateSignatureStatus handleUnsignedMandateMobileId(
       User user, MandateBatch mandateBatch, MobileIdSignatureSession session) {
     return getStatus(user, mandateBatch, Optional.ofNullable(signService.getSignedFile(session)));
   }
 
-  public MandateBatchSignatureStatus finalizeMobileIdSignature(
+  public MandateSignatureStatus finalizeMobileIdSignature(
       Long userId, Long mandateBatchId, MobileIdSignatureSession session, Locale locale) {
     User user = userService.getById(userId);
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
@@ -168,7 +169,7 @@ public class MandateBatchService {
     }
   }
 
-  private MandateBatchSignatureStatus handleSignedMandate(
+  private MandateSignatureStatus handleSignedMandate(
       User user, MandateBatch mandateBatch, Locale locale) {
 
     var allMandatesHaveFinishedProcessing =
@@ -202,12 +203,12 @@ public class MandateBatchService {
     }
   }
 
-  private MandateBatchSignatureStatus handleUnsignedMandateSmartId(
+  private MandateSignatureStatus handleUnsignedMandateSmartId(
       User user, MandateBatch mandateBatch, SmartIdSignatureSession session) {
     return getStatus(user, mandateBatch, Optional.ofNullable(signService.getSignedFile(session)));
   }
 
-  private MandateBatchSignatureStatus getStatus(
+  private MandateSignatureStatus getStatus(
       User user, MandateBatch mandateBatch, Optional<byte[]> signedFile) {
     signedFile.ifPresent(
         it -> {

@@ -20,6 +20,11 @@ public class PersonalCode {
     return period.getYears();
   }
 
+  public static int getEarlyRetirementAge(String personalCode) {
+    // TODO: make more accurate in the future
+    return 60;
+  }
+
   public static int getRetirementAge(String personalCode) {
     // TODO: make more accurate in the future
     return 65;

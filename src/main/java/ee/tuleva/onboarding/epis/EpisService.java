@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
+import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,7 @@ public class EpisService {
   private final String CASH_FLOW_STATEMENT_CACHE_NAME = "cashFlowStatement";
   private final String FUNDS_CACHE_NAME = "funds";
   private final String CONTRIBUTIONS_CACHE_NAME = "contributions";
+  private final String FUND_PENSION_CALCULATION_CACHE_NAME = "fundPensionCalculation";
 
   private final RestTemplate restTemplate;
   private final JwtTokenUtil jwtTokenUtil;
@@ -145,6 +147,18 @@ public class EpisService {
         restTemplate.exchange(url, GET, getHeadersEntity(), FundDto[].class);
 
     return asList(response.getBody());
+  }
+
+  @Cacheable(value = FUND_PENSION_CALCULATION_CACHE_NAME, key = "#person.personalCode", sync = true)
+  public FundPensionCalculationDto getFundPensionCalculation(Person person) {
+    String url = episServiceUrl + "/fund-pension-calculation";
+
+    log.info("Getting fund pension calculation for {}", person.getPersonalCode());
+
+    ResponseEntity<FundPensionCalculationDto> response =
+        restTemplate.exchange(url, GET, getHeadersEntity(), FundPensionCalculationDto.class);
+
+    return response.getBody();
   }
 
   public NavDto getNav(String isin, LocalDate date) {

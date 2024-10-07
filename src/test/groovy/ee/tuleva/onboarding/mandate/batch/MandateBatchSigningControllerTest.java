@@ -33,7 +33,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.servlet.LocaleResolver;
 
 // database level integration tests are in MandateBatchIntegrationTest
-// these are high level
+// these are high level unit tests
 @SpringBootTest
 @AutoConfigureMockMvc
 @WithMockUser

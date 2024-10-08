@@ -60,6 +60,6 @@ public class MandateBatch {
   }
 
   public boolean isSigned() {
-    return this.status == SIGNED;
+    return status == SIGNED;
   }
 }

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.mandate;
 
-// import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixture;
 import static ee.tuleva.onboarding.auth.JwtTokenGenerator.getHeaders;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.Bank.*;

@@ -30,6 +30,8 @@ public class AuthenticatedPerson implements Person, Serializable {
     return personalCode;
   }
 
+  // TODO: refactor this into specific methods e.g. getPhoneNumber() based on claim keys they were
+  // inserted with
   public String getAttribute(String attribute) {
     return attributes.get(attribute);
   }

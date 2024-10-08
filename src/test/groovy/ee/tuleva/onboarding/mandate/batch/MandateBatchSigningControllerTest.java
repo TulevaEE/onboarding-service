@@ -5,19 +5,19 @@ import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNA
 import static org.hamcrest.Matchers.is;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.when;
-import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.mandate.MandateFixture;
+import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
+import ee.tuleva.onboarding.mandate.response.IdCardSignatureStatusResponse;
+import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
+import ee.tuleva.onboarding.mandate.response.MobileSignatureStatusResponse;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
-import java.util.Locale;
-import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,10 +28,7 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.servlet.LocaleResolver;
 
-// database level integration tests are in MandateBatchIntegrationTest
-// these are high level unit tests
 @SpringBootTest
 @AutoConfigureMockMvc
 @WithMockUser
@@ -40,12 +37,7 @@ public class MandateBatchSigningControllerTest {
   @Autowired private MockMvc mvc;
 
   @Autowired private ObjectMapper mapper;
-
-  @MockBean private MandateBatchService mandateBatchService;
-
-  @MockBean private GenericSessionStore sessionStore;
-
-  @MockBean private LocaleResolver localeResolver;
+  @MockBean private MandateBatchSignatureService mandateBatchSignatureService;
 
   @Nested
   @DisplayName("mobile id")
@@ -55,11 +47,11 @@ public class MandateBatchSigningControllerTest {
     @DisplayName("start mobile id signature returns the mobile ID challenge code")
     void startMobileIdSignatureReturnsChallengeCode() throws Exception {
       var mandateBatchId = 1L;
-      var phoneNumber = "+372 555 5555";
       var mockSession = MobileIdSignatureSession.builder().verificationCode("1234").build();
+      var mockResponse = new MobileSignatureResponse(mockSession.getVerificationCode());
 
-      when(mandateBatchService.mobileIdSign(eq(mandateBatchId), any(), eq(phoneNumber)))
-          .thenReturn(mockSession);
+      when(mandateBatchSignatureService.startMobileIdSignature(eq(mandateBatchId), any()))
+          .thenReturn(mockResponse);
 
       mvc.perform(
               put("/v1/mandate-batches/{id}/signature/mobile-id", mandateBatchId)
@@ -68,8 +60,6 @@ public class MandateBatchSigningControllerTest {
           .andExpect(status().isOk())
           .andExpect(content().contentType(MediaType.APPLICATION_JSON))
           .andExpect(jsonPath("$.challengeCode", is("1234")));
-
-      verify(sessionStore, times(1)).save(mockSession);
     }
 
     @Test
@@ -77,12 +67,11 @@ public class MandateBatchSigningControllerTest {
     void getMobileIdSignatureStatusReturnsStatusAndChallengeCode() throws Exception {
       var mandateBatchId = 1L;
       var mockSession = MobileIdSignatureSession.builder().verificationCode("1234").build();
+      var mockResponse =
+          new MobileSignatureStatusResponse(SIGNATURE, mockSession.getVerificationCode());
 
-      when(sessionStore.get(MobileIdSignatureSession.class)).thenReturn(Optional.of(mockSession));
-      when(localeResolver.resolveLocale(any())).thenReturn(Locale.ENGLISH);
-      when(mandateBatchService.finalizeMobileIdSignature(
-              any(), eq(mandateBatchId), any(), eq(Locale.ENGLISH)))
-          .thenReturn(SIGNATURE);
+      when(mandateBatchSignatureService.getMobileIdSignatureStatus(eq(mandateBatchId), any()))
+          .thenReturn(mockResponse);
 
       mvc.perform(
               get("/v1/mandate-batches/{id}/signature/mobile-id/status", mandateBatchId)
@@ -106,7 +95,10 @@ public class MandateBatchSigningControllerTest {
       var mockSession = new SmartIdSignatureSession("certSessionId", "personalCode", null);
       mockSession.setVerificationCode(null);
 
-      when(mandateBatchService.smartIdSign(eq(mandateBatchId), any())).thenReturn(mockSession);
+      var mockResponse = new MobileSignatureResponse(mockSession.getVerificationCode());
+
+      when(mandateBatchSignatureService.startSmartIdSignature(eq(mandateBatchId), any()))
+          .thenReturn(mockResponse);
 
       mvc.perform(
               put("/v1/mandate-batches/{id}/signature/smart-id", mandateBatchId)
@@ -115,8 +107,6 @@ public class MandateBatchSigningControllerTest {
           .andExpect(status().isOk())
           .andExpect(content().contentType(MediaType.APPLICATION_JSON))
           .andExpect(jsonPath("$.challengeCode").doesNotExist());
-
-      verify(sessionStore, times(1)).save(mockSession);
     }
 
     @Test
@@ -125,12 +115,11 @@ public class MandateBatchSigningControllerTest {
       var mandateBatchId = 1L;
       var mockSession = new SmartIdSignatureSession("certSessionId", "personalCode", null);
       mockSession.setVerificationCode("1234");
+      var mockResponse =
+          new MobileSignatureStatusResponse(SIGNATURE, mockSession.getVerificationCode());
 
-      when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(mockSession));
-      when(localeResolver.resolveLocale(any())).thenReturn(Locale.ENGLISH);
-      when(mandateBatchService.finalizeSmartIdSignature(
-              any(), eq(mandateBatchId), eq(mockSession), eq(Locale.ENGLISH)))
-          .thenReturn(SIGNATURE);
+      when(mandateBatchSignatureService.getSmartIdSignatureStatus(any(), any()))
+          .thenReturn(mockResponse);
 
       mvc.perform(
               get("/v1/mandate-batches/{id}/signature/smart-id/status", mandateBatchId)
@@ -154,9 +143,12 @@ public class MandateBatchSigningControllerTest {
       var clientCertificate = "clientCertificate";
       var startCommand = MandateFixture.sampleStartIdCardSignCommand(clientCertificate);
       var mockSession = IdCardSignatureSession.builder().hashToSignInHex("asdfg").build();
+      var mockResponse =
+          IdCardSignatureResponse.builder().hash(mockSession.getHashToSignInHex()).build();
 
-      when(mandateBatchService.idCardSign(eq(mandateBatchId), any(), eq(clientCertificate)))
-          .thenReturn(mockSession);
+      when(mandateBatchSignatureService.startIdCardSign(
+              eq(mandateBatchId), any(), eq(startCommand)))
+          .thenReturn(mockResponse);
 
       mvc.perform(
               put("/v1/mandate-batches/{id}/signature/id-card", mandateBatchId)
@@ -166,8 +158,6 @@ public class MandateBatchSigningControllerTest {
           .andExpect(status().isOk())
           .andExpect(content().contentType(MediaType.APPLICATION_JSON))
           .andExpect(jsonPath("$.hash", is("asdfg")));
-
-      verify(sessionStore, times(1)).save(mockSession);
     }
 
     @Test
@@ -176,13 +166,12 @@ public class MandateBatchSigningControllerTest {
       var mandateBatchId = 1L;
       var signedHash = "signedHash";
       var finishCommand = MandateFixture.sampleFinishIdCardSignCommand(signedHash);
-      var mockSession = IdCardSignatureSession.builder().build();
 
-      when(sessionStore.get(IdCardSignatureSession.class)).thenReturn(Optional.of(mockSession));
-      when(localeResolver.resolveLocale(any())).thenReturn(Locale.ENGLISH);
-      when(mandateBatchService.finalizeIdCardSignature(
-              any(), eq(mandateBatchId), eq(mockSession), eq(signedHash), eq(Locale.ENGLISH)))
-          .thenReturn(SIGNATURE);
+      var mockResponse = IdCardSignatureStatusResponse.builder().statusCode(SIGNATURE).build();
+
+      when(mandateBatchSignatureService.getIdCardSignatureStatus(
+              eq(mandateBatchId), eq(finishCommand), any()))
+          .thenReturn(mockResponse);
 
       mvc.perform(
               put("/v1/mandate-batches/{id}/signature/id-card/status", mandateBatchId)

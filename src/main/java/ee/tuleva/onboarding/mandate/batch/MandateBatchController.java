@@ -1,26 +1,16 @@
 package ee.tuleva.onboarding.mandate.batch;
 
-import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchController.MANDATE_BATCHES_URI;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.auth.session.GenericSessionStore;
-import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureStatusResponse;
-import ee.tuleva.onboarding.mandate.response.MandateSignatureStatus;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureStatusResponse;
-import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
-import java.util.Locale;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -34,8 +24,7 @@ public class MandateBatchController {
   public static final String MANDATE_BATCHES_URI = "/mandate-batches";
 
   private final MandateBatchService mandateBatchService;
-  private final GenericSessionStore sessionStore;
-  private final LocaleService localeService;
+  private final MandateBatchSignatureService mandateBatchSignatureService;
 
   @Operation(summary = "Create mandate batch")
   @PostMapping()
@@ -52,11 +41,7 @@ public class MandateBatchController {
   public MobileSignatureResponse startSmartIdSignature(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    SmartIdSignatureSession signatureSession =
-        mandateBatchService.smartIdSign(mandateBatchId, authenticatedPerson.getUserId());
-    sessionStore.save(signatureSession);
-
-    return new MobileSignatureResponse(signatureSession.getVerificationCode());
+    return mandateBatchSignatureService.startSmartIdSignature(mandateBatchId, authenticatedPerson);
   }
 
   @Operation(summary = "Is mandate batch successfully signed with Smart ID")
@@ -64,19 +49,8 @@ public class MandateBatchController {
   public MobileSignatureStatusResponse getSmartIdSignatureStatus(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-
-    Optional<SmartIdSignatureSession> signatureSession =
-        sessionStore.get(SmartIdSignatureSession.class);
-    SmartIdSignatureSession session =
-        signatureSession.orElseThrow(IdSessionException::smartIdSignatureSessionNotFound);
-
-    Locale locale = localeService.getCurrentLocale();
-
-    MandateSignatureStatus statusCode =
-        mandateBatchService.finalizeSmartIdSignature(
-            authenticatedPerson.getUserId(), mandateBatchId, session, locale);
-
-    return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
+    return mandateBatchSignatureService.getSmartIdSignatureStatus(
+        mandateBatchId, authenticatedPerson);
   }
 
   @Operation(summary = "Start signing mandate batch with ID card")
@@ -85,14 +59,8 @@ public class MandateBatchController {
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody StartIdCardSignCommand signCommand) {
-
-    IdCardSignatureSession signatureSession =
-        mandateBatchService.idCardSign(
-            mandateBatchId, authenticatedPerson.getUserId(), signCommand.getClientCertificate());
-
-    sessionStore.save(signatureSession);
-
-    return new IdCardSignatureResponse(signatureSession.getHashToSignInHex());
+    return mandateBatchSignatureService.startIdCardSign(
+        mandateBatchId, authenticatedPerson, signCommand);
   }
 
   @Operation(summary = "Is mandate batch successfully signed with ID card")
@@ -101,23 +69,8 @@ public class MandateBatchController {
       @PathVariable("id") Long mandateBatchId,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-
-    Optional<IdCardSignatureSession> signatureSession =
-        sessionStore.get(IdCardSignatureSession.class);
-    IdCardSignatureSession session =
-        signatureSession.orElseThrow(IdSessionException::cardSignatureSessionNotFound);
-
-    Locale locale = localeService.getCurrentLocale();
-
-    MandateSignatureStatus statusCode =
-        mandateBatchService.finalizeIdCardSignature(
-            authenticatedPerson.getUserId(),
-            mandateBatchId,
-            session,
-            signCommand.getSignedHash(),
-            locale);
-
-    return new IdCardSignatureStatusResponse(statusCode);
+    return mandateBatchSignatureService.getIdCardSignatureStatus(
+        mandateBatchId, signCommand, authenticatedPerson);
   }
 
   @Operation(summary = "Start signing mandate batch with mobile ID")
@@ -125,15 +78,7 @@ public class MandateBatchController {
   public MobileSignatureResponse startMobileIdSignature(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-
-    MobileIdSignatureSession signatureSession =
-        mandateBatchService.mobileIdSign(
-            mandateBatchId,
-            authenticatedPerson.getUserId(),
-            authenticatedPerson.getAttribute(PHONE_NUMBER));
-    sessionStore.save(signatureSession);
-
-    return new MobileSignatureResponse(signatureSession.getVerificationCode());
+    return mandateBatchSignatureService.startMobileIdSignature(mandateBatchId, authenticatedPerson);
   }
 
   @Operation(summary = "Is mandate batch successfully signed with mobile ID")
@@ -141,18 +86,7 @@ public class MandateBatchController {
   public MobileSignatureStatusResponse getMobileIdSignatureStatus(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-
-    Optional<MobileIdSignatureSession> signatureSession =
-        sessionStore.get(MobileIdSignatureSession.class);
-    MobileIdSignatureSession session =
-        signatureSession.orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
-
-    Locale locale = localeService.getCurrentLocale();
-
-    MandateSignatureStatus statusCode =
-        mandateBatchService.finalizeMobileIdSignature(
-            authenticatedPerson.getUserId(), mandateBatchId, session, locale);
-
-    return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
+    return mandateBatchSignatureService.getMobileIdSignatureStatus(
+        mandateBatchId, authenticatedPerson);
   }
 }

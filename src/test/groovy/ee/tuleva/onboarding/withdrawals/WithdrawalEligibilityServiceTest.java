@@ -32,6 +32,7 @@ class WithdrawalEligibilityServiceTest {
 
     assertThat(result.hasReachedEarlyRetirementAge()).isTrue();
     assertThat(result.recommendedDurationYears()).isEqualTo(30);
+    assertThat(result.age()).isNotNull();
   }
 
   @Test
@@ -46,5 +47,6 @@ class WithdrawalEligibilityServiceTest {
 
     assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
     assertThat(result.recommendedDurationYears()).isEqualTo(0);
+    assertThat(result.age()).isNotNull();
   }
 }

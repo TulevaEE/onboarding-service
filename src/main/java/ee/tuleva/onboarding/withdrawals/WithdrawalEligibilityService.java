@@ -17,7 +17,9 @@ public class WithdrawalEligibilityService {
     var fundPensionCalculation = episService.getFundPensionCalculation(person);
 
     return new WithdrawalEligibilityDto(
-        hasReachedRetirementAge(person), fundPensionCalculation.durationYears());
+        hasReachedRetirementAge(person),
+        PersonalCode.getAge(person.getPersonalCode()),
+        fundPensionCalculation.durationYears());
   }
 
   private boolean hasReachedRetirementAge(Person person) {

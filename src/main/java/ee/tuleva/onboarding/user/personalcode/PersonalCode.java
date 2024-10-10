@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.user.personalcode;
 
+import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import static ee.tuleva.onboarding.user.personalcode.Gender.*;
 import static ee.tuleva.onboarding.user.personalcode.Gender.FEMALE;
 import static java.time.format.ResolverStyle.STRICT;
@@ -7,13 +8,14 @@ import static java.time.temporal.ChronoField.YEAR;
 
 import java.time.LocalDate;
 import java.time.Period;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeFormatterBuilder;
 
 public class PersonalCode {
 
   public static int getAge(String personalCode) {
-    LocalDate today = LocalDate.now();
+    LocalDate today = clock().instant().atZone(ZoneId.systemDefault()).toLocalDate();
     LocalDate dateOfBirth = getDateOfBirth(personalCode);
     Period period = Period.between(dateOfBirth, today);
 
@@ -31,25 +33,32 @@ public class PersonalCode {
   }
 
   public static LocalDate getDateOfBirth(String personalCode) {
-    String century = personalCode.substring(0, 1);
     String dateOfBirth = personalCode.substring(1, 7);
-    return LocalDate.parse(dateOfBirth, dateOfBirthFormatter(century));
+    return LocalDate.parse(dateOfBirth, dateOfBirthFormatter(personalCode));
   }
 
   public static Gender getGender(String personalCode) {
-    int genderNumber = Integer.parseInt(personalCode.substring(0, 1));
-    return genderNumber % 2 == 0 ? FEMALE : MALE;
+    return getCenturyBaseYearAndGender(personalCode).gender;
   }
 
-  private static DateTimeFormatter dateOfBirthFormatter(String century) {
-    if (isBornInThe20thCentury(century)) {
-      return formatterWithBaseYear(1900);
-    }
-    return DateTimeFormatter.ofPattern("uuMMdd").withResolverStyle(STRICT);
+  private static DateTimeFormatter dateOfBirthFormatter(String idCode) {
+    return formatterWithBaseYear(getCenturyBaseYearAndGender(idCode).centuryBaseYear);
   }
 
-  private static boolean isBornInThe20thCentury(String centuryIndicator) {
-    return "3".equals(centuryIndicator) || "4".equals(centuryIndicator);
+  private static BaseCenturyYearAndGender getCenturyBaseYearAndGender(String idCode) {
+    char firstDigit = idCode.charAt(0);
+
+    return switch (firstDigit) {
+      case '1' -> new BaseCenturyYearAndGender(MALE, 1800);
+      case '2' -> new BaseCenturyYearAndGender(FEMALE, 1800);
+      case '3' -> new BaseCenturyYearAndGender(MALE, 1900);
+      case '4' -> new BaseCenturyYearAndGender(FEMALE, 1900);
+      case '5' -> new BaseCenturyYearAndGender(MALE, 2000);
+      case '6' -> new BaseCenturyYearAndGender(FEMALE, 2000);
+      case '7' -> new BaseCenturyYearAndGender(MALE, 2100);
+      case '8' -> new BaseCenturyYearAndGender(FEMALE, 2100);
+      default -> throw new IllegalArgumentException("Invalid first digit");
+    };
   }
 
   private static DateTimeFormatter formatterWithBaseYear(int baseYear) {
@@ -59,4 +68,6 @@ public class PersonalCode {
         .toFormatter()
         .withResolverStyle(STRICT);
   }
+
+  private record BaseCenturyYearAndGender(Gender gender, int centuryBaseYear) {}
 }

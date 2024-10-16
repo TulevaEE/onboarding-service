@@ -142,6 +142,7 @@ class MandateDeadlinesSpec extends Specification {
 
       Instant.parse("2021-03-31T20:59:59.999999999Z") == getWithdrawalCancellationDeadline()
       LocalDate.parse("2021-04-16") == getWithdrawalFulfillmentDate()
+      LocalDate.parse("2021-04-21") == getWithdrawalLatestFulfillmentDate()
     }
   }
 

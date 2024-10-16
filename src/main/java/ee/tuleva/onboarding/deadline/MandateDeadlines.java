@@ -79,13 +79,11 @@ public class MandateDeadlines {
   }
 
   public LocalDate getWithdrawalFulfillmentDate() {
-    return publicHolidays.nextWorkingDay(
-        withdrawalCancellationDeadline().plusDays(15).toLocalDate());
+    return withdrawalCancellationDeadline().plusDays(16).toLocalDate();
   }
 
   public LocalDate getWithdrawalLatestFulfillmentDate() {
-    return publicHolidays.nextWorkingDay(
-        withdrawalCancellationDeadline().plusDays(20).toLocalDate());
+    return withdrawalCancellationDeadline().plusDays(20).toLocalDate();
   }
 
   public LocalDate getFulfillmentDate(ApplicationType applicationType) {

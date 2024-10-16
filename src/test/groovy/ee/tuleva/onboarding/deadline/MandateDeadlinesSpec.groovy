@@ -34,6 +34,7 @@ class MandateDeadlinesSpec extends Specification {
 
       Instant.parse("2021-03-31T20:59:59.999999999Z") == getWithdrawalCancellationDeadline()
       LocalDate.parse("2021-04-16") == getWithdrawalFulfillmentDate()
+      LocalDate.parse("2021-04-20") == getWithdrawalLatestFulfillmentDate()
     }
   }
 
@@ -56,7 +57,8 @@ class MandateDeadlinesSpec extends Specification {
       LocalDate.parse("2022-01-03") == getEarlyWithdrawalFulfillmentDate()
 
       Instant.parse("2021-04-30T20:59:59.999999999Z") == getWithdrawalCancellationDeadline()
-      LocalDate.parse("2021-05-17") == getWithdrawalFulfillmentDate()
+      LocalDate.parse("2021-05-16") == getWithdrawalFulfillmentDate()
+      LocalDate.parse("2021-05-20") == getWithdrawalLatestFulfillmentDate()
     }
   }
 
@@ -80,6 +82,7 @@ class MandateDeadlinesSpec extends Specification {
 
       Instant.parse("2021-08-31T20:59:59.999999999Z") == getWithdrawalCancellationDeadline()
       LocalDate.parse("2021-09-16") == getWithdrawalFulfillmentDate()
+      LocalDate.parse("2021-09-20") == getWithdrawalLatestFulfillmentDate()
     }
   }
 
@@ -102,7 +105,8 @@ class MandateDeadlinesSpec extends Specification {
       LocalDate.parse("2022-09-01") == getEarlyWithdrawalFulfillmentDate()
 
       Instant.parse("2021-12-31T21:59:59.999999999Z") == getWithdrawalCancellationDeadline()
-      LocalDate.parse("2022-01-17") == getWithdrawalFulfillmentDate()
+      LocalDate.parse("2022-01-16") == getWithdrawalFulfillmentDate()
+      LocalDate.parse("2022-01-20") == getWithdrawalLatestFulfillmentDate()
     }
   }
 
@@ -142,7 +146,7 @@ class MandateDeadlinesSpec extends Specification {
 
       Instant.parse("2021-03-31T20:59:59.999999999Z") == getWithdrawalCancellationDeadline()
       LocalDate.parse("2021-04-16") == getWithdrawalFulfillmentDate()
-      LocalDate.parse("2021-04-21") == getWithdrawalLatestFulfillmentDate()
+      LocalDate.parse("2021-04-20") == getWithdrawalLatestFulfillmentDate()
     }
   }
 
@@ -166,6 +170,7 @@ class MandateDeadlinesSpec extends Specification {
 
       Instant.parse("2021-10-31T21:59:59.999999999Z") == getWithdrawalCancellationDeadline()
       LocalDate.parse("2021-11-16") == getWithdrawalFulfillmentDate()
+      LocalDate.parse("2021-11-20") == getWithdrawalLatestFulfillmentDate()
     }
   }
 
@@ -188,7 +193,8 @@ class MandateDeadlinesSpec extends Specification {
       LocalDate.parse("2024-05-02") == getEarlyWithdrawalFulfillmentDate()
 
       Instant.parse("2023-11-30T21:59:59.999999999Z") == getWithdrawalCancellationDeadline()
-      LocalDate.parse("2023-12-18") == getWithdrawalFulfillmentDate()
+      LocalDate.parse("2023-12-16") == getWithdrawalFulfillmentDate()
+      LocalDate.parse("2023-12-20") == getWithdrawalLatestFulfillmentDate()
     }
   }
 

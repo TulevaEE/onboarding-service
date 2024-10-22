@@ -160,12 +160,24 @@ We use AWS Client VPN. To get started, log into [AWS SSO Portal](https://tuleva.
 Configuration is available AWS S3 `s3://tulevasecrets/development-configuration/`
 
 
-### RDS certificate upgrade
+## Certificate upgrade
+
+### RDS
 
 1. Update `.pem` file in `etc/docker`
 2. If file was renamed, rename it in `gradle/packaging.gradle.kts`
 
 In case file has multiple certificate chains, `import-certs.sh` will add all of them.
+
+### Smart-ID, Mobile-ID, ID-card
+1. Install keystore explorer if missing `brew install --cask keystore-explorer` or use command line `keytool`
+2. Navigate to the `tuleva-secrets` S3 bucket, open either `staging` or `development` directory, download `truststore.jks`.
+3. Add new certs and upload new version back to S3 bucket.
+   * If there are errors with multiple certificates, either remove or split them by opening the `.pem` file with a text editor.
+     * For example a root cert might be added (unnecessarily for our use case) to the cert you are trying to add to the truststore
+   * When changing `staging` certs, also add them to `src/test_keys/truststore.jks` for your local `dev` environment.
+4. Do a clean deploy to ensure that new EC2 instance is spun up, and S3 -> EC2 files defined in`.ebextensions/keystore.config` are copied over.
+
 
 ### PostgreSQL <-> H2 compatibility for integration tests
 
@@ -186,3 +198,4 @@ When adding a new migration for H2 <-> Postgres compatibility, the name must be 
 [Test ID Card](https://demo.sk.ee/upload_cert/)
 
 [Test Smart ID](https://github.com/SK-EID/smart-id-documentation/wiki/Smart-ID-demo)
+

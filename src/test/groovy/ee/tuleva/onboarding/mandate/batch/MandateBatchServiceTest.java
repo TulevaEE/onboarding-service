@@ -584,7 +584,7 @@ public class MandateBatchServiceTest {
 
     @Test
     @DisplayName(
-        "finalizeIdCardSignature handles signed mandate and all mandates processed successfully")
+        "persistIdCardSignedFileOrGetBatchProcessingStatus handles signed mandate and all mandates processed successfully")
     void finalizeIdCardSignatureHandlesSignedMandateAndAllMandatesProcessedSuccessfully() {
       Mandate mandate1 = sampleFundPensionOpeningMandate();
       Mandate mandate2 = samplePartialWithdrawalMandate();
@@ -606,7 +606,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
 
       MandateSignatureStatus status =
-          mandateBatchService.finalizeIdCardSignature(
+          mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
               user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 
       assertThat(SIGNATURE).isEqualTo(status);
@@ -615,7 +615,8 @@ public class MandateBatchServiceTest {
     }
 
     @Test
-    @DisplayName("finalizeIdCardSignature handles signed mandate with processing errors")
+    @DisplayName(
+        "persistIdCardSignedFileOrGetBatchProcessingStatus handles signed mandate with processing errors")
     void finalizeIdCardSignatureHandlesSignedMandateWithProcessingErrors() {
       Mandate mandate1 = sampleFundPensionOpeningMandate();
       Mandate mandate2 = samplePartialWithdrawalMandate();
@@ -644,7 +645,7 @@ public class MandateBatchServiceTest {
           assertThrows(
               MandateProcessingException.class,
               () ->
-                  mandateBatchService.finalizeIdCardSignature(
+                  mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
                       user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH));
 
       assertThat(exception).isNotNull();
@@ -655,7 +656,8 @@ public class MandateBatchServiceTest {
     }
 
     @Test
-    @DisplayName("finalizeIdCardSignature handles signed mandate but mandates are still processing")
+    @DisplayName(
+        "persistIdCardSignedFileOrGetBatchProcessingStatus handles signed mandate when mandates are still processing")
     void finalizeIdCardSignatureHandlesSignedMandateButMandateIsProcessing() {
       Mandate mandate1 = sampleFundPensionOpeningMandate();
       Mandate mandate2 = samplePartialWithdrawalMandate();
@@ -674,7 +676,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
 
       MandateSignatureStatus status =
-          mandateBatchService.finalizeIdCardSignature(
+          mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
               user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
@@ -683,7 +685,8 @@ public class MandateBatchServiceTest {
     }
 
     @Test
-    @DisplayName("finalizeIdCardSignature handles unsigned mandate with signed file")
+    @DisplayName(
+        "persistIdCardSignedFileOrGetBatchProcessingStatus handles signed file and starts processing mandates")
     void finalizeIdCardSignatureHandlesUnsignedMandateWithSignedFile() {
       Mandate mandate1 = sampleFundPensionOpeningMandate();
       Mandate mandate2 = samplePartialWithdrawalMandate();
@@ -704,7 +707,7 @@ public class MandateBatchServiceTest {
       ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
 
       MandateSignatureStatus status =
-          mandateBatchService.finalizeIdCardSignature(
+          mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
               user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
@@ -718,7 +721,8 @@ public class MandateBatchServiceTest {
     }
 
     @Test
-    @DisplayName("finalizeIdCardSignature handles unsigned mandate without signed file")
+    @DisplayName(
+        "persistIdCardSignedFileOrGetBatchProcessingStatus throws when signed file is missing")
     void finalizeIdCardSignatureHandlesUnsignedMandateWithoutSignedFile() {
       Mandate mandate1 = sampleFundPensionOpeningMandate();
       Mandate mandate2 = samplePartialWithdrawalMandate();
@@ -737,7 +741,7 @@ public class MandateBatchServiceTest {
       assertThrows(
           IllegalStateException.class,
           () ->
-              mandateBatchService.finalizeIdCardSignature(
+              mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
                   user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH));
 
       verify(signService, times(1)).getSignedFile(eq(session), any());

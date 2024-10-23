@@ -146,7 +146,7 @@ class MandateBatchSignatureServiceTest {
     }
 
     @Test
-    @DisplayName("finish id card signature returns the status code")
+    @DisplayName("persistIdCardAndGetProcessingStatus returns finished status code")
     void finishIdCardSignatureReturnsStatusCode() {
       var mandateBatchId = 1L;
       var signedHash = "signedHash";
@@ -155,13 +155,13 @@ class MandateBatchSignatureServiceTest {
 
       when(sessionStore.get(IdCardSignatureSession.class)).thenReturn(Optional.of(mockSession));
       when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
-      when(mandateBatchService.finalizeIdCardSignature(
+      when(mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
               any(), eq(mandateBatchId), eq(mockSession), eq(signedHash), eq(Locale.ENGLISH)))
           .thenReturn(SIGNATURE);
 
       var user = sampleAuthenticatedPersonAndMember().build();
       var result =
-          mandateBatchSignatureService.getIdCardSignatureStatus(
+          mandateBatchSignatureService.persistIdCardSignedHashAndGetProcessingStatus(
               mandateBatchId, finishCommand, user);
 
       assertThat(result.getStatusCode()).isEqualTo(SIGNATURE);

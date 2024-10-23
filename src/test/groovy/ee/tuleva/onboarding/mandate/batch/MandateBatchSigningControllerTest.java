@@ -161,7 +161,8 @@ public class MandateBatchSigningControllerTest {
     }
 
     @Test
-    @DisplayName("finish id card signature returns the status code")
+    @DisplayName(
+        "id card signature status endpoint returns finalized status when processing is finished")
     void finishIdCardSignatureReturnsStatusCode() throws Exception {
       var mandateBatchId = 1L;
       var signedHash = "signedHash";
@@ -169,7 +170,7 @@ public class MandateBatchSigningControllerTest {
 
       var mockResponse = IdCardSignatureStatusResponse.builder().statusCode(SIGNATURE).build();
 
-      when(mandateBatchSignatureService.getIdCardSignatureStatus(
+      when(mandateBatchSignatureService.persistIdCardSignedHashAndGetProcessingStatus(
               eq(mandateBatchId), eq(finishCommand), any()))
           .thenReturn(mockResponse);
 

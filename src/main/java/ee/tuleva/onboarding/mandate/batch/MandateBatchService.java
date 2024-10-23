@@ -98,11 +98,11 @@ public class MandateBatchService {
     User user = userService.getById(userId);
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
-    if (mandateBatch.isSigned()) {
-      return handleSignedMandate(user, mandateBatch, locale);
-    } else {
+    if (!mandateBatch.isSigned()) {
       return handleUnsignedMandateSmartId(user, mandateBatch, session);
     }
+
+    return getMandateProcessingStatus(user, mandateBatch, locale);
   }
 
   public IdCardSignatureSession idCardSign(
@@ -113,22 +113,23 @@ public class MandateBatchService {
     return signService.startIdCardSign(files, signingCertificate);
   }
 
-  private MandateSignatureStatus handleUnsignedMandateIdCard(
+  private MandateSignatureStatus persistFileSignedWithIdCard(
       User user,
       MandateBatch mandateBatch,
       IdCardSignatureSession session,
       String signedHashInHex) {
     byte[] signedFile = signService.getSignedFile(session, signedHashInHex);
-    if (signedFile != null) { // TODO: use Optional
-      persistSignedFile(mandateBatch, signedFile);
-      startProcessingBatch(user, mandateBatch);
-      return OUTSTANDING_TRANSACTION;
-    } else {
+
+    if (signedFile == null) { // TODO: use Optional
       throw new IllegalStateException("There is no signed file to persist");
     }
+
+    persistSignedFile(mandateBatch, signedFile);
+    startProcessingBatch(user, mandateBatch);
+    return OUTSTANDING_TRANSACTION;
   }
 
-  public MandateSignatureStatus finalizeIdCardSignature(
+  public MandateSignatureStatus persistIdCardSignedFileOrGetBatchProcessingStatus(
       Long userId,
       Long mandateBatchId,
       IdCardSignatureSession session,
@@ -137,11 +138,11 @@ public class MandateBatchService {
     User user = userService.getById(userId);
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
-    if (mandateBatch.isSigned()) {
-      return handleSignedMandate(user, mandateBatch, locale);
-    } else {
-      return handleUnsignedMandateIdCard(user, mandateBatch, session, signedHashInHex);
+    if (!mandateBatch.isSigned()) {
+      return persistFileSignedWithIdCard(user, mandateBatch, session, signedHashInHex);
     }
+
+    return getMandateProcessingStatus(user, mandateBatch, locale);
   }
 
   public MobileIdSignatureSession mobileIdSign(
@@ -162,14 +163,14 @@ public class MandateBatchService {
     User user = userService.getById(userId);
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
-    if (mandateBatch.isSigned()) {
-      return handleSignedMandate(user, mandateBatch, locale);
-    } else {
+    if (!mandateBatch.isSigned()) {
       return handleUnsignedMandateMobileId(user, mandateBatch, session);
     }
+
+    return getMandateProcessingStatus(user, mandateBatch, locale);
   }
 
-  private MandateSignatureStatus handleSignedMandate(
+  private MandateSignatureStatus getMandateProcessingStatus(
       User user, MandateBatch mandateBatch, Locale locale) {
 
     var allMandatesHaveFinishedProcessing =

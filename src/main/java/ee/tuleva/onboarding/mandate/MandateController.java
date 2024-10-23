@@ -171,6 +171,9 @@ public class MandateController {
     return new IdCardSignatureResponse(signatureSession.getHashToSignInHex());
   }
 
+  // TODO: split this into PUT and GET endpoints or migrate all logic to MandateBatch
+  // Currently first call persists signed hex, and later polling calls just check if mandates have
+  // been processsed
   @Operation(summary = "Is mandate successfully signed with ID card")
   @PutMapping("/{id}/signature/idCard/status")
   public IdCardSignatureStatusResponse getIdCardSignatureStatus(

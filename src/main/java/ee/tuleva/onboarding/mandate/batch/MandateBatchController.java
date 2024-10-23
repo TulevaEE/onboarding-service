@@ -63,13 +63,17 @@ public class MandateBatchController {
         mandateBatchId, authenticatedPerson, signCommand);
   }
 
-  @Operation(summary = "Is mandate batch successfully signed with ID card")
+  // TODO: split this into PUT and GET endpoints
+  // Currently first call persists signed hex, and later polling calls just check if mandates have
+  // been processsed
+  @Operation(
+      summary = "Persist ID-card signed mandate batch, and check if mandate batch is processed")
   @PutMapping("/{id}/signature/id-card/status")
-  public IdCardSignatureStatusResponse getIdCardSignatureStatus(
+  public IdCardSignatureStatusResponse persistIdCardSignedHashOrGetSignatureStatus(
       @PathVariable("id") Long mandateBatchId,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    return mandateBatchSignatureService.getIdCardSignatureStatus(
+    return mandateBatchSignatureService.persistIdCardSignedHashAndGetProcessingStatus(
         mandateBatchId, signCommand, authenticatedPerson);
   }
 

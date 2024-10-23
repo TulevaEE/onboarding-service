@@ -66,7 +66,7 @@ public class MandateBatchSignatureService {
     return new IdCardSignatureResponse(signatureSession.getHashToSignInHex());
   }
 
-  public IdCardSignatureStatusResponse getIdCardSignatureStatus(
+  public IdCardSignatureStatusResponse persistIdCardSignedHashAndGetProcessingStatus(
       Long mandateBatchId,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
       AuthenticatedPerson authenticatedPerson) {
@@ -79,7 +79,7 @@ public class MandateBatchSignatureService {
     Locale locale = localeService.getCurrentLocale();
 
     MandateSignatureStatus statusCode =
-        mandateBatchService.finalizeIdCardSignature(
+        mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
             authenticatedPerson.getUserId(),
             mandateBatchId,
             session,

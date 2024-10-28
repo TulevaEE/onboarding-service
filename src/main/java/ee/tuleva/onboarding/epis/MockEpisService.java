@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
+import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -44,6 +45,7 @@ public class MockEpisService extends EpisService {
   private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
   private final String CASH_FLOW_STATEMENT_CACHE_NAME = "cashFlowStatement";
   private final String FUNDS_CACHE_NAME = "funds";
+  private final String FUND_PENSION_CALCULATION_CACHE_NAME = "fundPensionCalculation";
 
   @Value("${epis.service.url}")
   String episServiceUrl;
@@ -203,6 +205,11 @@ public class MockEpisService extends EpisService {
             .currency("EUR")
             .activeContributions(true)
             .build());
+  }
+
+  @Cacheable(value = FUND_PENSION_CALCULATION_CACHE_NAME, key = "#person.personalCode", sync = true)
+  public FundPensionCalculationDto getFundPensionCalculation(Person person) {
+    return new FundPensionCalculationDto(20);
   }
 
   @Cacheable(value = FUNDS_CACHE_NAME, unless = "#result.isEmpty()")

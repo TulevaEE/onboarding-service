@@ -725,7 +725,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Pangakonto number</div>
-    <div class="form-value">EE_TEST_IBAN</div>
+    <div class="form-value">EE3477123123123</div>
   </div>
   <div class="form-group">
     <div class="form-label">Pank</div>
@@ -958,7 +958,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Pangakonto number</div>
-    <div class="form-value">EE_TEST_IBAN</div>
+    <div class="form-value">EE3477123123123</div>
   </div>
   <div class="form-group">
     <div class="form-label">Pank</div>
@@ -1202,7 +1202,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Pangakonto number</div>
-    <div class="form-value">EE_TEST_IBAN</div>
+    <div class="form-value">EE3477123123123</div>
   </div>
   <div class="form-group">
     <div class="form-label">Pank</div>
@@ -1441,7 +1441,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Pangakonto number</div>
-    <div class="form-value">EE_TEST_IBAN</div>
+    <div class="form-value">EE3477123123123</div>
   </div>
   <div class="form-group">
     <div class="form-label">Pank</div>
@@ -1688,7 +1688,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Pangakonto number</div>
-    <div class="form-value">EE_TEST_IBAN</div>
+    <div class="form-value">EE3477123123123</div>
   </div>
   <div class="form-group">
     <div class="form-label">Pank</div>

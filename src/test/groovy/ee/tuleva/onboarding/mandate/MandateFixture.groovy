@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.mandate.generic.MandateDto
 import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.Bank
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN
 import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
 import static ee.tuleva.onboarding.epis.mandate.details.Pillar.THIRD
@@ -24,14 +23,14 @@ import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 class MandateFixture {
 
   public static PartialWithdrawalMandateDetails aPartialWithdrawalMandateDetails = new PartialWithdrawalMandateDetails(SECOND,
-      new BankAccountDetails(ESTONIAN, Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN"),
+      new BankAccountDetails(ESTONIAN, "EE3477123123123"),
       List.of(new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600109435", 10, BigDecimal.valueOf(20)),
           new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600019766", 5, BigDecimal.valueOf(30))),
       "EST"
   )
 
   public static PartialWithdrawalMandateDetails aThirdPillarPartialWithdrawalMandateDetails = new PartialWithdrawalMandateDetails(THIRD,
-      new BankAccountDetails(ESTONIAN, Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN"),
+      new BankAccountDetails(ESTONIAN, "EE3477123123123"),
       List.of(new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600109435", 10, BigDecimal.valueOf(20)),
           new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600019766", 5, BigDecimal.valueOf(30))),
       "EST"
@@ -39,12 +38,12 @@ class MandateFixture {
 
   public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(SECOND,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, false),
-      new BankAccountDetails(ESTONIAN, Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
+      new BankAccountDetails(ESTONIAN, "EE3477123123123")
   )
 
   public static FundPensionOpeningMandateDetails aThirdPillarFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(THIRD,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, true),
-      new BankAccountDetails(ESTONIAN, Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
+      new BankAccountDetails(ESTONIAN, "EE3477123123123")
   )
 
   public static futureContibutionFundIsin = "AE123232334"

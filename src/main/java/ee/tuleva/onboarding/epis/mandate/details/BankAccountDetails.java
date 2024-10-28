@@ -1,9 +1,15 @@
 package ee.tuleva.onboarding.epis.mandate.details;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Arrays;
 import lombok.Getter;
 
-public record BankAccountDetails(BankAccountType type, Bank bank, String accountIban) {
+public record BankAccountDetails(BankAccountType type, String accountIban) {
+  @JsonIgnore
+  public Bank bank() {
+    return Bank.fromIban(accountIban);
+  }
+
   public enum BankAccountType {
     ESTONIAN,
     // EUROPEAN(E) and OTHER(V) not supported

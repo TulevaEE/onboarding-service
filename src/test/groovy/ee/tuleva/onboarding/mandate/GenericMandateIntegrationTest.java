@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.mandate;
 
 import static ee.tuleva.onboarding.auth.JwtTokenGenerator.getHeaders;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
-import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.Bank.*;
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN;
 import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
@@ -54,7 +53,7 @@ class GenericMandateIntegrationTest {
             new FundPensionOpeningMandateDetails(
                 SECOND,
                 new FundPensionDuration(20, false),
-                new BankAccountDetails(ESTONIAN, LHV, "EE_TEST_IBAN"))),
+                new BankAccountDetails(ESTONIAN, "EE3477123123123"))),
         Arguments.of(aPartialWithdrawalMandateDetails));
   }
 

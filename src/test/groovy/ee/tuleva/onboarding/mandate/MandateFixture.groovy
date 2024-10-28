@@ -14,7 +14,6 @@ import java.time.Instant
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.Bank
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN
-import static ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails.FundPensionFrequency.MONTHLY
 import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
 import static ee.tuleva.onboarding.epis.mandate.details.Pillar.THIRD
 import static ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails.fromFundTransferExchanges
@@ -38,12 +37,12 @@ class MandateFixture {
       "EST"
   )
 
-  public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(SECOND, MONTHLY,
+  public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(SECOND,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, false),
       new BankAccountDetails(ESTONIAN, Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
   )
 
-  public static FundPensionOpeningMandateDetails aThirdPillarFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(THIRD, MONTHLY,
+  public static FundPensionOpeningMandateDetails aThirdPillarFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(THIRD,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, true),
       new BankAccountDetails(ESTONIAN, Bank.fromIban("EE3477123123123"), "EE_TEST_IBAN")
   )

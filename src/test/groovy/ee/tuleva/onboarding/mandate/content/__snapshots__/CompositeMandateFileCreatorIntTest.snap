@@ -718,11 +718,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
   </div>
   <div class="form-group">
     <div class="form-label">Väljamaksete sagedus</div>
-    <div class="form-value">
-      <span>1 kord kuus</span>
-      
-      
-    </div>
+    <div class="form-value" >1 kord kuus</div>
   </div>
 </div>
 <h2>4. Pensionikonto omaniku pangakonto</h2>
@@ -955,11 +951,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
   </div>
   <div class="form-group">
     <div class="form-label">Väljamaksete sagedus</div>
-    <div class="form-value">
-      <span>1 kord kuus</span>
-      
-      
-    </div>
+    <div class="form-value" >1 kord kuus</div>
   </div>
 </div>
 <h2>4. Pensionikonto omaniku pangakonto</h2>
@@ -1442,11 +1434,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
   </div>
   <div class="form-group">
     <div class="form-label">Väljamaksete sagedus</div>
-    <div class="form-value">
-      <span>1 kord kuus</span>
-      
-      
-    </div>
+    <div class="form-value" >1 kord kuus</div>
   </div>
 </div>
 <h2>4. Pensionikonto omaniku pangakonto</h2>

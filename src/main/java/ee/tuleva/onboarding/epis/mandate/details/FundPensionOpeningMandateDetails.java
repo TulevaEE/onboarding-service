@@ -9,27 +9,18 @@ import lombok.Getter;
 @Getter
 public class FundPensionOpeningMandateDetails extends MandateDetails {
   @NotNull private final Pillar pillar;
-  @NotNull private final FundPensionFrequency frequency;
   @NotNull private final FundPensionDuration duration;
   @NotNull private final BankAccountDetails bankAccountDetails;
 
   @JsonCreator
   public FundPensionOpeningMandateDetails(
       @JsonProperty("pillar") Pillar pillar,
-      @JsonProperty("frequency") FundPensionFrequency frequency,
       @JsonProperty("duration") FundPensionDuration duration,
       @JsonProperty("bankAccountDetails") BankAccountDetails bankAccountDetails) {
     super(MandateType.FUND_PENSION_OPENING);
     this.pillar = pillar;
-    this.frequency = frequency;
     this.duration = duration;
     this.bankAccountDetails = bankAccountDetails;
-  }
-
-  public enum FundPensionFrequency {
-    MONTHLY,
-    EVERY_3_MONTHS,
-    EVERY_12_MONTHS,
   }
 
   public record FundPensionDuration(int durationYears, boolean recommendedDuration) {}

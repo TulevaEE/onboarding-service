@@ -7,11 +7,7 @@
   </div>
   <div class="form-group">
     <div class="form-label">Väljamaksete sagedus</div>
-    <div class="form-value" th:switch="${fundPensionOpeningDetails.frequency.toString()}">
-      <span th:case="'MONTHLY'">1 kord kuus</span>
-      <span th:case="'EVERY_3_MONTHS'">Iga 3 kuu tagant</span>
-      <span th:case="'EVERY_12_MONTHS'">Iga 12 kuu tagant</span>
-    </div>
+    <div class="form-value" >1 kord kuus</div>
   </div>
 </div>
 <div th:insert="sections/withdrawals_bank_account_details_section" th:remove="tag"></div>

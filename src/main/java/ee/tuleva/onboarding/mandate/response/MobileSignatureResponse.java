@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.response;
 
+import jakarta.annotation.Nullable;
 import lombok.Builder;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -9,5 +10,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class MobileSignatureResponse {
 
+  @Nullable // During smartid signing start request
   private final String challengeCode;
 }

@@ -32,7 +32,7 @@ public class MandateBatchSignatureService {
         mandateBatchService.smartIdSign(mandateBatchId, authenticatedPerson.getUserId());
     sessionStore.save(signatureSession);
 
-    return new MobileSignatureResponse(signatureSession.getVerificationCode());
+    return new MobileSignatureResponse(null); // verificationCode is null when starting
   }
 
   public MobileSignatureStatusResponse getSmartIdSignatureStatus(

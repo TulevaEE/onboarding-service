@@ -131,7 +131,7 @@ public class MandateController {
         mandateService.smartIdSign(mandateId, authenticatedPerson.getUserId());
     sessionStore.save(signatureSession);
 
-    return new MobileSignatureResponse(signatureSession.getVerificationCode());
+    return new MobileSignatureResponse(null); // verificationCode is null in this instance
   }
 
   @Operation(summary = "Is mandate successfully signed with Smart ID")

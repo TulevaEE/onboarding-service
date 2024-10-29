@@ -88,7 +88,6 @@ public class MandateBatchService {
 
   public SmartIdSignatureSession smartIdSign(Long mandateBatchId, Long userId) {
     User user = userService.getById(userId);
-
     List<SignatureFile> files = getMandateBatchContentFiles(mandateBatchId, user);
     return signService.startSmartIdSign(files, user.getPersonalCode());
   }

@@ -98,7 +98,7 @@ class MockEpisServiceSpec extends Specification {
 
   def "getArrestsBankruptciesPresent has a mock response"() {
     when:
-    ArrestsBankruptciesDto response = episService.getArrestsBankruptciesPresent(hsamplePerson())
+    ArrestsBankruptciesDto response = episService.getArrestsBankruptciesPresent(samplePerson())
     then:
     response != null
   }

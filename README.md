@@ -185,7 +185,7 @@ PostgreSQL (used while running the application) and H2 (used while running integ
 When adding a new migration for H2 <-> Postgres compatibility, the name must be `V1_{n-1}_1__.sql` for Flyway to execute the compatibility migration **before** it tries to execute the migration numbered `n`, for which the compatibility migration is required.
 
 
-### References
+#### References
 
 [hwcrypto.js](https://github.com/hwcrypto/hwcrypto.js)
 
@@ -199,3 +199,36 @@ When adding a new migration for H2 <-> Postgres compatibility, the name must be 
 
 [Test Smart ID](https://github.com/SK-EID/smart-id-documentation/wiki/Smart-ID-demo)
 
+# Using AWS
+## Aethena for log search
+
+Service logs are at `tuleva-papertrail Europe (Paris) eu-west-3`
+which means, that you need to use `eu-west-3` Aethena output S3 bucket.
+
+Load Balancer logs are located at `logs.tuleva.ee` bucket.
+
+Service log table example
+```
+CREATE EXTERNAL TABLE IF NOT EXISTS `s3papertraillogsdatabase`.`S3PaperTrailLogsTableTSV` (
+  `ingestion_time` bigint,
+  `request_date` string,
+  `request_time` string,
+  `log_id` bigint,
+  `env` string,
+  `originating_ip` string,
+  `user_type` string,
+  `log_level` string,
+  `log_file` string,
+  `message` string
+)
+PARTITIONED BY (`dt` string)
+ROW FORMAT SERDE 'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
+WITH SERDEPROPERTIES ('field.delim' = '\t')
+STORED AS INPUTFORMAT 'org.apache.hadoop.mapred.TextInputFormat' OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat'
+LOCATION 's3://tuleva-papertrail/logs/';
+```
+
+Then run `MSCK REPAIR TABLE S3PaperTrailLogsDatabase.s3papertraillogstabletsv;`
+For partitioning.
+
+And query `select * from s3papertraillogsdatabase.s3papertraillogstabletsv limit 10;`

@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
+import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -38,10 +39,12 @@ class WithdrawalsControllerIntegrationTest {
     var headers = getHeaders();
 
     var calculation = new FundPensionCalculationDto(20);
+    var arrestsBankrupticesDto = new ArrestsBankruptciesDto(false, false);
 
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
     when(episService.getFundPensionCalculation(any())).thenReturn(calculation);
+    when(episService.getArrestsBankruptciesPresent(any())).thenReturn(arrestsBankrupticesDto);
 
     HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
 
@@ -52,5 +55,7 @@ class WithdrawalsControllerIntegrationTest {
     assertThat(jsonNode.get("hasReachedEarlyRetirementAge").asBoolean()).isEqualTo(false);
     assertThat(jsonNode.get("recommendedDurationYears").asInt())
         .isEqualTo(calculation.durationYears());
+
+    assertThat(jsonNode.get("arrestsOrBankruptciesPresent").asBoolean()).isEqualTo(false);
   }
 }

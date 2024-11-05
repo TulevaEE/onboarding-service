@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.epis.fund.NavDto
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
+import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
@@ -91,6 +92,13 @@ class MockEpisServiceSpec extends Specification {
   def "getFundPensionCalculation has a mock response"() {
     when:
     FundPensionCalculationDto response = episService.getFundPensionCalculation(samplePerson())
+    then:
+    response != null
+  }
+
+  def "getArrestsBankruptciesPresent has a mock response"() {
+    when:
+    ArrestsBankruptciesDto response = episService.getArrestsBankruptciesPresent(hsamplePerson())
     then:
     response != null
   }

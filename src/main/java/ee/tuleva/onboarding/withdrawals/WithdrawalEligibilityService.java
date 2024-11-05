@@ -15,11 +15,14 @@ public class WithdrawalEligibilityService {
 
   public WithdrawalEligibilityDto getWithdrawalEligibility(Person person) {
     var fundPensionCalculation = episService.getFundPensionCalculation(person);
+    var arrestsBankruptcies = episService.getArrestsBankruptciesPresent(person);
 
     return new WithdrawalEligibilityDto(
         hasReachedRetirementAge(person),
         PersonalCode.getAge(person.getPersonalCode()),
-        fundPensionCalculation.durationYears());
+        fundPensionCalculation.durationYears(),
+        arrestsBankruptcies.activeBankruptciesPresent()
+            || arrestsBankruptcies.activeArrestsPresent());
   }
 
   private boolean hasReachedRetirementAge(Person person) {

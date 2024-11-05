@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
+import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import java.time.LocalDate;
 import java.util.List;
@@ -50,6 +51,7 @@ public class EpisService {
   private final String FUNDS_CACHE_NAME = "funds";
   private final String CONTRIBUTIONS_CACHE_NAME = "contributions";
   private final String FUND_PENSION_CALCULATION_CACHE_NAME = "fundPensionCalculation";
+  private final String ARRESTS_BANKRUPTCIES_CACHE_NAME = "arrestsBankruptcies";
 
   private final RestTemplate restTemplate;
   private final JwtTokenUtil jwtTokenUtil;
@@ -157,6 +159,18 @@ public class EpisService {
 
     ResponseEntity<FundPensionCalculationDto> response =
         restTemplate.exchange(url, GET, getHeadersEntity(), FundPensionCalculationDto.class);
+
+    return response.getBody();
+  }
+
+  @Cacheable(value = ARRESTS_BANKRUPTCIES_CACHE_NAME, key = "#person.personalCode", sync = true)
+  public ArrestsBankruptciesDto getArrestsBankruptciesPresent(Person person) {
+    String url = episServiceUrl + "/arrests-bankruptcies";
+
+    log.info("Getting arrests/bankruptcies information for {}", person.getPersonalCode());
+
+    ResponseEntity<ArrestsBankruptciesDto> response =
+        restTemplate.exchange(url, GET, getHeadersEntity(), ArrestsBankruptciesDto.class);
 
     return response.getBody();
   }

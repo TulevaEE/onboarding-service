@@ -200,7 +200,7 @@ When adding a new migration for H2 <-> Postgres compatibility, the name must be 
 [Test Smart ID](https://github.com/SK-EID/smart-id-documentation/wiki/Smart-ID-demo)
 
 # Using AWS
-## Aethena for log search
+## Athena for log search
 
 Service logs are at `tuleva-papertrail Europe (Paris) eu-west-3`
 which means, that you need to use `eu-west-3` Aethena output S3 bucket.

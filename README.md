@@ -232,3 +232,26 @@ Then run `MSCK REPAIR TABLE S3PaperTrailLogsDatabase.s3papertraillogstabletsv;`
 For partitioning.
 
 And query `select * from s3papertraillogsdatabase.s3papertraillogstabletsv limit 10;`
+
+## Configuring VPN Split Tunneling
+
+To configure traffic routing through a VPN split tunnel:
+
+1. Open **Client VPN endpoints** and select the relevant VPN.
+
+2. Under **Route Table**, create a new route specifying the desired IP address with the designated subnet.
+
+3. In **Authorization Rules**, add the desired IP and set the appropriate access level.
+
+4. If you need to register the gateway IP with an external party and need to double-check VPN internet gateway IP
+   1. use:
+      ```bash
+      dig ipv4.icanhazip.com
+      ```
+   2. And take note of the IPs for `icanhazip.com`. Add a new route and authorization rule similarly to steps 2 and 3 (currently done at ip `104.16.184.241`) and establish the gateway ip 
+   3. Connect to VPN
+   4. To check VPN internet gateway IP
+      ```bash
+       curl -H "Host: ipv4.icanhazip.com" http://104.16.184.241
+      ```
+

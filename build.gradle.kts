@@ -18,11 +18,11 @@ val springCloudVersion = "2023.0.3"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.3.4"
+    id("org.springframework.boot") version "3.3.5"
     id("io.spring.dependency-management") version "1.1.6"
     id("com.gorylenko.gradle-git-properties") version "2.4.2"
     id("com.diffplug.spotless") version "6.25.0"
-    id("io.freefair.lombok") version "8.10"
+    id("io.freefair.lombok") version "8.10.2"
     jacoco
 }
 
@@ -109,8 +109,8 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.14.0")
-    implementation("io.sentry:sentry-logback:7.14.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.16.0")
+    implementation("io.sentry:sentry-logback:7.16.0")
 
     implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.8.3")
 
@@ -121,7 +121,7 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("com.amazonaws:aws-java-sdk-s3:1.12.772")
+    implementation("com.amazonaws:aws-java-sdk-s3:1.12.777")
     implementation("commons-io:commons-io:2.17.0")
     implementation("org.apache.commons:commons-csv:1.12.0")
 
@@ -136,7 +136,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-M4-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.23")
+    testImplementation("org.apache.groovy:groovy-all:4.0.24")
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")

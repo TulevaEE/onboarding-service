@@ -224,6 +224,7 @@ class MandateServiceSpec extends Specification {
     1 * eventPublisher.publishEvent({ AfterMandateSignedEvent event ->
       event.user == sampleUser
       event.mandate == sampleMandate
+      !event.isPartOfBatch()
     })
   }
 
@@ -328,6 +329,7 @@ class MandateServiceSpec extends Specification {
     1 * eventPublisher.publishEvent({ AfterMandateSignedEvent event ->
       event.user == sampleUser
       event.mandate == sampleMandate
+      !event.isPartOfBatch()
     })
   }
 

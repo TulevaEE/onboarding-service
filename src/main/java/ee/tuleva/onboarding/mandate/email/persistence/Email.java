@@ -5,6 +5,7 @@ import static jakarta.persistence.EnumType.STRING;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -42,6 +43,10 @@ public class Email {
   @ManyToOne
   @JoinColumn(name = "mandate_id")
   private Mandate mandate;
+
+  @ManyToOne
+  @JoinColumn(name = "mandate_batch_id")
+  private MandateBatch mandateBatch;
 
   @NotNull private Instant createdDate;
 

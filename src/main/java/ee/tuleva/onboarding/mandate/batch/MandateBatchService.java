@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.MandateFileService;
+import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
@@ -234,7 +235,10 @@ public class MandateBatchService {
         .forEach(
             mandate ->
                 applicationEventPublisher.publishEvent(
-                    new AfterMandateSignedEvent(this, user, mandate, locale)));
+                    new AfterMandateSignedEvent(this, user, mandate, locale, true)));
+
+    applicationEventPublisher.publishEvent(
+        new AfterMandateBatchSignedEvent(this, user, mandateBatch, locale));
   }
 
   private MandateBatch persistSignedFile(MandateBatch mandateBatch, byte[] signedFile) {

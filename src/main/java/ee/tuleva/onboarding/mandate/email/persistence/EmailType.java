@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.mandate.email.persistence;
 
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.user.member.Member;
@@ -18,7 +20,9 @@ public enum EmailType {
   THIRD_PILLAR_PAYMENT_REMINDER_MANDATE("third_pillar_payment_reminder_mandate"),
   THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE("third_pillar_payment_success_mandate"),
 
-  MEMBERSHIP("membership");
+  MEMBERSHIP("membership"),
+
+  WITHDRAWAL_BATCH("withdrawal_batch"); // TODO template
 
   private final String templateName;
 
@@ -40,6 +44,21 @@ public enum EmailType {
       return THIRD_PILLAR_PAYMENT_REMINDER_MANDATE;
     }
     return SECOND_PILLAR_MANDATE;
+  }
+
+  public static EmailType from(MandateBatch batch) {
+    var allMandatesWithdrawals =
+        batch.getMandates().stream()
+            .allMatch(
+                mandate ->
+                    mandate.getMandateType() == MandateType.PARTIAL_WITHDRAWAL
+                        || mandate.getMandateType() == MandateType.FUND_PENSION_OPENING);
+
+    if (allMandatesWithdrawals) {
+      return WITHDRAWAL_BATCH;
+    }
+
+    throw new IllegalArgumentException("Cannot find email type for batch");
   }
 
   public static EmailType from(Mandate mandate, PillarSuggestion pillarSuggestion) {

@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateFileService;
+import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
@@ -222,7 +223,14 @@ public class MandateBatchServiceTest {
 
       assertThat(SIGNATURE).isEqualTo(status);
       verify(episService, times(1)).clearCache(user);
-      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
+      verify(applicationEventPublisher, times(2))
+          .publishEvent(
+              argThat(
+                  event ->
+                      event instanceof AfterMandateSignedEvent
+                          && ((AfterMandateSignedEvent) event).isPartOfBatch()));
+      verify(applicationEventPublisher, times(1))
+          .publishEvent(any(AfterMandateBatchSignedEvent.class));
     }
 
     @Test
@@ -417,7 +425,14 @@ public class MandateBatchServiceTest {
 
       assertThat(SIGNATURE).isEqualTo(status);
       verify(episService, times(1)).clearCache(user);
-      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
+      verify(applicationEventPublisher, times(2))
+          .publishEvent(
+              argThat(
+                  event ->
+                      event instanceof AfterMandateSignedEvent
+                          && ((AfterMandateSignedEvent) event).isPartOfBatch()));
+      verify(applicationEventPublisher, times(1))
+          .publishEvent(any(AfterMandateBatchSignedEvent.class));
     }
 
     @Test
@@ -611,7 +626,14 @@ public class MandateBatchServiceTest {
 
       assertThat(SIGNATURE).isEqualTo(status);
       verify(episService, times(1)).clearCache(user);
-      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
+      verify(applicationEventPublisher, times(2))
+          .publishEvent(
+              argThat(
+                  event ->
+                      event instanceof AfterMandateSignedEvent
+                          && ((AfterMandateSignedEvent) event).isPartOfBatch()));
+      verify(applicationEventPublisher, times(1))
+          .publishEvent(any(AfterMandateBatchSignedEvent.class));
     }
 
     @Test

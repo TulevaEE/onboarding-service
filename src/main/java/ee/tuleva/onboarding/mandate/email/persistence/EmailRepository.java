@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate.email.persistence;
 
 import ee.tuleva.onboarding.mandate.Mandate;
+import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +14,12 @@ public interface EmailRepository extends CrudRepository<Email, Long> {
 
   Optional<Email> findFirstByPersonalCodeAndTypeAndMandateAndStatusInOrderByCreatedDateDesc(
       String personalCode, EmailType type, Mandate mandate, Collection<EmailStatus> statuses);
+
+  Optional<Email> findFirstByPersonalCodeAndTypeAndMandateBatchAndStatusInOrderByCreatedDateDesc(
+      String personalCode,
+      EmailType type,
+      MandateBatch mandateBatch,
+      Collection<EmailStatus> statuses);
 
   Optional<Email> findFirstByPersonalCodeAndTypeOrderByCreatedDateDesc(
       String personalCode, EmailType type);

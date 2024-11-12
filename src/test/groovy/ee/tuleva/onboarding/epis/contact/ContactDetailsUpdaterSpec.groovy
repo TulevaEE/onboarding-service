@@ -17,7 +17,7 @@ class ContactDetailsUpdaterSpec extends Specification {
         def user = sampleUser().build()
         def mandate = sampleMandate()
         def locale = ENGLISH
-        def event = AfterMandateSignedEvent.newInstance(this, user, mandate, locale)
+        def event = AfterMandateSignedEvent.newInstance(this, user, mandate, locale, false)
 
         when:
         contactDetailsUpdater.updateAddress(event)

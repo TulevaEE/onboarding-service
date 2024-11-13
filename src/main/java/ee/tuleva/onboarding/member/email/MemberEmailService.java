@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.member.email;
 
+import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
+
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
@@ -8,6 +10,7 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.member.Member;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,11 +35,7 @@ public class MemberEmailService {
         emailService.newMandrillMessage(
             user.getEmail(),
             emailType.getTemplateName(locale),
-            Map.of(
-                "fname", user.getFirstName(),
-                "lname", user.getLastName(),
-                "memberNumber", member.getMemberNumber(),
-                "memberDate", dateFormatter().format(member.getCreatedDate())),
+            getMergeVars(user, member),
             List.of("memberNumber"),
             null);
 
@@ -54,6 +53,16 @@ public class MemberEmailService {
             response ->
                 emailPersistenceService.save(
                     user, response.getId(), emailType, response.getStatus()));
+  }
+
+  private Map<String, Object> getMergeVars(User user, Member member) {
+    Map<String, Object> variables =
+        new HashMap<>(
+            Map.of(
+                "memberNumber", member.getMemberNumber(),
+                "memberDate", dateFormatter().format(member.getCreatedDate())));
+    variables.putAll(getNameMergeVars(user));
+    return variables;
   }
 
   private DateTimeFormatter dateFormatter() {

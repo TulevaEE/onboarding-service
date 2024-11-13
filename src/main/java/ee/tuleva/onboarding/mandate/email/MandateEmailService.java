@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.mandate.email;
 
+import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.*;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_SUGGEST_SECOND;
 import static java.time.format.DateTimeFormatter.ofPattern;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static java.time.temporal.ChronoUnit.HOURS;
-import static java.util.Collections.singletonList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticationHolder;
@@ -62,7 +62,7 @@ public class MandateEmailService {
             templateName,
             getMergeVars(user, mandate, pillarSuggestion, locale),
             getSecondPillarMandateTags(pillarSuggestion),
-            getMandateAttachments(user, mandate));
+            getAttachments(user, mandate));
     emailService
         .send(user, mandrillMessage, templateName)
         .ifPresent(
@@ -74,8 +74,7 @@ public class MandateEmailService {
   private Map<String, Object> getMergeVars(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
     var mergeVars = new HashMap<String, Object>();
-    mergeVars.put("fname", user.getFirstName());
-    mergeVars.put("lname", user.getLastName());
+    mergeVars.putAll(getNameMergeVars(user));
 
     DateTimeFormatter dateTimeFormatter = ofPattern("dd.MM.yyyy");
     if (mandate.isPaymentRateApplication()) {
@@ -110,10 +109,7 @@ public class MandateEmailService {
       mergeVars.put("sourceFundName", sourceFundName);
     }
 
-    mergeVars.put("suggestPaymentRate", pillarSuggestion.isSuggestPaymentRate());
-    mergeVars.put("suggestMembership", pillarSuggestion.isSuggestMembership());
-    mergeVars.put("suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar());
-
+    mergeVars.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
     return mergeVars;
   }
 
@@ -151,11 +147,9 @@ public class MandateEmailService {
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            Map.of(
-                "fname", user.getFirstName(),
-                "lname", user.getLastName()),
+            getNameMergeVars(user),
             List.of("pillar_3.1", "reminder"),
-            getMandateAttachments(user, mandate));
+            getAttachments(user, mandate));
 
     emailService
         .send(user, message, templateName, sendAt)
@@ -188,9 +182,7 @@ public class MandateEmailService {
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            Map.of(
-                "fname", user.getFirstName(),
-                "lname", user.getLastName()),
+            getNameMergeVars(user),
             List.of("pillar_3.1", "suggest_2"),
             null);
 
@@ -200,26 +192,5 @@ public class MandateEmailService {
             response ->
                 emailPersistenceService.save(
                     user, response.getId(), THIRD_PILLAR_SUGGEST_SECOND, response.getStatus()));
-  }
-
-  public List<MandrillMessage.MessageContent> getMandateAttachments(User user, Mandate mandate) {
-    MandrillMessage.MessageContent attachment = new MandrillMessage.MessageContent();
-
-    attachment.setName(getNameSuffix(user) + "_avaldus_" + mandate.getId() + ".bdoc");
-    attachment.setType("application/bdoc");
-    attachment.setContent(Base64.getEncoder().encodeToString(mandate.getSignedFile()));
-
-    return singletonList(attachment);
-  }
-
-  private String getNameSuffix(User user) {
-    String nameSuffix = user.getFirstName() + "_" + user.getLastName();
-    nameSuffix = nameSuffix.toLowerCase();
-    nameSuffix.replace("õ", "o");
-    nameSuffix.replace("ä", "a");
-    nameSuffix.replace("ö", "o");
-    nameSuffix.replace("ü", "u");
-    nameSuffix.replaceAll("[^a-zA-Z0-9_\\-\\.]", "_");
-    return nameSuffix;
   }
 }

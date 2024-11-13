@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.mandate.email;
 
-import static java.time.format.DateTimeFormatter.ofPattern;
-import static java.util.Collections.singletonList;
+import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.*;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticationHolder;
@@ -14,7 +13,6 @@ import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
 import java.time.Clock;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,9 +42,9 @@ public class MandateBatchEmailService {
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            getMergeVars(user, mandateBatch, pillarSuggestion, locale),
+            getMergeVars(user, pillarSuggestion),
             getMandateBatchTags(pillarSuggestion),
-            getMandateAttachments(user, mandateBatch));
+            getAttachments(user, mandateBatch));
     emailService
         .send(user, mandrillMessage, templateName)
         .ifPresent(
@@ -55,19 +53,11 @@ public class MandateBatchEmailService {
                     user, response.getId(), emailType, response.getStatus(), mandateBatch));
   }
 
-  private Map<String, Object> getMergeVars(
-      User user, MandateBatch mandateBatch, PillarSuggestion pillarSuggestion, Locale locale) {
-    var mergeVars = new HashMap<String, Object>();
-    mergeVars.put("fname", user.getFirstName());
-    mergeVars.put("lname", user.getLastName());
-
-    DateTimeFormatter dateTimeFormatter = ofPattern("dd.MM.yyyy");
-
-    mergeVars.put("suggestPaymentRate", pillarSuggestion.isSuggestPaymentRate());
-    mergeVars.put("suggestMembership", pillarSuggestion.isSuggestMembership());
-    mergeVars.put("suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar());
-
-    return mergeVars;
+  private Map<String, Object> getMergeVars(User user, PillarSuggestion pillarSuggestion) {
+    var map = new HashMap<String, Object>();
+    map.putAll(getNameMergeVars(user));
+    map.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    return map;
   }
 
   private List<String> getMandateBatchTags(PillarSuggestion pillarSuggestion) {
@@ -83,27 +73,5 @@ public class MandateBatchEmailService {
       tags.add("suggest_member");
     }
     return tags;
-  }
-
-  public List<MandrillMessage.MessageContent> getMandateAttachments(
-      User user, MandateBatch mandateBatch) {
-    MandrillMessage.MessageContent attachment = new MandrillMessage.MessageContent();
-
-    attachment.setName(getNameSuffix(user) + "_avaldused_" + mandateBatch.getId() + ".bdoc");
-    attachment.setType("application/bdoc");
-    attachment.setContent(Base64.getEncoder().encodeToString(mandateBatch.getFile()));
-
-    return singletonList(attachment);
-  }
-
-  private String getNameSuffix(User user) {
-    String nameSuffix = user.getFirstName() + "_" + user.getLastName();
-    nameSuffix = nameSuffix.toLowerCase();
-    nameSuffix.replace("õ", "o");
-    nameSuffix.replace("ä", "a");
-    nameSuffix.replace("ö", "o");
-    nameSuffix.replace("ü", "u");
-    nameSuffix.replaceAll("[^a-zA-Z0-9_\\-\\.]", "_");
-    return nameSuffix;
   }
 }

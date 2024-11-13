@@ -31,12 +31,12 @@ public class MandateEmailSender {
     PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
     PillarSuggestion pillarSuggestion =
         new PillarSuggestion(event.getUser(), contactDetails, conversion, paymentRates);
-    if (!event.isPartOfBatch()) {
+    if (!event.getMandate().isPartOfBatch()) {
       mandateEmailService.sendMandate(
           event.getUser(), event.getMandate(), pillarSuggestion, event.getLocale());
     } else {
       log.info(
-          "Skipping mandate email for (id:{}) because it is part of batch",
+          "Skipping mandate email because it is part of a batch: mandateId={}",
           event.getMandate().getId());
     }
   }

@@ -170,13 +170,13 @@ public class MandateEmailService {
       return;
     }
 
+    var tags = new ArrayList<String>();
+    tags.addAll(List.of("pillar_3.1", "suggest_2"));
+    tags.addAll(getPillarSuggestionTags(pillarSuggestion));
+
     MandrillMessage message =
         emailService.newMandrillMessage(
-            user.getEmail(),
-            templateName,
-            getNameMergeVars(user),
-            List.of("pillar_3.1", "suggest_2"),
-            null);
+            user.getEmail(), templateName, getNameMergeVars(user), tags, null);
 
     emailService
         .send(user, message, templateName, sendAt)

@@ -203,7 +203,7 @@ public class MandateService {
 
   private void notifyAboutSignedMandate(User user, Mandate mandate, Locale locale) {
     applicationEventPublisher.publishEvent(
-        new AfterMandateSignedEvent(this, user, mandate, locale, false));
+        new AfterMandateSignedEvent(this, user, mandate, locale));
   }
 
   private void persistSignedFile(Mandate mandate, byte[] signedFile) {

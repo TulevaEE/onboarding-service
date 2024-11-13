@@ -235,7 +235,7 @@ public class MandateBatchService {
         .forEach(
             mandate ->
                 applicationEventPublisher.publishEvent(
-                    new AfterMandateSignedEvent(this, user, mandate, locale, true)));
+                    new AfterMandateSignedEvent(this, user, mandate, locale)));
 
     applicationEventPublisher.publishEvent(
         new AfterMandateBatchSignedEvent(this, user, mandateBatch, locale));

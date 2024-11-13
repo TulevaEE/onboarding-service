@@ -45,7 +45,7 @@ class MandateEmailSenderSpec extends Specification {
     PaymentRates paymentRates = samplePaymentRates()
     PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
-    AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH, false)
+    AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
 
     1 * episService.getContactDetails(_) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion
@@ -67,7 +67,7 @@ class MandateEmailSenderSpec extends Specification {
     PaymentRates paymentRates = samplePaymentRates()
     PillarSuggestion pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
-    AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH, false)
+    AfterMandateSignedEvent event = new AfterMandateSignedEvent(this, user, mandate, Locale.ENGLISH)
 
     1 * episService.getContactDetails(_) >> contactDetails
     1 * conversionService.getConversion(event.getUser()) >> conversion

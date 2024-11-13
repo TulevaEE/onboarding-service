@@ -24,6 +24,9 @@ public class EmailVariablesAttachments {
     if (pillarSuggestion.isSuggestPaymentRate()) {
       tags.add("suggest_payment_rate");
     }
+    if (pillarSuggestion.isSuggestSecondPillar()) {
+      tags.add("suggest_2");
+    }
     if (pillarSuggestion.isSuggestThirdPillar()) {
       tags.add("suggest_3");
     }

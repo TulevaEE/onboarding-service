@@ -230,4 +230,9 @@ public class Mandate implements Serializable {
   public boolean isThirdPillar() {
     return pillar == 3;
   }
+
+  @JsonIgnore
+  public boolean isPartOfBatch() {
+    return getMandateBatch() != null;
+  }
 }

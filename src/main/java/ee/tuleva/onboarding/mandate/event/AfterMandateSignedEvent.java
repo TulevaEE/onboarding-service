@@ -13,15 +13,12 @@ public class AfterMandateSignedEvent extends ApplicationEvent {
   private final User user;
   private final Mandate mandate;
   private final Locale locale;
-  private final boolean partOfBatch;
 
-  public AfterMandateSignedEvent(
-      Object source, User user, Mandate mandate, Locale locale, boolean partOfBatch) {
+  public AfterMandateSignedEvent(Object source, User user, Mandate mandate, Locale locale) {
     super(source);
     this.user = user;
     this.mandate = mandate;
     this.locale = locale;
-    this.partOfBatch = partOfBatch;
   }
 
   public Integer getPillar() {

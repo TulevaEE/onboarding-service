@@ -12,6 +12,7 @@ public class MandateBatchFixture {
   public static MandateBatch aSavedMandateBatch(List<Mandate> mandates) {
     var batch = aMandateBatch().mandates(mandates).build();
     batch.setId(1L);
+
     return batch;
   }
 

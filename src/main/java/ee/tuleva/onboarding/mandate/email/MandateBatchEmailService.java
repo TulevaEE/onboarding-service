@@ -1,19 +1,23 @@
 package ee.tuleva.onboarding.mandate.email;
 
+import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND;
+import static ee.tuleva.onboarding.epis.mandate.details.Pillar.THIRD;
+import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
+import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.*;
+import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
-import ee.tuleva.onboarding.auth.principal.AuthenticationHolder;
-import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
-import ee.tuleva.onboarding.fund.FundRepository;
+import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.Pillar;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
-import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
-import java.time.Clock;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,16 +29,9 @@ public class MandateBatchEmailService {
 
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
-  private final Clock clock;
-  private final FundRepository fundRepository;
-  private final MandateDeadlinesService mandateDeadlinesService;
-  private final SecondPillarPaymentRateService secondPillarPaymentRateService;
-  private final AuthenticationHolder authenticationHolder;
 
   public void sendMandateBatch(
       User user, MandateBatch mandateBatch, PillarSuggestion pillarSuggestion, Locale locale) {
-
-    // TODO
 
     EmailType emailType = EmailType.from(mandateBatch);
     String templateName = emailType.getTemplateName(locale);
@@ -42,8 +39,8 @@ public class MandateBatchEmailService {
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            getMergeVars(user, pillarSuggestion),
-            getMandateBatchTags(pillarSuggestion),
+            getMergeVars(user, mandateBatch, pillarSuggestion),
+            getMandateBatchTags(mandateBatch, pillarSuggestion),
             getAttachments(user, mandateBatch));
     emailService
         .send(user, mandrillMessage, templateName)
@@ -53,25 +50,77 @@ public class MandateBatchEmailService {
                     user, response.getId(), emailType, response.getStatus(), mandateBatch));
   }
 
-  private Map<String, Object> getMergeVars(User user, PillarSuggestion pillarSuggestion) {
+  private Map<String, Object> getMergeVars(
+      User user, MandateBatch batch, PillarSuggestion pillarSuggestion) {
     var map = new HashMap<String, Object>();
     map.putAll(getNameMergeVars(user));
     map.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    map.putAll(getWithdrawalMandateMergeVars(batch));
+
     return map;
   }
 
-  private List<String> getMandateBatchTags(PillarSuggestion pillarSuggestion) {
+  private Map<String, Object> getWithdrawalMandateMergeVars(MandateBatch batch) {
+    var map = new HashMap<String, Object>();
+
+    var fundPensionMandatePillars = getFundPensionMandatePillars(batch);
+    var partialWithdrawalMandatePillars = getPartialWithdrawalMandatesPillars(batch);
+
+    return Map.of(
+        "fundPensionSecondPillar", fundPensionMandatePillars.contains(SECOND),
+        "fundPensionThirdPillar", fundPensionMandatePillars.contains(THIRD),
+        "partialWithdrawalSecondPillar", partialWithdrawalMandatePillars.contains(SECOND),
+        "partialWithdrawalThirdPillar", partialWithdrawalMandatePillars.contains(THIRD));
+  }
+
+  private Set<Pillar> getFundPensionMandatePillars(MandateBatch batch) {
+    return batch.getMandates().stream()
+        .filter(mandate -> mandate.getMandateType() == FUND_PENSION_OPENING)
+        .map(
+            mandate ->
+                ((FundPensionOpeningMandateDetails) mandate.getMandateDto().getDetails())
+                    .getPillar())
+        .collect(Collectors.toSet());
+  }
+
+  private Set<Pillar> getPartialWithdrawalMandatesPillars(MandateBatch batch) {
+    return batch.getMandates().stream()
+        .filter(mandate -> mandate.getMandateType() == PARTIAL_WITHDRAWAL)
+        .map(
+            mandate ->
+                ((PartialWithdrawalMandateDetails) mandate.getMandateDto().getDetails())
+                    .getPillar())
+        .collect(Collectors.toSet());
+  }
+
+  private List<String> getMandateBatchTags(MandateBatch batch, PillarSuggestion pillarSuggestion) {
     List<String> tags = new ArrayList<>();
     tags.add("mandate_batch");
-    if (pillarSuggestion.isSuggestPaymentRate()) {
-      tags.add("suggest_payment_rate");
+
+    var fundPensionPillars = getFundPensionMandatePillars(batch);
+    var partialWithdrawalPillars = getPartialWithdrawalMandatesPillars(batch);
+
+    var allPillars =
+        concat(fundPensionPillars.stream(), partialWithdrawalPillars.stream())
+            .collect(Collectors.toSet());
+
+    if (allPillars.contains(SECOND)) {
+      tags.add("pillar_2");
     }
-    if (pillarSuggestion.isSuggestThirdPillar()) {
-      tags.add("suggest_3");
+
+    if (allPillars.contains(THIRD)) {
+      tags.add("pillar_3");
     }
-    if (pillarSuggestion.isSuggestMembership()) {
-      tags.add("suggest_member");
+
+    if (!fundPensionPillars.isEmpty()) {
+      tags.add("fund_pension_opening");
     }
+
+    if (!partialWithdrawalPillars.isEmpty()) {
+      tags.add("partial_withdrawal");
+    }
+
+    tags.addAll(getPillarSuggestionTags(pillarSuggestion));
     return tags;
   }
 }

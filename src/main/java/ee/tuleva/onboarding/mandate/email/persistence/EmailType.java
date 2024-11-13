@@ -22,7 +22,7 @@ public enum EmailType {
 
   MEMBERSHIP("membership"),
 
-  WITHDRAWAL_BATCH("withdrawal_batch"); // TODO template
+  WITHDRAWAL_BATCH("withdrawal_batch");
 
   private final String templateName;
 

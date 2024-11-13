@@ -13,7 +13,8 @@ import spock.lang.Specification
 
 import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted
+import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
+import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments
@@ -33,8 +34,11 @@ class PaymentEmailServiceSpec extends Specification {
   def "send third pillar payment success email"() {
     given:
     def user = sampleUser().build()
-    def conversion = notConverted()
+    def conversion = notFullyConverted()
     def contactDetails = contactDetailsFixture()
+    /*contactDetails.setThirdPillarActive(true)
+    contactDetails.setSecondPillarActive(false)*/
+
     def paymentRates = samplePaymentRates()
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
     def payment = aNewSinglePayment()
@@ -50,7 +54,7 @@ class PaymentEmailServiceSpec extends Specification {
         "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
         "suggestThirdPillar": pillarSuggestion.suggestThirdPillar
     ]
-    def tags = ["pillar_3.1", "mandate", "payment", "suggest_payment_rate", "suggest_2"]
+    def tags = ["pillar_3.1", "mandate", "payment", "suggest_payment_rate"]
     def locale = Locale.ENGLISH
     def mandrillMessageId = "mandrillMessageId123"
     def mandate = new Mandate(mandate: new byte[0])

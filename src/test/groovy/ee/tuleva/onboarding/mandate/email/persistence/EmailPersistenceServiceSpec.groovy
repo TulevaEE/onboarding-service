@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.email.persistence
 
 import com.microtripit.mandrillapp.lutung.view.MandrillScheduledMessageInfo
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.mandate.batch.MandateBatchFixture
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
@@ -11,10 +12,13 @@ import java.time.Instant
 
 import static EmailType.THIRD_PILLAR_SUGGEST_SECOND
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFundPensionOpeningMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.onboarding.mandate.MandateFixture.samplePartialWithdrawalMandate
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.*
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.WITHDRAWAL_BATCH
 
 class EmailPersistenceServiceSpec extends Specification {
 
@@ -89,6 +93,39 @@ class EmailPersistenceServiceSpec extends Specification {
     hasEmailsToday
   }
 
+  def "can check for todays emails for mandate that is part of a batch "() {
+    given:
+    def person = samplePerson()
+
+    def mandate1 = sampleFundPensionOpeningMandate()
+    def mandate2 = samplePartialWithdrawalMandate()
+    def mandateBatch =
+        MandateBatchFixture.aMandateBatch().mandates(List.of(mandate1, mandate2)).build()
+
+    mandate1.setMandateBatch(mandateBatch)
+    mandate2.setMandateBatch(mandateBatch)
+
+    def type = WITHDRAWAL_BATCH
+    def email = new Email(
+        personalCode: person.personalCode,
+        mandrillMessageId: "100",
+        type: type,
+        status: SCHEDULED,
+        createdDate: Instant.now(clock),
+        updatedDate: Instant.now(clock),
+        mandateBatch: mandateBatch,
+    )
+    def statuses = [SENT, QUEUED, SCHEDULED]
+    emailRepository.findFirstByPersonalCodeAndTypeAndMandateBatchAndStatusInOrderByCreatedDateDesc(
+        person.personalCode, type, mandateBatch, statuses) >> Optional.of(email)
+
+    when:
+    def hasEmailsToday = emailPersistenceService.hasEmailsToday(person, type, mandate1)
+
+    then:
+    hasEmailsToday
+  }
+
   def "can save a scheduled email"() {
     given:
     def person = samplePerson()
@@ -102,6 +139,31 @@ class EmailPersistenceServiceSpec extends Specification {
 
     when:
     def savedEmail = emailPersistenceService.save(person, email.type, email.status)
+
+    then:
+    savedEmail == email
+  }
+
+  def "can save a scheduled email for a mandate batch"() {
+    given:
+    def person = samplePerson()
+    def mandate1 = sampleFundPensionOpeningMandate()
+    def mandate2 = samplePartialWithdrawalMandate()
+
+    def mandateBatch =
+        MandateBatchFixture.aMandateBatch().mandates(List.of(mandate1, mandate2)).build()
+
+    def email = new Email(
+        personalCode: person.personalCode,
+        mandrillMessageId: null,
+        type: SECOND_PILLAR_LEAVERS,
+        status: SCHEDULED,
+        mandateBatch: mandateBatch,
+    )
+    emailRepository.save(email) >> email
+
+    when:
+    def savedEmail = emailPersistenceService.save(person, null, email.type, email.status.name(), mandateBatch)
 
     then:
     savedEmail == email

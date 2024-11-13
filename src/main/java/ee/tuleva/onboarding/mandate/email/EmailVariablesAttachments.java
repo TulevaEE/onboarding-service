@@ -18,6 +18,22 @@ public class EmailVariablesAttachments {
         "suggestThirdPillar", pillarSuggestion.isSuggestThirdPillar());
   }
 
+  public static List<String> getPillarSuggestionTags(PillarSuggestion pillarSuggestion) {
+    List<String> tags = new ArrayList<>();
+
+    if (pillarSuggestion.isSuggestPaymentRate()) {
+      tags.add("suggest_payment_rate");
+    }
+    if (pillarSuggestion.isSuggestThirdPillar()) {
+      tags.add("suggest_3");
+    }
+    if (pillarSuggestion.isSuggestMembership()) {
+      tags.add("suggest_member");
+    }
+
+    return tags;
+  }
+
   public static Map<String, Object> getNameMergeVars(User user) {
     return Map.of("fname", user.getFirstName(), "lname", user.getLastName());
   }

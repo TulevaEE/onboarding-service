@@ -117,15 +117,7 @@ public class MandateEmailService {
     List<String> tags = new ArrayList<>();
     tags.add("mandate");
     tags.add("pillar_2");
-    if (pillarSuggestion.isSuggestPaymentRate()) {
-      tags.add("suggest_payment_rate");
-    }
-    if (pillarSuggestion.isSuggestThirdPillar()) {
-      tags.add("suggest_3");
-    }
-    if (pillarSuggestion.isSuggestMembership()) {
-      tags.add("suggest_member");
-    }
+    tags.addAll(getPillarSuggestionTags(pillarSuggestion));
     return tags;
   }
 

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.payment.email;
 
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
-import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getPillarSuggestionMergeVars;
+import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.*;
 import static java.util.Collections.emptyList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -66,15 +65,7 @@ public class PaymentEmailService {
     tags.add("pillar_3.1");
     tags.add("mandate");
     tags.add("payment");
-    if (pillarSuggestion.isSuggestPaymentRate()) {
-      tags.add("suggest_payment_rate");
-    }
-    if (pillarSuggestion.isSuggestSecondPillar()) {
-      tags.add("suggest_2");
-    }
-    if (pillarSuggestion.isSuggestMembership()) {
-      tags.add("suggest_member");
-    }
+    tags.addAll(getPillarSuggestionTags(pillarSuggestion));
     return tags;
   }
 

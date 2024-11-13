@@ -80,6 +80,7 @@ class MandateBatchEmailServiceTest {
             "fund_pension_opening",
             "partial_withdrawal",
             "suggest_payment_rate",
+            "suggest_2",
             "suggest_3");
 
     when(emailService.send(user, message, "withdrawal_batch_en"))
@@ -155,6 +156,7 @@ class MandateBatchEmailServiceTest {
             "fund_pension_opening",
             "partial_withdrawal",
             "suggest_payment_rate",
+            "suggest_2",
             "suggest_3");
 
     when(emailService.send(user, message, "withdrawal_batch_en"))

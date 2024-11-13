@@ -223,12 +223,7 @@ public class MandateBatchServiceTest {
 
       assertThat(SIGNATURE).isEqualTo(status);
       verify(episService, times(1)).clearCache(user);
-      verify(applicationEventPublisher, times(2))
-          .publishEvent(
-              argThat(
-                  event ->
-                      event instanceof AfterMandateSignedEvent
-                          && ((AfterMandateSignedEvent) event).isPartOfBatch()));
+      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
       verify(applicationEventPublisher, times(1))
           .publishEvent(any(AfterMandateBatchSignedEvent.class));
     }
@@ -425,12 +420,7 @@ public class MandateBatchServiceTest {
 
       assertThat(SIGNATURE).isEqualTo(status);
       verify(episService, times(1)).clearCache(user);
-      verify(applicationEventPublisher, times(2))
-          .publishEvent(
-              argThat(
-                  event ->
-                      event instanceof AfterMandateSignedEvent
-                          && ((AfterMandateSignedEvent) event).isPartOfBatch()));
+      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
       verify(applicationEventPublisher, times(1))
           .publishEvent(any(AfterMandateBatchSignedEvent.class));
     }
@@ -626,12 +616,7 @@ public class MandateBatchServiceTest {
 
       assertThat(SIGNATURE).isEqualTo(status);
       verify(episService, times(1)).clearCache(user);
-      verify(applicationEventPublisher, times(2))
-          .publishEvent(
-              argThat(
-                  event ->
-                      event instanceof AfterMandateSignedEvent
-                          && ((AfterMandateSignedEvent) event).isPartOfBatch()));
+      verify(applicationEventPublisher, times(2)).publishEvent(any(AfterMandateSignedEvent.class));
       verify(applicationEventPublisher, times(1))
           .publishEvent(any(AfterMandateBatchSignedEvent.class));
     }

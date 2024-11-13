@@ -60,6 +60,7 @@ class MandateEmailServiceSpec extends Specification {
         lname             : user.lastName,
         transferDate      : "03.05.2021",
         suggestPaymentRate: pillarSuggestion.suggestPaymentRate,
+        suggestSecondPillar: pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar: pillarSuggestion.suggestThirdPillar,
         suggestMembership : pillarSuggestion.suggestMembership,
     ]
@@ -233,6 +234,7 @@ class MandateEmailServiceSpec extends Specification {
         newPaymentRate            : samplePaymentRates.pending.get(),
         oldPaymentRate            : samplePaymentRates.current,
         suggestPaymentRate        : pillarSuggestion.suggestPaymentRate,
+        suggestSecondPillar        : pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar        : pillarSuggestion.suggestThirdPillar,
         suggestMembership         : pillarSuggestion.suggestMembership,
     ]

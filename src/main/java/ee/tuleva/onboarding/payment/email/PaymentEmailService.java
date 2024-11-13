@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.payment.email;
 
+import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
+import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getPillarSuggestionMergeVars;
 import static java.util.Collections.emptyList;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent;
-import ee.tuleva.onboarding.mandate.email.MandateEmailService;
+import ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments;
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
@@ -24,7 +26,6 @@ public class PaymentEmailService {
 
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
-  private final MandateEmailService mandateEmailService;
 
   void sendThirdPillarPaymentSuccessEmail(
       User user, Payment payment, PillarSuggestion pillarSuggestion, Locale locale) {
@@ -48,15 +49,16 @@ public class PaymentEmailService {
 
   private Map<String, Object> getMergeVars(
       User user, Payment payment, PillarSuggestion pillarSuggestion) {
-    return Map.of(
-        "fname", user.getFirstName(),
-        "lname", user.getLastName(),
-        "amount", payment.getAmount(),
-        "currency", payment.getCurrency(),
-        "recipient", payment.getRecipientPersonalCode(),
-        "suggestMembership", pillarSuggestion.isSuggestMembership(),
-        "suggestSecondPillar", pillarSuggestion.isSuggestSecondPillar(),
-        "suggestPaymentRate", pillarSuggestion.isSuggestPaymentRate());
+    Map<String, Object> variables =
+        new HashMap<>(
+            Map.of(
+                "amount", payment.getAmount(),
+                "currency", payment.getCurrency(),
+                "recipient", payment.getRecipientPersonalCode()));
+    variables.putAll(getNameMergeVars(user));
+    variables.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+
+    return variables;
   }
 
   private List<String> getTags(PillarSuggestion pillarSuggestion) {
@@ -85,6 +87,6 @@ public class PaymentEmailService {
     }
 
     Email latestScheduledEmail = cancelledEmails.getFirst();
-    return mandateEmailService.getMandateAttachments(user, latestScheduledEmail.getMandate());
+    return EmailVariablesAttachments.getAttachments(user, latestScheduledEmail.getMandate());
   }
 }

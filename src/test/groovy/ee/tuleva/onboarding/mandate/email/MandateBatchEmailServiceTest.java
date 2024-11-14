@@ -73,15 +73,7 @@ class MandateBatchEmailServiceTest {
             Map.entry("partialWithdrawalSecondPillar", true),
             Map.entry("partialWithdrawalThirdPillar", false));
 
-    var tags =
-        List.of(
-            "mandate_batch",
-            "pillar_2",
-            "fund_pension_opening",
-            "partial_withdrawal",
-            "suggest_payment_rate",
-            "suggest_2",
-            "suggest_3");
+    var tags = List.of("mandate_batch", "pillar_2", "fund_pension_opening", "partial_withdrawal");
 
     when(emailService.send(user, message, "withdrawal_batch_en"))
         .thenReturn(Optional.of(mandrillResponse));
@@ -150,14 +142,7 @@ class MandateBatchEmailServiceTest {
 
     var tags =
         List.of(
-            "mandate_batch",
-            "pillar_2",
-            "pillar_3",
-            "fund_pension_opening",
-            "partial_withdrawal",
-            "suggest_payment_rate",
-            "suggest_2",
-            "suggest_3");
+            "mandate_batch", "pillar_2", "pillar_3", "fund_pension_opening", "partial_withdrawal");
 
     when(emailService.send(user, message, "withdrawal_batch_en"))
         .thenReturn(Optional.of(mandrillResponse));

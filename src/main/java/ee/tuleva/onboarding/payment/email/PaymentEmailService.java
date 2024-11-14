@@ -65,7 +65,16 @@ public class PaymentEmailService {
     tags.add("pillar_3.1");
     tags.add("mandate");
     tags.add("payment");
-    tags.addAll(getPillarSuggestionTags(pillarSuggestion));
+    if (pillarSuggestion.isSuggestPaymentRate()) {
+      tags.add("suggest_payment_rate");
+    }
+    if (pillarSuggestion.isSuggestSecondPillar()) {
+      tags.add("suggest_2");
+    }
+    if (pillarSuggestion.isSuggestMembership()) {
+      tags.add("suggest_member");
+    }
+
     return tags;
   }
 

@@ -2,19 +2,15 @@ package ee.tuleva.onboarding.payment.email
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
-import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.mandate.Mandate
-import ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion
 import ee.tuleva.onboarding.mandate.email.persistence.Email
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
 import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
 
-import static com.microtripit.mandrillapp.lutung.view.MandrillMessage.MessageContent
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
-import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.fullyConverted
-import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted
+import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConverted
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments
@@ -34,14 +30,14 @@ class PaymentEmailServiceSpec extends Specification {
   def "send third pillar payment success email"() {
     given:
     def user = sampleUser().build()
-    def conversion = notFullyConverted()
+    def conversion = notConverted()
     def contactDetails = contactDetailsFixture()
 
     def paymentRates = samplePaymentRates()
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
     def payment = aNewSinglePayment()
     def message = new MandrillMessage()
-    HashMap<String, Object> mergeVars = [
+    var mergeVars = [
         "fname"              : user.firstName,
         "lname"              : user.lastName,
         "amount"             : 10.00,
@@ -52,7 +48,7 @@ class PaymentEmailServiceSpec extends Specification {
         "suggestSecondPillar": pillarSuggestion.suggestSecondPillar,
         "suggestThirdPillar": pillarSuggestion.suggestThirdPillar
     ]
-    def tags = ["pillar_3.1", "mandate", "payment", "suggest_payment_rate"]
+    def tags = ["pillar_3.1", "mandate", "payment", "suggest_payment_rate", "suggest_2"]
     def locale = Locale.ENGLISH
     def mandrillMessageId = "mandrillMessageId123"
     def mandate = new Mandate(mandate: new byte[0])

@@ -80,7 +80,7 @@ public class EmailPersistenceService {
   public boolean hasEmailsToday(Person person, EmailType type, Mandate mandate) {
     var statuses = List.of(SENT, QUEUED, SCHEDULED);
 
-    if (mandate.getMandateBatch() != null) {
+    if (mandate.isPartOfBatch()) {
       Optional<Email> latestBatchEmail =
           emailRepository
               .findFirstByPersonalCodeAndTypeAndMandateBatchAndStatusInOrderByCreatedDateDesc(

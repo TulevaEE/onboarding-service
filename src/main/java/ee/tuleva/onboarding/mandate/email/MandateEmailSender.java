@@ -47,7 +47,7 @@ public class MandateEmailSender {
     ConversionResponse conversion = conversionService.getConversion(event.getUser());
     PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
     PillarSuggestion pillarSuggestion =
-        new PillarSuggestion(event.getUser(), contactDetails, conversion, paymentRates); // TODO?
+        new PillarSuggestion(event.getUser(), contactDetails, conversion, paymentRates);
     mandateBatchEmailService.sendMandateBatch(
         event.getUser(), event.getMandateBatch(), pillarSuggestion, event.getLocale());
   }

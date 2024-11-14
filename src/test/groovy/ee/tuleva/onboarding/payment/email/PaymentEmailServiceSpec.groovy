@@ -36,8 +36,6 @@ class PaymentEmailServiceSpec extends Specification {
     def user = sampleUser().build()
     def conversion = notFullyConverted()
     def contactDetails = contactDetailsFixture()
-    /*contactDetails.setThirdPillarActive(true)
-    contactDetails.setSecondPillarActive(false)*/
 
     def paymentRates = samplePaymentRates()
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
@@ -74,7 +72,7 @@ class PaymentEmailServiceSpec extends Specification {
 
     then:
     1 * emailService.newMandrillMessage(user.email, "third_pillar_payment_success_mandate_en", mergeVars, tags, {
-      it.size() == 1 && it.first.getName() == mandateAttachments.first.getName()
+      it.size() == 1 && it.first.getName() == mandateAttachments.first.getName() && it.first.getContent() == mandateAttachments.first.getContent()
     }) >> message
     1 * emailService.send(user, message, "third_pillar_payment_success_mandate_en") >> Optional.of(mandrillResponse)
     1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE, mandrillResponse.status)

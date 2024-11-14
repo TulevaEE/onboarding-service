@@ -117,7 +117,16 @@ public class MandateEmailService {
     List<String> tags = new ArrayList<>();
     tags.add("mandate");
     tags.add("pillar_2");
-    tags.addAll(getPillarSuggestionTags(pillarSuggestion));
+    if (pillarSuggestion.isSuggestPaymentRate()) {
+      tags.add("suggest_payment_rate");
+    }
+    if (pillarSuggestion.isSuggestThirdPillar()) {
+      tags.add("suggest_3");
+    }
+    if (pillarSuggestion.isSuggestMembership()) {
+      tags.add("suggest_member");
+    }
+
     return tags;
   }
 
@@ -170,13 +179,13 @@ public class MandateEmailService {
       return;
     }
 
-    var tags = new ArrayList<String>();
-    tags.addAll(List.of("pillar_3.1", "suggest_2"));
-    tags.addAll(getPillarSuggestionTags(pillarSuggestion));
-
     MandrillMessage message =
         emailService.newMandrillMessage(
-            user.getEmail(), templateName, getNameMergeVars(user), tags, null);
+            user.getEmail(),
+            templateName,
+            getNameMergeVars(user),
+            List.of("pillar_3.1", "suggest_2"),
+            null);
 
     emailService
         .send(user, message, templateName, sendAt)

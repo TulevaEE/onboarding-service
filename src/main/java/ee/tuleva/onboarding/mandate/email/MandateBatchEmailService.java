@@ -120,7 +120,6 @@ public class MandateBatchEmailService {
       tags.add("partial_withdrawal");
     }
 
-    tags.addAll(getPillarSuggestionTags(pillarSuggestion));
     return tags;
   }
 }

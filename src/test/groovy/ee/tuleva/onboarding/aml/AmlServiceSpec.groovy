@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.TextNode
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService
+import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillar
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarRepository
 import ee.tuleva.onboarding.auth.principal.PersonImpl
 import ee.tuleva.onboarding.epis.contact.ContactDetails
@@ -13,6 +14,7 @@ import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.event.TrackableEventType
 import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.user.User
+import ee.tuleva.onboarding.user.address.Address
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
@@ -282,6 +284,25 @@ class AmlServiceSpec extends Specification {
         check(POLITICALLY_EXPOSED_PERSON_AUTO, true, user, [results: results, query: query]),
         check(SANCTION, true, user, [results: results, query: query]),
     ]
+  }
+
+  def "runs aml checks on third pillar customers for the last reporting period"() {
+    given:
+    def record = Mock(AnalyticsThirdPillar)
+    def address = new Address("EE")
+    def matchResponse = new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode())
+
+    record.getCountry() >> "EE"
+    analyticsThirdPillarRepository.findAllWithMostRecentReportingDate() >> [record]
+
+    checkService.match(record, address) >> matchResponse
+    amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(_, _, true) >> []
+
+    when:
+    amlService.runAmlChecksOnThirdPillarCustomers()
+
+    then:
+    2 * amlCheckRepository.save(_) >> { AmlCheck check -> check }
   }
 
   private static List<AmlCheck> successfulChecks(AmlCheckType... checkTypes) {

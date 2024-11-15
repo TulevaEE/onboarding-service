@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
-import static java.time.LocalTime.MAX;
 import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -18,7 +17,6 @@ import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -140,11 +138,9 @@ public class AmlService {
   }
 
   public void runAmlChecksOnThirdPillarCustomers() {
-    LocalDate date = LocalDate.parse("2024-01-01");
     List<AnalyticsThirdPillar> records =
-        analyticsThirdPillarRepository.findAllByReportingDateBetween(
-            date.atStartOfDay(), date.atTime(MAX));
-    log.info("Running checks on {} records", records.size());
+        analyticsThirdPillarRepository.findAllWithMostRecentReportingDate();
+    log.info("Running III pillar AML checks on {} records", records.size());
     records.forEach(
         record -> {
           MatchResponse response =
@@ -152,7 +148,7 @@ public class AmlService {
           addPepCheckIfMissing(record, response);
           addSanctionCheckIfMissing(record, response);
         });
-    log.info("Successfully ran checks on {} records", records.size());
+    log.info("Successfully ran III pillar AML checks on {} records", records.size());
   }
 
   private Map<String, Object> metadata(JsonNode results, JsonNode query) {

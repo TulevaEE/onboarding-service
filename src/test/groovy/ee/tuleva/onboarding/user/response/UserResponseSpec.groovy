@@ -6,8 +6,8 @@ import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import java.time.Instant
 import java.time.LocalDate
-
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 
 class UserResponseSpec extends Specification {
@@ -72,4 +72,29 @@ class UserResponseSpec extends Specification {
         2 | null  || 2  | null
   }
 
+def "converts third pillar status correctly"() {
+    given:
+        def user = User.builder()
+            .firstName("firstName")
+            .lastName("lastName")
+            .build()
+        def contactDetails = new ContactDetails()
+        contactDetails.setThirdPillarActive(isActive)
+        contactDetails.setThirdPillarInitDate(initiatedDate)
+        def paymentRates = new PaymentRates(2, 6)
+
+    when:
+        def userResponse = UserResponse.from(user, contactDetails, paymentRates)
+
+    then:
+        userResponse.thirdPillarActive == expectedIsActive
+
+    where:
+        isActive |  initiatedDate                              || expectedIsActive
+        true     |  Instant.parse("2018-12-31T10:00:00Z")      || true
+        false    |  Instant.parse("2018-12-31T10:00:00Z")      || true
+        false    |  Instant.parse("2019-01-01T10:00:00Z")      || false
+        true     |  null                                       || true
+        false    |  null                                       || false
+}
 }

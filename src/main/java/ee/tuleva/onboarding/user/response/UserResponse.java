@@ -15,11 +15,13 @@ import java.time.LocalDate;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 
 @Builder
 @Getter
 @Setter
+@Slf4j
 public class UserResponse implements Person, Emailable {
 
   private Long id;
@@ -52,7 +54,7 @@ public class UserResponse implements Person, Emailable {
         .address(Address.builder().countryCode(contactDetails.getCountry()).build())
         .secondPillarPikNumber(contactDetails.getActiveSecondPillarFundPik())
         .isSecondPillarActive(contactDetails.isSecondPillarActive())
-        .isThirdPillarActive(contactDetails.isThirdPillarActive())
+        .isThirdPillarActive(checkIfThirdPillarIsActive(contactDetails))
         .secondPillarPaymentRates(
             new PaymentRatesResponse(
                 paymentRates.getCurrent(), paymentRates.getPending().orElse(null)))
@@ -60,6 +62,18 @@ public class UserResponse implements Person, Emailable {
         .secondPillarOpenDate(contactDetails.getSecondPillarOpenDate())
         .thirdPillarInitDate(contactDetails.getThirdPillarInitDate())
         .build();
+  }
+
+  private static boolean checkIfThirdPillarIsActive(@NotNull ContactDetails contactDetails) {
+    if (!contactDetails.isThirdPillarActive()
+        && contactDetails.getThirdPillarInitDate() != null
+        && contactDetails
+            .getThirdPillarInitDate()
+            .isBefore(Instant.parse("2019-01-01T10:00:00Z"))) {
+      log.info("Pre 2019 initiated III pillar fund fix for {}", contactDetails.getPersonalCode());
+      return true;
+    }
+    return contactDetails.isThirdPillarActive();
   }
 
   private static UserResponseBuilder responseBuilder(@NotNull User user) {

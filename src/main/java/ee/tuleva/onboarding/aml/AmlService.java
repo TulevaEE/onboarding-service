@@ -6,6 +6,7 @@ import static java.util.stream.Collectors.toSet;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
+import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillar;
@@ -140,7 +141,10 @@ public class AmlService {
   public void runAmlChecksOnThirdPillarCustomers() {
     List<AnalyticsThirdPillar> records =
         analyticsThirdPillarRepository.findAllWithMostRecentReportingDate();
+
     log.info("Running III pillar AML checks on {} records", records.size());
+    eventPublisher.publishEvent(new AmlChecksRunEvent(this, records));
+
     records.forEach(
         record -> {
           MatchResponse response =
@@ -148,6 +152,7 @@ public class AmlService {
           addPepCheckIfMissing(record, response);
           addSanctionCheckIfMissing(record, response);
         });
+
     log.info("Successfully ran III pillar AML checks on {} records", records.size());
   }
 

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.BooleanNode
 import com.fasterxml.jackson.databind.node.TextNode
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent
+import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillar
@@ -303,6 +304,7 @@ class AmlServiceSpec extends Specification {
 
     then:
     2 * amlCheckRepository.save(_) >> { AmlCheck check -> check }
+    1 * eventPublisher.publishEvent(_ as AmlChecksRunEvent)
   }
 
   private static List<AmlCheck> successfulChecks(AmlCheckType... checkTypes) {

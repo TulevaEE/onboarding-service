@@ -21,7 +21,13 @@ public class AmlCheckNotifier {
   public void onAmlCheckCreated(AmlCheckCreatedEvent event) {
     if (List.of(POLITICALLY_EXPOSED_PERSON_AUTO, SANCTION).contains(event.getAmlCheckType())
         && event.isFailed()) {
-      slackService.sendMessage("AML check failed: " + event.getAmlCheckType());
+      slackService.sendMessage("AML check failed: type=%s".formatted(event.getAmlCheckType()));
     }
+  }
+
+  @EventListener
+  public void onScheduledAmlCheckJobRun(AmlChecksRunEvent event) {
+    slackService.sendMessage(
+        "Running AML checks job: numberOfRecords=%d".formatted(event.getNumberOfRecords()));
   }
 }

@@ -156,6 +156,26 @@ public class AmlService {
     log.info("Successfully ran III pillar AML checks on {} records", records.size());
   }
 
+  public void runAmlChecksOnIntermediateThirdPillarCustomers() {
+    List<AnalyticsThirdPillar> records = analyticsThirdPillarRepository.findIntermediateEntries();
+
+    log.info(
+        "Running III pillar AML checks on intermediate entries with {} records", records.size());
+    eventPublisher.publishEvent(new AmlChecksRunEvent(this, records));
+
+    records.forEach(
+        record -> {
+          MatchResponse response =
+              pepAndSanctionCheckService.match(record, new Address(record.getCountry()));
+          addPepCheckIfMissing(record, response);
+          addSanctionCheckIfMissing(record, response);
+        });
+
+    log.info(
+        "Successfully ran III pillar AML checks on intermediate entries with {} records",
+        records.size());
+  }
+
   private Map<String, Object> metadata(JsonNode results, JsonNode query) {
     return Map.of("results", results, "query", query);
   }

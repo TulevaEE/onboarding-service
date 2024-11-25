@@ -19,7 +19,6 @@ public class ScheduledAmlCheckJob {
   }
 
   // remove after running
-  @Scheduled(cron = "0 15 09 * * *", zone = "Europe/Tallinn")
   public void runIntermediateChecks() {
     amlService.runAmlChecksOnIntermediateThirdPillarCustomers();
   }

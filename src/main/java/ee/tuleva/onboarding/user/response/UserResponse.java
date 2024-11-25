@@ -65,15 +65,7 @@ public class UserResponse implements Person, Emailable {
   }
 
   private static boolean checkIfThirdPillarIsActive(@NotNull ContactDetails contactDetails) {
-    if (!contactDetails.isThirdPillarActive()
-        && contactDetails.getThirdPillarInitDate() != null
-        && contactDetails
-            .getThirdPillarInitDate()
-            .isBefore(Instant.parse("2019-01-01T10:00:00Z"))) {
-      log.info("Pre 2019 initiated III pillar fund fix for {}", contactDetails.getPersonalCode());
-      return true;
-    }
-    return contactDetails.isThirdPillarActive();
+    return contactDetails.isThirdPillarActive() || contactDetails.getThirdPillarInitDate() != null;
   }
 
   private static UserResponseBuilder responseBuilder(@NotNull User user) {

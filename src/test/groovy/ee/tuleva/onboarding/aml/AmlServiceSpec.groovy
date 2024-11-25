@@ -21,6 +21,7 @@ import spock.lang.Specification
 
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDateTime
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
@@ -309,12 +310,14 @@ class AmlServiceSpec extends Specification {
 
   def "runs aml checks on intermediate third pillar customers"() {
     given:
+    LocalDateTime startDate = LocalDateTime.of(2024, 1, 1, 0, 0)
+    LocalDateTime endDate = LocalDateTime.of(2024, 11, 1, 0, 0)
     def record = Mock(AnalyticsThirdPillar)
     def address = new Address("EE")
     def matchResponse = new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode())
 
     record.getCountry() >> "EE"
-    analyticsThirdPillarRepository.findIntermediateEntries() >> [record]
+    analyticsThirdPillarRepository.findIntermediateEntries(startDate, endDate) >> [record]
 
     checkService.match(record, address) >> matchResponse
     amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(_, _, true) >> []

@@ -18,6 +18,7 @@ import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -157,7 +158,10 @@ public class AmlService {
   }
 
   public void runAmlChecksOnIntermediateThirdPillarCustomers() {
-    List<AnalyticsThirdPillar> records = analyticsThirdPillarRepository.findIntermediateEntries();
+    LocalDateTime startDate = LocalDateTime.of(2024, 1, 1, 0, 0);
+    LocalDateTime endDate = LocalDateTime.of(2024, 11, 1, 0, 0);
+    List<AnalyticsThirdPillar> records =
+        analyticsThirdPillarRepository.findIntermediateEntries(startDate, endDate);
 
     log.info(
         "Running III pillar AML checks on intermediate entries with {} records", records.size());

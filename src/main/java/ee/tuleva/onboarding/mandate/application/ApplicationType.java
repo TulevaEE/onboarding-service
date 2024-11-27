@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.mandate.application;
 
+import java.util.EnumSet;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -10,13 +11,18 @@ public enum ApplicationType {
   WITHDRAWAL("Ühekordse väljamakse avaldus"), // 2nd pillar
   CANCELLATION("Avalduse tühistamise avaldus"), // 2nd pillar, to cancel EARLY_WITHDRAWAL/WITHDRAWAL
   PAYMENT("Sissemakse"), // 3rd pillar contribution payment,
-  PAYMENT_RATE("Sissemaksete määra muutmine") // 2nd pillar payment rate change
-;
+  PAYMENT_RATE("Sissemaksete määra muutmine"), // 2nd pillar payment rate change
+  FUND_PENSION_OPENING("Fondipensioni avamise avaldus"),
+  FUND_PENSION_OPENING_THIRD_PILLAR("Täiendava fondipensioni avamise avaldus"),
+  PARTIAL_WITHDRAWAL("Osalise väljamakse avaldus II sambast"),
+  WITHDRAWAL_THIRD_PILLAR("Väljamakse avaldus vabatahtlikust pensionifondist"),
+  ;
 
   public final String nameEstonian;
 
   public boolean isWithdrawal() {
-    return this == WITHDRAWAL || this == EARLY_WITHDRAWAL;
+    return EnumSet.of(WITHDRAWAL, EARLY_WITHDRAWAL, PARTIAL_WITHDRAWAL, WITHDRAWAL_THIRD_PILLAR)
+        .contains(this);
   }
 
   public boolean isTransfer() {

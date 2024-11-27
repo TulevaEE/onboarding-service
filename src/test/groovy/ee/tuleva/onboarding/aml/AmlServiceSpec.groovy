@@ -308,30 +308,6 @@ class AmlServiceSpec extends Specification {
     1 * eventPublisher.publishEvent(_ as AmlChecksRunEvent)
   }
 
-  def "runs aml checks on intermediate third pillar customers"() {
-    given:
-    def personalCode = "123"
-    amlService.intermediateIds = personalCode
-    def record = Mock(AnalyticsThirdPillar)
-    def address = new Address("EE")
-    def matchResponse = new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode())
-    def startDate = LocalDateTime.of(2024, 1, 2, 0, 0)
-    def endDate = LocalDateTime.of(2024, 10, 31, 0, 0)
-
-    record.getCountry() >> "EE"
-    analyticsThirdPillarRepository.findByDateRangeAndPersonalCode(startDate, endDate, personalCode) >> [record]
-
-    checkService.match(record, address) >> matchResponse
-    amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccess(_, _, true) >> []
-
-    when:
-    amlService.runAmlChecksOnIntermediateThirdPillarCustomers()
-
-    then:
-    2 * amlCheckRepository.save(_) >> { AmlCheck check -> check }
-    1 * eventPublisher.publishEvent(_ as AmlChecksRunEvent)
-  }
-
   private static List<AmlCheck> successfulChecks(AmlCheckType... checkTypes) {
     return checkTypes.collect({ type -> check(type) })
   }

@@ -157,8 +157,6 @@ administration:
     key: ${ADMINISTRATION_ANALYTICS_KEY:administration-analytics-key}
     secret: ${ADMINISTRATION_ANALYTICS_SECRET:administration-analytics-secret}
 
-aml:
-  intermediate-ids: ${INTERMEDIATE_IDS:38000000000}
 ---
 spring:
   flyway:

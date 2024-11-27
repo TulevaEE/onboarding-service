@@ -18,8 +18,6 @@ import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
-import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -41,9 +39,6 @@ public class AmlService {
   private final ApplicationEventPublisher eventPublisher;
   private final PepAndSanctionCheckService pepAndSanctionCheckService;
   private final AnalyticsThirdPillarRepository analyticsThirdPillarRepository;
-
-  @Value("${aml.intermediate-ids}")
-  private String intermediateIds;
 
   public void checkUserBeforeLogin(User user, Person person, Boolean isResident) {
     addDocumentCheck(user);
@@ -160,41 +155,6 @@ public class AmlService {
         });
 
     log.info("Successfully ran III pillar AML checks on {} records", records.size());
-  }
-
-  public void runAmlChecksOnIntermediateThirdPillarCustomers() {
-    LocalDateTime startDate = LocalDateTime.of(2024, 1, 2, 0, 0);
-    LocalDateTime endDate = LocalDateTime.of(2024, 10, 31, 0, 0);
-    List<String> personalCodes = Arrays.asList(intermediateIds.split(","));
-
-    log.info("Processing AML for {} intermediate personal codes", personalCodes.size());
-
-    personalCodes.forEach(
-        personalCode -> {
-          List<AnalyticsThirdPillar> records =
-              analyticsThirdPillarRepository.findByDateRangeAndPersonalCode(
-                  startDate, endDate, personalCode);
-
-          log.info(
-              "Running III pillar intermediate AML checks for {} on intermediate entries with {} records",
-              personalCodes,
-              records.size());
-          eventPublisher.publishEvent(new AmlChecksRunEvent(this, records));
-
-          records.forEach(
-              record -> {
-                MatchResponse response =
-                    pepAndSanctionCheckService.match(record, new Address(record.getCountry()));
-                addPepCheckIfMissing(record, response);
-                addSanctionCheckIfMissing(record, response);
-              });
-
-          log.info(
-              "Successfully ran III pillar intermediate AML checks for {} on intermediate entries with {} records",
-              personalCodes,
-              records.size());
-        });
-    log.info("Finished processing AML for {} intermediate personal codes", personalCodes.size());
   }
 
   private Map<String, Object> metadata(JsonNode results, JsonNode query) {

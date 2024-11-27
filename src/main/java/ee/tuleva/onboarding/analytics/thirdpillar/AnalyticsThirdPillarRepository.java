@@ -17,21 +17,10 @@ public interface AnalyticsThirdPillarRepository extends JpaRepository<AnalyticsT
   @Query(
       "SELECT record "
           + "FROM AnalyticsThirdPillar record "
-          + "WHERE record.personalCode IN ("
-          + "    SELECT DISTINCT intermediate.personalCode "
-          + "    FROM AnalyticsThirdPillar intermediate "
-          + "    WHERE intermediate.reportingDate > :startDate AND intermediate.reportingDate < :endDate "
-          + "    AND intermediate.personalCode NOT IN ("
-          + "        SELECT DISTINCT initial.personalCode "
-          + "        FROM AnalyticsThirdPillar initial "
-          + "        WHERE initial.reportingDate = :startDate"
-          + "    ) "
-          + "    AND intermediate.personalCode NOT IN ("
-          + "        SELECT DISTINCT final.personalCode "
-          + "        FROM AnalyticsThirdPillar final "
-          + "        WHERE final.reportingDate = :endDate"
-          + "    )"
-          + ")")
-  List<AnalyticsThirdPillar> findIntermediateEntries(
-      @Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
+          + "WHERE record.reportingDate >= :startDate AND record.reportingDate <= :endDate "
+          + "AND record.personalCode = :personalCode")
+  List<AnalyticsThirdPillar> findByDateRangeAndPersonalCode(
+      @Param("startDate") LocalDateTime startDate,
+      @Param("endDate") LocalDateTime endDate,
+      @Param("personalCode") String personalCode);
 }

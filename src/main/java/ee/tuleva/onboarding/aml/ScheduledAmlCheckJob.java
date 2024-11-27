@@ -18,7 +18,8 @@ public class ScheduledAmlCheckJob {
     amlService.runAmlChecksOnThirdPillarCustomers();
   }
 
-  // remove after running
+  // one-time execution on November 27, 2024
+  @Scheduled(cron = "0 00 8 27 11 ?", zone = "Europe/Tallinn")
   public void runIntermediateChecks() {
     amlService.runAmlChecksOnIntermediateThirdPillarCustomers();
   }

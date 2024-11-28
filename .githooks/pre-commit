@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🔍 Running tests and verifying coverage for AML package..."
+echo "🔍 Running tests and verifying coverage..."
 
 spinner() {
     local pid=$1
@@ -17,8 +17,16 @@ spinner() {
     printf "    \b\b\b\b"
 }
 
-echo "📦 Stashing uncommitted changes..."
-git stash -q --keep-index || true
+#echo "📦 Stashing uncommitted changes..."
+#git stash -q --keep-index || true
+
+echo "✨ Applying Spotless formatting..."
+./gradlew spotlessApply --no-daemon --quiet
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to apply Spotless formatting. Please check your Spotless configuration."
+    exit 1
+fi
+echo "✅ Spotless formatting applied successfully."
 
 OUTPUT_FILE=$(mktemp)
 echo "🚀 Running Gradle tasks: clean, check, jacocoTestCoverageVerification..."
@@ -28,15 +36,14 @@ spinner $gradle_pid
 wait $gradle_pid
 GRADLE_RESULT=$?
 
-# Unstash changes to restore the working directory
-echo "🔄 Restoring stashed changes..."
-git stash pop -q || true
+#echo "🔄 Restoring stashed changes..."
+#git stash pop -q || true
 
 # Check for rule violations in Gradle output
 if grep -q "Rule violated" "$OUTPUT_FILE"; then
     echo "❌ Code coverage rule violations detected:"
     grep "Rule violated" "$OUTPUT_FILE"
-    echo "💡 Check the coverage report at: build/reports/jacoco/test/html/index.html"
+    echo "💡 Check the coverage report at: file://$(pwd)/build/reports/jacoco/test/html/index.html"
     rm "$OUTPUT_FILE"
     exit 1
 fi

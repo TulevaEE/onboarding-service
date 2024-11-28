@@ -103,6 +103,83 @@ class OpenSanctionsServiceSpec extends Specification {
     new JsonSlurper().parseText(objectMapper.writeValueAsString(response.query())) == new JsonSlurper().parseText(expectedQuery)
   }
 
+  def "handles different address scenarios correctly"() {
+    given:
+    def firstName = "Peeter"
+    def lastName = "Meeter"
+    def fullName = "$firstName $lastName"
+    def birthDate = LocalDate.parse("1960-04-08")
+    def personalCode = "36004081234"
+    def person = new PersonImpl(personalCode, firstName, lastName)
+    def expectedQuery = { countries -> """{
+      "schema": "Person",
+        "properties": {
+          "name": ["$fullName"],
+          "birthDate": ["$birthDate"],
+          "country": ${countries}
+       }
+    }""" }
+    def emptyResults = "[]"
+
+    def makeResponse = { countries -> """{
+      "responses": {
+        "$personalCode": {
+          "status": 200,
+          "results": ${emptyResults},
+          "query": ${expectedQuery(countries)}
+        }
+      }
+    }""" }
+
+    def makeExpectedRequest = { countries -> """
+    {
+        "queries": {
+          "$personalCode": {
+            "schema": "Person",
+            "properties": {
+              "name": ["$fullName"],
+              "birthDate": ["$birthDate"],
+              "country": ${countries},
+              "gender": ["male"]
+            }
+          }
+        }
+    }""" }
+
+    when: "address is null"
+    server.expect(requestTo("https://dummyUrl/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.7&topics=role.pep&topics=role.rca&topics=sanction&facets=countries&facets=topics&facets=datasets&facets=gender"))
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().json(makeExpectedRequest('["ee"]')))
+        .andRespond(withSuccess(makeResponse('["ee"]'), MediaType.APPLICATION_JSON))
+    def responseNull = openSanctionsService.match(person, null)
+
+    then:
+    responseNull.results().isEmpty()
+
+    when: "address has no country code"
+    server.reset()
+    server.expect(requestTo("https://dummyUrl/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.7&topics=role.pep&topics=role.rca&topics=sanction&facets=countries&facets=topics&facets=datasets&facets=gender"))
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().json(makeExpectedRequest('["ee"]')))
+        .andRespond(withSuccess(makeResponse('["ee"]'), MediaType.APPLICATION_JSON))
+    def responseNoCountry = openSanctionsService.match(person, Address.builder().build())
+
+    then:
+    responseNoCountry.results().isEmpty()
+
+    when: "address has different country code"
+    server.reset()
+    def foreignAddress = Address.builder().countryCode("fi").build()
+    server.expect(requestTo("https://dummyUrl/match/default?algorithm=logic-v1&threshold=0.8&cutoff=0.7&topics=role.pep&topics=role.rca&topics=sanction&facets=countries&facets=topics&facets=datasets&facets=gender"))
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(content().json(makeExpectedRequest('["ee","fi"]')))
+        .andRespond(withSuccess(makeResponse('["ee","fi"]'), MediaType.APPLICATION_JSON))
+    def responseForeign = openSanctionsService.match(person, foreignAddress)
+
+    then:
+    responseForeign.results().isEmpty()
+  }
+
   def cleanup() {
     server.reset()
   }

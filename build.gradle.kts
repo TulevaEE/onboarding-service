@@ -213,7 +213,7 @@ tasks {
                 limit {
                     counter = "LINE"
                     value = "COVEREDRATIO"
-                    minimum = "0.9".toBigDecimal()
+                    minimum = "0.97".toBigDecimal()
                 }
 
                 limit {
@@ -225,7 +225,7 @@ tasks {
                 limit {
                     counter = "INSTRUCTION"
                     value = "COVEREDRATIO"
-                    minimum = "0.9".toBigDecimal()
+                    minimum = "0.97".toBigDecimal()
                 }
             }
         }

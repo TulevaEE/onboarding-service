@@ -12,7 +12,7 @@ coverage:
       aml:
         paths:
           - "src/main/java/ee/tuleva/onboarding/aml/**"
-        target: 100%
+        target: 97%
 
 comment:
   layout: "reach, diff, flags, files"

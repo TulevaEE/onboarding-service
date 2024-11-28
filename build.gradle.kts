@@ -182,7 +182,7 @@ tasks {
         dependsOn(test)
         reports {
             xml.required.set(true)
-            html.required.set(false)
+            html.required.set(true)
             csv.required.set(false)
         }
     }
@@ -190,6 +190,73 @@ tasks {
     check {
         dependsOn(jacocoTestReport)
     }
+
+    jacocoTestCoverageVerification {
+        dependsOn(test)
+        violationRules {
+            rule {
+                element = "PACKAGE"
+                includes = listOf("ee.tuleva.onboarding.aml.*")
+
+                limit {
+                    counter = "CLASS"
+                    value = "COVEREDRATIO"
+                    minimum = "1.0".toBigDecimal()
+                }
+
+                limit {
+                    counter = "METHOD"
+                    value = "COVEREDRATIO"
+                    minimum = "1.0".toBigDecimal()
+                }
+
+                limit {
+                    counter = "LINE"
+                    value = "COVEREDRATIO"
+                    minimum = "1.0".toBigDecimal()
+                }
+
+                limit {
+                    counter = "BRANCH"
+                    value = "COVEREDRATIO"
+                    minimum = "1.0".toBigDecimal()
+                }
+
+                limit {
+                    counter = "INSTRUCTION"
+                    value = "COVEREDRATIO"
+                    minimum = "1.0".toBigDecimal()
+                }
+            }
+        }
+    }
+
+    register("setupGitHooks") {
+        group = "git hooks"
+        description = "Configures git hooks for the project"
+
+        doLast {
+            val operatingSystem = org.gradle.internal.os.OperatingSystem.current()
+            val shellCommand = if (operatingSystem.isWindows) "cmd" else "sh"
+            val shellArg = if (operatingSystem.isWindows) "/c" else "-c"
+
+            exec {
+                commandLine(shellCommand, shellArg, "git config core.hooksPath .githooks")
+            }
+            exec {
+                commandLine(shellCommand, shellArg, "chmod +x .githooks/pre-commit")
+            }
+            println("Git hooks configured successfully!")
+        }
+    }
+
+    build {
+        dependsOn("setupGitHooks")
+    }
+}
+
+tasks.test {
+    finalizedBy(tasks.jacocoTestReport)
 }
 
 tasks.withType<JavaCompile> {

@@ -1,0 +1,59 @@
+#!/bin/bash
+
+set -e  # Exit immediately if a command exits with a non-zero status
+
+echo "🔍 Running tests and verifying coverage for AML package..."
+
+# Spinner function for visual feedback
+spinner() {
+    local pid=$1
+    local delay=0.1
+    local spinstr='|/-\'
+    echo -n " "
+    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+        local temp=${spinstr#?}
+        printf " [%c]  " "$spinstr"
+        local spinstr=$temp${spinstr%"$temp"}
+        sleep $delay
+        printf "\b\b\b\b\b\b"
+    done
+    printf "    \b\b\b\b"  # Clear the spinner
+}
+
+# Stash uncommitted changes to ensure a clean environment
+echo "📦 Stashing uncommitted changes..."
+git stash -q --keep-index || true
+
+# Run Gradle tasks and capture output
+OUTPUT_FILE=$(mktemp)
+echo "🚀 Running Gradle tasks: clean, check, jacocoTestCoverageVerification..."
+./gradlew clean check jacocoTestCoverageVerification --no-daemon --stacktrace > "$OUTPUT_FILE" 2>&1 &
+gradle_pid=$!
+spinner $gradle_pid
+wait $gradle_pid
+GRADLE_RESULT=$?
+
+# Unstash changes to restore the working directory
+echo "🔄 Restoring stashed changes..."
+git stash pop -q || true
+
+# Check for rule violations in Gradle output
+if grep -q "Rule violated" "$OUTPUT_FILE"; then
+    echo "❌ Code coverage rule violations detected:"
+    grep "Rule violated" "$OUTPUT_FILE"
+    echo "💡 Check the coverage report at: build/reports/jacoco/test/html/index.html"
+    rm "$OUTPUT_FILE"
+    exit 1
+fi
+
+# Clean up temporary output file
+rm "$OUTPUT_FILE"
+
+# Exit with Gradle result if it failed
+if [ $GRADLE_RESULT -ne 0 ]; then
+    echo "❌ Gradle task failed. Check the output for details."
+    exit 1
+fi
+
+echo "✅ Code coverage check passed."
+exit 0

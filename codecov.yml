@@ -6,6 +6,13 @@ coverage:
     patch:
       default:
         target: 80%
+    project:
+      default:
+        target: 80%
+      aml:
+        paths:
+          - "src/main/java/ee/tuleva/onboarding/aml/**"
+        target: 100%
 
 comment:
   layout: "reach, diff, flags, files"

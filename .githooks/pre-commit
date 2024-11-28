@@ -1,10 +1,7 @@
 #!/bin/bash
 
-set -e  # Exit immediately if a command exits with a non-zero status
-
 echo "🔍 Running tests and verifying coverage for AML package..."
 
-# Spinner function for visual feedback
 spinner() {
     local pid=$1
     local delay=0.1
@@ -17,14 +14,12 @@ spinner() {
         sleep $delay
         printf "\b\b\b\b\b\b"
     done
-    printf "    \b\b\b\b"  # Clear the spinner
+    printf "    \b\b\b\b"
 }
 
-# Stash uncommitted changes to ensure a clean environment
 echo "📦 Stashing uncommitted changes..."
 git stash -q --keep-index || true
 
-# Run Gradle tasks and capture output
 OUTPUT_FILE=$(mktemp)
 echo "🚀 Running Gradle tasks: clean, check, jacocoTestCoverageVerification..."
 ./gradlew clean check jacocoTestCoverageVerification --no-daemon --stacktrace > "$OUTPUT_FILE" 2>&1 &

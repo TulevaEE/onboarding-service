@@ -13,16 +13,16 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2023.0.3"
+val springCloudVersion = "2023.0.4"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.3.5"
+    id("org.springframework.boot") version "3.3.6"
     id("io.spring.dependency-management") version "1.1.6"
     id("com.gorylenko.gradle-git-properties") version "2.4.2"
     id("com.diffplug.spotless") version "6.25.0"
-    id("io.freefair.lombok") version "8.10.2"
+    id("io.freefair.lombok") version "8.11"
     jacoco
 }
 
@@ -74,7 +74,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.46")
+    implementation("com.nimbusds:nimbus-jose-jwt:9.47")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
     implementation("org.springdoc:springdoc-openapi-starter-common:2.6.0")
@@ -89,7 +89,7 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-    implementation("org.jsoup:jsoup:1.18.1")
+    implementation("org.jsoup:jsoup:1.18.2")
     implementation("commons-net:commons-net:3.11.1")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.springframework.boot:spring-boot-starter-cache")
@@ -109,10 +109,10 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.16.0")
-    implementation("io.sentry:sentry-logback:7.16.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.18.0")
+    implementation("io.sentry:sentry-logback:7.18.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.8.3")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.9.0")
 
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
@@ -121,8 +121,8 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("com.amazonaws:aws-java-sdk-s3:1.12.777")
-    implementation("commons-io:commons-io:2.17.0")
+    implementation("com.amazonaws:aws-java-sdk-s3:1.12.779")
+    implementation("commons-io:commons-io:2.18.0")
     implementation("org.apache.commons:commons-csv:1.12.0")
 
     testImplementation("com.h2database:h2")

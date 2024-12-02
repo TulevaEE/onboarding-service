@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.mandate;
 
 import ee.tuleva.onboarding.epis.mandate.details.*;
+import java.util.EnumSet;
 import lombok.Getter;
 
 public enum MandateType {
@@ -19,5 +20,9 @@ public enum MandateType {
 
   MandateType(Class<? extends MandateDetails> mandateDetailsClass) {
     this.mandateDetailsClass = mandateDetailsClass;
+  }
+
+  public boolean isWithdrawalType() {
+    return EnumSet.of(FUND_PENSION_OPENING, PARTIAL_WITHDRAWAL).contains(this);
   }
 }

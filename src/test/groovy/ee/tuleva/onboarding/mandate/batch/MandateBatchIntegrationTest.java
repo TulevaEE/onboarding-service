@@ -18,6 +18,8 @@ import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.MandateRepository;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
+import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
+import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -44,6 +46,7 @@ public class MandateBatchIntegrationTest {
   @Autowired private MandateRepository mandateRepository;
 
   @MockBean private EpisService episService;
+  @MockBean private WithdrawalEligibilityService withdrawalEligibilityService;
 
   @AfterEach
   void cleanup() {
@@ -112,6 +115,8 @@ public class MandateBatchIntegrationTest {
                     MandateDto.builder().details(aPartialWithdrawalMandateDetails).build()))
             .build();
 
+    when(withdrawalEligibilityService.getWithdrawalEligibility(any()))
+        .thenReturn(new WithdrawalEligibilityDto(true, 65, 20, false));
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
@@ -121,5 +126,36 @@ public class MandateBatchIntegrationTest {
 
     assertCorrectResponse(response);
     assertCanReadMandateBatch();
+  }
+
+  @Test
+  @DisplayName("create mandate batch throws before retirement")
+  void testMandateCreationBeforeRetirementAge() throws Exception {
+    String url = "http://localhost:" + randomServerPort + "/v1/mandate-batches";
+
+    var headers = getHeaders();
+
+    var aFundPensionOpeningMandateDetails = MandateFixture.aFundPensionOpeningMandateDetails;
+    var aPartialWithdrawalMandateDetails = MandateFixture.aPartialWithdrawalMandateDetails;
+
+    var aDto =
+        MandateBatchDto.builder()
+            .mandates(
+                List.of(
+                    MandateDto.builder().details(aFundPensionOpeningMandateDetails).build(),
+                    MandateDto.builder().details(aPartialWithdrawalMandateDetails).build()))
+            .build();
+
+    when(withdrawalEligibilityService.getWithdrawalEligibility(any()))
+        .thenReturn(new WithdrawalEligibilityDto(false, 30, 55, false));
+    when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
+    when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
+
+    HttpEntity<MandateBatchDto> request = new HttpEntity<>(aDto, headers);
+
+    ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+
+    assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.OK);
+    assertThat(Streamable.of(mandateBatchRepository.findAll()).toList().size()).isEqualTo(0);
   }
 }

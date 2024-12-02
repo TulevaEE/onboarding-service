@@ -22,9 +22,8 @@ import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
+import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -35,7 +34,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class MandateBatchService {
   private final MandateBatchRepository mandateBatchRepository;
+
   private final MandateFileService mandateFileService;
+  private final WithdrawalEligibilityService withdrawalEligibilityService;
   private final GenericMandateService genericMandateService;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final UserService userService;
@@ -61,6 +62,14 @@ public class MandateBatchService {
 
   public MandateBatch createMandateBatch(
       AuthenticatedPerson authenticatedPerson, MandateBatchDto mandateBatchDto) {
+
+    if (isWithdrawalBatch(mandateBatchDto)) {
+      var eligibility = withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson);
+      if (!eligibility.hasReachedEarlyRetirementAge()) {
+        throw new IllegalArgumentException(
+            "Cannot create withdrawal mandates before early retirement age");
+      }
+    }
 
     var mandateBatch = MandateBatch.builder().status(MandateBatchStatus.INITIALIZED).build();
 
@@ -111,6 +120,11 @@ public class MandateBatchService {
 
     List<SignatureFile> files = getMandateBatchContentFiles(mandateBatchId, user);
     return signService.startIdCardSign(files, signingCertificate);
+  }
+
+  private boolean isWithdrawalBatch(MandateBatchDto mandateBatchDto) {
+    return mandateBatchDto.getMandates().stream()
+        .anyMatch(mandateDto -> mandateDto.getMandateType().isWithdrawalType());
   }
 
   private MandateSignatureStatus persistFileSignedWithIdCard(

@@ -30,6 +30,8 @@ import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
+import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.List;
 import java.util.Locale;
 import java.util.NoSuchElementException;
@@ -51,6 +53,7 @@ public class MandateBatchServiceTest {
 
   @Mock private MandateFileService mandateFileService;
   @Mock private GenericMandateService genericMandateService;
+  @Mock private WithdrawalEligibilityService withdrawalEligibilityService;
   @Mock private UserService userService;
   @Mock private MandateProcessorService mandateProcessor;
   @Mock private EpisService episService;
@@ -146,6 +149,8 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
+    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
+        .thenReturn(new WithdrawalEligibilityDto(true, 65, 20, false));
     when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
@@ -157,6 +162,28 @@ public class MandateBatchServiceTest {
 
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
+  }
+
+  @Test
+  @DisplayName("throws when creating MandateBatch before early retirement age")
+  void createMandateBatchBeforeRetirementAge() {
+    var authenticatedPerson =
+        AuthenticatedPersonFixture.authenticatedPersonFromUser(sampleUser().build()).build();
+    var aFundPensionOpeningMandate = sampleFundPensionOpeningMandate();
+
+    var aMandateBatch =
+        MandateBatch.builder()
+            .mandates(List.of(aFundPensionOpeningMandate, aFundPensionOpeningMandate))
+            .status(INITIALIZED)
+            .build();
+    var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
+
+    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
+        .thenReturn(new WithdrawalEligibilityDto(false, 35, 50, false));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto));
   }
 
   User mockUser() {

@@ -13,7 +13,6 @@ import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
-import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.response.*;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
@@ -67,22 +66,6 @@ public class MandateController {
 
     log.info("Creating mandate: {}", createMandateCommand);
     return mandateService.save(authenticatedPerson, createMandateCommand);
-  }
-
-  @Operation(summary = "Create a generic mandate")
-  @PostMapping("/generic")
-  @JsonView(MandateView.Default.class)
-  public Mandate createGenericMandate(
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
-      @Valid @RequestBody MandateDto<?> mandateDto,
-      @Parameter(hidden = true) Errors errors) {
-    if (errors.hasErrors()) {
-      log.info("Generic mandate creation dto is not valid: {}", errors);
-      throw new ValidationErrorsException(errors);
-    }
-
-    log.info("Creating mandate: {}", mandateDto);
-    return genericMandateService.createGenericMandate(authenticatedPerson, mandateDto);
   }
 
   @Operation(summary = "Start signing mandate with mobile ID")

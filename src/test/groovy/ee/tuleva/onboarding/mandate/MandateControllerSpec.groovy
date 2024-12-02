@@ -64,43 +64,6 @@ class MandateControllerSpec extends BaseControllerSpec {
             jsonPath('$.fundTransferExchanges[0].amount', is(mandate.fundTransferExchanges[0].amount.doubleValue())))
   }
 
-
-  def "save a generic mandate"() {
-    when:
-    def mandate = sampleEarlyWithdrawalCancellationMandate()
-    genericMandateService.createGenericMandate(_ as AuthenticatedPerson, _ as MandateDto) >> mandate
-    then:
-    mvc
-        .perform(post("/v1/mandates/generic")
-            .content(mapper.writeValueAsString(sampleMandateCreationDto(new EarlyWithdrawalCancellationMandateDetails())))
-            .contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath('$.details.mandateType', is(mandate.getGenericMandateDto().getDetails().getMandateType().toString())))
-        .andExpect(jsonPath('$.address.countryCode', is(mandate.address.countryCode)))
-  }
-
-  def "save a fund pension opening generic mandate"() {
-    when:
-    def mandate = sampleFundPensionOpeningMandate()
-    def castDetails = (FundPensionOpeningMandateDetails) mandate.details
-    genericMandateService.createGenericMandate(_ as AuthenticatedPerson, _ as MandateDto) >> mandate
-    then:
-    mvc
-        .perform(post("/v1/mandates/generic")
-            .content(mapper.writeValueAsString(sampleMandateCreationDto(mandate.details)))
-            .contentType(MediaType.APPLICATION_JSON))
-        .andExpect(status().isOk())
-        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-        .andExpect(jsonPath('$.details.mandateType', is(castDetails.mandateType.toString())))
-        .andExpect(jsonPath('$.details.pillar', is(castDetails.pillar.toString())))
-        .andExpect(jsonPath('$.details.duration.durationYears', is(castDetails.duration.durationYears())))
-        .andExpect(jsonPath('$.details.duration.recommendedDuration', is(castDetails.duration.recommendedDuration())))
-        .andExpect(jsonPath('$.details.bankAccountDetails.type', is(castDetails.bankAccountDetails.type().toString())))
-        .andExpect(jsonPath('$.details.bankAccountDetails.accountIban', is(castDetails.bankAccountDetails.accountIban())))
-        .andExpect(jsonPath('$.address.countryCode', is(mandate.address.countryCode)))
-  }
-
   def "mobile id signature start returns the mobile id challenge code"() {
     when:
     mandateService.mobileIdSign(1L, authenticatedPerson.getUserId(), authenticatedPerson.getAttribute(PHONE_NUMBER)) >>

@@ -39,6 +39,6 @@ public class WithdrawalApplicationDetails implements ApplicationDetails {
 
   @Override
   public Integer getPillar() {
-    return 2;
+    return type == WITHDRAWAL_THIRD_PILLAR ? 3 : 2;
   }
 }

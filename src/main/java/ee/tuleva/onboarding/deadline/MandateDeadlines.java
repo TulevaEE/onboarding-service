@@ -45,6 +45,13 @@ public class MandateDeadlines {
         .get();
   }
 
+  public LocalDate getThirdPillarWithdrawalFulfillmentDate() {
+    ZoneId timeZone = estonianClock.getZone();
+    ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
+
+    return publicHolidays.addWorkingDays(zonedApplicationDate.toLocalDate(), 4);
+  }
+
   public Instant getTransferMandateCancellationDeadline() {
     return getPeriodEnding();
   }
@@ -89,7 +96,12 @@ public class MandateDeadlines {
   public LocalDate getFulfillmentDate(ApplicationType applicationType) {
     return switch (applicationType) {
       case TRANSFER -> getTransferMandateFulfillmentDate();
-      case WITHDRAWAL -> getWithdrawalFulfillmentDate();
+      case WITHDRAWAL,
+              FUND_PENSION_OPENING,
+              FUND_PENSION_OPENING_THIRD_PILLAR,
+              PARTIAL_WITHDRAWAL ->
+          getWithdrawalLatestFulfillmentDate();
+      case WITHDRAWAL_THIRD_PILLAR -> getThirdPillarWithdrawalFulfillmentDate();
       case EARLY_WITHDRAWAL -> getEarlyWithdrawalFulfillmentDate();
       case PAYMENT_RATE -> getPaymentRateFulfillmentDate();
       default -> throw new IllegalArgumentException("Unknown application type: " + applicationType);
@@ -99,7 +111,12 @@ public class MandateDeadlines {
   public Instant getCancellationDeadline(ApplicationType applicationType) {
     return switch (applicationType) {
       case TRANSFER -> getTransferMandateCancellationDeadline();
-      case WITHDRAWAL -> getWithdrawalCancellationDeadline();
+      case WITHDRAWAL,
+              FUND_PENSION_OPENING,
+              FUND_PENSION_OPENING_THIRD_PILLAR,
+              PARTIAL_WITHDRAWAL ->
+          getWithdrawalCancellationDeadline();
+      case WITHDRAWAL_THIRD_PILLAR -> null; // TODO
       case EARLY_WITHDRAWAL -> getEarlyWithdrawalCancellationDeadline();
       case PAYMENT_RATE -> getPaymentRateDeadline();
       default -> throw new IllegalArgumentException("Unknown application type: " + applicationType);

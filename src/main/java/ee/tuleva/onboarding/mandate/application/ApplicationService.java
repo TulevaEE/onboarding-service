@@ -58,6 +58,7 @@ public class ApplicationService {
     applications.addAll(getWithdrawalApplications(person));
     applications.addAll(paymentLinkingService.getPaymentApplications(person));
     applications.addAll(getPaymentRateApplications(person));
+    applications.addAll(getFundPensionOpeningApplications(person));
     Collections.sort(applications);
     return applications;
   }
@@ -110,6 +111,14 @@ public class ApplicationService {
   List<Application<WithdrawalApplicationDetails>> getWithdrawalApplications(
       ApplicationStatus status, Person person) {
     return getWithdrawalApplications(person).stream().filter(byStatus(status)).collect(toList());
+  }
+
+  private List<Application<FundPensionOpeningApplicationDetails>> getFundPensionOpeningApplications(
+      Person person) {
+    return getApplications(
+        person,
+        entry -> entry.getKey().isFundPensionOpening(),
+        entry -> entry.getValue().stream().map(this::convertFundPensionOpening));
   }
 
   @NotNull
@@ -203,6 +212,25 @@ public class ApplicationService {
             .fulfillmentDate(deadlines.getFulfillmentDate(applicationDTO.getType()))
             .cancellationDeadline(deadlines.getCancellationDeadline(applicationDTO.getType()))
             .build());
+    return applicationBuilder.build();
+  }
+
+  private Application<FundPensionOpeningApplicationDetails> convertFundPensionOpening(
+      ApplicationDTO applicationDTO) {
+    final var applicationBuilder =
+        Application.<FundPensionOpeningApplicationDetails>builder()
+            .creationTime(applicationDTO.getDate())
+            .status(applicationDTO.getStatus())
+            .id(applicationDTO.getId());
+
+    final var deadlines = mandateDeadlinesService.getDeadlines(applicationDTO.getDate());
+    applicationBuilder.details(
+        new FundPensionOpeningApplicationDetails(
+            applicationDTO.getBankAccount(),
+            deadlines.getCancellationDeadline(applicationDTO.getType()),
+            deadlines.getFulfillmentDate(applicationDTO.getType()),
+            applicationDTO.getType(),
+            applicationDTO.getFundPensionDetails()));
     return applicationBuilder.build();
   }
 }

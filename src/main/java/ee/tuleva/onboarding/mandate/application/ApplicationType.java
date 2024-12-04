@@ -25,6 +25,10 @@ public enum ApplicationType {
         .contains(this);
   }
 
+  public boolean isFundPensionOpening() {
+    return EnumSet.of(FUND_PENSION_OPENING, FUND_PENSION_OPENING_THIRD_PILLAR).contains(this);
+  }
+
   public boolean isTransfer() {
     return this == TRANSFER;
   }

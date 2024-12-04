@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.EARLY_WITHDRAWAL;
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.WITHDRAWAL;
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.*;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -31,7 +30,9 @@ public class WithdrawalApplicationDetails implements ApplicationDetails {
   }
 
   private void validate(ApplicationType type) {
-    if (type == null || !Set.of(WITHDRAWAL, EARLY_WITHDRAWAL).contains(type)) {
+    if (type == null
+        || !Set.of(WITHDRAWAL, EARLY_WITHDRAWAL, PARTIAL_WITHDRAWAL, WITHDRAWAL_THIRD_PILLAR)
+            .contains(type)) {
       throw new IllegalArgumentException("Invalid ApplicationType: type=" + type);
     }
   }

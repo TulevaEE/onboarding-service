@@ -26,6 +26,7 @@ public class ApplicationDTO {
   private ApplicationType type;
   private String bankAccount;
   private BigDecimal paymentRate;
+  private FundPensionDetails fundPensionDetails;
 
   public boolean isWithdrawal() {
     return type != null && type.isWithdrawal();
@@ -34,4 +35,6 @@ public class ApplicationDTO {
   public boolean isPaymentRate() {
     return type != null && type.isPaymentRate();
   }
+
+  public record FundPensionDetails(int durationYears, int paymentsPerYear) {}
 }

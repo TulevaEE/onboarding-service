@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.application
 
 import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
+import ee.tuleva.onboarding.epis.mandate.ApplicationDTO.FundPensionDetails
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
@@ -67,6 +68,48 @@ class ApplicationDtoFixture {
         .status(PENDING)
         .id(123L)
         .paymentRate(BigDecimal.valueOf(6))
+        .build()
+  }
+
+  static ApplicationDTO sampleFundPensionOpeningApplicationDto() {
+    return ApplicationDTO.builder()
+        .date(TestClockHolder.now)
+        .type(FUND_PENSION_OPENING)
+        .bankAccount("EE_TEST_IBAN")
+        .fundPensionDetails(new FundPensionDetails(20, 12))
+        .status(PENDING)
+        .id(123L)
+        .build()
+  }
+
+  static ApplicationDTO sampleThirdPillarFundPensionOpeningApplicationDto() {
+    return ApplicationDTO.builder()
+        .date(TestClockHolder.now)
+        .type(FUND_PENSION_OPENING_THIRD_PILLAR)
+        .bankAccount("EE_TEST_IBAN")
+        .fundPensionDetails(new FundPensionDetails(20, 12))
+        .status(PENDING)
+        .id(123L)
+        .build()
+  }
+
+  static ApplicationDTO samplePartialWithdrawalApplicationDto() {
+    return ApplicationDTO.builder()
+        .date(TestClockHolder.now)
+        .type(PARTIAL_WITHDRAWAL)
+        .bankAccount("EE_TEST_IBAN")
+        .status(PENDING)
+        .id(123L)
+        .build()
+  }
+
+  static ApplicationDTO sampleThirdPillarWithdrawalApplicationDto() {
+    return ApplicationDTO.builder()
+        .date(TestClockHolder.now)
+        .type(WITHDRAWAL_THIRD_PILLAR)
+        .bankAccount("EE_TEST_IBAN")
+        .status(PENDING)
+        .id(123L)
         .build()
   }
 

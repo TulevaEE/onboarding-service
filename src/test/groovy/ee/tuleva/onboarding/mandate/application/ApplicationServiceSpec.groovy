@@ -150,7 +150,7 @@ class ApplicationServiceSpec extends Specification {
       creationTime == TestClockHolder.now
       with(details) {
         depositAccountIBAN == "IBAN"
-        fulfillmentDate == LocalDate.parse("2021-04-16")
+        fulfillmentDate == LocalDate.parse("2021-04-20")
         cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
       }
     }
@@ -208,7 +208,7 @@ class ApplicationServiceSpec extends Specification {
         def applications = applicationService.getPaymentRateApplications(person)
 
     then:
-        with(applications[0] as Application<PaymentRateApplicationDetails>) {
+        with(applications.first() as Application<PaymentRateApplicationDetails>) {
           id == 123L
           type == PAYMENT_RATE
           status == PENDING
@@ -220,6 +220,87 @@ class ApplicationServiceSpec extends Specification {
           }
         }
         applications.size() == 1
+  }
+
+
+  def "gets withdrawals applications"() {
+    given:
+    def person = samplePerson()
+
+
+    def fundPensionOpening = sampleFundPensionOpeningApplicationDto()
+    def fundPensionOpeningThirdPillar = sampleThirdPillarFundPensionOpeningApplicationDto()
+    def partialWithdrawal = samplePartialWithdrawalApplicationDto()
+    def thirdPillarWithdrawal = sampleThirdPillarWithdrawalApplicationDto()
+
+    episService.getApplications(person) >> [
+        fundPensionOpening, fundPensionOpeningThirdPillar, partialWithdrawal, thirdPillarWithdrawal
+    ]
+    localeService.getCurrentLocale() >> Locale.ENGLISH
+
+    mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
+    paymentApplicationService.getPaymentApplications(person) >> []
+
+    when:
+    def applications = applicationService.getAllApplications(person)
+
+    then:
+    with(applications[0] as Application<FundPensionOpeningApplicationDetails>) {
+      id == 123L
+      type == FUND_PENSION_OPENING
+      status == PENDING
+      creationTime == TestClockHolder.now
+      with(details) {
+        fulfillmentDate == LocalDate.parse("2021-04-20")
+        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
+        depositAccountIBAN == "EE_TEST_IBAN"
+        with(fundPensionDetails) {
+          durationYears() == 20
+          paymentsPerYear() == 12
+        }
+      }
+    }
+
+    with(applications[1] as Application<FundPensionOpeningApplicationDetails>) {
+      id == 123L
+      type == FUND_PENSION_OPENING_THIRD_PILLAR
+      status == PENDING
+      creationTime == TestClockHolder.now
+      with(details) {
+        fulfillmentDate == LocalDate.parse("2021-04-20")
+        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
+        depositAccountIBAN == "EE_TEST_IBAN"
+        with(fundPensionDetails) {
+          durationYears() == 20
+          paymentsPerYear() == 12
+        }
+      }
+    }
+
+    with(applications[2] as Application<WithdrawalApplicationDetails>) {
+      id == 123L
+      type == PARTIAL_WITHDRAWAL
+      status == PENDING
+      creationTime == TestClockHolder.now
+      with(details) {
+        fulfillmentDate == LocalDate.parse("2021-04-20")
+        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
+        depositAccountIBAN == "EE_TEST_IBAN"
+      }
+    }
+
+    with(applications[3] as Application<WithdrawalApplicationDetails>) {
+      id == 123L
+      type == WITHDRAWAL_THIRD_PILLAR
+      status == PENDING
+      creationTime == TestClockHolder.now
+      with(details) {
+        fulfillmentDate == LocalDate.parse("2021-03-17")
+        cancellationDeadline == null
+        depositAccountIBAN == "EE_TEST_IBAN"
+      }
+    }
+    applications.size() == 4
   }
 
 }

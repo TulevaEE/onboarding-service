@@ -66,6 +66,36 @@ public class MockEpisService extends EpisService {
             .id(123L)
             .currency("EUR")
             .sourceFundIsin("source")
+            .build(),
+        ApplicationDTO.builder()
+            .date(Instant.parse("2024-12-01T01:23:45Z"))
+            .type(ApplicationType.PARTIAL_WITHDRAWAL)
+            .status(ApplicationStatus.PENDING)
+            .bankAccount("EE_TEST_IBAN")
+            .id(124L)
+            .build(),
+        ApplicationDTO.builder()
+            .date(Instant.parse("2024-12-01T01:23:45Z"))
+            .type(ApplicationType.WITHDRAWAL_THIRD_PILLAR)
+            .status(ApplicationStatus.PENDING)
+            .bankAccount("EE_TEST_IBAN")
+            .id(125L)
+            .build(),
+        ApplicationDTO.builder()
+            .date(Instant.parse("2024-12-02T01:23:45Z"))
+            .type(ApplicationType.FUND_PENSION_OPENING)
+            .status(ApplicationStatus.PENDING)
+            .bankAccount("EE_TEST_IBAN")
+            .fundPensionDetails(new ApplicationDTO.FundPensionDetails(20, 12))
+            .id(126L)
+            .build(),
+        ApplicationDTO.builder()
+            .date(Instant.parse("2024-12-02T01:23:45Z"))
+            .type(ApplicationType.FUND_PENSION_OPENING_THIRD_PILLAR)
+            .status(ApplicationStatus.PENDING)
+            .bankAccount("EE_TEST_IBAN")
+            .fundPensionDetails(new ApplicationDTO.FundPensionDetails(20, 12))
+            .id(127L)
             .build());
   }
 

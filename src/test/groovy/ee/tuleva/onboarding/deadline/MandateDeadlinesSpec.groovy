@@ -122,7 +122,7 @@ class MandateDeadlinesSpec extends Specification {
     with(mandateDeadlines) {
       getFulfillmentDate(TRANSFER) == getTransferMandateFulfillmentDate()
       getFulfillmentDate(EARLY_WITHDRAWAL) == getEarlyWithdrawalFulfillmentDate()
-      getFulfillmentDate(WITHDRAWAL) == getWithdrawalFulfillmentDate()
+      getFulfillmentDate(WITHDRAWAL) == getWithdrawalLatestFulfillmentDate()
     }
   }
 

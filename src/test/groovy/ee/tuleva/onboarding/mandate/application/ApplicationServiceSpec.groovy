@@ -254,6 +254,7 @@ class ApplicationServiceSpec extends Specification {
         fulfillmentDate == LocalDate.parse("2021-04-20")
         cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
         depositAccountIBAN == "EE_TEST_IBAN"
+        details.getPillar() == 2
         with(fundPensionDetails) {
           durationYears() == 20
           paymentsPerYear() == 12
@@ -270,6 +271,7 @@ class ApplicationServiceSpec extends Specification {
         fulfillmentDate == LocalDate.parse("2021-04-20")
         cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
         depositAccountIBAN == "EE_TEST_IBAN"
+        details.getPillar() == 3
         with(fundPensionDetails) {
           durationYears() == 20
           paymentsPerYear() == 12
@@ -286,6 +288,7 @@ class ApplicationServiceSpec extends Specification {
         fulfillmentDate == LocalDate.parse("2021-04-20")
         cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
         depositAccountIBAN == "EE_TEST_IBAN"
+        details.getPillar() == 2
       }
     }
 
@@ -298,6 +301,7 @@ class ApplicationServiceSpec extends Specification {
         fulfillmentDate == LocalDate.parse("2021-03-17")
         cancellationDeadline == null
         depositAccountIBAN == "EE_TEST_IBAN"
+        details.getPillar() == 3
       }
     }
     applications.size() == 4

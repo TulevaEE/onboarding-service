@@ -53,10 +53,7 @@ public class MandateDeadlines {
   }
 
   public Instant getNonCancellableApplicationDeadline() {
-    ZoneId timeZone = estonianClock.getZone();
-    ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
-
-    return zonedApplicationDate.toInstant();
+    return applicationDate;
   }
 
   public Instant getTransferMandateCancellationDeadline() {

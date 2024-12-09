@@ -8,12 +8,13 @@ import ee.tuleva.onboarding.epis.mandate.MandateDto
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
+import static ee.tuleva.onboarding.time.TestClockHolder.*
 
 class ApplicationDtoFixture {
 
   static ApplicationDTO sampleTransferApplicationDto() {
     return ApplicationDTO.builder()
-        .date(TestClockHolder.now)
+        .date(now)
         .type(TRANSFER)
         .status(PENDING)
         .id(123L)
@@ -33,7 +34,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO samplePikTransferApplicationDto() {
     return ApplicationDTO.builder()
-        .date(TestClockHolder.now)
+        .date(now)
         .type(TRANSFER)
         .status(PENDING)
         .id(123L)
@@ -53,7 +54,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO sampleWithdrawalApplicationDto() {
     return ApplicationDTO.builder()
-        .date(TestClockHolder.now)
+        .date(now)
         .type(WITHDRAWAL)
         .status(PENDING)
         .id(123L)
@@ -63,7 +64,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO samplePendingPaymentRateApplicationDto() {
     return ApplicationDTO.builder()
-        .date(TestClockHolder.now)
+        .date(now)
         .type(PAYMENT_RATE)
         .status(PENDING)
         .id(123L)
@@ -73,7 +74,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO sampleFundPensionOpeningApplicationDto() {
     return ApplicationDTO.builder()
-        .date(TestClockHolder.now)
+        .date(now)
         .type(FUND_PENSION_OPENING)
         .bankAccount("EE_TEST_IBAN")
         .fundPensionDetails(new FundPensionDetails(20, 12))
@@ -84,7 +85,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO sampleThirdPillarFundPensionOpeningApplicationDto() {
     return ApplicationDTO.builder()
-        .date(TestClockHolder.now)
+        .date(now)
         .type(FUND_PENSION_OPENING_THIRD_PILLAR)
         .bankAccount("EE_TEST_IBAN")
         .fundPensionDetails(new FundPensionDetails(20, 12))
@@ -95,7 +96,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO samplePartialWithdrawalApplicationDto() {
     return ApplicationDTO.builder()
-        .date(TestClockHolder.now)
+        .date(now)
         .type(PARTIAL_WITHDRAWAL)
         .bankAccount("EE_TEST_IBAN")
         .status(PENDING)
@@ -105,7 +106,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO sampleThirdPillarWithdrawalApplicationDto() {
     return ApplicationDTO.builder()
-        .date(TestClockHolder.now)
+        .date(now)
         .type(WITHDRAWAL_THIRD_PILLAR)
         .bankAccount("EE_TEST_IBAN")
         .status(PENDING)
@@ -115,7 +116,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO sampleCompletedPaymentRateApplicationDto() {
     return ApplicationDTO.builder()
-        .date(TestClockHolder.now)
+        .date(now)
         .type(PAYMENT_RATE)
         .status(COMPLETE)
         .id(123L)
@@ -125,7 +126,7 @@ class ApplicationDtoFixture {
 
   static ApplicationDTO sampleEarlyWithdrawalApplicationDto() {
     return ApplicationDTO.builder()
-        .date(TestClockHolder.now)
+        .date(now)
         .type(EARLY_WITHDRAWAL)
         .status(PENDING)
         .id(123L)

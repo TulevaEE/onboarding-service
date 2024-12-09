@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.epis;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
+import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE;
+import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.*;
 import static java.time.LocalDate.parse;
 
 import ee.tuleva.onboarding.auth.principal.Person;
@@ -15,12 +18,11 @@ import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.fund.FundDto;
 import ee.tuleva.onboarding.epis.fund.NavDto;
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO;
+import ee.tuleva.onboarding.epis.mandate.ApplicationDTO.FundPensionDetails;
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
-import ee.tuleva.onboarding.epis.mandate.ApplicationStatus;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
-import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -61,40 +63,40 @@ public class MockEpisService extends EpisService {
     return List.of(
         ApplicationDTO.builder()
             .date(Instant.parse("2001-01-02T01:23:45Z"))
-            .type(ApplicationType.SELECTION)
-            .status(ApplicationStatus.COMPLETE)
+            .type(SELECTION)
+            .status(COMPLETE)
             .id(123L)
             .currency("EUR")
             .sourceFundIsin("source")
             .build(),
         ApplicationDTO.builder()
             .date(Instant.parse("2024-12-01T01:23:45Z"))
-            .type(ApplicationType.PARTIAL_WITHDRAWAL)
-            .status(ApplicationStatus.PENDING)
+            .type(PARTIAL_WITHDRAWAL)
+            .status(PENDING)
             .bankAccount("EE_TEST_IBAN")
             .id(124L)
             .build(),
         ApplicationDTO.builder()
             .date(Instant.parse("2024-12-01T01:23:45Z"))
-            .type(ApplicationType.WITHDRAWAL_THIRD_PILLAR)
-            .status(ApplicationStatus.PENDING)
+            .type(WITHDRAWAL_THIRD_PILLAR)
+            .status(PENDING)
             .bankAccount("EE_TEST_IBAN")
             .id(125L)
             .build(),
         ApplicationDTO.builder()
             .date(Instant.parse("2024-12-02T01:23:45Z"))
-            .type(ApplicationType.FUND_PENSION_OPENING)
-            .status(ApplicationStatus.PENDING)
+            .type(FUND_PENSION_OPENING)
+            .status(PENDING)
             .bankAccount("EE_TEST_IBAN")
-            .fundPensionDetails(new ApplicationDTO.FundPensionDetails(20, 12))
+            .fundPensionDetails(new FundPensionDetails(20, 12))
             .id(126L)
             .build(),
         ApplicationDTO.builder()
             .date(Instant.parse("2024-12-02T01:23:45Z"))
-            .type(ApplicationType.FUND_PENSION_OPENING_THIRD_PILLAR)
-            .status(ApplicationStatus.PENDING)
+            .type(FUND_PENSION_OPENING_THIRD_PILLAR)
+            .status(PENDING)
             .bankAccount("EE_TEST_IBAN")
-            .fundPensionDetails(new ApplicationDTO.FundPensionDetails(20, 12))
+            .fundPensionDetails(new FundPensionDetails(20, 12))
             .id(127L)
             .build());
   }

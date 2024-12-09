@@ -4,7 +4,6 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationType.*;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Set;
 import lombok.Builder;
 import lombok.Data;
 
@@ -30,9 +29,7 @@ public class WithdrawalApplicationDetails implements ApplicationDetails {
   }
 
   private void validate(ApplicationType type) {
-    if (type == null
-        || !Set.of(WITHDRAWAL, EARLY_WITHDRAWAL, PARTIAL_WITHDRAWAL, WITHDRAWAL_THIRD_PILLAR)
-            .contains(type)) {
+    if (type == null || !type.isWithdrawal()) {
       throw new IllegalArgumentException("Invalid ApplicationType: type=" + type);
     }
   }

@@ -211,6 +211,7 @@ class MandateDeadlinesSpec extends Specification {
       getCancellationDeadline(TRANSFER) == getTransferMandateCancellationDeadline()
       getCancellationDeadline(EARLY_WITHDRAWAL) == getEarlyWithdrawalCancellationDeadline()
       getCancellationDeadline(WITHDRAWAL) == getWithdrawalCancellationDeadline()
+      getCancellationDeadline(WITHDRAWAL_THIRD_PILLAR) == getThirdPillarWithdrawalCancellationDeadline()
     }
   }
 

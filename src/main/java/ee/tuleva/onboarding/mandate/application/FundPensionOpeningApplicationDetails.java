@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationDTO.FundPensionDetails;
 import ee.tuleva.onboarding.epis.mandate.details.Pillar;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.util.Set;
 import lombok.Data;
 
 @Data
@@ -43,8 +42,7 @@ public class FundPensionOpeningApplicationDetails implements ApplicationDetails 
   }
 
   private void validate(ApplicationType type) {
-    if (type == null
-        || !Set.of(FUND_PENSION_OPENING, FUND_PENSION_OPENING_THIRD_PILLAR).contains(type)) {
+    if (type == null || !type.isFundPensionOpening()) {
       throw new IllegalArgumentException("Invalid ApplicationType: type=" + type);
     }
   }

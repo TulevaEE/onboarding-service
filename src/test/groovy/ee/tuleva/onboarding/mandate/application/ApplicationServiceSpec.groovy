@@ -299,7 +299,7 @@ class ApplicationServiceSpec extends Specification {
       creationTime == TestClockHolder.now
       with(details) {
         fulfillmentDate == LocalDate.parse("2021-03-17")
-        cancellationDeadline == null
+        cancellationDeadline == Instant.parse("2021-03-11T10:00:00Z")
         depositAccountIBAN == "EE_TEST_IBAN"
         details.getPillar() == 3
       }

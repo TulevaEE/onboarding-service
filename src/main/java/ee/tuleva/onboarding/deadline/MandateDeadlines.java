@@ -52,6 +52,14 @@ public class MandateDeadlines {
     return publicHolidays.addWorkingDays(zonedApplicationDate.toLocalDate(), 4);
   }
 
+  public Instant getThirdPillarWithdrawalCancellationDeadline() {
+    ZoneId timeZone = estonianClock.getZone();
+    ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
+
+    // not cancellable
+    return zonedApplicationDate.toInstant();
+  }
+
   public Instant getTransferMandateCancellationDeadline() {
     return getPeriodEnding();
   }
@@ -116,7 +124,7 @@ public class MandateDeadlines {
               FUND_PENSION_OPENING_THIRD_PILLAR,
               PARTIAL_WITHDRAWAL ->
           getWithdrawalCancellationDeadline();
-      case WITHDRAWAL_THIRD_PILLAR -> null; // TODO
+      case WITHDRAWAL_THIRD_PILLAR -> getThirdPillarWithdrawalCancellationDeadline();
       case EARLY_WITHDRAWAL -> getEarlyWithdrawalCancellationDeadline();
       case PAYMENT_RATE -> getPaymentRateDeadline();
       default -> throw new IllegalArgumentException("Unknown application type: " + applicationType);

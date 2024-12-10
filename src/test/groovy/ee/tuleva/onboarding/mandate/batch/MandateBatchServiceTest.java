@@ -149,8 +149,17 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(true)
+            .canWithdrawThirdPillarWithReducedTax(true)
+            .age(65)
+            .recommendedDurationYears(20)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
     when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(new WithdrawalEligibilityDto(true, true, 65, 20, false));
+        .thenReturn(aWithdrawalEligibility);
     when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
@@ -178,8 +187,17 @@ public class MandateBatchServiceTest {
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(false)
+            .canWithdrawThirdPillarWithReducedTax(false)
+            .age(35)
+            .recommendedDurationYears(50)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
     when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(new WithdrawalEligibilityDto(false, false, 35, 50, false));
+        .thenReturn(aWithdrawalEligibility);
 
     assertThrows(
         IllegalArgumentException.class,

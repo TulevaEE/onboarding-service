@@ -18,15 +18,14 @@ public class WithdrawalEligibilityService {
 
   public WithdrawalEligibilityDto getWithdrawalEligibility(Person person) {
     var fundPensionCalculation = episService.getFundPensionCalculation(person);
-    boolean hasReachedEarlyRetirementAge = hasReachedEarlyRetirementAge(person);
-    boolean canWithdrawFromThirdPillarWithReducedTax = canWithdrawEarlyFromThirdPillar(person);
 
-    return new WithdrawalEligibilityDto(
-        hasReachedEarlyRetirementAge,
-        canWithdrawFromThirdPillarWithReducedTax,
-        PersonalCode.getAge(person.getPersonalCode()),
-        fundPensionCalculation.durationYears(),
-        getArrestsOrBankruptciesPresent(person));
+    return WithdrawalEligibilityDto.builder()
+        .hasReachedEarlyRetirementAge(hasReachedEarlyRetirementAge(person))
+        .canWithdrawThirdPillarWithReducedTax(canWithdrawEarlyFromThirdPillar(person))
+        .age(PersonalCode.getAge(person.getPersonalCode()))
+        .recommendedDurationYears(fundPensionCalculation.durationYears())
+        .arrestsOrBankruptciesPresent(getArrestsOrBankruptciesPresent(person))
+        .build();
   }
 
   private boolean hasReachedEarlyRetirementAge(Person person) {

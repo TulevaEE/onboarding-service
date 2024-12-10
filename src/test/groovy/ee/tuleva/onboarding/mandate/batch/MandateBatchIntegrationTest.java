@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDet
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
+import static ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto.*;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -116,7 +117,9 @@ public class MandateBatchIntegrationTest {
             .build();
 
     when(withdrawalEligibilityService.getWithdrawalEligibility(any()))
-        .thenReturn(new WithdrawalEligibilityDto(true, 65, 20, false));
+        .thenReturn(
+            new WithdrawalEligibilityDto(
+                true, new PillarWithdrawalEligibility(true, true), 65, 20, false));
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
@@ -147,7 +150,9 @@ public class MandateBatchIntegrationTest {
             .build();
 
     when(withdrawalEligibilityService.getWithdrawalEligibility(any()))
-        .thenReturn(new WithdrawalEligibilityDto(false, 30, 55, false));
+        .thenReturn(
+            new WithdrawalEligibilityDto(
+                false, new PillarWithdrawalEligibility(false, false), 30, 55, false));
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 

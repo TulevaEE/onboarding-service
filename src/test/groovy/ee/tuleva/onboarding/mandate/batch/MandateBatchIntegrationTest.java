@@ -115,8 +115,17 @@ public class MandateBatchIntegrationTest {
                     MandateDto.builder().details(aPartialWithdrawalMandateDetails).build()))
             .build();
 
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(true)
+            .canWithdrawThirdPillarWithReducedTax(true)
+            .age(65)
+            .recommendedDurationYears(20)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
     when(withdrawalEligibilityService.getWithdrawalEligibility(any()))
-        .thenReturn(new WithdrawalEligibilityDto(true, true, 65, 20, false));
+        .thenReturn(aWithdrawalEligibility);
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
@@ -146,8 +155,17 @@ public class MandateBatchIntegrationTest {
                     MandateDto.builder().details(aPartialWithdrawalMandateDetails).build()))
             .build();
 
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(false)
+            .canWithdrawThirdPillarWithReducedTax(false)
+            .age(30)
+            .recommendedDurationYears(55)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
     when(withdrawalEligibilityService.getWithdrawalEligibility(any()))
-        .thenReturn(new WithdrawalEligibilityDto(false, false, 30, 55, false));
+        .thenReturn(aWithdrawalEligibility);
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 

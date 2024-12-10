@@ -49,16 +49,13 @@ class WithdrawalEligibilityServiceTest {
     when(episService.getFundPensionCalculation(aPerson))
         .thenReturn(new FundPensionCalculationDto(30));
 
-    when(episService.getContactDetails(aPerson)).thenReturn(aContactDetails);
-
     when(episService.getArrestsBankruptciesPresent(aPerson))
         .thenReturn(new ArrestsBankruptciesDto(false, false));
 
     var result = withdrawalEligibilityService.getWithdrawalEligibility(aPerson);
 
     assertThat(result.hasReachedEarlyRetirementAge()).isTrue();
-    assertThat(result.pillarWithdrawalEligibility().second()).isTrue();
-    assertThat(result.pillarWithdrawalEligibility().third()).isTrue();
+    assertThat(result.canWithdrawThirdPillarWithReducedTax()).isTrue();
     assertThat(result.recommendedDurationYears()).isEqualTo(30);
     assertThat(result.age()).isNotNull();
     assertThat(result.arrestsOrBankruptciesPresent()).isFalse();
@@ -82,8 +79,7 @@ class WithdrawalEligibilityServiceTest {
     var result = withdrawalEligibilityService.getWithdrawalEligibility(aPerson);
 
     assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
-    assertThat(result.pillarWithdrawalEligibility().second()).isFalse();
-    assertThat(result.pillarWithdrawalEligibility().third()).isFalse();
+    assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
     assertThat(result.recommendedDurationYears()).isEqualTo(0);
     assertThat(result.age()).isNotNull();
   }
@@ -106,8 +102,7 @@ class WithdrawalEligibilityServiceTest {
     var result = withdrawalEligibilityService.getWithdrawalEligibility(aPerson);
 
     assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
-    assertThat(result.pillarWithdrawalEligibility().second()).isFalse();
-    assertThat(result.pillarWithdrawalEligibility().third()).isFalse();
+    assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
     assertThat(result.recommendedDurationYears()).isEqualTo(0);
     assertThat(result.age()).isNotNull();
     assertThat(result.arrestsOrBankruptciesPresent()).isTrue();
@@ -131,8 +126,7 @@ class WithdrawalEligibilityServiceTest {
     var result = withdrawalEligibilityService.getWithdrawalEligibility(aPerson);
 
     assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
-    assertThat(result.pillarWithdrawalEligibility().second()).isFalse();
-    assertThat(result.pillarWithdrawalEligibility().third()).isFalse();
+    assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
     assertThat(result.recommendedDurationYears()).isEqualTo(0);
     assertThat(result.age()).isNotNull();
     assertThat(result.arrestsOrBankruptciesPresent()).isTrue();
@@ -175,8 +169,7 @@ class WithdrawalEligibilityServiceTest {
       var result = withdrawalEligibilityService.getWithdrawalEligibility(aPerson);
 
       assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
-      assertThat(result.pillarWithdrawalEligibility().second()).isFalse();
-      assertThat(result.pillarWithdrawalEligibility().third()).isTrue();
+      assertThat(result.canWithdrawThirdPillarWithReducedTax()).isTrue();
       assertThat(result.recommendedDurationYears()).isEqualTo(0);
       assertThat(result.age()).isNotNull();
     }
@@ -211,8 +204,7 @@ class WithdrawalEligibilityServiceTest {
       var result = withdrawalEligibilityService.getWithdrawalEligibility(aPerson);
 
       assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
-      assertThat(result.pillarWithdrawalEligibility().second()).isFalse();
-      assertThat(result.pillarWithdrawalEligibility().third()).isFalse();
+      assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
       assertThat(result.recommendedDurationYears()).isEqualTo(0);
       assertThat(result.age()).isNotNull();
     }
@@ -247,8 +239,7 @@ class WithdrawalEligibilityServiceTest {
       var result = withdrawalEligibilityService.getWithdrawalEligibility(aPerson);
 
       assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
-      assertThat(result.pillarWithdrawalEligibility().second()).isFalse();
-      assertThat(result.pillarWithdrawalEligibility().third()).isFalse();
+      assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
       assertThat(result.recommendedDurationYears()).isEqualTo(0);
       assertThat(result.age()).isNotNull();
     }

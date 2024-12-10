@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.withdrawals;
 
 public record WithdrawalEligibilityDto(
-    @Deprecated boolean hasReachedEarlyRetirementAge,
-    PillarWithdrawalEligibility pillarWithdrawalEligibility, // TODO rename
+    boolean hasReachedEarlyRetirementAge,
+    boolean canWithdrawThirdPillarWithReducedTax,
     int age,
     int recommendedDurationYears,
     boolean arrestsOrBankruptciesPresent) {

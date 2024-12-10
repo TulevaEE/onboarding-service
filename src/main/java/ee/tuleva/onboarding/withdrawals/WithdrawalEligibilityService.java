@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.time.ClockHolder.clock;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
-import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto.PillarWithdrawalEligibility;
 import java.time.ZonedDateTime;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,13 +19,11 @@ public class WithdrawalEligibilityService {
   public WithdrawalEligibilityDto getWithdrawalEligibility(Person person) {
     var fundPensionCalculation = episService.getFundPensionCalculation(person);
     boolean hasReachedEarlyRetirementAge = hasReachedEarlyRetirementAge(person);
-    boolean hasReachedThirdPillarEarlyAge = canWithdrawEarlyFromThirdPillar(person);
+    boolean canWithdrawFromThirdPillarWithReducedTax = canWithdrawEarlyFromThirdPillar(person);
 
     return new WithdrawalEligibilityDto(
         hasReachedEarlyRetirementAge,
-        new PillarWithdrawalEligibility(
-            hasReachedEarlyRetirementAge,
-            hasReachedEarlyRetirementAge || hasReachedThirdPillarEarlyAge),
+        canWithdrawFromThirdPillarWithReducedTax,
         PersonalCode.getAge(person.getPersonalCode()),
         fundPensionCalculation.durationYears(),
         getArrestsOrBankruptciesPresent(person));
@@ -44,6 +41,10 @@ public class WithdrawalEligibilityService {
   }
 
   private boolean canWithdrawEarlyFromThirdPillar(Person person) {
+    if (hasReachedEarlyRetirementAge(person)) {
+      return true;
+    }
+
     var contactDetails = episService.getContactDetails(person);
 
     var ageAtLeast55 = PersonalCode.getAge(person.getPersonalCode()) >= 55;

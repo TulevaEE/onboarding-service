@@ -13,8 +13,6 @@ class PersonFixture {
           .lastName("Valdma")
           .build()
 
-
-
   public static Person sampleRetirementAgePerson =
       PersonImpl.builder()
           .personalCode("36410025793")

@@ -31,6 +31,7 @@ import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
+import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto.PillarWithdrawalEligibility;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.List;
 import java.util.Locale;
@@ -150,7 +151,9 @@ public class MandateBatchServiceTest {
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
     when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(new WithdrawalEligibilityDto(true, 65, 20, false));
+        .thenReturn(
+            new WithdrawalEligibilityDto(
+                true, new PillarWithdrawalEligibility(true, true), 65, 20, false));
     when(genericMandateService.createGenericMandate(any(), any(), any()))
         .thenReturn(aFundPensionOpeningMandate);
     when(mandateBatchRepository.save(
@@ -179,7 +182,9 @@ public class MandateBatchServiceTest {
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
 
     when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
-        .thenReturn(new WithdrawalEligibilityDto(false, 35, 50, false));
+        .thenReturn(
+            new WithdrawalEligibilityDto(
+                false, new PillarWithdrawalEligibility(false, false), 35, 50, false));
 
     assertThrows(
         IllegalArgumentException.class,

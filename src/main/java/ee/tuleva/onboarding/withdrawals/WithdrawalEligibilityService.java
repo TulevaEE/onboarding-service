@@ -46,6 +46,10 @@ public class WithdrawalEligibilityService {
 
     var contactDetails = episService.getContactDetails(person);
 
+    if (contactDetails.getThirdPillarInitDate() == null) {
+      return false;
+    }
+
     var ageAtLeast55 = PersonalCode.getAge(person.getPersonalCode()) >= 55;
 
     var fiveYearsAgo = ZonedDateTime.now(clock().getZone()).minusYears(5).toInstant();

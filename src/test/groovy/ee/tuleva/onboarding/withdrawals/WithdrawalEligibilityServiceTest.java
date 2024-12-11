@@ -144,6 +144,40 @@ class WithdrawalEligibilityServiceTest {
     @Test
     @DisplayName(
         "calculates withdrawal eligibility for those over 55 with III pillar for 5 years and III pillar opened before 2021")
+    void shouldCalculateWithdrawalEligibilityWithoutThirdPillar() {
+      Clock clock2028 = Clock.fixed(Instant.parse("2028-04-01T10:00:00Z"), UTC);
+      // 55 years old
+      var aPerson =
+          PersonImpl.builder()
+              .personalCode("37212305258")
+              .firstName("Jürto")
+              .lastName("Nii-Dommzonn")
+              .build();
+      ClockHolder.setClock(clock2028);
+
+      var aContactDetails = contactDetailsFixture();
+      aContactDetails.setPersonalCode(aPerson.getPersonalCode());
+      aContactDetails.setThirdPillarInitDate(null);
+
+      when(episService.getContactDetails(aPerson)).thenReturn(aContactDetails);
+
+      when(episService.getFundPensionCalculation(aPerson))
+          .thenReturn(new FundPensionCalculationDto(0));
+
+      when(episService.getArrestsBankruptciesPresent(aPerson))
+          .thenReturn(new ArrestsBankruptciesDto(false, false));
+
+      var result = withdrawalEligibilityService.getWithdrawalEligibility(aPerson);
+
+      assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
+      assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
+      assertThat(result.recommendedDurationYears()).isEqualTo(0);
+      assertThat(result.age()).isNotNull();
+    }
+
+    @Test
+    @DisplayName(
+        "calculates withdrawal eligibility for those over 55 with III pillar for 5 years and III pillar opened before 2021")
     void shouldCalculateWithdrawalEligibilityEarlyThirdPillar() {
       Clock clock2028 = Clock.fixed(Instant.parse("2028-04-01T10:00:00Z"), UTC);
       // 55 years old

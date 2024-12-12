@@ -21,13 +21,15 @@ import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldNameConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -44,14 +46,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Profile("!mock")
 public class EpisService {
 
-  private final String APPLICATIONS_CACHE_NAME = "applications";
-  private final String CONTACT_DETAILS_CACHE_NAME = "contactDetails";
-  private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
-  private final String CASH_FLOW_STATEMENT_CACHE_NAME = "cashFlowStatement";
-  private final String FUNDS_CACHE_NAME = "funds";
-  private final String CONTRIBUTIONS_CACHE_NAME = "contributions";
-  private final String FUND_PENSION_CALCULATION_CACHE_NAME = "fundPensionCalculation";
-  private final String ARRESTS_BANKRUPTCIES_CACHE_NAME = "arrestsBankruptcies";
+  private final CacheManager cacheManager;
 
   private final RestTemplate restTemplate;
   private final JwtTokenUtil jwtTokenUtil;
@@ -59,7 +54,10 @@ public class EpisService {
   @Value("${epis.service.url}")
   String episServiceUrl;
 
-  @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = EpisCacheIdentifier.Fields.APPLICATIONS_CACHE,
+      key = "#person.personalCode",
+      sync = true)
   public List<ApplicationDTO> getApplications(Person person) {
     String url = episServiceUrl + "/applications";
 
@@ -72,7 +70,7 @@ public class EpisService {
   }
 
   @Cacheable(
-      value = CASH_FLOW_STATEMENT_CACHE_NAME,
+      value = EpisCacheIdentifier.Fields.CASH_FLOW_STATEMENT_CACHE,
       key = "{ #person.personalCode, #fromDate, #toDate }",
       sync = true)
   public CashFlowStatement getCashFlowStatement(
@@ -88,25 +86,29 @@ public class EpisService {
     return restTemplate.exchange(url, GET, getHeadersEntity(), CashFlowStatement.class).getBody();
   }
 
-  @Caching(
-      evict = {
-        @CacheEvict(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = FUND_PENSION_CALCULATION_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = ARRESTS_BANKRUPTCIES_CACHE_NAME, key = "#person.personalCode"),
-      })
   public void clearCache(Person person) {
     log.info("Clearing cache for {}", person.getPersonalCode());
+    Arrays.stream(EpisCacheIdentifier.values())
+        .forEach(
+            cache -> {
+              if (cache.shouldEvict()) {
+                cacheManager.getCache(cache.name()).evict(person.getPersonalCode());
+              }
+            });
   }
 
-  @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = EpisCacheIdentifier.Fields.CONTACT_DETAILS_CACHE,
+      key = "#person.personalCode",
+      sync = true)
   public ContactDetails getContactDetails(Person person) {
     return getContactDetails(person, userJwtToken());
   }
 
-  @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = EpisCacheIdentifier.Fields.CONTACT_DETAILS_CACHE,
+      key = "#person.personalCode",
+      sync = true)
   public ContactDetails getContactDetails(Person person, String jwtToken) {
     String url = episServiceUrl + "/contact-details";
 
@@ -118,7 +120,10 @@ public class EpisService {
     return response.getBody();
   }
 
-  @Cacheable(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = EpisCacheIdentifier.Fields.ACCOUNT_STATEMENT_CACHE,
+      key = "#person.personalCode",
+      sync = true)
   public List<FundBalanceDto> getAccountStatement(Person person) {
     String url = episServiceUrl + "/account-statement";
 
@@ -130,7 +135,10 @@ public class EpisService {
     return asList(response.getBody());
   }
 
-  @Cacheable(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = EpisCacheIdentifier.Fields.CONTRIBUTIONS_CACHE,
+      key = "#person.personalCode",
+      sync = true)
   public List<Contribution> getContributions(Person person) {
     String url = episServiceUrl + "/contributions";
 
@@ -142,7 +150,7 @@ public class EpisService {
     return asList(response.getBody());
   }
 
-  @Cacheable(value = FUNDS_CACHE_NAME, unless = "#result.isEmpty()")
+  @Cacheable(value = EpisCacheIdentifier.Fields.FUNDS_CACHE, unless = "#result.isEmpty()")
   public List<FundDto> getFunds() {
     String url = episServiceUrl + "/funds";
 
@@ -154,7 +162,10 @@ public class EpisService {
     return asList(response.getBody());
   }
 
-  @Cacheable(value = FUND_PENSION_CALCULATION_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = EpisCacheIdentifier.Fields.FUND_PENSION_CALCULATION_CACHE,
+      key = "#person.personalCode",
+      sync = true)
   public FundPensionCalculationDto getFundPensionCalculation(Person person) {
     String url = episServiceUrl + "/fund-pension-calculation";
 
@@ -166,7 +177,10 @@ public class EpisService {
     return response.getBody();
   }
 
-  @Cacheable(value = ARRESTS_BANKRUPTCIES_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Cacheable(
+      value = EpisCacheIdentifier.Fields.ARRESTS_BANKRUPTCIES_CACHE,
+      key = "#person.personalCode",
+      sync = true)
   public ArrestsBankruptciesDto getArrestsBankruptciesPresent(Person person) {
     String url = episServiceUrl + "/arrests-bankruptcies";
 
@@ -207,7 +221,9 @@ public class EpisService {
         url, new HttpEntity<>(paymentRateDto, getUserHeaders()), ApplicationResponse.class);
   }
 
-  @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
+  @CacheEvict(
+      value = EpisCacheIdentifier.Fields.CONTACT_DETAILS_CACHE,
+      key = "#person.personalCode")
   public ContactDetails updateContactDetails(Person person, ContactDetails contactDetails) {
     String url = episServiceUrl + "/contact-details";
 
@@ -252,5 +268,29 @@ public class EpisService {
 
   private String serviceJwtToken() {
     return jwtTokenUtil.generateServiceToken();
+  }
+
+  @FieldNameConstants(onlyExplicitlyIncluded = true)
+  private enum EpisCacheIdentifier {
+    @FieldNameConstants.Include
+    APPLICATIONS_CACHE(),
+    @FieldNameConstants.Include
+    CONTACT_DETAILS_CACHE(),
+    @FieldNameConstants.Include
+    ACCOUNT_STATEMENT_CACHE(),
+    @FieldNameConstants.Include
+    CASH_FLOW_STATEMENT_CACHE(),
+    @FieldNameConstants.Include
+    FUNDS_CACHE(),
+    @FieldNameConstants.Include
+    CONTRIBUTIONS_CACHE(),
+    @FieldNameConstants.Include
+    FUND_PENSION_CALCULATION_CACHE(),
+    @FieldNameConstants.Include
+    ARRESTS_BANKRUPTCIES_CACHE();
+
+    public boolean shouldEvict() {
+      return this != FUNDS_CACHE;
+    }
   }
 }

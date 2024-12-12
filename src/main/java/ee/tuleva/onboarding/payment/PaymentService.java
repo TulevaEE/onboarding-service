@@ -38,7 +38,7 @@ public class PaymentService {
 
   @Trackable(PAYMENT_LINK)
   PaymentLink getLink(PaymentData paymentData, Person person) {
-    publishAmlCheckEvent(person);
+    publishAmlCheckEvent(person, paymentData);
     return switch (paymentData.getType()) {
       case SINGLE, GIFT, MEMBER_FEE ->
           singlePaymentLinkGenerator.getPaymentLink(paymentData, person);
@@ -58,11 +58,12 @@ public class PaymentService {
     return paymentOptional;
   }
 
-  private void publishAmlCheckEvent(Person person) {
+  private void publishAmlCheckEvent(Person person, PaymentData paymentData) {
     var user = userService.findByPersonalCode(person.getPersonalCode()).orElseThrow();
     var address = episService.getContactDetails(person).getAddress();
 
-    applicationEventPublisher.publishEvent(new BeforePaymentLinkCreatedEvent(this, user, address));
+    applicationEventPublisher.publishEvent(
+        new BeforePaymentLinkCreatedEvent(this, user, address, paymentData));
   }
 
   private void registerMemberPayment(Payment payment) {

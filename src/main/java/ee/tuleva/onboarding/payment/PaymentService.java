@@ -4,7 +4,9 @@ import static ee.tuleva.onboarding.event.TrackableEventType.PAYMENT_LINK;
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.event.annotation.Trackable;
+import ee.tuleva.onboarding.mandate.event.BeforePaymentLinkCreatedEvent;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService;
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentLinkGenerator;
 import ee.tuleva.onboarding.user.User;
@@ -13,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
@@ -25,6 +28,8 @@ public class PaymentService {
   private final RecurringPaymentLinkGenerator recurringPaymentLinkGenerator;
   private final MontonioCallbackService montonioCallbackService;
   private final UserService userService;
+  private final ApplicationEventPublisher applicationEventPublisher;
+  private final EpisService episService;
 
   public List<Payment> getThirdPillarPayments(Person person) {
     return paymentRepository.findAllByRecipientPersonalCodeAndPaymentTypeNot(
@@ -33,6 +38,7 @@ public class PaymentService {
 
   @Trackable(PAYMENT_LINK)
   PaymentLink getLink(PaymentData paymentData, Person person) {
+    publishAmlCheckEvent(person);
     return switch (paymentData.getType()) {
       case SINGLE, GIFT, MEMBER_FEE ->
           singlePaymentLinkGenerator.getPaymentLink(paymentData, person);
@@ -50,6 +56,13 @@ public class PaymentService {
         });
 
     return paymentOptional;
+  }
+
+  private void publishAmlCheckEvent(Person person) {
+    var user = userService.findByPersonalCode(person.getPersonalCode()).orElseThrow();
+    var address = episService.getContactDetails(person).getAddress();
+
+    applicationEventPublisher.publishEvent(new BeforePaymentLinkCreatedEvent(this, user, address));
   }
 
   private void registerMemberPayment(Payment payment) {

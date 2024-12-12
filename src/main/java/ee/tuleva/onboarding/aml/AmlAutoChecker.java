@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
+import ee.tuleva.onboarding.mandate.event.BeforePaymentLinkCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.address.Address;
@@ -71,6 +72,18 @@ public class AmlAutoChecker {
     }
 
     if (!amlService.allChecksPassed(user, pillar)) {
+      throw AmlChecksMissingException.newInstance();
+    }
+  }
+
+  @EventListener
+  public void beforePaymentLinkCreated(BeforePaymentLinkCreatedEvent event) {
+    User user = event.getUser();
+    Address address = event.getAddress();
+
+    amlService.addSanctionAndPepCheckIfMissing(user, address);
+
+    if (!amlService.allChecksPassed(user, 3)) {
       throw AmlChecksMissingException.newInstance();
     }
   }

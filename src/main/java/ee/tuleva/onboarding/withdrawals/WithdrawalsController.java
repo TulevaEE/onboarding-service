@@ -19,6 +19,14 @@ public class WithdrawalsController {
   public static final String WITHDRAWALS_URI = "/withdrawals";
 
   private final WithdrawalEligibilityService withdrawalEligibilityService;
+  private final FundPensionStatusService fundPensionStatusService;
+
+  @Operation(summary = "Get fund pension status")
+  @GetMapping("/fund-pension-status")
+  public FundPensionStatus getFundPensionStatus(
+      @AuthenticationPrincipal AuthenticatedPerson user) {
+    return fundPensionStatusService.getFundPensionStatus(user);
+  }
 
   @Operation(summary = "Get withdrawal eligibility")
   @GetMapping("/eligibility")

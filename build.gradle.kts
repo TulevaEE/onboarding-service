@@ -110,7 +110,7 @@ dependencies {
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
     implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.18.0")
-    implementation("io.sentry:sentry-logback:7.18.0")
+    implementation("io.sentry:sentry-logback:7.19.0")
 
     implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.9.0")
 

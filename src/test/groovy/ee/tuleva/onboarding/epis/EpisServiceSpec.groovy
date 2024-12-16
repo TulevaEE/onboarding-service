@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto
+import org.springframework.cache.Cache
 import org.springframework.cache.CacheManager
 import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
@@ -250,6 +251,26 @@ class EpisServiceSpec extends Specification {
 
     then:
     response.durationYears() == 20
+  }
+
+  def "evicts correct cache"() {
+    given:
+
+    def aPerson = samplePerson()
+
+    def aCache = Mock(Cache)
+
+    7 * cacheManager.getCache({ String name -> {
+      EpisService.EpisCacheIdentifier.values().any {t -> (t.name() == name) && t.shouldEvict()}
+    }}) >> aCache
+
+    7 * aCache.evict(aPerson.getPersonalCode()) >> null
+
+    when:
+    service.clearCache(samplePerson)
+
+    then:
+    true
   }
 
   boolean doesHttpEntityContainToken(HttpEntity httpEntity, String sampleToken) {

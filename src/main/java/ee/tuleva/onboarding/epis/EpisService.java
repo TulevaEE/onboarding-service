@@ -269,7 +269,7 @@ public class EpisService {
   }
 
   @FieldNameConstants(onlyExplicitlyIncluded = true)
-  private enum EpisCacheIdentifier {
+  enum EpisCacheIdentifier {
     @FieldNameConstants.Include
     APPLICATIONS_CACHE(),
     @FieldNameConstants.Include

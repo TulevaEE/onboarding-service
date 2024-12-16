@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto
+import org.springframework.cache.CacheManager
 import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -39,7 +40,8 @@ class EpisServiceSpec extends Specification {
 
   RestTemplate restTemplate = Mock(RestTemplate)
   JwtTokenUtil jwtTokenUtil = Mock(JwtTokenUtil)
-  EpisService service = new EpisService(restTemplate, jwtTokenUtil)
+  CacheManager cacheManager = Mock(CacheManager)
+  EpisService service = new EpisService(restTemplate, jwtTokenUtil, cacheManager)
 
   String sampleToken = "123"
   String sampleServiceToken = "123456"

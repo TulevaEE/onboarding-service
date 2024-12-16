@@ -45,11 +45,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 @RequiredArgsConstructor
 @Profile("!mock")
 public class EpisService {
-
-  private final CacheManager cacheManager;
-
   private final RestTemplate restTemplate;
   private final JwtTokenUtil jwtTokenUtil;
+  private final CacheManager cacheManager;
 
   @Value("${epis.service.url}")
   String episServiceUrl;

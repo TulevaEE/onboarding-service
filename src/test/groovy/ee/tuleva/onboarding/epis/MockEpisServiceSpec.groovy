@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto
+import org.springframework.cache.CacheManager
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
@@ -20,7 +21,7 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 
 class MockEpisServiceSpec extends Specification {
 
-  EpisService episService = new MockEpisService(Mock(RestTemplate))
+  EpisService episService = new MockEpisService(Mock(RestTemplate), Mock(CacheManager))
 
   def "getApplications has a mock response"() {
     when:

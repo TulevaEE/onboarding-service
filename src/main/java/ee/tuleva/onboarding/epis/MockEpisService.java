@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
@@ -54,8 +55,8 @@ public class MockEpisService extends EpisService {
   @Value("${epis.service.url}")
   String episServiceUrl;
 
-  public MockEpisService(RestTemplate restTemplate) {
-    super(restTemplate, null);
+  public MockEpisService(RestTemplate restTemplate, CacheManager cacheManager) {
+    super(restTemplate, null, cacheManager);
   }
 
   @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode", sync = true)

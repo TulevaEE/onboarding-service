@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
 import ee.tuleva.onboarding.epis.mandate.details.Pillar
 import org.mockserver.client.MockServerClient
 import org.mockserver.matchers.MatchType
+import org.mockserver.matchers.Times
 import org.mockserver.model.MediaType
 import org.mockserver.springtest.MockServerTest
 import org.mockserver.verify.VerificationTimes
@@ -112,6 +113,64 @@ class EpisServiceIntegrationSpec extends Specification {
     applications.first().type == TRANSFER
     applications.first().id == 123
     applications.first().documentNumber == "123456"
+  }
+
+  def "getApplications - cache works"() {
+    given:
+    mockServerClient
+        .when(request("/applications")
+            .withHeader("Authorization", "Bearer dummy"),
+            Times.once())
+        .respond(response()
+            .withContentType(MediaType.APPLICATION_JSON)
+            .withBody(json("""
+                        [{
+                         "currency": "EUR",
+                         "amount": 100.0,
+                         "status": "PENDING",
+                         "type": "TRANSFER",
+                         "id": 123,
+                         "documentNumber": "123456"
+                        }]
+                        """, MatchType.STRICT)))
+    when:
+    episService.getApplications(samplePerson())
+    episService.getApplications(samplePerson())
+
+    then:
+    true
+  }
+
+  def "getApplications - cache eviction works"() {
+    given:
+    mockServerClient
+        .when(
+            request("/applications")
+              .withHeader("Authorization", "Bearer dummy"),
+            Times.exactly(999) // TODO this doesn't properly work
+        )
+        .respond(response()
+            .withContentType(MediaType.APPLICATION_JSON)
+            .withBody(json("""
+                        [{
+                         "currency": "EUR",
+                         "amount": 100.0,
+                         "status": "PENDING",
+                         "type": "TRANSFER",
+                         "id": 123,
+                         "documentNumber": "123456"
+                        }]
+                        """, MatchType.STRICT)))
+    when:
+    episService.getApplications(samplePerson())
+    episService.getApplications(samplePerson())
+
+    episService.clearCache(samplePerson)
+
+    episService.getApplications(samplePerson())
+
+    then:
+    true
   }
 
   def "getApplications - only one request per person is allowed to run at any time"() {

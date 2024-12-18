@@ -7,7 +7,7 @@ import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.crypto.MACVerifier;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.payment.PaymentRepository;
-import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent;
+import ee.tuleva.onboarding.payment.event.AfterPaymentDoneEvent;
 import ee.tuleva.onboarding.payment.provider.PaymentReference;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -70,7 +70,7 @@ public class MontonioCallbackService {
 
     Payment payment = paymentRepository.save(paymentToBeSaved);
     eventPublisher.publishEvent(
-        new PaymentCreatedEvent(this, user, payment, internalReference.getLocale()));
+        new AfterPaymentDoneEvent(this, user, payment, internalReference.getLocale()));
 
     return Optional.of(payment);
   }

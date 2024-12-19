@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.withdrawals;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationStatus
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
-import ee.tuleva.onboarding.epis.mandate.details.Pillar
 import org.mockserver.client.MockServerClient
 import org.mockserver.matchers.MatchType
 import org.mockserver.model.MediaType
@@ -41,7 +40,7 @@ import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMand
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleEarlyWithdrawalCancellation
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleTransferCancellation
 import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleWithdrawalCancellation
-import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 import static org.mockserver.model.HttpRequest.request

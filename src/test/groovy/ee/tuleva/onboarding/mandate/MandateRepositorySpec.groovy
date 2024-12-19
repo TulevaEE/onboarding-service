@@ -1,17 +1,16 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.onboarding.epis.mandate.details.Pillar
+
 import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
 import ee.tuleva.onboarding.user.User
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager
 import spock.lang.Specification
 
 import java.time.Instant
 
-import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.mandate.MandateType.TRANSFER_CANCELLATION
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 

@@ -20,7 +20,7 @@ import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
-import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatus;
+import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -169,13 +169,13 @@ public class EpisService {
   }
 
   @Cacheable(value = FUND_PENSION_STATUS_CACHE_NAME, key = "#person.personalCode", sync = true)
-  public FundPensionStatus getFundPensionStatus(Person person) {
+  public FundPensionStatusDto getFundPensionStatus(Person person) {
     String url = episServiceUrl + "/fund-pension-status";
 
     log.info("Getting fund pension status for {}", person.getPersonalCode());
 
-    ResponseEntity<FundPensionStatus> response =
-        restTemplate.exchange(url, GET, getHeadersEntity(), FundPensionStatus.class);
+    ResponseEntity<FundPensionStatusDto> response =
+        restTemplate.exchange(url, GET, getHeadersEntity(), FundPensionStatusDto.class);
 
     return response.getBody();
   }

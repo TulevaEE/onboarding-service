@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.withdrawals;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
-import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatus;
+import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -21,9 +21,9 @@ public class FundPensionStatusService {
       log.info(
           "Skipping fund pension status query, defaulting to false for under 55: {}",
           person.getPersonalCode());
-      return new FundPensionStatus(List.of(), List.of());
+      return new FundPensionStatus(List.of());
     }
 
-    return episService.getFundPensionStatus(person);
+    return FundPensionStatus.from(episService.getFundPensionStatus(person));
   }
 }

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.mandate
 
 import ee.tuleva.onboarding.epis.mandate.GenericMandateDto
 import ee.tuleva.onboarding.epis.mandate.details.EarlyWithdrawalCancellationMandateDetails
-import ee.tuleva.onboarding.epis.mandate.details.Pillar
 import ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails
 import ee.tuleva.onboarding.epis.mandate.details.WithdrawalCancellationMandateDetails
 import jakarta.validation.ConstraintViolation
@@ -11,7 +10,7 @@ import jakarta.validation.Validator
 import spock.lang.Specification
 import spock.lang.Unroll
 
-import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 
 class MandateSpec extends Specification {

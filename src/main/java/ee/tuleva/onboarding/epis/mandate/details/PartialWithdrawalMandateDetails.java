@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import ee.tuleva.onboarding.pillar.Pillar;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.util.List;

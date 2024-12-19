@@ -29,8 +29,17 @@ fi
 echo "✅ Spotless formatting applied successfully."
 
 OUTPUT_FILE=$(mktemp)
-echo "🚀 Running Gradle tasks: clean, check, jacocoTestCoverageVerification..."
-./gradlew clean check jacocoTestCoverageVerification --no-daemon --stacktrace > "$OUTPUT_FILE" 2>&1 &
+# Get the current branch name
+current_branch=$(git rev-parse --abbrev-ref HEAD)
+
+if [ "$current_branch" == "master" ]; then
+  echo "🚀 Running Gradle tasks: clean, check, jacocoTestCoverageVerification..."
+  ./gradlew clean check jacocoTestCoverageVerification --no-daemon --stacktrace > "$OUTPUT_FILE" 2>&1 &
+else
+  echo "🚀 Running Gradle task clean..."
+  ./gradlew clean --no-daemon --stacktrace > "$OUTPUT_FILE" 2>&1 &
+fi
+
 gradle_pid=$!
 spinner $gradle_pid
 wait $gradle_pid

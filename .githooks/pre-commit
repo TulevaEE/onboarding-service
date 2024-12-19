@@ -32,14 +32,13 @@ OUTPUT_FILE=$(mktemp)
 # Get the current branch name
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
-if [ "$current_branch" == "master" ]; then
-  echo "🚀 Running Gradle tasks: clean, check, jacocoTestCoverageVerification..."
-  ./gradlew clean check jacocoTestCoverageVerification --no-daemon --stacktrace > "$OUTPUT_FILE" 2>&1 &
-else
-  echo "🚀 Running Gradle task clean..."
-  ./gradlew clean --no-daemon --stacktrace > "$OUTPUT_FILE" 2>&1 &
+if [ "$current_branch" != "master" ]; then
+  echo "️⚠️Skipping test run as not on master"
+  exit 0
 fi
 
+echo "🚀 Running Gradle tasks: clean, check, jacocoTestCoverageVerification..."
+./gradlew clean check jacocoTestCoverageVerification --no-daemon --stacktrace > "$OUTPUT_FILE" 2>&1 &
 gradle_pid=$!
 spinner $gradle_pid
 wait $gradle_pid

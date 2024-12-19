@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.epis.mandate.details;
+package ee.tuleva.onboarding.pillar;
 
 import java.util.Arrays;
 

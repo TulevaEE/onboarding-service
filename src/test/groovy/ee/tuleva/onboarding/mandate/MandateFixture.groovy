@@ -13,8 +13,8 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN
-import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND
-import static ee.tuleva.onboarding.epis.mandate.details.Pillar.THIRD
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND
+import static ee.tuleva.onboarding.pillar.Pillar.THIRD
 import static ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails.fromFundTransferExchanges
 import static ee.tuleva.onboarding.mandate.Mandate.MandateBuilder
 import static ee.tuleva.onboarding.mandate.Mandate.builder

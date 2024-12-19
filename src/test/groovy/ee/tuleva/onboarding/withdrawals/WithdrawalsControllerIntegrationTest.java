@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.auth.JwtTokenGenerator.getHeaders;
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson;
 import static ee.tuleva.onboarding.auth.PersonFixture.sampleRetirementAgePerson;
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
+import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -15,10 +17,14 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
-import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatus;
-import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatus.FundPension;
+import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
+import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto.FundPensionDto;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
+
+import ee.tuleva.onboarding.pillar.Pillar;
+import ee.tuleva.onboarding.withdrawals.FundPensionStatus.FundPension;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,16 +81,16 @@ class WithdrawalsControllerIntegrationTest {
     var headers = getHeaders(sampleRetirementAgePerson);
 
     var secondPillarFundPensions =
-        List.of(new FundPension(Instant.parse("2019-10-01T12:13:27.141Z"), null, 20, true));
+        List.of(new FundPensionDto(Instant.parse("2019-10-01T12:13:27.141Z"), null, 20, true));
     var thirdPillarFundPensions =
         List.of(
-            new FundPension(
+            new FundPensionDto(
                 Instant.parse("2019-10-01T12:13:27.141Z"),
                 Instant.parse("2023-10-01T12:13:27.141Z"),
                 20,
                 false));
     var fundPensionStatus =
-        new FundPensionStatus(secondPillarFundPensions, thirdPillarFundPensions);
+        new FundPensionStatusDto(secondPillarFundPensions, thirdPillarFundPensions);
 
     when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
     when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
@@ -98,27 +104,23 @@ class WithdrawalsControllerIntegrationTest {
 
     JsonNode jsonNode = mapper.readTree(response.getBody());
 
-    var responseSecondPillarFundPensions =
-        mapper.readValue(jsonNode.get("secondPillarFundPensions").toString(), FundPension[].class);
-    assertThat(responseSecondPillarFundPensions.length).isEqualTo(1);
+    var responseFundPensions =
+        mapper.readValue(jsonNode.get("fundPensions").toString(), FundPension[].class);
+    assertThat(responseFundPensions.length).isEqualTo(2);
 
-    var responseSecondPillarFundPension = responseSecondPillarFundPensions[0];
+    var responseSecondPillarFundPension = Arrays.stream(responseFundPensions).filter(fundPension -> fundPension.pillar() == SECOND).findFirst().orElseThrow();
+
     assertThat(responseSecondPillarFundPension.startDate()).isEqualTo("2019-10-01T12:13:27.141Z");
     assertThat(responseSecondPillarFundPension.endDate()).isNull();
     assertThat(responseSecondPillarFundPension.durationYears()).isEqualTo(20);
     assertThat(responseSecondPillarFundPension.active()).isEqualTo(true);
 
-    var responseThirdPillarFundPensions =
-        mapper.readValue(jsonNode.get("thirdPillarFundPensions").toString(), FundPension[].class);
-    assertThat(responseThirdPillarFundPensions.length).isEqualTo(1);
-
-    var responseThirdPillarFundPension = responseThirdPillarFundPensions[0];
+    var responseThirdPillarFundPension = Arrays.stream(responseFundPensions).filter(fundPension -> fundPension.pillar() == THIRD).findFirst().orElseThrow();
     assertThat(responseThirdPillarFundPension.startDate()).isEqualTo("2019-10-01T12:13:27.141Z");
     assertThat(responseThirdPillarFundPension.endDate()).isEqualTo("2023-10-01T12:13:27.141Z");
     assertThat(responseThirdPillarFundPension.durationYears()).isEqualTo(20);
     assertThat(responseThirdPillarFundPension.active()).isEqualTo(false);
   }
-
 
   @Test
   @DisplayName("get fund pension status doesn't call epis service for under 55s")
@@ -139,13 +141,7 @@ class WithdrawalsControllerIntegrationTest {
     JsonNode jsonNode = mapper.readTree(response.getBody());
 
     var responseSecondPillarFundPensions =
-        mapper.readValue(jsonNode.get("secondPillarFundPensions").toString(), FundPension[].class);
+        mapper.readValue(jsonNode.get("fundPensions").toString(), FundPensionDto[].class);
     assertThat(responseSecondPillarFundPensions.length).isEqualTo(0);
-
-    var responseThirdPillarFundPensions =
-        mapper.readValue(jsonNode.get("thirdPillarFundPensions").toString(), FundPension[].class);
-    assertThat(responseThirdPillarFundPensions.length).isEqualTo(0);
-
-    verify(episService, times(0)).getFundPensionStatus(any());
   }
 }

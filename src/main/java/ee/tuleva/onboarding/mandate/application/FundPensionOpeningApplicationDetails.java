@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.mandate.application;
 
-import static ee.tuleva.onboarding.epis.mandate.details.Pillar.SECOND;
-import static ee.tuleva.onboarding.epis.mandate.details.Pillar.THIRD;
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.*;
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
+import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO.FundPensionDetails;
-import ee.tuleva.onboarding.epis.mandate.details.Pillar;
+import ee.tuleva.onboarding.pillar.Pillar;
 import java.time.Instant;
 import java.time.LocalDate;
 import lombok.Data;

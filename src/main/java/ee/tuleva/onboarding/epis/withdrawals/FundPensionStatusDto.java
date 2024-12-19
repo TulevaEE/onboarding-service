@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.epis.withdrawals;
 import java.time.Instant;
 import java.util.List;
 
-public record FundPensionStatus(
-    List<FundPension> secondPillarFundPensions, List<FundPension> thirdPillarFundPensions) {
-  public record FundPension(
+public record FundPensionStatusDto(
+    List<FundPensionDto> secondPillarFundPensions, List<FundPensionDto> thirdPillarFundPensions) {
+  public record FundPensionDto(
       Instant startDate, Instant endDate, int durationYears, boolean active) {}
 }

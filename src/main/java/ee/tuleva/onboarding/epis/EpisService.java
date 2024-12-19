@@ -97,6 +97,7 @@ public class EpisService {
         @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = CONTRIBUTIONS_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = FUND_PENSION_CALCULATION_CACHE_NAME, key = "#person.personalCode"),
+        @CacheEvict(value = FUND_PENSION_STATUS_CACHE_NAME, key = "#person.personalCode"),
         @CacheEvict(value = ARRESTS_BANKRUPTCIES_CACHE_NAME, key = "#person.personalCode"),
       })
   public void clearCache(Person person) {

@@ -33,7 +33,7 @@ OUTPUT_FILE=$(mktemp)
 current_branch=$(git rev-parse --abbrev-ref HEAD)
 
 if [ "$current_branch" != "master" ]; then
-  echo "️⚠️Skipping test run as not on master"
+  echo "️⚠️ Skipping test run as not on master"
   exit 0
 fi
 

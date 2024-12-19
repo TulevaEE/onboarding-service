@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto
+import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto
 import org.springframework.http.HttpEntity
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.Authentication
@@ -248,6 +249,21 @@ class EpisServiceSpec extends Specification {
 
     then:
     response.durationYears() == 20
+  }
+
+  def "can get fund pension status"() {
+    given:
+    def fundPensionStatusDto = new FundPensionStatusDto(List.of(), List.of())
+
+    1 * restTemplate.exchange(_ as String, GET, {HttpEntity httpEntity ->
+      doesHttpEntityContainToken(httpEntity, sampleToken)
+    }, FundPensionStatusDto.class) >> new ResponseEntity<FundPensionStatusDto>(fundPensionStatusDto, OK)
+
+    when:
+    def response = service.getFundPensionStatus(samplePerson)
+
+    then:
+    response == fundPensionStatusDto
   }
 
   boolean doesHttpEntityContainToken(HttpEntity httpEntity, String sampleToken) {

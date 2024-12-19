@@ -81,7 +81,7 @@ public class Mandate implements Serializable {
   private MandateDetails details;
 
   @Nullable
-  @ManyToOne(fetch = FetchType.EAGER)
+  @ManyToOne(cascade = CascadeType.PERSIST, fetch = FetchType.EAGER)
   @JoinColumn(
       name = "mandate_batch_id",
       referencedColumnName = "id",

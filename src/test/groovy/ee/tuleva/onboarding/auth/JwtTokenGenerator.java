@@ -8,6 +8,7 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.jwt.TokenType;
+import ee.tuleva.onboarding.auth.principal.Person;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.InputStream;
@@ -21,7 +22,7 @@ import org.springframework.http.HttpHeaders;
 public class JwtTokenGenerator {
 
   public static HttpHeaders getHeaders() {
-    var jwtToken = JwtTokenGenerator.generateDefaultJwtToken();
+    var jwtToken = JwtTokenGenerator.generateDefaultJwtToken(samplePerson());
 
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(APPLICATION_JSON);
@@ -30,9 +31,19 @@ public class JwtTokenGenerator {
     return headers;
   }
 
-  public static String generateDefaultJwtToken() {
+  public static HttpHeaders getHeaders(Person person) {
+    var jwtToken = JwtTokenGenerator.generateDefaultJwtToken(person);
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.setContentType(APPLICATION_JSON);
+    headers.add("Authorization", "Bearer " + jwtToken);
+
+    return headers;
+  }
+
+  public static String generateDefaultJwtToken(Person person) {
     return JwtTokenGenerator.generateToken(
-        List.of("ROLE_USER"), "test-jwt-keystore.p12", "Kalamaja123", "jwt", "Kalamaja123");
+        List.of("ROLE_USER"), "test-jwt-keystore.p12", "Kalamaja123", "jwt", "Kalamaja123", person);
   }
 
   public static String generateToken(
@@ -40,7 +51,8 @@ public class JwtTokenGenerator {
       String keystorePath,
       String keystorePassword,
       String alias,
-      String keyPassword) {
+      String keyPassword,
+      Person person) {
     try {
       KeyStore keyStore = KeyStore.getInstance("PKCS12");
 
@@ -58,14 +70,12 @@ public class JwtTokenGenerator {
         throw new RuntimeException("Private key is null for alias: " + alias);
       }
 
-      var aPerson = samplePerson();
-
       return Jwts.builder()
-          .setSubject(aPerson.getPersonalCode())
+          .setSubject(person.getPersonalCode())
           .claim("authorities", authorities)
           .claim(TOKEN_TYPE.getValue(), TokenType.ACCESS)
-          .claim(FIRST_NAME.getValue(), aPerson.getFirstName())
-          .claim(LAST_NAME.getValue(), aPerson.getLastName())
+          .claim(FIRST_NAME.getValue(), person.getFirstName())
+          .claim(LAST_NAME.getValue(), person.getLastName())
           .claim(ATTRIBUTES.getValue(), Map.of(PHONE_NUMBER, "+372 555 5555"))
           .claim(AUTHORITIES.getValue(), List.of(Authority.USER))
           .setIssuedAt(new Date())

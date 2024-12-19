@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.withdrawals;
 import static ee.tuleva.onboarding.withdrawals.WithdrawalsController.WITHDRAWALS_URI;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,8 +24,7 @@ public class WithdrawalsController {
 
   @Operation(summary = "Get fund pension status")
   @GetMapping("/fund-pension-status")
-  public FundPensionStatus getFundPensionStatus(
-      @AuthenticationPrincipal AuthenticatedPerson user) {
+  public FundPensionStatus getFundPensionStatus(@AuthenticationPrincipal AuthenticatedPerson user) {
     return fundPensionStatusService.getFundPensionStatus(user);
   }
 

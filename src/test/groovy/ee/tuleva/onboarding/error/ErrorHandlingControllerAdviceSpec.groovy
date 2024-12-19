@@ -33,7 +33,7 @@ class ErrorHandlingControllerAdviceSpec extends BaseControllerSpec {
 
     expect:
     mvc
-        .perform(post("/v1/mandates/").content(
+        .perform(post("/v1/mandates").content(
             mapper.writeValueAsString(
                 invalidCreateMandateCommand
             ))

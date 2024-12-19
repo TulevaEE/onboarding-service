@@ -13,13 +13,13 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2023.0.4"
+val springCloudVersion = "2024.0.0"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.3.6"
-    id("io.spring.dependency-management") version "1.1.6"
+    id("org.springframework.boot") version "3.4.0"
+    id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.4.2"
     id("com.diffplug.spotless") version "6.25.0"
     id("io.freefair.lombok") version "8.11"
@@ -76,8 +76,8 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:9.47")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0")
-    implementation("org.springdoc:springdoc-openapi-starter-common:2.6.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
+    implementation("org.springdoc:springdoc-openapi-starter-common:2.7.0")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -89,7 +89,7 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-    implementation("org.jsoup:jsoup:1.18.2")
+    implementation("org.jsoup:jsoup:1.18.3")
     implementation("commons-net:commons-net:3.11.1")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.springframework.boot:spring-boot-starter-cache")
@@ -109,8 +109,8 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.18.0")
-    implementation("io.sentry:sentry-logback:7.18.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.19.0")
+    implementation("io.sentry:sentry-logback:7.19.0")
 
     implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.9.0")
 
@@ -121,7 +121,7 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("com.amazonaws:aws-java-sdk-s3:1.12.779")
+    implementation("software.amazon.awssdk:s3:2.29.36")
     implementation("commons-io:commons-io:2.18.0")
     implementation("org.apache.commons:commons-csv:1.12.0")
 

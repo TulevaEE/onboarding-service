@@ -1,76 +1,91 @@
 package ee.tuleva.onboarding.administration
 
-import com.amazonaws.services.s3.AmazonS3
-import com.amazonaws.services.s3.model.AmazonS3Exception
-import com.amazonaws.services.s3.model.S3Object
-import com.amazonaws.services.s3.model.S3ObjectInputStream
+
+import software.amazon.awssdk.core.ResponseInputStream
+import software.amazon.awssdk.services.s3.S3Client
+import software.amazon.awssdk.services.s3.model.GetObjectRequest
+import software.amazon.awssdk.services.s3.model.GetObjectResponse
+import software.amazon.awssdk.services.s3.model.S3Exception
 import spock.lang.Specification
 
 import java.time.LocalDate
 
 class PortfolioAnalyticsSourceSpec extends Specification {
 
-  AmazonS3 mockS3Client = Mock(AmazonS3)
+  S3Client mockS3Client = Mock(S3Client)
   PortfolioAnalyticsSource service = new PortfolioAnalyticsSource(mockS3Client)
 
   def "successfully fetch CSV from S3"() {
     setup:
-        def date = LocalDate.now()
-        def key = "portfolio/${date}.csv"
-        byte[] content = "header1,header2\nvalue1,value2".getBytes()
-        ByteArrayInputStream actualInputStream = new ByteArrayInputStream(content)
-        S3Object mockS3Object = Mock(S3Object)
-        mockS3Object.getObjectContent() >> new S3ObjectInputStream(actualInputStream, null)
-        mockS3Client.getObject("analytics-administration-data", key) >> mockS3Object
+    def date = LocalDate.now()
+    def key = "portfolio/${date}.csv"
+    byte[] content = "header1,header2\nvalue1,value2".bytes
+
+    mockS3Client.getObject(_) >> { GetObjectRequest request ->
+      assert request.bucket() == "analytics-administration-data"
+      assert request.key() == key
+      return new ResponseInputStream<>(Mock(GetObjectResponse), new ByteArrayInputStream(content))
+    }
 
     when:
-        def result = service.fetchCsv(date)
+    def result = service.fetchCsv(date)
 
     then:
-        assert result.isPresent()
-        result.get().text == "header1,header2\nvalue1,value2"
+    assert result.isPresent()
+    result.get().text == "header1,header2\nvalue1,value2"
   }
 
   def "handle S3 object not found"() {
     setup:
-        def date = LocalDate.now()
-        def key = "portfolio/${date}.csv"
-        AmazonS3Exception notFoundException = new AmazonS3Exception("Not Found")
-        notFoundException.statusCode = 404
-        mockS3Client.getObject("analytics-administration-data", key) >> { throw notFoundException }
+    def date = LocalDate.now()
+    def key = "portfolio/${date}.csv"
+
+    mockS3Client.getObject(_) >> {
+      throw S3Exception.builder()
+          .statusCode(404)
+          .message("Not Found")
+          .build()
+    }
 
     when:
-        def result = service.fetchCsv(date)
+    def result = service.fetchCsv(date)
 
     then:
-        assert !result.isPresent()
+    assert !result.isPresent()
   }
 
   def "handle S3 unauthorized"() {
     setup:
-        def date = LocalDate.now()
-        def key = "portfolio/${date}.csv"
-        AmazonS3Exception exception = new AmazonS3Exception("Unauthorized")
-        exception.statusCode = 403
-        mockS3Client.getObject("analytics-administration-data", key) >> { throw exception }
+    def date = LocalDate.now()
+    def key = "portfolio/${date}.csv"
+
+    mockS3Client.getObject(_) >> {
+      throw S3Exception.builder()
+          .statusCode(403)
+          .message("Unauthorized")
+          .build()
+    }
 
     when:
-        def result = service.fetchCsv(date)
+    def result = service.fetchCsv(date)
 
     then:
-        assert !result.isPresent()
+    assert !result.isPresent()
   }
 
   def "handle S3 generic exception"() {
     setup:
-        def date = LocalDate.now()
-        def key = "portfolio/${date}.csv"
-        mockS3Client.getObject("analytics-administration-data", key) >> { throw new RuntimeException("Error") }
+    def date = LocalDate.now()
+    def key = "portfolio/${date}.csv"
+
+    mockS3Client.getObject(_) >> {
+      throw new RuntimeException("Error")
+    }
 
     when:
-        service.fetchCsv(date)
+    service.fetchCsv(date)
 
     then:
-        thrown(RuntimeException)
+    thrown(RuntimeException)
   }
 }

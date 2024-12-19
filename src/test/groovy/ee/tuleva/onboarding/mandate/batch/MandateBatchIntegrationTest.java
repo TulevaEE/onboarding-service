@@ -50,8 +50,8 @@ public class MandateBatchIntegrationTest {
 
   @AfterEach
   void cleanup() {
-    mandateBatchRepository.deleteAll();
     mandateRepository.deleteAll();
+    mandateBatchRepository.deleteAll();
   }
 
   void assertCorrectResponse(ResponseEntity<String> response) throws JsonProcessingException {
@@ -139,7 +139,7 @@ public class MandateBatchIntegrationTest {
 
   @Test
   @DisplayName("create mandate batch throws before retirement")
-  void testMandateCreationBeforeRetirementAge() throws Exception {
+  void testMandateCreationBeforeRetirementAge() {
     String url = "http://localhost:" + randomServerPort + "/v1/mandate-batches";
 
     var headers = getHeaders();

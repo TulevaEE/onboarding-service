@@ -97,12 +97,15 @@ public class MandateProcessorService {
   private void saveFinalizedProcess(MandateProcess process) {
     if (process.getErrorCode().isPresent()) {
       log.error(
-          "Process with id {} is {} with error code {}",
+          "Process is not successful: processId={}, isSuccessful={} errorCode={}",
           process.getId(),
-          process.isSuccessful().toString(),
+          process.isSuccessful(),
           process.getErrorCode());
     } else {
-      log.info("Process with id {} is {}", process.getId(), process.isSuccessful().toString());
+      log.info(
+          "Process is successful: processId={}, isSuccessful={}",
+          process.getId(),
+          process.isSuccessful());
     }
 
     mandateProcessRepository.save(process);

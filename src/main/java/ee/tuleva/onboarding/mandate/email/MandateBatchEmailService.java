@@ -1,20 +1,20 @@
 package ee.tuleva.onboarding.mandate.email;
 
-import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
-import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.*;
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
+import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
-import ee.tuleva.onboarding.pillar.Pillar;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.pillar.Pillar;
 import ee.tuleva.onboarding.user.User;
 import java.util.*;
 import java.util.stream.Collectors;

@@ -19,12 +19,10 @@ import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto.FundPensionDto;
+import ee.tuleva.onboarding.withdrawals.FundPensionStatus.FundPension;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-
-import ee.tuleva.onboarding.pillar.Pillar;
-import ee.tuleva.onboarding.withdrawals.FundPensionStatus.FundPension;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -108,14 +106,22 @@ class WithdrawalsControllerIntegrationTest {
         mapper.readValue(jsonNode.get("fundPensions").toString(), FundPension[].class);
     assertThat(responseFundPensions.length).isEqualTo(2);
 
-    var responseSecondPillarFundPension = Arrays.stream(responseFundPensions).filter(fundPension -> fundPension.pillar() == SECOND).findFirst().orElseThrow();
+    var responseSecondPillarFundPension =
+        Arrays.stream(responseFundPensions)
+            .filter(fundPension -> fundPension.pillar() == SECOND)
+            .findFirst()
+            .orElseThrow();
 
     assertThat(responseSecondPillarFundPension.startDate()).isEqualTo("2019-10-01T12:13:27.141Z");
     assertThat(responseSecondPillarFundPension.endDate()).isNull();
     assertThat(responseSecondPillarFundPension.durationYears()).isEqualTo(20);
     assertThat(responseSecondPillarFundPension.active()).isEqualTo(true);
 
-    var responseThirdPillarFundPension = Arrays.stream(responseFundPensions).filter(fundPension -> fundPension.pillar() == THIRD).findFirst().orElseThrow();
+    var responseThirdPillarFundPension =
+        Arrays.stream(responseFundPensions)
+            .filter(fundPension -> fundPension.pillar() == THIRD)
+            .findFirst()
+            .orElseThrow();
     assertThat(responseThirdPillarFundPension.startDate()).isEqualTo("2019-10-01T12:13:27.141Z");
     assertThat(responseThirdPillarFundPension.endDate()).isEqualTo("2023-10-01T12:13:27.141Z");
     assertThat(responseThirdPillarFundPension.durationYears()).isEqualTo(20);

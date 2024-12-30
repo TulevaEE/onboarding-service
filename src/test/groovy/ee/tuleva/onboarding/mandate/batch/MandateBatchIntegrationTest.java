@@ -13,6 +13,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ee.tuleva.onboarding.aml.AmlAutoChecker;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.mandate.MandateFixture;
@@ -46,6 +47,7 @@ public class MandateBatchIntegrationTest {
   @Autowired private MandateRepository mandateRepository;
 
   @MockBean private EpisService episService;
+  @MockBean private AmlAutoChecker amlAutoChecker;
   @MockBean private WithdrawalEligibilityService withdrawalEligibilityService;
 
   @AfterEach
@@ -161,6 +163,90 @@ public class MandateBatchIntegrationTest {
             .canWithdrawThirdPillarWithReducedTax(false)
             .age(30)
             .recommendedDurationYears(55)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
+    when(withdrawalEligibilityService.getWithdrawalEligibility(any()))
+        .thenReturn(aWithdrawalEligibility);
+    when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
+    when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
+
+    HttpEntity<MandateBatchDto> request = new HttpEntity<>(aDto, headers);
+
+    ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+
+    assertThat(response.getStatusCode()).isNotEqualTo(HttpStatus.OK);
+    assertThat(Streamable.of(mandateBatchRepository.findAll()).toList().size()).isEqualTo(0);
+  }
+
+  @Test
+  @DisplayName("create mandate batch works for III pillar special case at 55+")
+  void testMandateCreationThirdPillarSpecialCase() throws JsonProcessingException {
+    String url = "http://localhost:" + randomServerPort + "/v1/mandate-batches";
+
+    var headers = getHeaders();
+
+    var aFundPensionOpeningMandateDetails =
+        MandateFixture.aThirdPillarFundPensionOpeningMandateDetails;
+    var aPartialWithdrawalMandateDetails =
+        MandateFixture.aThirdPillarPartialWithdrawalMandateDetails;
+
+    var aDto =
+        MandateBatchDto.builder()
+            .mandates(
+                List.of(
+                    MandateDto.builder().details(aFundPensionOpeningMandateDetails).build(),
+                    MandateDto.builder().details(aPartialWithdrawalMandateDetails).build()))
+            .build();
+
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(false)
+            .canWithdrawThirdPillarWithReducedTax(true)
+            .age(56)
+            .recommendedDurationYears(24)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
+    when(withdrawalEligibilityService.getWithdrawalEligibility(any()))
+        .thenReturn(aWithdrawalEligibility);
+    when(episService.getCashFlowStatement(any(), any(), any())).thenReturn(new CashFlowStatement());
+    when(episService.getContactDetails(any())).thenReturn(contactDetailsFixture());
+
+    HttpEntity<MandateBatchDto> request = new HttpEntity<>(aDto, headers);
+
+    ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);
+
+    assertCorrectResponse(response);
+    assertCanReadMandateBatch();
+  }
+
+  @Test
+  @DisplayName("create mandate batch doesn't work when III pillar special case isn't available")
+  void testMandateCreationThirdPillarSpecialCaseDisabled() {
+    String url = "http://localhost:" + randomServerPort + "/v1/mandate-batches";
+
+    var headers = getHeaders();
+
+    var aFundPensionOpeningMandateDetails =
+        MandateFixture.aThirdPillarFundPensionOpeningMandateDetails;
+    var aPartialWithdrawalMandateDetails =
+        MandateFixture.aThirdPillarPartialWithdrawalMandateDetails;
+
+    var aDto =
+        MandateBatchDto.builder()
+            .mandates(
+                List.of(
+                    MandateDto.builder().details(aFundPensionOpeningMandateDetails).build(),
+                    MandateDto.builder().details(aPartialWithdrawalMandateDetails).build()))
+            .build();
+
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(false)
+            .canWithdrawThirdPillarWithReducedTax(false)
+            .age(56)
+            .recommendedDurationYears(24)
             .arrestsOrBankruptciesPresent(false)
             .build();
 

@@ -174,6 +174,45 @@ public class MandateBatchServiceTest {
   }
 
   @Test
+  @DisplayName("create third pillar MandateBatch at 55+ with special case")
+  void createMandateBatchThirdPillar55() {
+    var authenticatedPerson =
+        AuthenticatedPersonFixture.authenticatedPersonFromUser(sampleUser().build()).build();
+    var aFundPensionOpeningMandate =
+        sampleFundPensionOpeningMandate(aThirdPillarFundPensionOpeningMandateDetails);
+
+    var aMandateBatch =
+        MandateBatch.builder()
+            .mandates(List.of(aFundPensionOpeningMandate, aFundPensionOpeningMandate))
+            .status(INITIALIZED)
+            .build();
+    var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
+
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(false)
+            .canWithdrawThirdPillarWithReducedTax(true)
+            .age(56)
+            .recommendedDurationYears(20)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
+    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
+        .thenReturn(aWithdrawalEligibility);
+    when(genericMandateService.createGenericMandate(any(), any(), any()))
+        .thenReturn(aFundPensionOpeningMandate);
+    when(mandateBatchRepository.save(
+            argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
+        .thenReturn(aMandateBatch);
+
+    MandateBatch result =
+        mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
+
+    assertThat(result.getMandates().size()).isEqualTo(2);
+    assertThat(result.getStatus()).isEqualTo(INITIALIZED);
+  }
+
+  @Test
   @DisplayName("throws when creating MandateBatch before early retirement age")
   void createMandateBatchBeforeRetirementAge() {
     var authenticatedPerson =
@@ -192,6 +231,38 @@ public class MandateBatchServiceTest {
             .hasReachedEarlyRetirementAge(false)
             .canWithdrawThirdPillarWithReducedTax(false)
             .age(35)
+            .recommendedDurationYears(50)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
+    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
+        .thenReturn(aWithdrawalEligibility);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto));
+  }
+
+  @Test
+  @DisplayName(
+      "throws when creating second pillar MandateBatch before early retirement age with special case")
+  void createSecondPillarMandateBatchBeforeRetirementAgeWithSpecialCase() {
+    var authenticatedPerson =
+        AuthenticatedPersonFixture.authenticatedPersonFromUser(sampleUser().build()).build();
+    var aFundPensionOpeningMandate = sampleFundPensionOpeningMandate();
+
+    var aMandateBatch =
+        MandateBatch.builder()
+            .mandates(List.of(aFundPensionOpeningMandate, aFundPensionOpeningMandate))
+            .status(INITIALIZED)
+            .build();
+    var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
+
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(false)
+            .canWithdrawThirdPillarWithReducedTax(true)
+            .age(56)
             .recommendedDurationYears(50)
             .arrestsOrBankruptciesPresent(false)
             .build();

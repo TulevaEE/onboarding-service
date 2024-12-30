@@ -1,11 +1,16 @@
 package ee.tuleva.onboarding.mandate.batch;
 
+import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
+import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.*;
 import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE;
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.epis.EpisService;
+import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
+import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.MandateFileService;
@@ -20,10 +25,13 @@ import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.pillar.Pillar;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -65,7 +73,16 @@ public class MandateBatchService {
 
     if (isWithdrawalBatch(mandateBatchDto)) {
       var eligibility = withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson);
-      if (!eligibility.hasReachedEarlyRetirementAge()) {
+
+      if (eligibility.canWithdrawThirdPillarWithReducedTax()
+          && !eligibility.hasReachedEarlyRetirementAge()) {
+        var withdrawalBatchPillars = getWithdrawalBatchPillars(mandateBatchDto);
+
+        if (withdrawalBatchPillars.contains(SECOND)) {
+          throw new IllegalArgumentException(
+              "Can only create third pillar withdrawals before retirement age");
+        }
+      } else if (!eligibility.hasReachedEarlyRetirementAge()) {
         throw new IllegalArgumentException(
             "Cannot create withdrawal mandates before early retirement age");
       }
@@ -125,6 +142,24 @@ public class MandateBatchService {
   private boolean isWithdrawalBatch(MandateBatchDto mandateBatchDto) {
     return mandateBatchDto.getMandates().stream()
         .anyMatch(mandateDto -> mandateDto.getMandateType().isWithdrawalType());
+  }
+
+  private Set<Pillar> getWithdrawalBatchPillars(MandateBatchDto mandateBatchDto) {
+    var fundPensionOpeningMandatePillars =
+        mandateBatchDto.getMandates().stream()
+            .filter(mandate -> mandate.getMandateType() == FUND_PENSION_OPENING)
+            .map(mandate -> ((FundPensionOpeningMandateDetails) mandate.getDetails()).getPillar())
+            .collect(Collectors.toSet());
+
+    var partialWithdrawalMandatePillars =
+        mandateBatchDto.getMandates().stream()
+            .filter(mandate -> mandate.getMandateType() == PARTIAL_WITHDRAWAL)
+            .map(mandate -> ((PartialWithdrawalMandateDetails) mandate.getDetails()).getPillar())
+            .collect(Collectors.toSet());
+
+    return Stream.concat(
+            fundPensionOpeningMandatePillars.stream(), partialWithdrawalMandatePillars.stream())
+        .collect(Collectors.toSet());
   }
 
   private MandateSignatureStatus persistFileSignedWithIdCard(

@@ -18,7 +18,7 @@ val springCloudVersion = "2024.0.0"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.4.0"
+    id("org.springframework.boot") version "3.4.1"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.4.2"
     id("com.diffplug.spotless") version "6.25.0"
@@ -74,10 +74,10 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:9.47")
+    implementation("com.nimbusds:nimbus-jose-jwt:10.0.1")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.7.0")
-    implementation("org.springdoc:springdoc-openapi-starter-common:2.7.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0")
+    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.0")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -94,7 +94,7 @@ dependencies {
     implementation("org.apache.commons:commons-lang3")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.4")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.5")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.3") {
@@ -109,11 +109,12 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.19.0")
-    implementation("io.sentry:sentry-logback:7.19.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.20.0")
+    implementation("io.sentry:sentry-logback:7.20.0")
 
     implementation("io.hypersistence:hypersistence-utils-hibernate-60:3.9.0")
 
+    // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
 
     implementation("com.github.ErkoRisthein:mailchimp-transactional-api-java:1.0.59")
@@ -121,7 +122,7 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.29.36")
+    implementation("software.amazon.awssdk:s3:2.29.44")
     implementation("commons-io:commons-io:2.18.0")
     implementation("org.apache.commons:commons-csv:1.12.0")
 

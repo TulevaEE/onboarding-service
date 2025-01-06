@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.mandate.application.Application
 import ee.tuleva.onboarding.mandate.application.ApplicationService
 import ee.tuleva.onboarding.mandate.application.Exchange
 import ee.tuleva.onboarding.mandate.application.TransferApplicationDetails
+import ee.tuleva.onboarding.pillar.Pillar
 import spock.lang.Specification
 
 import java.time.Clock
@@ -23,6 +24,8 @@ import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING
 import static ee.tuleva.onboarding.fund.FundFixture.*
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND
+import static ee.tuleva.onboarding.pillar.Pillar.THIRD
 
 class UserConversionServiceSpec extends Specification {
 
@@ -40,7 +43,8 @@ class UserConversionServiceSpec extends Specification {
     accountStatementService.getAccountStatement(samplePerson) >> []
     applicationService.getTransferApplications(PENDING, samplePerson) >> []
     cashFlowService.getCashFlowStatement(samplePerson) >> new CashFlowStatement()
-    applicationService.hasPendingWithdrawals(samplePerson) >> true
+    applicationService.hasPendingWithdrawals(samplePerson, SECOND) >> true
+    applicationService.hasPendingWithdrawals(samplePerson, THIRD) >> false
 
     when:
     ConversionResponse response = service.getConversion(samplePerson)

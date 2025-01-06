@@ -17,14 +17,12 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService;
-
+import ee.tuleva.onboarding.pillar.Pillar;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
-
-import ee.tuleva.onboarding.pillar.Pillar;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -64,9 +62,11 @@ public class ApplicationService {
   }
 
   public boolean hasPendingWithdrawals(Person person, Pillar pillar) {
-    return !getWithdrawalApplications(PENDING, person).stream().filter(application -> application.getPillar() == pillar.toInt()).toList().isEmpty();
+    return !getWithdrawalApplications(PENDING, person).stream()
+        .filter(application -> application.getPillar() == pillar.toInt())
+        .toList()
+        .isEmpty();
   }
-
 
   public List<Application<TransferApplicationDetails>> getTransferApplications(
       ApplicationStatus status, Person person) {

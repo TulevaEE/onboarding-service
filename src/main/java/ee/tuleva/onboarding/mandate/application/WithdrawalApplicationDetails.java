@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.mandate.application.ApplicationType.*;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Set;
-
 import lombok.Builder;
 import lombok.Data;
 
@@ -38,7 +37,8 @@ public class WithdrawalApplicationDetails implements ApplicationDetails {
 
   @Override
   public Integer getPillar() {
-    Set<ApplicationType> thirdPillarApplicationTypes = Set.of(WITHDRAWAL_THIRD_PILLAR, FUND_PENSION_OPENING_THIRD_PILLAR);
+    Set<ApplicationType> thirdPillarApplicationTypes =
+        Set.of(WITHDRAWAL_THIRD_PILLAR, FUND_PENSION_OPENING_THIRD_PILLAR);
     return thirdPillarApplicationTypes.contains(type) ? 3 : 2;
   }
 }

@@ -11,6 +11,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto
+import ee.tuleva.onboarding.withdrawals.FundPensionStatus
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
@@ -99,6 +100,13 @@ class MockEpisServiceSpec extends Specification {
   def "getArrestsBankruptciesPresent has a mock response"() {
     when:
     ArrestsBankruptciesDto response = episService.getArrestsBankruptciesPresent(samplePerson())
+    then:
+    response != null
+  }
+
+  def "getFundPensionStatus has a mock response"() {
+    when:
+    FundPensionStatus response = episService.getFundPensionStatus(samplePerson())
     then:
     response != null
   }

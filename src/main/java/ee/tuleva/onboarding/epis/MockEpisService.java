@@ -23,14 +23,12 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
+import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
-
-import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
-import ee.tuleva.onboarding.withdrawals.FundPensionStatus;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
@@ -252,7 +250,11 @@ public class MockEpisService extends EpisService {
 
   @Cacheable(value = FUND_PENSION_STATUS_CACHE_NAME, key = "#person.personalCode", sync = true)
   public FundPensionStatusDto getFundPensionStatus(Person person) {
-    // return new FundPensionStatusDto(List.of(new FundPensionStatusDto.FundPensionDto(Instant.parse("2019-10-01T12:13:27.141Z"), null, 20, true)), List.of(new FundPensionStatusDto.FundPensionDto(Instant.parse("2018-10-01T12:13:27.141Z"), null, 20, true)));
+    // return new FundPensionStatusDto(List.of(new
+    // FundPensionStatusDto.FundPensionDto(Instant.parse("2019-10-01T12:13:27.141Z"), null, 20,
+    // true)), List.of(new
+    // FundPensionStatusDto.FundPensionDto(Instant.parse("2018-10-01T12:13:27.141Z"), null, 20,
+    // true)));
     return new FundPensionStatusDto(List.of(), List.of());
   }
 

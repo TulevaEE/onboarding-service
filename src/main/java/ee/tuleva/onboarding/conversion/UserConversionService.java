@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.conversion;
 
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.PENDING;
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
+import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.math.BigDecimal.ZERO;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
@@ -26,6 +28,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
+
+import ee.tuleva.onboarding.pillar.Pillar;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -66,7 +70,7 @@ public class UserConversionService {
                 .selectionPartial(isSelectionPartial(fundBalances, 2))
                 .transfersComplete(isTransfersComplete(fundBalances, 2, person))
                 .transfersPartial(isTransfersPartial(fundBalances, 2, person))
-                .pendingWithdrawal(applicationService.hasPendingWithdrawals(person))
+                .pendingWithdrawal(applicationService.hasPendingWithdrawals(person, SECOND))
                 .contribution(
                     Amount.builder()
                         .yearToDate(cashContributionSum(cashFlowStatement, 2, thisYear()))
@@ -89,6 +93,7 @@ public class UserConversionService {
                 .selectionPartial(isSelectionPartial(fundBalances, 3))
                 .transfersComplete(isTransfersComplete(fundBalances, 3, person))
                 .transfersPartial(isTransfersPartial(fundBalances, 3, person))
+                .pendingWithdrawal(applicationService.hasPendingWithdrawals(person, THIRD))
                 .contribution(
                     Amount.builder()
                         .yearToDate(cashContributionSum(cashFlowStatement, 3, thisYear()))

@@ -7,7 +7,7 @@ import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion
-import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
+import ee.tuleva.onboarding.payment.event.AfterPaymentDoneEvent
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import spock.lang.Specification
 
@@ -41,7 +41,7 @@ class PaymentEmailSenderSpec extends Specification {
     def paymentRates = samplePaymentRates()
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
-    def paymentCreatedEvent = new PaymentCreatedEvent(this, user, payment, locale)
+    def paymentCreatedEvent = new AfterPaymentDoneEvent(this, user, payment, locale)
 
     1 * contactDetailsService.getContactDetails(user) >> contactDetails
     1 * conversionService.getConversion(user) >> conversion
@@ -60,7 +60,7 @@ class PaymentEmailSenderSpec extends Specification {
     def payment = aNewSinglePayment()
     payment.paymentType = MEMBER_FEE
     def locale = ENGLISH
-    def paymentCreatedEvent = new PaymentCreatedEvent(this, user, payment, locale)
+    def paymentCreatedEvent = new AfterPaymentDoneEvent(this, user, payment, locale)
 
     when:
     paymentEmailSender.sendEmails(paymentCreatedEvent)

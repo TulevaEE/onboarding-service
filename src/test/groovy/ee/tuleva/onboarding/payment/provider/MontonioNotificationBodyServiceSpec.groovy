@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.payment.provider
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.payment.PaymentRepository
-import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
+import ee.tuleva.onboarding.payment.event.AfterPaymentDoneEvent
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
@@ -95,7 +95,7 @@ class MontonioCallbackServiceSpec extends Specification {
     when:
     paymentProviderCallbackService.processToken(token)
     then:
-    1 * eventPublisher.publishEvent({ it instanceof PaymentCreatedEvent && it.locale == Locale.ENGLISH })
+    1 * eventPublisher.publishEvent({ it instanceof AfterPaymentDoneEvent && it.locale == Locale.ENGLISH })
   }
 
 }

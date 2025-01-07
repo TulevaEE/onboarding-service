@@ -11,7 +11,7 @@ import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
 import ee.tuleva.onboarding.payment.Payment;
-import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent;
+import ee.tuleva.onboarding.payment.event.AfterPaymentDoneEvent;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
@@ -37,7 +37,7 @@ public class PaymentEmailSender {
 
   // TODO: can we make this @Async?
   @EventListener
-  public void sendEmails(PaymentCreatedEvent event) {
+  public void sendEmails(AfterPaymentDoneEvent event) {
     User user = event.getUser();
     Locale locale = event.getLocale();
     Payment payment = event.getPayment();

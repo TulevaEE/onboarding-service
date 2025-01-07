@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService
+import ee.tuleva.onboarding.pillar.Pillar
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
@@ -22,6 +23,7 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.paymentApplication
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
+import static ee.tuleva.onboarding.pillar.Pillar.*
 
 class ApplicationServiceSpec extends Specification {
 
@@ -307,4 +309,31 @@ class ApplicationServiceSpec extends Specification {
     applications.size() == 4
   }
 
+
+  def "get has pending withdrawals by pillar"() {
+    given:
+    def person = samplePerson()
+
+
+    def fundPensionOpening = sampleFundPensionOpeningApplicationDto()
+    def fundPensionOpeningThirdPillar = sampleThirdPillarFundPensionOpeningApplicationDto()
+    def partialWithdrawal = samplePartialWithdrawalApplicationDto()
+    def thirdPillarWithdrawal = sampleThirdPillarWithdrawalApplicationDto()
+
+    episService.getApplications(person) >> [
+        fundPensionOpening, fundPensionOpeningThirdPillar, partialWithdrawal, thirdPillarWithdrawal
+    ]
+    localeService.getCurrentLocale() >> Locale.ENGLISH
+
+    mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
+    paymentApplicationService.getPaymentApplications(person) >> []
+
+    when:
+    def hasPendingSecondPillarWithdrawals = applicationService.hasPendingWithdrawals(person, SECOND)
+    def hasPendingThirdPillarWithdrawals = applicationService.hasPendingWithdrawals(person, THIRD)
+
+    then:
+    hasPendingSecondPillarWithdrawals
+    hasPendingThirdPillarWithdrawals
+  }
 }

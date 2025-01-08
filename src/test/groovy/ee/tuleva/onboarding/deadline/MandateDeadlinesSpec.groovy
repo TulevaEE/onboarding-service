@@ -35,6 +35,7 @@ class MandateDeadlinesSpec extends Specification {
       Instant.parse("2021-03-31T20:59:59.999999999Z") == getWithdrawalCancellationDeadline()
       LocalDate.parse("2021-04-16") == getWithdrawalFulfillmentDate()
       LocalDate.parse("2021-04-20") == getWithdrawalLatestFulfillmentDate()
+      LocalDate.parse("2021-09-01") == getSecondPillarContributionEndDate()
     }
   }
 
@@ -59,6 +60,7 @@ class MandateDeadlinesSpec extends Specification {
       Instant.parse("2021-04-30T20:59:59.999999999Z") == getWithdrawalCancellationDeadline()
       LocalDate.parse("2021-05-16") == getWithdrawalFulfillmentDate()
       LocalDate.parse("2021-05-20") == getWithdrawalLatestFulfillmentDate()
+      LocalDate.parse("2022-01-01") == getSecondPillarContributionEndDate()
     }
   }
 
@@ -83,6 +85,7 @@ class MandateDeadlinesSpec extends Specification {
       Instant.parse("2021-08-31T20:59:59.999999999Z") == getWithdrawalCancellationDeadline()
       LocalDate.parse("2021-09-16") == getWithdrawalFulfillmentDate()
       LocalDate.parse("2021-09-20") == getWithdrawalLatestFulfillmentDate()
+      LocalDate.parse("2022-05-01") == getSecondPillarContributionEndDate()
     }
   }
 
@@ -107,6 +110,7 @@ class MandateDeadlinesSpec extends Specification {
       Instant.parse("2021-12-31T21:59:59.999999999Z") == getWithdrawalCancellationDeadline()
       LocalDate.parse("2022-01-16") == getWithdrawalFulfillmentDate()
       LocalDate.parse("2022-01-20") == getWithdrawalLatestFulfillmentDate()
+      LocalDate.parse("2022-09-01") == getSecondPillarContributionEndDate()
     }
   }
 

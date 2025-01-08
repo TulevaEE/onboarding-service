@@ -45,6 +45,10 @@ public class MandateDeadlines {
         .get();
   }
 
+  public LocalDate getSecondPillarContributionEndDate() {
+    return periodEnding().plusMonths(5).plusDays(1).toLocalDate();
+  }
+
   public LocalDate getThirdPillarWithdrawalFulfillmentDate() {
     ZoneId timeZone = estonianClock.getZone();
     ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);

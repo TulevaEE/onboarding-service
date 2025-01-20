@@ -6,6 +6,9 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService;
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrder.MontonioBillingAddress;
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrder.MontonioPaymentMethod;
+import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrder.MontonioPaymentMethod.MontonioPaymentMethodOptions;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.util.Locale;
@@ -50,7 +53,7 @@ public class MontonioOrderCreator {
     return String.format(episPaymentDescription, paymentData.getRecipientPersonalCode());
   }
 
-  public MontonioOrder getOrder(PaymentData paymentData, Person person) {
+  MontonioOrder getOrder(PaymentData paymentData, Person person) {
     MontonioPaymentChannel paymentChannelConfiguration =
         montonioPaymentChannelConfiguration.getPaymentProviderChannel(
             paymentData.getPaymentChannel());
@@ -77,6 +80,11 @@ public class MontonioOrderCreator {
                         .preferredLocale(getLanguage())
                         .paymentDescription(getPaymentDescription(paymentData))
                         .build())
+                .build())
+        .billingAddress(
+            MontonioBillingAddress.builder()
+                .firstName(person.getFirstName())
+                .lastName(person.getLastName())
                 .build())
         .build();
   }

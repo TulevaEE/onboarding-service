@@ -19,7 +19,7 @@ public class MontonioOrderClient {
 
   private final MontonioPaymentChannelConfiguration montonioPaymentChannelConfiguration;
 
-  public String getPaymentUrl(MontonioOrder order, PaymentData paymentData) {
+  String getPaymentUrl(MontonioOrder order, PaymentData paymentData) {
     var payload = getSignedOrderPayload(order, paymentData);
     return montonioApiClient.getPaymentUrl(payload);
   }

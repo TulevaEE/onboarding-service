@@ -5,16 +5,37 @@ import java.math.BigDecimal;
 import lombok.Builder;
 import lombok.Data;
 
-@Data
 @Builder
-public class MontonioOrder {
-  private String accessKey;
-  private String merchantReference;
-  private String returnUrl;
-  private String notificationUrl;
-  private BigDecimal grandTotal;
-  private Currency currency;
-  private long exp;
-  private MontonioPaymentMethod payment;
-  private String locale;
+record MontonioOrder(
+    String accessKey,
+    String merchantReference,
+    String returnUrl,
+    String notificationUrl,
+    BigDecimal grandTotal,
+    Currency currency,
+    long exp,
+    MontonioPaymentMethod payment,
+    MontonioBillingAddress billingAddress,
+    String locale) {
+
+  @Data
+  @Builder
+  static class MontonioPaymentMethod {
+    private final String method = "paymentInitiation";
+    private BigDecimal amount;
+    private Currency currency;
+    private MontonioPaymentMethodOptions methodOptions;
+
+    @Data
+    @Builder
+    static class MontonioPaymentMethodOptions {
+      private final String preferredCountry = "EE";
+      private String preferredProvider;
+      private String preferredLocale;
+      private String paymentDescription;
+    }
+  }
+
+  @Builder
+  record MontonioBillingAddress(String firstName, String lastName) {}
 }

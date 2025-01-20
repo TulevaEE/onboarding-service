@@ -4,8 +4,8 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.payment.PaymentLink
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.payment.PaymentFixture.aMontonioOrder
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
+import static ee.tuleva.onboarding.payment.provider.montonio.MontonioFixture.*
 
 class MontonioPaymentLinkGeneratorSpec extends Specification {
 

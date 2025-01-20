@@ -5,7 +5,7 @@ import ee.tuleva.onboarding.payment.provider.PaymentProviderFixture
 import ee.tuleva.onboarding.payment.provider.montonio.*
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.payment.PaymentFixture.aMontonioOrder
+import static ee.tuleva.onboarding.payment.provider.montonio.MontonioFixture.aMontonioOrder
 
 class MontonioOrderClientSpec extends Specification {
 

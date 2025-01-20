@@ -71,6 +71,8 @@ class MontonioOrderCreatorSpec extends Specification {
     order.payment.methodOptions.preferredProvider == aPaymentChannel.bic
     order.payment.methodOptions.preferredLocale == aLocale.toLanguageTag()
     order.payment.methodOptions.paymentDescription == "member:${aPaymentData.recipientPersonalCode}"
+    order.billingAddress.firstName == aPerson.firstName
+    order.billingAddress.lastName == aPerson.lastName
   }
 
   def "should create MontonioOrder for SINGLE payment type"() {
@@ -100,6 +102,8 @@ class MontonioOrderCreatorSpec extends Specification {
     order.payment.methodOptions.preferredProvider == aPaymentChannel.bic
     order.payment.methodOptions.preferredLocale == aLocale.toLanguageTag()
     order.payment.methodOptions.paymentDescription == "30101119828, IK:${aPaymentData.recipientPersonalCode}, EE3600001707"
+    order.billingAddress.firstName == aPerson.firstName
+    order.billingAddress.lastName == aPerson.lastName
   }
 
   def "should use fake notification URL when configured"() {

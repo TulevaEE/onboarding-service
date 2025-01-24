@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.aml.risklevel;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
@@ -11,6 +12,7 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ public class RiskLevelService {
 
   private final JdbcClient jdbcClient;
   private final AmlCheckRepository amlCheckRepository;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public void runRiskLevelCheck() {
@@ -31,7 +34,6 @@ public class RiskLevelService {
             + "FROM analytics.v_aml_risk "
             + "WHERE risk_level = 1 "
             + "ORDER BY risk_level DESC";
-
     List<RiskLevelResult> rows = collectRiskLevelResults(sql);
     createAmlChecks(rows);
   }
@@ -39,13 +41,10 @@ public class RiskLevelService {
   private void createAmlChecks(List<RiskLevelResult> rows) {
     int totalCount = 0;
     int createdCount = 0;
-
     for (RiskLevelResult row : rows) {
       totalCount++;
       String personalId = row.getPersonalId();
       Map<String, Object> rowMetadata = row.getMetadata();
-
-      // Later we should probably validate non-local id codes differently
       if (StringUtils.hasText(personalId)) {
         AmlCheck amlCheck =
             AmlCheck.builder()
@@ -54,15 +53,13 @@ public class RiskLevelService {
                 .success(false)
                 .metadata(rowMetadata)
                 .build();
-
         if (addCheckIfMissing(amlCheck)) {
           createdCount++;
         }
       }
     }
-
     log.info(
-        "Ran risk-level check. " + "Total high-risk rows: {}, " + "New AML checks created: {}",
+        "Ran risk-level check. Total high-risk rows: {}, New AML checks created: {}",
         totalCount,
         createdCount);
   }
@@ -75,7 +72,6 @@ public class RiskLevelService {
             (rs, rowNum) -> {
               String personalId = rs.getString("personal_id");
               int riskLevel = rs.getInt("risk_level");
-
               Map<String, Object> metadata = new HashMap<>();
               var metaData = rs.getMetaData();
               int colCount = metaData.getColumnCount();
@@ -86,7 +82,6 @@ public class RiskLevelService {
                   metadata.put(columnName, val);
                 }
               }
-
               return new RiskLevelResult(personalId, riskLevel, metadata);
             })
         .list();
@@ -95,19 +90,17 @@ public class RiskLevelService {
   @Transactional
   public boolean addCheckIfMissing(AmlCheck amlCheck) {
     Instant oneYearAgo = Instant.now().minus(365, ChronoUnit.DAYS);
-
     var existing =
         amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             amlCheck.getPersonalCode(), AmlCheckType.RISK_LEVEL, oneYearAgo);
 
-    // If any existing check has the exact same metadata, skip
     for (AmlCheck e : existing) {
       if (e.getMetadata().equals(amlCheck.getMetadata())) {
         return false;
       }
     }
-
-    amlCheckRepository.save(amlCheck);
+    AmlCheck saved = amlCheckRepository.save(amlCheck);
+    eventPublisher.publishEvent(new AmlCheckCreatedEvent(this, saved));
     return true;
   }
 }

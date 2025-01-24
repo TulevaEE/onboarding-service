@@ -7,16 +7,20 @@ import static org.mockito.Mockito.*;
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.simple.JdbcClient.MappedQuerySpec;
@@ -27,11 +31,9 @@ import org.springframework.util.StringUtils;
 class RiskLevelServiceTest {
 
   @Mock JdbcClient jdbcClient;
-
   @Mock AmlCheckRepository amlCheckRepository;
-
+  @Mock ApplicationEventPublisher eventPublisher;
   @InjectMocks RiskLevelService riskLevelService;
-
   @Captor ArgumentCaptor<AmlCheck> amlCheckCaptor;
 
   @Test
@@ -40,7 +42,6 @@ class RiskLevelServiceTest {
   void testRunRiskLevelCheck_withRows() throws SQLException {
     StatementSpec statementSpecMock = mock(StatementSpec.class);
     when(jdbcClient.sql(contains("FROM analytics.v_aml_risk"))).thenReturn(statementSpecMock);
-
     when(statementSpecMock.query(any(RowMapper.class)))
         .thenAnswer(
             invocation -> {
@@ -54,19 +55,17 @@ class RiskLevelServiceTest {
               when(mqs.list()).thenReturn(List.of(item1, item2));
               return mqs;
             });
-
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             anyString(), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(Collections.emptyList());
-
     riskLevelService.runRiskLevelCheck();
-
     verify(amlCheckRepository, times(1)).save(amlCheckCaptor.capture());
     AmlCheck createdCheck = amlCheckCaptor.getValue();
     assertEquals("1234", createdCheck.getPersonalCode());
     assertEquals(AmlCheckType.RISK_LEVEL, createdCheck.getType());
     assertFalse(createdCheck.isSuccess());
-    verifyNoMoreInteractions(amlCheckRepository);
+    verify(eventPublisher).publishEvent(any(AmlCheckCreatedEvent.class));
+    verifyNoMoreInteractions(amlCheckRepository, eventPublisher);
   }
 
   @Test
@@ -77,9 +76,9 @@ class RiskLevelServiceTest {
     MappedQuerySpec<RiskLevelResult> querySpecMock = mock(MappedQuerySpec.class);
     when(statementSpecMock.query(any(RowMapper.class))).thenReturn(querySpecMock);
     when(querySpecMock.list()).thenReturn(Collections.emptyList());
-
     riskLevelService.runRiskLevelCheck();
     verify(amlCheckRepository, never()).save(any(AmlCheck.class));
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test
@@ -89,7 +88,6 @@ class RiskLevelServiceTest {
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             eq("9999"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(Collections.emptyList());
-
     AmlCheck newCheck =
         AmlCheck.builder()
             .personalCode("9999")
@@ -97,10 +95,11 @@ class RiskLevelServiceTest {
             .success(false)
             .metadata(Map.of("key", "val"))
             .build();
-
     boolean created = riskLevelService.addCheckIfMissing(newCheck);
     assertTrue(created);
     verify(amlCheckRepository).save(newCheck);
+    verify(eventPublisher).publishEvent(any(AmlCheckCreatedEvent.class));
+    verifyNoMoreInteractions(amlCheckRepository, eventPublisher);
   }
 
   @Test
@@ -114,11 +113,9 @@ class RiskLevelServiceTest {
             .success(false)
             .metadata(Map.of("foo", "DIFFERENT"))
             .build();
-
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             eq("1234"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(List.of(existingCheck));
-
     AmlCheck newCheck =
         AmlCheck.builder()
             .personalCode("1234")
@@ -126,10 +123,11 @@ class RiskLevelServiceTest {
             .success(false)
             .metadata(Map.of("foo", "bar"))
             .build();
-
     boolean created = riskLevelService.addCheckIfMissing(newCheck);
     assertTrue(created);
     verify(amlCheckRepository).save(newCheck);
+    verify(eventPublisher).publishEvent(any(AmlCheckCreatedEvent.class));
+    verifyNoMoreInteractions(amlCheckRepository, eventPublisher);
   }
 
   @Test
@@ -142,11 +140,9 @@ class RiskLevelServiceTest {
             .success(false)
             .metadata(Map.of("foo", "bar"))
             .build();
-
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             eq("1234"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(List.of(existingCheck));
-
     AmlCheck newCheck =
         AmlCheck.builder()
             .personalCode("1234")
@@ -154,10 +150,11 @@ class RiskLevelServiceTest {
             .success(false)
             .metadata(Map.of("foo", "bar"))
             .build();
-
     boolean created = riskLevelService.addCheckIfMissing(newCheck);
     assertFalse(created);
     verify(amlCheckRepository, never()).save(any(AmlCheck.class));
+    verify(eventPublisher, never()).publishEvent(any());
+    verifyNoMoreInteractions(amlCheckRepository, eventPublisher);
   }
 
   @Test

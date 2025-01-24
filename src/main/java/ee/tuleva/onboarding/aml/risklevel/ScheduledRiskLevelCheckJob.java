@@ -14,10 +14,8 @@ public class ScheduledRiskLevelCheckJob {
 
   private final RiskLevelService riskLevelService;
 
-  // Runs on the 1st day of each month at 01:10 (Europe/Tallinn)...
-  @Scheduled(cron = "0 10 1 1 * ?", zone = "Europe/Tallinn")
-  // also run on January 24, 2025, at 11:45 (Europe/Tallinn).
-  @Scheduled(cron = "0 45 11 24 1 ? 2025", zone = "Europe/Tallinn")
+  // Runs on the 24th of January (Europe/Tallinn) - repeats annually
+  @Scheduled(cron = "0 50 11 24 1 ?", zone = "Europe/Tallinn")
   public void run() {
     log.info("Starting risk-level check job");
     riskLevelService.runRiskLevelCheck();

@@ -1,17 +1,11 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
 import java.util.Map;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.Value;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@Value
 public class RiskLevelResult {
-  private String personalId;
-  private int riskLevel;
-  private Map<String, Object> metadata;
+  String personalId;
+  Integer riskLevel;
+  Map<String, Object> metadata;
 }

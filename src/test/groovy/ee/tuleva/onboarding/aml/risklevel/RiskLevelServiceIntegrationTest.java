@@ -1,17 +1,24 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import static ee.tuleva.onboarding.aml.risklevel.AmlRiskTestDataFixtures.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import java.sql.Connection;
 import java.sql.Statement;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -21,29 +28,16 @@ import org.springframework.test.context.ActiveProfiles;
 class RiskLevelServiceIntegrationTest {
 
   @Autowired DataSource dataSource;
-
   @Autowired AmlCheckRepository amlCheckRepository;
-
   @Autowired RiskLevelService riskLevelService;
 
   @BeforeAll
   static void setupH2Schema(@Autowired DataSource dataSource) throws Exception {
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
-      stmt.execute("CREATE SCHEMA IF NOT EXISTS analytics");
-
-      stmt.execute(
-          """
-            CREATE TABLE analytics.v_aml_risk (
-              personal_id VARCHAR(50),
-              attribute_1 INT,
-              attribute_2 INT,
-              attribute_3 INT,
-              attribute_4 INT,
-              attribute_5 INT,
-              risk_level INT
-            )
-          """);
+      stmt.execute(CREATE_AML_RISK_SHCEMA);
+      stmt.execute(CREATE_AML_RISK_VIEW);
+      stmt.execute(CREATE_AML_RISK_METADATA_VIEW);
     }
   }
 
@@ -51,82 +45,43 @@ class RiskLevelServiceIntegrationTest {
   void cleanUp() throws Exception {
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
-      stmt.execute("TRUNCATE TABLE analytics.v_aml_risk");
+      stmt.execute(TRUNCATE_AML_RISK);
     }
     amlCheckRepository.deleteAll();
   }
 
   @Test
+  @DisplayName("Should create a new AML check for high-risk rows")
   void testRiskLevelCheck_withHighRiskRows() throws Exception {
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
-      stmt.execute(
-          """
-            INSERT INTO analytics.v_aml_risk (
-              personal_id, attribute_1, attribute_2,
-              attribute_3, attribute_4, risk_level, attribute_5
-            )
-            VALUES (
-              '37605030299',
-              3, 2, 0, 0, 1, 0
-            )
-        """);
-
-      // empty id will be skipped
-      stmt.execute(
-          """
-            INSERT INTO analytics.v_aml_risk (
-              personal_id, attribute_1, attribute_2,
-              attribute_3, attribute_4, risk_level, attribute_5
-            )
-            VALUES (
-              '           ',
-              5, 1, 0, 0, 1, 0
-            )
-        """);
-
-      // risk_level=2 => won't be returned by the service query
-      stmt.execute(
-          """
-            INSERT INTO analytics.v_aml_risk (
-              personal_id, attribute_1, attribute_2,
-              attribute_3, attribute_4, risk_level, attribute_5
-            )
-            VALUES (
-              '38888888889',
-              0, 0, 0, 0, 2, 0
-            )
-        """);
+      stmt.execute(AmlRiskTestDataFixtures.INSERT_PERSON_4_2_RISK_LEVEL_1);
+      stmt.execute(AmlRiskTestDataFixtures.INSERT_PERSON_BLANK_RISK_LEVEL_1);
+      stmt.execute(AmlRiskTestDataFixtures.INSERT_PERSON_5_RISK_LEVEL_2);
     }
 
-    // Run the service
     riskLevelService.runRiskLevelCheck();
 
-    // Verify results
     List<AmlCheck> checks = amlCheckRepository.findAll();
     assertEquals(1, checks.size());
 
     AmlCheck check = checks.get(0);
-    assertEquals("37605030299", check.getPersonalCode());
+    assertEquals(PERSON_ID_4, check.getPersonalCode());
     assertEquals(false, check.isSuccess());
     assertEquals(AmlCheckType.RISK_LEVEL, check.getType());
+
+    Map<String, Object> metadata = check.getMetadata();
+    assertEquals(3, metadata.get("attribute_1"));
+    assertEquals(2, metadata.get("attribute_2"));
+    assertEquals(1, metadata.get("risk_level"));
   }
 
   @Test
+  @DisplayName("Should not create a new check when existing check has the same metadata")
   void testRiskLevelCheck_existingCheckWithSameMetadata_noNewCheckCreated() throws Exception {
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
-      stmt.execute(
-          """
-            INSERT INTO analytics.v_aml_risk (
-              personal_id, attribute_1, attribute_2,
-              attribute_3, attribute_4, risk_level, attribute_5
-            )
-            VALUES (
-              '37605030299',
-              3, 2, 0, 0, 1, 0
-            )
-        """);
+      stmt.execute(AmlRiskTestDataFixtures.INSERT_PERSON_4_2_RISK_LEVEL_1);
     }
 
     Map<String, Object> existingMetadata = new HashMap<>();
@@ -139,7 +94,7 @@ class RiskLevelServiceIntegrationTest {
 
     AmlCheck existingCheck =
         AmlCheck.builder()
-            .personalCode("37605030299")
+            .personalCode(PERSON_ID_4)
             .type(AmlCheckType.RISK_LEVEL)
             .success(false)
             .metadata(existingMetadata)
@@ -149,8 +104,71 @@ class RiskLevelServiceIntegrationTest {
     riskLevelService.runRiskLevelCheck();
 
     List<AmlCheck> checksAfter = amlCheckRepository.findAll();
-    // We expect only the original 1 check
-    assertEquals(
-        1, checksAfter.size(), "No new check should be created if same metadata already exists");
+    assertEquals(1, checksAfter.size());
+  }
+
+  @Test
+  @DisplayName("Should not create AML checks when no data in the view")
+  void testRiskLevelCheck_noRows_noChecksCreated() {
+    riskLevelService.runRiskLevelCheck();
+    List<AmlCheck> checks = amlCheckRepository.findAll();
+    assertTrue(checks.isEmpty(), "No checks should be created when no data in the view");
+  }
+
+  @Test
+  @DisplayName("Should create a new AML check even if an existing check is success=true")
+  void testRiskLevelCheck_existingCheckButSuccessTrue_newCheckCreated() throws Exception {
+    try (Connection conn = dataSource.getConnection();
+        Statement stmt = conn.createStatement()) {
+      stmt.execute(AmlRiskTestDataFixtures.INSERT_PERSON_6_RISK_LEVEL_1);
+    }
+
+    Map<String, Object> existingMetadata = new HashMap<>();
+    existingMetadata.put("attribute_1", 5);
+    existingMetadata.put("attribute_2", 4);
+    existingMetadata.put("risk_level", 1);
+
+    AmlCheck existingCheck =
+        AmlCheck.builder()
+            .personalCode(PERSON_ID_6)
+            .type(AmlCheckType.RISK_LEVEL)
+            .success(true)
+            .metadata(existingMetadata)
+            .build();
+    amlCheckRepository.save(existingCheck);
+
+    riskLevelService.runRiskLevelCheck();
+
+    List<AmlCheck> checksAfter = amlCheckRepository.findAll();
+    assertEquals(2, checksAfter.size());
+  }
+
+  @Test
+  @DisplayName("Should create a new AML check if the existing one is older than one year")
+  void testRiskLevelCheck_existingCheckIsTooOld_newCheckCreated() throws Exception {
+    try (Connection conn = dataSource.getConnection();
+        Statement stmt = conn.createStatement()) {
+      stmt.execute(AmlRiskTestDataFixtures.INSERT_PERSON_4_RISK_LEVEL_1);
+    }
+
+    Map<String, Object> existingMetadata = new HashMap<>();
+    existingMetadata.put("attribute_1", 1);
+    existingMetadata.put("attribute_2", 1);
+    existingMetadata.put("risk_level", 1);
+
+    AmlCheck oldCheck =
+        AmlCheck.builder()
+            .personalCode(PERSON_ID_4)
+            .type(AmlCheckType.RISK_LEVEL)
+            .success(false)
+            .metadata(existingMetadata)
+            .createdTime(Instant.now().minus(730, ChronoUnit.DAYS))
+            .build();
+    amlCheckRepository.save(oldCheck);
+
+    riskLevelService.runRiskLevelCheck();
+
+    List<AmlCheck> checksAfter = amlCheckRepository.findAll();
+    assertEquals(2, checksAfter.size());
   }
 }

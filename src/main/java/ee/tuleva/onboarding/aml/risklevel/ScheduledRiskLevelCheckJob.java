@@ -14,11 +14,11 @@ public class ScheduledRiskLevelCheckJob {
 
   private final RiskLevelService riskLevelService;
 
-  // Runs on the 24th of January (Europe/Tallinn) - repeats annually
-  @Scheduled(cron = "0 40 12 24 1 ?", zone = "Europe/Tallinn")
+  // Runs on the 25th of January (Europe/Tallinn) - repeats annually
+  @Scheduled(cron = "0 40 05 24 1 ?", zone = "Europe/Tallinn")
   public void run() {
-    log.info("Starting risk-level check job");
+    log.info("Starting AML risk level check job");
     riskLevelService.runRiskLevelCheck();
-    log.info("Finished risk-level check job");
+    log.info("Finished AML risk level check job");
   }
 }

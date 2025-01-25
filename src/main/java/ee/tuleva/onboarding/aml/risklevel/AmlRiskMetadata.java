@@ -1,12 +1,16 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Type;
 
 @Data
 @NoArgsConstructor
@@ -22,6 +26,8 @@ public class AmlRiskMetadata {
   @Column(name = "risk_level")
   private Integer riskLevel;
 
-  @Column(name = "metadata")
-  private String metadata;
+  @Type(JsonType.class)
+  @Convert(disableConversion = true)
+  @Column(name = "metadata", columnDefinition = "jsonb")
+  private Map<String, Object> metadata;
 }

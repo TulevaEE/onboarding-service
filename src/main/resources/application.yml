@@ -179,6 +179,7 @@ spring:
     password: ${JDBC_DATABASE_PASSWORD}
     hikari:
       maximum-pool-size: 50
+      connection-timeout: 360000
   flyway:
     baseline-on-migrate: false
 server:

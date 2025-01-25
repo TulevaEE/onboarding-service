@@ -124,7 +124,7 @@ dependencies {
 
     implementation("software.amazon.awssdk:s3:2.29.44")
     implementation("commons-io:commons-io:2.18.0")
-    implementation("org.apache.commons:commons-csv:1.12.0")
+    implementation("org.apache.commons:commons-csv:1.13.0")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {

@@ -255,3 +255,6 @@ To configure traffic routing through a VPN split tunnel:
        curl -H "Host: ipv4.icanhazip.com" http://104.16.184.241
       ```
 
+# Updating dependencies
+## Spring Boot
+Update `io.hypersistence:hypersistence-utils-hibernate` version as well

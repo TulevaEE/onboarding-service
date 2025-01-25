@@ -24,7 +24,9 @@ public class RiskLevelService {
   private final ApplicationEventPublisher eventPublisher;
 
   public void runRiskLevelCheck() {
+    log.info("Running AML risk level checks");
     List<RiskLevelResult> rows = amlRiskRepositoryService.getHighRiskRows();
+    log.info("Running AML risk level checks, identified {} rows", rows.size());
     createAmlChecks(rows);
   }
 

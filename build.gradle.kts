@@ -131,7 +131,7 @@ dependencies {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }
-    testImplementation("org.spockframework:spock-core:2.4-M4-groovy-4.0") {
+    testImplementation("org.spockframework:spock-core:2.4-M5-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
     testImplementation("org.spockframework:spock-spring:2.4-M4-groovy-4.0") {

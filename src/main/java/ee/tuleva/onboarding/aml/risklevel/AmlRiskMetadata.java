@@ -10,12 +10,14 @@ import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Immutable;
 import org.hibernate.annotations.Type;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
+@Immutable
 @Table(name = "v_aml_risk_metadata", schema = "analytics")
 public class AmlRiskMetadata {
 

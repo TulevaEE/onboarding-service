@@ -5,9 +5,9 @@ import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobRunEvent;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -57,12 +57,11 @@ public class RiskLevelService {
   }
 
   public boolean addCheckIfMissing(AmlCheck amlCheck) {
-    Instant oneYearAgo = Instant.now().minus(365, ChronoUnit.DAYS);
+    Instant cutoff = ClockHolder.sixMonthsAgo();
     var existing =
         amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
-            amlCheck.getPersonalCode(), AmlCheckType.RISK_LEVEL, oneYearAgo);
+            amlCheck.getPersonalCode(), AmlCheckType.RISK_LEVEL, cutoff);
 
-    // Compare metadata to avoid duplicates with the same fields
     for (AmlCheck e : existing) {
       if (e.getMetadata().equals(amlCheck.getMetadata())) {
         return false;

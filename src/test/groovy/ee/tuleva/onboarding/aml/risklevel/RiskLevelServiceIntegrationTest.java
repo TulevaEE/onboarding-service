@@ -1,24 +1,24 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
 import static ee.tuleva.onboarding.aml.risklevel.AmlRiskTestDataFixtures.*;
+import static java.time.ZoneOffset.UTC;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ee.tuleva.onboarding.aml.AmlCheck;
 import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
+import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.time.TestClockHolder;
 import java.sql.Connection;
 import java.sql.Statement;
-import java.time.Instant;
+import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -42,12 +42,18 @@ class RiskLevelServiceIntegrationTest {
   }
 
   @BeforeEach
+  void setup() {
+    ClockHolder.setClock(TestClockHolder.clock);
+  }
+
+  @AfterEach
   void cleanUp() throws Exception {
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(TRUNCATE_AML_RISK);
     }
     amlCheckRepository.deleteAll();
+    ClockHolder.setDefaultClock();
   }
 
   @Test
@@ -98,6 +104,7 @@ class RiskLevelServiceIntegrationTest {
             .type(AmlCheckType.RISK_LEVEL)
             .success(false)
             .metadata(existingMetadata)
+            .createdTime(TestClockHolder.now.minus(100, ChronoUnit.DAYS))
             .build();
     amlCheckRepository.save(existingCheck);
 
@@ -134,6 +141,7 @@ class RiskLevelServiceIntegrationTest {
             .type(AmlCheckType.RISK_LEVEL)
             .success(true)
             .metadata(existingMetadata)
+            .createdTime(TestClockHolder.now.minus(60, ChronoUnit.DAYS))
             .build();
     amlCheckRepository.save(existingCheck);
 
@@ -162,10 +170,77 @@ class RiskLevelServiceIntegrationTest {
             .type(AmlCheckType.RISK_LEVEL)
             .success(false)
             .metadata(existingMetadata)
-            .createdTime(Instant.now().minus(730, ChronoUnit.DAYS))
+            .createdTime(TestClockHolder.now.minus(730, ChronoUnit.DAYS))
             .build();
     amlCheckRepository.save(oldCheck);
 
+    riskLevelService.runRiskLevelCheck();
+
+    List<AmlCheck> checksAfter = amlCheckRepository.findAll();
+    assertEquals(2, checksAfter.size());
+  }
+
+  @Test
+  @DisplayName("Should skip check if existing check with same metadata is within six months")
+  void testRiskLevelCheck_existingCheckSameMetadataWithinSixMonths_noNewCheckCreated()
+      throws Exception {
+    try (Connection conn = dataSource.getConnection();
+        Statement stmt = conn.createStatement()) {
+      stmt.execute(AmlRiskTestDataFixtures.INSERT_PERSON_4_RISK_LEVEL_1);
+    }
+
+    Map<String, Object> existingMetadata = new HashMap<>();
+    existingMetadata.put("attribute_1", 3);
+    existingMetadata.put("attribute_2", 2);
+    existingMetadata.put("attribute_3", 0);
+    existingMetadata.put("attribute_4", 0);
+    existingMetadata.put("attribute_5", 0);
+    existingMetadata.put("risk_level", 1);
+
+    AmlCheck existingCheck =
+        AmlCheck.builder()
+            .personalCode(PERSON_ID_4)
+            .type(AmlCheckType.RISK_LEVEL)
+            .success(false)
+            .metadata(existingMetadata)
+            .createdTime(TestClockHolder.now.minus(100, ChronoUnit.DAYS))
+            .build();
+    amlCheckRepository.save(existingCheck);
+
+    riskLevelService.runRiskLevelCheck();
+
+    List<AmlCheck> checksAfter = amlCheckRepository.findAll();
+    assertEquals(1, checksAfter.size());
+  }
+
+  @Test
+  @DisplayName("Should create check if existing check with same metadata is older than six months")
+  void testRiskLevelCheck_existingCheckSameMetadataOlderThanSixMonths_newCheckCreated()
+      throws Exception {
+    try (Connection conn = dataSource.getConnection();
+        Statement stmt = conn.createStatement()) {
+      stmt.execute(AmlRiskTestDataFixtures.INSERT_PERSON_4_RISK_LEVEL_1);
+    }
+
+    Map<String, Object> existingMetadata = new HashMap<>();
+    existingMetadata.put("attribute_1", 3);
+    existingMetadata.put("attribute_2", 2);
+    existingMetadata.put("attribute_3", 0);
+    existingMetadata.put("attribute_4", 0);
+    existingMetadata.put("attribute_5", 0);
+    existingMetadata.put("risk_level", 1);
+
+    var currentClock = ClockHolder.clock();
+    ClockHolder.setClock(Clock.fixed(currentClock.instant().minus(190, ChronoUnit.DAYS), UTC));
+    AmlCheck existingCheck =
+        AmlCheck.builder()
+            .personalCode(PERSON_ID_4)
+            .type(AmlCheckType.RISK_LEVEL)
+            .success(false)
+            .metadata(existingMetadata)
+            .build();
+    amlCheckRepository.save(existingCheck);
+    ClockHolder.setClock(TestClockHolder.clock);
     riskLevelService.runRiskLevelCheck();
 
     List<AmlCheck> checksAfter = amlCheckRepository.findAll();

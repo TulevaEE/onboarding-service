@@ -9,7 +9,6 @@ public final class AmlRiskTestDataFixtures {
   public static final String PERSON_ID_5 = "38888888889";
   public static final String PERSON_ID_6 = "38812022762";
   public static final String PERSON_ID_7 = "9876543210";
-  public static final String PERSON_ID_8 = "666";
   public static final String PERSON_ID_BLANK = "        ";
 
   public static final String CREATE_AML_RISK_SHCEMA = "CREATE SCHEMA IF NOT EXISTS analytics";
@@ -108,6 +107,6 @@ public final class AmlRiskTestDataFixtures {
           + ") VALUES ("
           + "'"
           + PERSON_ID_4
-          + "', 1, 1, 0, 0, 0, 1"
+          + "', 3, 2, 0, 0, 0, 1"
           + ")";
 }

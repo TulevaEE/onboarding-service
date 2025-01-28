@@ -16,7 +16,10 @@ import ee.tuleva.onboarding.aml.AmlCheckRepository;
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobRunEvent;
+import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.time.TestClockHolder;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +41,7 @@ class RiskLevelServiceTest {
     amlRiskRepositoryService = org.mockito.Mockito.mock(AmlRiskRepositoryService.class);
     amlCheckRepository = org.mockito.Mockito.mock(AmlCheckRepository.class);
     eventPublisher = org.mockito.Mockito.mock(ApplicationEventPublisher.class);
+    ClockHolder.setClock(TestClockHolder.clock);
     riskLevelService =
         new RiskLevelService(amlRiskRepositoryService, amlCheckRepository, eventPublisher);
   }
@@ -103,7 +107,81 @@ class RiskLevelServiceTest {
   }
 
   @Test
-  @DisplayName("Should skip creating a new AML check if duplicate exists within one year")
+  @DisplayName("Should skip creating a new AML check if duplicate exists within six months")
+  void testRunRiskLevelCheck_skipsDuplicateWithinSixMonths() {
+    RiskLevelResult row = new RiskLevelResult("38888888888", 1, Map.of("abc", "123"));
+    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
+    AmlCheck existingCheck =
+        AmlCheck.builder()
+            .personalCode("38888888888")
+            .type(AmlCheckType.RISK_LEVEL)
+            .success(false)
+            .metadata(Map.of("abc", "123"))
+            .createdTime(TestClockHolder.now.minus(90, ChronoUnit.DAYS))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            eq("38888888888"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
+        .thenReturn(List.of(existingCheck));
+
+    riskLevelService.runRiskLevelCheck();
+
+    verify(amlCheckRepository, never()).save(any());
+    verify(eventPublisher, never())
+        .publishEvent(org.mockito.ArgumentMatchers.isA(AmlCheckCreatedEvent.class));
+
+    ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
+        ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
+    verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
+    AmlRiskLevelJobRunEvent jobRunEvent =
+        jobEventCaptor.getAllValues().stream()
+            .filter(e -> e instanceof AmlRiskLevelJobRunEvent)
+            .map(e -> (AmlRiskLevelJobRunEvent) e)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(1, jobRunEvent.getHighRiskRowCount());
+    assertEquals(0, jobRunEvent.getAmlChecksCreatedCount());
+  }
+
+  @Test
+  @DisplayName(
+      "Should create a new AML check if the last same metadata check is older than six months")
+  void testRunRiskLevelCheck_createsNewIfExistingIsOlderThanSixMonths() {
+    RiskLevelResult row = new RiskLevelResult("38888888888", 1, Map.of("abc", "123"));
+    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
+    AmlCheck existingCheck =
+        AmlCheck.builder()
+            .personalCode("38888888888")
+            .type(AmlCheckType.RISK_LEVEL)
+            .success(false)
+            .metadata(Map.of("abc", "123"))
+            .createdTime(TestClockHolder.now.minus(190, ChronoUnit.DAYS))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            eq("38888888888"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
+        .thenReturn(Collections.emptyList());
+
+    riskLevelService.runRiskLevelCheck();
+
+    verify(amlCheckRepository, times(1)).save(any(AmlCheck.class));
+    verify(eventPublisher, times(1))
+        .publishEvent(org.mockito.ArgumentMatchers.isA(AmlCheckCreatedEvent.class));
+
+    ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
+        ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
+    verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
+    AmlRiskLevelJobRunEvent jobRunEvent =
+        jobEventCaptor.getAllValues().stream()
+            .filter(e -> e instanceof AmlRiskLevelJobRunEvent)
+            .map(e -> (AmlRiskLevelJobRunEvent) e)
+            .findFirst()
+            .orElseThrow();
+    assertEquals(1, jobRunEvent.getHighRiskRowCount());
+    assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
+  }
+
+  @Test
+  @DisplayName(
+      "Should skip creating a new AML check if duplicate exists within one year (legacy test)")
   void testRunRiskLevelCheck_skipsDuplicateWithinOneYear() {
     RiskLevelResult row = new RiskLevelResult("38888888888", 1, Map.of("abc", "123"));
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
@@ -113,6 +191,7 @@ class RiskLevelServiceTest {
             .type(AmlCheckType.RISK_LEVEL)
             .success(false)
             .metadata(Map.of("abc", "123"))
+            .createdTime(TestClockHolder.now.minus(300, ChronoUnit.DAYS))
             .build();
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             eq("38888888888"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
@@ -148,6 +227,7 @@ class RiskLevelServiceTest {
             .type(AmlCheckType.RISK_LEVEL)
             .success(false)
             .metadata(Map.of("something", "else"))
+            .createdTime(TestClockHolder.now.minus(50, ChronoUnit.DAYS))
             .build();
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             eq("38888888888"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))

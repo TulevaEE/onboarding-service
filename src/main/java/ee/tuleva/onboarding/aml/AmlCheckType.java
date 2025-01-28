@@ -16,7 +16,8 @@ public enum AmlCheckType {
   SANCTION,
   SANCTION_OVERRIDE,
   POLITICALLY_EXPOSED_PERSON_OVERRIDE,
-  RISK_LEVEL;
+  RISK_LEVEL,
+  RISK_LEVEL_OVERRIDE;
 
   @Getter final boolean manual;
 

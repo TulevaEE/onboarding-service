@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
@@ -42,6 +43,6 @@ public class AmlCheck {
 
   @PrePersist
   protected void onCreate() {
-    createdTime = Instant.now();
+    createdTime = ClockHolder.clock().instant();
   }
 }

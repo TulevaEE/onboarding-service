@@ -14,8 +14,8 @@ public class ScheduledRiskLevelCheckJob {
 
   private final RiskLevelService riskLevelService;
 
-  // Runs on the 1st day of each month at 01:00 (Europe/Tallinn)...
-  @Scheduled(cron = "0 0 1 1 * ?", zone = "Europe/Tallinn")
+  // Runs on the 30th of January (Europe/Tallinn) - repeats annually
+  @Scheduled(cron = "0 20 07 30 1 ?", zone = "Europe/Tallinn")
   public void run() {
     log.info("Starting AML risk level check job");
     riskLevelService.runRiskLevelCheck();

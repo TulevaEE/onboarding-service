@@ -57,6 +57,9 @@ class RiskLevelServiceTest {
 
     riskLevelService.runRiskLevelCheck();
 
+    verify(amlRiskRepositoryService).refreshMaterializedView();
+    verify(amlRiskRepositoryService).getHighRiskRows();
+
     ArgumentCaptor<AmlCheck> checkCaptor = ArgumentCaptor.forClass(AmlCheck.class);
     verify(amlCheckRepository).save(checkCaptor.capture());
     AmlCheck createdCheck = checkCaptor.getValue();
@@ -88,6 +91,9 @@ class RiskLevelServiceTest {
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
 
     riskLevelService.runRiskLevelCheck();
+
+    verify(amlRiskRepositoryService).refreshMaterializedView();
+    verify(amlRiskRepositoryService).getHighRiskRows();
 
     verify(amlCheckRepository, never()).save(any());
     verify(eventPublisher, never())
@@ -124,6 +130,9 @@ class RiskLevelServiceTest {
         .thenReturn(List.of(existingCheck));
 
     riskLevelService.runRiskLevelCheck();
+
+    verify(amlRiskRepositoryService).refreshMaterializedView();
+    verify(amlRiskRepositoryService).getHighRiskRows();
 
     verify(amlCheckRepository, never()).save(any());
     verify(eventPublisher, never())
@@ -162,6 +171,9 @@ class RiskLevelServiceTest {
 
     riskLevelService.runRiskLevelCheck();
 
+    verify(amlRiskRepositoryService).refreshMaterializedView();
+    verify(amlRiskRepositoryService).getHighRiskRows();
+
     verify(amlCheckRepository, times(1)).save(any(AmlCheck.class));
     verify(eventPublisher, times(1))
         .publishEvent(org.mockito.ArgumentMatchers.isA(AmlCheckCreatedEvent.class));
@@ -199,6 +211,9 @@ class RiskLevelServiceTest {
 
     riskLevelService.runRiskLevelCheck();
 
+    verify(amlRiskRepositoryService).refreshMaterializedView();
+    verify(amlRiskRepositoryService).getHighRiskRows();
+
     verify(amlCheckRepository, never()).save(any());
     verify(eventPublisher, never())
         .publishEvent(org.mockito.ArgumentMatchers.isA(AmlCheckCreatedEvent.class));
@@ -235,6 +250,9 @@ class RiskLevelServiceTest {
 
     riskLevelService.runRiskLevelCheck();
 
+    verify(amlRiskRepositoryService).refreshMaterializedView();
+    verify(amlRiskRepositoryService).getHighRiskRows();
+
     verify(amlCheckRepository, times(1)).save(any(AmlCheck.class));
     verify(eventPublisher, times(1))
         .publishEvent(org.mockito.ArgumentMatchers.isA(AmlCheckCreatedEvent.class));
@@ -258,6 +276,9 @@ class RiskLevelServiceTest {
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of());
 
     riskLevelService.runRiskLevelCheck();
+
+    verify(amlRiskRepositoryService).refreshMaterializedView();
+    verify(amlRiskRepositoryService).getHighRiskRows();
 
     verify(amlCheckRepository, never()).save(any());
     verify(eventPublisher, never())

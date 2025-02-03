@@ -1,9 +1,8 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
-import static ee.tuleva.onboarding.aml.risklevel.AmlRiskTestDataFixtures.PERSON_ID_3;
-import static ee.tuleva.onboarding.aml.risklevel.AmlRiskTestDataFixtures.PERSON_ID_7;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -12,16 +11,19 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 class AmlRiskRepositoryServiceTest {
 
   private AmlRiskMetadataRepository repository;
+  private NamedParameterJdbcTemplate jdbcTemplate;
   private AmlRiskRepositoryService service;
 
   @BeforeEach
   void setUp() {
     repository = Mockito.mock(AmlRiskMetadataRepository.class);
-    service = new AmlRiskRepositoryService(repository);
+    jdbcTemplate = Mockito.mock(NamedParameterJdbcTemplate.class);
+    service = new AmlRiskRepositoryService(repository, jdbcTemplate);
   }
 
   @Test
@@ -36,7 +38,7 @@ class AmlRiskRepositoryServiceTest {
   @DisplayName("Should handle non-null metadata as a Map")
   void getHighRiskRows_mapMetadata() {
     Map<String, Object> testMetadata = Map.of("attribute_1", 5, "attribute_2", 3, "risk_level", 1);
-    AmlRiskMetadata row = new AmlRiskMetadata(PERSON_ID_3, 1, testMetadata);
+    AmlRiskMetadata row = new AmlRiskMetadata("somePersonalId", 1, testMetadata);
 
     when(repository.findAllByRiskLevel(1)).thenReturn(List.of(row));
 
@@ -44,7 +46,7 @@ class AmlRiskRepositoryServiceTest {
     assertEquals(1, results.size());
 
     RiskLevelResult r = results.get(0);
-    assertEquals(PERSON_ID_3, r.getPersonalId());
+    assertEquals("somePersonalId", r.getPersonalId());
     assertEquals(1, r.getRiskLevel());
     assertEquals(5, r.getMetadata().get("attribute_1"));
     assertEquals(3, r.getMetadata().get("attribute_2"));
@@ -53,11 +55,24 @@ class AmlRiskRepositoryServiceTest {
   @Test
   @DisplayName("Should handle null metadata by returning an empty map")
   void getHighRiskRows_nullMetadata() {
-    AmlRiskMetadata row = new AmlRiskMetadata(PERSON_ID_7, 1, null);
+    AmlRiskMetadata row = new AmlRiskMetadata("someOtherPersonalId", 1, null);
     when(repository.findAllByRiskLevel(1)).thenReturn(List.of(row));
 
     List<RiskLevelResult> results = service.getHighRiskRows();
     assertEquals(1, results.size());
     assertTrue(results.get(0).getMetadata().isEmpty());
+  }
+
+  @Test
+  @DisplayName("Should refresh materialized view")
+  void testRefreshMaterializedView() {
+    var jdbcOperations = Mockito.mock(org.springframework.jdbc.core.JdbcOperations.class);
+    when(jdbcTemplate.getJdbcOperations()).thenReturn(jdbcOperations);
+
+    service.refreshMaterializedView();
+
+    String expectedSql =
+        "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.mv_third_pillar_latest_residency;";
+    verify(jdbcOperations).execute(expectedSql);
   }
 }

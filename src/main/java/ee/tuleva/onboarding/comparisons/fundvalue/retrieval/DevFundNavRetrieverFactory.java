@@ -16,6 +16,7 @@ public class DevFundNavRetrieverFactory extends FundNavRetrieverFactory {
     super(fundRepository, episService);
   }
 
+  @Override
   public List<ComparisonIndexRetriever> createAll() {
     return emptyList();
   }

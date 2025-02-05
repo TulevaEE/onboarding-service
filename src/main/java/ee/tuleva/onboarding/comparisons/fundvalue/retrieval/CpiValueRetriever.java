@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import java.util.zip.GZIPInputStream;
 import lombok.SneakyThrows;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.stereotype.Service;
@@ -21,8 +22,9 @@ import org.springframework.web.client.RestTemplate;
 
 @Slf4j
 @Service
+@ToString(onlyExplicitlyIncluded = true)
 public class CpiValueRetriever implements ComparisonIndexRetriever {
-  public static final String KEY = "CPI";
+  @ToString.Include public static final String KEY = "CPI";
   private static final String SOURCE_URL =
       "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/prc_hicp_midx/?format=TSV&compressed=true";
 

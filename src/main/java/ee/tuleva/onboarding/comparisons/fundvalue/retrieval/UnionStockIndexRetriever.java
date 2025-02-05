@@ -10,14 +10,16 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ToString(onlyExplicitlyIncluded = true)
 public class UnionStockIndexRetriever implements ComparisonIndexRetriever {
-  public static final String KEY = "UNION_STOCK_INDEX";
+  @ToString.Include public static final String KEY = "UNION_STOCK_INDEX";
 
   private final FundValueRepository fundValueRepository;
 

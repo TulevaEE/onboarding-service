@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -32,8 +33,9 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ToString(onlyExplicitlyIncluded = true)
 public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
-  public static final String KEY = "MARKET";
+  @ToString.Include public static final String KEY = "MARKET";
 
   private final RestTemplate restTemplate;
 

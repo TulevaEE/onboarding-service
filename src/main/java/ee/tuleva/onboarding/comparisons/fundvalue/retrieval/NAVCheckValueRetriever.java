@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.IntStream;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -19,8 +20,9 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 @Slf4j
+@ToString(onlyExplicitlyIncluded = true)
 public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
-  public static final String KEY = "NAV_CHECK_VALUE";
+  @ToString.Include public static final String KEY = "NAV_CHECK_VALUE";
 
   public static final List<String> FUND_TICKERS =
       List.of("0P000152G5.F", "0P0001N0Z0.F", "SGAS.DE", "SLMC.DE", "SGAJ.DE", "0P0001MGOG.F");

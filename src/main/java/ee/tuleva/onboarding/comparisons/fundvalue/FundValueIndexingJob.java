@@ -33,11 +33,15 @@ public class FundValueIndexingJob {
 
   @Scheduled(cron = "0 0 * * * *", zone = "Europe/Tallinn") // the top of every hour of every day
   public void runIndexingJob() {
+    log.info(
+        "Running indexing job on retrievers: staticRetrievers={}, dynamicRetrievers={}",
+        staticRetrievers,
+        dynamicRetrievers);
     Stream.concat(staticRetrievers.stream(), dynamicRetrievers.stream())
         .forEach(
             retriever -> {
               String fund = retriever.getKey();
-              log.info("Starting to update values for " + fund);
+              log.info("Starting to update values for {}", fund);
               Optional<FundValue> fundValue = fundValueRepository.findLastValueForFund(fund);
               if (fundValue.isPresent()) {
                 LocalDate lastUpdate = fundValue.get().getDate();

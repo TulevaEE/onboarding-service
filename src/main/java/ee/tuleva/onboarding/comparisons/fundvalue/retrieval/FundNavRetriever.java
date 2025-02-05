@@ -8,14 +8,16 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 
 @RequiredArgsConstructor
 @Slf4j
+@ToString(onlyExplicitlyIncluded = true)
 public class FundNavRetriever implements ComparisonIndexRetriever {
 
   private final EpisService episService;
-  private final String isin;
+  @ToString.Include private final String isin;
 
   @Override
   public String getKey() {
@@ -40,10 +42,5 @@ public class FundNavRetriever implements ComparisonIndexRetriever {
 
   private FundValue toFundValue(NavDto nav) {
     return new FundValue(nav.getIsin(), nav.getDate(), nav.getValue());
-  }
-
-  @Override
-  public String toString() {
-    return "FundNavRetriever{isin=%s}".formatted(isin);
   }
 }

@@ -36,7 +36,7 @@ public class UnionStockIndexRetriever implements ComparisonIndexRetriever {
     return stockValues.stream()
         .filter(
             fundValue -> {
-              LocalDate date = fundValue.getDate();
+              LocalDate date = fundValue.date();
               return (startDate.isBefore(date) || startDate.equals(date))
                   && (endDate.isAfter(date) || endDate.equals(date));
             })
@@ -52,9 +52,9 @@ public class UnionStockIndexRetriever implements ComparisonIndexRetriever {
     List<FundValue> jdbcValues = fundValueRepository.getGlobalStockValues();
 
     for (FundValue fundvalue : jdbcValues) {
-      LocalDate date = fundvalue.getDate();
+      LocalDate date = fundvalue.date();
       LocalDate changeDate = LocalDate.of(2019, 12, 31);
-      BigDecimal value = fundvalue.getValue();
+      BigDecimal value = fundvalue.value();
 
       if (date.isAfter(changeDate)) {
         BigDecimal stockValue = value.divide(MULTIPLIER, RoundingMode.HALF_UP);

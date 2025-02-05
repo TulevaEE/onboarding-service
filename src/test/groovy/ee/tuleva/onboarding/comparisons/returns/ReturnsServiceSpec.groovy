@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.comparisons.returns
 
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiFundValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnCalculationParameters
 import ee.tuleva.onboarding.comparisons.returns.provider.ReturnProvider
@@ -214,7 +214,7 @@ class ReturnsServiceSpec extends Specification {
 
   private def sampleReturns2(LocalDate fromDate) {
     def return2 = Return.builder()
-        .key(EPIFundValueRetriever.KEY)
+        .key(EpiFundValueRetriever.KEY)
         .type(FUND)
         .rate(0.0234)
         .amount(234.56)

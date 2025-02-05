@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.comparisons.returns.provider
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CpiValueRetriever
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EPIFundValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiFundValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
@@ -40,7 +40,7 @@ class IndexReturnProviderSpec extends Specification {
         def payments = 234.12
 
         accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
-        rateOfReturnCalculator.getSimulatedReturn(overview, EPIFundValueRetriever.KEY) >>
+        rateOfReturnCalculator.getSimulatedReturn(overview, EpiFundValueRetriever.KEY) >>
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
         rateOfReturnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY) >>
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
@@ -54,7 +54,7 @@ class IndexReturnProviderSpec extends Specification {
 
         then:
         with(returns.returns[0]) {
-          key == EPIFundValueRetriever.KEY
+          key == EpiFundValueRetriever.KEY
           type == INDEX
           rate == expectedReturn
           amount == returnAsAmount

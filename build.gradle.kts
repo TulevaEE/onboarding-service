@@ -18,11 +18,11 @@ val springCloudVersion = "2024.0.0"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.4.1"
+    id("org.springframework.boot") version "3.4.2"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.4.2"
-    id("com.diffplug.spotless") version "6.25.0"
-    id("io.freefair.lombok") version "8.11"
+    id("com.diffplug.spotless") version "7.0.2"
+    id("io.freefair.lombok") version "8.12.1"
     jacoco
 }
 
@@ -34,7 +34,7 @@ spotless {
     java {
         target("src/*/java/**/*.java", "src/*/groovy/**/*.java")
         removeUnusedImports()
-        googleJavaFormat()
+        googleJavaFormat("1.22.0") // TODO: upgrade once it's compatible with Java String Templates
     }
     kotlinGradle {
         target("*.gradle.kts")
@@ -76,8 +76,8 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:10.0.1")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.0")
-    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.0")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.4")
+    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.4")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -109,10 +109,10 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:7.20.0")
-    implementation("io.sentry:sentry-logback:7.20.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.1.0")
+    implementation("io.sentry:sentry-logback:8.1.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.9.0")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.9.1")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -122,22 +122,22 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.29.44")
+    implementation("software.amazon.awssdk:s3:2.30.13")
     implementation("commons-io:commons-io:2.18.0")
-    implementation("org.apache.commons:commons-csv:1.12.0")
+    implementation("org.apache.commons:commons-csv:1.13.0")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }
-    testImplementation("org.spockframework:spock-core:2.4-M4-groovy-4.0") {
+    testImplementation("org.spockframework:spock-core:2.4-M5-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.4-M4-groovy-4.0") {
+    testImplementation("org.spockframework:spock-spring:2.4-M5-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.24")
+    testImplementation("org.apache.groovy:groovy-all:4.0.25")
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
     testImplementation("org.springframework.security:spring-security-test")
@@ -237,7 +237,9 @@ tasks {
         description = "Configures git hooks for the project"
 
         doLast {
-            val operatingSystem = org.gradle.internal.os.OperatingSystem.current()
+            val operatingSystem =
+                org.gradle.internal.os.OperatingSystem
+                    .current()
             val shellCommand = if (operatingSystem.isWindows) "cmd" else "sh"
             val shellArg = if (operatingSystem.isWindows) "/c" else "-c"
 

@@ -102,8 +102,7 @@ public class PensionikeskusDataDownloader {
 
   private Optional<FundValue> parseLine(String line, CsvParserConfig config) {
     try {
-      String cleanedLine = cleanLine(line);
-      String[] columns = splitLine(cleanedLine);
+      String[] columns = line.split("\t");
       if (!hasRequiredColumns(columns, config)) {
         log.error("Insufficient columns in line: {}", line);
         return Optional.empty();
@@ -126,14 +125,6 @@ public class PensionikeskusDataDownloader {
       log.error("Failed to parse line: {}. Error: {}", line, e.getMessage());
       return Optional.empty();
     }
-  }
-
-  private String cleanLine(String line) {
-    return line.replace("\0", "");
-  }
-
-  private String[] splitLine(String line) {
-    return line.split("\t");
   }
 
   private boolean hasRequiredColumns(String[] columns, CsvParserConfig config) {

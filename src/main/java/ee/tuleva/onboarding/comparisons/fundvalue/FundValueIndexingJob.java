@@ -47,11 +47,7 @@ public class FundValueIndexingJob {
                 LocalDate lastUpdate = fundValue.get().getDate();
                 if (!lastUpdate.equals(LocalDate.now())) {
                   LocalDate startDate = lastUpdate.plusDays(1);
-                  log.info(
-                      "Last update for comparison fund {}: {}. Updating from {}",
-                      fund,
-                      lastUpdate,
-                      startDate);
+                  logLastUpdateInfo(fund, lastUpdate, startDate);
                   loadAndPersistDataForStartTime(retriever, startDate);
                 } else {
                   log.info(
@@ -63,6 +59,18 @@ public class FundValueIndexingJob {
                 loadAndPersistDataForStartTime(retriever, EARLIEST_DATE);
               }
             });
+  }
+
+  private void logLastUpdateInfo(String fund, LocalDate lastUpdate, LocalDate startDate) {
+    log.info(
+        "Last update for comparison fund {}: {}. Updating from {}", fund, lastUpdate, startDate);
+
+    if (lastUpdate.isBefore(LocalDate.now().minusWeeks(1)) && fund.startsWith("EE")) {
+      log.error(
+          "Last update for comparison fund {} is more than 1 week old. Last update: {}",
+          fund,
+          lastUpdate);
+    }
   }
 
   @EventListener(ApplicationReadyEvent.class)

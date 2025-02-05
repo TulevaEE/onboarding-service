@@ -89,6 +89,10 @@ public class FundValueIndexingJob {
             fundValueRepository.save(value);
           else fundValueRepository.update(value);
         });
-    log.info("Successfully pulled and saved " + valuesPulled.size() + " fund values");
+    log.info(
+        "Successfully pulled and saved {} {} values: {}",
+        valuesPulled.size(),
+        comparisonIndexRetriever.getKey(),
+        valuesPulled);
   }
 }

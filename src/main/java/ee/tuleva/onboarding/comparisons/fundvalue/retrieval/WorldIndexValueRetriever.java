@@ -74,7 +74,7 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
         .flatMap(Optional::stream)
         .filter(
             (FundValue value) -> {
-              LocalDate date = value.getDate();
+              LocalDate date = value.date();
               return (startDate.isBefore(date) || startDate.equals(date))
                   && (endDate.isAfter(date) || endDate.equals(date));
             })

@@ -44,7 +44,7 @@ public class FundValueIndexingJob {
               log.info("Starting to update values for {}", fund);
               Optional<FundValue> fundValue = fundValueRepository.findLastValueForFund(fund);
               if (fundValue.isPresent()) {
-                LocalDate lastUpdate = fundValue.get().date();
+                LocalDate lastUpdate = fundValue.get().getDate();
                 if (!lastUpdate.equals(LocalDate.now())) {
                   LocalDate startDate = lastUpdate.plusDays(1);
                   logLastUpdateInfo(fund, lastUpdate, startDate);

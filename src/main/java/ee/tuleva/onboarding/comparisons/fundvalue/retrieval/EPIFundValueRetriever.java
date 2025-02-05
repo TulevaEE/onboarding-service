@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.math.BigDecimal.ZERO;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
 
@@ -9,6 +9,7 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.ParseException;
@@ -29,18 +30,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RequestCallback;
 import org.springframework.web.client.ResponseExtractor;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @ToString(onlyExplicitlyIncluded = true)
-public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
-  @ToString.Include public static final String KEY = "MARKET";
+public class EPIFundValueRetriever implements ComparisonIndexRetriever {
+  @ToString.Include public static final String KEY = "EPI";
 
   private final RestTemplate restTemplate;
 
-  private static final String SOURCE_URL =
-      "https://docs.google.com/spreadsheets/d/125aXusxnf-Mij-4D4W5Qnneb8H4chjebnIMpyrAfRkI/gviz/tq?tqx=out:csv&gid=619370394";
+  private static final String EPI_URL =
+      "https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/";
 
   @Override
   public String getKey() {
@@ -49,54 +51,61 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
 
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-    return restTemplate.execute(
-        SOURCE_URL, HttpMethod.GET, getRequestCallback(), getResponseExtractor(startDate, endDate));
+    String url = getDownloadUrlForRange(startDate, endDate);
+    return restTemplate.execute(url, HttpMethod.GET, getRequestCallback(), getResponseExtractor());
   }
 
-  private ResponseExtractor<List<FundValue>> getResponseExtractor(
-      LocalDate startDate, LocalDate endDate) {
+  private String getDownloadUrlForRange(LocalDate startDate, LocalDate endDate) {
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    return UriComponentsBuilder.fromHttpUrl(EPI_URL)
+        .queryParam("date_from", startDate.format(formatter))
+        .queryParam("date_to", endDate.format(formatter))
+        .queryParam("download", "xls")
+        .build()
+        .toUriString();
+  }
+
+  private ResponseExtractor<List<FundValue>> getResponseExtractor() {
     return response -> {
       if (response.getStatusCode() == HttpStatus.OK) {
         InputStream body = response.getBody();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(body, UTF_8));
-        Stream<String> lines = reader.lines().skip(3);
-        return parseLines(lines, startDate, endDate);
+        BufferedReader reader =
+            new BufferedReader(new InputStreamReader(body, StandardCharsets.UTF_16));
+        Stream<String> lines = reader.lines().skip(1); // skip tsv header
+        return parseLines(lines);
       } else {
-        log.warn("Failed to fetch World Index values");
+        log.warn(
+            "Calling Pensionikeskus for EPI values returned response code: "
+                + response.getStatusCode());
         return emptyList();
       }
     };
   }
 
-  private List<FundValue> parseLines(Stream<String> lines, LocalDate startDate, LocalDate endDate) {
-    return lines
-        .map(this::parseLine)
-        .flatMap(Optional::stream)
-        .filter(
-            (FundValue value) -> {
-              LocalDate date = value.getDate();
-              return (startDate.isBefore(date) || startDate.equals(date))
-                  && (endDate.isAfter(date) || endDate.equals(date));
-            })
-        .collect(toList());
+  private List<FundValue> parseLines(Stream<String> lines) {
+    return lines.map(this::parseLine).flatMap(Optional::stream).collect(toList());
   }
 
   private Optional<FundValue> parseLine(String line) {
-    log.debug("Parsing line: [{}].", line);
-    String[] parts = line.split("\",\"");
-    if (parts.length < 6) {
-      log.warn("Invalid line: Less than 6 columns.");
+    String[] parts = line.split("\t");
+    if (parts.length != 3) {
+      log.warn("EPI response line did not have 3 tab-separated parts, so parsing failed");
       return Optional.empty();
     }
-    parts[0] = parts[0].replaceFirst("^\"", "");
-    parts[parts.length - 1] = parts[parts.length - 1].replaceFirst("\"$", "");
 
-    log.debug("Parts({}): {}", parts.length, parts);
+    String fund = parts[1];
+    if (!"EPI".equals(fund)) {
+      return Optional.empty();
+    }
 
     Optional<LocalDate> date = parseDate(parts[0]);
-    Optional<BigDecimal> value = parseAmount(parts[5]);
+    Optional<BigDecimal> value = parseAmount(parts[2]);
 
     if (date.isEmpty() || value.isEmpty()) {
+      return Optional.empty();
+    }
+
+    if (value.get().compareTo(ZERO) <= 0) {
       return Optional.empty();
     }
 
@@ -105,26 +114,22 @@ public class WorldIndexValueRetriever implements ComparisonIndexRetriever {
 
   private Optional<LocalDate> parseDate(String date) {
     try {
-      return Optional.of(LocalDate.parse(date, DateTimeFormatter.ofPattern("d-MMM-yyyy")));
-    } catch (DateTimeParseException ignored) {
-      try {
-        return Optional.of(LocalDate.parse(date, DateTimeFormatter.ofPattern("d-MMMM-yyyy")));
-      } catch (DateTimeParseException e) {
-        log.warn("Failed to parse date: {}", e.getMessage());
-        return Optional.empty();
-      }
+      return Optional.of(LocalDate.parse(date));
+    } catch (DateTimeParseException e) {
+      log.warn("Failed to parse date out of a line of epi fund values response");
+      return Optional.empty();
     }
   }
 
   private Optional<BigDecimal> parseAmount(String amount) {
     DecimalFormatSymbols symbols = new DecimalFormatSymbols();
-    symbols.setDecimalSeparator('.');
+    symbols.setDecimalSeparator(',');
     DecimalFormat decimalFormat = new DecimalFormat("#,##0.0#", symbols);
     decimalFormat.setParseBigDecimal(true);
     try {
       return Optional.of((BigDecimal) decimalFormat.parse(amount));
     } catch (ParseException e) {
-      log.warn("Failed to parse amount");
+      log.warn("Failed to parse value out of a line of epi fund values response");
       return Optional.empty();
     }
   }

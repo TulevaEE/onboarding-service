@@ -80,7 +80,7 @@ public class ReturnCalculator {
       if (fundValueAtTime.isEmpty()) {
         return Optional.empty();
       }
-      BigDecimal fundPriceAtTime = fundValueAtTime.get().value();
+      BigDecimal fundPriceAtTime = fundValueAtTime.get().getValue();
       BigDecimal currentlyBoughtVirtualFundUnits =
           transaction.amount().divide(fundPriceAtTime, MathContext.DECIMAL128);
       virtualFundUnitsBought = virtualFundUnitsBought.add(currentlyBoughtVirtualFundUnits);
@@ -90,7 +90,7 @@ public class ReturnCalculator {
     if (finalVirtualFundValue.isEmpty()) {
       return Optional.empty();
     }
-    BigDecimal finalVirtualFundPrice = finalVirtualFundValue.get().value();
+    BigDecimal finalVirtualFundPrice = finalVirtualFundValue.get().getValue();
     BigDecimal sellAmount = finalVirtualFundPrice.multiply(virtualFundUnitsBought);
     return Optional.of(sellAmount);
   }

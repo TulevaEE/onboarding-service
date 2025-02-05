@@ -45,7 +45,7 @@ public class CpiValueRetriever implements ComparisonIndexRetriever {
     return cpiValues.stream()
         .filter(
             fundValue -> {
-              LocalDate date = fundValue.date();
+              LocalDate date = fundValue.getDate();
               return (startDate.isBefore(date) || startDate.equals(date))
                   && (endDate.isAfter(date) || endDate.equals(date));
             })

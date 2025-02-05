@@ -44,7 +44,7 @@ class FundService {
   private PensionFundStatistics fallbackNavStatistics(Fund fund) {
     return fundValueRepository
         .findLastValueForFund(fund.getIsin())
-        .map(fundValue -> PensionFundStatistics.builder().nav(fundValue.value()).build())
+        .map(fundValue -> PensionFundStatistics.builder().nav(fundValue.getValue()).build())
         .orElseGet(PensionFundStatistics::getNull);
   }
 

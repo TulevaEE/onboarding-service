@@ -1,106 +1,121 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.retrieval
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
-import org.springframework.core.io.ByteArrayResource
-import org.springframework.http.MediaType
-import org.springframework.test.web.client.MockRestServiceServer
+import org.springframework.http.HttpMethod
+import org.springframework.http.HttpStatus
+import org.springframework.http.client.ClientHttpResponse
+import org.springframework.web.client.RequestCallback
+import org.springframework.web.client.ResponseExtractor
+import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
+import java.nio.charset.StandardCharsets
 import java.time.LocalDate
 
-import static java.nio.charset.StandardCharsets.UTF_16
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
-import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
-
-@RestClientTest(components = [EpiFundValueRetriever, PensionikeskusDataDownloader])
 class EpiFundValueRetrieverSpec extends Specification {
 
-  @Autowired
-  EpiFundValueRetriever epiFundValueRetriever
+    RestTemplate restTemplate
+    EPIFundValueRetriever epiFundValueRetriever
 
-  @Autowired
-  MockRestServiceServer server
+    void setup() {
+        restTemplate = Mock(RestTemplate)
+        epiFundValueRetriever = new EPIFundValueRetriever(restTemplate)
+    }
 
-  def "it is configured for the right fund"() {
-    expect:
-    epiFundValueRetriever.getKey() == EpiFundValueRetriever.KEY
-  }
+    def "it is configured for the right fund"() {
+        when:
+            def retrievalFund = epiFundValueRetriever.getKey()
+        then:
+            retrievalFund == EPIFundValueRetriever.KEY
+    }
 
-  def "it successfully parses a valid epi fund value tsv for average epi values"() {
-    given:
-    def csv = """ignore\tthis\theader
+    def "it successfully parses a valid epi fund value tsv for average epi values"() {
+        given:
+            ClientHttpResponse response = createResponse(HttpStatus.OK, """ignore\tthis\theader
 2013-01-07\tEPI-25\t100,001
 2013-01-07\tEPI\t100,23456
 2013-01-08\tEPI-50\t101,001
 2013-01-08\tEPI-25\t101,002
 2013-01-08\tEPI\t101,23456
-"""
-    def startDate = LocalDate.parse("2013-01-07")
-    def endDate = LocalDate.parse("2013-01-08")
-    def expectedUrl = "https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/?date_from=07.01.2013&date_to=08.01.2013&download=xls"
-    server.expect(requestTo(expectedUrl))
-        .andRespond(withSuccess(new ByteArrayResource(csv.getBytes(UTF_16)), MediaType.TEXT_PLAIN))
-    when:
-    List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(startDate, endDate)
-    then:
-    values.size() == 2
-    values[0].key() == EpiFundValueRetriever.KEY
-    values[0].value() == new BigDecimal("100.23456")
-    values[1].key() == EpiFundValueRetriever.KEY
-    values[1].value() == new BigDecimal("101.23456")
-  }
+""")
+            List<FundValue> expectedValues = [
+                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-07"), 100.23456),
+                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-08"), 101.23456),
+            ]
+        when:
+            List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(LocalDate.now(), LocalDate.now())
+        then:
+            1 * restTemplate.execute(_, _, _, _, _) >> {
+                String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
+                    handler.extractData(response)
+            }
+            values == expectedValues
+    }
 
-  def "when a row is misformed it is ignored"() {
-    given:
-    def csv = """ignore\tthis\theader
+    def "it calls pensionikeskus with the correct dates"() {
+        given:
+        def startTime = LocalDate.parse("2018-02-03")
+        def endTime = LocalDate.parse("2018-04-05")
+        when:
+        epiFundValueRetriever.retrieveValuesForRange(startTime, endTime)
+        then:
+        1 * restTemplate.execute("https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/?date_from=03.02.2018&date_to=05.04.2018&download=xls", _, _, _, _)
+    }
+
+    def "when a row is misformed it is ignored"() {
+        given:
+            ClientHttpResponse response = createResponse(HttpStatus.OK, """ignore\tthis\theader
 broken
 2013-01-07\tEPI\t100,23456
 2013-broken!\tEPI-50\t101,001
 2013-01-08\tEPI-20
 2013-01-08\tEPI\tyou-and-me-123
-"""
-    def startDate = LocalDate.parse("2013-01-07")
-    def endDate = LocalDate.parse("2013-01-08")
-    def expectedUrl = "https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/?date_from=07.01.2013&date_to=08.01.2013&download=xls"
-    server.expect(requestTo(expectedUrl))
-        .andRespond(withSuccess(new ByteArrayResource(csv.getBytes(UTF_16)), MediaType.TEXT_PLAIN))
-    when:
-    List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(startDate, endDate)
-    then:
-    values.size() == 1
-    values[0].key() == EpiFundValueRetriever.KEY
-    values[0].value() == new BigDecimal("100.23456")
-  }
+""")
+            List<FundValue> expectedValues = [
+                    new FundValue(EPIFundValueRetriever.KEY, LocalDate.parse("2013-01-07"), 100.23456),
+            ]
+        when:
+            List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(LocalDate.now(), LocalDate.now())
+        then:
+            1 * restTemplate.execute(_, _, _, _, _) >> {
+                String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
+                    handler.extractData(response)
+            }
+            values == expectedValues
+    }
 
-  def "zero values are ignored"() {
-    given:
-    def csv = """ignore\tthis\theader
+    def "zero values are ignored"() {
+        given:
+        ClientHttpResponse response = createResponse(HttpStatus.OK, """ignore\tthis\theader
 2013-01-07\tEPI\t0
-"""
-    def startDate = LocalDate.parse("2013-01-07")
-    def endDate = LocalDate.parse("2013-01-07")
-    def expectedUrl = "https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/?date_from=07.01.2013&date_to=07.01.2013&download=xls"
-    server.expect(requestTo(expectedUrl))
-        .andRespond(withSuccess(new ByteArrayResource(csv.getBytes(UTF_16)), MediaType.TEXT_PLAIN))
-    when:
-    List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(startDate, endDate)
-    then:
-    values.empty
-  }
+""")
+        1 * restTemplate.execute(_, _, _, _, _) >> {
+            String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
+                handler.extractData(response)
+        }
+        when:
+        List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(LocalDate.now(), LocalDate.now())
+        then:
+        values.empty
+    }
 
-  def "when an invalid response is received, an empty list is returned"() {
-    given:
-    def csv = ""
-    def startDate = LocalDate.parse("2013-01-07")
-    def endDate = LocalDate.parse("2013-01-07")
-    def expectedUrl = "https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/?date_from=07.01.2013&date_to=07.01.2013&download=xls"
-    server.expect(requestTo(expectedUrl))
-        .andRespond(withSuccess(csv, MediaType.TEXT_PLAIN))
-    when:
-    List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(startDate, endDate)
-    then:
-    values.empty
-  }
+    def "when an invalid response is received, an empty list is returned"() {
+        given:
+        ClientHttpResponse response = createResponse(HttpStatus.BAD_REQUEST, "")
+        when:
+        List<FundValue> values = epiFundValueRetriever.retrieveValuesForRange(LocalDate.now(), LocalDate.now())
+        then:
+        1 * restTemplate.execute(_, _, _, _, _) >> {
+            String url, HttpMethod method, RequestCallback callback, ResponseExtractor<List<FundValue>> handler, Object[] uriVariables ->
+                handler.extractData(response)
+        }
+        values.empty
+    }
+
+    private ClientHttpResponse createResponse(HttpStatus status, String csvBody) {
+        ClientHttpResponse response = Mock(ClientHttpResponse)
+        response.getStatusCode() >> status
+        response.getBody() >> new ByteArrayInputStream(csvBody.getBytes(StandardCharsets.UTF_16))
+        return response
+    }
 }

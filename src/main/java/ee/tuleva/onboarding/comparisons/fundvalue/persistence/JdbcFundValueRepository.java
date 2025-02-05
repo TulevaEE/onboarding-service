@@ -118,9 +118,9 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   public void save(FundValue fundValue) {
     Map<String, Object> values =
         Map.of(
-            "key", fundValue.key(),
-            "date", fundValue.date(),
-            "value", fundValue.value());
+            "key", fundValue.getComparisonFund(),
+            "date", fundValue.getDate(),
+            "value", fundValue.getValue());
 
     jdbcTemplate.update(INSERT_VALUES_QUERY, values);
   }
@@ -129,9 +129,9 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
   public void update(FundValue fundValue) {
     Map<String, Object> values =
         Map.of(
-            "key", fundValue.key(),
-            "date", fundValue.date(),
-            "value", fundValue.value());
+            "key", fundValue.getComparisonFund(),
+            "date", fundValue.getDate(),
+            "value", fundValue.getValue());
 
     jdbcTemplate.update(UPDATE_VALUES_QUERY, values);
   }
@@ -143,9 +143,9 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
             .map(
                 fundValue ->
                     Map.of(
-                        "key", (Object) fundValue.key(),
-                        "date", fundValue.date(),
-                        "value", fundValue.value()))
+                        "key", (Object) fundValue.getComparisonFund(),
+                        "date", fundValue.getDate(),
+                        "value", fundValue.getValue()))
             .toList();
     jdbcTemplate.batchUpdate(INSERT_VALUES_QUERY, batchValues.toArray(new Map[fundValues.size()]));
   }
@@ -163,9 +163,9 @@ public class JdbcFundValueRepository implements FundValueRepository, FundValuePr
         jdbcTemplate.query(
             FIND_FUND_VALUE_QUERY,
             Map.of(
-                "key", fundValue.key(),
-                "date", fundValue.date(),
-                "value", fundValue.value()),
+                "key", fundValue.getComparisonFund(),
+                "date", fundValue.getDate(),
+                "value", fundValue.getValue()),
             new FundValueRowMapper());
     return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
   }

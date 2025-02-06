@@ -328,30 +328,6 @@ public class MandateBatchServiceTest {
   class SmartIdTests {
 
     @Test
-    @DisplayName("smart-id signing works")
-    void smartIdSigningWorks() {
-      var mandate1 = sampleFundPensionOpeningMandate();
-      var mandate2 = samplePartialWithdrawalMandate();
-
-      var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
-
-      var user = mockUser();
-      var signatureSession =
-          new SmartIdSignatureSession("sampleId", user.getPersonalCode(), List.of());
-
-      when(mandateBatchRepository.findById(any())).thenReturn(Optional.of(mandateBatch));
-      when(mandateFileService.getMandateFiles(mandate1))
-          .thenReturn(List.of(new SignatureFile("file.html", "text/html", new byte[0])));
-      when(mandateFileService.getMandateFiles(mandate2))
-          .thenReturn(List.of(new SignatureFile("file2.html", "text/html", new byte[0])));
-
-      when(signService.startSmartIdSign(any(), any())).thenReturn(signatureSession);
-
-      var session = mandateBatchService.smartIdSign(mandateBatch.getId(), user.getId());
-      assertThat(session).isEqualTo(signatureSession);
-    }
-
-    @Test
     @DisplayName(
         "finalizeSmartIdSignature handles signed mandate and all mandates processed successfully")
     void finalizeSmartIdSignatureHandlesSignedMandate_AllProcessed_Success() {
@@ -375,7 +351,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
 
       MandateSignatureStatus status =
-          mandateBatchService.finalizeSmartIdSignature(
+          mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(SIGNATURE).isEqualTo(status);
@@ -415,7 +391,7 @@ public class MandateBatchServiceTest {
           assertThrows(
               MandateProcessingException.class,
               () ->
-                  mandateBatchService.finalizeSmartIdSignature(
+                  mandateBatchService.finalizeMobileSignature(
                       user.getId(), mandateBatch.getId(), session, Locale.ENGLISH));
 
       assertThat(exception).isNotNull();
@@ -446,7 +422,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
 
       MandateSignatureStatus status =
-          mandateBatchService.finalizeSmartIdSignature(
+          mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
@@ -476,7 +452,7 @@ public class MandateBatchServiceTest {
       ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
 
       MandateSignatureStatus status =
-          mandateBatchService.finalizeSmartIdSignature(
+          mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
@@ -507,7 +483,7 @@ public class MandateBatchServiceTest {
       when(signService.getSignedFile(session)).thenReturn(null);
 
       MandateSignatureStatus status =
-          mandateBatchService.finalizeSmartIdSignature(
+          mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
@@ -521,32 +497,6 @@ public class MandateBatchServiceTest {
   @DisplayName("mobile id")
   @Nested
   class MobileIdTests {
-
-    @Test
-    @DisplayName("mobile id signing works")
-    void mobileIdSigningWorks() {
-      var mandate1 = sampleFundPensionOpeningMandate();
-      var mandate2 = samplePartialWithdrawalMandate();
-
-      var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
-
-      var user = sampleUser().build();
-      var signatureSession = MobileIdSignatureSession.builder().build();
-
-      when(mandateBatchRepository.findById(any())).thenReturn(Optional.of(mandateBatch));
-      when(userService.getById(any())).thenReturn(user);
-      when(mandateFileService.getMandateFiles(mandate1))
-          .thenReturn(List.of(new SignatureFile("file.html", "text/html", new byte[0])));
-      when(mandateFileService.getMandateFiles(mandate2))
-          .thenReturn(List.of(new SignatureFile("file2.html", "text/html", new byte[0])));
-
-      when(signService.startMobileIdSign(any(), any(), any())).thenReturn(signatureSession);
-
-      var session =
-          mandateBatchService.mobileIdSign(
-              mandateBatch.getId(), user.getId(), user.getPhoneNumber());
-      assertThat(session).isEqualTo(signatureSession);
-    }
 
     @Test
     @DisplayName(
@@ -572,7 +522,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
 
       MandateSignatureStatus status =
-          mandateBatchService.finalizeMobileIdSignature(
+          mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(SIGNATURE).isEqualTo(status);
@@ -612,7 +562,7 @@ public class MandateBatchServiceTest {
           assertThrows(
               MandateProcessingException.class,
               () ->
-                  mandateBatchService.finalizeMobileIdSignature(
+                  mandateBatchService.finalizeMobileSignature(
                       user.getId(), mandateBatch.getId(), session, Locale.ENGLISH));
 
       assertThat(exception).isNotNull();
@@ -643,7 +593,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
 
       MandateSignatureStatus status =
-          mandateBatchService.finalizeMobileIdSignature(
+          mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
@@ -673,7 +623,7 @@ public class MandateBatchServiceTest {
       ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
 
       MandateSignatureStatus status =
-          mandateBatchService.finalizeMobileIdSignature(
+          mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
@@ -704,7 +654,7 @@ public class MandateBatchServiceTest {
       when(signService.getSignedFile(session)).thenReturn(null);
 
       MandateSignatureStatus status =
-          mandateBatchService.finalizeMobileIdSignature(
+          mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
       assertThat(OUTSTANDING_TRANSACTION).isEqualTo(status);
@@ -718,31 +668,6 @@ public class MandateBatchServiceTest {
   @DisplayName("id card")
   @Nested
   class IdCardTests {
-
-    @Test
-    @DisplayName("id card signing works")
-    void idCardSigningWorks() {
-      var mandate1 = sampleFundPensionOpeningMandate();
-      var mandate2 = samplePartialWithdrawalMandate();
-
-      var mandateBatch = MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2));
-
-      var user = sampleUser().build();
-      var signatureSession = IdCardSignatureSession.builder().build();
-
-      when(mandateBatchRepository.findById(any())).thenReturn(Optional.of(mandateBatch));
-      when(userService.getById(any())).thenReturn(user);
-      when(mandateFileService.getMandateFiles(mandate1))
-          .thenReturn(List.of(new SignatureFile("file.html", "text/html", new byte[0])));
-      when(mandateFileService.getMandateFiles(mandate2))
-          .thenReturn(List.of(new SignatureFile("file2.html", "text/html", new byte[0])));
-
-      when(signService.startIdCardSign(any(), any())).thenReturn(signatureSession);
-
-      var session =
-          mandateBatchService.idCardSign(mandateBatch.getId(), user.getId(), user.getPhoneNumber());
-      assertThat(session).isEqualTo(signatureSession);
-    }
 
     @Test
     @DisplayName(

@@ -51,4 +51,16 @@ public class MandateEmailSender {
     mandateBatchEmailService.sendMandateBatch(
         event.getUser(), event.getMandateBatch(), pillarSuggestion, event.getLocale());
   }
+
+  @EventListener
+  public void sendBatchFailedEmail(AfterMandateBatchSignedEvent event) {
+    ContactDetails contactDetails = episService.getContactDetails(event.getUser());
+    ConversionResponse conversion = conversionService.getConversion(event.getUser());
+    PaymentRates paymentRates = paymentRateService.getPaymentRates(event.getUser());
+    PillarSuggestion pillarSuggestion =
+        new PillarSuggestion(event.getUser(), contactDetails, conversion, paymentRates);
+
+    mandateBatchEmailService.sendMandateBatch(
+        event.getUser(), event.getMandateBatch(), pillarSuggestion, event.getLocale());
+  }
 }

@@ -14,42 +14,88 @@ import java.time.LocalDate
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 
-@RestClientTest(components = [FundAumRetriever, PensionikeskusDataDownloader])
+@RestClientTest(components = [FundAumRetriever, PensionikeskusDataDownloader, FundAumRetrieverConfiguration])
 class FundAumRetrieverSpec extends Specification {
 
-  @Autowired
-  FundAumRetriever fundAumRetriever
+    @Autowired
+    FundAumRetriever secondPillarStockAumRetriever
 
-  @Autowired
-  MockRestServiceServer server
+    @Autowired
+    FundAumRetriever secondPillarBondAumRetriever
 
-  def cleanup() {
-    server.reset()
-  }
+    @Autowired
+    FundAumRetriever thirdPillarAumRetriever
 
-  def "should retrieve AUM fund values from CSV"() {
-    given:
-    def csv = """Date\tFund\tShortname\tISIN\tNet assets\tChange %
-2024-11-05\tLuminor 16-50 pension fund\tNPK75\tEE3600103503\t208800943\t0
-2024-11-05\tSwedbank Pension Fund Generation 1980-89\tSWK75\tEE3600103248\t516440444\t0
-2024-11-05\tLHV Pensionifond XL\tLXK75\tEE3600019766\t266881342\t0
+    @Autowired
+    MockRestServiceServer server
+
+    def cleanup() {
+        server.reset()
+    }
+
+    def "should retrieve second pillar stock fund AUM values from CSV"() {
+        given:
+        def csv = """Date\tFund\tShortname\tISIN\tNet assets\tChange %
+2024-11-06\tLHV Pensionifond XL\tLXK75\tEE3600019766\t266999636\t0
+2024-11-06\tSEB pension fund 18+\tSEK100\tEE3600001699\t202071126\t0
+2024-11-06\tTuleva World Stocks Pension Fund\tTUK75\tEE3600109435\t661127723\t0
 """
-    def startDate = LocalDate.parse("2024-11-05")
-    def endDate = LocalDate.parse("2024-11-05")
-    def expectedUrl = "https://www.pensionikeskus.ee/en/statistics/ii-pillar/value-of-assets-of-funded-pension/?date_from=05.11.2024&date_to=05.11.2024&download=xls"
-    server.expect(requestTo(expectedUrl))
-        .andRespond(withSuccess(new ByteArrayResource(csv.getBytes(StandardCharsets.UTF_16)), MediaType.TEXT_PLAIN))
+        def startDate = LocalDate.parse("2024-11-06")
+        def endDate = LocalDate.parse("2024-11-06")
+        def expectedUrl = "https://www.pensionikeskus.ee/en/statistics/ii-pillar/value-of-assets-of-funded-pension/?f%5B0%5D=77&date_from=06.11.2024&date_to=06.11.2024&download=xls"
+        server.expect(requestTo(expectedUrl))
+                .andRespond(withSuccess(new ByteArrayResource(csv.getBytes(StandardCharsets.UTF_16)), MediaType.TEXT_PLAIN))
 
-    when:
-    List<FundValue> result = fundAumRetriever.retrieveValuesForRange(startDate, endDate)
+        when:
+        List<FundValue> results = secondPillarStockAumRetriever.retrieveValuesForRange(startDate, endDate)
 
-    then:
-    result.size() == 3
-    result[0].key() == "AUM_EE3600103503"
-    result[0].value() == 208800943
-    result[1].key() == "AUM_EE3600103248"
-    result[1].value() == 516440444
-    result[2].key() == "AUM_EE3600019766"
-    result[2].value() == 266881342
-  }
+        then:
+        results == [
+            new FundValue("AUM_EE3600109435", LocalDate.of(2024, 11, 6), 661127723 as BigDecimal),
+        ]
+    }
+
+    def "should retrieve second pillar bond fund AUM values from CSV"() {
+        given:
+        def csv = """Date\tFund\tShortname\tISIN\tNet assets\tChange %
+2024-11-06\tLHV Pensionifond XL\tLXK75\tEE3600019766\t266999636\t0
+2024-11-06\tSEB pension fund 18+\tSEK100\tEE3600001699\t202071126\t0
+2024-11-06\tTuleva World Bonds Pension Fund\tTUK00\tEE3600109443\t11327895\t0
+"""
+        def startDate = LocalDate.parse("2024-11-06")
+        def endDate = LocalDate.parse("2024-11-06")
+        def expectedUrl = "https://www.pensionikeskus.ee/en/statistics/ii-pillar/value-of-assets-of-funded-pension/?f%5B0%5D=76&date_from=06.11.2024&date_to=06.11.2024&download=xls"
+        server.expect(requestTo(expectedUrl))
+                .andRespond(withSuccess(new ByteArrayResource(csv.getBytes(StandardCharsets.UTF_16)), MediaType.TEXT_PLAIN))
+
+        when:
+        List<FundValue> results = secondPillarBondAumRetriever.retrieveValuesForRange(startDate, endDate)
+
+        then:
+        results == [
+            new FundValue("AUM_EE3600109443", LocalDate.of(2024, 11, 6), 11327895 as BigDecimal),
+        ]
+    }
+
+    def "should retrieve third pillar fund AUM values from CSV"() {
+        given:
+        def csv = """Date\tFund\tShortname\tISIN\tNet assets\tChange %
+2024-11-06\tLuminor Tulevik 16-50 Pension Fund\tNPT100\tEE3600098422\t29319617\t0
+2024-11-06\tTuleva III Pillar Pension Fund\tTUV100\tEE3600001707\t305624105\t0
+2024-11-06\tLHV Pensionifond Aktiivne III\tLHT75\tEE3600010294\t31555446\t0
+"""
+        def startDate = LocalDate.parse("2024-11-06")
+        def endDate = LocalDate.parse("2024-11-06")
+        def expectedUrl = "https://www.pensionikeskus.ee/en/statistics/iii-pillar/value-of-assets-of-suppl-funded-pension/?f%5B0%5D=81&date_from=06.11.2024&date_to=06.11.2024&download=xls"
+        server.expect(requestTo(expectedUrl))
+                .andRespond(withSuccess(new ByteArrayResource(csv.getBytes(StandardCharsets.UTF_16)), MediaType.TEXT_PLAIN))
+
+        when:
+        List<FundValue> results = thirdPillarAumRetriever.retrieveValuesForRange(startDate, endDate)
+
+        then:
+        results == [
+            new FundValue("AUM_EE3600001707", LocalDate.of(2024, 11, 6), 305624105 as BigDecimal),
+        ]
+    }
 }

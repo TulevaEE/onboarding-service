@@ -16,7 +16,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.Builder;
@@ -51,33 +50,27 @@ public class PensionikeskusDataDownloader {
 
   @Builder
   public record CsvParserConfig(
-      String key,
-      Integer keyColumn, // Optional: if provided, computed key = key + "_" + column[keyColumn]
+      String keyPrefix,
+      Integer
+          keyColumn, // Optional: if provided, computed key = keyPrefix + "_" + column[keyColumn]
       Integer filterColumn,
       String filterValue,
       int valueColumn) {}
 
   public List<FundValue> downloadData(
       String baseUrl, LocalDate startDate, LocalDate endDate, CsvParserConfig config) {
-    var queryDateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-    var additionalParams = Map.<String, String>of();
-    var url = buildUrl(baseUrl, queryDateFormatter, startDate, endDate, additionalParams);
+    var url = buildUrl(baseUrl, startDate, endDate);
     return restTemplate.execute(url, GET, requestCallback(), responseExtractor(config));
   }
 
-  private String buildUrl(
-      String baseUrl,
-      DateTimeFormatter dateFormatter,
-      LocalDate startDate,
-      LocalDate endDate,
-      Map<String, String> additionalParams) {
-    var builder =
-        UriComponentsBuilder.fromUriString(baseUrl)
-            .queryParam("date_from", startDate.format(dateFormatter))
-            .queryParam("date_to", endDate.format(dateFormatter))
-            .queryParam("download", "xls");
-    additionalParams.forEach(builder::queryParam);
-    return builder.build().toUriString();
+  private String buildUrl(String baseUrl, LocalDate startDate, LocalDate endDate) {
+    var dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    return UriComponentsBuilder.fromUriString(baseUrl)
+        .queryParam("date_from", startDate.format(dateFormatter))
+        .queryParam("date_to", endDate.format(dateFormatter))
+        .queryParam("download", "xls")
+        .build()
+        .toUriString();
   }
 
   private RequestCallback requestCallback() {
@@ -116,9 +109,9 @@ public class PensionikeskusDataDownloader {
         log.error("Non-positive value in line: {}", line);
         return Optional.empty();
       }
-      String computedKey = config.key();
+      String computedKey = config.keyPrefix();
       if (config.keyColumn() != null) {
-        computedKey = config.key() + "_" + columns[config.keyColumn()].trim();
+        computedKey = config.keyPrefix() + "_" + columns[config.keyColumn()].trim();
       }
       return Optional.of(new FundValue(computedKey, date, value));
     } catch (Exception e) {

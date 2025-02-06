@@ -6,31 +6,34 @@ import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class FundAumRetriever implements ComparisonIndexRetriever {
 
   public static final String KEY = "AUM";
+
   private final PensionikeskusDataDownloader downloader;
+  private final String baseUrl;
+  private final String isin;
 
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
-    var baseUrl =
-        "https://www.pensionikeskus.ee/en/statistics/ii-pillar/value-of-assets-of-funded-pension/";
+    var isinColumn = 3;
+    var aumColumn = 4;
     var config =
         CsvParserConfig.builder()
-            .key(KEY)
-            .keyColumn(3) // ISIN
-            .valueColumn(4) // AUM
+            .keyPrefix(KEY)
+            .filterColumn(isinColumn)
+            .filterValue(isin)
+            .keyColumn(isinColumn)
+            .valueColumn(aumColumn)
             .build();
     return downloader.downloadData(baseUrl, startDate, endDate, config);
   }
 
   @Override
   public String getKey() {
-    return KEY;
+    return KEY + "_" + isin;
   }
 }

@@ -24,12 +24,14 @@ public class EpiFundValueRetriever implements ComparisonIndexRetriever {
   @Override
   public List<FundValue> retrieveValuesForRange(LocalDate startDate, LocalDate endDate) {
     var baseUrl = "https://www.pensionikeskus.ee/en/statistics/ii-pillar/epi-charts/";
+    var indexColumn = 1;
+    var valueColumn = 2;
     var config =
         CsvParserConfig.builder()
-            .key(KEY)
-            .filterColumn(1)
+            .keyPrefix(KEY)
+            .filterColumn(indexColumn)
             .filterValue("EPI")
-            .valueColumn(2)
+            .valueColumn(valueColumn)
             .build();
     return downloader.downloadData(baseUrl, startDate, endDate, config);
   }

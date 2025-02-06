@@ -44,26 +44,6 @@ class MandateBatchSignatureServiceTest {
   class MobileIdTests {
 
     @Test
-    @DisplayName("start mobile id signature returns the mobile ID challenge code")
-    void startMobileIdSignatureReturnsChallengeCode() {
-      var mandateBatchId = 1L;
-      var phoneNumber = "+372 555 5555";
-      var mockSession = MobileIdSignatureSession.builder().verificationCode("1234").build();
-      var user =
-          authenticatedPersonFromUser(sampleUser().build())
-              .attributes(Map.of(PHONE_NUMBER, phoneNumber))
-              .build();
-
-      when(mandateBatchService.mobileIdSign(eq(mandateBatchId), any(), eq(phoneNumber)))
-          .thenReturn(mockSession);
-
-      var result = mandateBatchSignatureService.startMobileIdSignature(mandateBatchId, user);
-
-      assertThat(result.getChallengeCode()).isEqualTo("1234");
-      verify(sessionStore, times(1)).save(mockSession);
-    }
-
-    @Test
     @DisplayName("get mobile id signature status returns the status and challenge code")
     void getMobileIdSignatureStatusReturnsStatusAndChallengeCode() {
       var mandateBatchId = 1L;
@@ -72,8 +52,8 @@ class MandateBatchSignatureServiceTest {
 
       when(sessionStore.get(MobileIdSignatureSession.class)).thenReturn(Optional.of(mockSession));
       when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
-      when(mandateBatchService.finalizeMobileIdSignature(
-              any(), eq(mandateBatchId), any(), eq(Locale.ENGLISH)))
+      when(mandateBatchService.finalizeMobileSignature(
+              any(), eq(mandateBatchId), any(MobileIdSignatureSession.class) , eq(Locale.ENGLISH)))
           .thenReturn(SIGNATURE);
 
       var result = mandateBatchSignatureService.getMobileIdSignatureStatus(mandateBatchId, user);
@@ -88,21 +68,6 @@ class MandateBatchSignatureServiceTest {
   class SmartIdTests {
 
     @Test
-    @DisplayName("start smart id signature returns null challenge code")
-    void startSmartIdSignatureReturnsNullChallengeCode() {
-      var mandateBatchId = 1L;
-      var mockSession = new SmartIdSignatureSession("certSessionId", "personalCode", null);
-      mockSession.setVerificationCode(null);
-
-      when(mandateBatchService.smartIdSign(eq(mandateBatchId), any())).thenReturn(mockSession);
-      var user = sampleAuthenticatedPersonAndMember().build();
-      var result = mandateBatchSignatureService.startSmartIdSignature(mandateBatchId, user);
-
-      assertThat(result.getChallengeCode()).isNull();
-      verify(sessionStore, times(1)).save(mockSession);
-    }
-
-    @Test
     @DisplayName("get smart id signature status returns the status and challenge code")
     void getSmartIdSignatureStatusReturnsStatusAndChallengeCode() {
       var mandateBatchId = 1L;
@@ -111,7 +76,7 @@ class MandateBatchSignatureServiceTest {
 
       when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(mockSession));
       when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
-      when(mandateBatchService.finalizeSmartIdSignature(
+      when(mandateBatchService.finalizeMobileSignature(
               any(), eq(mandateBatchId), eq(mockSession), eq(Locale.ENGLISH)))
           .thenReturn(SIGNATURE);
 
@@ -126,24 +91,6 @@ class MandateBatchSignatureServiceTest {
   @Nested
   @DisplayName("id card")
   class IdCardTests {
-
-    @Test
-    @DisplayName("start id card signature returns the hash to be signed by the client")
-    void startIdCardSignatureReturnsHash() {
-      var mandateBatchId = 1L;
-      var clientCertificate = "clientCertificate";
-      var startCommand = MandateFixture.sampleStartIdCardSignCommand(clientCertificate);
-      var mockSession = IdCardSignatureSession.builder().hashToSignInHex("asdfg").build();
-
-      when(mandateBatchService.idCardSign(eq(mandateBatchId), any(), eq(clientCertificate)))
-          .thenReturn(mockSession);
-
-      var user = sampleAuthenticatedPersonAndMember().build();
-      var result = mandateBatchSignatureService.startIdCardSign(mandateBatchId, user, startCommand);
-
-      assertThat(result.getHash()).isEqualTo("asdfg");
-      verify(sessionStore, times(1)).save(mockSession);
-    }
 
     @Test
     @DisplayName("persistIdCardAndGetProcessingStatus returns finished status code")

@@ -44,6 +44,7 @@ public class MandateBatchService {
   private final SignatureService signService;
   private final MandateProcessorService mandateProcessor;
   private final EpisService episService;
+  private final MandateBatchCompletionPollerService mandateBatchCompletionPollerService;
 
   public Optional<MandateBatch> getByIdAndUser(Long id, User user) {
     var batch =
@@ -124,17 +125,18 @@ public class MandateBatchService {
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (!mandateBatch.isSigned()) {
-      return persistSignedFileIfPresentAndStartProcessing(user, mandateBatch, signedFile);
+      return persistSignedFileIfPresentAndStartProcessing(user, mandateBatch, signedFile, locale);
     }
 
-    return getBatchProcessingStatusAndHandleIfSigned(user, mandateBatch, locale);
+    return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
   }
 
   private MandateSignatureStatus persistFileSignedWithIdCard(
       User user,
       MandateBatch mandateBatch,
       IdCardSignatureSession session,
-      String signedHashInHex) {
+      String signedHashInHex,
+      Locale locale) {
     byte[] signedFile = signService.getSignedFile(session, signedHashInHex);
 
     if (signedFile == null) { // TODO: use Optional
@@ -142,7 +144,7 @@ public class MandateBatchService {
     }
 
     return persistSignedFileIfPresentAndStartProcessing(
-        user, mandateBatch, Optional.of(signedFile));
+        user, mandateBatch, Optional.of(signedFile), locale);
   }
 
   public MandateSignatureStatus persistIdCardSignedFileOrGetBatchProcessingStatus(
@@ -155,13 +157,13 @@ public class MandateBatchService {
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (!mandateBatch.isSigned()) {
-      return persistFileSignedWithIdCard(user, mandateBatch, session, signedHashInHex);
+      return persistFileSignedWithIdCard(user, mandateBatch, session, signedHashInHex, locale);
     }
 
-    return getBatchProcessingStatusAndHandleIfSigned(user, mandateBatch, locale);
+    return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
   }
 
-  private MandateSignatureStatus getBatchProcessingStatusAndHandleIfSigned(
+  private MandateSignatureStatus getBatchProcessingStatusAndHandleIfProcessed(
       User user, MandateBatch mandateBatch, Locale locale) {
 
     var allMandatesHaveFinishedProcessing =
@@ -200,11 +202,13 @@ public class MandateBatchService {
   }
 
   private MandateSignatureStatus persistSignedFileIfPresentAndStartProcessing(
-      User user, MandateBatch mandateBatch, Optional<byte[]> signedFile) {
+      User user, MandateBatch mandateBatch, Optional<byte[]> signedFile, Locale locale) {
     signedFile.ifPresent(
         it -> {
           persistSignedFile(mandateBatch, it);
           startProcessingBatch(user, mandateBatch);
+          mandateBatchCompletionPollerService.startPollingForBatchProcessingFinished(
+              mandateBatch, locale);
         });
 
     return OUTSTANDING_TRANSACTION;

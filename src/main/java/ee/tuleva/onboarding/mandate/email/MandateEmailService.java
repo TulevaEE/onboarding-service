@@ -40,6 +40,11 @@ public class MandateEmailService {
 
   public void sendMandate(
       User user, Mandate mandate, PillarSuggestion pillarSuggestion, Locale locale) {
+    if (emailPersistenceService.hasEmailsFor(mandate)) {
+      log.warn("Skipping mandate (id={}) email as email already present", mandate.getId());
+      return;
+    }
+
     switch (mandate.getPillar()) {
       case 2 -> sendSecondPillarEmail(user, mandate, pillarSuggestion, locale);
       case 3 -> {

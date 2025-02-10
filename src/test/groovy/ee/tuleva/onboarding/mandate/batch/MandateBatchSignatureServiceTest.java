@@ -18,13 +18,11 @@ import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
-
+import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-
-import ee.tuleva.onboarding.user.UserService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,7 +43,6 @@ class MandateBatchSignatureServiceTest {
   @Mock private SignatureService signService;
   @Mock private UserService userService;
 
-
   @InjectMocks private MandateBatchSignatureService mandateBatchSignatureService;
 
   @Nested
@@ -60,16 +57,17 @@ class MandateBatchSignatureServiceTest {
       var mockSession = MobileIdSignatureSession.builder().verificationCode("1234").build();
       var user = sampleUser().build();
       var authenticatedPerson =
-          authenticatedPersonFromUser(user)
-              .attributes(Map.of(PHONE_NUMBER, phoneNumber))
-              .build();
+          authenticatedPersonFromUser(user).attributes(Map.of(PHONE_NUMBER, phoneNumber)).build();
 
       when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(user);
-      when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user))).thenReturn(List.of());
-      when(signService.startMobileIdSign(any(), eq(authenticatedPerson.getPersonalCode()), eq(phoneNumber)))
+      when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user)))
+          .thenReturn(List.of());
+      when(signService.startMobileIdSign(
+              any(), eq(authenticatedPerson.getPersonalCode()), eq(phoneNumber)))
           .thenReturn(mockSession);
 
-      var result = mandateBatchSignatureService.startMobileIdSignature(mandateBatchId, authenticatedPerson);
+      var result =
+          mandateBatchSignatureService.startMobileIdSignature(mandateBatchId, authenticatedPerson);
 
       assertThat(result.getChallengeCode()).isEqualTo("1234");
       verify(sessionStore, times(1)).save(mockSession);
@@ -106,14 +104,15 @@ class MandateBatchSignatureServiceTest {
       var mockSession = new SmartIdSignatureSession("certSessionId", "personalCode", null);
       mockSession.setVerificationCode(null);
       var user = sampleUser().build();
-      var authenticatedPerson =
-          authenticatedPersonFromUser(user).build();
+      var authenticatedPerson = authenticatedPersonFromUser(user).build();
 
       when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(user);
-      when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user))).thenReturn(List.of());
+      when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user)))
+          .thenReturn(List.of());
       when(signService.startSmartIdSign(any(), eq(user.getPersonalCode()))).thenReturn(mockSession);
 
-      var result = mandateBatchSignatureService.startSmartIdSignature(mandateBatchId, authenticatedPerson);
+      var result =
+          mandateBatchSignatureService.startSmartIdSignature(mandateBatchId, authenticatedPerson);
 
       assertThat(result.getChallengeCode()).isNull();
       verify(sessionStore, times(1)).save(mockSession);
@@ -153,15 +152,16 @@ class MandateBatchSignatureServiceTest {
       var mockSession = IdCardSignatureSession.builder().hashToSignInHex("asdfg").build();
 
       var user = sampleUser().build();
-      var authenticatedPerson =
-          authenticatedPersonFromUser(user).build();
+      var authenticatedPerson = authenticatedPersonFromUser(user).build();
 
       when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(user);
-      when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user))).thenReturn(List.of());
-      when(signService.startIdCardSign(any(), eq(clientCertificate)))
-          .thenReturn(mockSession);
+      when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user)))
+          .thenReturn(List.of());
+      when(signService.startIdCardSign(any(), eq(clientCertificate))).thenReturn(mockSession);
 
-      var result = mandateBatchSignatureService.startIdCardSign(mandateBatchId, authenticatedPerson, startCommand);
+      var result =
+          mandateBatchSignatureService.startIdCardSign(
+              mandateBatchId, authenticatedPerson, startCommand);
 
       assertThat(result.getHash()).isEqualTo("asdfg");
       verify(sessionStore, times(1)).save(mockSession);

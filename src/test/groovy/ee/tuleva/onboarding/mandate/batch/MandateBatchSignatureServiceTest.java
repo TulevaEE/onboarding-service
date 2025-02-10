@@ -1,9 +1,6 @@
 package ee.tuleva.onboarding.mandate.batch;
 
-import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember;
-import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
 import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -18,7 +15,6 @@ import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -53,7 +49,7 @@ class MandateBatchSignatureServiceTest {
       when(sessionStore.get(MobileIdSignatureSession.class)).thenReturn(Optional.of(mockSession));
       when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
       when(mandateBatchService.finalizeMobileSignature(
-              any(), eq(mandateBatchId), any(MobileIdSignatureSession.class) , eq(Locale.ENGLISH)))
+              any(), eq(mandateBatchId), any(MobileIdSignatureSession.class), eq(Locale.ENGLISH)))
           .thenReturn(SIGNATURE);
 
       var result = mandateBatchSignatureService.getMobileIdSignatureStatus(mandateBatchId, user);

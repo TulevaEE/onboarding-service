@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.mandate.batch;
 
+import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
+import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
+
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
 import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -12,11 +15,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import lombok.*;
-
-import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
-import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 
 @Getter
 @Setter

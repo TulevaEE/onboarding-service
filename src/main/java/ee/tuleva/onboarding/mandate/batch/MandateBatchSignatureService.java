@@ -17,7 +17,6 @@ import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import jakarta.validation.Valid;
-
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -38,7 +37,8 @@ public class MandateBatchSignatureService {
       Long mandateBatchId, AuthenticatedPerson authenticatedPerson) {
 
     User user = userService.getById(authenticatedPerson.getUserId());
-    List<SignatureFile> files = mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
+    List<SignatureFile> files =
+        mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
     SmartIdSignatureSession signatureSession =
         signService.startSmartIdSign(files, user.getPersonalCode());
@@ -70,9 +70,11 @@ public class MandateBatchSignatureService {
       @Valid @RequestBody StartIdCardSignCommand signCommand) {
 
     User user = userService.getById(authenticatedPerson.getUserId());
-    List<SignatureFile> files = mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
+    List<SignatureFile> files =
+        mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
-    IdCardSignatureSession signatureSession = signService.startIdCardSign(files, signCommand.getClientCertificate());
+    IdCardSignatureSession signatureSession =
+        signService.startIdCardSign(files, signCommand.getClientCertificate());
 
     sessionStore.save(signatureSession);
 
@@ -106,10 +108,12 @@ public class MandateBatchSignatureService {
       Long mandateBatchId, AuthenticatedPerson authenticatedPerson) {
 
     User user = userService.getById(authenticatedPerson.getUserId());
-    List<SignatureFile> files = mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
+    List<SignatureFile> files =
+        mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
     MobileIdSignatureSession signatureSession =
-        signService.startMobileIdSign(files, user.getPersonalCode(), authenticatedPerson.getAttribute(PHONE_NUMBER));
+        signService.startMobileIdSign(
+            files, user.getPersonalCode(), authenticatedPerson.getAttribute(PHONE_NUMBER));
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());

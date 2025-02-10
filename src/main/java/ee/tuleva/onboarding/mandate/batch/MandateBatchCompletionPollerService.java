@@ -12,10 +12,12 @@ import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.user.User;
 import jakarta.annotation.PreDestroy;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +57,7 @@ public class MandateBatchCompletionPollerService {
     batchPollingQueue.add(new MandateBatchPollingContext(locale, mandateBatch, 0));
   }
 
+  // TODO deploy/shutdown would cause emails to get dropped, some form of persistence?
   @SneakyThrows
   @PreDestroy
   private void stop() {

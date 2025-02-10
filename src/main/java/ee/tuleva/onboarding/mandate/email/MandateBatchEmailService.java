@@ -33,6 +33,12 @@ public class MandateBatchEmailService {
   public void sendMandateBatch(
       User user, MandateBatch mandateBatch, PillarSuggestion pillarSuggestion, Locale locale) {
 
+    if (emailPersistenceService.hasEmailsFor(mandateBatch)) {
+      log.warn(
+          "Skipping mandatebatch (id={}) email as email already present", mandateBatch.getId());
+      return;
+    }
+
     EmailType emailType = EmailType.from(mandateBatch);
     String templateName = emailType.getTemplateName(locale);
     MandrillMessage mandrillMessage =

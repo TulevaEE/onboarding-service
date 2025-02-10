@@ -9,6 +9,10 @@ import org.springframework.data.repository.CrudRepository;
 
 public interface EmailRepository extends CrudRepository<Email, Long> {
 
+  List<Email> findAllByMandate(Mandate mandate);
+
+  List<Email> findAllByMandateBatch(MandateBatch mandate);
+
   List<Email> findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(
       String personalCode, EmailType type, Collection<EmailStatus> statuses);
 

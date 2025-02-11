@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.user.member.Member;
+
 import java.util.Locale;
 
 public enum EmailType {
@@ -21,6 +22,7 @@ public enum EmailType {
   THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE("third_pillar_payment_success_mandate"),
 
   MEMBERSHIP("membership"),
+  BATCH_FAILED("batch_failed"),
 
   WITHDRAWAL_BATCH("withdrawal_batch");
 

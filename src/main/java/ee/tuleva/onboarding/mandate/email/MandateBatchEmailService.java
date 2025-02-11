@@ -16,8 +16,10 @@ import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.pillar.Pillar;
 import ee.tuleva.onboarding.user.User;
+
 import java.util.*;
 import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -55,6 +57,8 @@ public class MandateBatchEmailService {
                 emailPersistenceService.save(
                     user, response.getId(), emailType, response.getStatus(), mandateBatch));
   }
+
+  public
 
   private Map<String, Object> getMergeVars(
       User user, MandateBatch batch, PillarSuggestion pillarSuggestion) {

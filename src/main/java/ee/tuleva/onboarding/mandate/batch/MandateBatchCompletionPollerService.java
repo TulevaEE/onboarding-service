@@ -121,6 +121,14 @@ public class MandateBatchCompletionPollerService {
             .flatMap(List::stream)
             .toList();
 
+    int failedMandateCount =
+        mandates.stream()
+            .filter(mandate -> !mandateProcessor.getErrors(mandate).getErrors().isEmpty())
+            .toList()
+            .size();
+
+    int successfulMandateCount = mandates.size() - failedMandateCount;
+
     ErrorsResponse errorsResponse = new ErrorsResponse(errorResponses);
 
     if (errorsResponse.hasErrors()) {
@@ -128,8 +136,13 @@ public class MandateBatchCompletionPollerService {
           "Mandate batch (mandateBatchId={}) processing errors {}",
           context.batch.getId(),
           errorsResponse);
-      applicationEventPublisher.publishEvent(
-          new OnMandateBatchFailedEvent(this, context.user(), context.batch, context.locale));
+
+      // only notify on inconsistent state: more than 1 mandate in batch, some were successful and
+      // some weren't
+      if (mandates.size() > 1 && successfulMandateCount > 0 && failedMandateCount > 0) {
+        applicationEventPublisher.publishEvent(
+            new OnMandateBatchFailedEvent(this, context.user(), context.batch, context.locale));
+      }
 
       throw new MandateProcessingException(errorsResponse);
     }

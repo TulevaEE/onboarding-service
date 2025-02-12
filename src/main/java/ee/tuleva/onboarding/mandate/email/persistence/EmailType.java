@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
 import ee.tuleva.onboarding.payment.Payment;
 import ee.tuleva.onboarding.user.member.Member;
-
 import java.util.Locale;
 
 public enum EmailType {

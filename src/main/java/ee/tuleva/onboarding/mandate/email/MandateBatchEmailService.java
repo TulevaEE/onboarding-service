@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.mandate.email;
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.*;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.BATCH_FAILED;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.util.stream.Stream.concat;
@@ -16,10 +17,8 @@ import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.pillar.Pillar;
 import ee.tuleva.onboarding.user.User;
-
 import java.util.*;
 import java.util.stream.Collectors;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -48,7 +47,7 @@ public class MandateBatchEmailService {
             user.getEmail(),
             templateName,
             getMergeVars(user, mandateBatch, pillarSuggestion),
-            getMandateBatchTags(mandateBatch, pillarSuggestion),
+            getMandateBatchTags(mandateBatch),
             getAttachments(user, mandateBatch));
     emailService
         .send(user, mandrillMessage, templateName)
@@ -58,13 +57,37 @@ public class MandateBatchEmailService {
                     user, response.getId(), emailType, response.getStatus(), mandateBatch));
   }
 
-  public
+  public void sendMandateBatchFailedEmail(User user, MandateBatch mandateBatch, Locale locale) {
+    var emailType = BATCH_FAILED;
+    String templateName = emailType.getTemplateName(locale);
+    MandrillMessage mandrillMessage =
+        emailService.newMandrillMessage(
+            user.getEmail(),
+            templateName,
+            getMergeVars(user, mandateBatch),
+            getMandateBatchTags(mandateBatch),
+            getAttachments(user, mandateBatch));
+    emailService
+        .send(user, mandrillMessage, templateName)
+        .ifPresent(
+            response ->
+                emailPersistenceService.save(
+                    user, response.getId(), emailType, response.getStatus(), mandateBatch));
+  }
 
   private Map<String, Object> getMergeVars(
       User user, MandateBatch batch, PillarSuggestion pillarSuggestion) {
     var map = new HashMap<String, Object>();
     map.putAll(getNameMergeVars(user));
     map.putAll(getPillarSuggestionMergeVars(pillarSuggestion));
+    map.putAll(getWithdrawalMandateMergeVars(batch));
+
+    return map;
+  }
+
+  private Map<String, Object> getMergeVars(User user, MandateBatch batch) {
+    var map = new HashMap<String, Object>();
+    map.putAll(getNameMergeVars(user));
     map.putAll(getWithdrawalMandateMergeVars(batch));
 
     return map;
@@ -103,7 +126,7 @@ public class MandateBatchEmailService {
         .collect(Collectors.toSet());
   }
 
-  private List<String> getMandateBatchTags(MandateBatch batch, PillarSuggestion pillarSuggestion) {
+  private List<String> getMandateBatchTags(MandateBatch batch) {
     List<String> tags = new ArrayList<>();
     tags.add("mandate_batch");
 

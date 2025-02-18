@@ -26,7 +26,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class MandateBatchCompletionPollerService {
+public class MandateBatchProcessingPoller {
   private final ApplicationEventPublisher applicationEventPublisher;
   private final MandateProcessorService mandateProcessor;
   private final EpisService episService;
@@ -70,6 +70,7 @@ public class MandateBatchCompletionPollerService {
   }
 
   private boolean haveAllBatchMandatesFinishedProcessing(MandateBatch mandateBatch) {
+    log.info(mandateBatch.getMandates().toString());
     return mandateBatch.getMandates().stream().allMatch(mandateProcessor::isFinished);
   }
 
@@ -99,9 +100,10 @@ public class MandateBatchCompletionPollerService {
   }
 
   @Scheduled(fixedRate = 1000)
-  private void processQueue() {
+  public void processQueue() {
+    log.info("Creating poller");
     // TODO how many pollers to create?
-    for (int i = 0; i < batchPollingQueue.size(); i++) {
+    for (int i = 0; i < 3; i++) {
       poller.submit(getPoller());
     }
   }

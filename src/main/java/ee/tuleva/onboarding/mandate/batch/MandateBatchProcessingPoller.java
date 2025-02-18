@@ -12,10 +12,12 @@ import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.user.User;
 import jakarta.annotation.PreDestroy;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -31,11 +33,12 @@ public class MandateBatchProcessingPoller {
   private final MandateProcessorService mandateProcessor;
   private final EpisService episService;
 
-  private final ExecutorService poller = Executors.newFixedThreadPool(20);
+  private final ExecutorService poller = Executors.newFixedThreadPool(THREAD_COUNT);
 
   private final Queue<MandateBatchPollingContext> batchPollingQueue = new ConcurrentLinkedQueue<>();
 
   private static final int MAX_POLL_COUNT = 60;
+  private static final int THREAD_COUNT = 10;
 
   record MandateBatchPollingContext(Locale locale, MandateBatch batch, Integer count) {
 
@@ -101,9 +104,7 @@ public class MandateBatchProcessingPoller {
 
   @Scheduled(fixedRate = 1000)
   public void processQueue() {
-    log.info("Creating poller");
-    // TODO how many pollers to create?
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < THREAD_COUNT; i++) {
       poller.submit(getPoller());
     }
   }

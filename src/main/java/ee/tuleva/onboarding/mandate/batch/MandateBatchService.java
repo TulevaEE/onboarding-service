@@ -47,7 +47,7 @@ public class MandateBatchService {
   private final SignatureService signService;
   private final MandateProcessorService mandateProcessor;
   private final EpisService episService;
-  private final MandateBatchCompletionPollerService mandateBatchCompletionPollerService;
+  private final MandateBatchProcessingPoller mandateBatchProcessingPoller;
 
   public Optional<MandateBatch> getByIdAndUser(Long id, User user) {
     var batch =
@@ -229,8 +229,7 @@ public class MandateBatchService {
         it -> {
           persistSignedFile(mandateBatch, it);
           startProcessingBatch(user, mandateBatch);
-          mandateBatchCompletionPollerService.startPollingForBatchProcessingFinished(
-              mandateBatch, locale);
+          mandateBatchProcessingPoller.startPollingForBatchProcessingFinished(mandateBatch, locale);
         });
 
     return OUTSTANDING_TRANSACTION;

@@ -56,7 +56,7 @@ public class MandateBatchServiceTest {
   @Mock private WithdrawalEligibilityService withdrawalEligibilityService;
   @Mock private UserService userService;
   @Mock private MandateProcessorService mandateProcessor;
-  @Mock private MandateBatchCompletionPollerService mandateBatchCompletionPollerService;
+  @Mock private MandateBatchProcessingPoller mandateBatchProcessingPoller;
   @Mock private EpisService episService;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
 
@@ -463,7 +463,7 @@ public class MandateBatchServiceTest {
       assertThat(SIGNED).isEqualTo(savedBatch.getStatus());
       verify(mandateProcessor, times(1)).start(user, mandate1);
       verify(mandateProcessor, times(1)).start(user, mandate2);
-      verify(mandateBatchCompletionPollerService, times(1))
+      verify(mandateBatchProcessingPoller, times(1))
           .startPollingForBatchProcessingFinished(mandateBatch, Locale.ENGLISH);
       verify(applicationEventPublisher, never()).publishEvent(any());
     }
@@ -636,7 +636,7 @@ public class MandateBatchServiceTest {
       assertThat(SIGNED).isEqualTo(savedBatch.getStatus());
       verify(mandateProcessor, times(1)).start(user, mandate1);
       verify(mandateProcessor, times(1)).start(user, mandate2);
-      verify(mandateBatchCompletionPollerService, times(1))
+      verify(mandateBatchProcessingPoller, times(1))
           .startPollingForBatchProcessingFinished(mandateBatch, Locale.ENGLISH);
       verify(applicationEventPublisher, never()).publishEvent(any());
     }
@@ -811,7 +811,7 @@ public class MandateBatchServiceTest {
       assertThat(SIGNED).isEqualTo(savedBatch.getStatus());
       verify(mandateProcessor, times(1)).start(user, mandate1);
       verify(mandateProcessor, times(1)).start(user, mandate2);
-      verify(mandateBatchCompletionPollerService, times(1))
+      verify(mandateBatchProcessingPoller, times(1))
           .startPollingForBatchProcessingFinished(mandateBatch, Locale.ENGLISH);
       verify(applicationEventPublisher, never()).publishEvent(any());
     }

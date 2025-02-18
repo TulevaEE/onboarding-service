@@ -75,6 +75,7 @@ class MandateBatchEmailServiceTest {
 
     var tags = List.of("mandate_batch", "pillar_2", "fund_pension_opening", "partial_withdrawal");
 
+    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(false);
     when(emailService.send(user, message, "withdrawal_batch_en"))
         .thenReturn(Optional.of(mandrillResponse));
     when(emailService.newMandrillMessage(
@@ -144,6 +145,7 @@ class MandateBatchEmailServiceTest {
         List.of(
             "mandate_batch", "pillar_2", "pillar_3", "fund_pension_opening", "partial_withdrawal");
 
+    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(false);
     when(emailService.send(user, message, "withdrawal_batch_en"))
         .thenReturn(Optional.of(mandrillResponse));
     when(emailService.newMandrillMessage(
@@ -166,5 +168,33 @@ class MandateBatchEmailServiceTest {
                     attachments.size() == 1
                         && attachments.getFirst().getName().equals(file.getName())
                         && attachments.getFirst().getContent().equals(file.getContent())));
+  }
+
+  @Test
+  @DisplayName("does not send email if already present for batch")
+  void dontSendWhenAlreadySent() {
+    Mandate mandate1 = sampleFundPensionOpeningMandate();
+    Mandate mandate2 = samplePartialWithdrawalMandate();
+    Mandate mandate3 =
+        sampleFundPensionOpeningMandate(aThirdPillarFundPensionOpeningMandateDetails);
+    Mandate mandate4 = samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails);
+
+    MandateBatch mandateBatch =
+        MandateBatchFixture.aSavedMandateBatch(List.of(mandate1, mandate2, mandate3, mandate4));
+
+    mandateBatch.setFile("1234".getBytes());
+
+    var user = sampleUser().build();
+    var conversion = notConverted();
+    var contactDetails = contactDetailsFixture();
+    var paymentRates = samplePaymentRates();
+    var pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates);
+
+    when(emailPersistenceService.hasEmailsFor(mandateBatch)).thenReturn(true);
+
+    mandateBatchEmailService.sendMandateBatch(user, mandateBatch, pillarSuggestion, Locale.ENGLISH);
+
+    verify(emailService, times(0)).send(any(), any(), any());
+    verify(emailPersistenceService, times(0)).save(any(), any(), any(), any());
   }
 }

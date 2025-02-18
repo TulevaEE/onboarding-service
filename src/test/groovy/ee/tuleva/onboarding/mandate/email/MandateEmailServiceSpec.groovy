@@ -57,13 +57,13 @@ class MandateEmailServiceSpec extends Specification {
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
     def message = new MandrillMessage()
     def mergeVars = [
-        fname             : user.firstName,
-        lname             : user.lastName,
-        transferDate      : "03.05.2021",
-        suggestPaymentRate: pillarSuggestion.suggestPaymentRate,
+        fname              : user.firstName,
+        lname              : user.lastName,
+        transferDate       : "03.05.2021",
+        suggestPaymentRate : pillarSuggestion.suggestPaymentRate,
         suggestSecondPillar: pillarSuggestion.suggestSecondPillar,
-        suggestThirdPillar: pillarSuggestion.suggestThirdPillar,
-        suggestMembership : pillarSuggestion.suggestMembership,
+        suggestThirdPillar : pillarSuggestion.suggestThirdPillar,
+        suggestMembership  : pillarSuggestion.suggestMembership,
     ]
     def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
     def mandrillResponse = new MandrillMessageStatus().tap {
@@ -122,6 +122,9 @@ class MandateEmailServiceSpec extends Specification {
       status = "sent"
     }
 
+    emailPersistenceService.hasEmailsFor(mandate) >> false
+
+
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, locale)
 
@@ -146,6 +149,9 @@ class MandateEmailServiceSpec extends Specification {
       _id = "123"
       status = "sent"
     }
+
+    emailPersistenceService.hasEmailsFor(mandate) >> false
+
 
     when:
     mandateEmailService.scheduleThirdPillarSuggestSecondEmail(user, mandate, pillarSuggestion, locale)
@@ -180,6 +186,8 @@ class MandateEmailServiceSpec extends Specification {
     1 * emailService.send(user, paymentReminder, "third_pillar_payment_reminder_mandate_en", now.plus(1, HOURS)) >> Optional.of(mandrillResponse1)
     1 * emailPersistenceService.save(user, mandrillResponse1.id, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandrillResponse1.status, mandate)
 
+    emailPersistenceService.hasEmailsFor(mandate) >> false
+
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, locale)
 
@@ -201,14 +209,17 @@ class MandateEmailServiceSpec extends Specification {
     def contactDetails = contactDetailsFixture()
     def paymentRates = samplePaymentRates()
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def mandate = thirdPillarMandate()
     emailService.newMandrillMessage(*_) >> new MandrillMessage()
+    emailPersistenceService.hasEmailsFor(mandate) >> false
+
     def mandrillResponse = new MandrillMessageStatus().tap {
       _id = UUID.randomUUID().toString()
       status = "sent"
     }
 
     when:
-    mandateEmailService.sendMandate(user, thirdPillarMandate(), pillarSuggestion, Locale.ENGLISH)
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
 
     then:
     2 * emailService.send(*_) >> Optional.of(mandrillResponse)
@@ -235,7 +246,7 @@ class MandateEmailServiceSpec extends Specification {
         newPaymentRate            : samplePaymentRates.pending.get(),
         oldPaymentRate            : samplePaymentRates.current,
         suggestPaymentRate        : pillarSuggestion.suggestPaymentRate,
-        suggestSecondPillar        : pillarSuggestion.suggestSecondPillar,
+        suggestSecondPillar       : pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar        : pillarSuggestion.suggestThirdPillar,
         suggestMembership         : pillarSuggestion.suggestMembership,
     ]
@@ -244,6 +255,8 @@ class MandateEmailServiceSpec extends Specification {
     mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
     secondPillarPaymentRateService.getPaymentRates(authenticatedPerson) >> samplePaymentRates
     mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
+    emailPersistenceService.hasEmailsFor(mandate) >> false
+
     def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
 
     def mandrillResponse = new MandrillMessageStatus().tap {
@@ -277,6 +290,8 @@ class MandateEmailServiceSpec extends Specification {
     mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
     secondPillarPaymentRateService.getPaymentRates(authenticatedPerson) >> samplePaymentRates
     mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
+    emailPersistenceService.hasEmailsFor(mandate) >> false
+
 
     when:
     mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
@@ -293,6 +308,7 @@ class MandateEmailServiceSpec extends Specification {
     def mandate = thirdPillarMandate()
     def paymentRates = samplePaymentRates()
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    emailPersistenceService.hasEmailsFor(mandate) >> false
     emailPersistenceService.hasEmailsToday(user, THIRD_PILLAR_PAYMENT_REMINDER_MANDATE, mandate) >> true
 
     when:
@@ -301,5 +317,24 @@ class MandateEmailServiceSpec extends Specification {
     then:
     0 * emailService.send(*_)
   }
+
+  def "does not send email when email already present for mandate"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = fullyConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = thirdPillarMandate()
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+
+    emailPersistenceService.hasEmailsFor(mandate) >> true
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    0 * emailService.send(*_)
+  }
+
 
 }

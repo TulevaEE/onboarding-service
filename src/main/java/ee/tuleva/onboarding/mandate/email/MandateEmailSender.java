@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
+import ee.tuleva.onboarding.mandate.event.OnMandateBatchFailedEvent;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import lombok.RequiredArgsConstructor;
@@ -50,5 +51,11 @@ public class MandateEmailSender {
         new PillarSuggestion(event.getUser(), contactDetails, conversion, paymentRates);
     mandateBatchEmailService.sendMandateBatch(
         event.getUser(), event.getMandateBatch(), pillarSuggestion, event.getLocale());
+  }
+
+  @EventListener
+  public void sendBatchFailedEmail(OnMandateBatchFailedEvent event) {
+    mandateBatchEmailService.sendMandateBatchFailedEmail(
+        event.getUser(), event.getMandateBatch(), event.getLocale());
   }
 }

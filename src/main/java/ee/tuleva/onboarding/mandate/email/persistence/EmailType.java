@@ -21,6 +21,7 @@ public enum EmailType {
   THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE("third_pillar_payment_success_mandate"),
 
   MEMBERSHIP("membership"),
+  BATCH_FAILED("batch_failed"),
 
   WITHDRAWAL_BATCH("withdrawal_batch");
 

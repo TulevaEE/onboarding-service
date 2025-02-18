@@ -32,6 +32,14 @@ public class EmailPersistenceService {
     return save(person, messageId, type, status, (Mandate) null);
   }
 
+  public boolean hasEmailsFor(Mandate mandate) {
+    return !emailRepository.findAllByMandate(mandate).isEmpty();
+  }
+
+  public boolean hasEmailsFor(MandateBatch batch) {
+    return !emailRepository.findAllByMandateBatch(batch).isEmpty();
+  }
+
   public Email save(
       Person person, String messageId, EmailType type, String status, Mandate mandate) {
     Email scheduledEmail =

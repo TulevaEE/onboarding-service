@@ -9,10 +9,15 @@ import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.response.*;
+import ee.tuleva.onboarding.mandate.signature.SignatureFile;
+import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import jakarta.validation.Valid;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -25,11 +30,18 @@ public class MandateBatchSignatureService {
   private final MandateBatchService mandateBatchService;
   private final GenericSessionStore sessionStore;
   private final LocaleService localeService;
+  private final UserService userService;
+  private final SignatureService signService;
 
   public MobileSignatureResponse startSmartIdSignature(
       Long mandateBatchId, AuthenticatedPerson authenticatedPerson) {
+
+    User user = userService.getById(authenticatedPerson.getUserId());
+    List<SignatureFile> files =
+        mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
+
     SmartIdSignatureSession signatureSession =
-        mandateBatchService.smartIdSign(mandateBatchId, authenticatedPerson.getUserId());
+        signService.startSmartIdSign(files, user.getPersonalCode());
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(null); // verificationCode is null when starting
@@ -46,7 +58,7 @@ public class MandateBatchSignatureService {
     Locale locale = localeService.getCurrentLocale();
 
     MandateSignatureStatus statusCode =
-        mandateBatchService.finalizeSmartIdSignature(
+        mandateBatchService.finalizeMobileSignature(
             authenticatedPerson.getUserId(), mandateBatchId, session, locale);
 
     return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());
@@ -57,9 +69,12 @@ public class MandateBatchSignatureService {
       AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody StartIdCardSignCommand signCommand) {
 
+    User user = userService.getById(authenticatedPerson.getUserId());
+    List<SignatureFile> files =
+        mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
+
     IdCardSignatureSession signatureSession =
-        mandateBatchService.idCardSign(
-            mandateBatchId, authenticatedPerson.getUserId(), signCommand.getClientCertificate());
+        signService.startIdCardSign(files, signCommand.getClientCertificate());
 
     sessionStore.save(signatureSession);
 
@@ -92,11 +107,13 @@ public class MandateBatchSignatureService {
   public MobileSignatureResponse startMobileIdSignature(
       Long mandateBatchId, AuthenticatedPerson authenticatedPerson) {
 
+    User user = userService.getById(authenticatedPerson.getUserId());
+    List<SignatureFile> files =
+        mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
+
     MobileIdSignatureSession signatureSession =
-        mandateBatchService.mobileIdSign(
-            mandateBatchId,
-            authenticatedPerson.getUserId(),
-            authenticatedPerson.getAttribute(PHONE_NUMBER));
+        signService.startMobileIdSign(
+            files, user.getPersonalCode(), authenticatedPerson.getAttribute(PHONE_NUMBER));
     sessionStore.save(signatureSession);
 
     return new MobileSignatureResponse(signatureSession.getVerificationCode());
@@ -113,7 +130,7 @@ public class MandateBatchSignatureService {
     Locale locale = localeService.getCurrentLocale();
 
     MandateSignatureStatus statusCode =
-        mandateBatchService.finalizeMobileIdSignature(
+        mandateBatchService.finalizeMobileSignature(
             authenticatedPerson.getUserId(), mandateBatchId, session, locale);
 
     return new MobileSignatureStatusResponse(statusCode, session.getVerificationCode());

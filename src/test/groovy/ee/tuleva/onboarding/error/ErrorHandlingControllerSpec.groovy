@@ -71,7 +71,7 @@ class ErrorHandlingControllerSpec extends Specification {
         .requestAttr(RequestDispatcher.ERROR_MESSAGE, "oops!"))
         .andExpect(content().contentType(MediaType.APPLICATION_JSON))
         .andExpect(jsonPath('$.errors[0].code', is("Forbidden")))
-        .andExpect(jsonPath('$.errors[0].message').doesNotExist())
+        .andExpect(jsonPath('$.errors[0].message', is("oops!")))
         .andExpect(jsonPath('$.errors[0].path').doesNotExist())
         .andExpect(jsonPath('$.errors[0].arguments').isEmpty())
   }

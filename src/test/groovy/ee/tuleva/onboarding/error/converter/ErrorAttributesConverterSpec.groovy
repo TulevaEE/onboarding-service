@@ -23,7 +23,7 @@ class ErrorAttributesConverterSpec extends Specification {
 
     then:
     error.code == 'Internal Server Error'
-    error.message == null
+    error.message == 'Error message'
     error.path == null
     error.arguments == []
   }

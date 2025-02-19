@@ -20,15 +20,15 @@ public class ErrorsResponse {
 
   public static ErrorsResponse ofSingleError(String code, String message) {
     return new ErrorsResponse(
-        Collections.singletonList(ErrorResponse.builder().code(code).build()));
+        List.of(ErrorResponse.builder().code(code).message(message).build()));
   }
 
   public static ErrorsResponse ofSingleError(ErrorResponse error) {
-    return new ErrorsResponse(Collections.singletonList(error));
+    return new ErrorsResponse(List.of(error));
   }
 
   public boolean hasErrors() {
-    return errors.size() > 0;
+    return !errors.isEmpty();
   }
 
   public void add(ErrorResponse error) {

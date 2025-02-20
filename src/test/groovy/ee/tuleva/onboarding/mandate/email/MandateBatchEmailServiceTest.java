@@ -87,16 +87,6 @@ class MandateBatchEmailServiceTest {
     when(emailService.send(user, message, "withdrawal_batch_en"))
         .thenReturn(Optional.of(mandrillResponse));
     when(emailService.newMandrillMessage(
-            eq(user.getEmail()), eq("withdrawal_batch_en"), anyMap(), eq(tags), anyList()))
-        .thenReturn(message);
-
-    mandateBatchEmailService.sendMandateBatch(user, mandateBatch, pillarSuggestion, Locale.ENGLISH);
-
-    verify(emailPersistenceService)
-        .save(user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch);
-
-    verify(emailService)
-        .newMandrillMessage(
             eq(user.getEmail()),
             eq("withdrawal_batch_en"),
             argThat(map -> areMergeVarsPresent(map, mergeVars)),
@@ -105,7 +95,13 @@ class MandateBatchEmailServiceTest {
                 attachments ->
                     attachments.size() == 1
                         && attachments.getFirst().getName().equals(file.getName())
-                        && attachments.getFirst().getContent().equals(file.getContent())));
+                        && attachments.getFirst().getContent().equals(file.getContent()))))
+        .thenReturn(message);
+
+    mandateBatchEmailService.sendMandateBatch(user, mandateBatch, pillarSuggestion, Locale.ENGLISH);
+
+    verify(emailPersistenceService)
+        .save(user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch);
   }
 
   @Test
@@ -157,16 +153,6 @@ class MandateBatchEmailServiceTest {
     when(emailService.send(user, message, "withdrawal_batch_en"))
         .thenReturn(Optional.of(mandrillResponse));
     when(emailService.newMandrillMessage(
-            eq(user.getEmail()), eq("withdrawal_batch_en"), anyMap(), eq(tags), anyList()))
-        .thenReturn(message);
-
-    mandateBatchEmailService.sendMandateBatch(user, mandateBatch, pillarSuggestion, Locale.ENGLISH);
-
-    verify(emailPersistenceService)
-        .save(user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch);
-
-    verify(emailService)
-        .newMandrillMessage(
             eq(user.getEmail()),
             eq("withdrawal_batch_en"),
             argThat(map -> areMergeVarsPresent(map, mergeVars)),
@@ -175,7 +161,13 @@ class MandateBatchEmailServiceTest {
                 attachments ->
                     attachments.size() == 1
                         && attachments.getFirst().getName().equals(file.getName())
-                        && attachments.getFirst().getContent().equals(file.getContent())));
+                        && attachments.getFirst().getContent().equals(file.getContent()))))
+        .thenReturn(message);
+
+    mandateBatchEmailService.sendMandateBatch(user, mandateBatch, pillarSuggestion, Locale.ENGLISH);
+
+    verify(emailPersistenceService)
+        .save(user, "123", EmailType.WITHDRAWAL_BATCH, "sent", mandateBatch);
   }
 
   @Test

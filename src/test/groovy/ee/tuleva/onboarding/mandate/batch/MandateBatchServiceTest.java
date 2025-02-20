@@ -217,11 +217,12 @@ public class MandateBatchServiceTest {
   void createMandateBatchBeforeRetirementAge() {
     var authenticatedPerson =
         AuthenticatedPersonFixture.authenticatedPersonFromUser(sampleUser().build()).build();
-    var aFundPensionOpeningMandate = sampleFundPensionOpeningMandate();
+    var aFundPensionOpeningMandate =
+        sampleFundPensionOpeningMandate(aThirdPillarFundPensionOpeningMandateDetails);
 
     var aMandateBatch =
         MandateBatch.builder()
-            .mandates(List.of(aFundPensionOpeningMandate, aFundPensionOpeningMandate))
+            .mandates(List.of(aFundPensionOpeningMandate))
             .status(INITIALIZED)
             .build();
     var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
@@ -273,6 +274,46 @@ public class MandateBatchServiceTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto));
+  }
+
+  @Test
+  @DisplayName("allows single third pillar partial withdrawal application before retirement age")
+  void thirdPillarPartialWithdrawalBeforeRetirementAge() {
+    var authenticatedPerson =
+        AuthenticatedPersonFixture.authenticatedPersonFromUser(sampleUser().build()).build();
+    var aThirdPillarPartialWithdrawalMandate =
+        samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails);
+
+    var aMandateBatch =
+        MandateBatch.builder()
+            .mandates(List.of(aThirdPillarPartialWithdrawalMandate))
+            .status(INITIALIZED)
+            .build();
+    var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
+
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(false)
+            .canWithdrawThirdPillarWithReducedTax(false)
+            .age(35)
+            .recommendedDurationYears(50)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
+    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
+        .thenReturn(aWithdrawalEligibility);
+
+    when(genericMandateService.createGenericMandate(any(), any(), any()))
+        .thenReturn(aThirdPillarPartialWithdrawalMandate);
+    when(mandateBatchRepository.save(
+            argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
+        .thenReturn(aMandateBatch);
+
+    MandateBatch result =
+        mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
+
+    assertThat(result.getMandates().size()).isEqualTo(1);
+    assertThat(result.getStatus()).isEqualTo(INITIALIZED);
   }
 
   User mockUser() {

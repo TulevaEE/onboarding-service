@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.*;
 import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
+import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -82,9 +83,10 @@ public class MandateBatchService {
           throw new IllegalArgumentException(
               "Can only create third pillar withdrawals before retirement age");
         }
-      } else if (!eligibility.hasReachedEarlyRetirementAge()) {
+      } else if (!isBatchOnlyThirdPillarPartialWithdrawal(mandateBatchDto)
+          && !eligibility.hasReachedEarlyRetirementAge()) {
         throw new IllegalArgumentException(
-            "Cannot create withdrawal mandates before early retirement age");
+            "Can only do partial withdrawal from III pillar before early retirement age");
       }
     }
 
@@ -142,6 +144,24 @@ public class MandateBatchService {
   private boolean isWithdrawalBatch(MandateBatchDto mandateBatchDto) {
     return mandateBatchDto.getMandates().stream()
         .anyMatch(mandateDto -> mandateDto.getMandateType().isWithdrawalType());
+  }
+
+  private boolean isBatchOnlyThirdPillarPartialWithdrawal(MandateBatchDto mandateBatchDto) {
+    var mandates = mandateBatchDto.getMandates();
+
+    if (mandates.size() > 1) {
+      return false;
+    }
+
+    var mandateDto = mandates.getFirst();
+
+    if (mandateDto.getMandateType() != PARTIAL_WITHDRAWAL) {
+      return false;
+    }
+
+    var details = (PartialWithdrawalMandateDetails) mandateDto.getDetails();
+
+    return details.getPillar() == THIRD;
   }
 
   private Set<Pillar> getWithdrawalBatchPillars(MandateBatchDto mandateBatchDto) {

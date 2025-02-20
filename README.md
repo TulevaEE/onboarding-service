@@ -184,6 +184,15 @@ In case file has multiple certificate chains, `import-certs.sh` will add all of 
 PostgreSQL (used while running the application) and H2 (used while running integration tests) have slightly different support for features, requiring some to be stubbed.  
 When adding a new migration for H2 <-> Postgres compatibility, the name must be `V1_{n-1}_1__.sql` for Flyway to execute the compatibility migration **before** it tries to execute the migration numbered `n`, for which the compatibility migration is required.
 
+### Adding mandrill emails
+
+1. Create email type with unique template name.
+2. In [Mailchimp](mailchimp.com), under Content -> Email templates, add a template with the same name and `_et`
+   and `_en` prefix for languages.
+
+* Use available merge vars as well.
+
+3. In [Mandrill](mandrillapp.com), add a subject line for both templates.
 
 #### References
 

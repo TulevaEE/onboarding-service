@@ -14,6 +14,7 @@ import ee.tuleva.onboarding.epis.mandate.details.PartialWithdrawalMandateDetails
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
+import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.pillar.Pillar;
 import ee.tuleva.onboarding.user.User;
@@ -30,6 +31,7 @@ public class MandateBatchEmailService {
 
   private final EmailService emailService;
   private final EmailPersistenceService emailPersistenceService;
+  private final MandateProcessorService mandateProcessor;
 
   public void sendMandateBatch(
       User user, MandateBatch mandateBatch, PillarSuggestion pillarSuggestion, Locale locale) {
@@ -60,11 +62,15 @@ public class MandateBatchEmailService {
   public void sendMandateBatchFailedEmail(User user, MandateBatch mandateBatch, Locale locale) {
     var emailType = BATCH_FAILED;
     String templateName = emailType.getTemplateName(locale);
+
+    Map<String, Object> mergeVars = getMergeVars(user, mandateBatch);
+    mergeVars.putAll(getFailedBatchMergeVars(mandateBatch));
+
     MandrillMessage mandrillMessage =
         emailService.newMandrillMessage(
             user.getEmail(),
             templateName,
-            getMergeVars(user, mandateBatch),
+            mergeVars,
             getMandateBatchTags(mandateBatch),
             getAttachments(user, mandateBatch));
     emailService
@@ -89,6 +95,26 @@ public class MandateBatchEmailService {
     var map = new HashMap<String, Object>();
     map.putAll(getNameMergeVars(user));
     map.putAll(getWithdrawalMandateMergeVars(batch));
+
+    return map;
+  }
+
+  private Map<String, Object> getFailedBatchMergeVars(MandateBatch mandateBatch) {
+    var map = new HashMap<String, Object>();
+
+    var mandates = mandateBatch.getMandates();
+
+    int failedMandateCount =
+        mandates.stream()
+            .filter(mandate -> !mandateProcessor.getErrors(mandate).getErrors().isEmpty())
+            .toList()
+            .size();
+
+    int succesfulMandateCount = mandates.size() - failedMandateCount;
+
+    map.put("failedMandateCount", failedMandateCount);
+    map.put("succesfulMandateCount", succesfulMandateCount);
+    map.put("totalMandateCount", mandates.size());
 
     return map;
   }

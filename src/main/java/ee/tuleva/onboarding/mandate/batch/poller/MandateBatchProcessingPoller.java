@@ -1,10 +1,11 @@
-package ee.tuleva.onboarding.mandate.batch;
+package ee.tuleva.onboarding.mandate.batch.poller;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.error.response.ErrorResponse;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
+import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.event.OnMandateBatchFailedEvent;
@@ -35,10 +36,10 @@ public class MandateBatchProcessingPoller {
 
   private final Queue<MandateBatchPollingContext> batchPollingQueue = new ConcurrentLinkedQueue<>();
 
-  private static final int MAX_POLL_COUNT = 60;
+  protected static final int MAX_POLL_COUNT = 60;
   private static final int THREAD_COUNT = 10;
 
-  record MandateBatchPollingContext(Locale locale, MandateBatch batch, Integer count) {
+  protected record MandateBatchPollingContext(Locale locale, MandateBatch batch, Integer count) {
 
     User user() {
       return batch.getMandates().getFirst().getUser();
@@ -59,7 +60,7 @@ public class MandateBatchProcessingPoller {
   // TODO deploy/shutdown would cause emails to get dropped, some form of persistence?
   @SneakyThrows
   @PreDestroy
-  private void stop() {
+  protected void stop() {
     poller.shutdown();
     try {
       if (!poller.awaitTermination(1, SECONDS)) {
@@ -71,11 +72,10 @@ public class MandateBatchProcessingPoller {
   }
 
   private boolean haveAllBatchMandatesFinishedProcessing(MandateBatch mandateBatch) {
-    log.info(mandateBatch.getMandates().toString());
     return mandateBatch.getMandates().stream().allMatch(mandateProcessor::isFinished);
   }
 
-  private Runnable getPoller() {
+  protected Runnable getPoller() {
     return () -> {
       var context = batchPollingQueue.poll();
 
@@ -107,7 +107,7 @@ public class MandateBatchProcessingPoller {
     }
   }
 
-  private void onMandateProcessingFinished(MandateBatchPollingContext context) {
+  protected void onMandateProcessingFinished(MandateBatchPollingContext context) {
     episService.clearCache(context.user());
     handleMandateProcessingErrors(context);
     notifyAboutSignedMandate(context);

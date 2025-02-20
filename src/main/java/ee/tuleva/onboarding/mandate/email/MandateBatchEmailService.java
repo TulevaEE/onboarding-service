@@ -60,6 +60,14 @@ public class MandateBatchEmailService {
   }
 
   public void sendMandateBatchFailedEmail(User user, MandateBatch mandateBatch, Locale locale) {
+
+    if (emailPersistenceService.hasEmailsFor(mandateBatch)) {
+      log.warn(
+          "Skipping mandatebatch (id={}) failed email as email already present",
+          mandateBatch.getId());
+      return;
+    }
+
     var emailType = BATCH_FAILED;
     String templateName = emailType.getTemplateName(locale);
 
@@ -113,7 +121,7 @@ public class MandateBatchEmailService {
     int succesfulMandateCount = mandates.size() - failedMandateCount;
 
     map.put("failedMandateCount", failedMandateCount);
-    map.put("succesfulMandateCount", succesfulMandateCount);
+    map.put("successfulMandateCount", succesfulMandateCount);
     map.put("totalMandateCount", mandates.size());
 
     return map;

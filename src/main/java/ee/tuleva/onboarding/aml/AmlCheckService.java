@@ -39,7 +39,6 @@ public class AmlCheckService {
             .filter(AmlCheckType::isManual)
             .filter(value -> !doneChecksTypes.contains(value))
             .collect(toList());
-    missingCheckTypes.removeAll(doneChecksTypes);
 
     if (doneChecksTypes.contains(RESIDENCY_AUTO)) {
       missingCheckTypes.remove(RESIDENCY_MANUAL);

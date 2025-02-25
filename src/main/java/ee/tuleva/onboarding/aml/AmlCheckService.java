@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.time.ClockHolder.aYearAgo;
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.aml.dto.AmlCheckAddCommand;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.epis.EpisService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Service;
 public class AmlCheckService {
 
   private final AmlService amlService;
+  private final EpisService episService;
 
   public void addCheckIfMissing(Person person, AmlCheckAddCommand command) {
     AmlCheck check =
@@ -28,20 +31,35 @@ public class AmlCheckService {
   }
 
   public List<AmlCheckType> getMissingChecks(Person person) {
-    final var checks =
-        stream(AmlCheckType.values()).filter(AmlCheckType::isManual).collect(toList());
-    final var existingChecks =
+    final var doneChecksTypes =
         amlService.getChecks(person).stream().map(AmlCheck::getType).toList();
-    checks.removeAll(existingChecks);
-    if (existingChecks.contains(RESIDENCY_AUTO)) {
-      checks.remove(RESIDENCY_MANUAL);
+
+    final var missingCheckTypes =
+        stream(AmlCheckType.values())
+            .filter(AmlCheckType::isManual)
+            .filter(value -> !doneChecksTypes.contains(value))
+            .collect(toList());
+    missingCheckTypes.removeAll(doneChecksTypes);
+
+    if (doneChecksTypes.contains(RESIDENCY_AUTO)) {
+      missingCheckTypes.remove(RESIDENCY_MANUAL);
     }
-    if (!existingChecks.contains(CONTACT_DETAILS)) {
-      checks.add(CONTACT_DETAILS);
+    if (!doneChecksTypes.contains(CONTACT_DETAILS) || isAddressCheckNeededForEpis(person)) {
+      missingCheckTypes.add(CONTACT_DETAILS);
     }
-    if (!existingChecks.contains(POLITICALLY_EXPOSED_PERSON)) {
-      checks.remove(POLITICALLY_EXPOSED_PERSON);
+    if (!doneChecksTypes.contains(POLITICALLY_EXPOSED_PERSON)) {
+      missingCheckTypes.remove(POLITICALLY_EXPOSED_PERSON);
     }
-    return checks;
+    return missingCheckTypes;
+  }
+
+  private boolean isAddressCheckNeededForEpis(Person person) {
+    var episContactDetails = episService.getContactDetails(person);
+
+    if (episContactDetails.getLastUpdateDate() == null) {
+      return true;
+    }
+
+    return episContactDetails.getLastUpdateDate().isBefore(aYearAgo());
   }
 }

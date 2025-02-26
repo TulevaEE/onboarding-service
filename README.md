@@ -188,7 +188,7 @@ When adding a new migration for H2 <-> Postgres compatibility, the name must be 
 
 1. Create email type with unique template name.
 2. In [Mailchimp](mailchimp.com), under Content -> Email templates, add a template with the same name and `_et`
-   and `_en` prefix for languages.
+   and `_en` prefix for languages. Click dropdown arrow in list view -> Send to mandrill.
 
 * Use available merge vars as well.
 

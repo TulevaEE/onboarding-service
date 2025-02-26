@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.mandate.MandateType.FUND_PENSION_OPENING;
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
+import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 import static java.util.stream.Collectors.toSet;
 
 import ee.tuleva.onboarding.epis.mandate.details.FundPensionOpeningMandateDetails;
@@ -58,5 +59,23 @@ public class MandateBatchDto {
     return Stream.concat(
             fundPensionOpeningMandatePillars.stream(), partialWithdrawalMandatePillars.stream())
         .collect(toSet());
+  }
+
+  public boolean isBatchOnlyThirdPillarPartialWithdrawal() {
+    var mandates = getMandates();
+
+    if (mandates.size() > 1) {
+      return false;
+    }
+
+    var mandateDto = mandates.getFirst();
+
+    if (mandateDto.getMandateType() != PARTIAL_WITHDRAWAL) {
+      return false;
+    }
+
+    var details = (PartialWithdrawalMandateDetails) mandateDto.getDetails();
+
+    return details.getPillar() == THIRD;
   }
 }

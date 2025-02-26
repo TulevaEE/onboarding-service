@@ -25,6 +25,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @EqualsAndHashCode(exclude = {"member"})
+@ToString(exclude = {"member"})
 public class User implements Person, Emailable, Serializable {
 
   @Id

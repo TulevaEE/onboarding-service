@@ -29,6 +29,7 @@ import org.hibernate.annotations.Type;
 @Entity
 @Table(name = "mandate")
 @NoArgsConstructor
+@ToString(exclude = {"mandateBatch"})
 public class Mandate implements Serializable {
 
   @Id

@@ -10,11 +10,11 @@ import static org.springframework.http.HttpMethod.POST
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 
-@RestClientTest(AmlSlackService)
-class AmlSlackServiceSpec extends Specification {
+@RestClientTest(SlackService)
+class SlackServiceSpec extends Specification {
 
   @Autowired
-  AmlSlackService slackService
+  SlackService slackService
 
   @Autowired
   MockRestServiceServer server

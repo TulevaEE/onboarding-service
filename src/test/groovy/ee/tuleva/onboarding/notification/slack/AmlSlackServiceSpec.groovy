@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.notification.slack
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
-import org.springframework.boot.web.client.RestTemplateBuilder
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import spock.lang.Specification
@@ -11,11 +10,11 @@ import static org.springframework.http.HttpMethod.POST
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
 
-@RestClientTest(SlackService)
-class SlackServiceSpec extends Specification {
+@RestClientTest(AmlSlackService)
+class AmlSlackServiceSpec extends Specification {
 
   @Autowired
-  SlackService slackService
+  AmlSlackService slackService
 
   @Autowired
   MockRestServiceServer server
@@ -33,10 +32,10 @@ class SlackServiceSpec extends Specification {
     def testMessage = "Test Message 😎"
 
     server.expect(requestTo(dummyWebhookUrl))
-      .andExpect(method(POST))
-      .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-      .andExpect(jsonPath('$.text').value(testMessage))
-      .andRespond(withSuccess("ok", MediaType.TEXT_PLAIN))
+        .andExpect(method(POST))
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath('$.text').value(testMessage))
+        .andRespond(withSuccess("ok", MediaType.TEXT_PLAIN))
 
     when:
     slackService.sendMessage(testMessage)

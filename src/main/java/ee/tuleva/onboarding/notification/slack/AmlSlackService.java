@@ -9,14 +9,14 @@ import org.springframework.web.client.RestTemplate;
 
 @Service
 @Slf4j
-public class SlackService {
+public class AmlSlackService {
 
   @Value("${slack.webhook.url:#{null}}")
   private String webhookUrl;
 
   private final RestTemplate restTemplate;
 
-  public SlackService(RestTemplateBuilder restTemplateBuilder) {
+  public AmlSlackService(RestTemplateBuilder restTemplateBuilder) {
     this.restTemplate = restTemplateBuilder.build();
   }
 

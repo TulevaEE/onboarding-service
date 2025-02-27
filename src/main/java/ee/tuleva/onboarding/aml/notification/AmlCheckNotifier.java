@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.aml.notification;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 
-import ee.tuleva.onboarding.notification.slack.SlackService;
+import ee.tuleva.onboarding.notification.slack.AmlSlackService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class AmlCheckNotifier {
 
-  private final SlackService slackService;
+  private final AmlSlackService slackService;
 
   @EventListener
   public void onAmlCheckCreated(AmlCheckCreatedEvent event) {

@@ -3,7 +3,7 @@ package ee.tuleva.onboarding.aml.notification;
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.notification.slack.AmlSlackService;
+import ee.tuleva.onboarding.notification.slack.SlackService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -12,12 +12,12 @@ import org.mockito.Mockito;
 
 class AmlCheckNotifierTest {
 
-  private AmlSlackService slackService;
+  private SlackService slackService;
   private AmlCheckNotifier notifier;
 
   @BeforeEach
   void setUp() {
-    slackService = Mockito.mock(AmlSlackService.class);
+    slackService = Mockito.mock(SlackService.class);
     notifier = new AmlCheckNotifier(slackService);
   }
 

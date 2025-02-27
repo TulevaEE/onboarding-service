@@ -157,6 +157,10 @@ administration:
     key: ${ADMINISTRATION_ANALYTICS_KEY:administration-analytics-key}
     secret: ${ADMINISTRATION_ANALYTICS_SECRET:administration-analytics-secret}
 
+slack:
+  webhooks:
+    "aml": ${SLACK_AML_WEBHOOK_URL:${SLACK_WEBHOOK_URL}}
+    "withdrawals": ${SLACK_WITHDRAWALS_WEBHOOK_URL}
 ---
 spring:
   flyway:

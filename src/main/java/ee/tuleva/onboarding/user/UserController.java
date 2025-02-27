@@ -6,13 +6,16 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.error.ValidationErrorsException;
+import ee.tuleva.onboarding.notification.slack.SlackService;
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.command.UpdateUserCommand;
 import ee.tuleva.onboarding.user.response.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
+
 import java.util.Optional;
+
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.Errors;
@@ -31,6 +34,7 @@ public class UserController {
   private final EpisService episService;
   private final ContactDetailsService contactDetailsService;
   private final SecondPillarPaymentRateService secondPillarPaymentRateService;
+  private final SlackService slackService;
 
   @Operation(summary = "Get info about the current user")
   @GetMapping("/me")
@@ -38,6 +42,8 @@ public class UserController {
     Long userId = authenticatedPerson.getUserId();
     User user = userService.getById(userId);
     ContactDetails contactDetails = episService.getContactDetails(authenticatedPerson);
+
+    slackService.sendMessage("test", SlackService.SlackChannel.AML);
     return UserResponse.from(
         user, contactDetails, secondPillarPaymentRateService.getPaymentRates(authenticatedPerson));
   }

@@ -6,9 +6,9 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.*
-import static ee.tuleva.onboarding.payment.application.PaymentLinkingService.TULEVA_3RD_PILLAR_FUND_ISIN
 
 class CashFlowFixture {
+  private static final String TULEVA_3RD_PILLAR_FUND_ISIN = "EE3600001707"
 
   static CashFlowStatement cashFlowFixture() {
     def randomTime = Instant.parse("2001-01-02T01:23:45Z")

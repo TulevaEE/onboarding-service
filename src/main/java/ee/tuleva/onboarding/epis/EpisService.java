@@ -18,10 +18,12 @@ import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
+import ee.tuleva.onboarding.epis.transaction.PensionTransaction;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import java.time.LocalDate;
+import java.util.Arrays;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -199,6 +201,33 @@ public class EpisService {
     return restTemplate
         .exchange(url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), NavDto.class)
         .getBody();
+  }
+
+  public List<PensionTransaction> getTransactions(LocalDate startDate, LocalDate endDate) {
+    log.info(
+        "Fetching pension transactions from EPIS service: startDate={}, endDate={}",
+        startDate,
+        endDate);
+
+    String url =
+        UriComponentsBuilder.fromHttpUrl(episServiceUrl)
+            .pathSegment("v1", "transactions")
+            .queryParam("startDate", startDate)
+            .queryParam("endDate", endDate)
+            .toUriString();
+
+    log.debug("Calling remote transactions endpoint at URL: {}", url);
+
+    PensionTransaction[] responseArray =
+        restTemplate
+            .exchange(
+                url,
+                GET,
+                new HttpEntity<>(getHeaders(serviceJwtToken())),
+                PensionTransaction[].class)
+            .getBody();
+
+    return Arrays.asList(responseArray);
   }
 
   public MandateCommandResponse sendMandateV2(MandateCommand<?> mandate) {

@@ -42,6 +42,8 @@ public class MandateBatchEmailService {
       return;
     }
 
+    log.info("Sending mandatebatch (id={}) email", mandateBatch.getId());
+
     EmailType emailType = EmailType.from(mandateBatch);
     String templateName = emailType.getTemplateName(locale);
     MandrillMessage mandrillMessage =
@@ -67,6 +69,8 @@ public class MandateBatchEmailService {
           mandateBatch.getId());
       return;
     }
+
+    log.info("Sending failed mandatebatch (id={}) email", mandateBatch.getId());
 
     var emailType = BATCH_FAILED;
     String templateName = emailType.getTemplateName(locale);

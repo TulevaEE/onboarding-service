@@ -108,6 +108,8 @@ public class MandateBatchProcessingPoller {
   }
 
   protected void onMandateProcessingFinished(MandateBatchPollingContext context) {
+    log.info(
+        "Mandate batch (mandateBatchId={}) processing finished, notifying", context.batch.getId());
     episService.clearCache(context.user());
     handleMandateProcessingErrors(context);
     notifyAboutSignedMandate(context);

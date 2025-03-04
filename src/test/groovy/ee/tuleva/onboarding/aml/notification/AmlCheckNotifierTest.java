@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.aml.notification;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.AML;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.notification.slack.SlackService;
@@ -30,7 +31,7 @@ class AmlCheckNotifierTest {
 
     notifier.onAmlCheckCreated(event);
 
-    verify(slackService).sendMessage("AML check failed: type=SANCTION");
+    verify(slackService).sendMessage("AML check failed: type=SANCTION", AML);
   }
 
   @Test
@@ -43,7 +44,7 @@ class AmlCheckNotifierTest {
 
     notifier.onAmlCheckCreated(event);
 
-    verify(slackService, never()).sendMessage(anyString());
+    verify(slackService, never()).sendMessage(anyString(), any());
   }
 
   @Test
@@ -56,7 +57,7 @@ class AmlCheckNotifierTest {
 
     notifier.onAmlCheckCreated(event);
 
-    verify(slackService, never()).sendMessage(anyString());
+    verify(slackService, never()).sendMessage(anyString(), any());
   }
 
   @Test
@@ -68,7 +69,7 @@ class AmlCheckNotifierTest {
     notifier.onScheduledAmlCheckJobRun(event);
 
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-    verify(slackService).sendMessage(captor.capture());
+    verify(slackService).sendMessage(captor.capture(), eq(AML));
     org.junit.jupiter.api.Assertions.assertEquals(
         "Running AML checks job: numberOfRecords=10", captor.getValue());
   }
@@ -83,7 +84,7 @@ class AmlCheckNotifierTest {
     notifier.onAmlRiskLevelJobRun(event);
 
     ArgumentCaptor<String> captor = ArgumentCaptor.forClass(String.class);
-    verify(slackService).sendMessage(captor.capture());
+    verify(slackService).sendMessage(captor.capture(), eq(AML));
     org.junit.jupiter.api.Assertions.assertEquals(
         "Ran AML Risk Level job: highRiskRecordCount=3, amlChecksCreatedCount=2",
         captor.getValue());

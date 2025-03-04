@@ -159,8 +159,8 @@ administration:
 
 slack:
   webhooks:
-    "aml": ${SLACK_AML_WEBHOOK_URL:${SLACK_WEBHOOK_URL}}
-    "withdrawals": ${SLACK_WITHDRAWALS_WEBHOOK_URL}
+    aml: ""
+    withdrawals: ""
 ---
 spring:
   flyway:
@@ -256,3 +256,8 @@ payment-provider:
 
 sentry:
   traces-sample-rate: 1.0
+
+slack:
+  webhooks:
+    "aml": ${SLACK_AML_WEBHOOK_URL:${SLACK_WEBHOOK_URL}}
+    "withdrawals": ${SLACK_WITHDRAWALS_WEBHOOK_URL}

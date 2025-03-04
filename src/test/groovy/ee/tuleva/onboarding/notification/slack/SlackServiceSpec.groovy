@@ -2,10 +2,14 @@ package ee.tuleva.onboarding.notification.slack
 
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.client.RestClientTest
+import org.springframework.boot.test.mock.mockito.MockBean
+import org.springframework.core.env.Environment
 import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import spock.lang.Specification
 
+import static org.mockito.Mockito.when
+import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.AML
 import static org.springframework.http.HttpMethod.POST
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.*
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess
@@ -19,17 +23,27 @@ class SlackServiceSpec extends Specification {
   @Autowired
   MockRestServiceServer server
 
-  private String dummyWebhookUrl = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+  @MockBean
+  SlackWebhookConfiguration webhookConfiguration
+
+  Environment environment = Mock()
+
+  private String dummyWebhookUrl = "https://example.com"
+
+
+  def setup() {
+    slackService.environment = environment
+  }
 
   def cleanup() {
-    slackService.webhookUrl = null
     server.reset()
   }
 
   def "should send message to Slack if webhook URL is present"() {
     given:
-    slackService.webhookUrl = dummyWebhookUrl
     def testMessage = "Test Message 😎"
+
+    when(webhookConfiguration.getWebhookUrl(AML)).thenReturn(dummyWebhookUrl)
 
     server.expect(requestTo(dummyWebhookUrl))
         .andExpect(method(POST))
@@ -38,20 +52,37 @@ class SlackServiceSpec extends Specification {
         .andRespond(withSuccess("ok", MediaType.TEXT_PLAIN))
 
     when:
-    slackService.sendMessage(testMessage)
+    slackService.sendMessage(testMessage, AML)
 
     then:
     server.verify()
   }
 
-  def "should not send message to Slack if webhook URL is not present"() {
+  def "should not send message to Slack if webhook URL is not present and not in production"() {
     given:
-    slackService.webhookUrl = null
+    when(webhookConfiguration.getWebhookUrl(AML)).thenReturn(null)
+    environment.matchesProfiles("production") >> false
+
 
     when:
-    slackService.sendMessage("Test Message 😎")
+    slackService.sendMessage("Test Message 😎", AML)
 
     then:
+    server.verify()
+  }
+
+
+  def "throws if webhook URL is not present and in production"() {
+    given:
+    when(webhookConfiguration.getWebhookUrl(AML)).thenReturn(null)
+    environment.matchesProfiles("production") >> true
+
+
+    when:
+    slackService.sendMessage("Test Message 😎", AML)
+
+    then:
+    thrown(IllegalStateException)
     server.verify()
   }
 }

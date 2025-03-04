@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.notification.slack;
 
 import ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel;
+import java.util.HashMap;
 import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
@@ -13,7 +14,7 @@ import org.springframework.context.annotation.Configuration;
 @Setter
 public class SlackWebhookConfiguration {
 
-  private Map<String, String> webhooks;
+  private Map<String, String> webhooks = new HashMap<>();
 
   public String getWebhookUrl(SlackChannel channel) {
     return webhooks.getOrDefault(channel.getConfigurationKey(), null);

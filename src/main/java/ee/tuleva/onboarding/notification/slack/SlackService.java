@@ -22,7 +22,8 @@ public class SlackService {
     AML("aml"),
     WITHDRAWALS("withdrawals");
 
-    @Getter private final String configurationKey;
+    @Getter
+    private final String configurationKey;
 
     SlackChannel(String configurationKey) {
       this.configurationKey = configurationKey;
@@ -41,7 +42,7 @@ public class SlackService {
   public void sendMessage(String message, SlackChannel channel) {
     String webhookUrl = configuration.getWebhookUrl(channel);
 
-    if (webhookUrl == null || webhookUrl.isEmpty()) {
+    if (webhookUrl == null) {
       if (environment.matchesProfiles("production")) {
         throw new IllegalStateException("No webhook for slack channel " + channel);
       }
@@ -54,5 +55,6 @@ public class SlackService {
     restTemplate.postForEntity(webhookUrl, new HttpEntity<>(slackMessage), String.class);
   }
 
-  private record SlackMessage(String text) {}
+  private record SlackMessage(String text) {
+  }
 }

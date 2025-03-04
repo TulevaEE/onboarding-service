@@ -1,12 +1,11 @@
 package ee.tuleva.onboarding.notification.slack;
 
 import ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel;
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.Map;
 
 @Configuration
 @ConfigurationProperties(prefix = "slack")

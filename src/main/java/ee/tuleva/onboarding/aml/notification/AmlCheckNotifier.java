@@ -4,9 +4,7 @@ import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.AML;
 
 import ee.tuleva.onboarding.notification.slack.SlackService;
-
 import java.util.List;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -22,7 +20,7 @@ public class AmlCheckNotifier {
   @EventListener
   public void onAmlCheckCreated(AmlCheckCreatedEvent event) {
     if (List.of(POLITICALLY_EXPOSED_PERSON_AUTO, SANCTION, RISK_LEVEL)
-        .contains(event.getAmlCheckType())
+            .contains(event.getAmlCheckType())
         && event.isFailed()) {
       slackService.sendMessage("AML check failed: type=%s".formatted(event.getAmlCheckType()), AML);
     }
@@ -38,6 +36,7 @@ public class AmlCheckNotifier {
   public void onAmlRiskLevelJobRun(AmlRiskLevelJobRunEvent event) {
     slackService.sendMessage(
         "Ran AML Risk Level job: highRiskRecordCount=%d, amlChecksCreatedCount=%d"
-            .formatted(event.getHighRiskRowCount(), event.getAmlChecksCreatedCount()), AML);
+            .formatted(event.getHighRiskRowCount(), event.getAmlChecksCreatedCount()),
+        AML);
   }
 }

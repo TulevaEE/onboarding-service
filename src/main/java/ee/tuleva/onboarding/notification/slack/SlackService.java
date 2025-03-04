@@ -11,6 +11,7 @@ import org.springframework.web.client.RestTemplate;
 @Slf4j
 public class SlackService {
 
+  // mapped from slack.webhooks.___
   public enum SlackChannel {
     AML("aml"),
     WITHDRAWALS("withdrawals");
@@ -35,7 +36,7 @@ public class SlackService {
     String webhookUrl = configuration.getWebhookUrl(channel);
 
     if (webhookUrl == null) {
-      log.info("Slack message: {}", message);
+      log.info("Slack message for channel {}: {}", channel, message);
       return;
     }
 

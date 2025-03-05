@@ -22,8 +22,7 @@ public class SlackService {
     AML("aml"),
     WITHDRAWALS("withdrawals");
 
-    @Getter
-    private final String configurationKey;
+    @Getter private final String configurationKey;
 
     SlackChannel(String configurationKey) {
       this.configurationKey = configurationKey;
@@ -55,6 +54,5 @@ public class SlackService {
     restTemplate.postForEntity(webhookUrl, new HttpEntity<>(slackMessage), String.class);
   }
 
-  private record SlackMessage(String text) {
-  }
+  private record SlackMessage(String text) {}
 }

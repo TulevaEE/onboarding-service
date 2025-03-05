@@ -1,9 +1,11 @@
 package ee.tuleva.onboarding.epis.mandate.details;
 
 import static ee.tuleva.onboarding.mandate.MandateType.PARTIAL_WITHDRAWAL;
+import static ee.tuleva.onboarding.pillar.Pillar.THIRD;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.pillar.Pillar;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -34,4 +36,13 @@ public class PartialWithdrawalMandateDetails extends MandateDetails {
   }
 
   public record FundWithdrawalAmount(String isin, int percentage, BigDecimal units) {}
+
+  @Override
+  public ApplicationType getApplicationType() {
+    if (pillar == THIRD) {
+      return ApplicationType.WITHDRAWAL_THIRD_PILLAR;
+    }
+
+    return ApplicationType.PARTIAL_WITHDRAWAL;
+  }
 }

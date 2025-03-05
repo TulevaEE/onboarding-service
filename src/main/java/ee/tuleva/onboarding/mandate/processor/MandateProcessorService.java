@@ -66,7 +66,8 @@ public class MandateProcessorService {
   }
 
   private MandateCommand<?> getMandateCommand(GenericMandateDto<?> mandateDto) {
-    final var process = createMandateProcess(mandateDto, ApplicationType.CANCELLATION);
+    final var process =
+        createMandateProcess(mandateDto, mandateDto.getDetails().getApplicationType());
     return new MandateCommand(process.getProcessId(), mandateDto);
   }
 

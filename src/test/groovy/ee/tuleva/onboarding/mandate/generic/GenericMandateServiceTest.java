@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.MandateService;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -88,6 +89,11 @@ public class GenericMandateServiceTest {
     var anDto =
         MandateFixture.sampleMandateCreationDto(
             new MandateDetails(UNKNOWN) {
+              @Override
+              public ApplicationType getApplicationType() {
+                return null;
+              }
+
               @Override
               public MandateType getMandateType() {
                 return UNKNOWN;

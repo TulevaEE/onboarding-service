@@ -1,9 +1,12 @@
 package ee.tuleva.onboarding.epis.mandate.details;
 
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.CANCELLATION;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.MandateType;
+import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.pillar.Pillar;
 import jakarta.validation.constraints.NotNull;
 import java.util.List;
@@ -46,5 +49,10 @@ public class TransferCancellationMandateDetails extends MandateDetails {
             .sourceFundIsin(this.sourceFundIsinOfTransferToCancel)
             .targetFundIsin(null)
             .build());
+  }
+
+  @Override
+  public ApplicationType getApplicationType() {
+    return CANCELLATION;
   }
 }

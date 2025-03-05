@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.mandate.batch;
 
 import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.*;
 import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE;
+import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.WITHDRAWALS;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
 import static java.util.stream.Collectors.toList;
 
@@ -22,6 +23,7 @@ import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.notification.slack.SlackService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
@@ -46,6 +48,7 @@ public class MandateBatchService {
   private final MandateProcessorService mandateProcessor;
   private final EpisService episService;
   private final MandateBatchProcessingPoller mandateBatchProcessingPoller;
+  private final SlackService slackService;
 
   public Optional<MandateBatch> getByIdAndUser(Long id, User user) {
     var batch =
@@ -94,6 +97,14 @@ public class MandateBatchService {
                     genericMandateService.createGenericMandate(
                         authenticatedPerson, mandateDto, mandateBatch))
             .collect(toList());
+
+    try {
+      slackService.sendMessage(
+          "Withdrawal mandate batch created: mandateBatchId=%s".formatted(mandateBatch.getId()),
+          WITHDRAWALS);
+    } catch (Exception e) {
+      log.error("Failed to send mandate batch slack message with exception", e);
+    }
 
     savedMandateBatch.setMandates(mandates);
 

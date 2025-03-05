@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
 import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.OUTSTANDING_TRANSACTION;
 import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE;
+import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.WITHDRAWALS;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -29,6 +30,7 @@ import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.notification.slack.SlackService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
@@ -60,6 +62,7 @@ public class MandateBatchServiceTest {
   @Mock private MandateBatchProcessingPoller mandateBatchProcessingPoller;
   @Mock private EpisService episService;
   @Mock private ApplicationEventPublisher applicationEventPublisher;
+  @Mock private SlackService slackService;
 
   @Mock private SignatureService signService;
 
@@ -173,6 +176,8 @@ public class MandateBatchServiceTest {
 
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
+
+    verify(slackService, times(1)).sendMessage(anyString(), eq(WITHDRAWALS));
   }
 
   @Test
@@ -212,6 +217,8 @@ public class MandateBatchServiceTest {
 
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
+
+    verify(slackService, times(1)).sendMessage(anyString(), eq(WITHDRAWALS));
   }
 
   @Test
@@ -315,6 +322,46 @@ public class MandateBatchServiceTest {
         mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
 
     assertThat(result.getMandates().size()).isEqualTo(1);
+    assertThat(result.getStatus()).isEqualTo(INITIALIZED);
+    verify(slackService, times(1)).sendMessage(anyString(), eq(WITHDRAWALS));
+  }
+
+  @Test
+  @DisplayName("slack message send failure does not block creation")
+  void slackMessageThrows() {
+    var authenticatedPerson =
+        AuthenticatedPersonFixture.authenticatedPersonFromUser(sampleUser().build()).build();
+    var aFundPensionOpeningMandate = sampleFundPensionOpeningMandate();
+
+    var aMandateBatch =
+        MandateBatch.builder()
+            .mandates(List.of(aFundPensionOpeningMandate, aFundPensionOpeningMandate))
+            .status(INITIALIZED)
+            .build();
+    var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
+
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(true)
+            .canWithdrawThirdPillarWithReducedTax(true)
+            .age(65)
+            .recommendedDurationYears(20)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
+    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
+        .thenReturn(aWithdrawalEligibility);
+    when(genericMandateService.createGenericMandate(any(), any(), any()))
+        .thenReturn(aFundPensionOpeningMandate);
+    when(mandateBatchRepository.save(
+            argThat(mandateBatch -> mandateBatch.getStatus().equals(INITIALIZED))))
+        .thenReturn(aMandateBatch);
+    doThrow(new IllegalStateException()).when(slackService).sendMessage(any(), any());
+
+    MandateBatch result =
+        mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto);
+
+    assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
   }
 

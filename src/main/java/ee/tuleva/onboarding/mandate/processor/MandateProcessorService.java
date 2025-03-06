@@ -41,9 +41,6 @@ public class MandateProcessorService {
       final var response =
           episService.sendMandateV2(getMandateCommand(mandate.getGenericMandateDto()));
       handleMandateCommandResponse(response);
-    } else if (mandate.isPaymentRateApplication()) {
-      final var response = episService.sendPaymentRateApplication(getPaymentRateDto(mandate));
-      handleApplicationProcessResponse(new ApplicationResponseDTO(response));
     } else {
       final var response = episService.sendMandate(getMandateDto(mandate));
       handleApplicationProcessResponse(response);

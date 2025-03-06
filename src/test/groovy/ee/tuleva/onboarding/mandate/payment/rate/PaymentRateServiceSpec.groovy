@@ -14,6 +14,7 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
+import static ee.tuleva.epis.rate.PaymentRateFixture.sampleMandate
 
 class PaymentRateServiceSpec extends Specification {
   UserService userService = Mock(UserService)

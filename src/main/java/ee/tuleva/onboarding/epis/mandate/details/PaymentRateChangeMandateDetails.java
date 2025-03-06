@@ -37,7 +37,10 @@ public class PaymentRateChangeMandateDetails extends MandateDetails {
       return Arrays.stream(values())
           .filter(rate -> rate.numericValue.equals(value))
           .findFirst()
-          .orElseThrow(() -> new IllegalArgumentException("No payment rate found"));
+          .orElseThrow(
+              () ->
+                  new IllegalArgumentException(
+                      "No corresponding discrete payment rate found for " + value));
     }
   }
 

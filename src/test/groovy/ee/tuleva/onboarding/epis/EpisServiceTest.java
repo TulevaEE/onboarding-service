@@ -7,7 +7,6 @@ import static ee.tuleva.onboarding.epis.cashflows.CashFlowFixture.cashFlowFixtur
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate;
-import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -17,7 +16,6 @@ import static org.springframework.http.HttpStatus.OK;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.contribution.Contribution;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
-import ee.tuleva.onboarding.epis.application.ApplicationResponse;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.fund.FundDto;
@@ -27,13 +25,11 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
-import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
 import ee.tuleva.onboarding.epis.transaction.PensionTransaction;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.*;
@@ -319,38 +315,6 @@ class EpisServiceTest {
     var response = service.sendMandateV2(new MandateCommand<>("1", sampleCancellation));
     assertEquals("1", response.getProcessId());
     assertTrue(response.isSuccessful());
-  }
-
-  @Test
-  void canSendPaymentRateApplication() {
-    var samplePaymentRate =
-        PaymentRateDto.builder()
-            .id(123L)
-            .rate(BigDecimal.valueOf(4.0))
-            .processId("rateProcessId")
-            .createdDate(Instant.parse("2023-03-09T10:00:00Z"))
-            .address(addressFixture().build())
-            .email("email@override.ee")
-            .phoneNumber("+37288888888")
-            .build();
-
-    doAnswer(
-            invocation -> {
-              String url = invocation.getArgument(0, String.class);
-              assertEquals("http://epis/payment-rate", url, "Wrong endpoint for payment-rate");
-              HttpEntity<?> entity = invocation.getArgument(1, HttpEntity.class);
-              assertTrue(doesHttpEntityContainToken(entity, sampleToken), "Missing user token");
-              PaymentRateDto body = (PaymentRateDto) entity.getBody();
-              assertEquals(123L, body.getId());
-              return null;
-            })
-        .when(restTemplate)
-        .postForObject(anyString(), any(HttpEntity.class), eq(ApplicationResponse.class));
-
-    service.sendPaymentRateApplication(samplePaymentRate);
-    verify(restTemplate)
-        .postForObject(
-            eq("http://epis/payment-rate"), any(HttpEntity.class), eq(ApplicationResponse.class));
   }
 
   @Test

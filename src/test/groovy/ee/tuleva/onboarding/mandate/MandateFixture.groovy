@@ -13,6 +13,7 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails.BankAccountType.ESTONIAN
+import static ee.tuleva.onboarding.epis.mandate.details.PaymentRateChangeMandateDetails.PaymentRate.SIX
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.pillar.Pillar.THIRD
 import static ee.tuleva.onboarding.epis.mandate.details.TransferCancellationMandateDetails.fromFundTransferExchanges
@@ -45,6 +46,8 @@ class MandateFixture {
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, true),
       new BankAccountDetails(ESTONIAN, "EE3477123123123")
   )
+
+  public static PaymentRateChangeMandateDetails aPaymentRateChangeMandateDetails = new PaymentRateChangeMandateDetails(SIX)
 
   public static futureContibutionFundIsin = "AE123232334"
 
@@ -248,28 +251,31 @@ class MandateFixture {
     return mandate
   }
 
-  static Mandate sampleMandateWithPaymentRate() {
+  static Mandate sampleMandateWithPaymentRate(PaymentRateChangeMandateDetails details = aPaymentRateChangeMandateDetails) {
     Mandate mandate = builder()
-        .fundTransferExchanges([
-        ])
         .address(addressFixture().build())
+        .pillar(SECOND.toInt())
+        .details(details)
+        .fundTransferExchanges([])
+        .user(sampleUser().build())
         .build()
 
     mandate.setId(123)
     mandate.setCreatedDate(Instant.parse("2021-03-10T12:00:00Z"))
     mandate.setMandate("file".getBytes())
-    mandate.setPaymentRate(new BigDecimal(6.0))
-    mandate.setPillar(SECOND.toInt())
+    mandate.setMetadata(Map.of())
+    mandate.paymentRate = details.paymentRate.numericValue
+    mandate.pillar = SECOND.toInt()
     return mandate
   }
 
   static Mandate sampleTransferCancellationMandate() {
     var fundTransferExchanges = [FundTransferExchange.builder()
-        .id(1234)
-        .sourceFundIsin("EE3600109435")
-        .targetFundIsin(null)
-        .amount(null)
-        .build()]
+                                     .id(1234)
+                                     .sourceFundIsin("EE3600109435")
+                                     .targetFundIsin(null)
+                                     .amount(null)
+                                     .build()]
 
     Mandate mandate = builder()
         .fundTransferExchanges(

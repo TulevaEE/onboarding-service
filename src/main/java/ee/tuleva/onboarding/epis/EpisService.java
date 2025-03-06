@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.contribution.Contribution;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
-import ee.tuleva.onboarding.epis.application.ApplicationResponse;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.fund.FundDto;
@@ -17,7 +16,6 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
-import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
 import ee.tuleva.onboarding.epis.transaction.PensionTransaction;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
@@ -242,13 +240,6 @@ public class EpisService {
 
     return restTemplate.postForObject(
         url, new HttpEntity<>(mandate, getUserHeaders()), ApplicationResponseDTO.class);
-  }
-
-  public ApplicationResponse sendPaymentRateApplication(PaymentRateDto paymentRateDto) {
-    String url = episServiceUrl + "/payment-rate";
-
-    return restTemplate.postForObject(
-        url, new HttpEntity<>(paymentRateDto, getUserHeaders()), ApplicationResponse.class);
   }
 
   @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")

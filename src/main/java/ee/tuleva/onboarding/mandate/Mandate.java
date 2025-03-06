@@ -89,6 +89,7 @@ public class Mandate implements Serializable {
       foreignKey = @ForeignKey(name = "fk_mandate_batch"))
   private MandateBatch mandateBatch;
 
+  @Deprecated
   @ValidPaymentRate
   @JsonView(MandateView.Default.class)
   private BigDecimal paymentRate; // TODO: refactor this field into details

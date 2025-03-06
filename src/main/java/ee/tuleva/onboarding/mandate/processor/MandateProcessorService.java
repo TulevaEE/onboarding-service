@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.epis.mandate.GenericMandateDto;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
-import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto;
 import ee.tuleva.onboarding.error.response.ErrorsResponse;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
@@ -41,9 +40,6 @@ public class MandateProcessorService {
       final var response =
           episService.sendMandateV2(getMandateCommand(mandate.getGenericMandateDto()));
       handleMandateCommandResponse(response);
-    } else if (mandate.isPaymentRateApplication()) {
-      final var response = episService.sendPaymentRateApplication(getPaymentRateDto(mandate));
-      handleApplicationProcessResponse(new ApplicationResponseDTO(response));
     } else {
       final var response = episService.sendMandate(getMandateDto(mandate));
       handleApplicationProcessResponse(response);
@@ -69,21 +65,6 @@ public class MandateProcessorService {
     final var process =
         createMandateProcess(mandateDto, mandateDto.getDetails().getApplicationType());
     return new MandateCommand(process.getProcessId(), mandateDto);
-  }
-
-  private PaymentRateDto getPaymentRateDto(Mandate mandate) {
-    final var mandateDtoBuilder =
-        PaymentRateDto.builder()
-            .id(mandate.getId())
-            .createdDate(mandate.getCreatedDate())
-            .rate(mandate.getPaymentRate())
-            .address(mandate.getAddress())
-            .email(mandate.getEmail())
-            .phoneNumber(mandate.getPhoneNumber());
-
-    final var process = createMandateProcess(mandate, ApplicationType.PAYMENT_RATE);
-    mandateDtoBuilder.processId(process.getProcessId());
-    return mandateDtoBuilder.build();
   }
 
   private void handleMandateCommandResponse(MandateCommandResponse response) {

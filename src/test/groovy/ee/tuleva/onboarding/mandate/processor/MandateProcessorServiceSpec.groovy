@@ -6,12 +6,9 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
 import ee.tuleva.onboarding.epis.mandate.MandateDto
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse
-import ee.tuleva.onboarding.epis.payment.rate.PaymentRateDto
 import ee.tuleva.onboarding.error.response.ErrorsResponse
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateRepository
-import ee.tuleva.onboarding.mandate.MandateType
-import ee.tuleva.onboarding.mandate.application.ApplicationType
 import ee.tuleva.onboarding.user.User
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -29,7 +26,7 @@ class MandateProcessorServiceSpec extends Specification {
   MandateRepository mandateRepository = Mock(MandateRepository)
 
   MandateProcessorService service = new MandateProcessorService(
-    mandateProcessRepository, mandateProcessErrorResolver, episService, mandateRepository)
+      mandateProcessRepository, mandateProcessErrorResolver, episService, mandateRepository)
 
 
   User sampleUser = sampleUser().build()
@@ -67,7 +64,7 @@ class MandateProcessorServiceSpec extends Specification {
     Mandate mandate = sampleWithdrawalCancellationMandate()
     mandate.address = addressFixture().build()
     mandate.user = sampleUser
-    def response = new MandateCommandResponse("1", true, null, null )
+    def response = new MandateCommandResponse("1", true, null, null)
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
     1 * mandateRepository.findById(mandate.id) >> Optional.ofNullable(mandate)
     when:
@@ -86,17 +83,17 @@ class MandateProcessorServiceSpec extends Specification {
     Mandate mandate = sampleMandateWithPaymentRate()
     mandate.address = addressFixture().build()
     mandate.user = sampleUser
-    def response = new ApplicationResponse()
+    def response = new MandateCommandResponse("1", true, null, null)
     1 * mandateProcessRepository.findOneByProcessId(_) >> new MandateProcess()
+    1 * mandateRepository.findById(mandate.id) >> Optional.ofNullable(mandate)
     when:
     service.start(sampleUser, mandate)
     then:
     1 * mandateProcessRepository.save({ MandateProcess mandateProcess ->
       mandateProcess.mandate == mandate && mandateProcess.processId != null
     }) >> { args -> args[0] }
-    1 * episService.sendPaymentRateApplication({ PaymentRateDto dto ->
-      dto.rate == mandate.paymentRate
-      dto.address == mandate.address
+    1 * episService.sendMandateV2({ MandateCommand mandateCommand ->
+      mandateCommand.getMandateDto().details.mandateType == PAYMENT_RATE_CHANGE
     }) >> response
   }
 //  def "Start: processes mandate with payment rate and saves processes"() {
@@ -155,11 +152,11 @@ class MandateProcessorServiceSpec extends Specification {
 
 
   List<MandateProcess> sampleCompleteProcesses = [
-    MandateProcess.builder().successful(true).build()
+      MandateProcess.builder().successful(true).build()
   ]
 
   List<MandateProcess> sampleIncompleteProcesses = [
-    MandateProcess.builder().build()
+      MandateProcess.builder().build()
   ]
 
 }

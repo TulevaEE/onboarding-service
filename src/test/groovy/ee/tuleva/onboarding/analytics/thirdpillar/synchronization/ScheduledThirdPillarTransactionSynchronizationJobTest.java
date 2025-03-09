@@ -27,7 +27,7 @@ class ScheduledThirdPillarTransactionSynchronizationJobTest {
       job.run();
 
       verify(thirdPillarTransactionSynchronizer)
-          .syncTransactions(eq(fixedNow.minusDays(10)), eq(fixedNow));
+          .syncTransactions(eq(fixedNow.minusDays(2)), eq(fixedNow));
     }
   }
 }

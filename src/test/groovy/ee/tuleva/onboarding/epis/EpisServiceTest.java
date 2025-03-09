@@ -408,7 +408,7 @@ class EpisServiceTest {
 
     String expectedUrl =
         UriComponentsBuilder.fromHttpUrl("http://epis")
-            .pathSegment("v1", "transactions")
+            .pathSegment("transactions")
             .queryParam("startDate", startDate)
             .queryParam("endDate", endDate)
             .toUriString();

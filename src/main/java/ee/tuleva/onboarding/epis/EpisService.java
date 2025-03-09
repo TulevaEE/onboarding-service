@@ -211,7 +211,7 @@ public class EpisService {
 
     String url =
         UriComponentsBuilder.fromHttpUrl(episServiceUrl)
-            .pathSegment("v1", "transactions")
+            .pathSegment("transactions")
             .queryParam("startDate", startDate)
             .queryParam("endDate", endDate)
             .toUriString();

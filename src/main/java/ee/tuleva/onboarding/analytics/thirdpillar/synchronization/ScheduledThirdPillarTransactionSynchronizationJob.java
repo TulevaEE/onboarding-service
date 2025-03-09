@@ -15,7 +15,7 @@ public class ScheduledThirdPillarTransactionSynchronizationJob {
 
   private final ThirdPillarTransactionSynchronizer thirdPillarTransactionSynchronizer;
 
-  @Scheduled(cron = "0 30 6 9 3 ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 50 6 9 3 ?", zone = "Europe/Tallinn")
   public void run() {
     log.info("Starting transactions synchronization job");
     LocalDate endDate = LocalDate.now();

@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.fund.FundFixture.*;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -14,12 +15,17 @@ import au.com.origin.snapshots.junit5.SnapshotExtension;
 import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
+
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import ee.tuleva.onboarding.mandate.MandateType;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -32,8 +38,10 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 @SpringBootTest
 @ExtendWith(SnapshotExtension.class)
 public class CompositeMandateFileCreatorIntTest {
-  @Autowired private CompositeMandateFileCreator compositeMandateFileCreator;
-  @MockBean private FundRepository fundRepository;
+  @Autowired
+  private CompositeMandateFileCreator compositeMandateFileCreator;
+  @MockBean
+  private FundRepository fundRepository;
   private Expect expect;
 
   static Stream<Arguments> testMandatesWithSnapshotName() {
@@ -42,6 +50,10 @@ public class CompositeMandateFileCreatorIntTest {
         Arguments.of(
             sampleEarlyWithdrawalCancellationMandate(), "EarlyWithdrawalCancellationMandate"),
         Arguments.of(sampleFundPensionOpeningMandate(), "FundPensionOpeningMandate"),
+        Arguments.of(
+            sampleTransferCancellationMandate(),
+            "TransferCancellationMandate"
+        ),
         Arguments.of(sampleFundPensionOpeningMandate(), "SecondPillarFundPensionOpeningMandate"),
         Arguments.of(
             sampleFundPensionOpeningMandate(aThirdPillarFundPensionOpeningMandateDetails),
@@ -49,7 +61,10 @@ public class CompositeMandateFileCreatorIntTest {
         Arguments.of(samplePartialWithdrawalMandate(), "SecondPillarPartialWithdrawalMandate"),
         Arguments.of(
             samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails),
-            "ThirdPillarPartialWithdrawalMandate"));
+            "ThirdPillarPartialWithdrawalMandate"),
+        Arguments.of(sampleMandateWithPaymentRate(), "PaymentRateChangeMandate")
+    );
+
   }
 
   void writeMandateFile(MandateContentFile file, String snapshotName) {
@@ -62,6 +77,21 @@ public class CompositeMandateFileCreatorIntTest {
       outputStream.write(file.getContent());
     } catch (IOException e) {
       throw new RuntimeException(e.getMessage());
+    }
+  }
+
+  @Test
+  void testAllMandateTypesHaveSnapshotTest() {
+    var allMandateTypes = MandateType.values();
+
+    var testMandateTypes = testMandatesWithSnapshotName()
+        .map(arguments -> ((Mandate) arguments.get()[0]))
+        .map(Mandate::getMandateType).collect(Collectors.toSet());
+
+    for (var mandateType : allMandateTypes) {
+      if (!testMandateTypes.contains(mandateType)) {
+        fail("No file creator test for mandate type " + mandateType);
+      }
     }
   }
 
@@ -87,6 +117,7 @@ public class CompositeMandateFileCreatorIntTest {
   }
 
   @Test
+  @DisplayName("test transfer cancellation")
   void testTransferCancellationMandate() {
     var aMandate = sampleTransferCancellationMandate();
     var anUser = sampleUser().build();

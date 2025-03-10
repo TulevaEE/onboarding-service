@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.mandate.content.thymeleaf.ContextBuilder;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -142,10 +143,11 @@ class MandateContentService {
     String transactionId = UUID.randomUUID().toString();
     String documentNumber = mandate.getId().toString();
 
+    BigDecimal flooredRate = rate.setScale(0, RoundingMode.FLOOR);
     Context ctx =
         ContextBuilder.builder()
             .mandate(mandate)
-            .newPaymentRate(rate)
+            .newPaymentRate(flooredRate)
             .user(user)
             .address(mandate.getAddress())
             .contactDetails(contactDetails)

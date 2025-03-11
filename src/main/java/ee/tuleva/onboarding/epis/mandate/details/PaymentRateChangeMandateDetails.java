@@ -7,17 +7,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import jakarta.validation.constraints.NotNull;
-
 import java.math.BigDecimal;
 import java.util.Arrays;
-
 import lombok.Getter;
 
 @Getter
 public class PaymentRateChangeMandateDetails extends MandateDetails {
-  @NotNull
-  private final PaymentRate paymentRate;
-
+  @NotNull private final PaymentRate paymentRate;
 
   @JsonCreator
   public PaymentRateChangeMandateDetails(@JsonProperty("paymentRate") PaymentRate paymentRate) {

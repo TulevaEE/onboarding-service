@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.mandate;
 
 import ee.tuleva.onboarding.epis.mandate.details.*;
+
 import java.util.EnumSet;
+
 import lombok.Getter;
 
 public enum MandateType {
@@ -13,11 +15,11 @@ public enum MandateType {
   PAYMENT_RATE_CHANGE(PaymentRateChangeMandateDetails.class),
   /*TRANSFER,
   SELECTION,
-  PAYMENT,
-  PAYMENT_RATE,*/
+  PAYMENT,*/
   UNKNOWN(null);
 
-  @Getter private final Class<? extends MandateDetails> mandateDetailsClass;
+  @Getter
+  private final Class<? extends MandateDetails> mandateDetailsClass;
 
   MandateType(Class<? extends MandateDetails> mandateDetailsClass) {
     this.mandateDetailsClass = mandateDetailsClass;

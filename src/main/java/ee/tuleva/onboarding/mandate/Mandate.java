@@ -18,12 +18,10 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
-
 import lombok.*;
 import org.hibernate.annotations.Type;
 
@@ -39,9 +37,7 @@ public class Mandate implements Serializable {
   @JsonView(MandateView.Default.class)
   private Long id;
 
-  @ManyToOne
-  @NotNull
-  private User user;
+  @ManyToOne @NotNull private User user;
 
   @JsonView(MandateView.Default.class)
   @Nullable
@@ -57,8 +53,7 @@ public class Mandate implements Serializable {
   @JsonView(MandateView.Default.class)
   private Instant createdDate;
 
-  @Nullable
-  private byte[] mandate;
+  @Nullable private byte[] mandate;
 
   @OneToMany(
       cascade = {CascadeType.ALL},

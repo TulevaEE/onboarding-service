@@ -56,7 +56,8 @@ public class CompositeMandateFileCreatorIntTest {
         Arguments.of(
             samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails),
             "ThirdPillarPartialWithdrawalMandate"),
-        Arguments.of(sampleMandateWithPaymentRate(), "PaymentRateChangeMandate"));
+        Arguments.of(sampleMandateWithPaymentRate(), "PaymentRateChangeMandate"),
+        Arguments.of(sampleSelectionMandate(), "SampleSelectionMandate"));
   }
 
   void writeMandateFile(MandateContentFile file, String snapshotName) {

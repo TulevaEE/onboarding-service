@@ -11,8 +11,8 @@ public enum MandateType {
   TRANSFER_CANCELLATION(TransferCancellationMandateDetails.class),
   PARTIAL_WITHDRAWAL(PartialWithdrawalMandateDetails.class),
   PAYMENT_RATE_CHANGE(PaymentRateChangeMandateDetails.class),
+  SELECTION(SelectionMandateDetails.class),
   /*TRANSFER,
-  SELECTION,
   PAYMENT,*/
   UNKNOWN(null);
 

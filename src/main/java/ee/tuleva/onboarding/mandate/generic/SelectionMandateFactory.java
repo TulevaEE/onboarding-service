@@ -10,9 +10,8 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.user.UserService;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
+import org.springframework.stereotype.Component;
 
 // TODO currently unused – needs to be migrated together with transfer mandate via mandate batch
 @Component

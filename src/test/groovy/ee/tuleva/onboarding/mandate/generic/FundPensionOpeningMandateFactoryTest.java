@@ -66,7 +66,7 @@ public class FundPensionOpeningMandateFactoryTest {
   }
 
   @Test
-  @DisplayName("supports EARLY_WITHDRAWAL_CANCELLATION mandates")
+  @DisplayName("supports FUND_PENSION_OPENING mandates")
   void testSupports() {
     assertThat(fundPensionOpeningMandateFactory.supports(FUND_PENSION_OPENING)).isTrue();
     assertThat(fundPensionOpeningMandateFactory.supports(WITHDRAWAL_CANCELLATION)).isFalse();

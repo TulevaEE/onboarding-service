@@ -47,7 +47,7 @@ public class EarlyWithdrawalCancellationMandateFileCreatorTest {
   }
 
   @Test
-  @DisplayName("supports early withdrawal cancellation mandates")
+  @DisplayName("supports EARLY_WITHDRAWAL_CANCELLATION mandates")
   void test_supportsTransferCancellationMandates() {
     assertThat(
             earlyWithdrawalCancellationMandateFileCreator.supports(EARLY_WITHDRAWAL_CANCELLATION))

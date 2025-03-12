@@ -1373,6 +1373,577 @@ jaanuarist.</span></p>
 ]
 
 
+ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMandatesSnapshot[SampleSelectionMandate]=[
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <style type="text/css">
+    ol {
+      margin: 0;
+      padding: 0
+    }
+
+    table td, table th {
+      padding: 0
+    }
+
+    .c32 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 468pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c15 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 28.5pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c3 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 234pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c7 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 156pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c10 {
+      border-right-style: solid;
+      padding: 5pt 5pt 5pt 5pt;
+      border-bottom-color: #000000;
+      border-top-width: 1pt;
+      border-right-width: 1pt;
+      border-left-color: #000000;
+      vertical-align: top;
+      border-right-color: #000000;
+      border-left-width: 1pt;
+      border-top-style: solid;
+      border-left-style: solid;
+      border-bottom-width: 1pt;
+      width: 439.5pt;
+      border-top-color: #000000;
+      border-bottom-style: solid
+    }
+
+    .c0 {
+      color: #000000;
+      font-weight: 700;
+      text-decoration: none;
+      vertical-align: baseline;
+      font-size: 11pt;
+      font-family: "Times New Roman";
+      font-style: normal
+    }
+
+    .c31 {
+      color: #000000;
+      font-weight: 700;
+      text-decoration: none;
+      vertical-align: baseline;
+      font-size: 10pt;
+      font-family: "Arial";
+      font-style: normal
+    }
+
+    .c1 {
+      color: #000000;
+      font-weight: 400;
+      text-decoration: none;
+      vertical-align: baseline;
+      font-size: 11pt;
+      font-family: "Times New Roman";
+      font-style: normal
+    }
+
+    .c17 {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 1.15;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    .c6 {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 0.9958333333333332;
+      text-align: center
+    }
+
+    .c25 {
+      border-spacing: 0;
+      border-collapse: collapse;
+      margin-right: auto
+    }
+
+    .c30 {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 0.8416666666666667;
+      text-align: right
+    }
+
+    .c5 {
+      padding-top: 0pt;
+      padding-bottom: 0pt;
+      line-height: 1.0;
+      text-align: left
+    }
+
+    .c33 {
+      background-color: #ffffff;
+      max-width: 468pt;
+      padding: 72pt 72pt 72pt 72pt
+    }
+
+    .c18 {
+      font-weight: 400;
+      font-family: "Times New Roman"
+    }
+
+    .c12 {
+      height: 0pt
+    }
+
+    .c13 {
+      height: 20pt
+    }
+
+    .c8 {
+      height: 11pt
+    }
+
+    li {
+      color: #000000;
+      font-size: 11pt;
+      font-family: "Arial"
+    }
+
+    p {
+      margin: 0;
+      color: #000000;
+      font-size: 11pt;
+      font-family: "Arial"
+    }
+
+    h1 {
+      padding-top: 20pt;
+      color: #000000;
+      font-size: 20pt;
+      padding-bottom: 6pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    h2 {
+      padding-top: 18pt;
+      color: #000000;
+      font-size: 16pt;
+      padding-bottom: 6pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    h3 {
+      padding-top: 16pt;
+      color: #434343;
+      font-size: 14pt;
+      padding-bottom: 4pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    h4 {
+      padding-top: 14pt;
+      color: #666666;
+      font-size: 12pt;
+      padding-bottom: 4pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    h5 {
+      padding-top: 12pt;
+      color: #666666;
+      font-size: 11pt;
+      padding-bottom: 4pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }
+
+    h6 {
+      padding-top: 12pt;
+      color: #666666;
+      font-size: 11pt;
+      padding-bottom: 4pt;
+      font-family: "Arial";
+      line-height: 1.15;
+      page-break-after: avoid;
+      font-style: italic;
+      orphans: 2;
+      widows: 2;
+      text-align: left
+    }</style>
+
+    <title>Valikuavaldus</title>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/>
+  </head>
+
+  <body class="c33">
+    <p class="c30"><a id="kix.g9q1qkk2mnqa"></a><span class="c1">Pensionikeskuse vorm</span>
+    </p>
+    <p class="c17 c8"><span class="c1"></span></p>
+    <p class="c17 c8"><span class="c1"></span></p>
+    <p class="c6"><span class="c1">KOHUSTUSLIKU PENSONIFONDI VALIKUAVALDUS nr <span>123</span></span></p>
+    <p class="c5 c8"><span class="c1"></span></p>
+
+    <style type="text/css">
+  * {
+    margin: 0;
+    padding: 0;
+    text-indent: 0;
+  }
+
+  p {
+    color: black;
+    font-family: "Times New Roman", serif;
+    font-style: normal;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 10pt;
+    margin: 0pt;
+  }
+
+  .s2 {
+    color: black;
+    font-family: "Times New Roman", serif;
+    font-style: normal;
+    font-weight: normal;
+    text-decoration: none;
+    font-size: 10pt;
+  }
+
+  li {
+    display: block;
+  }
+
+  #l1 > li > *:first-child:before {
+    counter-increment: c1;
+    content: counter(c1, decimal) ". ";
+    color: black;
+    font-family: "Times New Roman", serif;
+    font-style: normal;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 10pt;
+  }
+
+  #l1 > li:first-child > *:first-child:before {
+    counter-increment: c1 0;
+  }
+
+  #l2 > li > *:first-child:before {
+    counter-increment: c2;
+    content: counter(c2, decimal) ") ";
+    color: black;
+    font-family: "Times New Roman", serif;
+    font-style: normal;
+    font-weight: bold;
+    text-decoration: none;
+    font-size: 10pt;
+  }
+
+  #l2 > li:first-child > *:first-child:before {
+    counter-increment: c2 0;
+  }
+
+  .empty-span {
+    padding: 5pt 5pt 5pt 5pt;
+  }
+
+  table, tbody {
+    width: 100%;
+    vertical-align: top;
+    overflow: visible;
+  }
+
+  td,
+  th {
+    border: 1px solid black;
+    min-width: 15px;
+  }
+</style>
+
+<!-- Section 1: Avalduse esitaja -->
+<p style="padding-left: 0pt;text-indent: 0pt;text-align: left;">1. Avalduse esitaja</p>
+<table style="border-collapse:collapse;margin-left:0pt" cellspacing="0">
+  <!-- First row with variables -->
+  <tr style="height:22pt">
+    <td ><p ><span>38812121215</span></p></td>
+    <td ><p ><span>US</span></p></td>
+  </tr>
+  <!-- Labels for first row -->
+  <tr style="height:22pt">
+    <td ><p class="s2" >Isikukood</p></td>
+    <td ><p class="s2" >Alalise / peamise elukoha riik</p></td>
+  </tr>
+  <!-- Second row with variables -->
+  <tr style="height:22pt">
+    <td ><p ><span>Jordan</span></p></td>
+    <td ><p ><span>Valdma</span></p></td>
+  </tr>
+  <!-- Labels for second row -->
+  <tr style="height:22pt">
+    <td ><p class="s2" >Eesnimi</p></td>
+    <td ><p class="s2" >Perekonnanimi</p></td>
+  </tr>
+  <!-- Third row with variables -->
+  <tr style="height:22pt">
+    <td ><p ><span>5555555</span></p></td>
+    <td ><p ><span>jordan.valdma@gmail.com</span></p></td>
+  </tr>
+  <!-- Labels for third row -->
+  <tr style="height:22pt">
+    <td ><p class="s2" >Kontakttelefon</p></td>
+    <td ><p class="s2" >E-posti aadress</p></td>
+  </tr>
+</table>
+<p class="c0"><span class="empty-span"></span></p>
+
+<!-- Section 2: Isiku eelistused -->
+<p style="padding-left: 0pt;text-indent: 0pt;text-align: left;">2. Isiku eelistused</p>
+<table style="border-collapse:collapse;margin-left:0pt" cellspacing="0">
+  <!-- Preference row with variables -->
+  <tr style="height:26pt">
+    <td  colspan="5"><p class="s2" >Soovin pensioniregistri teatist pensionikonto jäägi kohta</p></td>
+    <td ><p ><span>X</span></p></td>
+  </tr>
+  <tr>
+    <td>
+      <p class="s2">Keel</p>
+    </td>
+  </tr>
+  <!-- Language selection rows with variables -->
+  <tr style="height:26pt">
+    <td ><p class="s2" >Eesti keel</p></td>
+    <td ><p ><span>X</span></p></td>
+    <td ><p class="s2" >Vene keel</p></td>
+    <td ><p ><span></span></p></td>
+    <td ><p class="s2" >Inglise keel</p></td>
+    <td ><p ><span></span></p></td>
+  </tr>
+</table>
+<p class="c0"><span class="empty-span"></span></p>
+.
+.
+    <p class="c5 c8"><span class="c0"></span></p>
+    <p class="c5"><span class="c0">3. Kohustuslik pensionifond / pensioni investeerimiskonto (PIK), kuhu soovin hakata tegema kohustusliku kogumispensioni sissemakseid&sup1;</span>
+    </p>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <a id="t.02fe6cfe4ddff85327de913266a11873fe4457ee"></a><a id="t.3"></a>
+    <table class="c25">
+      <tbody>
+        <tr class="c12">
+          <td class="c10" colspan="1" rowspan="1">
+            <p class="c5"><span class="c18"><b>Pensionifondi nimetus / PIK number</b></span></p>
+          </td>
+          <td class="c15" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+          </td>
+        </tr>
+
+        <tr class="c12">
+          <td class="c10" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0">LHV XL</span></p>
+          </td>
+          <td class="c15" colspan="1" rowspan="1">
+            <p class="c5 c8"></p>
+          </td>
+        </tr>
+
+        <tr class="c12">
+          <td class="c10" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0">Tuleva maailma aktsiate pensionifond</span></p>
+          </td>
+          <td class="c15" colspan="1" rowspan="1">
+            <p class="c5 c8"></p>
+          </td>
+        </tr>
+
+      </tbody>
+    </table>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <p class="c5"><span class="c0">Kinnitan, et mul on olnud võimalik tutvuda kõigi registreeritud kohustuslike pensionifondide tingimuste, prospektide ja põhiteabega ning nõustun minu valitud pensionifondi või PIK-i tingimustega.</span>
+    </p>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <p class="c5"><span class="c0">Olen teadlik asjaolust, et käesoleva valikuavalduse esitamisega hakkavad minu kohustusliku kogumispensioni sissemaksed laekuma avaldusega valitud kohustuslikku pensionifondi või pensioni investeerimiskontole. Esitatud valiku muutmiseks tuleb esitada uus valikuavaldus.</span>
+    </p>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <p class="c5"><span class="c0">Olen nõus, et AS Pensionikeskus kogub ja töötleb minu isikuandmeid kogumispensionide seaduses ja väärtpaberite registri pidamise seaduses sätestatud ulatuses Euroopa Liidu piires. NB! AS Pensionikeskus isikuandmete töötlemise ja privaatsuspõhimõtted on kättesaadavad AS Pensionikeskus veebilehel.</span>
+    </p>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <a id="t.b2831fb258baf4dfb1c91996f8b9ea52c86b598f"></a><a id="t.4"></a>
+    <p class="c5"><span class="c0">4. Seadusliku esindaja andmed&sup2;</span></p>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <a id="t.dc8c70254acae3ba870f5ba8f21e2c60070938b6"></a><a id="t.5"></a>
+    <table class="c25">
+      <tbody>
+        <tr class="c12">
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+          </td>
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+          </td>
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+          </td>
+        </tr>
+        <tr class="c12">
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Seadusliku esindaja isikukood</span></p>
+          </td>
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Ees- ja perekonnanimi</span></p>
+          </td>
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Seadusliku esindaja allkiri</span></p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <p class="c5"><span class="c0">5. Volitatud esindaja andmed&sup3;</span></p>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <a id="t.364bbe539b833f885e6cdf18af613e0e4b587303"></a><a id="t.6"></a>
+    <table class="c25">
+      <tbody>
+        <tr class="c12">
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+          </td>
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+          </td>
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5 c8"><span class="c0"></span></p>
+          </td>
+        </tr>
+        <tr class="c12">
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">F&uuml;&uuml;silise isiku puhul tema isikukood</span></p>
+            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5"><span class="c1">Juriidilise isiku puhul tema registrikood ja juriidilise isiku esindaja isikukood</span>
+            </p>
+          </td>
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">F&uuml;&uuml;silise isiku puhul tema ees- ja perekonnanimi</span></p>
+            <p class="c5 c8"><span class="c1"></span></p>
+            <p class="c5"><span class="c1">Juriidilise isiku puhul tema &auml;rinimi ning juriidilise isiku esindaja ees- ja perekonnanimi</span>
+            </p>
+          </td>
+          <td class="c7" colspan="1" rowspan="1">
+            <p class="c5"><span class="c1">Avalduse esitaja isikusamasust tuvastanud isiku allkiri</span></p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <p class="c5 c8"><span class="c0"></span></p>
+    <p class="c5"><span class="c1">&sup1; Avaldusel on tähestikulises järjekorras ja võrdsetel alustel välja toodud kõigi Finantsinspektsiooni veebilehel
+avaldatud kohustuslike pensionifondide ametlikud nimetused ning isiku võimalus valida pensionifondi asemel
+investeerimine pensioni investeerimiskonto kaudu. Valitud kohustuslik pensionifond või pensioni
+investeerimiskonto tähistatakse ristiga paremal.</span></p>
+    <p class="c5 c8"><span class="c1"></span></p>
+    <p class="c5"><span class="c1">&sup2; Lahter täidetakse avalduse esitaja seadusliku esindaja poolt, kui tulenevalt õigusaktidest on avalduse esitamine
+lubatud üksnes seadusliku esindaja poolt või tema nõusolekul.</span>
+    </p>
+    <p class="c5 c8"><span class="c1"></span></p>
+    <p class="c5"><span class="c1">&sup3; Lahter täidetakse, kui avaldus esitatakse muu esindaja kui seadusliku esindaja kaudu.</span>
+    </p>
+    <p class="c5 c8"><span class="c31"></span></p>
+  </body>
+
+</html>
+
+]
+
+
 ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMandatesSnapshot[SecondPillarFundPensionOpeningMandate]=[
 <!DOCTYPE HTML>
 <html>

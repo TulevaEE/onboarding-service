@@ -20,7 +20,6 @@ class AnalyticsLeaverFixture {
         "LHV Pensionifond XL",
         "john@doe.com",
         "ENG",
-        30,
         lastEmailSent,
     )
   }

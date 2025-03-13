@@ -47,7 +47,7 @@ class AnalyticsLeaversRepositorySpec extends Specification {
         .param("isikukood", aLeaver.personalCode)
         .param("email", aLeaver.email())
         .param("keel", aLeaver.language())
-        .param("vanus", aLeaver.age())
+        .param("vanus", 30)
         .update()
 
     when:
@@ -86,7 +86,7 @@ class AnalyticsLeaversRepositorySpec extends Specification {
         .param("isikukood", aLeaver.personalCode)
         .param("email", aLeaver.email())
         .param("keel", aLeaver.language())
-        .param("vanus", aLeaver.age())
+        .param("vanus", 30)
         .update()
 
 

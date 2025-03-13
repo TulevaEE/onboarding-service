@@ -33,7 +33,6 @@ public class AnalyticsLeaversRepository implements AutoEmailRepository<Analytics
             fund.name_estonian AS "fundNameEstonian",
             mcmp.email AS "email",
             mcmp.keel AS "language",
-            mcmp.vanus AS "age",
             MAX(em.created_date) AS "lastEmailSentDate"
         FROM
             analytics.change_application ca
@@ -50,7 +49,6 @@ public class AnalyticsLeaversRepository implements AutoEmailRepository<Analytics
             ca.new_fund <> 'TUK00' AND
             ca.new_fund <> 'TUK75' AND
             fund.ongoing_charges_figure >= 0.005 AND
-            mcmp.vanus < 55 AND
             mcmp.email IS NOT NULL AND
             (mcmp.keel = 'ENG' OR mcmp.keel = 'EST') AND
             ca.share_percentage >= 10 AND
@@ -60,7 +58,7 @@ public class AnalyticsLeaversRepository implements AutoEmailRepository<Analytics
             ca.current_fund, ca.new_fund, ca.personal_id, ca.first_name, ca.last_name,
             ca.share_amount, ca.share_percentage, ca.date_created,
             fund.ongoing_charges_figure, fund.name_estonian,
-            mcmp.email, mcmp.keel, mcmp.vanus;
+            mcmp.email, mcmp.keel;
         """;
 
     return jdbcClient

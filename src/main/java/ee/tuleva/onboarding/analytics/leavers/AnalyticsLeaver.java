@@ -19,6 +19,5 @@ public record AnalyticsLeaver(
     String fundNameEstonian,
     @Getter String email,
     String language,
-    Integer age,
     @Getter LocalDateTime lastEmailSentDate)
     implements Person, Emailable {}

@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 @Builder
 @Getter
@@ -40,6 +41,7 @@ public class UserResponse implements Person, Emailable {
   private Instant memberJoinDate;
   private Instant secondPillarOpenDate;
   private Instant thirdPillarInitDate;
+  @Nullable private Instant contactDetailsLastUpdateDate;
 
   public static UserResponse from(@NotNull User user) {
     return responseBuilder(user).build();
@@ -61,6 +63,7 @@ public class UserResponse implements Person, Emailable {
         .memberJoinDate(user.getMember().map(Member::getCreatedDate).orElse(null))
         .secondPillarOpenDate(contactDetails.getSecondPillarOpenDate())
         .thirdPillarInitDate(contactDetails.getThirdPillarInitDate())
+        .contactDetailsLastUpdateDate(contactDetails.getLastUpdateDate())
         .build();
   }
 

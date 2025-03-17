@@ -10,6 +10,7 @@ class ContactDetailsFixture {
     return builder()
         .firstName("Erko")
         .lastName("Risthein")
+        .lastUpdateDate(Instant.parse("2019-10-01T12:13:27.141Z"))
         .personalCode("38501010002")
         .country("EE")
         .languagePreference(LanguagePreferenceType.valueOf("EST"))

@@ -25,6 +25,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
+import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import ee.tuleva.onboarding.epis.transaction.PensionTransaction;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
@@ -32,6 +33,7 @@ import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.*;
 import org.mockito.*;
 import org.springframework.http.*;
@@ -395,6 +397,43 @@ class EpisServiceTest {
     assertEquals(2, result.size(), "Should return 2 transactions");
     assertEquals("1234", result.get(0).getPersonId());
     assertEquals("5678", result.get(1).getPersonId());
+  }
+
+  @Test
+  void getExchangeTransactions() {
+    LocalDate startDate = LocalDate.of(2023, 1, 1);
+    String securityFrom = "ISIN123";
+    String securityTo = "ISIN456";
+    boolean pikFlag = true;
+
+    String expectedUrl =
+        UriComponentsBuilder.fromHttpUrl("http://epis")
+            .pathSegment("exchange-transactions")
+            .queryParam("startDate", startDate)
+            .queryParam("pikFlag", pikFlag)
+            .queryParam("securityFrom", securityFrom)
+            .queryParam("securityTo", securityTo)
+            .toUriString();
+
+    ExchangeTransactionDto[] sampleExchangeTransactionDtos = {
+      ExchangeTransactionDto.builder().securityFrom(securityFrom).build(),
+      ExchangeTransactionDto.builder().securityTo(securityTo).build()
+    };
+
+    when(restTemplate.exchange(
+            eq(expectedUrl),
+            eq(GET),
+            argThat(entity -> doesHttpEntityContainToken(entity, sampleServiceToken)),
+            eq(ExchangeTransactionDto[].class)))
+        .thenReturn(ResponseEntity.ok(sampleExchangeTransactionDtos));
+
+    var result =
+        service.getExchangeTransactions(
+            startDate, Optional.of(securityFrom), Optional.of(securityTo), pikFlag);
+
+    assertEquals(2, result.size(), "Should return 2 exchange transactions");
+    assertEquals(securityFrom, result.get(0).getSecurityFrom());
+    assertEquals(securityTo, result.get(1).getSecurityTo());
   }
 
   @Test

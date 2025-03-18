@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
+import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import ee.tuleva.onboarding.epis.transaction.PensionTransaction;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
@@ -23,6 +24,7 @@ import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
 import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -223,6 +225,43 @@ public class EpisService {
                 GET,
                 new HttpEntity<>(getHeaders(serviceJwtToken())),
                 PensionTransaction[].class)
+            .getBody();
+
+    return Arrays.asList(responseArray);
+  }
+
+  public List<ExchangeTransactionDto> getExchangeTransactions(
+      LocalDate startDate,
+      Optional<String> securityFrom,
+      Optional<String> securityTo,
+      boolean pikFlag) {
+
+    log.info(
+        "Fetching exchange transactions from EPIS service: startDate={}, securityFrom={}, securityTo={}, pikFlag={}",
+        startDate,
+        securityFrom.orElse(""),
+        securityTo.orElse(""),
+        pikFlag);
+
+    UriComponentsBuilder urlBuilder =
+        UriComponentsBuilder.fromHttpUrl(episServiceUrl)
+            .pathSegment("exchange-transactions")
+            .queryParam("startDate", startDate)
+            .queryParam("pikFlag", pikFlag);
+
+    securityFrom.ifPresent(sf -> urlBuilder.queryParam("securityFrom", sf));
+    securityTo.ifPresent(st -> urlBuilder.queryParam("securityTo", st));
+
+    String url = urlBuilder.toUriString();
+    log.debug("Calling remote exchange transactions endpoint at URL: {}", url);
+
+    ExchangeTransactionDto[] responseArray =
+        restTemplate
+            .exchange(
+                url,
+                GET,
+                new HttpEntity<>(getHeaders(serviceJwtToken())),
+                ExchangeTransactionDto[].class)
             .getBody();
 
     return Arrays.asList(responseArray);

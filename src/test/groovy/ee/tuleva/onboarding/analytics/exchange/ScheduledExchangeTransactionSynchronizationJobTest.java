@@ -28,7 +28,7 @@ class ScheduledExchangeTransactionSynchronizationJobTest {
 
       verify(synchronizer)
           .syncTransactions(
-              eq(fixedNow.minusDays(2)), eq(Optional.empty()), eq(Optional.empty()), eq(true));
+              eq(fixedNow.minusDays(2)), eq(Optional.empty()), eq(Optional.empty()), eq(false));
     }
   }
 
@@ -38,6 +38,6 @@ class ScheduledExchangeTransactionSynchronizationJobTest {
 
     verify(synchronizer)
         .syncTransactions(
-            eq(LocalDate.of(2025, 1, 1)), eq(Optional.empty()), eq(Optional.empty()), eq(true));
+            eq(LocalDate.of(2025, 1, 1)), eq(Optional.empty()), eq(Optional.empty()), eq(false));
   }
 }

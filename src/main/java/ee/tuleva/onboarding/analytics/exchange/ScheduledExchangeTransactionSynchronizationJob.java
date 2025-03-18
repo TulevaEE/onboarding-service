@@ -26,10 +26,10 @@ public class ScheduledExchangeTransactionSynchronizationJob {
     log.info("Transactions exchange synchronization job completed");
   }
 
-  @Scheduled(cron = "0 10 10 18 3 ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 30 10 18 3 ?", zone = "Europe/Tallinn")
   public void runInitialTransactionsSync() {
     log.info("Starting initial exchange transactions synchronization job");
-    LocalDate startDate = LocalDate.of(2025, 1, 1);
+    LocalDate startDate = LocalDate.of(2024, 1, 1);
     exchangeTransactionSynchronizer.syncTransactions(
         startDate, Optional.empty(), Optional.empty(), false);
     log.info("Finished initial exchange transactions synchronization job completed");

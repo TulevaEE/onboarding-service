@@ -38,6 +38,6 @@ class ScheduledExchangeTransactionSynchronizationJobTest {
 
     verify(synchronizer)
         .syncTransactions(
-            eq(LocalDate.of(2025, 1, 1)), eq(Optional.empty()), eq(Optional.empty()), eq(false));
+            eq(LocalDate.of(2024, 1, 1)), eq(Optional.empty()), eq(Optional.empty()), eq(false));
   }
 }

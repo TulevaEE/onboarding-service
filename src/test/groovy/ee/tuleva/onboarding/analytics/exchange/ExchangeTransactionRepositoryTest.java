@@ -26,7 +26,7 @@ class ExchangeTransactionRepositoryTest {
 
   private static final String CREATE_PUBLIC_SCHEMA = "CREATE SCHEMA IF NOT EXISTS public";
   private static final String CREATE_EXCHANGE_TRANSACTIONS_TABLE =
-      "CREATE TABLE IF NOT EXISTS public.exchange_transactions ("
+      "CREATE TABLE IF NOT EXISTS public.exchange_transaction ("
           + "id BIGSERIAL PRIMARY KEY,"
           + "reporting_date DATE NOT NULL,"
           + "security_from TEXT NOT NULL,"
@@ -42,7 +42,7 @@ class ExchangeTransactionRepositoryTest {
           + ");";
 
   private static final String TRUNCATE_EXCHANGE_TRANSACTIONS_TABLE =
-      "TRUNCATE TABLE public.exchange_transactions";
+      "TRUNCATE TABLE public.exchange_transaction";
 
   @BeforeAll
   static void createSchema(@Autowired DataSource dataSource) throws Exception {

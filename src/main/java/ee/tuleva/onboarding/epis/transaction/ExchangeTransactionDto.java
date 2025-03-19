@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.epis.transaction;
 
 import java.math.BigDecimal;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
 @Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 public class ExchangeTransactionDto {
   private String securityFrom;

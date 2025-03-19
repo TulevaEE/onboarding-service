@@ -10,7 +10,7 @@ import java.time.LocalTime;
 import java.time.Month;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.stream.Stream;
+import java.util.Arrays;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
@@ -20,11 +20,7 @@ public class MandateDeadlines {
   private final PublicHolidays publicHolidays;
   private final Instant applicationDate;
 
-  public Instant getPeriodEnding() {
-    return periodEnding().toInstant();
-  }
-
-  private ZonedDateTime periodEnding() {
+  private ZonedDateTime[] getDeadlineCandidates() {
     ZoneId timeZone = estonianClock.getZone();
     ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
     int applicationYear = zonedApplicationDate.getYear();
@@ -39,10 +35,46 @@ public class MandateDeadlines {
             .with(LocalTime.MAX);
     ZonedDateTime march31NextYear = march31.plusYears(1);
 
-    return Stream.of(march31, july31, november30, march31NextYear)
+    return new ZonedDateTime[] {march31, july31, november30, march31NextYear};
+  }
+
+  public Instant getPeriodEnding() {
+    return periodEnding().toInstant();
+  }
+
+  private ZonedDateTime periodEnding() {
+    ZonedDateTime zonedApplicationDate = applicationDate.atZone(estonianClock.getZone());
+    return Arrays.stream(getDeadlineCandidates())
         .filter(deadline -> !deadline.isBefore(zonedApplicationDate))
         .findFirst()
         .get();
+  }
+
+  public LocalDate getCurrentPeriodStartDate() {
+    ZonedDateTime currentPeriodEnd = periodEnding();
+    ZoneId timeZone = estonianClock.getZone();
+    ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
+    int applicationYear = zonedApplicationDate.getYear();
+
+    ZonedDateTime[] deadlines = getDeadlineCandidates();
+    ZonedDateTime march31 = deadlines[0];
+    ZonedDateTime july31 = deadlines[1];
+    ZonedDateTime november30 = deadlines[2];
+    ZonedDateTime march31NextYear = deadlines[3];
+
+    LocalDate previousDeadline;
+    if (currentPeriodEnd.equals(march31)) {
+      previousDeadline = LocalDate.of(applicationYear - 1, Month.NOVEMBER, 30);
+    } else if (currentPeriodEnd.equals(july31)) {
+      previousDeadline = march31.toLocalDate();
+    } else if (currentPeriodEnd.equals(november30)) {
+      previousDeadline = july31.toLocalDate();
+    } else if (currentPeriodEnd.equals(march31NextYear)) {
+      previousDeadline = november30.toLocalDate();
+    } else {
+      throw new IllegalStateException("Unknown period ending encountered.");
+    }
+    return previousDeadline.plusDays(1);
   }
 
   public LocalDate getSecondPillarContributionEndDate() {
@@ -52,7 +84,6 @@ public class MandateDeadlines {
   public LocalDate getThirdPillarWithdrawalFulfillmentDate() {
     ZoneId timeZone = estonianClock.getZone();
     ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
-
     return publicHolidays.addWorkingDays(zonedApplicationDate.toLocalDate(), 4);
   }
 

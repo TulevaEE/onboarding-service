@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.analytics.exchange;
 
+import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -15,21 +16,21 @@ import org.springframework.stereotype.Component;
 public class ScheduledExchangeTransactionSynchronizationJob {
 
   private final ExchangeTransactionSynchronizer exchangeTransactionSynchronizer;
+  private final MandateDeadlinesService mandateDeadlinesService;
 
   @Scheduled(cron = "0 0 2 * * ?", zone = "Europe/Tallinn")
   public void run() {
     log.info("Starting exchange transactions synchronization job");
-    LocalDate endDate = LocalDate.now();
-    LocalDate startDate = endDate.minusDays(2);
+    LocalDate startDate = mandateDeadlinesService.getCurrentPeriodStartDate();
     exchangeTransactionSynchronizer.syncTransactions(
         startDate, Optional.empty(), Optional.empty(), false);
     log.info("Transactions exchange synchronization job completed");
   }
 
-  @Scheduled(cron = "0 45 10 18 3 ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 27 10 19 3 ?", zone = "Europe/Tallinn")
   public void runInitialTransactionsSync() {
     log.info("Starting initial exchange transactions synchronization job");
-    LocalDate startDate = LocalDate.of(2024, 1, 1);
+    LocalDate startDate = LocalDate.of(2024, 12, 1);
     exchangeTransactionSynchronizer.syncTransactions(
         startDate, Optional.empty(), Optional.empty(), false);
     log.info("Finished initial exchange transactions synchronization job completed");

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.deadline;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,5 +19,9 @@ public class MandateDeadlinesService {
 
   public MandateDeadlines getDeadlines(Instant applicationDate) {
     return new MandateDeadlines(estonianClock, publicHolidays, applicationDate);
+  }
+
+  public LocalDate getCurrentPeriodStartDate() {
+    return getDeadlines().getCurrentPeriodStartDate();
   }
 }

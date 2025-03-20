@@ -27,7 +27,7 @@ public class ContactDetails implements Person, Emailable {
   private String lastName;
   private String personalCode;
   @Nullable private Instant lastUpdateDate;
-  @Builder.Default private String country = "EE";
+  private String country;
   @Builder.Default private LanguagePreferenceType languagePreference = EST;
   @Builder.Default private String noticeNeeded = "Y"; // boolean { 'Y', 'N' }
   @Nullable private String email;

@@ -21,4 +21,10 @@ class ScheduledRiskLevelCheckJobTest {
     scheduledRiskLevelCheckJob.run();
     verify(riskLevelService, times(1)).runRiskLevelCheck();
   }
+
+  @Test
+  void runInitialShouldInvokeRiskLevelService() {
+    scheduledRiskLevelCheckJob.runInitial();
+    verify(riskLevelService, times(1)).runRiskLevelCheck();
+  }
 }

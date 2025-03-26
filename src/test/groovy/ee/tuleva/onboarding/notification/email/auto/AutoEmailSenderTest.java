@@ -1,0 +1,226 @@
+package ee.tuleva.onboarding.notification.email.auto;
+
+import static ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalFixture.anEarlyWithdrawal;
+import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.leaverFixture;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SCHEDULED;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS;
+import static ee.tuleva.onboarding.notification.email.auto.EmailEvent.NEW_EARLY_WITHDRAWAL;
+import static ee.tuleva.onboarding.notification.email.auto.EmailEvent.NEW_LEAVER;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.*;
+
+import ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalsRepository;
+import ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaver;
+import ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaversRepository;
+import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
+import ee.tuleva.onboarding.notification.email.provider.MailchimpService;
+import ee.tuleva.onboarding.time.TestClockHolder;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.util.List;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.client.HttpClientErrorException;
+
+@ExtendWith(MockitoExtension.class)
+class AutoEmailSenderTest {
+
+  private Clock clock;
+
+  @Mock private ExchangeTransactionLeaversRepository leaversRepository;
+
+  @Mock private AnalyticsEarlyWithdrawalsRepository withdrawalsRepository;
+
+  @Mock private MailchimpService mailchimpService;
+
+  @Mock private EmailPersistenceService emailPersistenceService;
+
+  private AutoEmailSender autoEmailSender;
+
+  @BeforeEach
+  void setUp() {
+    clock = TestClockHolder.clock;
+
+    when(leaversRepository.getEmailType()).thenReturn(SECOND_PILLAR_LEAVERS);
+    when(withdrawalsRepository.getEmailType()).thenReturn(SECOND_PILLAR_EARLY_WITHDRAWAL);
+
+    autoEmailSender =
+        new AutoEmailSender(
+            clock,
+            List.of(leaversRepository, withdrawalsRepository),
+            mailchimpService,
+            emailPersistenceService);
+  }
+
+  @Test
+  @DisplayName("Sends leaver emails")
+  void sendsLeaverEmails() {
+    // Given
+    var leaver = leaverFixture();
+    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of(leaver));
+    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of());
+    when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.empty());
+
+    // When
+    autoEmailSender.sendMonthlyEmails();
+
+    // Then
+    verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
+    verify(emailPersistenceService, times(1)).save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
+  }
+
+  @Test
+  @DisplayName("Does not send duplicate emails if last email sent less than 4 months ago")
+  void doesNotSendDuplicates() {
+    // Given
+    var leaver = leaverFixture();
+    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of(leaver));
+    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of());
+
+    Instant recentEmailDate = ZonedDateTime.now(clock).minusMonths(2).toInstant();
+    when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.of(recentEmailDate));
+
+    // When
+    autoEmailSender.sendMonthlyEmails();
+
+    // Then
+    verify(mailchimpService, never()).sendEvent(leaver.email(), NEW_LEAVER);
+    verify(emailPersistenceService, never()).save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
+  }
+
+  @Test
+  @DisplayName("Sends email if last email was sent more than 4 months ago")
+  void sendsEmailIfLastEmailOlderThanFourMonths() {
+    // Given
+    var leaver = leaverFixture();
+    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of(leaver));
+    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of());
+
+    Instant oldEmailDate = ZonedDateTime.now(clock).minusMonths(5).toInstant();
+    when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.of(oldEmailDate));
+
+    // When
+    autoEmailSender.sendMonthlyEmails();
+
+    // Then
+    verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
+    verify(emailPersistenceService, times(1)).save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
+  }
+
+  @Test
+  @DisplayName("Sends withdrawal emails")
+  void sendsWithdrawalEmails() {
+    // Given
+    var earlyWithdrawal = anEarlyWithdrawal();
+    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of(earlyWithdrawal));
+    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class))).thenReturn(List.of());
+    when(emailPersistenceService.getLastEmailSendDate(
+            eq(earlyWithdrawal), eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(Optional.empty());
+
+    // When
+    autoEmailSender.sendMonthlyEmails();
+
+    // Then
+    verify(mailchimpService, times(1)).sendEvent(earlyWithdrawal.email(), NEW_EARLY_WITHDRAWAL);
+    verify(emailPersistenceService, times(1))
+        .save(earlyWithdrawal, SECOND_PILLAR_EARLY_WITHDRAWAL, SCHEDULED);
+  }
+
+  @Test
+  @DisplayName("Handles 'Email not found' exception gracefully")
+  void handlesEmailNotFoundException() {
+    // Given
+    var leaver = leaverFixture();
+    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of(leaver));
+    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of());
+    when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.empty());
+
+    doThrow(HttpClientErrorException.NotFound.class)
+        .when(mailchimpService)
+        .sendEvent(leaver.email(), NEW_LEAVER);
+
+    // When
+    autoEmailSender.sendMonthlyEmails();
+
+    // Then
+    verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
+    verify(emailPersistenceService, never()).save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
+  }
+
+  @Test
+  @DisplayName("Processes multiple repositories in a single run")
+  void processesMultipleRepositories() {
+    // Given
+    var leaver = leaverFixture();
+    var earlyWithdrawal = anEarlyWithdrawal();
+
+    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of(leaver));
+    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of(earlyWithdrawal));
+
+    when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.empty());
+    when(emailPersistenceService.getLastEmailSendDate(
+            eq(earlyWithdrawal), eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(Optional.empty());
+
+    // When
+    autoEmailSender.sendMonthlyEmails();
+
+    // Then
+    verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
+    verify(mailchimpService, times(1)).sendEvent(earlyWithdrawal.email(), NEW_EARLY_WITHDRAWAL);
+    verify(emailPersistenceService, times(1)).save(leaver, SECOND_PILLAR_LEAVERS, SCHEDULED);
+    verify(emailPersistenceService, times(1))
+        .save(earlyWithdrawal, SECOND_PILLAR_EARLY_WITHDRAWAL, SCHEDULED);
+  }
+
+  @Test
+  @DisplayName("Processes multiple entries from the same repository")
+  void processesMultipleEntriesFromSameRepository() {
+    // Given
+    var leaver1 = leaverFixture();
+    var leaver2 = leaverFixture();
+
+    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of(leaver1, leaver2));
+    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(List.of());
+
+    when(emailPersistenceService.getLastEmailSendDate(
+            any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.empty());
+
+    // When
+    autoEmailSender.sendMonthlyEmails();
+
+    // Then
+    verify(mailchimpService, times(2)).sendEvent(anyString(), eq(NEW_LEAVER));
+    verify(emailPersistenceService, times(2))
+        .save(any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS), eq(SCHEDULED));
+  }
+}

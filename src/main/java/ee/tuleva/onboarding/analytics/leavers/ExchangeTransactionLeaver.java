@@ -4,9 +4,11 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.notification.email.Emailable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.Builder;
 import lombok.Getter;
 
-public record AnalyticsLeaver(
+@Builder
+public record ExchangeTransactionLeaver(
     String currentFund,
     String newFund,
     @Getter String personalCode,

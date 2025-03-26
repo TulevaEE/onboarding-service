@@ -4,10 +4,10 @@ package ee.tuleva.onboarding.analytics.leavers
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-class AnalyticsLeaverFixture {
+class ExchangeTransactionLeaverFixture {
 
-  static AnalyticsLeaver leaverFixture(LocalDateTime lastEmailSent = LocalDateTime.parse("2019-04-30T00:00:00")) {
-    new AnalyticsLeaver(
+  static ExchangeTransactionLeaver leaverFixture(LocalDateTime lastEmailSent = LocalDateTime.parse("2019-04-30T00:00:00")) {
+    new ExchangeTransactionLeaver(
         "TUK75",
         "LXK75",
         "38510309513",

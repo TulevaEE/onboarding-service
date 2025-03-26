@@ -35,6 +35,8 @@ spotless {
         target("src/*/java/**/*.java", "src/*/groovy/**/*.java")
         removeUnusedImports()
         googleJavaFormat("1.22.0") // TODO: upgrade once it's compatible with Java String Templates
+        replaceRegex("Remove String Templates", "STR\\.\"\"\"", "\"\"\"")
+        replaceRegex("Remove String Templates interpolation", "\\\\\\{([^}]*)\\}", "%s")
     }
     kotlinGradle {
         target("*.gradle.kts")

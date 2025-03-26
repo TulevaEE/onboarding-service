@@ -99,7 +99,7 @@ dependencies {
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.5")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
 
-    implementation("ee.sk.smartid:smart-id-java-client:2.3") {
+    implementation("ee.sk.smartid:smart-id-java-client:2.3.1") {
         exclude(group = "org.bouncycastle")
     }
     implementation("ee.sk.mid:mid-rest-java-client:1.5") {

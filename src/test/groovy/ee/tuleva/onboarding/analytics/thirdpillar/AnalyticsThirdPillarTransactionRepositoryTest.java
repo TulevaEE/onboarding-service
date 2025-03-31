@@ -1,20 +1,18 @@
 package ee.tuleva.onboarding.analytics.thirdpillar;
 
-import static ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarTransactionFixture.CREATE_ANALYTICS_SCHEMA;
-import static ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarTransactionFixture.CREATE_THIRD_PILLAR_TABLE;
-import static ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarTransactionFixture.TRUNCATE_THIRD_PILLAR_TABLE;
-import static ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarTransactionFixture.anotherExampleTransaction;
-import static ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarTransactionFixture.exampleTransaction;
+import static ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarTransactionFixture.*;
+import static org.assertj.core.api.Assertions.assertThat; // Using AssertJ for Optional checks
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Statement;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -46,10 +44,9 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
   }
 
   @Test
-  @DisplayName("existsBy... returns true only if a matching row is present")
-  void testExistsByFields() {
+  void existsBy_returnsTrue_whenMatchingRowPresent() {
+    // given
     AnalyticsThirdPillarTransaction entity = exampleTransaction();
-
     boolean preCheck =
         repository
             .existsByReportingDateAndPersonalIdAndTransactionTypeAndTransactionValueAndShareAmount(
@@ -60,8 +57,8 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
                 entity.getShareAmount());
     assertFalse(preCheck, "No row should match yet");
 
+    // when
     repository.save(entity);
-
     boolean postCheck =
         repository
             .existsByReportingDateAndPersonalIdAndTransactionTypeAndTransactionValueAndShareAmount(
@@ -70,8 +67,18 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
                 entity.getTransactionType(),
                 entity.getTransactionValue(),
                 entity.getShareAmount());
-    assertTrue(postCheck, "Should return true after insertion");
 
+    // then
+    assertTrue(postCheck, "Should return true after insertion");
+  }
+
+  @Test
+  void existsBy_returnsFalse_whenNoMatchingRowPresent() {
+    // given
+    AnalyticsThirdPillarTransaction entity = exampleTransaction();
+    repository.save(entity);
+
+    // when
     boolean mismatchCheck =
         repository
             .existsByReportingDateAndPersonalIdAndTransactionTypeAndTransactionValueAndShareAmount(
@@ -80,38 +87,70 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
                 entity.getTransactionType(),
                 entity.getTransactionValue().add(BigDecimal.ONE),
                 entity.getShareAmount());
+
+    // then
     assertFalse(mismatchCheck, "Should return false for mismatching fields");
   }
 
   @Test
-  @DisplayName("findAll should return all inserted records and match the fields of each fixture")
-  void testFindAll() {
+  void findAll_returnsAllInsertedRecords() {
+    // given
     AnalyticsThirdPillarTransaction aTransaction1 = exampleTransaction();
     AnalyticsThirdPillarTransaction aTransaction2 = anotherExampleTransaction();
-
     repository.saveAll(List.of(aTransaction1, aTransaction2));
 
+    // when
     var all = repository.findAll();
+
+    // then
     assertEquals(2, all.size(), "There should be 2 records in total");
+    assertTrue(all.stream().anyMatch(t -> t.getPersonalId().equals(aTransaction1.getPersonalId())));
+    assertTrue(all.stream().anyMatch(t -> t.getPersonalId().equals(aTransaction2.getPersonalId())));
+  }
 
-    var first =
-        all.stream()
-            .filter(x -> x.getPersonalId().equals(aTransaction1.getPersonalId()))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("First fixture not found in DB"));
+  @Test
+  void findLatestReportingDate_returnsEmpty_whenTableIsEmpty() {
+    // when
+    Optional<LocalDate> latestDate = repository.findLatestReportingDate();
 
-    assertEquals(aTransaction1.getReportingDate(), first.getReportingDate());
-    assertEquals(aTransaction1.getFullName(), first.getFullName());
-    assertEquals(aTransaction1.getTransactionValue(), first.getTransactionValue());
+    // then
+    assertThat(latestDate).isEmpty();
+  }
 
-    var second =
-        all.stream()
-            .filter(x -> x.getPersonalId().equals(aTransaction2.getPersonalId()))
-            .findFirst()
-            .orElseThrow(() -> new AssertionError("Second fixture not found in DB"));
+  @Test
+  void findLatestReportingDate_returnsDate_whenSingleRecordExists() {
+    // given
+    LocalDate expectedDate = LocalDate.of(2024, 5, 15);
+    AnalyticsThirdPillarTransaction transaction =
+        exampleTransactionBuilder().reportingDate(expectedDate).build();
+    repository.save(transaction);
 
-    assertEquals(aTransaction2.getReportingDate(), second.getReportingDate());
-    assertEquals(aTransaction2.getFullName(), second.getFullName());
-    assertEquals(aTransaction2.getTransactionValue(), second.getTransactionValue());
+    // when
+    Optional<LocalDate> latestDate = repository.findLatestReportingDate();
+
+    // then
+    assertThat(latestDate).isPresent().contains(expectedDate);
+  }
+
+  @Test
+  void findLatestReportingDate_returnsLatestDate_whenMultipleRecordsExist() {
+    // given
+    LocalDate date1 = LocalDate.of(2024, 5, 15);
+    LocalDate date2 = LocalDate.of(2024, 6, 1);
+    LocalDate date3 = LocalDate.of(2024, 4, 30);
+
+    AnalyticsThirdPillarTransaction t1 = exampleTransactionBuilder().reportingDate(date1).build();
+    AnalyticsThirdPillarTransaction t2 =
+        anotherExampleTransactionBuilder().reportingDate(date2).build();
+    AnalyticsThirdPillarTransaction t3 =
+        exampleTransactionBuilder().personalId("diff").reportingDate(date3).build();
+
+    repository.saveAll(List.of(t1, t2, t3));
+
+    // when
+    Optional<LocalDate> latestDate = repository.findLatestReportingDate();
+
+    // then
+    assertThat(latestDate).isPresent().contains(date2);
   }
 }

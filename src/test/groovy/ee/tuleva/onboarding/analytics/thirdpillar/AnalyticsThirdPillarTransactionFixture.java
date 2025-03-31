@@ -41,6 +41,11 @@ public class AnalyticsThirdPillarTransactionFixture {
       "TRUNCATE TABLE analytics.third_pillar_transactions;";
 
   public static AnalyticsThirdPillarTransaction exampleTransaction() {
+    return exampleTransactionBuilder().build();
+  }
+
+  public static AnalyticsThirdPillarTransaction.AnalyticsThirdPillarTransactionBuilder
+      exampleTransactionBuilder() {
     return AnalyticsThirdPillarTransaction.builder()
         .reportingDate(LocalDate.of(2023, 1, 1))
         .fullName("John Doe")
@@ -63,11 +68,15 @@ public class AnalyticsThirdPillarTransactionFixture {
         .counterpartyCode("1111")
         .counterpartyBankAccount("EE000111")
         .counterpartyBank("SWED")
-        .counterpartyBic("SWED1234")
-        .build();
+        .counterpartyBic("SWED1234");
   }
 
   public static AnalyticsThirdPillarTransaction anotherExampleTransaction() {
+    return anotherExampleTransactionBuilder().build();
+  }
+
+  public static AnalyticsThirdPillarTransaction.AnalyticsThirdPillarTransactionBuilder
+      anotherExampleTransactionBuilder() {
     return AnalyticsThirdPillarTransaction.builder()
         .reportingDate(LocalDate.of(2023, 2, 15))
         .fullName("Jane Smith")
@@ -90,7 +99,6 @@ public class AnalyticsThirdPillarTransactionFixture {
         .counterpartyCode("2222")
         .counterpartyBankAccount("EE000222")
         .counterpartyBank("SEB")
-        .counterpartyBic("SEB1234")
-        .build();
+        .counterpartyBic("SEB1234");
   }
 }

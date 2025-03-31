@@ -43,6 +43,7 @@ public class Mandate implements Serializable {
   @Nullable
   private String futureContributionFundIsin; // TODO: refactor this field into details
 
+  @Deprecated
   @NotNull
   @Min(2)
   @Max(3)

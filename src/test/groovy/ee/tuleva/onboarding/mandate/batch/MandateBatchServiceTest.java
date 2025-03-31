@@ -33,6 +33,7 @@ import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.notification.slack.SlackService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityDto;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.List;
@@ -177,7 +178,16 @@ public class MandateBatchServiceTest {
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
 
-    verify(slackService, times(1)).sendMessage(anyString(), eq(WITHDRAWALS));
+    verify(slackService, times(1))
+        .sendMessage(
+            argThat(
+                message -> {
+                  var age = PersonalCode.getAge(authenticatedPerson.getPersonalCode());
+                  return message.contains("age=" + age)
+                      && message.contains("SECOND")
+                      && message.contains("FUND_PENSION_OPENING");
+                }),
+            eq(WITHDRAWALS));
   }
 
   @Test
@@ -218,7 +228,16 @@ public class MandateBatchServiceTest {
     assertThat(result.getMandates().size()).isEqualTo(2);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
 
-    verify(slackService, times(1)).sendMessage(anyString(), eq(WITHDRAWALS));
+    verify(slackService, times(1))
+        .sendMessage(
+            argThat(
+                message -> {
+                  var age = PersonalCode.getAge(authenticatedPerson.getPersonalCode());
+                  return message.contains("age=" + age)
+                      && message.contains("THIRD")
+                      && message.contains("FUND_PENSION_OPENING");
+                }),
+            eq(WITHDRAWALS));
   }
 
   @Test
@@ -286,6 +305,39 @@ public class MandateBatchServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "throws when creating third pillar fund pension MandateBatch before early retirement age")
+  void throwsThirdPillarFundPensionBeforeRetirementAge() {
+    var authenticatedPerson =
+        AuthenticatedPersonFixture.authenticatedPersonFromUser(sampleUser().build()).build();
+    var aFundPensionOpeningMandate =
+        sampleFundPensionOpeningMandate(aThirdPillarFundPensionOpeningMandateDetails);
+
+    var aMandateBatch =
+        MandateBatch.builder()
+            .mandates(List.of(aFundPensionOpeningMandate))
+            .status(INITIALIZED)
+            .build();
+    var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
+
+    var aWithdrawalEligibility =
+        WithdrawalEligibilityDto.builder()
+            .hasReachedEarlyRetirementAge(false)
+            .canWithdrawThirdPillarWithReducedTax(false)
+            .age(25)
+            .recommendedDurationYears(50)
+            .arrestsOrBankruptciesPresent(false)
+            .build();
+
+    when(withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson))
+        .thenReturn(aWithdrawalEligibility);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto));
+  }
+
+  @Test
   @DisplayName("allows single third pillar partial withdrawal application before retirement age")
   void thirdPillarPartialWithdrawalBeforeRetirementAge() {
     var authenticatedPerson =
@@ -323,7 +375,16 @@ public class MandateBatchServiceTest {
 
     assertThat(result.getMandates().size()).isEqualTo(1);
     assertThat(result.getStatus()).isEqualTo(INITIALIZED);
-    verify(slackService, times(1)).sendMessage(anyString(), eq(WITHDRAWALS));
+    verify(slackService, times(1))
+        .sendMessage(
+            argThat(
+                message -> {
+                  var age = PersonalCode.getAge(authenticatedPerson.getPersonalCode());
+                  return message.contains("age=" + age)
+                      && message.contains("THIRD")
+                      && message.contains("PARTIAL_WITHDRAWAL");
+                }),
+            eq(WITHDRAWALS));
   }
 
   @Test

@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateBatchSignedEvent;
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
+import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
 import ee.tuleva.onboarding.mandate.response.MandateSignatureStatus;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
@@ -26,8 +27,10 @@ import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.notification.slack.SlackService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
+import ee.tuleva.onboarding.user.personalcode.PersonalCode;
 import ee.tuleva.onboarding.withdrawals.WithdrawalEligibilityService;
 import java.util.*;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -99,8 +102,17 @@ public class MandateBatchService {
             .collect(toList());
 
     try {
+      int age = PersonalCode.getAge(authenticatedPerson.getPersonalCode());
+
+      var pillars = mandateBatchDto.getWithdrawalBatchPillars();
+      var withdrawalTypes =
+          mandateBatchDto.getMandates().stream()
+              .map(MandateDto::getMandateType)
+              .collect(Collectors.toSet());
+
       slackService.sendMessage(
-          "Withdrawal mandate batch created: mandateBatchId=%s".formatted(mandateBatch.getId()),
+          "Withdrawal mandate batch created: age=%s, pillars=%s, withdrawalTypes=%s, mandateBatchId=%s"
+              .formatted(age, pillars, withdrawalTypes, mandateBatch.getId()),
           WITHDRAWALS);
     } catch (Exception e) {
       log.error("Failed to send mandate batch slack message with exception", e);

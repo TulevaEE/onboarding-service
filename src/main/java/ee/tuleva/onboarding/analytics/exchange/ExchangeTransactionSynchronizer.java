@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.analytics.exchange;
 
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -82,7 +83,7 @@ public class ExchangeTransactionSynchronizer {
         .name(tx.getName())
         .percentage(tx.getPercentage())
         .unitAmount(tx.getUnitAmount())
-        .dateCreated(LocalDateTime.now())
+        .dateCreated(LocalDateTime.now(ClockHolder.clock()))
         .build();
   }
 }

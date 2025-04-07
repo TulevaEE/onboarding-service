@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.analytics.thirdpillar.synchronization;
 
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarTransactionRepository;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +22,8 @@ public class ScheduledThirdPillarTransactionSynchronizationJob {
   @Scheduled(cron = "0 0 2 * * ?", zone = "Europe/Tallinn")
   public void run() {
     log.info("Starting transactions synchronization job");
-    LocalDate endDate = LocalDate.now();
+    LocalDate endDate = LocalDate.now(ClockHolder.clock());
+
     Optional<LocalDate> latestReportingDateOpt = transactionRepository.findLatestReportingDate();
     LocalDate startDate =
         latestReportingDateOpt.orElseGet(

@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
+import ee.tuleva.onboarding.epis.transaction.FundTransactionDto;
 import ee.tuleva.onboarding.epis.transaction.PensionTransaction;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
@@ -265,6 +266,31 @@ public class EpisService {
             .getBody();
 
     return Arrays.asList(responseArray);
+  }
+
+  public List<FundTransactionDto> getFundTransactions(
+      String isin, LocalDate fromDate, LocalDate toDate) {
+    log.info(
+        "Fetching fund transactions from EPIS service: isin={}, fromDate={}, toDate={}",
+        isin,
+        fromDate,
+        toDate);
+
+    String url =
+        UriComponentsBuilder.fromHttpUrl(episServiceUrl)
+            .pathSegment("v1", "fund-transactions")
+            .queryParam("isin", isin)
+            .queryParam("fromDate", fromDate)
+            .queryParam("toDate", toDate)
+            .toUriString();
+
+    log.debug("Calling remote fund transactions endpoint at URL: {}", url);
+
+    ResponseEntity<FundTransactionDto[]> response =
+        restTemplate.exchange(
+            url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), FundTransactionDto[].class);
+
+    return Arrays.asList(response.getBody());
   }
 
   public MandateCommandResponse sendMandateV2(MandateCommand<?> mandate) {

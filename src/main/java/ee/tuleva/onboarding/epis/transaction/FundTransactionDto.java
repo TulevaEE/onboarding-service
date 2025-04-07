@@ -2,14 +2,14 @@ package ee.tuleva.onboarding.epis.transaction;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import lombok.Builder;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
+
+import lombok.*;
 
 @Getter
 @Setter
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @EqualsAndHashCode
 public class FundTransactionDto {
   private LocalDate date;

@@ -23,8 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 class FundTransactionRepositoryTest {
 
-  @Autowired
-  FundTransactionRepository repository;
+  @Autowired FundTransactionRepository repository;
 
   @Autowired DataSource dataSource;
 

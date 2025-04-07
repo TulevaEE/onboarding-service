@@ -21,9 +21,10 @@ import org.springframework.test.context.ActiveProfiles;
 
 @DataJpaTest
 @ActiveProfiles("test")
-class AnalyticsFundTransactionRepositoryTest {
+class FundTransactionRepositoryTest {
 
-  @Autowired AnalyticsFundTransactionRepository repository;
+  @Autowired
+  FundTransactionRepository repository;
 
   @Autowired DataSource dataSource;
 

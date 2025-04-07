@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 public class ScheduledFundTransactionSynchronizationJob {
 
   private final FundTransactionSynchronizer fundTransactionSynchronizer;
-  private final AnalyticsFundTransactionRepository transactionRepository;
+  private final FundTransactionRepository transactionRepository;
 
   private static final int DEFAULT_LOOKBACK_DAYS = 2;
   private String fundIsin = "EE3600001707";

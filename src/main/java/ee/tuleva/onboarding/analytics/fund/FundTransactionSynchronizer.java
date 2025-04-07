@@ -19,7 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class FundTransactionSynchronizer {
 
   private final EpisService episService;
-  private final AnalyticsFundTransactionRepository repository;
+  private final FundTransactionRepository repository;
 
   @Transactional
   public void syncTransactions(String fundIsin, LocalDate startDate, LocalDate endDate) {

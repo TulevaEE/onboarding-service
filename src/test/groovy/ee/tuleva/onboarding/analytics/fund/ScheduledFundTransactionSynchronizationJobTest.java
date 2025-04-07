@@ -21,7 +21,7 @@ class ScheduledFundTransactionSynchronizationJobTest {
 
   @Mock private FundTransactionSynchronizer fundTransactionSynchronizer;
 
-  @Mock private AnalyticsFundTransactionRepository transactionRepository;
+  @Mock private FundTransactionRepository transactionRepository;
 
   @InjectMocks private ScheduledFundTransactionSynchronizationJob job;
 

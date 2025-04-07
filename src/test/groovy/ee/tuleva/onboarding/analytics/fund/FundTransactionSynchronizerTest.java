@@ -33,7 +33,7 @@ class FundTransactionSynchronizerTest {
 
   @Mock private EpisService episService;
 
-  @Mock private AnalyticsFundTransactionRepository repository;
+  @Mock private FundTransactionRepository repository;
 
   @InjectMocks private FundTransactionSynchronizer synchronizer;
 

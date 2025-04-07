@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface AnalyticsFundTransactionRepository extends JpaRepository<FundTransaction, Long> {
+public interface FundTransactionRepository extends JpaRepository<FundTransaction, Long> {
 
   boolean existsByTransactionDateAndPersonalIdAndTransactionTypeAndAmountAndUnitAmount(
       LocalDate transactionDate,

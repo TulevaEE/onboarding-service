@@ -33,7 +33,7 @@ class FundTransactionSynchronizerIntegrationTest {
   private static final LocalDate SYNC_END_DATE = LocalDate.of(2025, 4, 30);
 
   @Autowired private FundTransactionSynchronizer synchronizer;
-  @Autowired private AnalyticsFundTransactionRepository repository;
+  @Autowired private FundTransactionRepository repository;
   @Autowired private MockEpisService mockEpisService;
 
   @BeforeEach

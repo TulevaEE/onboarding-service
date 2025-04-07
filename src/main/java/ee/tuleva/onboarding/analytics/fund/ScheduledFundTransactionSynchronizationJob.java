@@ -57,7 +57,7 @@ public class ScheduledFundTransactionSynchronizationJob {
     }
   }
 
-  @Scheduled(cron = "0 25 9 7 4 ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 30 9 7 4 ?", zone = "Europe/Tallinn")
   public void runInitialTransactionsSync() {
     log.info("Starting initial fund transaction synchronization job");
     LocalDate startDate = LocalDate.of(2025, 2, 1);

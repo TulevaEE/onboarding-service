@@ -5,7 +5,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,20 +18,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(
-    name = "fund_transaction",
-    schema = "public",
-    uniqueConstraints = {
-      @UniqueConstraint(
-          name = "fund_transaction_unique_key",
-          columnNames = {
-            "transaction_date",
-            "personal_id",
-            "transaction_type",
-            "amount",
-            "unit_amount"
-          })
-    })
+@Table(name = "fund_transaction")
 public class FundTransaction {
 
   @Id

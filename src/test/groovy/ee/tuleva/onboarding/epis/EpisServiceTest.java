@@ -26,6 +26,7 @@ import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
+import ee.tuleva.onboarding.epis.transaction.FundTransactionDto;
 import ee.tuleva.onboarding.epis.transaction.PensionTransaction;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
@@ -434,6 +435,39 @@ class EpisServiceTest {
     assertEquals(2, result.size(), "Should return 2 exchange transactions");
     assertEquals(securityFrom, result.get(0).getSecurityFrom());
     assertEquals(securityTo, result.get(1).getSecurityTo());
+  }
+
+  @Test
+  void getFundTransactions() {
+    String isin = "FUNDISIN123";
+    LocalDate fromDate = LocalDate.of(2024, 1, 1);
+    LocalDate toDate = LocalDate.of(2024, 3, 31);
+
+    String expectedUrl =
+        UriComponentsBuilder.fromHttpUrl("http://epis")
+            .pathSegment("fund-transactions")
+            .queryParam("isin", isin)
+            .queryParam("fromDate", fromDate)
+            .queryParam("toDate", toDate)
+            .toUriString();
+
+    FundTransactionDto[] sampleFundTransactions = {
+      FundTransactionDto.builder().amount(BigDecimal.valueOf(100)).build(),
+      FundTransactionDto.builder().amount(BigDecimal.valueOf(200)).build()
+    };
+
+    when(restTemplate.exchange(
+            eq(expectedUrl),
+            eq(GET),
+            argThat(entity -> doesHttpEntityContainToken(entity, sampleServiceToken)),
+            eq(FundTransactionDto[].class)))
+        .thenReturn(ResponseEntity.ok(sampleFundTransactions));
+
+    List<FundTransactionDto> result = service.getFundTransactions(isin, fromDate, toDate);
+
+    assertEquals(2, result.size(), "Should return 2 fund transactions");
+    assertEquals(BigDecimal.valueOf(100), result.get(0).getAmount());
+    assertEquals(BigDecimal.valueOf(200), result.get(1).getAmount());
   }
 
   @Test

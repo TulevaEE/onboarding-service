@@ -1,10 +1,8 @@
 package ee.tuleva.onboarding.analytics.thirdpillar;
 
 import static ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarTransactionFixture.*;
-import static org.assertj.core.api.Assertions.assertThat; // Using AssertJ for Optional checks
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
-import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.LocalDate;
@@ -44,55 +42,6 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
   }
 
   @Test
-  void existsBy_returnsTrue_whenMatchingRowPresent() {
-    // given
-    AnalyticsThirdPillarTransaction entity = exampleTransaction();
-    boolean preCheck =
-        repository
-            .existsByReportingDateAndPersonalIdAndTransactionTypeAndTransactionValueAndShareAmount(
-                entity.getReportingDate(),
-                entity.getPersonalId(),
-                entity.getTransactionType(),
-                entity.getTransactionValue(),
-                entity.getShareAmount());
-    assertFalse(preCheck, "No row should match yet");
-
-    // when
-    repository.save(entity);
-    boolean postCheck =
-        repository
-            .existsByReportingDateAndPersonalIdAndTransactionTypeAndTransactionValueAndShareAmount(
-                entity.getReportingDate(),
-                entity.getPersonalId(),
-                entity.getTransactionType(),
-                entity.getTransactionValue(),
-                entity.getShareAmount());
-
-    // then
-    assertTrue(postCheck, "Should return true after insertion");
-  }
-
-  @Test
-  void existsBy_returnsFalse_whenNoMatchingRowPresent() {
-    // given
-    AnalyticsThirdPillarTransaction entity = exampleTransaction();
-    repository.save(entity);
-
-    // when
-    boolean mismatchCheck =
-        repository
-            .existsByReportingDateAndPersonalIdAndTransactionTypeAndTransactionValueAndShareAmount(
-                entity.getReportingDate(),
-                entity.getPersonalId(),
-                entity.getTransactionType(),
-                entity.getTransactionValue().add(BigDecimal.ONE),
-                entity.getShareAmount());
-
-    // then
-    assertFalse(mismatchCheck, "Should return false for mismatching fields");
-  }
-
-  @Test
   void findAll_returnsAllInsertedRecords() {
     // given
     AnalyticsThirdPillarTransaction aTransaction1 = exampleTransaction();
@@ -103,9 +52,10 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
     var all = repository.findAll();
 
     // then
-    assertEquals(2, all.size(), "There should be 2 records in total");
-    assertTrue(all.stream().anyMatch(t -> t.getPersonalId().equals(aTransaction1.getPersonalId())));
-    assertTrue(all.stream().anyMatch(t -> t.getPersonalId().equals(aTransaction2.getPersonalId())));
+    assertThat(all).hasSize(2);
+    assertThat(all)
+        .extracting(AnalyticsThirdPillarTransaction::getPersonalId)
+        .containsExactlyInAnyOrder(aTransaction1.getPersonalId(), aTransaction2.getPersonalId());
   }
 
   @Test
@@ -152,5 +102,79 @@ class AnalyticsThirdPillarTransactionRepositoryTest {
 
     // then
     assertThat(latestDate).isPresent().contains(date2);
+  }
+
+  @Test
+  void deleteByReportingDateBetween_deletesRecordsWithinRange() {
+    // given
+    LocalDate dateBefore = LocalDate.of(2024, 4, 30);
+    LocalDate dateStart = LocalDate.of(2024, 5, 1);
+    LocalDate dateMiddle = LocalDate.of(2024, 5, 15);
+    LocalDate dateEnd = LocalDate.of(2024, 5, 31);
+    LocalDate dateAfter = LocalDate.of(2024, 6, 1);
+
+    AnalyticsThirdPillarTransaction tBefore =
+        exampleTransactionBuilder().reportingDate(dateBefore).personalId("ID_BEFORE").build();
+    AnalyticsThirdPillarTransaction tStart =
+        exampleTransactionBuilder().reportingDate(dateStart).personalId("ID_START").build();
+    AnalyticsThirdPillarTransaction tMiddle =
+        exampleTransactionBuilder().reportingDate(dateMiddle).personalId("ID_MIDDLE").build();
+    AnalyticsThirdPillarTransaction tEnd =
+        exampleTransactionBuilder().reportingDate(dateEnd).personalId("ID_END").build();
+    AnalyticsThirdPillarTransaction tAfter =
+        exampleTransactionBuilder().reportingDate(dateAfter).personalId("ID_AFTER").build();
+
+    repository.saveAll(List.of(tBefore, tStart, tMiddle, tEnd, tAfter));
+    assertThat(repository.count()).isEqualTo(5);
+
+    // when
+    int deletedCount = repository.deleteByReportingDateBetween(dateStart, dateEnd);
+
+    // then
+    assertThat(deletedCount).isEqualTo(3);
+    assertThat(repository.count()).isEqualTo(2);
+    List<AnalyticsThirdPillarTransaction> remaining = repository.findAll();
+    assertThat(remaining)
+        .extracting(AnalyticsThirdPillarTransaction::getPersonalId)
+        .containsExactlyInAnyOrder("ID_BEFORE", "ID_AFTER");
+  }
+
+  @Test
+  void deleteByReportingDateBetween_deletesNothing_whenNoRecordsInRange() {
+    // given
+    LocalDate dateBefore = LocalDate.of(2024, 4, 30);
+    LocalDate dateAfter = LocalDate.of(2024, 6, 1);
+    LocalDate rangeStart = LocalDate.of(2024, 5, 1);
+    LocalDate rangeEnd = LocalDate.of(2024, 5, 31);
+
+    AnalyticsThirdPillarTransaction tBefore =
+        exampleTransactionBuilder().reportingDate(dateBefore).personalId("ID_BEFORE").build();
+    AnalyticsThirdPillarTransaction tAfter =
+        exampleTransactionBuilder().reportingDate(dateAfter).personalId("ID_AFTER").build();
+
+    repository.saveAll(List.of(tBefore, tAfter));
+    assertThat(repository.count()).isEqualTo(2);
+
+    // when
+    int deletedCount = repository.deleteByReportingDateBetween(rangeStart, rangeEnd);
+
+    // then
+    assertThat(deletedCount).isEqualTo(0);
+    assertThat(repository.count()).isEqualTo(2);
+  }
+
+  @Test
+  void deleteByReportingDateBetween_deletesNothing_whenTableIsEmpty() {
+    // given
+    assertThat(repository.count()).isEqualTo(0);
+    LocalDate rangeStart = LocalDate.of(2024, 5, 1);
+    LocalDate rangeEnd = LocalDate.of(2024, 5, 31);
+
+    // when
+    int deletedCount = repository.deleteByReportingDateBetween(rangeStart, rangeEnd);
+
+    // then
+    assertThat(deletedCount).isEqualTo(0);
+    assertThat(repository.count()).isEqualTo(0);
   }
 }

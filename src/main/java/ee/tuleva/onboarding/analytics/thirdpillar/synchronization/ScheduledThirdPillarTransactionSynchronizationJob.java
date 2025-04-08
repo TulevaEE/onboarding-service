@@ -46,12 +46,12 @@ public class ScheduledThirdPillarTransactionSynchronizationJob {
     log.info("Transactions synchronization job completed");
   }
 
-  @Scheduled(cron = "0 30 8 11 3 ?", zone = "Europe/Tallinn")
-  public void runFebruaryTransactionsSync() {
-    log.info("Starting February transactions synchronization job");
-    LocalDate startDate = LocalDate.of(2025, 2, 1);
-    LocalDate endDate = LocalDate.of(2025, 2, 28);
+  @Scheduled(cron = "0 20 9 8 4 ?", zone = "Europe/Tallinn")
+  public void runInitialTransactionsSync() {
+    log.info("Starting initial transactions synchronization job");
+    LocalDate startDate = LocalDate.of(2025, 4, 1);
+    LocalDate endDate = LocalDate.of(2025, 4, 8);
     thirdPillarTransactionSynchronizer.syncTransactions(startDate, endDate);
-    log.info("February transactions synchronization job completed");
+    log.info("Initial transactions synchronization job completed");
   }
 }

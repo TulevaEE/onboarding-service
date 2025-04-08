@@ -90,11 +90,11 @@ class ScheduledThirdPillarTransactionSynchronizationJobTest {
   @Test
   void runFebruaryTransactionsSync_callsSyncTransactionsWithFixedDates() {
     // given
-    LocalDate expectedStartDate = LocalDate.of(2025, 2, 1);
-    LocalDate expectedEndDate = LocalDate.of(2025, 2, 28);
+    LocalDate expectedStartDate = LocalDate.of(2025, 4, 1);
+    LocalDate expectedEndDate = LocalDate.of(2025, 4, 8);
 
     // when
-    job.runFebruaryTransactionsSync();
+    job.runInitialTransactionsSync();
 
     // then
     verify(thirdPillarTransactionSynchronizer)

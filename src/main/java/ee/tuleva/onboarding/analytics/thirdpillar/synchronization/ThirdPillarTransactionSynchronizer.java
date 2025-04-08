@@ -4,14 +4,15 @@ import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarTransactio
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarTransactionRepository;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.PensionTransaction;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,7 @@ public class ThirdPillarTransactionSynchronizer {
   private final EpisService episService;
   private final AnalyticsThirdPillarTransactionRepository repository;
 
+  @Transactional
   public void syncTransactions(LocalDate startDate, LocalDate endDate) {
     log.info("Starting synchronization for transactions from {} to {}", startDate, endDate);
     try {
@@ -32,35 +34,45 @@ public class ThirdPillarTransactionSynchronizer {
           startDate,
           endDate);
 
-      Map<Boolean, List<AnalyticsThirdPillarTransaction>> partitioned =
-          pensionTransactions.stream()
-              .map(transaction -> convertToEntity(transaction))
-              .collect(
-                  Collectors.partitioningBy(
-                      entity ->
-                          repository
-                              .existsByReportingDateAndPersonalIdAndTransactionTypeAndTransactionValueAndShareAmount(
-                                  entity.getReportingDate(),
-                                  entity.getPersonalId(),
-                                  entity.getTransactionType(),
-                                  entity.getTransactionValue(),
-                                  entity.getShareAmount())));
+      if (pensionTransactions.isEmpty()) {
+        log.info(
+            "No transactions retrieved from EPIS for the period {}-{}. Skipping delete and insert.",
+            startDate,
+            endDate);
+        return;
+      }
 
-      List<AnalyticsThirdPillarTransaction> duplicates = partitioned.get(true);
-      List<AnalyticsThirdPillarTransaction> toInsert = partitioned.get(false);
-
-      toInsert.forEach(repository::save);
+      log.info("Deleting existing transactions between {} and {}", startDate, endDate);
+      int deletedCount = repository.deleteByReportingDateBetween(startDate, endDate);
       log.info(
-          "Synchronization completed: {} new transactions inserted, {} duplicates skipped.",
-          toInsert.size(),
-          duplicates.size());
+          "Deleted {} existing transactions between {} and {}", deletedCount, startDate, endDate);
+
+      List<AnalyticsThirdPillarTransaction> entitiesToInsert =
+          pensionTransactions.stream().map(this::convertToEntity).collect(Collectors.toList());
+
+      if (!entitiesToInsert.isEmpty()) {
+        repository.saveAll(entitiesToInsert);
+        log.info(
+            "Successfully inserted {} new transactions between {} and {}.",
+            entitiesToInsert.size(),
+            startDate,
+            endDate);
+      }
+
+      log.info(
+          "Synchronization completed for {}-{}: {} deleted, {} inserted.",
+          startDate,
+          endDate,
+          deletedCount,
+          entitiesToInsert.size());
+
     } catch (Exception e) {
-      log.error("Synchronization failed: {}", e.getMessage());
+      log.error(
+          "Synchronization failed for period {} to {}: {}", startDate, endDate, e.getMessage(), e);
     }
   }
 
   private AnalyticsThirdPillarTransaction convertToEntity(PensionTransaction transaction) {
-
     return AnalyticsThirdPillarTransaction.builder()
         .reportingDate(transaction.getDate())
         .fullName(transaction.getPersonName())
@@ -83,7 +95,7 @@ public class ThirdPillarTransactionSynchronizer {
         .counterpartyBankAccount(transaction.getCounterpartyBankAccount())
         .counterpartyBank(transaction.getCounterpartyBank())
         .counterpartyBic(transaction.getCounterpartyBic())
-        .dateCreated(LocalDateTime.now())
+        .dateCreated(LocalDateTime.now(ClockHolder.clock()))
         .build();
   }
 }

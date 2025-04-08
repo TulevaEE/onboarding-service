@@ -6,12 +6,12 @@ import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -21,17 +21,20 @@ public class ExchangeTransactionSynchronizer {
   private final EpisService episService;
   private final ExchangeTransactionRepository repository;
 
+  @Transactional
   public void syncTransactions(
       LocalDate startDate,
       Optional<String> securityFrom,
       Optional<String> securityTo,
       boolean pikFlag) {
 
+    LocalDate reportingDate = startDate;
+
     log.info(
-        "Starting synchronization of exchange transactions from startDate={}, securityFrom={}, securityTo={}, pikFlag={}",
-        startDate,
-        securityFrom.orElse(""),
-        securityTo.orElse(""),
+        "Starting synchronization of exchange transactions for reportingDate={}, securityFrom={}, securityTo={}, pikFlag={}",
+        reportingDate,
+        securityFrom.orElse("N/A"),
+        securityTo.orElse("N/A"),
         pikFlag);
 
     try {
@@ -39,35 +42,40 @@ public class ExchangeTransactionSynchronizer {
           episService.getExchangeTransactions(startDate, securityFrom, securityTo, pikFlag);
       log.info("Retrieved {} exchange transactions", exchangeTransactionDtos.size());
 
-      List<ExchangeTransaction> analyticsTransactions =
+      if (exchangeTransactionDtos.isEmpty()) {
+        log.info(
+            "No transactions retrieved from EPIS for reportingDate {}. Skipping delete and insert.",
+            reportingDate);
+        return;
+      }
+
+      log.info("Deleting existing transactions for reportingDate {}", reportingDate);
+      int deletedCount = repository.deleteByReportingDate(reportingDate);
+      log.info(
+          "Deleted {} existing transactions for reportingDate {}", deletedCount, reportingDate);
+
+      List<ExchangeTransaction> entitiesToInsert =
           exchangeTransactionDtos.stream()
-              .map(tx -> convertToEntity(tx, startDate))
+              .map(tx -> convertToEntity(tx, reportingDate))
               .collect(Collectors.toList());
 
-      Map<Boolean, List<ExchangeTransaction>> partitioned =
-          analyticsTransactions.stream()
-              .collect(
-                  Collectors.partitioningBy(
-                      entity ->
-                          repository
-                              .existsByReportingDateAndSecurityFromAndSecurityToAndCodeAndUnitAmountAndPercentage(
-                                  entity.getReportingDate(),
-                                  entity.getSecurityFrom(),
-                                  entity.getSecurityTo(),
-                                  entity.getCode(),
-                                  entity.getUnitAmount(),
-                                  entity.getPercentage())));
+      if (!entitiesToInsert.isEmpty()) {
+        repository.saveAll(entitiesToInsert);
+        log.info(
+            "Successfully inserted {} new transactions for reportingDate {}.",
+            entitiesToInsert.size(),
+            reportingDate);
+      }
 
-      List<ExchangeTransaction> duplicates = partitioned.get(true);
-      List<ExchangeTransaction> toInsert = partitioned.get(false);
-
-      toInsert.forEach(repository::save);
       log.info(
-          "Synchronization completed: {} new transactions inserted, {} duplicates skipped.",
-          toInsert.size(),
-          duplicates.size());
+          "Synchronization completed for reportingDate {}: {} deleted, {} inserted.",
+          reportingDate,
+          deletedCount,
+          entitiesToInsert.size());
+
     } catch (Exception e) {
-      log.error("Synchronization failed: {}", e.getMessage());
+      log.error(
+          "Synchronization failed for reportingDate {}: {}", reportingDate, e.getMessage(), e);
     }
   }
 

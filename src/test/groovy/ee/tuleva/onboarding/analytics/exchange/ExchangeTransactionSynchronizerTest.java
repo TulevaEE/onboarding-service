@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.analytics.exchange;
 
 import static ee.tuleva.onboarding.analytics.exchange.ExchangeTransactionFixture.Dto.*;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -8,9 +9,9 @@ import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.time.TestClockHolder;
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -29,6 +30,10 @@ class ExchangeTransactionSynchronizerTest {
 
   @InjectMocks private ExchangeTransactionSynchronizer synchronizer;
 
+  @Captor private ArgumentCaptor<List<ExchangeTransaction>> transactionListCaptor;
+
+  private static final LocalDate REPORTING_DATE = LocalDate.of(2025, 1, 1);
+
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(TestClockHolder.clock);
@@ -40,61 +45,66 @@ class ExchangeTransactionSynchronizerTest {
   }
 
   @Test
-  void syncTransactions_insertsOnlyNewTransactions_skipsDuplicates() {
-    LocalDate reportingDate = LocalDate.of(2025, 1, 1);
+  void syncTransactions_deletesExistingAndInsertsAllRetrievedTransactions() {
     LocalDateTime expectedCreationTime = LocalDateTime.now(TestClockHolder.clock);
-
-    ExchangeTransactionDto newDto = newTransactionDto();
-    ExchangeTransactionDto duplicateDto = duplicateTransactionDto();
+    ExchangeTransactionDto dto1 = newTransactionDto();
+    ExchangeTransactionDto dto2 = duplicateTransactionDto();
 
     when(episService.getExchangeTransactions(
-            eq(reportingDate), any(Optional.class), any(Optional.class), eq(false)))
-        .thenReturn(List.of(newDto, duplicateDto));
+            eq(REPORTING_DATE), any(Optional.class), any(Optional.class), eq(false)))
+        .thenReturn(List.of(dto1, dto2));
+    when(repository.deleteByReportingDate(REPORTING_DATE)).thenReturn(5);
 
-    when(repository
-            .existsByReportingDateAndSecurityFromAndSecurityToAndCodeAndUnitAmountAndPercentage(
-                eq(reportingDate),
-                eq(NEW_SECURITY_FROM),
-                eq(NEW_SECURITY_TO),
-                eq(NEW_CODE),
-                eq(BigDecimal.valueOf(10.0)),
-                eq(BigDecimal.valueOf(2.5))))
-        .thenReturn(false);
+    synchronizer.syncTransactions(REPORTING_DATE, Optional.empty(), Optional.empty(), false);
 
-    when(repository
-            .existsByReportingDateAndSecurityFromAndSecurityToAndCodeAndUnitAmountAndPercentage(
-                eq(reportingDate),
-                eq(DUPLICATE_SECURITY_FROM),
-                eq(DUPLICATE_SECURITY_TO),
-                eq(DUPLICATE_CODE),
-                eq(BigDecimal.valueOf(50.0)),
-                eq(BigDecimal.valueOf(5.0))))
-        .thenReturn(true);
+    verify(repository, times(1)).deleteByReportingDate(REPORTING_DATE);
+    verify(repository, times(1)).saveAll(transactionListCaptor.capture());
 
-    synchronizer.syncTransactions(reportingDate, Optional.empty(), Optional.empty(), false);
+    List<ExchangeTransaction> savedTransactions = transactionListCaptor.getValue();
+    assertThat(savedTransactions).hasSize(2);
 
-    verify(repository, times(1))
-        .save(
-            argThat(
-                entity ->
-                    entity.getSecurityFrom().equals(NEW_SECURITY_FROM)
-                        && entity.getSecurityTo().equals(NEW_SECURITY_TO)
-                        && entity.getCode().equals(NEW_CODE)
-                        && entity.getDateCreated().equals(expectedCreationTime)));
+    assertThat(savedTransactions)
+        .anySatisfy(
+            entity -> {
+              assertThat(entity.getReportingDate()).isEqualTo(REPORTING_DATE);
+              assertThat(entity.getSecurityFrom()).isEqualTo(NEW_SECURITY_FROM);
+              assertThat(entity.getSecurityTo()).isEqualTo(NEW_SECURITY_TO);
+              assertThat(entity.getCode()).isEqualTo(NEW_CODE);
+              assertThat(entity.getDateCreated()).isEqualTo(expectedCreationTime);
+            });
 
-    verify(repository, never())
-        .save(argThat(entity -> entity.getSecurityFrom().equals(DUPLICATE_SECURITY_FROM)));
+    assertThat(savedTransactions)
+        .anySatisfy(
+            entity -> {
+              assertThat(entity.getReportingDate()).isEqualTo(REPORTING_DATE);
+              assertThat(entity.getSecurityFrom()).isEqualTo(DUPLICATE_SECURITY_FROM);
+              assertThat(entity.getSecurityTo()).isEqualTo(DUPLICATE_SECURITY_TO);
+              assertThat(entity.getCode()).isEqualTo(DUPLICATE_CODE);
+              assertThat(entity.getDateCreated()).isEqualTo(expectedCreationTime);
+            });
   }
 
   @Test
-  void syncTransactions_whenEpisServiceThrowsException_shouldLogErrorAndNotSave() {
-    LocalDate reportingDate = LocalDate.of(2025, 1, 1);
+  void syncTransactions_whenNoTransactionsRetrieved_doesNotDeleteOrSave() {
     when(episService.getExchangeTransactions(
-            eq(reportingDate), any(Optional.class), any(Optional.class), eq(false)))
+            eq(REPORTING_DATE), any(Optional.class), any(Optional.class), eq(false)))
+        .thenReturn(Collections.emptyList());
+
+    synchronizer.syncTransactions(REPORTING_DATE, Optional.empty(), Optional.empty(), false);
+
+    verify(repository, never()).deleteByReportingDate(any(LocalDate.class));
+    verify(repository, never()).saveAll(anyList());
+  }
+
+  @Test
+  void syncTransactions_whenEpisServiceThrowsException_shouldLogErrorAndNotDeleteOrSave() {
+    when(episService.getExchangeTransactions(
+            eq(REPORTING_DATE), any(Optional.class), any(Optional.class), eq(false)))
         .thenThrow(new RuntimeException("Simulated EpisService error"));
 
-    synchronizer.syncTransactions(reportingDate, Optional.empty(), Optional.empty(), false);
+    synchronizer.syncTransactions(REPORTING_DATE, Optional.empty(), Optional.empty(), false);
 
-    verify(repository, never()).save(any());
+    verify(repository, never()).deleteByReportingDate(any(LocalDate.class));
+    verify(repository, never()).saveAll(anyList());
   }
 }

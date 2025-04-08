@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 public class ExchangeTransactionFixture {
 
-  public static ExchangeTransaction exampleTransaction() {
+  public static ExchangeTransaction.ExchangeTransactionBuilder exampleTransactionBuilder() {
     return ExchangeTransaction.builder()
         .reportingDate(LocalDate.of(2025, 1, 1))
         .securityFrom("SEC_FROM_FIXTURE")
@@ -19,11 +19,14 @@ public class ExchangeTransactionFixture {
         .name("Doe")
         .percentage(BigDecimal.valueOf(2.5))
         .unitAmount(BigDecimal.valueOf(100.00))
-        .dateCreated(LocalDateTime.now())
-        .build();
+        .dateCreated(LocalDateTime.now());
   }
 
-  public static ExchangeTransaction anotherExampleTransaction() {
+  public static ExchangeTransaction exampleTransaction() {
+    return exampleTransactionBuilder().build();
+  }
+
+  public static ExchangeTransaction.ExchangeTransactionBuilder anotherExampleTransactionBuilder() {
     return ExchangeTransaction.builder()
         .reportingDate(LocalDate.of(2025, 1, 2))
         .securityFrom("SEC_FROM_OTHER")
@@ -35,8 +38,11 @@ public class ExchangeTransactionFixture {
         .name("Smith")
         .percentage(BigDecimal.valueOf(3.7))
         .unitAmount(BigDecimal.valueOf(200.50))
-        .dateCreated(LocalDateTime.now())
-        .build();
+        .dateCreated(LocalDateTime.now());
+  }
+
+  public static ExchangeTransaction anotherExampleTransaction() {
+    return anotherExampleTransactionBuilder().build();
   }
 
   public static class Dto {

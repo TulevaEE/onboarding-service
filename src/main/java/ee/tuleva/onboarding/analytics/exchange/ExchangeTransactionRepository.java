@@ -1,16 +1,14 @@
 package ee.tuleva.onboarding.analytics.exchange;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface ExchangeTransactionRepository extends JpaRepository<ExchangeTransaction, Long> {
 
-  boolean existsByReportingDateAndSecurityFromAndSecurityToAndCodeAndUnitAmountAndPercentage(
-      LocalDate reportingDate,
-      String securityFrom,
-      String securityTo,
-      String code,
-      BigDecimal unitAmount,
-      BigDecimal percentage);
+  @Modifying
+  @Query("DELETE FROM ExchangeTransaction t WHERE t.reportingDate = :reportingDate")
+  int deleteByReportingDate(@Param("reportingDate") LocalDate reportingDate);
 }

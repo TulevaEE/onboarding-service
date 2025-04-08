@@ -28,9 +28,7 @@ public class ScheduledFundTransactionSynchronizationJob {
     Optional<LocalDate> latestTransactionDateOpt =
         transactionRepository.findLatestTransactionDate();
 
-    log.info(
-        "Result from findLatestTransactionDate(): {}",
-        latestTransactionDateOpt);
+    log.info("Result from findLatestTransactionDate(): {}", latestTransactionDateOpt);
 
     LocalDate startDate =
         latestTransactionDateOpt.orElseGet(

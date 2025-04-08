@@ -46,7 +46,7 @@ public class ScheduledThirdPillarTransactionSynchronizationJob {
     log.info("Transactions synchronization job completed");
   }
 
-  @Scheduled(cron = "0 20 9 8 4 ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 40 8 8 4 ?", zone = "Europe/Tallinn")
   public void runInitialTransactionsSync() {
     log.info("Starting initial transactions synchronization job");
     LocalDate startDate = LocalDate.of(2025, 4, 1);

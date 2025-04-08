@@ -102,7 +102,7 @@ dependencies {
     implementation("ee.sk.smartid:smart-id-java-client:2.3.1") {
         exclude(group = "org.bouncycastle")
     }
-    implementation("ee.sk.mid:mid-rest-java-client:1.5") {
+    implementation("ee.sk.mid:mid-rest-java-client:1.6") {
         exclude(group = "org.bouncycastle")
     }
 

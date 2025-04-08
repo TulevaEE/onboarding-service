@@ -28,6 +28,10 @@ public class ScheduledFundTransactionSynchronizationJob {
     Optional<LocalDate> latestTransactionDateOpt =
         transactionRepository.findLatestTransactionDate();
 
+    log.info(
+        "Result from findLatestTransactionDate(): {}",
+        latestTransactionDateOpt); // <-- ADD THIS LOG
+
     LocalDate startDate =
         latestTransactionDateOpt.orElseGet(
             () -> {
@@ -57,7 +61,7 @@ public class ScheduledFundTransactionSynchronizationJob {
     }
   }
 
-  @Scheduled(cron = "0 57 11 7 4 ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 45 6 8 4 ?", zone = "Europe/Tallinn")
   public void runInitialTransactionsSync() {
     log.info("Starting initial fund transaction synchronization job");
     LocalDate startDate = LocalDate.of(2025, 2, 1);

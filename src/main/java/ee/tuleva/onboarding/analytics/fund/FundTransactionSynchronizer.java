@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,44 +38,49 @@ public class FundTransactionSynchronizer {
           endDate);
 
       if (fundTransactions.isEmpty()) {
-        log.info("No new fund transactions found for the period. Synchronization complete.");
+        log.info(
+            "No transactions retrieved from EPIS for the period {}-{}. Skipping delete and insert.",
+            startDate,
+            endDate);
         return;
       }
 
-      Map<Boolean, List<FundTransaction>> partitioned =
+      log.info(
+          "Deleting existing transactions for ISIN {} between {} and {}",
+          fundIsin,
+          startDate,
+          endDate);
+      int deletedCount =
+          repository.deleteByIsinAndTransactionDateBetween(fundIsin, startDate, endDate);
+      log.info(
+          "Deleted {} existing transactions for ISIN {} between {} and {}",
+          deletedCount,
+          fundIsin,
+          startDate,
+          endDate);
+
+      List<FundTransaction> entitiesToInsert =
           fundTransactions.stream()
-              .map(fundTransactionDto -> convertToEntity(fundTransactionDto, fundIsin))
-              .collect(
-                  Collectors.partitioningBy(
-                      entity ->
-                          repository
-                              .existsByTransactionDateAndPersonalIdAndTransactionTypeAndAmountAndUnitAmount(
-                                  entity.getTransactionDate(),
-                                  entity.getPersonalId(),
-                                  entity.getTransactionType(),
-                                  entity.getAmount(),
-                                  entity.getUnitAmount())));
+              .map(dto -> convertToEntity(dto, fundIsin))
+              .collect(Collectors.toList());
 
-      List<FundTransaction> duplicates = partitioned.get(true);
-      List<FundTransaction> toInsert = partitioned.get(false);
-
-      if (!duplicates.isEmpty()) {
-        log.debug(
-            "Skipping {} duplicate fund transactions based on unique key (date, personalId, type, amount, unitAmount).",
-            duplicates.size());
-      }
-
-      if (!toInsert.isEmpty()) {
-        repository.saveAll(toInsert);
-        log.info("Successfully inserted {} new fund transactions.", toInsert.size());
-      } else {
-        log.info("No new unique fund transactions to insert.");
+      if (!entitiesToInsert.isEmpty()) {
+        repository.saveAll(entitiesToInsert);
+        log.info(
+            "Successfully inserted {} new fund transactions for ISIN {} between {} and {}.",
+            entitiesToInsert.size(),
+            fundIsin,
+            startDate,
+            endDate);
       }
 
       log.info(
-          "Fund transaction synchronization completed: {} new transactions inserted, {} duplicates skipped.",
-          toInsert.size(),
-          duplicates.size());
+          "Fund transaction synchronization completed for ISIN {} {}-{}: {} deleted, {} inserted.",
+          fundIsin,
+          startDate,
+          endDate,
+          deletedCount,
+          entitiesToInsert.size());
 
     } catch (Exception e) {
       log.error(

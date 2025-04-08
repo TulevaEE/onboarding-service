@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.analytics.fund;
 
-import static ee.tuleva.onboarding.analytics.fund.FundTransactionFixture.*;
+import static ee.tuleva.onboarding.analytics.fund.FundTransactionFixture.anotherExampleTransactionBuilder;
+import static ee.tuleva.onboarding.analytics.fund.FundTransactionFixture.exampleTransactionBuilder;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
 
+import ee.tuleva.onboarding.time.TestClockHolder;
 import java.sql.Connection;
 import java.sql.Statement;
 import java.time.LocalDate;
@@ -27,8 +28,16 @@ class FundTransactionRepositoryTest {
 
   @Autowired DataSource dataSource;
 
-  private static final String FUND_ISIN = "EE1234567890";
-  private final LocalDateTime creationTime = LocalDateTime.now();
+  private static final String TARGET_FUND_ISIN = "EE1111111111";
+  private static final String OTHER_FUND_ISIN = "EE2222222222";
+  private final LocalDateTime creationTime = LocalDateTime.now(TestClockHolder.clock);
+  private static final LocalDate START_DATE = LocalDate.of(2025, 4, 1);
+  private static final LocalDate END_DATE = LocalDate.of(2025, 4, 30);
+  private static final LocalDate DATE_BEFORE = START_DATE.minusDays(1); // March 31
+  private static final LocalDate DATE_START = START_DATE; // April 1
+  private static final LocalDate DATE_MIDDLE = START_DATE.plusDays(10); // April 11
+  private static final LocalDate DATE_END = END_DATE; // April 30
+  private static final LocalDate DATE_AFTER = END_DATE.plusDays(1); // May 1
 
   private static final String CREATE_PUBLIC_SCHEMA = "CREATE SCHEMA IF NOT EXISTS public";
   private static final String CREATE_FUND_TRANSACTIONS_TABLE =
@@ -48,10 +57,8 @@ class FundTransactionRepositoryTest {
           + "nav NUMERIC(19, 8),"
           + "amount NUMERIC(19, 2) NOT NULL,"
           + "service_fee NUMERIC(19, 2),"
-          + "date_created TIMESTAMP NOT NULL,"
-          + "CONSTRAINT fund_transaction_unique_key UNIQUE (transaction_date, personal_id, transaction_type, amount, unit_amount)"
+          + "date_created TIMESTAMP NOT NULL"
           + ");";
-
   private static final String TRUNCATE_FUND_TRANSACTIONS_TABLE =
       "TRUNCATE TABLE public.fund_transaction RESTART IDENTITY";
 
@@ -73,41 +80,6 @@ class FundTransactionRepositoryTest {
   }
 
   @Test
-  @DisplayName("existsBy... returns true only when a matching row is present")
-  void testExistsByUniqueKeyFields() {
-    FundTransaction entity = exampleTransactionBuilder(FUND_ISIN, creationTime).build();
-
-    boolean preCheck =
-        repository.existsByTransactionDateAndPersonalIdAndTransactionTypeAndAmountAndUnitAmount(
-            entity.getTransactionDate(),
-            entity.getPersonalId(),
-            entity.getTransactionType(),
-            entity.getAmount(),
-            entity.getUnitAmount());
-    assertFalse(preCheck, "No matching row should exist before insert");
-
-    repository.save(entity);
-
-    boolean postCheck =
-        repository.existsByTransactionDateAndPersonalIdAndTransactionTypeAndAmountAndUnitAmount(
-            entity.getTransactionDate(),
-            entity.getPersonalId(),
-            entity.getTransactionType(),
-            entity.getAmount(),
-            entity.getUnitAmount());
-    assertTrue(postCheck, "Should return true after insertion");
-
-    boolean mismatchCheck =
-        repository.existsByTransactionDateAndPersonalIdAndTransactionTypeAndAmountAndUnitAmount(
-            entity.getTransactionDate(),
-            "DIFFERENT_ID", // Mismatch
-            entity.getTransactionType(),
-            entity.getAmount(),
-            entity.getUnitAmount());
-    assertFalse(mismatchCheck, "Should return false for mismatching fields");
-  }
-
-  @Test
   @DisplayName("findLatestTransactionDate returns max date when data exists")
   void findLatestTransactionDate_returnsMaxDate() {
     LocalDate date1 = LocalDate.of(2025, 3, 15);
@@ -115,43 +87,190 @@ class FundTransactionRepositoryTest {
     LocalDate date3 = LocalDate.of(2025, 3, 30);
 
     FundTransaction tx1 =
-        exampleTransactionBuilder(FUND_ISIN, creationTime).transactionDate(date1).build();
+        exampleTransactionBuilder(TARGET_FUND_ISIN, creationTime)
+            .transactionDate(date1)
+            .personalId("P100")
+            .build();
     FundTransaction tx2 =
-        anotherExampleTransactionBuilder(FUND_ISIN, creationTime).transactionDate(date2).build();
+        anotherExampleTransactionBuilder(TARGET_FUND_ISIN, creationTime)
+            .transactionDate(date2)
+            .personalId("P200")
+            .build();
     FundTransaction tx3 =
-        exampleTransactionBuilder(FUND_ISIN, creationTime)
+        exampleTransactionBuilder(TARGET_FUND_ISIN, creationTime)
             .transactionDate(date3)
-            .personalId("50001011111")
-            .build(); // Different ID to avoid unique constraint
+            .personalId("P300")
+            .build();
 
     repository.saveAll(List.of(tx1, tx2, tx3));
 
     Optional<LocalDate> latestDate = repository.findLatestTransactionDate();
 
-    assertTrue(latestDate.isPresent(), "Optional should contain a date");
-    assertEquals(date2, latestDate.get(), "Should return the maximum transaction date");
+    assertThat(latestDate).isPresent().hasValue(date2);
   }
 
   @Test
   @DisplayName("findLatestTransactionDate returns empty Optional when no data exists")
   void findLatestTransactionDate_returnsEmptyOptional_whenNoData() {
     Optional<LocalDate> latestDate = repository.findLatestTransactionDate();
-
-    assertTrue(latestDate.isEmpty(), "Optional should be empty when repository is empty");
+    assertThat(latestDate).isEmpty();
   }
 
   @Test
   @DisplayName("findAll returns all inserted records")
   void testFindAll() {
-    FundTransaction tx1 = exampleTransactionBuilder(FUND_ISIN, creationTime).build();
-    FundTransaction tx2 = anotherExampleTransactionBuilder(FUND_ISIN, creationTime).build();
+    // Given
+    FundTransaction tx1 = exampleTransactionBuilder(TARGET_FUND_ISIN, creationTime).build();
+    FundTransaction tx2 = anotherExampleTransactionBuilder(TARGET_FUND_ISIN, creationTime).build();
 
+    // When
     repository.saveAll(List.of(tx1, tx2));
 
+    // Then
     List<FundTransaction> all = repository.findAll();
     assertThat(all).hasSize(2);
     assertThat(all)
         .extracting(FundTransaction::getPersonalId)
-        .containsExactlyInAnyOrder(tx1.getPersonalId(), tx2.getPersonalId());
+        .containsExactlyInAnyOrder(
+            FundTransactionFixture.Dto.NEW_PERSONAL_ID,
+            FundTransactionFixture.Dto.DUPLICATE_PERSONAL_ID);
+  }
+
+  @Test
+  @DisplayName("deleteByIsinAndTransactionDateBetween deletes correct rows and returns count")
+  void deleteByIsinAndTransactionDateBetween_deletesCorrectRows() {
+    // Given
+    FundTransaction txKeepBefore =
+        exampleTransactionBuilder(TARGET_FUND_ISIN, creationTime)
+            .transactionDate(DATE_BEFORE)
+            .personalId("P1")
+            .build(); // Keep
+    FundTransaction txDeleteStart =
+        exampleTransactionBuilder(TARGET_FUND_ISIN, creationTime)
+            .transactionDate(DATE_START)
+            .personalId("P2")
+            .build(); // Delete
+    FundTransaction txDeleteMiddle =
+        exampleTransactionBuilder(TARGET_FUND_ISIN, creationTime)
+            .transactionDate(DATE_MIDDLE)
+            .personalId("P3")
+            .build(); // Delete
+    FundTransaction txDeleteEnd =
+        anotherExampleTransactionBuilder(TARGET_FUND_ISIN, creationTime)
+            .transactionDate(DATE_END)
+            .personalId("P4")
+            .build(); // Delete
+    FundTransaction txKeepAfter =
+        exampleTransactionBuilder(TARGET_FUND_ISIN, creationTime)
+            .transactionDate(DATE_AFTER)
+            .personalId("P5")
+            .build(); // Keep
+    FundTransaction txKeepOtherIsin =
+        exampleTransactionBuilder(OTHER_FUND_ISIN, creationTime)
+            .transactionDate(DATE_MIDDLE)
+            .personalId("P6")
+            .build(); // Keep
+
+    repository.saveAll(
+        List.of(
+            txKeepBefore,
+            txDeleteStart,
+            txDeleteMiddle,
+            txDeleteEnd,
+            txKeepAfter,
+            txKeepOtherIsin));
+    assertThat(repository.count()).isEqualTo(6);
+
+    // When
+    int deletedCount =
+        repository.deleteByIsinAndTransactionDateBetween(TARGET_FUND_ISIN, START_DATE, END_DATE);
+
+    // Then
+    assertThat(deletedCount).isEqualTo(3); // P2, P3, P4 should be deleted
+
+    List<FundTransaction> remaining = repository.findAll();
+    assertThat(remaining).hasSize(3); // P1, P5, P6 remain
+
+    assertThat(remaining)
+        .extracting(FundTransaction::getPersonalId)
+        .containsExactlyInAnyOrder("P1", "P5", "P6");
+
+    assertThat(remaining)
+        .filteredOn(tx -> tx.getPersonalId().equals("P1") || tx.getPersonalId().equals("P5"))
+        .allMatch(tx -> tx.getIsin().equals(TARGET_FUND_ISIN));
+    assertThat(remaining)
+        .filteredOn(tx -> tx.getPersonalId().equals("P6"))
+        .allMatch(tx -> tx.getIsin().equals(OTHER_FUND_ISIN));
+  }
+
+  @Test
+  @DisplayName(
+      "deleteByIsinAndTransactionDateBetween returns 0 and deletes nothing when no ISIN match")
+  void deleteByIsinAndTransactionDateBetween_noIsinMatch() {
+    // Given
+    FundTransaction tx1 =
+        exampleTransactionBuilder(OTHER_FUND_ISIN, creationTime)
+            .transactionDate(DATE_MIDDLE)
+            .personalId("P1")
+            .build();
+    FundTransaction tx2 =
+        anotherExampleTransactionBuilder(OTHER_FUND_ISIN, creationTime)
+            .transactionDate(DATE_START)
+            .personalId("P2")
+            .build();
+    repository.saveAll(List.of(tx1, tx2));
+    long initialCount = repository.count();
+    assertThat(initialCount).isEqualTo(2);
+
+    // When
+    int deletedCount =
+        repository.deleteByIsinAndTransactionDateBetween(TARGET_FUND_ISIN, START_DATE, END_DATE);
+
+    // Then
+    assertThat(deletedCount).isZero();
+    assertThat(repository.count()).isEqualTo(initialCount);
+  }
+
+  @Test
+  @DisplayName(
+      "deleteByIsinAndTransactionDateBetween returns 0 and deletes nothing when no date match")
+  void deleteByIsinAndTransactionDateBetween_noDateMatch() {
+    // Given
+    FundTransaction tx1 =
+        exampleTransactionBuilder(TARGET_FUND_ISIN, creationTime)
+            .transactionDate(DATE_BEFORE)
+            .personalId("P1")
+            .build();
+    FundTransaction tx2 =
+        anotherExampleTransactionBuilder(TARGET_FUND_ISIN, creationTime)
+            .transactionDate(DATE_AFTER)
+            .personalId("P2")
+            .build();
+    repository.saveAll(List.of(tx1, tx2));
+    long initialCount = repository.count();
+    assertThat(initialCount).isEqualTo(2);
+
+    // When
+    int deletedCount =
+        repository.deleteByIsinAndTransactionDateBetween(TARGET_FUND_ISIN, START_DATE, END_DATE);
+
+    // Then
+    assertThat(deletedCount).isZero();
+    assertThat(repository.count()).isEqualTo(initialCount);
+  }
+
+  @Test
+  @DisplayName("deleteByIsinAndTransactionDateBetween returns 0 when repository is empty")
+  void deleteByIsinAndTransactionDateBetween_emptyRepo() {
+    // Given
+    assertThat(repository.count()).isZero();
+
+    // When
+    int deletedCount =
+        repository.deleteByIsinAndTransactionDateBetween(TARGET_FUND_ISIN, START_DATE, END_DATE);
+
+    // Then
+    assertThat(deletedCount).isZero();
+    assertThat(repository.count()).isZero();
   }
 }

@@ -30,7 +30,7 @@ public class ScheduledFundTransactionSynchronizationJob {
 
     log.info(
         "Result from findLatestTransactionDate(): {}",
-        latestTransactionDateOpt); // <-- ADD THIS LOG
+        latestTransactionDateOpt);
 
     LocalDate startDate =
         latestTransactionDateOpt.orElseGet(

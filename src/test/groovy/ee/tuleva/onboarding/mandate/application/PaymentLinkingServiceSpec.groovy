@@ -43,7 +43,7 @@ class PaymentLinkingServiceSpec extends Specification {
   FundRepository fundRepository = Mock()
   PublicHolidays publicHolidays = new PublicHolidays()
   LocaleService localeService = new MockLocaleService()
-    PaymentLinkingService paymentApplicationService =
+  PaymentLinkingService paymentApplicationService =
       new PaymentLinkingService(paymentService, cashFlowService, fundRepository, localeService, TestClockHolder.clock, publicHolidays)
 
   def "can get payment applications"() {
@@ -69,6 +69,7 @@ class PaymentLinkingServiceSpec extends Specification {
     [transaction(), negativeTransaction(), tulevaContributionHigh()]                                                                 | [aPayment()]                                        | [aCompletePaymentApplication()]
     [transaction(), negativeTransaction(), tulevaContributionLow()]                                                                  | [aPayment()]                                        | [aCompletePaymentApplication()]
     [transaction(), negativeTransaction(), foreignContribution()]                                                                    | [aPayment()]                                        | [aPendingPaymentApplication()]
+    [transaction(), negativeTransaction()]                                                                                           | [aPayment(123L, defaultTransactionTime - fiveDays)] | [aFailedPaymentApplication(123L, defaultTransactionTime - fiveDays)]
     []                                                                                                                               | [aPayment(456L), aPayment(123L)]                    | [aPendingPaymentApplication(123L), aPendingPaymentApplication(456L)]
     [transaction()]                                                                                                                  | [aPayment(456L), aPayment(123L)]                    | [aPendingPaymentApplication(123L), aPendingPaymentApplication(456L)]
     [transaction(), transaction()]                                                                                                   | [aPayment(456L), aPayment(123L)]                    | [aPendingPaymentApplication(123L), aPendingPaymentApplication(456L)]

@@ -87,9 +87,10 @@ public class PaymentLinkingService {
                 "Payment {} does not have a Tuleva fund contribution yet but is older than 5 days, marking as failed",
                 payment.getId());
             applications.add(createApplication(payment, apiFund, ApplicationStatus.FAILED));
+          } else {
+            log.info("Payment {} does not have a Tuleva fund contribution yet", payment.getId());
+            applications.add(createApplication(payment, apiFund, ApplicationStatus.PENDING));
           }
-          log.info("Payment {} does not have a Tuleva fund contribution yet", payment.getId());
-          applications.add(createApplication(payment, apiFund, ApplicationStatus.PENDING));
         }
       }
     }

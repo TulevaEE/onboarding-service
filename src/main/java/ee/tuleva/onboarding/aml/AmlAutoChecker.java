@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.aml;
 
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE;
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING;
+
 import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
@@ -7,9 +10,11 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
+import ee.tuleva.onboarding.mandate.event.BeforePaymentLinkCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.address.Address;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -71,6 +76,22 @@ public class AmlAutoChecker {
     }
 
     if (!amlService.allChecksPassed(user, pillar)) {
+      throw AmlChecksMissingException.newInstance();
+    }
+  }
+
+  @EventListener
+  public void beforePaymentLinkCreated(BeforePaymentLinkCreatedEvent event) {
+    if (Set.of(MEMBER_FEE, RECURRING).contains(event.getPaymentData().getType())) {
+      return;
+    }
+
+    User user = event.getUser();
+    Address address = event.getAddress();
+
+    amlService.addSanctionAndPepCheckIfMissing(user, address);
+
+    if (!amlService.allChecksPassed(user, 3)) {
       throw AmlChecksMissingException.newInstance();
     }
   }

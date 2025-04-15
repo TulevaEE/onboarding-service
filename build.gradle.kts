@@ -106,7 +106,7 @@ dependencies {
         exclude(group = "org.bouncycastle")
     }
 
-    implementation("org.digidoc4j:digidoc4j:6.0.0") {
+    implementation("org.digidoc4j:digidoc4j:6.0.1") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")

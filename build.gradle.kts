@@ -136,7 +136,7 @@ dependencies {
     testImplementation("org.spockframework:spock-core:2.4-M5-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.4-M5-groovy-4.0") {
+    testImplementation("org.spockframework:spock-spring:2.4-M6-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
     testImplementation("org.apache.groovy:groovy-all:4.0.26")

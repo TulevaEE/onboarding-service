@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.analytics.leavers;
 
-import static ee.tuleva.onboarding.analytics.exchange.ExchangeTransactionFixture.*;
+import static ee.tuleva.onboarding.analytics.transaction.exchange.ExchangeTransactionFixture.*;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.analytics.exchange.ExchangeTransaction;
+import ee.tuleva.onboarding.analytics.transaction.exchange.ExchangeTransaction;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;

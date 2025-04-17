@@ -27,7 +27,7 @@ import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import ee.tuleva.onboarding.epis.transaction.FundTransactionDto;
-import ee.tuleva.onboarding.epis.transaction.PensionTransaction;
+import ee.tuleva.onboarding.epis.transaction.ThirdPillarTransactionDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
@@ -380,9 +380,9 @@ class EpisServiceTest {
             .queryParam("endDate", endDate)
             .toUriString();
 
-    PensionTransaction[] sampleTransactions = {
-      PensionTransaction.builder().personId("1234").build(),
-      PensionTransaction.builder().personId("5678").build()
+    ThirdPillarTransactionDto[] sampleTransactions = {
+      ThirdPillarTransactionDto.builder().personId("1234").build(),
+      ThirdPillarTransactionDto.builder().personId("5678").build()
     };
 
     when(restTemplate.exchange(
@@ -391,10 +391,10 @@ class EpisServiceTest {
             argThat(
                 entity ->
                     doesHttpEntityContainToken(entity, sampleServiceToken)), // uses service token
-            eq(PensionTransaction[].class)))
+            eq(ThirdPillarTransactionDto[].class)))
         .thenReturn(ResponseEntity.ok(sampleTransactions));
 
-    List<PensionTransaction> result = service.getTransactions(startDate, endDate);
+    List<ThirdPillarTransactionDto> result = service.getTransactions(startDate, endDate);
     assertEquals(2, result.size(), "Should return 2 transactions");
     assertEquals("1234", result.get(0).getPersonId());
     assertEquals("5678", result.get(1).getPersonId());

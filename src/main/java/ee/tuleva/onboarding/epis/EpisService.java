@@ -18,7 +18,7 @@ import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import ee.tuleva.onboarding.epis.transaction.FundTransactionDto;
-import ee.tuleva.onboarding.epis.transaction.PensionTransaction;
+import ee.tuleva.onboarding.epis.transaction.ThirdPillarTransactionDto;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
@@ -204,7 +204,7 @@ public class EpisService {
         .getBody();
   }
 
-  public List<PensionTransaction> getTransactions(LocalDate startDate, LocalDate endDate) {
+  public List<ThirdPillarTransactionDto> getTransactions(LocalDate startDate, LocalDate endDate) {
     log.info(
         "Fetching pension transactions from EPIS service: startDate={}, endDate={}",
         startDate,
@@ -219,13 +219,13 @@ public class EpisService {
 
     log.debug("Calling remote transactions endpoint at URL: {}", url);
 
-    PensionTransaction[] responseArray =
+    ThirdPillarTransactionDto[] responseArray =
         restTemplate
             .exchange(
                 url,
                 GET,
                 new HttpEntity<>(getHeaders(serviceJwtToken())),
-                PensionTransaction[].class)
+                ThirdPillarTransactionDto[].class)
             .getBody();
 
     return Arrays.asList(responseArray);

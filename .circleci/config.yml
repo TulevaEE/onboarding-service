@@ -54,7 +54,7 @@ jobs:
             - build
   deploy-staging:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/python:3.9
     steps:
       - checkout
       - eb/setup
@@ -67,7 +67,7 @@ jobs:
 
   deploy-production:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/python:3.9
     steps:
       - checkout
       - eb/setup
@@ -80,7 +80,7 @@ jobs:
 
   notify-sentry-deploy:
     docker:
-      - image: cimg/base:stable
+      - image: cimg/python:3.9
     environment:
       SENTRY_PROJECT: onboarding-service
     steps:

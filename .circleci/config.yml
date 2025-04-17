@@ -57,6 +57,11 @@ jobs:
       - image: cimg/python:3.9
     steps:
       - checkout
+      - run:
+          name: Install EB CLI dependencies
+          command: |
+            pip install --upgrade pip setuptools
+            pip install packaging
       - eb/setup
       - restore_cache:
           keys:
@@ -70,6 +75,11 @@ jobs:
       - image: cimg/python:3.9
     steps:
       - checkout
+      - run:
+          name: Install EB CLI dependencies
+          command: |
+            pip install --upgrade pip setuptools
+            pip install packaging
       - eb/setup
       - restore_cache:
           keys:

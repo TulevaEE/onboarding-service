@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -27,7 +26,6 @@ public abstract class AbstractTransactionSynchronizer<DTO, E> {
 
   protected abstract String getSyncIdentifier(SyncContext context);
 
-  @Transactional
   protected void syncInternal(SyncContext context) {
     String transactionType = getTransactionTypeName();
     String syncIdentifier = getSyncIdentifier(context);

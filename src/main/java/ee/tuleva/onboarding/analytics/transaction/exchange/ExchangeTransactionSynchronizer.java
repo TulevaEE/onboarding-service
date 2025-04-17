@@ -11,6 +11,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -34,6 +35,7 @@ public class ExchangeTransactionSynchronizer
     private final boolean pikFlag;
   }
 
+  @Transactional
   public void sync(
       LocalDate startDate,
       Optional<String> securityFrom,

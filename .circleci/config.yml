@@ -59,10 +59,9 @@ jobs:
       - checkout
       - eb/setup
       - run:
-          name: Install EB CLI dependencies
+          name: Inject packaging dependency into awsebcli environment
           command: |
-            pip install --upgrade pip setuptools
-            pip install packaging
+            pipx inject awsebcli packaging
       - restore_cache:
           keys:
             - v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}
@@ -77,10 +76,9 @@ jobs:
       - checkout
       - eb/setup
       - run:
-          name: Install EB CLI dependencies
+          name: Inject packaging dependency into awsebcli environment
           command: |
-            pip install --upgrade pip setuptools
-            pip install packaging
+            pipx inject awsebcli packaging
       - restore_cache:
           keys:
             - v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}

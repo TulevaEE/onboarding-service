@@ -34,7 +34,7 @@ public class ScheduledFundBalanceSynchronizationJob {
     }
   }
 
-  @Scheduled(cron = "0 47 8 23 4 ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 10 10 23 4 ?", zone = "Europe/Tallinn")
   public void runInitialFundBalanceSync() {
     LocalDate syncDate = LocalDate.now(ClockHolder.clock()).minusDays(1);
     log.info(

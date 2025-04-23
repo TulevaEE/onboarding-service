@@ -16,9 +16,7 @@ import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO;
 import ee.tuleva.onboarding.epis.mandate.MandateDto;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommand;
 import ee.tuleva.onboarding.epis.mandate.command.MandateCommandResponse;
-import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
-import ee.tuleva.onboarding.epis.transaction.FundTransactionDto;
-import ee.tuleva.onboarding.epis.transaction.ThirdPillarTransactionDto;
+import ee.tuleva.onboarding.epis.transaction.*;
 import ee.tuleva.onboarding.epis.withdrawals.ArrestsBankruptciesDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionCalculationDto;
 import ee.tuleva.onboarding.epis.withdrawals.FundPensionStatusDto;
@@ -289,6 +287,42 @@ public class EpisService {
     ResponseEntity<FundTransactionDto[]> response =
         restTemplate.exchange(
             url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), FundTransactionDto[].class);
+
+    return Arrays.asList(response.getBody());
+  }
+
+  public List<TransactionFundBalanceDto> getFundBalances(LocalDate requestDate) {
+    log.info("Fetching fund balances from EPIS service for date: {}", requestDate);
+
+    String url =
+        UriComponentsBuilder.fromHttpUrl(episServiceUrl)
+            .pathSegment("fund-balances")
+            .queryParam("requestDate", requestDate)
+            .toUriString();
+
+    log.debug("Calling remote fund balances endpoint at URL: {}", url);
+
+    ResponseEntity<TransactionFundBalanceDto[]> response =
+        restTemplate.exchange(
+            url,
+            GET,
+            new HttpEntity<>(getHeaders(serviceJwtToken())),
+            TransactionFundBalanceDto[].class);
+
+    return Arrays.asList(response.getBody());
+  }
+
+  public List<UnitOwnerDto> getUnitOwners() {
+    log.info("Fetching unit owners from EPIS service.");
+
+    String url =
+        UriComponentsBuilder.fromHttpUrl(episServiceUrl).pathSegment("unit-owners").toUriString();
+
+    log.debug("Calling remote unit owners endpoint at URL: {}", url);
+
+    ResponseEntity<UnitOwnerDto[]> response =
+        restTemplate.exchange(
+            url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), UnitOwnerDto[].class);
 
     return Arrays.asList(response.getBody());
   }

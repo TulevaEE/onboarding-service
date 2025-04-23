@@ -1,15 +1,15 @@
 package ee.tuleva.onboarding.ledger;
 
-import lombok.Getter;
+import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-import jakarta.persistence.*;
-
+import lombok.Getter;
 
 @Entity
+@Table(name = "entry", schema = "ledger")
 @Getter
 public class LedgerEntry {
   @Id

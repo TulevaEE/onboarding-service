@@ -2,20 +2,20 @@ package ee.tuleva.onboarding.ledger;
 
 import static java.math.BigDecimal.ZERO;
 
+import io.hypersistence.utils.hibernate.type.json.JsonType;
+import jakarta.persistence.*;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
-import io.hypersistence.utils.hibernate.type.json.JsonType;
-import jakarta.persistence.*;
 import lombok.Getter;
-import org.hibernate.annotations.Type;
 import org.hibernate.annotations.Type;
 
 @Entity
+@Table(name = "transaction", schema = "ledger")
 @Getter
 public class LedgerTransaction {
 
@@ -41,7 +41,6 @@ public class LedgerTransaction {
 
   @Column(name = "created_at", columnDefinition = "TIMESTAMPTZ")
   private Instant createdAt;
-
 
   @OneToMany(mappedBy = "transaction")
   private List<LedgerEntry> entries;

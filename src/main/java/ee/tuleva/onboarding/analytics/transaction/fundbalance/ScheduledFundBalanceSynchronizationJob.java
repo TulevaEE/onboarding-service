@@ -18,34 +18,36 @@ public class ScheduledFundBalanceSynchronizationJob {
 
   @Scheduled(cron = "0 10 4 * * ?", zone = "Europe/Tallinn")
   public void runDailySync() {
-    LocalDate syncDate = LocalDate.now(ClockHolder.clock());
-    log.info("Starting scheduled fund balance synchronization job for date {}.", syncDate);
+    LocalDate syncDate = LocalDate.now(ClockHolder.clock()).minusDays(1);
+    log.info("Starting scheduled fund balance synchronization job for previous day {}.", syncDate);
     try {
       fundBalanceSynchronizer.sync(syncDate);
       log.info(
-          "Scheduled fund balance synchronization job completed successfully for date {}.",
+          "Scheduled fund balance synchronization job completed successfully for previous day {}.",
           syncDate);
     } catch (Exception e) {
       log.error(
-          "Scheduled fund balance synchronization job failed during execution for date {}: {}",
+          "Scheduled fund balance synchronization job failed during execution for previous day {}: {}",
           syncDate,
           e.getMessage(),
           e);
     }
   }
 
-  @Scheduled(cron = "0 35 8 23 4 ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 47 8 23 4 ?", zone = "Europe/Tallinn")
   public void runInitialFundBalanceSync() {
-    LocalDate syncDate = LocalDate.now(ClockHolder.clock());
-    log.info("Starting initial scheduled fund balance synchronization job for date {}.", syncDate);
+    LocalDate syncDate = LocalDate.now(ClockHolder.clock()).minusDays(1);
+    log.info(
+        "Starting initial scheduled fund balance synchronization job for previous day {}.",
+        syncDate);
     try {
       fundBalanceSynchronizer.sync(syncDate);
       log.info(
-          "Initial scheduled fund balance synchronization job completed successfully for date {}.",
+          "Initial scheduled fund balance synchronization job completed successfully for previous day {}.",
           syncDate);
     } catch (Exception e) {
       log.error(
-          "Initial scheduled fund balance synchronization job failed during execution for date {}: {}",
+          "Initial scheduled fund balance synchronization job failed during execution for previous day {}: {}",
           syncDate,
           e.getMessage(),
           e);

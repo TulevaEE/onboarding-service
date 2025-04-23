@@ -25,9 +25,10 @@ class ScheduledFundBalanceSynchronizationJobTest extends FixedClockConfig {
   @Captor private ArgumentCaptor<LocalDate> dateCaptor;
 
   private final LocalDate today = testLocalDateTime.toLocalDate();
+  private final LocalDate yesterday = today.minusDays(1);
 
   @Test
-  @DisplayName("runDailySync calls synchronizer with the current date on success")
+  @DisplayName("runDailySync calls synchronizer with yesterday's date on success")
   void runDailySync_callsSynchronizerWithCorrectDate_onSuccess() {
 
     // Act
@@ -37,7 +38,7 @@ class ScheduledFundBalanceSynchronizationJobTest extends FixedClockConfig {
     verify(fundBalanceSynchronizer).sync(dateCaptor.capture());
     LocalDate actualSyncDate = dateCaptor.getValue();
 
-    assertThat(actualSyncDate).isEqualTo(today);
+    assertThat(actualSyncDate).isEqualTo(yesterday);
 
     verifyNoMoreInteractions(fundBalanceSynchronizer);
   }
@@ -47,7 +48,7 @@ class ScheduledFundBalanceSynchronizationJobTest extends FixedClockConfig {
   void runDailySync_catchesAndLogsError_whenSyncFails() {
     // Arrange
     RuntimeException simulatedException = new RuntimeException("Sync failed!");
-    doThrow(simulatedException).when(fundBalanceSynchronizer).sync(eq(today));
+    doThrow(simulatedException).when(fundBalanceSynchronizer).sync(eq(yesterday));
 
     // Act & Assert
     assertDoesNotThrow(
@@ -56,12 +57,12 @@ class ScheduledFundBalanceSynchronizationJobTest extends FixedClockConfig {
         },
         "Scheduled job should catch the exception from the synchronizer.");
 
-    verify(fundBalanceSynchronizer).sync(eq(today));
+    verify(fundBalanceSynchronizer).sync(eq(yesterday));
     verifyNoMoreInteractions(fundBalanceSynchronizer);
   }
 
   @Test
-  @DisplayName("runInitialFundBalanceSync calls synchronizer with the current date on success")
+  @DisplayName("runInitialFundBalanceSync calls synchronizer with yesterday's date on success")
   void runInitialFundBalanceSync_callsSynchronizerWithCorrectDate_onSuccess() {
     // Act
     scheduledJob.runInitialFundBalanceSync();
@@ -70,7 +71,7 @@ class ScheduledFundBalanceSynchronizationJobTest extends FixedClockConfig {
     verify(fundBalanceSynchronizer).sync(dateCaptor.capture());
     LocalDate actualSyncDate = dateCaptor.getValue();
 
-    assertThat(actualSyncDate).isEqualTo(today);
+    assertThat(actualSyncDate).isEqualTo(yesterday);
 
     verifyNoMoreInteractions(fundBalanceSynchronizer);
   }
@@ -80,7 +81,7 @@ class ScheduledFundBalanceSynchronizationJobTest extends FixedClockConfig {
   void runInitialFundBalanceSync_catchesAndLogsError_whenSyncFails() {
     // Arrange
     RuntimeException simulatedException = new RuntimeException("Initial sync failed!");
-    doThrow(simulatedException).when(fundBalanceSynchronizer).sync(eq(today));
+    doThrow(simulatedException).when(fundBalanceSynchronizer).sync(eq(yesterday));
 
     // Act & Assert
     assertDoesNotThrow(
@@ -89,7 +90,7 @@ class ScheduledFundBalanceSynchronizationJobTest extends FixedClockConfig {
         },
         "Initial scheduled job should catch the exception from the synchronizer.");
 
-    verify(fundBalanceSynchronizer).sync(eq(today));
+    verify(fundBalanceSynchronizer).sync(eq(yesterday));
     verifyNoMoreInteractions(fundBalanceSynchronizer);
   }
 }

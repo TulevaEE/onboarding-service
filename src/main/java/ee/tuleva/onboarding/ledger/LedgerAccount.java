@@ -1,24 +1,23 @@
 package ee.tuleva.onboarding.ledger;
 
-import lombok.Getter;
-
 import static java.math.BigDecimal.ZERO;
 
+import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
-
-import jakarta.persistence.*;
-
+import lombok.Getter;
 
 @Entity
 @Table(name = "account", schema = "ledger")
 @Getter
 public class LedgerAccount {
   public enum AccountType {
-    ASSET, LIABILITY, INCOME, EXPENSE
+    ASSET,
+    LIABILITY,
+    INCOME,
+    EXPENSE
   }
 
   public enum ServiceAccountType {
@@ -57,7 +56,6 @@ public class LedgerAccount {
 
   @OneToMany(mappedBy = "account")
   private List<LedgerEntry> entries;
-
 
   public BigDecimal balance() {
     return entries.stream().map(LedgerEntry::getAmount).reduce(ZERO, BigDecimal::add);

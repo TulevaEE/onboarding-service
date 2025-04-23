@@ -2,12 +2,11 @@ package ee.tuleva.onboarding.ledger;
 
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
-import lombok.Getter;
-import org.hibernate.annotations.Type;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import lombok.Getter;
+import org.hibernate.annotations.Type;
 
 @Entity
 @Getter
@@ -15,7 +14,8 @@ import java.util.UUID;
 public class LedgerParty {
 
   public enum PartyType {
-    USER, LEGAL_ENTITY
+    USER,
+    LEGAL_ENTITY
   }
 
   @Id

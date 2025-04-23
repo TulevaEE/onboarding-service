@@ -1,14 +1,32 @@
 package ee.tuleva.onboarding.ledger;
 
-import ee.tuleva.onboarding.currency.Currency;
+import lombok.Getter;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-record LedgerEntry(
-    UUID id,
-    BigDecimal amount,
-    Currency currency,
-    Instant createdTime,
-    UUID transactionId,
-    UUID accountId) {}
+import jakarta.persistence.*;
+
+
+@Entity
+@Getter
+public class LedgerEntry {
+  @Id
+  @Column(nullable = false)
+  private UUID id;
+
+  @ManyToOne()
+  @JoinColumn(name = "account_id", nullable = false)
+  private LedgerAccount account;
+
+  @ManyToOne()
+  @JoinColumn(name = "transaction_id", nullable = false)
+  private LedgerTransaction transaction;
+
+  @Column(nullable = false)
+  private BigDecimal amount;
+
+  @Column(name = "created_at", columnDefinition = "TIMESTAMPTZ", nullable = false)
+  private Instant createdAt;
+}

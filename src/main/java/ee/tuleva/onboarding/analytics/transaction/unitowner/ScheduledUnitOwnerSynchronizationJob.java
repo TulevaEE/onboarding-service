@@ -35,7 +35,7 @@ public class ScheduledUnitOwnerSynchronizationJob {
     }
   }
 
-  @Scheduled(cron = "0 50 10 23 4 ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 16 11 23 4 ?", zone = "Europe/Tallinn")
   public void runInitialUnitOwnerSync() {
     LocalDate snapshotDate = LocalDate.now(ClockHolder.clock());
     log.info(

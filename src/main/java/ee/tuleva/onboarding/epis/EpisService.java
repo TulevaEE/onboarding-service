@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -56,7 +57,9 @@ public class EpisService {
   private final String FUND_PENSION_STATUS_CACHE_NAME = "fundPensionStatus";
   private final String ARRESTS_BANKRUPTCIES_CACHE_NAME = "arrestsBankruptcies";
 
+  @Qualifier("episRestTemplate")
   private final RestTemplate restTemplate;
+
   private final JwtTokenUtil jwtTokenUtil;
 
   @Value("${epis.service.url}")

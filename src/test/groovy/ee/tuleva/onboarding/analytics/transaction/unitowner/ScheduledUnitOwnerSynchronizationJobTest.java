@@ -60,7 +60,11 @@ class ScheduledUnitOwnerSynchronizationJobTest {
     doThrow(simulatedException).when(unitOwnerSynchronizer).sync(any(LocalDate.class));
 
     // when
-    job.runDailySync();
+    assertDoesNotThrow(
+        () -> {
+          job.runDailySync();
+        },
+        "Daily sync job should catch exceptions and complete.");
 
     // then
     verify(unitOwnerSynchronizer).sync(snapshotDateCaptor.capture());
@@ -71,20 +75,55 @@ class ScheduledUnitOwnerSynchronizationJobTest {
   }
 
   @Test
+  void runMonthlySync_callsSynchronizerWithCorrectDateFromClockHolder() {
+    LocalDate expectedSnapshotDate = LocalDate.now(TestClockHolder.clock);
+
+    job.runMonthlySync();
+
+    verify(unitOwnerSynchronizer).sync(snapshotDateCaptor.capture());
+    LocalDate actualSnapshotDate = snapshotDateCaptor.getValue();
+    assertThat(actualSnapshotDate).isEqualTo(expectedSnapshotDate);
+    verifyNoMoreInteractions(unitOwnerSynchronizer);
+  }
+
+  @Test
+  void runMonthlySync_logsErrorAndCompletes_whenSynchronizerThrowsException() {
+    LocalDate expectedSnapshotDate = LocalDate.now(TestClockHolder.clock);
+    RuntimeException simulatedException = new RuntimeException("Monthly sync failed!");
+    doThrow(simulatedException).when(unitOwnerSynchronizer).sync(any(LocalDate.class));
+
+    assertDoesNotThrow(
+        () -> {
+          job.runMonthlySync();
+        },
+        "Monthly sync job should catch exceptions and complete.");
+
+    verify(unitOwnerSynchronizer).sync(snapshotDateCaptor.capture());
+    LocalDate actualSnapshotDate = snapshotDateCaptor.getValue();
+    assertThat(actualSnapshotDate).isEqualTo(expectedSnapshotDate);
+
+    verifyNoMoreInteractions(unitOwnerSynchronizer);
+  }
+
+  @Test
   void runInitialUnitOwnerSync_callsSynchronizerWithCorrectDateFromClockHolder() {
+    // given
+    LocalDate expectedSnapshotDate = LocalDate.now(TestClockHolder.clock);
+
     // when
     job.runInitialUnitOwnerSync();
 
     // then
     verify(unitOwnerSynchronizer).sync(snapshotDateCaptor.capture());
     LocalDate actualSnapshotDate = snapshotDateCaptor.getValue();
-    assertThat(actualSnapshotDate).isInstanceOf(LocalDate.class);
+    assertThat(actualSnapshotDate).isEqualTo(expectedSnapshotDate);
     verifyNoMoreInteractions(unitOwnerSynchronizer);
   }
 
   @Test
   void runInitialUnitOwnerSync_logsErrorAndCompletes_whenSynchronizerThrowsException() {
     // given
+    LocalDate expectedSnapshotDate = LocalDate.now(TestClockHolder.clock);
     RuntimeException simulatedException = new RuntimeException("Initial sync failed!");
     doThrow(simulatedException).when(unitOwnerSynchronizer).sync(any(LocalDate.class));
 
@@ -98,7 +137,7 @@ class ScheduledUnitOwnerSynchronizationJobTest {
     // then
     verify(unitOwnerSynchronizer).sync(snapshotDateCaptor.capture());
     LocalDate actualSnapshotDate = snapshotDateCaptor.getValue();
-    assertThat(actualSnapshotDate).isInstanceOf(LocalDate.class);
+    assertThat(actualSnapshotDate).isEqualTo(expectedSnapshotDate);
 
     verifyNoMoreInteractions(unitOwnerSynchronizer);
   }

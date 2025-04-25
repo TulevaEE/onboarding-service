@@ -35,6 +35,26 @@ public class ScheduledUnitOwnerSynchronizationJob {
     }
   }
 
+  @Scheduled(cron = "0 0 5 1 * ?", zone = "Europe/Tallinn")
+  public void runMonthlySync() {
+    LocalDate snapshotDate = LocalDate.now(ClockHolder.clock());
+    log.info(
+        "Starting monthly scheduled unit owner snapshot synchronization job for date {}.",
+        snapshotDate);
+    try {
+      unitOwnerSynchronizer.sync(snapshotDate);
+      log.info(
+          "Monthly scheduled unit owner snapshot synchronization job completed successfully for date {}.",
+          snapshotDate);
+    } catch (Exception e) {
+      log.error(
+          "Monthly scheduled unit owner snapshot synchronization job failed during execution for date {}: {}",
+          snapshotDate,
+          e.getMessage(),
+          e);
+    }
+  }
+
   @Scheduled(cron = "0 05 10 24 4 ?", zone = "Europe/Tallinn")
   public void runInitialUnitOwnerSync() {
     LocalDate snapshotDate = LocalDate.now(ClockHolder.clock());

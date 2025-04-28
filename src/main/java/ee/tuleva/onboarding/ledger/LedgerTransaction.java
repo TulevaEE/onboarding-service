@@ -20,6 +20,7 @@ import org.hibernate.annotations.Type;
 public class LedgerTransaction {
 
   @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
   @Column(nullable = false)
   private UUID id;
 
@@ -27,7 +28,7 @@ public class LedgerTransaction {
   private String description;
 
   @Column(name = "transaction_type_id", nullable = false)
-  private String transactionTypeId; // Consider mapping to a TransactionType entity if needed
+  private String transactionTypeId;
 
   @Column(name = "transaction_date", nullable = false, columnDefinition = "TIMESTAMPTZ")
   private Instant transactionDate;

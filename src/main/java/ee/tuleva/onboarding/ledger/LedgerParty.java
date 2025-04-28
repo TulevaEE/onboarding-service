@@ -2,16 +2,26 @@ package ee.tuleva.onboarding.ledger;
 
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
+
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import org.hibernate.annotations.Type;
 
 @Entity
-@Getter
 @Table(name = "party", schema = "ledger")
+@Getter
+@Builder
+@AllArgsConstructor
 public class LedgerParty {
+
+  public LedgerParty() {
+  }
 
   public enum PartyType {
     USER,
@@ -19,6 +29,7 @@ public class LedgerParty {
   }
 
   @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
   @Column(nullable = false)
   private UUID id;
 
@@ -32,6 +43,9 @@ public class LedgerParty {
   @Type(JsonType.class)
   @Column(columnDefinition = "JSONB", nullable = false)
   private Map<String, Object> details;
+
+  @OneToMany(mappedBy = "ledgerParty")
+  private List<LedgerAccount> accounts;
 
   @Column(name = "created_at", columnDefinition = "TIMESTAMPTZ")
   private Instant createdAt;

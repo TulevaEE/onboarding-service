@@ -13,6 +13,7 @@ import lombok.Getter;
 @Getter
 public class LedgerEntry {
   @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
   @Column(nullable = false)
   private UUID id;
 

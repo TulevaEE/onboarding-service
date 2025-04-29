@@ -4,7 +4,9 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+
 import java.util.List;
+
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,6 +24,7 @@ public class LedgerTestController {
   private final UserService userService;
   private final LedgerPartyService ledgerPartyService;
   private final LedgerAccountService ledgerAccountService;
+  private final LedgerService ledgerService;
 
   @Operation(summary = "Get my ledger accounts")
   @GetMapping("/account")
@@ -38,18 +41,13 @@ public class LedgerTestController {
     return ledgerAccountService.getAccountsByLedgerParty(ledgerParty);
   }
 
-  @Operation(summary = "Create account")
-  @PostMapping("/account")
-  public LedgerAccount createAccount(
+  @Operation(summary = "Onboard user")
+  @PostMapping("/onboard")
+  public List<LedgerAccount> onboardUser(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();
     User user = userService.getById(userId);
 
-    LedgerParty ledgerParty =
-        ledgerPartyService
-            .getPartyForUser(user)
-            .orElse(ledgerPartyService.createPartyForUser(user));
-
-    return ledgerAccountService.createAccountForParty(ledgerParty);
+    return ledgerService.onboardUser(user);
   }
 }

@@ -10,6 +10,7 @@ import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
@@ -17,9 +18,9 @@ import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 @Table(name = "account", schema = "ledger")
 @Getter
 @Builder
+@NoArgsConstructor
 @AllArgsConstructor
 public class LedgerAccount {
-  public LedgerAccount() {}
 
   public enum AccountType {
     ASSET,
@@ -29,7 +30,8 @@ public class LedgerAccount {
   }
 
   public enum ServiceAccountType {
-    DEPOSIT_EUR
+    DEPOSIT_EUR,
+    EMISSION_UNIT
   }
 
   public enum AssetType {
@@ -69,7 +71,7 @@ public class LedgerAccount {
   @OneToMany(mappedBy = "account")
   private List<LedgerEntry> entries;
 
-  public BigDecimal balance() {
+  public BigDecimal getBalance() {
     return entries.stream().map(LedgerEntry::getAmount).reduce(ZERO, BigDecimal::add);
   }
 }

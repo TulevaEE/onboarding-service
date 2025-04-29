@@ -1,19 +1,18 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
+
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
-
+import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.util.List;
-
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @Profile("dev")
 @RestController
@@ -50,4 +49,17 @@ public class LedgerTestController {
 
     return ledgerService.onboardUser(user);
   }
+
+  @Operation(summary = "Deposit")
+  @PostMapping("/deposit")
+  public LedgerTransaction onboardUser(
+      @Valid @RequestBody DepositDto depositDto,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    Long userId = authenticatedPerson.getUserId();
+    User user = userService.getById(userId);
+
+    return ledgerService.deposit(user, depositDto.amount(), EUR);
+  }
+
+  record DepositDto(BigDecimal amount) {}
 }

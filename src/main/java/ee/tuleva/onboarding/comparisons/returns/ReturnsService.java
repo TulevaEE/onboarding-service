@@ -73,7 +73,7 @@ public class ReturnsService {
     Instant earliestNavTime = earliestNavDate.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
 
     if (earliestNavDate.equals(fromDate) || pillar == 3) {
-      // so you could always get the previous day's nav for the beginning balance
+      // so you could always get the previous day's nav for the beginning getBalance
       return earliestNavTime.plus(2, DAYS);
     }
 

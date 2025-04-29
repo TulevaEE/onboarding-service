@@ -4,13 +4,11 @@ import static java.math.BigDecimal.ZERO;
 
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
 import lombok.Getter;
 import org.hibernate.annotations.Type;
 

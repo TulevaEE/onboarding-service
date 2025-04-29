@@ -10,7 +10,7 @@ CREATE TABLE ledger.asset_type(
     code VARCHAR(255) PRIMARY KEY,
     name TEXT NOT NULL,
     precision INTEGER NOT NULL,
-    category asset_category NOT NULL
+    category ledger.asset_category NOT NULL
 );
 
 
@@ -21,7 +21,7 @@ CREATE TABLE ledger.transaction_type(
 
 
 CREATE TABLE ledger.party(
-  id UUID PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   type ledger.party_type NOT NULL,
   name TEXT NOT NULL,
   details JSONB NOT NULL,
@@ -30,29 +30,24 @@ CREATE TABLE ledger.party(
 
 
 CREATE TABLE ledger.account(
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
     service_account_type ledger.service_account_type,
     type ledger.account_type NOT NULL,
     owner_party_id UUID REFERENCES ledger.party,
     asset_type_code VARCHAR(255) NOT NULL references ledger.asset_type,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW()
     /* cannot be owned by party and a service account at the same time */
-    CHECK (
+    /*CONSTRAINT owner_party_or_service_account CHECK (
       (owner_party_id IS NOT NULL AND service_account_type IS NOT NULL)
       OR (owner_party_id IS NULL and service_account_type IS NULL)
-    ),
-    /* cannot be a service account and a managed account at the same time */
-    CHECK (
-      (service_account_type IS NOT NULL AND owner_party_id IS NULL)
-      OR (owner_party_id IS NULL AND owner_party_id IS NULL)
-    )
+    )*/
     /*UNIQUE (service_account, type) TODO can only have 1 service account of type*/
 );
 
 
 CREATE TABLE ledger.transaction(
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     description TEXT NOT NULL,
     transaction_type_id VARCHAR(255) NOT NULL REFERENCES ledger.transaction_type,
     transaction_date TIMESTAMPTZ NOT NULL,
@@ -62,7 +57,7 @@ CREATE TABLE ledger.transaction(
 );
 
 CREATE TABLE ledger.entry(
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     account_id UUID NOT NULL references ledger.account,
     transaction_id UUID NOT NULL references ledger.transaction,
     amount NUMERIC NOT NULL,
@@ -70,4 +65,7 @@ CREATE TABLE ledger.entry(
 );
 
 
+INSERT INTO ledger.asset_type (code, name, precision, category) VALUES
+                                     ('EUR', 'Euro', 2, 'EUR'),
+                                     ('UNIT', 'Stock unit for EE_TEST_ISIN', 5, 'EUR');
 /* TODO insert service account */

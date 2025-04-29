@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.ledger;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
-
 import lombok.Getter;
 
 @Entity
@@ -19,10 +18,12 @@ public class LedgerEntry {
 
   @ManyToOne()
   @JoinColumn(name = "account_id", nullable = false)
+  @JsonIgnore
   private LedgerAccount account;
 
   @ManyToOne()
   @JoinColumn(name = "transaction_id", nullable = false)
+  @JsonIgnore
   private LedgerTransaction transaction;
 
   @Column(nullable = false)

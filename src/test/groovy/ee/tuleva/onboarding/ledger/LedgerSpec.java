@@ -30,8 +30,8 @@ class LedgerSpec {
     var account1 = new LedgerAccount(accountId, List.of(entry1), createdTime);
     var account2 = new LedgerAccount(accountId, List.of(entry2), createdTime);
 
-    assertThat(account1.balance()).isEqualTo(amount);
-    assertThat(account2.balance()).isEqualTo(amount2);
+    assertThat(account1.getBalance()).isEqualTo(amount);
+    assertThat(account2.getBalance()).isEqualTo(amount2);
     assertThat(transaction.sum()).isEqualByComparingTo(ZERO);
   }
 }

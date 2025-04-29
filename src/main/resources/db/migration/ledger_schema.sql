@@ -73,6 +73,10 @@ INSERT INTO ledger.asset_type (code, name, precision, category) VALUES
                                      ('EUR', 'Euro', 2, 'EUR'),
                                      ('UNIT', 'Stock unit for EE_TEST_ISIN', 5, 'EUR');
 
+
+INSERT INTO ledger.transaction_type (code, description) VALUES
+                                                          ('TEST', 'Test transaction');
+
 /* TODO mock service accounts */
 INSERT INTO ledger.account (name, service_account_type, type, asset_type_code) VALUES
                 ('Tuleva cash deposit', 'DEPOSIT_EUR', 'INCOME', 'EUR'),

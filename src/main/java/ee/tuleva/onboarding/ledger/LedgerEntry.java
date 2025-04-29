@@ -5,11 +5,17 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "entry", schema = "ledger")
 @Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class LedgerEntry {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -9,13 +9,23 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.Type;
 
 @Entity
 @Table(name = "transaction", schema = "ledger")
 @Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class LedgerTransaction {
+
+  public enum TransactionType {
+    TEST
+  }
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,8 +35,9 @@ public class LedgerTransaction {
   @Column(nullable = false)
   private String description;
 
+  @Enumerated(EnumType.STRING)
   @Column(name = "transaction_type_id", nullable = false)
-  private String transactionTypeId;
+  private TransactionType transactionTypeId;
 
   @Column(name = "transaction_date", nullable = false, columnDefinition = "TIMESTAMPTZ")
   private Instant transactionDate;

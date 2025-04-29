@@ -65,11 +65,11 @@ public class LedgerAccount {
   @Column(nullable = false)
   private AssetType assetTypeCode;
 
-  @Column(columnDefinition = "TIMESTAMPTZ")
+  @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;
 
   @OneToMany(mappedBy = "account")
-  private List<LedgerEntry> entries;
+  private List<LedgerEntry> entries = List.of();
 
   public BigDecimal getBalance() {
     return entries.stream().map(LedgerEntry::getAmount).reduce(ZERO, BigDecimal::add);

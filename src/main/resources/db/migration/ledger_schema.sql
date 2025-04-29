@@ -37,11 +37,12 @@ CREATE TABLE ledger.account(
     owner_party_id UUID REFERENCES ledger.party,
     asset_type_code VARCHAR(255) NOT NULL references ledger.asset_type,
     created_at TIMESTAMPTZ DEFAULT NOW()
-    /* cannot be owned by party and a service account at the same time */
-    /*CONSTRAINT owner_party_or_service_account CHECK (
-      (owner_party_id IS NOT NULL AND service_account_type IS NOT NULL)
-      OR (owner_party_id IS NULL and service_account_type IS NULL)
-    )*/
+    CONSTRAINT owner_party_or_service_account CHECK (
+      NOT (
+        (owner_party_id IS NOT NULL AND service_account_type IS NOT NULL)
+        OR (owner_party_id IS NULL and service_account_type IS NULL)
+      )
+    )
     /*UNIQUE (service_account, type) TODO can only have 1 service account of type*/
 );
 

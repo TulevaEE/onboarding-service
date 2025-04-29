@@ -3,17 +3,15 @@ package ee.tuleva.onboarding.ledger;
 import static java.math.BigDecimal.ZERO;
 
 import jakarta.persistence.*;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
-
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
-import org.hibernate.annotations.Type;
-
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 @Entity
 @Table(name = "account", schema = "ledger")
@@ -21,8 +19,7 @@ import org.hibernate.annotations.Type;
 @Builder
 @AllArgsConstructor
 public class LedgerAccount {
-  public LedgerAccount() {
-  }
+  public LedgerAccount() {}
 
   public enum AccountType {
     ASSET,
@@ -45,16 +42,17 @@ public class LedgerAccount {
   @Column(nullable = false)
   private UUID id;
 
-  @Column(nullable = false)
   private String name;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "service_account_type", columnDefinition = "ledger.service_account_type")
+  @Column(columnDefinition = "ledger.service_account_type")
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   private ServiceAccountType serviceAccountType;
 
   // TODO https://thorben-janssen.com/hibernate-enum-mappings/
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, columnDefinition = "ledger.account_type")
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   private AccountType type;
 
   @ManyToOne()
@@ -62,10 +60,10 @@ public class LedgerAccount {
   private LedgerParty ledgerParty;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "asset_type_code", nullable = false)
+  @Column(nullable = false)
   private AssetType assetTypeCode;
 
-  @Column(name = "created_at", columnDefinition = "TIMESTAMPTZ")
+  @Column(columnDefinition = "TIMESTAMPTZ")
   private Instant createdAt;
 
   @OneToMany(mappedBy = "account")

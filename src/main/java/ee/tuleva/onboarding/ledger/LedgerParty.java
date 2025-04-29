@@ -49,6 +49,6 @@ public class LedgerParty {
   @JsonIgnore
   private List<LedgerAccount> accounts;
 
-  @Column(name = "created_at", columnDefinition = "TIMESTAMPTZ")
+  @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;
 }

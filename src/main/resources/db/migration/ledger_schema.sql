@@ -28,7 +28,7 @@ CREATE TABLE ledger.party(
   type ledger.party_type NOT NULL,
   name TEXT NOT NULL,
   details JSONB NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 
@@ -39,7 +39,7 @@ CREATE TABLE ledger.account(
     type ledger.account_type NOT NULL,
     owner_party_id UUID REFERENCES ledger.party,
     asset_type_code VARCHAR(255) NOT NULL references ledger.asset_type,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     CONSTRAINT owner_party_or_service_account CHECK (
       NOT (
         (owner_party_id IS NOT NULL AND service_account_type IS NOT NULL)
@@ -57,7 +57,7 @@ CREATE TABLE ledger.transaction(
     transaction_date TIMESTAMPTZ NOT NULL,
     metadata JSONB NOT NULL, /* TODO lock this down – or keep this a JSONB here with very heavy validations in application layer */
     event_log_id INTEGER NOT NULL references public.event_log,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE ledger.entry(
@@ -65,7 +65,7 @@ CREATE TABLE ledger.entry(
     account_id UUID NOT NULL references ledger.account,
     transaction_id UUID NOT NULL references ledger.transaction,
     amount NUMERIC NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 

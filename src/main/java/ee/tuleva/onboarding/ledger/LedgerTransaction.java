@@ -49,7 +49,7 @@ public class LedgerTransaction {
   @Column(name = "event_log_id", nullable = false)
   private Integer eventLogId; // TODO event log map
 
-  @Column(name = "created_at", columnDefinition = "TIMESTAMPTZ")
+  @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;
 
   @OneToMany(mappedBy = "transaction")

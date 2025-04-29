@@ -35,6 +35,6 @@ public class LedgerEntry {
   @Column(nullable = false)
   private BigDecimal amount;
 
-  @Column(name = "created_at", columnDefinition = "TIMESTAMPTZ", nullable = false)
+  @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;
 }

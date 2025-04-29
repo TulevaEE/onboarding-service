@@ -31,7 +31,7 @@ public class AccountStatementService {
     try {
       return fundBalanceConverter.convert(fundBalanceDto, person);
     } catch (IllegalArgumentException e) {
-      throw new IllegalStateException("Could not convert fund getBalance for person " + person, e);
+      throw new IllegalStateException("Could not convert fund balance for person " + person, e);
     }
   }
 }

@@ -4,6 +4,9 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.INCOME;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 
 import java.util.List;
+
+import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
+import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -15,13 +18,13 @@ class LedgerAccountService {
 
   private final LedgerAccountRepository ledgerAccountRepository;
 
-  public LedgerAccount createAccountForParty(LedgerParty ledgerParty) {
+  LedgerAccount createAccountForParty(LedgerParty ledgerParty, String name, AssetType assetType, AccountType accountType) {
     var ledgerAccount =
         LedgerAccount.builder()
-            .name("Account for party " + ledgerParty.getName())
+            .name(name)
             .ledgerParty(ledgerParty)
-            .assetTypeCode(EUR)
-            .type(INCOME)
+            .assetTypeCode(assetType)
+            .type(accountType)
             .build();
 
     return ledgerAccountRepository.save(ledgerAccount);

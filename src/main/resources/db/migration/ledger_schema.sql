@@ -1,8 +1,11 @@
+/* TODO remove*/
+DROP SCHEMA IF EXISTS ledger CASCADE;
+
 CREATE SCHEMA ledger;
 /* TODO permissions */
 
 CREATE TYPE ledger.account_type AS ENUM ('ASSET', 'LIABILITY', 'INCOME', 'EXPENSE');
-CREATE TYPE ledger.service_account_type AS ENUM ('DEPOSIT_EUR'); /*TODO add/rename here */
+CREATE TYPE ledger.service_account_type AS ENUM ('DEPOSIT_EUR', 'EMISSION_UNIT'); /*TODO add/rename here */
 CREATE TYPE ledger.asset_category AS ENUM ('EUR', 'UNIT');
 CREATE TYPE ledger.party_type AS ENUM ('USER', 'LEGAL_ENTITY');
 
@@ -69,4 +72,9 @@ CREATE TABLE ledger.entry(
 INSERT INTO ledger.asset_type (code, name, precision, category) VALUES
                                      ('EUR', 'Euro', 2, 'EUR'),
                                      ('UNIT', 'Stock unit for EE_TEST_ISIN', 5, 'EUR');
-/* TODO insert service account */
+
+/* TODO mock service accounts */
+INSERT INTO ledger.account (name, service_account_type, type, asset_type_code) VALUES
+                ('Tuleva cash deposit', 'DEPOSIT_EUR', 'INCOME', 'EUR'),
+                ('Tuleva unit emission', 'EMISSION_UNIT', 'ASSET', 'UNIT');
+

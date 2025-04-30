@@ -22,6 +22,7 @@ public class ScheduledFundTransactionSynchronizationJob {
 
   private final String thirdPillarIsin = "EE3600001707";
   private final String secondPillarIsin = "EE3600109435";
+  private final String secondPillarBondIsin = "EE3600109443";
 
   @Scheduled(cron = "0 10 3 * * ?", zone = "Europe/Tallinn")
   public void runDailySyncForThirdPillar() {
@@ -35,6 +36,14 @@ public class ScheduledFundTransactionSynchronizationJob {
     log.info(
         "Starting scheduled fund transaction synchronization job for ISIN {}.", secondPillarIsin);
     syncTransactionsForIsin(secondPillarIsin);
+  }
+
+  @Scheduled(cron = "0 30 3 * * ?", zone = "Europe/Tallinn")
+  public void runDailySyncForSecondPillarBond() {
+    log.info(
+        "Starting scheduled fund transaction synchronization job for ISIN {}.",
+        secondPillarBondIsin);
+    syncTransactionsForIsin(secondPillarBondIsin);
   }
 
   private void syncTransactionsForIsin(String isin) {

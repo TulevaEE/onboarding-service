@@ -31,12 +31,14 @@ class ScheduledFundTransactionSynchronizationJobTest extends FixedClockConfig {
 
   private final String thirdPillarIsin = "EE3600001707";
   private final String secondPillarIsin = "EE3600109435";
+  private final String secondPillarBondIsin = "EE3600109443";
   private final LocalDate today = testLocalDateTime.toLocalDate();
 
   @BeforeEach
   void setupIsin() {
     ReflectionTestUtils.setField(job, "thirdPillarIsin", thirdPillarIsin);
     ReflectionTestUtils.setField(job, "secondPillarIsin", secondPillarIsin);
+    ReflectionTestUtils.setField(job, "secondPillarBondIsin", secondPillarBondIsin);
   }
 
   @Test
@@ -151,8 +153,65 @@ class ScheduledFundTransactionSynchronizationJobTest extends FixedClockConfig {
   }
 
   @Test
+  void runDailySyncForSecondPillarBond_whenLatestDateExists_callsSynchronizerWithCorrectDates() {
+    LocalDate latestDate = today.minusDays(1);
+    when(transactionRepository.findLatestTransactionDateByIsin(secondPillarBondIsin))
+        .thenReturn(Optional.of(latestDate));
+
+    job.runDailySyncForSecondPillarBond();
+
+    verify(transactionRepository).findLatestTransactionDateByIsin(secondPillarBondIsin);
+    verify(fundTransactionSynchronizer).sync(eq(secondPillarBondIsin), eq(latestDate), eq(today));
+    verifyNoMoreInteractions(fundTransactionSynchronizer, transactionRepository);
+  }
+
+  @Test
   void
-      runInitialTransactionsSync_callsSynchronizerWithFixedStartDateAndCurrentEndDateForThirdPillar() {
+      runDailySyncForSecondPillarBond_whenNoLatestDateExists_callsSynchronizerWithFallbackStartDate() {
+    LocalDate fallbackStartDate = today.minusDays(2);
+    when(transactionRepository.findLatestTransactionDateByIsin(secondPillarBondIsin))
+        .thenReturn(Optional.empty());
+
+    job.runDailySyncForSecondPillarBond();
+
+    verify(transactionRepository).findLatestTransactionDateByIsin(secondPillarBondIsin);
+    verify(fundTransactionSynchronizer)
+        .sync(eq(secondPillarBondIsin), eq(fallbackStartDate), eq(today));
+    verifyNoMoreInteractions(fundTransactionSynchronizer, transactionRepository);
+  }
+
+  @Test
+  void runDailySyncForSecondPillarBond_whenEndDateIsBeforeStartDate_doesNotCallSynchronizer() {
+    LocalDate latestDate = today.plusDays(1);
+    when(transactionRepository.findLatestTransactionDateByIsin(secondPillarBondIsin))
+        .thenReturn(Optional.of(latestDate));
+
+    job.runDailySyncForSecondPillarBond();
+
+    verify(transactionRepository).findLatestTransactionDateByIsin(secondPillarBondIsin);
+    verify(fundTransactionSynchronizer, never()).sync(anyString(), any(), any());
+    verifyNoMoreInteractions(transactionRepository);
+  }
+
+  @Test
+  void runDailySyncForSecondPillarBond_whenSynchronizerThrowsException_logsError() {
+    LocalDate latestDate = today.minusDays(1);
+    when(transactionRepository.findLatestTransactionDateByIsin(secondPillarBondIsin))
+        .thenReturn(Optional.of(latestDate));
+    doThrow(new RuntimeException("Sync Failed!"))
+        .when(fundTransactionSynchronizer)
+        .sync(eq(secondPillarBondIsin), any(LocalDate.class), any(LocalDate.class));
+
+    job.runDailySyncForSecondPillarBond();
+
+    verify(transactionRepository).findLatestTransactionDateByIsin(secondPillarBondIsin);
+    verify(fundTransactionSynchronizer).sync(eq(secondPillarBondIsin), eq(latestDate), eq(today));
+    verifyNoMoreInteractions(fundTransactionSynchronizer, transactionRepository);
+  }
+
+  @Test
+  void
+      runInitialTransactionsSync_callsSynchronizerWithFixedStartDateAndCurrentEndDateForSecondPillar() {
     LocalDate expectedStartDate = LocalDate.of(2025, 2, 1);
     LocalDate expectedEndDate = today;
 
@@ -170,7 +229,7 @@ class ScheduledFundTransactionSynchronizationJobTest extends FixedClockConfig {
     LocalDate expectedEndDate = today;
     doThrow(new RuntimeException("Initial Sync Failed!"))
         .when(fundTransactionSynchronizer)
-        .sync(eq(thirdPillarIsin), eq(expectedStartDate), eq(expectedEndDate));
+        .sync(eq(secondPillarIsin), eq(expectedStartDate), eq(expectedEndDate));
 
     job.runInitialTransactionsSync();
 

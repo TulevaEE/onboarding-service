@@ -9,9 +9,9 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
-@Profile("dev")
+@Profile({"dev", "test"})
 @Repository
-public interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
+interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
 
   LedgerAccount findByLedgerPartyAndTypeAndAssetTypeCode(
       LedgerParty ledgerParty, AccountType accountType, AssetType assetTypeCode);

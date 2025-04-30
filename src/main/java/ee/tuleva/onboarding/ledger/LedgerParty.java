@@ -1,10 +1,8 @@
 package ee.tuleva.onboarding.ledger;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
@@ -44,10 +42,6 @@ public class LedgerParty {
   @Type(JsonType.class)
   @Column(columnDefinition = "JSONB", nullable = false)
   private Map<String, Object> details;
-
-  @OneToMany(mappedBy = "ledgerParty")
-  @JsonIgnore
-  private List<LedgerAccount> accounts;
 
   @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;

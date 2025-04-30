@@ -6,7 +6,7 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
-@Profile("dev")
+@Profile({"dev", "test"})
 @Repository
 public interface LedgerEntryRepository extends CrudRepository<LedgerEntry, UUID> {
   List<LedgerEntry> findByAccount(LedgerAccount account);

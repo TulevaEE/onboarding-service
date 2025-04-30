@@ -5,8 +5,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
-@Profile("dev")
+@Profile({"dev", "test"})
 @Repository
-public interface LedgerPartyRepository extends CrudRepository<LedgerParty, UUID> {
+interface LedgerPartyRepository extends CrudRepository<LedgerParty, UUID> {
   LedgerParty findByName(String name);
 }

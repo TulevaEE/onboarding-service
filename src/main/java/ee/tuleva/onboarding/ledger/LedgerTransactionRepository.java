@@ -5,6 +5,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
-@Profile("dev")
+@Profile({"dev", "test"})
 @Repository
-public interface LedgerTransactionRepository extends CrudRepository<LedgerTransaction, UUID> {}
+interface LedgerTransactionRepository extends CrudRepository<LedgerTransaction, UUID> {}

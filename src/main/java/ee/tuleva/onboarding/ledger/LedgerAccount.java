@@ -51,7 +51,6 @@ public class LedgerAccount {
   @JdbcType(PostgreSQLEnumJdbcType.class)
   private ServiceAccountType serviceAccountType;
 
-  // TODO https://thorben-janssen.com/hibernate-enum-mappings/
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, columnDefinition = "ledger.account_type")
   @JdbcType(PostgreSQLEnumJdbcType.class)

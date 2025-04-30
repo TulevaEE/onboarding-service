@@ -24,7 +24,7 @@ CREATE TABLE ledger.transaction_type(
 
 
 CREATE TABLE ledger.party(
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   type ledger.party_type NOT NULL,
   name TEXT NOT NULL,
   details JSONB NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE ledger.party(
 
 
 CREATE TABLE ledger.account(
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     name TEXT NOT NULL,
     service_account_type ledger.service_account_type,
     type ledger.account_type NOT NULL,
@@ -51,17 +51,17 @@ CREATE TABLE ledger.account(
 
 
 CREATE TABLE ledger.transaction(
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     description TEXT NOT NULL,
     transaction_type_id VARCHAR(255) NOT NULL REFERENCES ledger.transaction_type,
     transaction_date TIMESTAMPTZ NOT NULL,
     metadata JSONB NOT NULL, /* TODO lock this down – or keep this a JSONB here with very heavy validations in application layer */
-    event_log_id INTEGER NOT NULL references public.event_log,
+    /*event_log_id INTEGER NOT NULL references public.event_log, TODO add this back*/
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE ledger.entry(
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     account_id UUID NOT NULL references ledger.account,
     transaction_id UUID NOT NULL references ledger.transaction,
     amount NUMERIC NOT NULL,

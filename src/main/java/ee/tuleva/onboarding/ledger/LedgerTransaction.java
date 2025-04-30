@@ -46,8 +46,8 @@ public class LedgerTransaction {
   @Column(columnDefinition = "JSONB", nullable = false)
   private Map<String, Object> metadata;
 
-  @Column(name = "event_log_id", nullable = false)
-  private Integer eventLogId; // TODO event log map
+  /*@Column(name = "event_log_id", nullable = false)
+  private Integer eventLogId; // TODO event log map*/
 
   @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;

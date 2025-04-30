@@ -29,7 +29,7 @@ spring:
     init:
       mode: never
   jpa:
-    show-sql: true
+    show-sql: false
     hibernate:
       ddl-auto: none
     properties:

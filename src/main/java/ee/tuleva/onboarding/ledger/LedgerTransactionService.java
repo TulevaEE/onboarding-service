@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-@Profile("dev")
+@Profile({"dev", "test"})
 @Service
 @RequiredArgsConstructor
 class LedgerTransactionService {
@@ -28,7 +28,7 @@ class LedgerTransactionService {
             .transactionTypeId(TEST) // TODO correct type
             .transactionDate(clock.instant())
             .metadata(Map.of())
-            .eventLogId(1) // TODO event log ID
+            // .eventLogId(1) // TODO event log ID
             .build();
 
     ledgerTransactionRepository.save(transaction);

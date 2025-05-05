@@ -10,35 +10,26 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.user.User;
-
 import java.math.BigDecimal;
 import java.util.List;
-
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 public class LedgerTransactionIntegrationTest {
-  @Autowired
-  private LedgerService ledgerService;
+  @Autowired private LedgerService ledgerService;
 
-  @Autowired
-  private LedgerAccountRepository ledgerAccountRepository;
-  @Autowired
-  private LedgerAccountService ledgerAccountService;
+  @Autowired private LedgerAccountRepository ledgerAccountRepository;
+  @Autowired private LedgerAccountService ledgerAccountService;
 
-  @Autowired
-  private LedgerPartyRepository ledgerPartyRepository;
+  @Autowired private LedgerPartyRepository ledgerPartyRepository;
 
-  @Autowired
-  private LedgerEntryRepository ledgerEntryRepository;
+  @Autowired private LedgerEntryRepository ledgerEntryRepository;
 
-  @Autowired
-  private LedgerTransactionRepository ledgerTransactionRepository;
+  @Autowired private LedgerTransactionRepository ledgerTransactionRepository;
 
-  @Autowired
-  private LedgerTransactionService ledgerTransactionService;
+  @Autowired private LedgerTransactionService ledgerTransactionService;
 
   @BeforeEach
   void setup() {
@@ -92,10 +83,8 @@ public class LedgerTransactionIntegrationTest {
     assertThat(getCashAccount(party).getBalance()).isEqualByComparingTo(new BigDecimal("1000.00"));
     assertThat(getCashAccount(party).getEntries().size()).isEqualTo(1);
 
-    assertThat(getServiceAccount().getBalance())
-        .isEqualByComparingTo(new BigDecimal("-1000.00"));
-    assertThat(getServiceAccount().getEntries().size())
-        .isEqualTo(1);
+    assertThat(getServiceAccount().getBalance()).isEqualByComparingTo(new BigDecimal("-1000.00"));
+    assertThat(getServiceAccount().getEntries().size()).isEqualTo(1);
 
     ledgerTransactionService.createTransaction(
         "Test transaction 2",
@@ -106,9 +95,7 @@ public class LedgerTransactionIntegrationTest {
     assertThat(getCashAccount(party).getBalance()).isEqualByComparingTo(new BigDecimal("0"));
     assertThat(getCashAccount(party).getEntries().size()).isEqualTo(2);
 
-    assertThat(getServiceAccount().getBalance())
-        .isEqualByComparingTo(new BigDecimal("0"));
-    assertThat(getServiceAccount().getEntries().size())
-        .isEqualTo(2);
+    assertThat(getServiceAccount().getBalance()).isEqualByComparingTo(new BigDecimal("0"));
+    assertThat(getServiceAccount().getEntries().size()).isEqualTo(2);
   }
 }

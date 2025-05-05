@@ -67,6 +67,7 @@ public class LedgerAccount {
   @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;
 
+  // TODO fetchType only needed for integration tests that don't interact via requests
   @OneToMany(mappedBy = "account", fetch = FetchType.EAGER)
   private List<LedgerEntry> entries = List.of();
 

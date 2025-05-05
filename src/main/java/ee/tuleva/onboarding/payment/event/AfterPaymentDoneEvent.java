@@ -8,13 +8,13 @@ import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
 @Getter
-public class PaymentCreatedEvent extends ApplicationEvent {
+public class AfterPaymentDoneEvent extends ApplicationEvent {
 
   private final User user;
   private final Payment payment;
   private final Locale locale;
 
-  public PaymentCreatedEvent(Object source, User user, Payment payment, Locale locale) {
+  public AfterPaymentDoneEvent(Object source, User user, Payment payment, Locale locale) {
     super(source);
     this.user = user;
     this.payment = payment;

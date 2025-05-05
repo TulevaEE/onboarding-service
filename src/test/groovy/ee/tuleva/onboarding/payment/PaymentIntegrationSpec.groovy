@@ -3,6 +3,9 @@ package ee.tuleva.onboarding.payment
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.json.JsonMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import ee.tuleva.onboarding.aml.AmlService
+import ee.tuleva.onboarding.aml.sanctions.MatchResponse
+import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.epis.account.FundBalanceDto
@@ -19,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.boot.web.servlet.error.DefaultErrorAttributes
 import org.springframework.boot.web.servlet.error.ErrorAttributes
 import org.springframework.context.annotation.Bean
@@ -67,6 +71,8 @@ class PaymentIntegrationSpec extends Specification {
   @Autowired
   EventLogRepository eventLogRepository
 
+  @MockBean private AmlService amlService
+
   @Autowired
   ObjectMapper objectMapper
 
@@ -89,6 +95,11 @@ class PaymentIntegrationSpec extends Specification {
 
   def setup() {
     mockSecurityContext()
+  }
+
+  def mockAmlService() {
+    amlService.addSanctionAndPepCheckIfMissing(_, _) >> null
+    amlService.allChecksPassed(_, _) >> true // TODO mock out or prevent api calls otherwise
   }
 
   def mockMontonioOrderApi() {
@@ -134,6 +145,7 @@ class PaymentIntegrationSpec extends Specification {
     User aUser = userRepository.save(sampleUserNonMember().id(null).build())
     AuthenticatedPerson anAuthenticatedPerson = authenticatedPersonFromUser(aUser).build()
 
+    mockAmlService()
     mockEpisContactDetails()
     mockEpisTransactions()
     mockEpisApplications()

@@ -6,9 +6,12 @@ import ee.tuleva.onboarding.auth.AuthenticationTokens
 import ee.tuleva.onboarding.auth.GrantType
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent
+import ee.tuleva.onboarding.epis.contact.ContactDetailsFixture
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
+import ee.tuleva.onboarding.mandate.event.BeforePaymentLinkCreatedEvent
+import ee.tuleva.onboarding.payment.PaymentData
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
@@ -20,6 +23,9 @@ import static ee.tuleva.onboarding.auth.idcard.IdDocumentType.ESTONIAN_CITIZEN_I
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.*
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
+import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
 
 class AmlAutoCheckerSpec extends Specification {
 
@@ -119,6 +125,77 @@ class AmlAutoCheckerSpec extends Specification {
     then:
     noExceptionThrown()
   }
+
+  def "adds pep and sanction checks on 3rd pillar payment link creation"() {
+    given:
+    def user = sampleUser().build()
+    def address = contactDetailsFixture().getAddress()
+    def paymentData = aPaymentData()
+
+    1 * amlService.addSanctionAndPepCheckIfMissing(user, address)
+    1 * amlService.allChecksPassed(user, 3) >> true
+
+    when:
+    amlAutoChecker.beforePaymentLinkCreated(new BeforePaymentLinkCreatedEvent(this, user, address, paymentData))
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "throws exception when not all checks passed on 3rd pillar payment link creation"() {
+    given:
+    def user = sampleUser().build()
+    def address = contactDetailsFixture().getAddress()
+    def paymentData = aPaymentData()
+
+    1 * amlService.allChecksPassed(user, 3) >> allChecksPassed
+
+    when:
+    amlAutoChecker.beforePaymentLinkCreated(new BeforePaymentLinkCreatedEvent(this, user, address, paymentData))
+    throw new NoExceptionThrown()
+
+    then:
+    thrown(expectedException)
+
+    where:
+    allChecksPassed | expectedException
+    true            | NoExceptionThrown
+    false           | AmlChecksMissingException
+  }
+
+
+  def "doesn't add pep and sanction checks on 3rd pillar member fee payment link creation"() {
+    given:
+    def user = sampleUser().build()
+    def address = contactDetailsFixture().getAddress()
+    def paymentData = aPaymentData().tap { type = MEMBER_FEE }
+
+    0 * amlService.addSanctionAndPepCheckIfMissing(user, address)
+    0 * amlService.allChecksPassed(user, 3) >> true
+
+    when:
+    amlAutoChecker.beforePaymentLinkCreated(new BeforePaymentLinkCreatedEvent(this, user, address, paymentData))
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "doesn't add pep and sanction checks on 3rd pillar recurring payment link creation"() {
+    given:
+    def user = sampleUser().build()
+    def address = contactDetailsFixture().getAddress()
+    def paymentData = aPaymentData().tap { type = RECURRING }
+
+    0 * amlService.addSanctionAndPepCheckIfMissing(user, address)
+    0 * amlService.allChecksPassed(user, 3) >> true
+
+    when:
+    amlAutoChecker.beforePaymentLinkCreated(new BeforePaymentLinkCreatedEvent(this, user, address, paymentData))
+
+    then:
+    noExceptionThrown()
+  }
+
 
     private class NoExceptionThrown extends RuntimeException {}
 }

@@ -66,9 +66,9 @@ public class LedgerTransactionIntegrationTest {
   public void shouldCreateTransaction() {
     User user = sampleUser().build();
 
-    var party = ledgerPartyRepository.findByName(user.getPersonalCode());
+    var party = ledgerPartyRepository.findByOwnerId(user.getPersonalCode());
 
-    assertThat(party.getName()).isEqualTo(user.getPersonalCode());
+    assertThat(party.getOwnerId()).isEqualTo(user.getPersonalCode());
     assertThat(party.getType()).isEqualTo(USER);
 
     var cashAccount = getCashAccount(party);

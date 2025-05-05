@@ -39,6 +39,12 @@ public class LedgerParty {
   @Column(nullable = false)
   private String name;
 
+  @Column(nullable = false)
+  private String
+      ownerId; // TODO currently personal ID, can add party representative logic later for children
+
+  // and companies
+
   @Type(JsonType.class)
   @Column(columnDefinition = "JSONB", nullable = false)
   private Map<String, Object> details;

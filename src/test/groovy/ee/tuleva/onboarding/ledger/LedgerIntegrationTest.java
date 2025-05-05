@@ -47,9 +47,9 @@ public class LedgerIntegrationTest {
 
     ledgerService.onboardUser(user);
 
-    var party = ledgerPartyRepository.findByName(user.getPersonalCode());
+    var party = ledgerPartyRepository.findByOwnerId(user.getPersonalCode());
 
-    assertThat(party.getName()).isEqualTo(user.getPersonalCode());
+    assertThat(party.getOwnerId()).isEqualTo(user.getPersonalCode());
     assertThat(party.getType()).isEqualTo(USER);
 
     var accounts = ledgerAccountRepository.findAllByLedgerParty(party);

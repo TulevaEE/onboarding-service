@@ -16,15 +16,20 @@ class LedgerPartyService {
 
   private final LedgerPartyRepository ledgerPartyRepository;
 
-  LedgerParty createPartyForUser(User user) {
+  LedgerParty createPartyForUser(User user, String name) {
     var ledgerParty =
-        LedgerParty.builder().type(USER).name(user.getPersonalCode()).details(Map.of()).build();
+        LedgerParty.builder()
+            .type(USER)
+            .ownerId(user.getPersonalCode())
+            .name(name)
+            .details(Map.of())
+            .build();
 
     return ledgerPartyRepository.save(ledgerParty);
   }
 
   Optional<LedgerParty> getPartyForUser(User user) {
     return Optional.ofNullable(
-        ledgerPartyRepository.findByName(user.getPersonalCode())); // TODO party representative
+        ledgerPartyRepository.findByOwnerId(user.getPersonalCode())); // TODO party representative
   }
 }

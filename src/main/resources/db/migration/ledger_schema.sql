@@ -27,6 +27,7 @@ CREATE TABLE ledger.party(
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   type ledger.party_type NOT NULL,
   name TEXT NOT NULL,
+  owner_id TEXT NOT NULL,
   details JSONB NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -8,5 +8,5 @@ import org.springframework.stereotype.Repository;
 @Profile({"dev", "test"})
 @Repository
 interface LedgerPartyRepository extends CrudRepository<LedgerParty, UUID> {
-  LedgerParty findByName(String name);
+  LedgerParty findByOwnerId(String name);
 }

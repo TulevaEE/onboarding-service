@@ -31,7 +31,8 @@ public class LedgerService {
       throw new IllegalStateException("User already onboarded");
     }
 
-    LedgerParty party = ledgerPartyService.createPartyForUser(user);
+    LedgerParty party =
+        ledgerPartyService.createPartyForUser(user, "Party of " + user.getPersonalCode());
 
     LedgerAccount cashAccount =
         ledgerAccountService.createAccountForParty(

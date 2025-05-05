@@ -67,7 +67,7 @@ public class LedgerAccount {
   @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;
 
-  @OneToMany(mappedBy = "account")
+  @OneToMany(mappedBy = "account", fetch = FetchType.EAGER)
   private List<LedgerEntry> entries = List.of();
 
   public BigDecimal getBalance() {

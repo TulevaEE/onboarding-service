@@ -28,17 +28,6 @@ public class LedgerIntegrationTest {
 
   @BeforeEach
   void setup() {
-    User user = sampleUser().build();
-
-    // TODO remove
-    /*eventLogRepository.save(
-    EventLog.builder()
-        .type("TEST")
-        .data(Map.of())
-        .principal(user.getPersonalCode())
-        .timestamp(Instant.now())
-        .build());*/
-
     ledgerAccountRepository.save(
         LedgerAccount.builder()
             .name("Tuleva cash deposit")

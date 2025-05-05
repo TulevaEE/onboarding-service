@@ -7,7 +7,6 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.ServiceAccountType.DEPOS
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.USER;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
-import ee.tuleva.onboarding.event.EventLogRepository;
 import ee.tuleva.onboarding.user.User;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,8 +23,6 @@ public class LedgerIntegrationTest {
 
   @Autowired private LedgerPartyRepository ledgerPartyRepository;
 
-  @Autowired private EventLogRepository eventLogRepository;
-
   @BeforeEach
   void setup() {
     ledgerAccountRepository.save(
@@ -39,7 +36,6 @@ public class LedgerIntegrationTest {
 
   @AfterEach
   void cleanup() {
-
     ledgerAccountRepository.deleteAll();
     ledgerPartyRepository.deleteAll();
   }

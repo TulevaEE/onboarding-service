@@ -35,6 +35,7 @@ public class LedgerEntry {
   @Column(nullable = false)
   private BigDecimal amount;
 
+  // TODO revisit TZ, RDS by default is UTC
   @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;
 }

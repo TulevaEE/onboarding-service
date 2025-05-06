@@ -42,6 +42,16 @@ public class AutoEmailSender {
           startDate,
           endDate);
       final var emailablePeople = autoEmailRepository.fetch(startDate, endDate);
+
+      // Sanity check to make sure we don't accidentally send too many emails
+      if (emailablePeople.size() > 100) {
+        throw new IllegalStateException(
+            "Sanity check – too many emailable people found. Please debug and make sure there is no bug: emailType="
+                + emailType
+                + ", emailablePeople="
+                + emailablePeople.size());
+      }
+
       log.info("Sending monthly emails: emailType={}, to={}", emailType, emailablePeople.size());
       int emailsSent = sendEmails(emailablePeople, emailType);
       log.info(

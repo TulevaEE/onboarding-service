@@ -63,7 +63,7 @@ public class AutoEmailSender {
   private <EmailablePerson extends Emailable & Person> int getEstimatedEmailCount(
       List<EmailablePerson> emailablePeople, EmailType emailType) {
     return emailablePeople.stream()
-        .map(emailablePerson -> !hasReceivedEmailRecently(emailablePerson, emailType))
+        .filter(emailablePerson -> !hasReceivedEmailRecently(emailablePerson, emailType))
         .toList()
         .size();
   }

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.notification.email.auto;
 
 import static ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalFixture.anEarlyWithdrawal;
 import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.leaverFixture;
+import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.leaverFixture2;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailStatus.SCHEDULED;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS;
@@ -90,18 +91,53 @@ class AutoEmailSenderTest {
   @Test
   @DisplayName("Does not send leaver emails over threshold")
   void rejectsLeaverEmailsOverThreshold() {
-    List<ExchangeTransactionLeaver> leavers =
+    List<ExchangeTransactionLeaver> recentLeavers =
         Stream.generate(ExchangeTransactionLeaverFixture::leaverFixture).limit(101).toList();
 
-    var leaver = leaverFixture();
+    List<ExchangeTransactionLeaver> alreadyReceivedLeavers =
+        Stream.generate(ExchangeTransactionLeaverFixture::leaverFixture2).limit(50).toList();
+
+    var leavers = Stream.concat(alreadyReceivedLeavers.stream(), recentLeavers.stream()).toList();
+
     when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class))).thenReturn(leavers);
-    when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
+    when(emailPersistenceService.getLastEmailSendDate(
+            eq(leaverFixture()), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.empty());
+    when(emailPersistenceService.getLastEmailSendDate(
+            eq(leaverFixture2()), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.of(ZonedDateTime.now(clock).minusMonths(2).toInstant()));
 
     assertThrows(
         IllegalStateException.class,
         () -> autoEmailSender.sendMonthlyEmails(),
         "Too many people for monthly emails: emailType=SECOND_PILLAR_LEAVERS, estimatedSendCount=101");
+  }
+
+  @Test
+  @DisplayName(
+      "Allows emails where more than threshold in initial filter but only a small portion of them haven't received an email")
+  void allowsEmailsMoreThanThresholdButFewHaventReceived() {
+    List<ExchangeTransactionLeaver> recentLeavers =
+        Stream.generate(ExchangeTransactionLeaverFixture::leaverFixture).limit(10).toList();
+
+    List<ExchangeTransactionLeaver> alreadyReceivedLeavers =
+        Stream.generate(ExchangeTransactionLeaverFixture::leaverFixture2).limit(200).toList();
+
+    var leavers = Stream.concat(alreadyReceivedLeavers.stream(), recentLeavers.stream()).toList();
+
+    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class))).thenReturn(leavers);
+    when(emailPersistenceService.getLastEmailSendDate(
+            eq(leaverFixture()), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.empty());
+    when(emailPersistenceService.getLastEmailSendDate(
+            eq(leaverFixture2()), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.of(ZonedDateTime.now(clock).minusMonths(2).toInstant()));
+
+    autoEmailSender.sendMonthlyEmails();
+
+    verify(mailchimpService, times(10)).sendEvent(leaverFixture().email(), NEW_LEAVER);
+    verify(emailPersistenceService, times(10))
+        .save(leaverFixture(), SECOND_PILLAR_LEAVERS, SCHEDULED);
   }
 
   @Test

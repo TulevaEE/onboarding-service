@@ -7,9 +7,12 @@ import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PI
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS;
 import static ee.tuleva.onboarding.notification.email.auto.EmailEvent.NEW_EARLY_WITHDRAWAL;
 import static ee.tuleva.onboarding.notification.email.auto.EmailEvent.NEW_LEAVER;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.mockito.quality.Strictness.*;
 
 import ee.tuleva.onboarding.analytics.earlywithdrawals.AnalyticsEarlyWithdrawalsRepository;
 import ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaver;
@@ -21,6 +24,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,9 +33,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
 import org.springframework.web.client.HttpClientErrorException;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = LENIENT)
 class AutoEmailSenderTest {
 
   private Clock clock;
@@ -222,5 +228,22 @@ class AutoEmailSenderTest {
     verify(mailchimpService, times(2)).sendEvent(anyString(), eq(NEW_LEAVER));
     verify(emailPersistenceService, times(2))
         .save(any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS), eq(SCHEDULED));
+  }
+
+  @Test
+  @DisplayName("Does not send more than 100 emails at once. throws IllegalStateException")
+  void doesNotSendMoreThan100Emails() {
+    // Given
+    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+        .thenReturn(Collections.nCopies(101, leaverFixture()));
+
+    // When
+    Exception exception =
+        assertThrows(IllegalStateException.class, () -> autoEmailSender.sendMonthlyEmails());
+
+    // Then
+    assertEquals(
+        "Sanity check – too many emailable people found. Please debug and make sure there is no bug: emailType=SECOND_PILLAR_LEAVERS, emailablePeople=101",
+        exception.getMessage());
   }
 }

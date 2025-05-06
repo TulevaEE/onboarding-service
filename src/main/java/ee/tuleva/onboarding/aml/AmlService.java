@@ -239,13 +239,13 @@ public class AmlService {
         person.getPersonalCode(), aYearAgo());
   }
 
-  boolean allChecksPassed(Person person, Integer pillar) {
+  boolean allChecksPassed(User user, Integer pillar) {
     if (pillar == 2) {
       // No checks needed for second pillar
       return true;
     }
     var successfulTypes =
-        getChecks(person).stream()
+        getChecks(user).stream()
             .filter(AmlCheck::isSuccess)
             .map(AmlCheck::getType)
             .collect(toSet());
@@ -271,8 +271,8 @@ public class AmlService {
         && residencyCheck) {
       return true;
     }
-    log.error("All necessary AML checks not passed for person {}!", person.getPersonalCode());
-    eventPublisher.publishEvent(new TrackableEvent(person, TrackableEventType.MANDATE_DENIED));
+    log.error("All necessary AML checks not passed for user userId={}", user.getId());
+    eventPublisher.publishEvent(new TrackableEvent(user, TrackableEventType.MANDATE_DENIED));
 
     return false;
   }

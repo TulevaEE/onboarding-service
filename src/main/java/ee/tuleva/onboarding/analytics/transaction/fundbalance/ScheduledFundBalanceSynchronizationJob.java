@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.analytics.transaction.fundbalance;
 
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.LocalDate;
+import java.time.Month;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -52,5 +53,29 @@ public class ScheduledFundBalanceSynchronizationJob {
           e.getMessage(),
           e);
     }
+  }
+
+  @Scheduled(cron = "0 15 13 6 5 ?", zone = "Europe/Tallinn")
+  public void runHistoricalFundBalanceSync() {
+    LocalDate startDate = LocalDate.of(2017, Month.MARCH, 28);
+    LocalDate endDate = LocalDate.of(2025, Month.APRIL, 21);
+    log.info(
+        "Starting historical fund balance synchronization job from {} to {}.", startDate, endDate);
+
+    for (LocalDate date = startDate; !date.isAfter(endDate); date = date.plusDays(1)) {
+      try {
+        log.debug("Synchronizing fund balances for date {}.", date);
+        fundBalanceSynchronizer.sync(date);
+        log.debug("Successfully synchronized fund balances for date {}.", date);
+      } catch (Exception e) {
+        log.error(
+            "Historical fund balance synchronization failed during execution for date {}: {}",
+            date,
+            e.getMessage(),
+            e);
+      }
+    }
+    log.info(
+        "Finished historical fund balance synchronization job from {} to {}.", startDate, endDate);
   }
 }

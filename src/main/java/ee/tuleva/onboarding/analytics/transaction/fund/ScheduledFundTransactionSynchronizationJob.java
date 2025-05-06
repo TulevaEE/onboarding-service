@@ -110,7 +110,7 @@ public class ScheduledFundTransactionSynchronizationJob {
     }
   }
 
-  @Scheduled(cron = "0 50 10 6 5 ? 2025", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 55 10 6 5 ?", zone = "Europe/Tallinn")
   public void runHistoricalSync() {
     // ISIN: EE3600109435, Start: 2017-03-28, End: 2025-02-03
     // ISIN: EE3600109443, Start: 2017-03-28, End: 2025-04-29

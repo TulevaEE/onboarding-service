@@ -2,6 +2,9 @@ package ee.tuleva.onboarding.analytics.transaction.fund;
 
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.LocalDate;
+import java.time.Month;
+import java.time.temporal.TemporalAdjusters;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -105,5 +108,69 @@ public class ScheduledFundTransactionSynchronizationJob {
           e.getMessage(),
           e);
     }
+  }
+
+  @Scheduled(cron = "0 50 10 6 5 ? 2025", zone = "Europe/Tallinn")
+  public void runHistoricalSync() {
+    // ISIN: EE3600109435, Start: 2017-03-28, End: 2025-02-03
+    // ISIN: EE3600109443, Start: 2017-03-28, End: 2025-04-29
+    // ISIN: EE3600001707, Start: 2019-10-14, End: 2025-02-03
+
+    log.info("Starting historical fund transaction synchronization job in monthly batches.");
+
+    Map<String, Map.Entry<LocalDate, LocalDate>> historicalSyncRanges =
+        Map.of(
+            secondPillarIsin,
+                Map.entry(
+                    LocalDate.of(2017, Month.MARCH, 28), LocalDate.of(2025, Month.FEBRUARY, 3)),
+            secondPillarBondIsin,
+                Map.entry(LocalDate.of(2017, Month.MARCH, 28), LocalDate.of(2025, Month.APRIL, 29)),
+            thirdPillarIsin,
+                Map.entry(
+                    LocalDate.of(2019, Month.OCTOBER, 14), LocalDate.of(2025, Month.FEBRUARY, 3)));
+
+    historicalSyncRanges.forEach(
+        (isin, dateRange) -> {
+          LocalDate overallStartDate = dateRange.getKey();
+          LocalDate overallEndDate = dateRange.getValue();
+          log.info(
+              "Processing historical sync for ISIN {} from {} to {}",
+              isin,
+              overallStartDate,
+              overallEndDate);
+
+          LocalDate batchStartDate = overallStartDate;
+          while (!batchStartDate.isAfter(overallEndDate)) {
+            LocalDate batchEndDateOfMonth = batchStartDate.with(TemporalAdjusters.lastDayOfMonth());
+            LocalDate batchEndDate =
+                batchEndDateOfMonth.isAfter(overallEndDate) ? overallEndDate : batchEndDateOfMonth;
+
+            log.info(
+                "Synchronizing batch for ISIN {} from {} to {}",
+                isin,
+                batchStartDate,
+                batchEndDate);
+            try {
+              fundTransactionSynchronizer.sync(isin, batchStartDate, batchEndDate);
+              log.info(
+                  "Batch sync completed successfully for ISIN {} from {} to {}.",
+                  isin,
+                  batchStartDate,
+                  batchEndDate);
+            } catch (Exception e) {
+              log.error(
+                  "Batch sync failed during execution for ISIN {} from {} to {}: {}",
+                  isin,
+                  batchStartDate,
+                  batchEndDate,
+                  e.getMessage(),
+                  e);
+            }
+            batchStartDate = batchEndDate.plusDays(1);
+          }
+          log.info("Finished processing historical sync for ISIN {}", isin);
+        });
+
+    log.info("Finished historical fund transaction synchronization job.");
   }
 }

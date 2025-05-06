@@ -43,13 +43,14 @@ public class AutoEmailSender {
           endDate);
       final var emailablePeople = autoEmailRepository.fetch(startDate, endDate);
 
-      // Sanity check to make sure we don't accidentally send too many emails
-      if (emailablePeople.size() > 100) {
+      int estimatedSendCount = getEstimatedEmailCount(emailablePeople, emailType);
+
+      if (estimatedSendCount > 100) {
         throw new IllegalStateException(
-            "Sanity check – too many emailable people found. Please debug and make sure there is no bug: emailType="
+            "Too many people for monthly emails: emailType="
                 + emailType
-                + ", emailablePeople="
-                + emailablePeople.size());
+                + ", estimatedSendCount="
+                + estimatedSendCount);
       }
 
       log.info("Sending monthly emails: emailType={}, to={}", emailType, emailablePeople.size());
@@ -59,15 +60,20 @@ public class AutoEmailSender {
     }
   }
 
+  private <EmailablePerson extends Emailable & Person> int getEstimatedEmailCount(
+      List<EmailablePerson> emailablePeople, EmailType emailType) {
+    return emailablePeople.stream()
+        .map(emailablePerson -> !hasReceivedEmailRecently(emailablePerson, emailType))
+        .toList()
+        .size();
+  }
+
   private <EmailablePerson extends Emailable & Person> int sendEmails(
       List<EmailablePerson> emailablePeople, EmailType emailType) {
     int emailsSent = 0;
     for (EmailablePerson emailablePerson : emailablePeople) {
       String personalCode = emailablePerson.getPersonalCode();
-      var lastEmailSendDate =
-          emailPersistenceService.getLastEmailSendDate(emailablePerson, emailType);
-      if (lastEmailSendDate.isPresent()
-          && lastEmailSendDate.get().isAfter(ZonedDateTime.now(clock).minusMonths(4).toInstant())) {
+      if (hasReceivedEmailRecently(emailablePerson, emailType)) {
         log.info(
             "Already sent monthly email, skipping: personalCode={}, emailType={}",
             personalCode,
@@ -93,5 +99,14 @@ public class AutoEmailSender {
       emailPersistenceService.save(emailablePerson, emailType, SCHEDULED);
     }
     return emailsSent;
+  }
+
+  private <EmailablePerson extends Emailable & Person> boolean hasReceivedEmailRecently(
+      EmailablePerson emailablePerson, EmailType emailType) {
+    var lastEmailSendDate =
+        emailPersistenceService.getLastEmailSendDate(emailablePerson, emailType);
+
+    return lastEmailSendDate.isPresent()
+        && lastEmailSendDate.get().isAfter(ZonedDateTime.now(clock).minusMonths(4).toInstant());
   }
 }

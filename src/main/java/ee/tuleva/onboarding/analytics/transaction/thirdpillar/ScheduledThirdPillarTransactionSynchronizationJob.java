@@ -51,15 +51,4 @@ public class ScheduledThirdPillarTransactionSynchronizationJob {
       log.error("Third pillar transaction synchronization job failed: {}", e.getMessage(), e);
     }
   }
-
-  @Scheduled(cron = "0 40 8 8 4 ?", zone = "Europe/Tallinn")
-  public void runInitialTransactionsSync() {
-    log.info("Starting initial third pillar transactions synchronization job");
-    LocalDate startDate = LocalDate.of(2025, 4, 1);
-    LocalDate endDate = LocalDate.of(2025, 4, 8);
-
-    thirdPillarTransactionSynchronizer.sync(startDate, endDate);
-
-    log.info("Initial third pillar transactions synchronization job completed");
-  }
 }

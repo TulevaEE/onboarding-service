@@ -208,34 +208,4 @@ class ScheduledFundTransactionSynchronizationJobTest extends FixedClockConfig {
     verify(fundTransactionSynchronizer).sync(eq(secondPillarBondIsin), eq(latestDate), eq(today));
     verifyNoMoreInteractions(fundTransactionSynchronizer, transactionRepository);
   }
-
-  @Test
-  void
-      runInitialTransactionsSync_callsSynchronizerWithFixedStartDateAndCurrentEndDateForSecondPillar() {
-    LocalDate expectedStartDate = LocalDate.of(2025, 2, 1);
-    LocalDate expectedEndDate = today;
-
-    job.runInitialTransactionsSync();
-
-    verify(fundTransactionSynchronizer)
-        .sync(eq(secondPillarIsin), eq(expectedStartDate), eq(expectedEndDate));
-    verifyNoInteractions(transactionRepository);
-    verifyNoMoreInteractions(fundTransactionSynchronizer);
-  }
-
-  @Test
-  void runInitialTransactionsSync_whenSynchronizerThrowsException_logsError() {
-    LocalDate expectedStartDate = LocalDate.of(2025, 2, 1);
-    LocalDate expectedEndDate = today;
-    doThrow(new RuntimeException("Initial Sync Failed!"))
-        .when(fundTransactionSynchronizer)
-        .sync(eq(secondPillarIsin), eq(expectedStartDate), eq(expectedEndDate));
-
-    job.runInitialTransactionsSync();
-
-    verify(fundTransactionSynchronizer)
-        .sync(eq(secondPillarIsin), eq(expectedStartDate), eq(expectedEndDate));
-    verifyNoInteractions(transactionRepository);
-    verifyNoMoreInteractions(fundTransactionSynchronizer);
-  }
 }

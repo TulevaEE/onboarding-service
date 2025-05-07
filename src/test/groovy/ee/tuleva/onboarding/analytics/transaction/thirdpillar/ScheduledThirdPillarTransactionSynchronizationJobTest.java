@@ -83,19 +83,4 @@ class ScheduledThirdPillarTransactionSynchronizationJobTest extends FixedClockCo
     verify(thirdPillarTransactionSynchronizer).sync(eq(latestDate), eq(today));
     verifyNoMoreInteractions(thirdPillarTransactionSynchronizer, transactionRepository);
   }
-
-  @Test
-  void runInitialTransactionsSync_callsSynchronizerWithFixedDates() {
-    // given
-    LocalDate expectedStartDate = LocalDate.of(2025, 4, 1);
-    LocalDate expectedEndDate = LocalDate.of(2025, 4, 8);
-
-    // when
-    job.runInitialTransactionsSync();
-
-    // then
-    verify(thirdPillarTransactionSynchronizer).sync(eq(expectedStartDate), eq(expectedEndDate));
-    verifyNoInteractions(transactionRepository);
-    verifyNoMoreInteractions(thirdPillarTransactionSynchronizer);
-  }
 }

@@ -35,19 +35,4 @@ class ScheduledExchangeTransactionSynchronizationJobTest extends FixedClockConfi
         .sync(eq(expectedStartDate), eq(Optional.empty()), eq(Optional.empty()), eq(false));
     verifyNoMoreInteractions(exchangeTransactionSynchronizer, mandateDeadlinesService);
   }
-
-  @Test
-  void runInitialTransactionsSync_callsSynchronizerWithFixedStartDate() {
-    // given
-    LocalDate expectedStartDate = LocalDate.of(2024, 12, 1);
-
-    // when
-    job.runInitialTransactionsSync();
-
-    // then
-    verify(exchangeTransactionSynchronizer)
-        .sync(eq(expectedStartDate), eq(Optional.empty()), eq(Optional.empty()), eq(false));
-    verifyNoInteractions(mandateDeadlinesService);
-    verifyNoMoreInteractions(exchangeTransactionSynchronizer);
-  }
 }

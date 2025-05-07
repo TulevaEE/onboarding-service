@@ -87,23 +87,4 @@ public class ScheduledFundTransactionSynchronizationJob {
           e);
     }
   }
-
-  @Scheduled(cron = "0 15 11 17 4 ?", zone = "Europe/Tallinn")
-  public void runInitialTransactionsSync() {
-    log.info("Starting initial fund transaction synchronization job for ISIN {}", secondPillarIsin);
-    LocalDate startDate = LocalDate.of(2025, 2, 1);
-    LocalDate endDate = LocalDate.now(ClockHolder.clock());
-
-    try {
-      fundTransactionSynchronizer.sync(secondPillarIsin, startDate, endDate);
-      log.info(
-          "Initial fund transaction synchronization job completed for ISIN {}", secondPillarIsin);
-    } catch (Exception e) {
-      log.error(
-          "Initial fund transaction synchronization job failed during execution for ISIN {}: {}",
-          secondPillarIsin,
-          e.getMessage(),
-          e);
-    }
-  }
 }

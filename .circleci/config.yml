@@ -1,10 +1,10 @@
 version: 2.1
 orbs:
-  aws-ecr: circleci/aws-ecr@9.0.3
-  aws-cli: circleci/aws-cli@4.1.3
+  aws-ecr: circleci/aws-ecr@9.5.1
+  aws-cli: circleci/aws-cli@5.3.2
   eb: circleci/aws-elastic-beanstalk@2.0.1
-  codecov: codecov/codecov@3.2.4
-  snyk: snyk/snyk@1.4.0
+  codecov: codecov/codecov@5.3.0
+  snyk: snyk/snyk@2.3.0
 jobs:
   build:
     environment:
@@ -12,8 +12,6 @@ jobs:
     docker:
       - image: cimg/openjdk:21.0
     steps:
-      - attach_workspace:
-          at: .
       - checkout
       - restore_cache:
           keys:
@@ -32,7 +30,7 @@ jobs:
           path: ./build/test-results
 
       - store_artifacts:
-          path: ./build/reports/
+          path: ./build/reports
           destination: /reports
 
       - codecov/upload
@@ -42,53 +40,37 @@ jobs:
           paths:
             - ~/.gradle
 
-      # Cache the build folder for the deploy job
-      - save_cache:
-          key: v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}
-          paths:
-            - build/distributions
-
       - persist_to_workspace:
           root: .
           paths:
             - build
   deploy-staging:
     docker:
-      - image: cimg/python:3.9
+      - image: cimg/base:stable
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - eb/setup
       - run:
-          name: Inject packaging dependency into awsebcli environment
-          command: |
-            pipx inject awsebcli packaging
-      - restore_cache:
-          keys:
-            - v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}
-      - deploy:
-          name: Deploy master to Staging
+          name: Deploy master to staging
           command: eb deploy onboarding-service-staging --label ${CIRCLE_SHA1} --timeout 20
 
   deploy-production:
     docker:
-      - image: cimg/python:3.9
+      - image: cimg/base:stable
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - eb/setup
       - run:
-          name: Inject packaging dependency into awsebcli environment
-          command: |
-            pipx inject awsebcli packaging
-      - restore_cache:
-          keys:
-            - v1-build-{{ .Environment.CIRCLE_BRANCH }}-{{ .Environment.CIRCLE_SHA1 }}
-      - deploy:
-          name: Deploy master to Production
+          name: Deploy master to production
           command: eb deploy onboarding-service-env --label ${CIRCLE_SHA1} --timeout 20
 
   notify-sentry-deploy:
     docker:
-      - image: cimg/python:3.9
+      - image: cimg/base:stable
     environment:
       SENTRY_PROJECT: onboarding-service
     steps:
@@ -108,10 +90,13 @@ workflows:
   onboarding-service-workflow:
     jobs:
       - build:
-          context: snyk
+          context:
+            - snyk
+            - codecov
+
       - aws-ecr/build_and_push_image:
-          requires:
-            - build
+          name: build_and_push_image
+          requires: [ build ]
           context: aws
           auth:
             - aws-cli/setup
@@ -124,23 +109,23 @@ workflows:
           filters:
             branches:
               only: master
+
       - deploy-staging:
-          requires:
-            - aws-ecr/build_and_push_image
+          requires: [ build_and_push_image ]
           context: aws
           filters:
             branches:
               only: master
+
       - deploy-production:
-          requires:
-            - aws-ecr/build_and_push_image
+          requires: [ build_and_push_image ]
           context: aws
           filters:
             branches:
               only: master
+
       - notify-sentry-deploy:
-          requires:
-            - deploy-production
+          requires: [ deploy-production ]
           context: sentry
           filters:
             branches:

@@ -10,7 +10,6 @@ import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.jwt.TokenType;
 import ee.tuleva.onboarding.auth.principal.Person;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.InputStream;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -71,16 +70,16 @@ public class JwtTokenGenerator {
       }
 
       return Jwts.builder()
-          .setSubject(person.getPersonalCode())
+          .subject(person.getPersonalCode())
           .claim("authorities", authorities)
           .claim(TOKEN_TYPE.getValue(), TokenType.ACCESS)
           .claim(FIRST_NAME.getValue(), person.getFirstName())
           .claim(LAST_NAME.getValue(), person.getLastName())
           .claim(ATTRIBUTES.getValue(), Map.of(PHONE_NUMBER, "+372 555 5555"))
           .claim(AUTHORITIES.getValue(), List.of(Authority.USER))
-          .setIssuedAt(new Date())
-          .setExpiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
-          .signWith(privateKey, SignatureAlgorithm.RS256)
+          .issuedAt(new Date())
+          .expiration(new Date(System.currentTimeMillis() + 3600000)) // 1 hour expiration
+          .signWith(privateKey, Jwts.SIG.RS256)
           .compact();
     } catch (Exception e) {
       throw new RuntimeException();

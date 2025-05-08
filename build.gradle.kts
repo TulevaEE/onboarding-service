@@ -18,10 +18,10 @@ val springCloudVersion = "2024.0.1"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.4.4"
+    id("org.springframework.boot") version "3.4.5"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.0"
-    id("com.diffplug.spotless") version "7.0.2"
+    id("com.diffplug.spotless") version "7.0.3"
     id("io.freefair.lombok") version "8.13.1"
     jacoco
 }
@@ -76,10 +76,10 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:10.0.2")
+    implementation("com.nimbusds:nimbus-jose-jwt:10.2")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
-    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.6")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
+    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.8")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -91,30 +91,30 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-    implementation("org.jsoup:jsoup:1.19.1")
+    implementation("org.jsoup:jsoup:1.20.1")
     implementation("commons-net:commons-net:3.11.1")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.5")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.6")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.3.1") {
         exclude(group = "org.bouncycastle")
     }
-    implementation("ee.sk.mid:mid-rest-java-client:1.5") {
+    implementation("ee.sk.mid:mid-rest-java-client:1.6") {
         exclude(group = "org.bouncycastle")
     }
 
-    implementation("org.digidoc4j:digidoc4j:6.0.0") {
+    implementation("org.digidoc4j:digidoc4j:6.0.1") {
         exclude(group = "commons-logging", module = "commons-logging")
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.6.0")
-    implementation("io.sentry:sentry-logback:8.6.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.11.1")
+    implementation("io.sentry:sentry-logback:8.11.1")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.9.9")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.9.10")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -124,8 +124,8 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.31.13")
-    implementation("commons-io:commons-io:2.18.0")
+    implementation("software.amazon.awssdk:s3:2.31.38")
+    implementation("commons-io:commons-io:2.19.0")
     implementation("org.apache.commons:commons-csv:1.14.0")
 
     testImplementation("com.h2database:h2")
@@ -133,10 +133,10 @@ dependencies {
         exclude(module = "spock-core")
         exclude(module = "junit-vintage-engine")
     }
-    testImplementation("org.spockframework:spock-core:2.4-M5-groovy-4.0") {
+    testImplementation("org.spockframework:spock-core:2.4-M6-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.spockframework:spock-spring:2.4-M5-groovy-4.0") {
+    testImplementation("org.spockframework:spock-spring:2.4-M6-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
     testImplementation("org.apache.groovy:groovy-all:4.0.26")
@@ -267,6 +267,11 @@ tasks.test {
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
     options.compilerArgs.add("--enable-preview")
+//    options.compilerArgs.add("-Xlint:all")
+//    options.compilerArgs.add("-Xlint:-processing")
+//    options.compilerArgs.add("-Xlint:-serial")
+//    options.compilerArgs.add("-Xlint:-deprecation")
+//    options.compilerArgs.add("-Werror")
 }
 
 tasks.withType<JavaExec> {

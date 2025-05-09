@@ -14,17 +14,17 @@ public class ScheduledRiskLevelCheckJob {
 
   private final RiskLevelService riskLevelService;
 
+  private static final double MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY = 0.025;
+  private static final double DAYS_IN_MONTH = 30.0;
+  private static final double MEDIUM_SAMPLE_PROBABILITY_FOR_DAILY_RUN =
+      MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY / DAYS_IN_MONTH;
+
   @Scheduled(cron = "0 0 1 * * ?", zone = "Europe/Tallinn")
   public void run() {
-    log.info("Starting AML risk level check job");
-    riskLevelService.runRiskLevelCheck();
+    log.info(
+        "Starting AML risk level check job with medium risk sampling probability: {}",
+        String.format("%.8f", MEDIUM_SAMPLE_PROBABILITY_FOR_DAILY_RUN));
+    riskLevelService.runRiskLevelCheck(MEDIUM_SAMPLE_PROBABILITY_FOR_DAILY_RUN);
     log.info("Finished AML risk level check job");
-  }
-
-  @Scheduled(cron = "0 59 7 21 3 ?", zone = "Europe/Tallinn")
-  public void runInitial() {
-    log.info("Starting initial AML risk level check job");
-    riskLevelService.runRiskLevelCheck();
-    log.info("Finished initial AML risk level check job");
   }
 }

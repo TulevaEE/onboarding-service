@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -12,17 +13,38 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class AmlRiskRepositoryService {
 
+  private static final int HIGH_RISK_LEVEL = 1;
+  private static final int MEDIUM_RISK_LEVEL = 2;
+
   private final AmlRiskMetadataRepository amlRiskMetadataRepository;
   private final NamedParameterJdbcTemplate jdbcTemplate;
 
+  private RiskLevelResult convertToRiskLevelResult(AmlRiskMetadata amlRisk) {
+    Map<String, Object> metadata = amlRisk.getMetadata() == null ? Map.of() : amlRisk.getMetadata();
+    return new RiskLevelResult(amlRisk.getPersonalId(), amlRisk.getRiskLevel(), metadata);
+  }
+
   public List<RiskLevelResult> getHighRiskRows() {
-    return amlRiskMetadataRepository.findAllByRiskLevel(1).stream()
-        .map(
-            amlRisk -> {
-              Map<String, Object> metadata =
-                  amlRisk.getMetadata() == null ? Map.of() : amlRisk.getMetadata();
-              return new RiskLevelResult(amlRisk.getPersonalId(), amlRisk.getRiskLevel(), metadata);
-            })
+    return amlRiskMetadataRepository.findAllByRiskLevel(HIGH_RISK_LEVEL).stream()
+        .map(this::convertToRiskLevelResult)
+        .toList();
+  }
+
+  public List<RiskLevelResult> getMediumRiskRowsSample(double individualSelectionProbability) {
+    List<AmlRiskMetadata> mediumRiskMetadataList =
+        amlRiskMetadataRepository.findAllByRiskLevel(MEDIUM_RISK_LEVEL);
+
+    if (mediumRiskMetadataList.isEmpty() || individualSelectionProbability <= 0) {
+      return Collections.emptyList();
+    }
+
+    if (individualSelectionProbability >= 1.0) {
+      return mediumRiskMetadataList.stream().map(this::convertToRiskLevelResult).toList();
+    }
+
+    return mediumRiskMetadataList.stream()
+        .filter(metadata -> Math.random() < individualSelectionProbability)
+        .map(this::convertToRiskLevelResult)
         .toList();
   }
 

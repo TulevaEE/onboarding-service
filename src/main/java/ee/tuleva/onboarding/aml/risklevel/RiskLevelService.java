@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobRunEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,17 +24,30 @@ public class RiskLevelService {
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
 
-  public void runRiskLevelCheck() {
+  public void runRiskLevelCheck(double mediumRiskIndividualSelectionProbability) {
     log.info("Refreshing AML risk views");
     amlRiskRepositoryService.refreshMaterializedView();
     log.info("Running AML risk level checks");
-    List<RiskLevelResult> rows = amlRiskRepositoryService.getHighRiskRows();
-    log.info("Running AML risk level checks, identified {} rows", rows.size());
-    createAmlChecks(rows);
+
+    List<RiskLevelResult> highRiskRows = amlRiskRepositoryService.getHighRiskRows();
+    List<RiskLevelResult> mediumRiskSamples =
+        amlRiskRepositoryService.getMediumRiskRowsSample(mediumRiskIndividualSelectionProbability);
+
+    log.info(
+        "Identified {} high-risk rows and {} medium-risk samples (using probability {}) for AML check.",
+        highRiskRows.size(),
+        mediumRiskSamples.size(),
+        String.format("%.8f", mediumRiskIndividualSelectionProbability));
+
+    List<RiskLevelResult> allRowsToProcess = new ArrayList<>(highRiskRows);
+    allRowsToProcess.addAll(mediumRiskSamples);
+
+    log.info("Running AML risk level checks, identified {} total rows", allRowsToProcess.size());
+    createAmlChecks(allRowsToProcess);
   }
 
   private void createAmlChecks(List<RiskLevelResult> rows) {
-    int totalCount = rows.size();
+    int totalRowsForProcessing = rows.size();
 
     int createdCount =
         (int)
@@ -51,11 +65,12 @@ public class RiskLevelService {
                 .count();
 
     log.info(
-        "Ran risk-level check. Total high-risk rows: {}, New AML checks created: {}",
-        totalCount,
+        "Ran risk-level check. Total rows processed: {}, New AML checks created: {}",
+        totalRowsForProcessing,
         createdCount);
 
-    eventPublisher.publishEvent(new AmlRiskLevelJobRunEvent(this, totalCount, createdCount));
+    eventPublisher.publishEvent(
+        new AmlRiskLevelJobRunEvent(this, totalRowsForProcessing, createdCount));
   }
 
   public boolean addCheckIfMissing(AmlCheck amlCheck) {

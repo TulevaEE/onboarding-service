@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml.risklevel;
 
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -16,15 +17,14 @@ class ScheduledRiskLevelCheckJobTest {
 
   @InjectMocks private ScheduledRiskLevelCheckJob scheduledRiskLevelCheckJob;
 
-  @Test
-  void runShouldInvokeRiskLevelService() {
-    scheduledRiskLevelCheckJob.run();
-    verify(riskLevelService, times(1)).runRiskLevelCheck();
-  }
+  private static final double MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY = 0.025;
+  private static final double DAYS_IN_MONTH_ASSUMPTION_FOR_DAILY_RUN = 30.0;
+  private static final double EXPECTED_PROBABILITY_FOR_DAILY_RUN =
+      MONTHLY_MEDIUM_RISK_TARGET_PROBABILITY / DAYS_IN_MONTH_ASSUMPTION_FOR_DAILY_RUN;
 
   @Test
-  void runInitialShouldInvokeRiskLevelService() {
-    scheduledRiskLevelCheckJob.runInitial();
-    verify(riskLevelService, times(1)).runRiskLevelCheck();
+  void runShouldInvokeRiskLevelServiceWithCorrectProbability() {
+    scheduledRiskLevelCheckJob.run();
+    verify(riskLevelService, times(1)).runRiskLevelCheck(eq(EXPECTED_PROBABILITY_FOR_DAILY_RUN));
   }
 }

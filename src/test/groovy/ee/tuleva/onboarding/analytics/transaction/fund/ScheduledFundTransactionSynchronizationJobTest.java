@@ -33,6 +33,8 @@ class ScheduledFundTransactionSynchronizationJobTest extends FixedClockConfig {
   private final String secondPillarIsin = "EE3600109435";
   private final String secondPillarBondIsin = "EE3600109443";
   private final LocalDate today = testLocalDateTime.toLocalDate();
+  private static final int MAX_LOOKBACK_MONTHS = 6;
+  private static final int DEFAULT_LOOKBACK_DAYS = 2;
 
   @BeforeEach
   void setupIsin() {
@@ -56,7 +58,7 @@ class ScheduledFundTransactionSynchronizationJobTest extends FixedClockConfig {
 
   @Test
   void runDailySyncForThirdPillar_whenNoLatestDateExists_callsSynchronizerWithFallbackStartDate() {
-    LocalDate fallbackStartDate = today.minusDays(2);
+    LocalDate fallbackStartDate = today.minusDays(DEFAULT_LOOKBACK_DAYS);
     when(transactionRepository.findLatestTransactionDateByIsin(thirdPillarIsin))
         .thenReturn(Optional.empty());
 
@@ -97,6 +99,63 @@ class ScheduledFundTransactionSynchronizationJobTest extends FixedClockConfig {
   }
 
   @Test
+  void runDailySyncForThirdPillar_whenLatestDateIsOlderThanMaxLookback_capsStartDate() {
+    LocalDate veryOldDate = today.minusMonths(MAX_LOOKBACK_MONTHS + 2);
+    LocalDate expectedStartDate = today.minusMonths(MAX_LOOKBACK_MONTHS);
+    when(transactionRepository.findLatestTransactionDateByIsin(thirdPillarIsin))
+        .thenReturn(Optional.of(veryOldDate));
+
+    job.runDailySyncForThirdPillar();
+
+    verify(transactionRepository).findLatestTransactionDateByIsin(thirdPillarIsin);
+    verify(fundTransactionSynchronizer).sync(eq(thirdPillarIsin), eq(expectedStartDate), eq(today));
+    verifyNoMoreInteractions(fundTransactionSynchronizer, transactionRepository);
+  }
+
+  @Test
+  void runDailySyncForThirdPillar_whenLatestDateIsExactlyMaxLookback_usesLatestDate() {
+    LocalDate exactlyMaxLookbackDate = today.minusMonths(MAX_LOOKBACK_MONTHS);
+    when(transactionRepository.findLatestTransactionDateByIsin(thirdPillarIsin))
+        .thenReturn(Optional.of(exactlyMaxLookbackDate));
+
+    job.runDailySyncForThirdPillar();
+
+    verify(transactionRepository).findLatestTransactionDateByIsin(thirdPillarIsin);
+    verify(fundTransactionSynchronizer)
+        .sync(eq(thirdPillarIsin), eq(exactlyMaxLookbackDate), eq(today));
+    verifyNoMoreInteractions(fundTransactionSynchronizer, transactionRepository);
+  }
+
+  @Test
+  void runDailySyncForThirdPillar_whenLatestDateIsJustUnderMaxLookback_usesLatestDate() {
+    LocalDate justUnderMaxLookbackDate = today.minusMonths(MAX_LOOKBACK_MONTHS).plusDays(1);
+    when(transactionRepository.findLatestTransactionDateByIsin(thirdPillarIsin))
+        .thenReturn(Optional.of(justUnderMaxLookbackDate));
+
+    job.runDailySyncForThirdPillar();
+
+    verify(transactionRepository).findLatestTransactionDateByIsin(thirdPillarIsin);
+    verify(fundTransactionSynchronizer)
+        .sync(eq(thirdPillarIsin), eq(justUnderMaxLookbackDate), eq(today));
+    verifyNoMoreInteractions(fundTransactionSynchronizer, transactionRepository);
+  }
+
+  @Test
+  void
+      runDailySyncForThirdPillar_whenNoLatestDateAndDefaultLookbackIsWithinCap_usesDefaultLookback() {
+    LocalDate expectedStartDate =
+        today.minusDays(DEFAULT_LOOKBACK_DAYS); // DEFAULT_LOOKBACK_DAYS is 2
+    when(transactionRepository.findLatestTransactionDateByIsin(thirdPillarIsin))
+        .thenReturn(Optional.empty());
+
+    job.runDailySyncForThirdPillar();
+
+    verify(transactionRepository).findLatestTransactionDateByIsin(thirdPillarIsin);
+    verify(fundTransactionSynchronizer).sync(eq(thirdPillarIsin), eq(expectedStartDate), eq(today));
+    verifyNoMoreInteractions(fundTransactionSynchronizer, transactionRepository);
+  }
+
+  @Test
   void runDailySyncForSecondPillar_whenLatestDateExists_callsSynchronizerWithCorrectDates() {
     LocalDate latestDate = today.minusDays(1);
     when(transactionRepository.findLatestTransactionDateByIsin(secondPillarIsin))
@@ -111,7 +170,7 @@ class ScheduledFundTransactionSynchronizationJobTest extends FixedClockConfig {
 
   @Test
   void runDailySyncForSecondPillar_whenNoLatestDateExists_callsSynchronizerWithFallbackStartDate() {
-    LocalDate fallbackStartDate = today.minusDays(2);
+    LocalDate fallbackStartDate = today.minusDays(DEFAULT_LOOKBACK_DAYS);
     when(transactionRepository.findLatestTransactionDateByIsin(secondPillarIsin))
         .thenReturn(Optional.empty());
 
@@ -153,6 +212,21 @@ class ScheduledFundTransactionSynchronizationJobTest extends FixedClockConfig {
   }
 
   @Test
+  void runDailySyncForSecondPillar_whenLatestDateIsOlderThanMaxLookback_capsStartDate() {
+    LocalDate veryOldDate = today.minusMonths(MAX_LOOKBACK_MONTHS + 2);
+    LocalDate expectedStartDate = today.minusMonths(MAX_LOOKBACK_MONTHS);
+    when(transactionRepository.findLatestTransactionDateByIsin(secondPillarIsin))
+        .thenReturn(Optional.of(veryOldDate));
+
+    job.runDailySyncForSecondPillar();
+
+    verify(transactionRepository).findLatestTransactionDateByIsin(secondPillarIsin);
+    verify(fundTransactionSynchronizer)
+        .sync(eq(secondPillarIsin), eq(expectedStartDate), eq(today));
+    verifyNoMoreInteractions(fundTransactionSynchronizer, transactionRepository);
+  }
+
+  @Test
   void runDailySyncForSecondPillarBond_whenLatestDateExists_callsSynchronizerWithCorrectDates() {
     LocalDate latestDate = today.minusDays(1);
     when(transactionRepository.findLatestTransactionDateByIsin(secondPillarBondIsin))
@@ -168,7 +242,7 @@ class ScheduledFundTransactionSynchronizationJobTest extends FixedClockConfig {
   @Test
   void
       runDailySyncForSecondPillarBond_whenNoLatestDateExists_callsSynchronizerWithFallbackStartDate() {
-    LocalDate fallbackStartDate = today.minusDays(2);
+    LocalDate fallbackStartDate = today.minusDays(DEFAULT_LOOKBACK_DAYS);
     when(transactionRepository.findLatestTransactionDateByIsin(secondPillarBondIsin))
         .thenReturn(Optional.empty());
 
@@ -206,6 +280,21 @@ class ScheduledFundTransactionSynchronizationJobTest extends FixedClockConfig {
 
     verify(transactionRepository).findLatestTransactionDateByIsin(secondPillarBondIsin);
     verify(fundTransactionSynchronizer).sync(eq(secondPillarBondIsin), eq(latestDate), eq(today));
+    verifyNoMoreInteractions(fundTransactionSynchronizer, transactionRepository);
+  }
+
+  @Test
+  void runDailySyncForSecondPillarBond_whenLatestDateIsOlderThanMaxLookback_capsStartDate() {
+    LocalDate veryOldDate = today.minusMonths(MAX_LOOKBACK_MONTHS + 2);
+    LocalDate expectedStartDate = today.minusMonths(MAX_LOOKBACK_MONTHS);
+    when(transactionRepository.findLatestTransactionDateByIsin(secondPillarBondIsin))
+        .thenReturn(Optional.of(veryOldDate));
+
+    job.runDailySyncForSecondPillarBond();
+
+    verify(transactionRepository).findLatestTransactionDateByIsin(secondPillarBondIsin);
+    verify(fundTransactionSynchronizer)
+        .sync(eq(secondPillarBondIsin), eq(expectedStartDate), eq(today));
     verifyNoMoreInteractions(fundTransactionSynchronizer, transactionRepository);
   }
 }

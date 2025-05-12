@@ -19,6 +19,7 @@ public class ScheduledFundTransactionSynchronizationJob {
   private final FundTransactionRepository transactionRepository;
 
   private static final int DEFAULT_LOOKBACK_DAYS = 2;
+  private static final int MAX_LOOKBACK_MONTHS = 6;
 
   private final String thirdPillarIsin = "EE3600001707";
   private final String secondPillarIsin = "EE3600109435";
@@ -54,7 +55,7 @@ public class ScheduledFundTransactionSynchronizationJob {
     log.debug(
         "Result from findLatestTransactionDateByIsin({}) : {}", isin, latestTransactionDateOpt);
 
-    LocalDate startDate =
+    LocalDate initialStartDate =
         latestTransactionDateOpt.orElseGet(
             () -> {
               log.warn(
@@ -64,9 +65,22 @@ public class ScheduledFundTransactionSynchronizationJob {
               return endDate.minusDays(DEFAULT_LOOKBACK_DAYS);
             });
 
+    LocalDate sixMonthsAgo = endDate.minusMonths(MAX_LOOKBACK_MONTHS);
+    LocalDate startDate = initialStartDate;
+
+    if (initialStartDate.isBefore(sixMonthsAgo)) {
+      log.info(
+          "Initial startDate {} for ISIN {} is more than {} months ago. Capping startDate to {}.",
+          initialStartDate,
+          isin,
+          MAX_LOOKBACK_MONTHS,
+          sixMonthsAgo);
+      startDate = sixMonthsAgo;
+    }
+
     if (endDate.isBefore(startDate)) {
       log.warn(
-          "Calculated endDate {} is before startDate {}. This might happen if the job runs just after midnight before the first transaction of the day. Skipping synchronization for ISIN {} for this run.",
+          "Calculated endDate {} is before startDate {}. This might happen if the job runs just after midnight before the first transaction of the day or due to capping. Skipping synchronization for ISIN {} for this run.",
           endDate,
           startDate,
           isin);

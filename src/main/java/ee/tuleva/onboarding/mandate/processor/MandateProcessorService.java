@@ -64,7 +64,7 @@ public class MandateProcessorService {
   private MandateCommand<?> getMandateCommand(GenericMandateDto<?> mandateDto) {
     final var process =
         createMandateProcess(mandateDto, mandateDto.getDetails().getApplicationType());
-    return new MandateCommand(process.getProcessId(), mandateDto);
+    return new MandateCommand<>(process.getProcessId(), mandateDto);
   }
 
   private void handleMandateCommandResponse(MandateCommandResponse response) {

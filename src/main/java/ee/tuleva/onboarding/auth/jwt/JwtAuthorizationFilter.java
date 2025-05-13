@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.auth.jwt;
 
+import static ee.tuleva.onboarding.auth.jwt.TokenType.*;
+import static ee.tuleva.onboarding.auth.jwt.TokenType.HANDOVER;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
@@ -8,6 +11,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -39,7 +43,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
       }
       try {
         TokenType tokenType = jwtTokenUtil.getTypeFromToken(accessToken);
-        if (tokenType != TokenType.ACCESS) {
+        if (!List.of(ACCESS, HANDOVER).contains(tokenType)) {
           return;
         }
         AuthenticatedPerson principal =

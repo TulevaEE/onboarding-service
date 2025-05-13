@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.auth.jwt
 
-
+import ee.tuleva.onboarding.auth.partner.PartnerPublicKeyConfiguration
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
 import ee.tuleva.onboarding.auth.principal.Person
 import io.jsonwebtoken.ExpiredJwtException
@@ -8,19 +8,26 @@ import org.springframework.core.io.ClassPathResource
 import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import spock.lang.Specification
-import static java.time.temporal.ChronoUnit.*
 
+import java.security.PublicKey
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 
+import static java.time.temporal.ChronoUnit.HOURS
+
 class JwtTokenUtilSpec extends Specification {
 
+  PartnerPublicKeyConfiguration partnerPublicKeyConfiguration = new PartnerPublicKeyConfiguration()
+  PublicKey partnerPublicKey =
+      partnerPublicKeyConfiguration.partnerPublicKey1(new ClassPathResource("test-partner-public-key.pem"))
   private final Clock clock = Clock.fixed(Instant.EPOCH, ZoneId.of("UTC"))
 
   private final JwtTokenUtil jwtTokenUtil = new JwtTokenUtil(
       new ClassPathResource("test-jwt-keystore.p12"),
       "Kalamaja123".toCharArray(),
+      partnerPublicKey,
+      partnerPublicKey,
       clock)
 
   def "generates service token"() {
@@ -100,12 +107,14 @@ class JwtTokenUtilSpec extends Specification {
         JwtTokenUtil pastJwtTokenUtil = new JwtTokenUtil(
             new ClassPathResource("test-jwt-keystore.p12"),
             "Kalamaja123".toCharArray(),
+            partnerPublicKey,
+            partnerPublicKey,
             pastClock)
 
         String token = pastJwtTokenUtil.generateAccessToken(person, authorities)
 
     when:
-        Person parsed = jwtTokenUtil.getPersonFromToken(token)
+        jwtTokenUtil.getPersonFromToken(token)
 
     then:
         thrown(ExpiredJwtException)

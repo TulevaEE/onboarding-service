@@ -27,7 +27,7 @@ class CompositeJwtParserSpec extends Specification {
     result == expectedJws
   }
 
-  def "should throw the last exception if all parsers fail"() {
+  def "should throw the first exception if all parsers fail"() {
     given:
     JwtParser parser1 = Mock()
     JwtParser parser2 = Mock()
@@ -43,7 +43,8 @@ class CompositeJwtParserSpec extends Specification {
 
     then:
     def e = thrown(JwtException)
-    e.message == "Second failure"
+    e.message == "First failure"
+    e.suppressed[0].message == "Second failure"
   }
 
   def "should throw an IllegalArgumentException if no parsers are available"() {

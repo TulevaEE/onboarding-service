@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.config;
 
+import static ee.tuleva.onboarding.auth.authority.Authority.*;
 import static org.springframework.http.HttpMethod.*;
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 import static org.springframework.security.web.util.matcher.RegexRequestMatcher.regexMatcher;
 
-import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +16,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
+// @EnableWebSecurity(debug = true)
 @EnableWebSecurity
 public class SecurityConfiguration {
 
@@ -42,9 +43,9 @@ public class SecurityConfiguration {
                         antMatcher("/error"))
                     .permitAll()
                     .requestMatchers(regexMatcher(GET, "/v1/me/capital"))
-                    .hasAuthority(Authority.MEMBER)
+                    .hasAuthority(MEMBER)
                     .requestMatchers(regexMatcher(GET, "/v1/me/capital/events"))
-                    .hasAuthority(Authority.MEMBER)
+                    .hasAuthority(MEMBER)
                     .requestMatchers(regexMatcher(GET, "/v1/funds.*"))
                     .permitAll()
                     .requestMatchers(regexMatcher(HEAD, "/v1/members"))
@@ -55,8 +56,10 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(regexMatcher(POST, "/v1/payments/notifications.*"))
                     .permitAll()
+                    .requestMatchers(regexMatcher("/v1/pension-account-statement"))
+                    .hasAuthority(PARTNER)
                     .requestMatchers(regexMatcher("/v1/.*"))
-                    .hasAuthority(Authority.USER)
+                    .hasAuthority(USER)
                     .anyRequest()
                     .authenticated())
         .sessionManagement(

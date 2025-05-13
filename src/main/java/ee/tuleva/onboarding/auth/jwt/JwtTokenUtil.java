@@ -4,11 +4,11 @@ import static ee.tuleva.onboarding.auth.jwt.CustomClaims.*;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static java.time.temporal.ChronoUnit.MINUTES;
 
+import ee.tuleva.onboarding.auth.partner.CompositeJwtParser;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import java.security.Key;
 import java.security.KeyStore;
@@ -31,21 +31,32 @@ public class JwtTokenUtil {
   private final Duration ACCESS_TOKEN_VALIDITY = Duration.of(30, MINUTES);
   private final Duration REFRESH_TOKEN_VALIDITY = Duration.of(4, HOURS);
   private final Key signingKey;
-  private final JwtParser jwtParser;
+  private final CompositeJwtParser jwtParser;
   private final Clock clock;
 
   @SneakyThrows
   public JwtTokenUtil(
       @Value("${jwt.keystore}") Resource keystoreResource,
       @Value("${jwt.keystore-password}") char[] keystorePassword,
+      PublicKey partnerPublicKey1,
+      PublicKey partnerPublicKey2,
       Clock clock) {
     this.clock = clock;
     KeyStore keystore = KeyStore.getInstance("PKCS12");
     keystore.load(keystoreResource.getInputStream(), keystorePassword);
     this.signingKey = keystore.getKey("jwt", keystorePassword);
-    PublicKey publicKey = keystore.getCertificate("jwt").getPublicKey();
+    PublicKey ourPublicKey = keystore.getCertificate("jwt").getPublicKey();
     this.jwtParser =
-        Jwts.parser().verifyWith(publicKey).clock(() -> Date.from(clock.instant())).build();
+        new CompositeJwtParser(
+            Jwts.parser().verifyWith(ourPublicKey).clock(() -> Date.from(clock.instant())).build(),
+            Jwts.parser()
+                .verifyWith(partnerPublicKey1)
+                .clock(() -> Date.from(clock.instant()))
+                .build(),
+            Jwts.parser()
+                .verifyWith(partnerPublicKey2)
+                .clock(() -> Date.from(clock.instant()))
+                .build());
   }
 
   public Person getPersonFromToken(String token) {
@@ -125,7 +136,8 @@ public class JwtTokenUtil {
   }
 
   public List<String> getAuthoritiesFromToken(String jwtToken) {
-    return AUTHORITIES.fromClaims(getAllClaimsFromToken(jwtToken));
+    List<String> authorities = AUTHORITIES.fromClaims(getAllClaimsFromToken(jwtToken));
+    return authorities != null ? authorities : List.of();
   }
 
   public TokenType getTypeFromToken(String jwtToken) {

@@ -109,6 +109,9 @@ logging:
 #    org:
 #      hibernate:
 #        SQL: DEBUG
+#    org:
+#      springframework:
+#        security: DEBUG
 
 morningstar:
   host: ${MORNINGSTAR_HOST:localhost}

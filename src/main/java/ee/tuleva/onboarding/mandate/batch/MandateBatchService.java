@@ -72,6 +72,10 @@ public class MandateBatchService {
   public MandateBatch createMandateBatch(
       AuthenticatedPerson authenticatedPerson, MandateBatchDto mandateBatchDto) {
 
+    if (mandateBatchDto.getMandates().isEmpty()) {
+      throw new IllegalArgumentException("Mandate batch must have at least one mandate");
+    }
+
     if (mandateBatchDto.isWithdrawalBatch()) {
       var eligibility = withdrawalEligibilityService.getWithdrawalEligibility(authenticatedPerson);
 

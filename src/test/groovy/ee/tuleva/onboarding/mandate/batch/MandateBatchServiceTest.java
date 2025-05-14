@@ -142,6 +142,20 @@ public class MandateBatchServiceTest {
   }
 
   @Test
+  @DisplayName("throws when creating empty MandateBatch")
+  void createEmptyMandateBatch() {
+    var authenticatedPerson =
+        AuthenticatedPersonFixture.authenticatedPersonFromUser(sampleUser().build()).build();
+
+    var aMandateBatch = MandateBatch.builder().mandates(List.of()).status(INITIALIZED).build();
+    var aMandateBatchDto = MandateBatchDto.from(aMandateBatch);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> mandateBatchService.createMandateBatch(authenticatedPerson, aMandateBatchDto));
+  }
+
+  @Test
   @DisplayName("create MandateBatch")
   void createMandateBatch() {
     var authenticatedPerson =

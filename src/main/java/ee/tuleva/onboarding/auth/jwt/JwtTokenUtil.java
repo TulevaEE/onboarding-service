@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.auth.jwt;
 
+import static ee.tuleva.onboarding.auth.authority.Authority.PARTNER;
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.*;
+import static ee.tuleva.onboarding.auth.jwt.TokenType.*;
 import static java.time.temporal.ChronoUnit.HOURS;
 import static java.time.temporal.ChronoUnit.MINUTES;
 
@@ -33,28 +35,39 @@ public class JwtTokenUtil {
   private final Key signingKey;
   private final CompositeJwtParser jwtParser;
   private final Clock clock;
+  private final String partnerIssuer;
 
   @SneakyThrows
   public JwtTokenUtil(
       @Value("${jwt.keystore}") Resource keystoreResource,
       @Value("${jwt.keystore-password}") char[] keystorePassword,
+      @Value("${partner.issuer}") String partnerIssuer,
+      @Value("${partner.clientId}") String partnerClientId,
       PublicKey partnerPublicKey1,
       PublicKey partnerPublicKey2,
       Clock clock) {
     this.clock = clock;
+    this.partnerIssuer = partnerIssuer;
     KeyStore keystore = KeyStore.getInstance("PKCS12");
     keystore.load(keystoreResource.getInputStream(), keystorePassword);
     this.signingKey = keystore.getKey("jwt", keystorePassword);
     PublicKey ourPublicKey = keystore.getCertificate("jwt").getPublicKey();
+
     this.jwtParser =
         new CompositeJwtParser(
             Jwts.parser().verifyWith(ourPublicKey).clock(() -> Date.from(clock.instant())).build(),
             Jwts.parser()
                 .verifyWith(partnerPublicKey1)
+                .requireIssuer(partnerIssuer)
+                .require(CLIENT_ID.value, partnerClientId)
+                .require(TOKEN_TYPE.value, HANDOVER.name())
                 .clock(() -> Date.from(clock.instant()))
                 .build(),
             Jwts.parser()
                 .verifyWith(partnerPublicKey2)
+                .requireIssuer(partnerIssuer)
+                .require(CLIENT_ID.value, partnerClientId)
+                .require(TOKEN_TYPE.value, HANDOVER.name())
                 .clock(() -> Date.from(clock.instant()))
                 .build());
   }
@@ -83,7 +96,7 @@ public class JwtTokenUtil {
         .claims(
             Map.of(
                 TOKEN_TYPE.value,
-                TokenType.ACCESS,
+                ACCESS,
                 FIRST_NAME.value,
                 person.getFirstName(),
                 LAST_NAME.value,
@@ -105,7 +118,7 @@ public class JwtTokenUtil {
         .claims(
             Map.of(
                 TOKEN_TYPE.value,
-                TokenType.REFRESH,
+                REFRESH,
                 FIRST_NAME.value,
                 person.getFirstName(),
                 LAST_NAME.value,
@@ -135,7 +148,10 @@ public class JwtTokenUtil {
     return ATTRIBUTES.fromClaims(getAllClaimsFromToken(jwtToken));
   }
 
-  public List<String> getAuthoritiesFromToken(String jwtToken) {
+  public List<String> getAuthorities(String jwtToken) {
+    if (HANDOVER.equals(getTypeFromToken(jwtToken))) {
+      return List.of(PARTNER);
+    }
     List<String> authorities = AUTHORITIES.fromClaims(getAllClaimsFromToken(jwtToken));
     return authorities != null ? authorities : List.of();
   }

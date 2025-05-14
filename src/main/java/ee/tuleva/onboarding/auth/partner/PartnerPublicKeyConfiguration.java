@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.auth.partner;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
@@ -29,7 +31,7 @@ public class PartnerPublicKeyConfiguration {
 
   @SneakyThrows
   private PublicKey toPublicKey(byte[] publicKeyBytes) {
-    String key = new String(publicKeyBytes);
+    String key = new String(publicKeyBytes, UTF_8);
     String publicKeyPEM =
         key.replace("-----BEGIN PUBLIC KEY-----", "")
             .replaceAll("\r", "")

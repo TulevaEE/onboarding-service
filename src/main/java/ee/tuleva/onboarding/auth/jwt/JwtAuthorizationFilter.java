@@ -52,7 +52,7 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
                 jwtTokenUtil.getAttributesFromToken(accessToken));
 
         final var authorities =
-            jwtTokenUtil.getAuthoritiesFromToken(accessToken).stream()
+            jwtTokenUtil.getAuthorities(accessToken).stream()
                 .map(SimpleGrantedAuthority::new)
                 .toList();
 

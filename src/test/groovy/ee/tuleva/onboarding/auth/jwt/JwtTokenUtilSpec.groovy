@@ -14,6 +14,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 
+import static ee.tuleva.onboarding.auth.jwt.TokenType.*
 import static java.time.temporal.ChronoUnit.HOURS
 
 class JwtTokenUtilSpec extends Specification {
@@ -21,11 +22,13 @@ class JwtTokenUtilSpec extends Specification {
   PartnerPublicKeyConfiguration partnerPublicKeyConfiguration = new PartnerPublicKeyConfiguration()
   PublicKey partnerPublicKey =
       partnerPublicKeyConfiguration.partnerPublicKey1(new ClassPathResource("test-partner-public-key.pem"))
-  private final Clock clock = Clock.fixed(Instant.EPOCH, ZoneId.of("UTC"))
+  Clock clock = Clock.fixed(Instant.EPOCH, ZoneId.of("UTC"))
 
-  private final JwtTokenUtil jwtTokenUtil = new JwtTokenUtil(
+  JwtTokenUtil jwtTokenUtil = new JwtTokenUtil(
       new ClassPathResource("test-jwt-keystore.p12"),
       "Kalamaja123".toCharArray(),
+      "PARTNER AS",
+      "TULEVA",
       partnerPublicKey,
       partnerPublicKey,
       clock)
@@ -48,10 +51,13 @@ class JwtTokenUtilSpec extends Specification {
     when:
     String token = jwtTokenUtil.generateAccessToken(person, authorities)
     Person parsed = jwtTokenUtil.getPersonFromToken(token)
+    TokenType tokenType = jwtTokenUtil.getTypeFromToken(token)
+
     then:
     parsed.personalCode == "38812121215"
     parsed.firstName == "Peeter"
     parsed.lastName == "Meeter"
+    tokenType == ACCESS
   }
 
   def "generates refresh token"() {
@@ -72,7 +78,7 @@ class JwtTokenUtilSpec extends Specification {
         parsed.personalCode == "38812121215"
         parsed.firstName == "Peeter"
         parsed.lastName == "Meeter"
-        tokenType == TokenType.REFRESH
+        tokenType == REFRESH
   }
 
   def "extracts attributes and authorities from token"() {
@@ -88,11 +94,11 @@ class JwtTokenUtilSpec extends Specification {
     when:
         String token = jwtTokenUtil.generateAccessToken(person, authorities)
         Map<String, String> attributes = jwtTokenUtil.getAttributesFromToken(token)
-        List<String> extractedAuthorities = jwtTokenUtil.getAuthoritiesFromToken(token)
+        List<String> extractedAuthorities = jwtTokenUtil.getAuthorities(token)
 
     then:
         attributes.get("email") == "peeter@meeter.com"
-        extractedAuthorities.contains("USER")
+        extractedAuthorities == ["USER"]
   }
 
   def "handles expired token"() {
@@ -107,6 +113,8 @@ class JwtTokenUtilSpec extends Specification {
         JwtTokenUtil pastJwtTokenUtil = new JwtTokenUtil(
             new ClassPathResource("test-jwt-keystore.p12"),
             "Kalamaja123".toCharArray(),
+            "PARTNER AS",
+            "TULEVA",
             partnerPublicKey,
             partnerPublicKey,
             pastClock)
@@ -119,6 +127,4 @@ class JwtTokenUtilSpec extends Specification {
     then:
         thrown(ExpiredJwtException)
   }
-
-
 }

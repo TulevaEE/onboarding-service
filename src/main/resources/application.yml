@@ -90,6 +90,8 @@ jwt:
 partner:
   publicKey1: "classpath:test-partner-public-key.pem"
   publicKey2: "classpath:test-partner-public-key.pem"
+  issuer: "PARTNER AS"
+  clientId: "TULEVA"
 
 logging:
   level:

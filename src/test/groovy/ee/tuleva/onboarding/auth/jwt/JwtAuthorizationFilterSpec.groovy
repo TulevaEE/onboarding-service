@@ -236,7 +236,7 @@ class JwtAuthorizationFilterSpec extends Specification {
     1 * filterChain.doFilter(request, response)
   }
 
-  def "does not accept partner tokens with wrong authority"() {
+  def "HANDOVER tokens always get PARTNER authority only"() {
     given:
     def token = Jwts.builder()
         .subject("38510309519")

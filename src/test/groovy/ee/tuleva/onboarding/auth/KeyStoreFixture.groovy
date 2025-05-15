@@ -18,11 +18,13 @@ import java.security.cert.X509Certificate
 class KeyStoreFixture {
 
   static final KeyPair keyPair
+  static final KeyPair partnerKeyPair
 
   static {
     KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA")
     keyPairGenerator.initialize(2048)
     keyPair = keyPairGenerator.generateKeyPair()
+    partnerKeyPair = keyPairGenerator.generateKeyPair()
   }
 
   static Resource keyStore() {

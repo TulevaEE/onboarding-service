@@ -6,12 +6,9 @@ import ee.tuleva.onboarding.auth.principal.PersonImpl
 import ee.tuleva.onboarding.auth.principal.PrincipalService
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.UnsupportedJwtException
-import org.springframework.core.io.ByteArrayResource
-import org.springframework.core.io.Resource
 import spock.lang.Specification
 
 import java.security.PublicKey
-import java.security.interfaces.RSAPublicKey
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -19,13 +16,14 @@ import java.time.ZoneId
 import static ee.tuleva.onboarding.auth.GrantType.*
 import static ee.tuleva.onboarding.auth.KeyStoreFixture.getKeyPair
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
+import static ee.tuleva.onboarding.auth.partner.PublicKeyTestHelper.publicKeyToResource
 import static java.time.temporal.ChronoUnit.HOURS
 
 class PartnerAuthProviderSpec extends Specification {
 
-  Resource partnerPublicKey1 = publicKeyToResource(keyPair.public)
-  Resource partnerPublicKey2 = publicKeyToResource(keyPair.public)
-
+  PartnerPublicKeyConfiguration partnerPublicKeyConfiguration = new PartnerPublicKeyConfiguration()
+  PublicKey partnerPublicKey1 = partnerPublicKeyConfiguration.partnerPublicKey1(publicKeyToResource(keyPair.public))
+  PublicKey partnerPublicKey2 = partnerPublicKeyConfiguration.partnerPublicKey2(publicKeyToResource(keyPair.public))
   Clock clock = Clock.fixed(Instant.EPOCH, ZoneId.of("UTC"))
   PrincipalService principalService = Mock()
   PartnerAuthProvider partnerAuthProvider = new PartnerAuthProvider(partnerPublicKey1, partnerPublicKey2, clock, principalService)
@@ -157,16 +155,4 @@ class PartnerAuthProviderSpec extends Specification {
     thrown(UnsupportedJwtException)
   }
 
-  private Resource publicKeyToResource(PublicKey publicKey) {
-    String pem = publicKeyToPemFormat(publicKey)
-    byte[] pemBytes = pem.getBytes()
-    return new ByteArrayResource(pemBytes)
-  }
-
-  private String publicKeyToPemFormat(PublicKey publicKey) {
-    RSAPublicKey rsaPublicKey = (RSAPublicKey) publicKey
-    byte[] encodedKey = rsaPublicKey.getEncoded()
-    String base64Encoded = Base64.getEncoder().encodeToString(encodedKey)
-    return "-----BEGIN PUBLIC KEY-----\r\n" + base64Encoded + "\r\n-----END PUBLIC KEY-----\r\n"
-  }
 }

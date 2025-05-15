@@ -90,6 +90,8 @@ jwt:
 partner:
   publicKey1: "classpath:test-partner-public-key.pem"
   publicKey2: "classpath:test-partner-public-key.pem"
+  issuer: "PARTNER AS"
+  clientId: "TULEVA"
 
 logging:
   level:
@@ -109,6 +111,9 @@ logging:
 #    org:
 #      hibernate:
 #        SQL: DEBUG
+#    org:
+#      springframework:
+#        security: DEBUG
 
 morningstar:
   host: ${MORNINGSTAR_HOST:localhost}

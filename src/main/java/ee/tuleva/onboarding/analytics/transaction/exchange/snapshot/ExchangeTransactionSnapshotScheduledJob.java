@@ -26,11 +26,4 @@ public class ExchangeTransactionSnapshotScheduledJob {
     log.info("Starting monthly exchange transaction snapshot job.");
     exchangeTransactionSnapshotService.takeSnapshot("MONTHLY");
   }
-
-  @Scheduled(cron = "0 36 12 15 5 ?", zone = "Europe/Tallinn")
-  @Transactional
-  public void performInitialSync() {
-    log.info("Starting initial exchange transaction snapshot job.");
-    exchangeTransactionSnapshotService.takeSnapshot("INITIAL");
-  }
 }

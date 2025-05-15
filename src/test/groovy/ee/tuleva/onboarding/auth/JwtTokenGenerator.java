@@ -1,23 +1,22 @@
 package ee.tuleva.onboarding.auth;
 
-import ee.tuleva.onboarding.auth.jwt.TokenType;
-import ee.tuleva.onboarding.auth.principal.Person;
-import io.jsonwebtoken.Jwts;
-import org.springframework.http.HttpHeaders;
-
-import java.io.InputStream;
-import java.security.KeyStore;
-import java.security.PrivateKey;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson;
 import static ee.tuleva.onboarding.auth.authority.Authority.USER;
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.*;
 import static ee.tuleva.onboarding.auth.jwt.TokenType.ACCESS;
 import static ee.tuleva.onboarding.auth.mobileid.MobileIDSession.PHONE_NUMBER;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+
+import ee.tuleva.onboarding.auth.jwt.TokenType;
+import ee.tuleva.onboarding.auth.principal.Person;
+import io.jsonwebtoken.Jwts;
+import java.io.InputStream;
+import java.security.KeyStore;
+import java.security.PrivateKey;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import org.springframework.http.HttpHeaders;
 
 public class JwtTokenGenerator {
 
@@ -45,9 +44,16 @@ public class JwtTokenGenerator {
     return generateJwtToken(person, ACCESS, List.of(USER));
   }
 
-  public static String generateJwtToken(Person person, TokenType tokenType, List<String> authorities) {
+  public static String generateJwtToken(
+      Person person, TokenType tokenType, List<String> authorities) {
     return generateToken(
-        tokenType, authorities, "test-jwt-keystore.p12", "Kalamaja123", "jwt", "Kalamaja123", person);
+        tokenType,
+        authorities,
+        "test-jwt-keystore.p12",
+        "Kalamaja123",
+        "jwt",
+        "Kalamaja123",
+        person);
   }
 
   public static String generateToken(

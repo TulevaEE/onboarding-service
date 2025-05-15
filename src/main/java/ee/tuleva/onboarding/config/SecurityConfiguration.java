@@ -57,7 +57,7 @@ public class SecurityConfiguration {
                     .requestMatchers(regexMatcher(POST, "/v1/payments/notifications.*"))
                     .permitAll()
                     .requestMatchers(regexMatcher("/v1/pension-account-statement"))
-                    .hasAuthority(PARTNER)
+                    .hasAnyAuthority(USER, PARTNER)
                     .requestMatchers(regexMatcher("/v1/.*"))
                     .hasAuthority(USER)
                     .anyRequest()

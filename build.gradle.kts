@@ -6,6 +6,8 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_ERROR
 import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_OUT
 import org.gradle.api.tasks.testing.logging.TestLogEvent.STARTED
 
+val xjc by configurations.creating
+
 buildscript {
     repositories {
         mavenCentral()
@@ -23,6 +25,7 @@ plugins {
     id("com.gorylenko.gradle-git-properties") version "2.5.0"
     id("com.diffplug.spotless") version "7.0.3"
     id("io.freefair.lombok") version "8.13.1"
+    id("org.unbroken-dome.xjc") version "2.0.0"
     jacoco
 }
 
@@ -98,6 +101,8 @@ dependencies {
     implementation("org.decampo:xirr:1.2")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.6")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
+
+    xjc("org.glassfish.jaxb:jaxb-xjc:4.0.4")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.3.1") {
         exclude(group = "org.bouncycastle")
@@ -255,7 +260,43 @@ tasks {
         }
     }
 
+    register<JavaExec>("generateXSDClasses") {
+        group = "code generation"
+        description = "Generates Java classes from XSD files"
+
+        val xsdDir = file("$projectDir/src/main/resources/swedbank")
+        val outputDir = file("$buildDir/generated/swedbank")
+        val rootSchemas =
+            listOf(
+                file("$xsdDir/hgw.xsd") to "ee.swedbank.gateway.request",
+                file("$xsdDir/hgw-response.xsd") to "ee.swedbank.gateway.response",
+            )
+
+        doFirst {
+            outputDir.mkdirs()
+        }
+
+        rootSchemas.forEach { (file, packageName) ->
+
+            classpath = configurations["xjc"]
+            mainClass.set("com.sun.tools.xjc.XJCFacade")
+
+            println(file.absolutePath +" : "+ packageName)
+
+            args =
+                listOf(
+                    "-d",
+                    outputDir.absolutePath,
+                    "-p",
+                    packageName,
+                    file.absolutePath,
+                )
+        }
+    }
+
+
     build {
+        dependsOn("generateXSDClasses")
         dependsOn("setupGitHooks")
     }
 }

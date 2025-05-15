@@ -25,7 +25,6 @@ plugins {
     id("com.gorylenko.gradle-git-properties") version "2.5.0"
     id("com.diffplug.spotless") version "7.0.3"
     id("io.freefair.lombok") version "8.13.1"
-    id("org.unbroken-dome.xjc") version "2.0.0"
     jacoco
 }
 
@@ -260,44 +259,51 @@ tasks {
         }
     }
 
-    register<JavaExec>("generateXSDClasses") {
+    register("generateXSDClasses") {
         group = "code generation"
         description = "Generates Java classes from XSD files"
 
         val xsdDir = file("$projectDir/src/main/resources/swedbank")
-        val outputDir = file("$buildDir/generated/swedbank")
+        val outputDir = file("${layout.buildDirectory.get()}/generated-sources/swedbank")
         val rootSchemas =
             listOf(
                 file("$xsdDir/hgw.xsd") to "ee.swedbank.gateway.request",
                 file("$xsdDir/hgw-response.xsd") to "ee.swedbank.gateway.response",
             )
 
-        doFirst {
+        doLast {
             outputDir.mkdirs()
-        }
 
-        rootSchemas.forEach { (file, packageName) ->
-
-            classpath = configurations["xjc"]
-            mainClass.set("com.sun.tools.xjc.XJCFacade")
-
-            println(file.absolutePath +" : "+ packageName)
-
-            args =
-                listOf(
-                    "-d",
-                    outputDir.absolutePath,
-                    "-p",
-                    packageName,
-                    file.absolutePath,
-                )
+            rootSchemas.forEach { (schemaFile, packageName) ->
+                exec {
+                    executable = "java"
+                    args =
+                        listOf(
+                            "-cp",
+                            configurations["xjc"].asPath,
+                            "com.sun.tools.xjc.XJCFacade",
+                            "-d",
+                            outputDir.absolutePath,
+                            "-p",
+                            packageName,
+                            schemaFile.absolutePath,
+                        )
+                }
+            }
         }
     }
-
 
     build {
         dependsOn("generateXSDClasses")
         dependsOn("setupGitHooks")
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir("${layout.buildDirectory.get()}/generated-sources/swedbank")
+        }
     }
 }
 

@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.config
 
-
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.transaction.annotation.Transactional
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.JwtTokenGenerator.generateJwtToken
@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = MOCK)
 @AutoConfigureMockMvc
 @ActiveProfiles(["test", "mock"])
+@Transactional
 class SecurityConfigurationSpec extends Specification {
 
   @Autowired

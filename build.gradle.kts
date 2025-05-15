@@ -6,6 +6,8 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_ERROR
 import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_OUT
 import org.gradle.api.tasks.testing.logging.TestLogEvent.STARTED
 
+val xjc by configurations.creating
+
 buildscript {
     repositories {
         mavenCentral()
@@ -98,6 +100,8 @@ dependencies {
     implementation("org.decampo:xirr:1.2")
     implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.6")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
+
+    xjc("org.glassfish.jaxb:jaxb-xjc:4.0.4")
 
     implementation("ee.sk.smartid:smart-id-java-client:2.3.1") {
         exclude(group = "org.bouncycastle")
@@ -255,8 +259,51 @@ tasks {
         }
     }
 
+    register("generateXSDClasses") {
+        group = "code generation"
+        description = "Generates Java classes from XSD files"
+
+        val xsdDir = file("$projectDir/src/main/resources/swedbank")
+        val outputDir = file("${layout.buildDirectory.get()}/generated-sources/swedbank")
+        val rootSchemas =
+            listOf(
+                file("$xsdDir/hgw.xsd") to "ee.swedbank.gateway.request",
+                file("$xsdDir/hgw-response.xsd") to "ee.swedbank.gateway.response",
+            )
+
+        doLast {
+            outputDir.mkdirs()
+
+            rootSchemas.forEach { (schemaFile, packageName) ->
+                exec {
+                    executable = "java"
+                    args =
+                        listOf(
+                            "-cp",
+                            configurations["xjc"].asPath,
+                            "com.sun.tools.xjc.XJCFacade",
+                            "-d",
+                            outputDir.absolutePath,
+                            "-p",
+                            packageName,
+                            schemaFile.absolutePath,
+                        )
+                }
+            }
+        }
+    }
+
     build {
+        dependsOn("generateXSDClasses")
         dependsOn("setupGitHooks")
+    }
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir("${layout.buildDirectory.get()}/generated-sources/swedbank")
+        }
     }
 }
 

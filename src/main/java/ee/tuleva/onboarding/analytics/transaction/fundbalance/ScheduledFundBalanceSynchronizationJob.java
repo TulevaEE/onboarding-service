@@ -16,7 +16,7 @@ public class ScheduledFundBalanceSynchronizationJob {
 
   private final FundBalanceSynchronizer fundBalanceSynchronizer;
 
-  @Scheduled(cron = "0 10 4 * * ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 0 18 * * ?", zone = "Europe/Tallinn")
   public void runDailySync() {
     LocalDate syncDate = LocalDate.now(ClockHolder.clock()).minusDays(1);
     log.info("Starting scheduled fund balance synchronization job for previous day {}.", syncDate);

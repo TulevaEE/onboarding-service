@@ -131,7 +131,8 @@ public class JwtTokenUtil {
 
   public String generateServiceToken() {
     return Jwts.builder()
-        .claims(Map.of(TOKEN_TYPE.value, ACCESS, AUTHORITIES.value, List.of(SERVICE)))
+        .claim(TOKEN_TYPE.value, ACCESS)
+        .claim(AUTHORITIES.value, List.of(SERVICE))
         .subject("onboarding-service")
         .issuedAt(Date.from(clock.instant()))
         .expiration(Date.from(clock.instant().plus(ACCESS_TOKEN_VALIDITY)))

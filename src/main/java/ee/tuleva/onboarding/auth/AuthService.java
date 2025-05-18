@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.auth;
 
+import static ee.tuleva.onboarding.auth.jwt.TokenType.REFRESH;
+
 import ee.tuleva.onboarding.auth.authority.GrantedAuthorityFactory;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
-import ee.tuleva.onboarding.auth.jwt.TokenType;
-import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import io.jsonwebtoken.ExpiredJwtException;
 import java.util.List;
@@ -52,17 +52,17 @@ public class AuthService {
   public AuthenticationTokens refreshToken(String refreshToken) {
 
     try {
-      TokenType tokenType = jwtTokenUtil.getTypeFromToken(refreshToken);
-      if (tokenType != TokenType.REFRESH) {
+      var tokenType = jwtTokenUtil.getTypeFromToken(refreshToken);
+      if (tokenType != REFRESH) {
         throw new IllegalArgumentException("Only refresh token is allowed for refresh request.");
       }
 
-      AuthenticatedPerson authenticatedPerson =
+      var authenticatedPerson =
           principalService.getFrom(
               jwtTokenUtil.getPersonFromToken(refreshToken),
               jwtTokenUtil.getAttributesFromToken(refreshToken));
 
-      final var authorities = grantedAuthorityFactory.from(authenticatedPerson);
+      var authorities = grantedAuthorityFactory.from(authenticatedPerson);
       String newAccessToken = jwtTokenUtil.generateAccessToken(authenticatedPerson, authorities);
 
       return new AuthenticationTokens(newAccessToken, refreshToken);

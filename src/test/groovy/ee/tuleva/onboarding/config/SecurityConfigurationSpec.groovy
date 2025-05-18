@@ -55,4 +55,34 @@ class SecurityConfigurationSpec extends Specification {
         .header("Authorization", "Bearer " + jwtToken))
         .andExpect(status().isOk())
   }
+
+  def "invalid token combinations has no extra access"() {
+    given:
+    var jwtToken = generateJwtToken(samplePerson, ACCESS, [PARTNER])
+
+    expect:
+    mvc.perform(get('/v1/pension-account-statement')
+        .header("Authorization", "Bearer " + jwtToken))
+        .andExpect(status().isOk())
+
+    and:
+    mvc.perform(get('/v1/me')
+        .header("Authorization", "Bearer " + jwtToken))
+        .andExpect(status().isForbidden())
+  }
+
+  def "partner cannot add any extra authorities"() {
+    given:
+    var jwtToken = generateJwtToken(samplePerson, HANDOVER, [PARTNER, USER])
+
+    expect:
+    mvc.perform(get('/v1/pension-account-statement')
+        .header("Authorization", "Bearer " + jwtToken))
+        .andExpect(status().isOk())
+
+    and:
+    mvc.perform(get('/v1/me')
+        .header("Authorization", "Bearer " + jwtToken))
+        .andExpect(status().isForbidden())
+  }
 }

@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.auth.jwt;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.PARTNER;
+import static ee.tuleva.onboarding.auth.authority.Authority.SERVICE;
 import static ee.tuleva.onboarding.auth.jwt.CustomClaims.*;
 import static ee.tuleva.onboarding.auth.jwt.TokenType.*;
 import static java.time.temporal.ChronoUnit.HOURS;
@@ -35,7 +36,6 @@ public class JwtTokenUtil {
   private final Key signingKey;
   private final CompositeJwtParser jwtParser;
   private final Clock clock;
-  private final String partnerIssuer;
 
   @SneakyThrows
   public JwtTokenUtil(
@@ -47,7 +47,6 @@ public class JwtTokenUtil {
       PublicKey partnerPublicKey2,
       Clock clock) {
     this.clock = clock;
-    this.partnerIssuer = partnerIssuer;
     KeyStore keystore = KeyStore.getInstance("PKCS12");
     keystore.load(keystoreResource.getInputStream(), keystorePassword);
     this.signingKey = keystore.getKey("jwt", keystorePassword);
@@ -117,16 +116,12 @@ public class JwtTokenUtil {
     return Jwts.builder()
         .claims(
             Map.of(
-                TOKEN_TYPE.value,
-                REFRESH,
-                FIRST_NAME.value,
-                person.getFirstName(),
-                LAST_NAME.value,
-                person.getLastName(),
-                ATTRIBUTES.value,
-                person.getAttributes(),
+                TOKEN_TYPE.value, REFRESH,
+                FIRST_NAME.value, person.getFirstName(),
+                LAST_NAME.value, person.getLastName(),
+                ATTRIBUTES.value, person.getAttributes(),
                 AUTHORITIES.value,
-                authorities.stream().map(GrantedAuthority::getAuthority).toList()))
+                    authorities.stream().map(GrantedAuthority::getAuthority).toList()))
         .subject(person.getPersonalCode())
         .issuedAt(Date.from(clock.instant()))
         .expiration(Date.from(clock.instant().plus(REFRESH_TOKEN_VALIDITY)))
@@ -136,7 +131,7 @@ public class JwtTokenUtil {
 
   public String generateServiceToken() {
     return Jwts.builder()
-        .claims(Map.of(AUTHORITIES.value, List.of()))
+        .claims(Map.of(TOKEN_TYPE.value, ACCESS, AUTHORITIES.value, List.of(SERVICE)))
         .subject("onboarding-service")
         .issuedAt(Date.from(clock.instant()))
         .expiration(Date.from(clock.instant().plus(ACCESS_TOKEN_VALIDITY)))

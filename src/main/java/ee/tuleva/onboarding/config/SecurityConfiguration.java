@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.config;
 
 import static ee.tuleva.onboarding.auth.authority.Authority.*;
 import static org.springframework.http.HttpMethod.*;
+import static org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED;
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
-import static org.springframework.security.web.util.matcher.RegexRequestMatcher.regexMatcher;
 
 import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
 import lombok.SneakyThrows;
@@ -11,7 +11,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -26,48 +25,45 @@ public class SecurityConfiguration {
       HttpSecurity http, JwtAuthorizationFilter jwtAuthorizationFilter) {
     http.csrf(csrf -> csrf.disable())
         .authorizeHttpRequests(
-            requests ->
-                requests
+            authorize ->
+                authorize
                     .requestMatchers(
-                        antMatcher("/"),
-                        antMatcher("/actuator/health"),
-                        antMatcher("/swagger-ui/**"),
-                        antMatcher("/webjars/**"),
-                        antMatcher("/swagger-resources/**"),
-                        antMatcher("/v3/api-docs/**"),
-                        antMatcher("/authenticate"),
-                        antMatcher("/oauth/token"),
-                        antMatcher("/oauth/refresh-token"),
-                        antMatcher("/idLogin"),
-                        antMatcher("/notifications/payments"),
-                        antMatcher("/error"))
+                        "/",
+                        "/actuator/health",
+                        "/swagger-ui/**",
+                        "/webjars/**",
+                        "/swagger-resources/**",
+                        "/v3/api-docs/**",
+                        "/authenticate",
+                        "/oauth/token",
+                        "/oauth/refresh-token",
+                        "/idLogin",
+                        "/notifications/payments",
+                        "/error")
                     .permitAll()
-                    .requestMatchers(regexMatcher(GET, "/v1/me/capital"))
+                    .requestMatchers(GET, "/v1/me/capital")
                     .hasAuthority(MEMBER)
-                    .requestMatchers(regexMatcher(GET, "/v1/me/capital/events"))
+                    .requestMatchers(GET, "/v1/me/capital/events")
                     .hasAuthority(MEMBER)
-                    .requestMatchers(regexMatcher(GET, "/v1/funds.*"))
+                    .requestMatchers(GET, "/v1/funds")
                     .permitAll()
-                    .requestMatchers(regexMatcher(HEAD, "/v1/members"))
+                    .requestMatchers(HEAD, "/v1/members")
                     .permitAll()
-                    .requestMatchers(regexMatcher(GET, "/v1/payments/success.*"))
+                    .requestMatchers(GET, "/v1/payments/success")
                     .permitAll()
-                    .requestMatchers(regexMatcher(GET, "/v1/payments/member-success.*"))
+                    .requestMatchers(GET, "/v1/payments/member-success")
                     .permitAll()
-                    .requestMatchers(regexMatcher(POST, "/v1/payments/notifications.*"))
+                    .requestMatchers(POST, "/v1/payments/notifications")
                     .permitAll()
-                    .requestMatchers(regexMatcher("/v1/pension-account-statement"))
+                    .requestMatchers("/v1/pension-account-statement")
                     .hasAnyAuthority(USER, PARTNER)
-                    .requestMatchers(regexMatcher("/v1/.*"))
+                    .requestMatchers("/v1/**")
                     .hasAuthority(USER)
                     .anyRequest()
                     .authenticated())
         .sessionManagement(
             management ->
-                management
-                    .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                    .sessionFixation()
-                    .newSession())
+                management.sessionCreationPolicy(IF_REQUIRED).sessionFixation().newSession())
         .logout(
             logout ->
                 logout

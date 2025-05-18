@@ -14,7 +14,8 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 
-import static ee.tuleva.onboarding.auth.jwt.TokenType.*
+import static ee.tuleva.onboarding.auth.jwt.TokenType.ACCESS
+import static ee.tuleva.onboarding.auth.jwt.TokenType.REFRESH
 import static java.time.temporal.ChronoUnit.HOURS
 
 class JwtTokenUtilSpec extends Specification {
@@ -37,7 +38,7 @@ class JwtTokenUtilSpec extends Specification {
     when:
     String token = jwtTokenUtil.generateServiceToken()
     then:
-    token == "eyJhbGciOiJSUzI1NiJ9.eyJ0b2tlblR5cGUiOiJBQ0NFU1MiLCJhdXRob3JpdGllcyI6WyJTRVJWSUNFIl0sInN1YiI6Im9uYm9hcmRpbmctc2VydmljZSIsImlhdCI6MCwiZXhwIjoxODAwfQ.O5zwOqkAfeRxi5WNvabdc_oNawRzHs7AjC9pdxdU3p0WtOd7KxqdgxryNFK3GHhkRgRIi7V7lCcHBRrrsIlRFCa78C3Q-2D6rXucpcqtvDCG1kNSyOK_OkCpdvmONjNrPYlDZY5KIc-0KB7I9uFf_qssm1qoha094hAXnUFzEQpHll2zZtgMiVIGGF-rnBdupP6KtS5X8t9JSFliiZxFTSUf15QwNv25YJEIbgPnUA4C9UrdQyUU2bSKU8eUHzHHUuabN6YAzTgS0Kw46WyaAe4ucP2hXkYzS1Xeg2dTEG-re49fSNaHq-5QiLHrfl45ztp6ZzjiGH18ix9pW2jCdA"
+    token == "eyJhbGciOiJSUzI1NiJ9.eyJhdXRob3JpdGllcyI6WyJTRVJWSUNFIl0sInRva2VuVHlwZSI6IkFDQ0VTUyIsInN1YiI6Im9uYm9hcmRpbmctc2VydmljZSIsImlhdCI6MCwiZXhwIjoxODAwfQ.m7zozhdt1z89GV7kCqtpZ-fvUItQ49w1frNTGcBujmP4P00SstUqASyH8C58lCT63cIYd5W79FYBXmX5mwMn9QBM14stdCtpFEa96WPVdQlJwbp5MOKm8-jY6anmW9I1Dz7NyIoGfLYhZktJ-dumc5qTNbfl3TTQBssl75wx-cISIu9ne4PrHqd9ZKv9kQBeC9xgK6sAiXqVc4rpArQspP8dhkvPn47c4XU-Cr_ePg8nXinZU_x3NAaiLQ4z90qyYdDlku9f1NA0CwsXIbqGCTnIlZuhO1Az_xZDr7u0qGTh2pDe_b3Ss_bzEa6m1uKL0YLHuh935W2lTW8Ww6mGcQ"
   }
 
   def "generates user token"() {

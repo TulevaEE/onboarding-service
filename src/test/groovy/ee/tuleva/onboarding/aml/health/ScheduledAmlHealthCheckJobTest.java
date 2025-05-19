@@ -3,9 +3,6 @@ package ee.tuleva.onboarding.aml.health;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.aml.AmlCheckType;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -22,12 +19,11 @@ class ScheduledAmlHealthCheckJobTest {
   @InjectMocks private ScheduledAmlHealthCheckJob scheduledJob;
 
   private static final Set<AmlCheckType> SKIPPED_IN_JOB =
-      Collections.unmodifiableSet(
-          new HashSet<>(
-              Arrays.asList(
-                  AmlCheckType.POLITICALLY_EXPOSED_PERSON_OVERRIDE,
-                  AmlCheckType.RISK_LEVEL_OVERRIDE,
-                  AmlCheckType.SANCTION_OVERRIDE)));
+      Set.of(
+          AmlCheckType.POLITICALLY_EXPOSED_PERSON_OVERRIDE,
+          AmlCheckType.RISK_LEVEL_OVERRIDE,
+          AmlCheckType.RISK_LEVEL_OVERRIDE_CONFIRMATION,
+          AmlCheckType.SANCTION_OVERRIDE);
 
   @Test
   @DisplayName("checkForDelayedAmlChecks logs error when a type is delayed")

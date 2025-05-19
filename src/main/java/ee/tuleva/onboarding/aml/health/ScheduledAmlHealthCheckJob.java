@@ -2,8 +2,6 @@ package ee.tuleva.onboarding.aml.health;
 
 import ee.tuleva.onboarding.aml.AmlCheckType;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -21,12 +19,11 @@ public class ScheduledAmlHealthCheckJob {
   private final AmlHealthSanityService amlHealthSanityService;
 
   private static final Set<AmlCheckType> SKIPPED_CHECK_TYPES =
-      Collections.unmodifiableSet(
-          new HashSet<>(
-              Arrays.asList(
-                  AmlCheckType.POLITICALLY_EXPOSED_PERSON_OVERRIDE,
-                  AmlCheckType.RISK_LEVEL_OVERRIDE,
-                  AmlCheckType.SANCTION_OVERRIDE)));
+      Set.of(
+          AmlCheckType.POLITICALLY_EXPOSED_PERSON_OVERRIDE,
+          AmlCheckType.RISK_LEVEL_OVERRIDE,
+          AmlCheckType.RISK_LEVEL_OVERRIDE_CONFIRMATION,
+          AmlCheckType.SANCTION_OVERRIDE);
 
   @Scheduled(cron = "0 0 * * * ?", zone = "Europe/Tallinn")
   public void checkForDelayedAmlChecks() {

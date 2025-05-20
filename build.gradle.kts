@@ -203,7 +203,8 @@ tasks {
         violationRules {
             rule {
                 element = "PACKAGE"
-                includes = listOf("ee.tuleva.onboarding.aml")
+                includes =
+                    listOf("ee.tuleva.onboarding.aml", "ee.tuleva.onboarding.aml.*", "ee.tuleva.onboarding.aml.**")
 
                 limit {
                     counter = "CLASS"
@@ -237,7 +238,12 @@ tasks {
             }
             rule {
                 element = "PACKAGE"
-                includes = listOf("ee.tuleva.onboarding.deadline")
+                includes =
+                    listOf(
+                        "ee.tuleva.onboarding.deadline",
+                        "ee.tuleva.onboarding.deadline.*",
+                        "ee.tuleva.onboarding.deadline.**",
+                    )
 
                 limit {
                     counter = "CLASS"

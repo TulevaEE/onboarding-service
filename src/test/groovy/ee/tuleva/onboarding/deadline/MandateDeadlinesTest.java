@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.deadline;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.time.Clock;
@@ -260,11 +261,19 @@ public class MandateDeadlinesTest {
 
   @Test
   void testGetCurrentPeriodStartDateWhenPeriodEndingIsJuly31() {
-    Instant applicationDate = Instant.parse("2021-04-15T10:00:00Z");
+    Instant applicationDate =
+        Instant.parse("2021-04-15T10:00:00Z"); // Application after Mar 31, before Jul 31
     Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
     MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
-
     assertEquals(LocalDate.parse("2021-04-01"), deadlines.getCurrentPeriodStartDate());
+  }
+
+  @Test
+  void testGetCurrentPeriodStartDateWhenPeriodEndingIsNovember30() {
+    Instant applicationDate = Instant.parse("2021-08-15T10:00:00Z");
+    Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
+    MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
+    assertEquals(LocalDate.parse("2021-08-01"), deadlines.getCurrentPeriodStartDate());
   }
 
   @Test
@@ -272,7 +281,6 @@ public class MandateDeadlinesTest {
     Instant applicationDate = Instant.parse("2021-12-01T10:00:00Z");
     Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
     MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
-
     assertEquals(LocalDate.parse("2021-12-01"), deadlines.getCurrentPeriodStartDate());
   }
 
@@ -346,5 +354,86 @@ public class MandateDeadlinesTest {
     Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
     MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
     assertEquals(applicationDate, deadlines.getNonCancellableApplicationDeadline());
+  }
+
+  @Test
+  void getFulfillmentDate_withNullApplicationType_throwsIllegalArgumentException() {
+    Instant applicationDate = Instant.parse("2021-01-15T10:00:00Z");
+    Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
+    MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> deadlines.getFulfillmentDate(null),
+            "Expected getFulfillmentDate(null) to throw IllegalArgumentException");
+    assertEquals("Application type cannot be null", exception.getMessage());
+  }
+
+  @Test
+  void getCancellationDeadline_withNullApplicationType_throwsIllegalArgumentException() {
+    Instant applicationDate = Instant.parse("2021-01-15T10:00:00Z");
+    Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
+    MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> deadlines.getCancellationDeadline(null),
+            "Expected getCancellationDeadline(null) to throw IllegalArgumentException");
+    assertEquals("Application type cannot be null", exception.getMessage());
+  }
+
+  @Test
+  void getFulfillmentDate_withUnknownApplicationType_throwsIllegalArgumentException() {
+    Instant applicationDate = Instant.parse("2021-01-15T10:00:00Z");
+    Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
+    MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
+    ApplicationType unknownType = ApplicationType.SELECTION;
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> deadlines.getFulfillmentDate(unknownType));
+    assertEquals("Unknown application type: " + unknownType, exception.getMessage());
+  }
+
+  @Test
+  void getCancellationDeadline_withUnknownApplicationType_throwsIllegalArgumentException() {
+    Instant applicationDate = Instant.parse("2021-01-15T10:00:00Z");
+    Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
+    MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
+    ApplicationType unknownType = ApplicationType.SELECTION;
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> deadlines.getCancellationDeadline(unknownType));
+    assertEquals("Unknown application type: " + unknownType, exception.getMessage());
+  }
+
+  @Test
+  void getFulfillmentDate_withCancellationApplicationType_throwsIllegalArgumentException() {
+    Instant applicationDate = Instant.parse("2021-01-15T10:00:00Z");
+    Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
+    MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
+    ApplicationType cancellationType = ApplicationType.CANCELLATION;
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class, () -> deadlines.getFulfillmentDate(cancellationType));
+    assertEquals("Unknown application type: " + cancellationType, exception.getMessage());
+  }
+
+  @Test
+  void getCancellationDeadline_withCancellationApplicationType_throwsIllegalArgumentException() {
+    Instant applicationDate = Instant.parse("2021-01-15T10:00:00Z");
+    Clock clock = Clock.fixed(applicationDate, ZoneId.of("Europe/Tallinn"));
+    MandateDeadlines deadlines = new MandateDeadlines(clock, publicHolidays, applicationDate);
+    ApplicationType cancellationType = ApplicationType.CANCELLATION;
+
+    IllegalArgumentException exception =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> deadlines.getCancellationDeadline(cancellationType));
+    assertEquals("Unknown application type: " + cancellationType, exception.getMessage());
   }
 }

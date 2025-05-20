@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.deadline;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull; // Added for basic check
 
 import java.time.Clock;
 import java.time.Instant;
@@ -24,9 +25,31 @@ public class MandateDeadlinesServiceTest {
   }
 
   @Test
-  void canGetMandateDeadlines() {
+  void canGetMandateDeadlines_usesCurrentTimeFromClock() {
     MandateDeadlines deadlines = service.getDeadlines();
 
+    assertNotNull(deadlines);
+    assertEquals(Instant.parse("2021-03-31T23:59:59.999999999Z"), deadlines.getPeriodEnding());
+    assertEquals(
+        Instant.parse("2021-03-31T23:59:59.999999999Z"),
+        deadlines.getTransferMandateCancellationDeadline());
+    assertEquals(LocalDate.parse("2021-05-03"), deadlines.getTransferMandateFulfillmentDate());
+    assertEquals(
+        Instant.parse("2021-07-31T23:59:59.999999999Z"),
+        deadlines.getEarlyWithdrawalCancellationDeadline());
+    assertEquals(LocalDate.parse("2021-09-01"), deadlines.getEarlyWithdrawalFulfillmentDate());
+    assertEquals(
+        Instant.parse("2021-03-31T23:59:59.999999999Z"),
+        deadlines.getWithdrawalCancellationDeadline());
+    assertEquals(LocalDate.parse("2021-04-16"), deadlines.getWithdrawalFulfillmentDate());
+  }
+
+  @Test
+  void canGetMandateDeadlines_withSpecificApplicationDate() {
+    Instant specificApplicationDate = Instant.parse("2021-03-11T10:00:00Z");
+    MandateDeadlines deadlines = service.getDeadlines(specificApplicationDate);
+
+    assertNotNull(deadlines);
     assertEquals(Instant.parse("2021-03-31T23:59:59.999999999Z"), deadlines.getPeriodEnding());
     assertEquals(
         Instant.parse("2021-03-31T23:59:59.999999999Z"),

@@ -203,7 +203,7 @@ tasks {
         violationRules {
             rule {
                 element = "PACKAGE"
-                includes = listOf("ee.tuleva.onboarding.aml.*")
+                includes = listOf("ee.tuleva.onboarding.aml")
 
                 limit {
                     counter = "CLASS"
@@ -220,7 +220,41 @@ tasks {
                 limit {
                     counter = "LINE"
                     value = "COVEREDRATIO"
-                    minimum = "0.97".toBigDecimal()
+                    minimum = "1.0".toBigDecimal()
+                }
+
+                limit {
+                    counter = "BRANCH"
+                    value = "COVEREDRATIO"
+                    minimum = "0.9".toBigDecimal()
+                }
+
+                limit {
+                    counter = "INSTRUCTION"
+                    value = "COVEREDRATIO"
+                    minimum = "1.0".toBigDecimal()
+                }
+            }
+            rule {
+                element = "PACKAGE"
+                includes = listOf("ee.tuleva.onboarding.deadline")
+
+                limit {
+                    counter = "CLASS"
+                    value = "COVEREDRATIO"
+                    minimum = "1.0".toBigDecimal()
+                }
+
+                limit {
+                    counter = "METHOD"
+                    value = "COVEREDRATIO"
+                    minimum = "1.0".toBigDecimal()
+                }
+
+                limit {
+                    counter = "LINE"
+                    value = "COVEREDRATIO"
+                    minimum = "1.0".toBigDecimal()
                 }
 
                 limit {
@@ -232,7 +266,7 @@ tasks {
                 limit {
                     counter = "INSTRUCTION"
                     value = "COVEREDRATIO"
-                    minimum = "0.97".toBigDecimal()
+                    minimum = "1.0".toBigDecimal()
                 }
             }
         }

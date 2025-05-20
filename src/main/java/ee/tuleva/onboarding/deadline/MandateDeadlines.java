@@ -11,7 +11,9 @@ import java.time.Month;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 
 @RequiredArgsConstructor
 public class MandateDeadlines {
@@ -56,25 +58,27 @@ public class MandateDeadlines {
     ZonedDateTime zonedApplicationDate = applicationDate.atZone(timeZone);
     int applicationYear = zonedApplicationDate.getYear();
 
+    Map<ZonedDateTime, LocalDate> previousDeadlineMap =
+        getZonedDateTimeLocalDateMap(applicationYear);
+
+    LocalDate previousDeadline = previousDeadlineMap.get(currentPeriodEnd);
+
+    return previousDeadline.plusDays(1);
+  }
+
+  @NotNull
+  private Map<ZonedDateTime, LocalDate> getZonedDateTimeLocalDateMap(int applicationYear) {
     ZonedDateTime[] deadlines = getDeadlineCandidates();
     ZonedDateTime march31 = deadlines[0];
     ZonedDateTime july31 = deadlines[1];
     ZonedDateTime november30 = deadlines[2];
     ZonedDateTime march31NextYear = deadlines[3];
 
-    LocalDate previousDeadline;
-    if (currentPeriodEnd.equals(march31)) {
-      previousDeadline = LocalDate.of(applicationYear - 1, Month.NOVEMBER, 30);
-    } else if (currentPeriodEnd.equals(july31)) {
-      previousDeadline = march31.toLocalDate();
-    } else if (currentPeriodEnd.equals(november30)) {
-      previousDeadline = july31.toLocalDate();
-    } else if (currentPeriodEnd.equals(march31NextYear)) {
-      previousDeadline = november30.toLocalDate();
-    } else {
-      throw new IllegalStateException("Unknown period ending encountered.");
-    }
-    return previousDeadline.plusDays(1);
+    return Map.of(
+        march31, LocalDate.of(applicationYear - 1, Month.NOVEMBER, 30),
+        july31, march31.toLocalDate(),
+        november30, july31.toLocalDate(),
+        march31NextYear, november30.toLocalDate());
   }
 
   public LocalDate getSecondPillarContributionEndDate() {
@@ -133,6 +137,9 @@ public class MandateDeadlines {
   }
 
   public LocalDate getFulfillmentDate(ApplicationType applicationType) {
+    if (applicationType == null) {
+      throw new IllegalArgumentException("Application type cannot be null");
+    }
     return switch (applicationType) {
       case TRANSFER -> getTransferMandateFulfillmentDate();
       case WITHDRAWAL,
@@ -148,6 +155,9 @@ public class MandateDeadlines {
   }
 
   public Instant getCancellationDeadline(ApplicationType applicationType) {
+    if (applicationType == null) {
+      throw new IllegalArgumentException("Application type cannot be null");
+    }
     return switch (applicationType) {
       case TRANSFER -> getTransferMandateCancellationDeadline();
       case WITHDRAWAL,

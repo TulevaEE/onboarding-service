@@ -115,6 +115,10 @@ curl --location --request POST 'https://pension.tuleva.ee/api/oauth/token' \
 ```
 and then [update the token values](https://github.com/TulevaEE/wordpress-theme/commit/1796c1ba7c926847ff0edb3b9f8a61e273d40018) in the WordPress Tuleva template.
 
+### Swedbank Gateway certificates
+Download `swedbank-gateway.p12` from `tuleva-secrets/staging` from `S3` and place it in `test_keys`.
+
+
 ### Testing ID-card Locally
 
 In order to test ID-card locally, you need to run nginx locally with the right certificates and the right domain names.
@@ -158,6 +162,7 @@ We use AWS Client VPN. To get started, log into [AWS SSO Portal](https://tuleva.
 
 ### Development Environment
 Configuration is available AWS S3 `s3://tulevasecrets/development-configuration/`
+
 
 
 ## Certificate upgrade

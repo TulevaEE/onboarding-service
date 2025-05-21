@@ -28,4 +28,4 @@ nbdist/
 .DS_store
 
 
-src/main/resources/swedbank/*.p12
+test_keys/*.p12

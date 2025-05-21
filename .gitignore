@@ -26,3 +26,6 @@ nbdist/
 .nb-gradle/
 
 .DS_store
+
+
+src/main/resources/swedbank/*.p12

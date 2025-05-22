@@ -57,6 +57,13 @@ truststore:
   path: "test_keys/truststore.jks"
   password: changeit
 
+swedbank-gateway:
+  keystore:
+    path: "test_keys/swedbank-gateway.p12"
+    password: changeit
+  url: 'https://psd2.api.swedbank.com/partner/sandbox/v1/sgw/'
+  client-id: ${SWEDBANK_GATEWAY_CLIENT_ID}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui
@@ -210,6 +217,14 @@ smartid:
 
 truststore:
   path: "/home/webapp/truststore.jks"
+
+swedbank-gateway:
+  keystore:
+    path: "file:/swedbank-gateway.p12"
+    password: ${SWEDBANK_GATEWAY_KEYSTORE_PASSWORD}
+  client-id: ${SWEDBANK_GATEWAY_CLIENT_ID}
+  url: ''
+
 
 epis:
   service:

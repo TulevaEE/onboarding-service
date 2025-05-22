@@ -26,3 +26,6 @@ nbdist/
 .nb-gradle/
 
 .DS_store
+
+
+test_keys/*.p12

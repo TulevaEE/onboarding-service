@@ -20,6 +20,7 @@ public class RestResponseErrorHandler extends DefaultResponseErrorHandler {
   @Override
   public void handleError(ClientHttpResponse response) throws IOException {
     HttpStatusCode statusCode = response.getStatusCode();
+    // TODO make this logic apply only for epis service
     if (statusCode.is4xxClientError() || statusCode == HttpStatus.INTERNAL_SERVER_ERROR) {
       ErrorsResponse errorsResponse = mapper.readValue(response.getBody(), ErrorsResponse.class);
       throw new ErrorsResponseException(errorsResponse);

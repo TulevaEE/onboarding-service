@@ -55,6 +55,7 @@ jobs:
           command: |
             PATHS_TO_WATCH=(
                 "src/main/resources/templates"
+                "src/main/java/ee/tuleva/onboarding/payment/recurring"
             )
 
             echo "Monitoring paths on branch $CIRCLE_BRANCH:"

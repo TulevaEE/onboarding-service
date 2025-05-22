@@ -9,9 +9,7 @@ import ee.tuleva.onboarding.auth.mobileid.MobileIdFixture
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
 import ee.tuleva.onboarding.auth.smartid.SmartIdAuthService
 import ee.tuleva.onboarding.auth.smartid.SmartIdFixture
-import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
-import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.test.web.servlet.MockMvc
 
 import static ee.tuleva.onboarding.auth.GrantType.PARTNER
@@ -39,55 +37,50 @@ class AuthControllerSpec extends BaseControllerSpec {
     1 * mobileIdAuthService.startLogin(MobileIdFixture.samplePhoneNumber, MobileIdFixture.sampleIdCode) >> MobileIdFixture.sampleMobileIdSession
     1 * sessionStore.save(_ as MobileIDSession)
     when:
-    MockHttpServletResponse response = mockMvc
-        .perform(post("/authenticate")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(mapper.writeValueAsString(sampleMobileIdAuthenticateCommand()))).andReturn().response
+    def result = mockMvc.perform(post("/authenticate")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(mapper.writeValueAsString(sampleMobileIdAuthenticateCommand())))
     then:
-    response.status == HttpStatus.OK.value()
+    result.andExpect(status().isOk())
   }
 
   def "Authenticate: Initiate smart id authentication"() {
     given:
     1 * smartIdAuthService.startLogin(SmartIdFixture.personalCode) >> SmartIdFixture.sampleSmartIdSession
     when:
-    MockHttpServletResponse response = mockMvc
-        .perform(post("/authenticate")
-            .contentType(MediaType.APPLICATION_JSON)
-            .content(mapper.writeValueAsString(sampleSmartIdAuthenticateCommand()))).andReturn().response
+    def result = mockMvc.perform(post("/authenticate")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(mapper.writeValueAsString(sampleSmartIdAuthenticateCommand())))
     then:
-    response.status == HttpStatus.OK.value()
+    result.andExpect(status().isOk())
   }
 
   def "Authenticate: throw exception when no cert sent"() {
     when:
-    MockHttpServletResponse response = mockMvc
-        .perform(post("/idLogin")
-            .header("ssl-client-verify", "NONE")).andReturn().response
+    def result = mockMvc.perform(post("/idLogin")
+        .header("ssl-client-verify", "NONE"))
     then:
-    response.status == HttpStatus.BAD_REQUEST.value()
+    result.andExpect(status().isBadRequest())
     0 * idCardAuthService.checkCertificate(_)
   }
 
   def "Authenticate: check successfully verified id card certificate"() {
     when:
-    MockHttpServletResponse response = mockMvc
-        .perform(post("/idLogin")
-            .header("ssl-client-verify", "SUCCESS")
-            .header("ssl-client-cert", "test_cert")).andReturn().response
+    def result = mockMvc.perform(post("/idLogin")
+        .header("ssl-client-verify", "SUCCESS")
+        .header("ssl-client-cert", "test_cert"))
     then:
-    response.status == HttpStatus.OK.value()
+    result.andExpect(status().isOk())
     1 * idCardAuthService.checkCertificate("test_cert")
   }
 
   def "Authenticate: redirect successful id card login back to the app when using the GET method"() {
     when:
-    MockHttpServletResponse response = mockMvc
-        .perform(get("/idLogin")
-            .header("ssl-client-verify", "SUCCESS")
-            .header("ssl-client-cert", "test_cert")).andReturn().response
+    def result = mockMvc.perform(get("/idLogin")
+        .header("ssl-client-verify", "SUCCESS")
+        .header("ssl-client-cert", "test_cert"))
     then:
-    response.status == HttpStatus.FOUND.value()
+    result.andExpect(status().isFound())
     1 * idCardAuthService.checkCertificate("test_cert")
   }
 
@@ -118,13 +111,12 @@ class AuthControllerSpec extends BaseControllerSpec {
         String invalidRequestBody = "{}"
 
     when:
-        MockHttpServletResponse response = mockMvc
-            .perform(post("/authenticate")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(invalidRequestBody)).andReturn().response
+        def result = mockMvc.perform(post("/authenticate")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(invalidRequestBody))
 
     then:
-        response.status == HttpStatus.BAD_REQUEST.value()
+        result.andExpect(status().isBadRequest())
   }
 
   def "Refresh Access Token: successfully refresh token"() {
@@ -136,15 +128,15 @@ class AuthControllerSpec extends BaseControllerSpec {
         authService.refreshToken(validRefreshToken) >> refreshedTokens
 
     when:
-        MockHttpServletResponse response = mockMvc
-            .perform(post("/oauth/refresh-token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"refresh_token\":\"${validRefreshToken}\"}")).andReturn().response
+        def result = mockMvc.perform(post("/oauth/refresh-token")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""{"refresh_token":"${validRefreshToken}"}"""))
 
     then:
-        response.status == HttpStatus.OK.value()
-        response.contentAsString.contains(newAccessToken)
-        response.contentAsString.contains(newRefreshToken)
+        result
+            .andExpect(status().isOk())
+            .andExpect(jsonPath('$.access_token', is(newAccessToken)))
+            .andExpect(jsonPath('$.refresh_token', is(newRefreshToken)))
   }
 
   def "Refresh Access Token: handle expired refresh token"() {
@@ -153,13 +145,12 @@ class AuthControllerSpec extends BaseControllerSpec {
         authService.refreshToken(expiredRefreshToken) >> { throw new ExpiredRefreshJwtException() }
 
     when:
-        MockHttpServletResponse response = mockMvc
-            .perform(post("/oauth/refresh-token")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"refresh_token\":\"${expiredRefreshToken}\"}")).andReturn().response
+        def result = mockMvc.perform(post("/oauth/refresh-token")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content("""{"refresh_token":"${expiredRefreshToken}"}"""))
 
     then:
-        response.status == HttpStatus.FORBIDDEN.value()
+        result.andExpect(status().isForbidden())
   }
 
   private static sampleMobileIdAuthenticateCommand() {

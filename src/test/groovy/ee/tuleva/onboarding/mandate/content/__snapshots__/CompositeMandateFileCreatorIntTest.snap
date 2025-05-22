@@ -810,7 +810,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
   }
 
   table td, table th {
-    padding: 0
+    padding: 0;
   }
 
   .c2 {

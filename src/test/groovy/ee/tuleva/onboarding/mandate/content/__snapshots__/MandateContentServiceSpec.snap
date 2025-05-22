@@ -3897,7 +3897,7 @@ payment_rate_change=[
   }
 
   table td, table th {
-    padding: 0
+    padding: 0;
   }
 
   .c2 {

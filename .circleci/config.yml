@@ -191,14 +191,14 @@ workflows:
               only: master
 
       - deploy-staging:
-          requires: [ aws-ecr/build_and_push_image ]
+          requires: [ build_and_push_image ]
           context: aws
           filters:
             branches:
               only: master
 
       - deploy-production:
-          requires: [ aws-ecr/build_and_push_image ]
+          requires: [ build_and_push_image ]
           context: aws
           filters:
             branches:

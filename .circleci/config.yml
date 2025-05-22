@@ -44,6 +44,68 @@ jobs:
           root: .
           paths:
             - build
+
+  flag-for-additional-review:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Check for changes in monitored files on master branch
+          command: |
+            PATHS_TO_WATCH=(
+                "src/main/resources/templates"
+            )
+
+            echo "Monitoring paths on branch $CIRCLE_BRANCH:"
+            for path_item in "${PATHS_TO_WATCH[@]}"; do
+                echo "- ${path_item}"
+            done
+            
+            CHANGED_FILES_OUTPUT=""
+
+            if git rev-parse --verify HEAD~1 > /dev/null 2>&1; then
+                echo "Comparing HEAD with HEAD~1 for monitored paths."
+                CHANGED_FILES_OUTPUT=$(git diff --name-only HEAD~1 HEAD -- "${PATHS_TO_WATCH[@]}")
+            else
+                echo "No parent commit found (HEAD~1 does not exist). Skipping diff."
+            fi
+
+            if [ -n "$CHANGED_FILES_OUTPUT" ]; then
+                echo "=============================================================================="
+                echo "NOTICE: Files requiring additional review changed in monitored paths on master branch!"
+                echo "Files changed:"
+                echo "${CHANGED_FILES_OUTPUT}"
+                echo "=============================================================================="
+            
+                COMMIT_INFO_URL="$CIRCLE_BUILD_URL"
+                COMMIT_SHA_SHORT=$(echo "$CIRCLE_SHA1" | cut -c1-7)
+                MESSAGE_CONTEXT="Branch: $CIRCLE_BRANCH (master), Commit: $COMMIT_SHA_SHORT, Triggered by: $CIRCLE_USERNAME."
+
+                NOTIFICATION_MESSAGE="Additional review requested for changes in monitored paths on the master branch.\nDetails: $MESSAGE_CONTEXT\nFiles:\n${CHANGED_FILES_OUTPUT}\nPlease review: $COMMIT_INFO_URL"
+            
+                echo -e "\n--- NOTIFICATION PAYLOAD ---"
+                echo -e "$NOTIFICATION_MESSAGE"
+                echo -e "--- END NOTIFICATION PAYLOAD ---\n"
+
+                JSON_ESCAPED_MESSAGE=$(echo "$NOTIFICATION_MESSAGE" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+                TARGET_CHANNEL="review-changes" 
+
+                if [ -n "$SLACK_REVIEW_CHANGES_WEBHOOK_URL" ]; then # Using your new variable name
+                  PAYLOAD="{\"text\":\"${JSON_ESCAPED_MESSAGE}\", \"channel\":\"${TARGET_CHANNEL}\"}"
+                  curl -X POST -H 'Content-type: application/json' --data "$PAYLOAD" "$SLACK_REVIEW_CHANGES_WEBHOOK_URL"
+                  echo "Slack notification attempt sent to channel: ${TARGET_CHANNEL}."
+                else
+                  echo "SLACK_REVIEW_CHANGES_WEBHOOK_URL not set in CircleCI environment variables for this job/context. Skipping actual Slack notification."
+                  echo "Manual approval will still be required in the workflow if changes were detected."
+                fi
+            else
+                echo "No files requiring additional review changed in monitored paths on master branch (or no applicable changes found)."
+            fi
+
+  additional-review-notification:
+    type: approval
+
   deploy-staging:
     docker:
       - image: cimg/base:stable
@@ -94,9 +156,27 @@ workflows:
             - snyk
             - codecov
 
+      - flag-for-additional-review:
+          requires:
+            - build
+          context:
+            - slack
+          filters:
+            branches:
+              only: master
+
+      - additional-review-notification:
+          requires:
+            - flag-for-additional-review
+          filters:
+            branches:
+              only: master
+
       - aws-ecr/build_and_push_image:
           name: build_and_push_image
-          requires: [ build ]
+          requires:
+            - build
+            - additional-review-notification
           context: aws
           auth:
             - aws-cli/setup
@@ -111,14 +191,14 @@ workflows:
               only: master
 
       - deploy-staging:
-          requires: [ build_and_push_image ]
+          requires: [ aws-ecr/build_and_push_image ]
           context: aws
           filters:
             branches:
               only: master
 
       - deploy-production:
-          requires: [ build_and_push_image ]
+          requires: [ aws-ecr/build_and_push_image ]
           context: aws
           filters:
             branches:

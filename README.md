@@ -212,7 +212,7 @@ When adding a new migration for H2 <-> Postgres compatibility, the name must be 
 ## Athena for log search
 
 Service logs are at `tuleva-papertrail Europe (Paris) eu-west-3`
-which means, that you need to use `eu-west-3` Aethena output S3 bucket.
+which means, that you need to use `eu-west-3` Athena output S3 bucket.
 
 Load Balancer logs are located at `logs.tuleva.ee` bucket.
 

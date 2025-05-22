@@ -94,14 +94,10 @@ jobs:
                   echo "Slack notification attempt sent to channel: ${TARGET_CHANNEL}."
                 else
                   echo "SLACK_REVIEW_CHANGES_WEBHOOK_URL not set in CircleCI environment variables for this job/context. Skipping actual Slack notification."
-                  echo "Manual approval will still be required in the workflow if changes were detected."
                 fi
             else
                 echo "No files requiring additional review changed in monitored paths on master branch (or no applicable changes found)."
             fi
-
-  additional-review-notification:
-    type: approval
 
   deploy-staging:
     docker:
@@ -162,18 +158,11 @@ workflows:
             branches:
               only: master
 
-      - additional-review-notification:
-          requires:
-            - flag-for-additional-review
-          filters:
-            branches:
-              only: master
-
       - aws-ecr/build_and_push_image:
           name: build_and_push_image
           requires:
             - build
-            - additional-review-notification
+            - flag-for-additional-review
           context: aws
           auth:
             - aws-cli/setup

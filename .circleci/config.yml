@@ -72,21 +72,17 @@ jobs:
             fi
 
             if [ -n "$CHANGED_FILES_OUTPUT" ]; then
-                echo "=============================================================================="
                 echo "NOTICE: Files requiring additional review changed in monitored paths on master branch!"
-                echo "Files changed:"
                 echo "${CHANGED_FILES_OUTPUT}"
-                echo "=============================================================================="
             
                 COMMIT_INFO_URL="$CIRCLE_BUILD_URL"
                 COMMIT_SHA_SHORT=$(echo "$CIRCLE_SHA1" | cut -c1-7)
+                GITHUB_COMMIT_URL="https://github.com/TulevaEE/onboarding-service/commit/$CIRCLE_SHA1"
                 MESSAGE_CONTEXT="Branch: $CIRCLE_BRANCH (master), Commit: $COMMIT_SHA_SHORT, Triggered by: $CIRCLE_USERNAME."
 
-                NOTIFICATION_MESSAGE="Additional review requested for changes in monitored paths on the master branch.\nDetails: $MESSAGE_CONTEXT\nFiles:\n${CHANGED_FILES_OUTPUT}\nPlease review: $COMMIT_INFO_URL"
+                NOTIFICATION_MESSAGE="Additional review requested for changes in monitored paths on the master branch.\nDetails: $MESSAGE_CONTEXT\nFiles:\n${CHANGED_FILES_OUTPUT}\n CircleCI Build: $COMMIT_INFO_URL \nPlease review GitHub Commit: $GITHUB_COMMIT_URL"
             
-                echo -e "\n--- NOTIFICATION PAYLOAD ---"
                 echo -e "$NOTIFICATION_MESSAGE"
-                echo -e "--- END NOTIFICATION PAYLOAD ---\n"
 
                 JSON_ESCAPED_MESSAGE=$(echo "$NOTIFICATION_MESSAGE" | sed 's/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
                 TARGET_CHANNEL="review-changes" 

@@ -920,7 +920,7 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
     text-decoration: none;
     vertical-align: baseline;
     font-size: 12pt;
-    font-style: normal
+    font-style: normal;
   }
 
   .c12 {

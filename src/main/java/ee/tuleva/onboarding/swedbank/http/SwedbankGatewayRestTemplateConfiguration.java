@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.swedbank.http;
 import java.io.File;
 import java.security.KeyStore;
 import javax.net.ssl.SSLContext;
-
 import lombok.SneakyThrows;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
@@ -38,9 +37,7 @@ public class SwedbankGatewayRestTemplateConfiguration {
         new File(keystorePath).toURI().toURL().openStream(), keystorePassword.toCharArray());
 
     SSLContext sslContext =
-        SSLContexts.custom()
-            .loadKeyMaterial(keyStore, keystorePassword.toCharArray())
-            .build();
+        SSLContexts.custom().loadKeyMaterial(keyStore, keystorePassword.toCharArray()).build();
 
     SSLConnectionSocketFactory sslConFactory =
         SSLConnectionSocketFactoryBuilder.create().setSslContext(sslContext).build();

@@ -10,6 +10,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -30,6 +31,7 @@ public class SwedbankGatewayClient {
 
   private final Clock clock;
 
+  @Autowired
   @Qualifier("swedbankGatewayRestTemplate")
   private final RestTemplate restTemplate;
 

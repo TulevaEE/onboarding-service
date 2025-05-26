@@ -16,7 +16,7 @@ import org.springframework.stereotype.Component;
 @Profile("!dev")
 public class ScheduledAmlHealthCheckJob {
 
-  private final AmlHealthSanityService amlHealthSanityService;
+  private final AmlHealthCheckService amlHealthCheckService;
 
   private static final Set<AmlCheckType> SKIPPED_CHECK_TYPES =
       Set.of(
@@ -34,7 +34,7 @@ public class ScheduledAmlHealthCheckJob {
     int delayCount = 0;
     for (AmlCheckType checkType : checkTypesToMonitor.toList()) {
       try {
-        if (amlHealthSanityService.isCheckTypeDelayed(checkType)) {
+        if (amlHealthCheckService.isCheckTypeDelayed(checkType)) {
           log.error("AML Health Alert: Check type '{}' is delayed.", checkType.name());
           delayCount++;
         }

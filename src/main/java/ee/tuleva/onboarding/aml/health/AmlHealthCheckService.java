@@ -10,12 +10,12 @@ import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j
-public class AmlHealthSanityService {
+public class AmlHealthCheckService {
 
   private final AmlHealthThresholdCache amlHealthThresholdCache;
   private final AmlCheckHealthRepository amlCheckHealthRepository;
 
-  public AmlHealthSanityService(
+  public AmlHealthCheckService(
       AmlHealthThresholdCache amlHealthThresholdCache,
       AmlCheckHealthRepository amlCheckHealthRepository) {
     this.amlHealthThresholdCache = amlHealthThresholdCache;
@@ -35,9 +35,9 @@ public class AmlHealthSanityService {
     }
     Duration baseThreshold = thresholdOptional.get();
 
-    // Calculate effective threshold with 5% grace period
+    // Calculate effective threshold with 20% grace period
     long baseNanos = baseThreshold.toNanos();
-    long graceNanos = (long) (baseNanos * 0.05);
+    long graceNanos = (long) (baseNanos * 0.2);
     Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos);
 
     Optional<Instant> lastCheckTimeOptional =

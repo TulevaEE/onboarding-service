@@ -29,7 +29,7 @@ class AmlHealthIntegrationTest {
 
   @Autowired private AmlHealthThresholdCache amlHealthThresholdCache;
 
-  @Autowired private AmlHealthSanityService amlHealthSanityService;
+  @Autowired private AmlHealthCheckService amlHealthCheckService;
 
   private final Instant NOW_INSTANT = Instant.parse("2025-05-16T12:00:00.00Z");
   private final Clock FIXED_CLOCK = Clock.fixed(NOW_INSTANT, ZoneId.of("UTC"));
@@ -96,11 +96,15 @@ class AmlHealthIntegrationTest {
         lastCheck
             .getCreatedTime()
             .plus(Duration.ofHours(5))
-            .plus(Duration.ofMinutes(16)); // Exceeds 15 min grace period
+            .plus(
+                Duration.ofHours(1)
+                    .plus(
+                        Duration.ofMinutes(
+                            1))); // Base + 20% grace + 1 minute (exceeds 1 hour grace period)
     ClockHolder.setClock(Clock.fixed(futureTime, ZoneId.of("UTC")));
 
     // when
-    boolean isDelayed = amlHealthSanityService.isCheckTypeDelayed(testType);
+    boolean isDelayed = amlHealthCheckService.isCheckTypeDelayed(testType);
 
     // then
     assertThat(isDelayed).isTrue();
@@ -129,11 +133,14 @@ class AmlHealthIntegrationTest {
 
     // given
     Instant futureTime =
-        lastCheck.getCreatedTime().plus(Duration.ofHours(1)).plus(Duration.ofMinutes(2));
+        lastCheck
+            .getCreatedTime()
+            .plus(Duration.ofHours(1))
+            .plus(Duration.ofMinutes(10)); // Within 20% grace (12 minutes)
     ClockHolder.setClock(Clock.fixed(futureTime, ZoneId.of("UTC")));
 
     // when
-    boolean isDelayed = amlHealthSanityService.isCheckTypeDelayed(testType);
+    boolean isDelayed = amlHealthCheckService.isCheckTypeDelayed(testType);
 
     // then
     assertThat(isDelayed).isFalse();
@@ -157,7 +164,7 @@ class AmlHealthIntegrationTest {
     assertThat(amlHealthThresholdCache.getThreshold(typeWithData.name())).isPresent();
     assertThat(amlHealthThresholdCache.getThreshold(typeWithoutThreshold.name())).isEmpty();
 
-    boolean isDelayed = amlHealthSanityService.isCheckTypeDelayed(typeWithoutThreshold);
+    boolean isDelayed = amlHealthCheckService.isCheckTypeDelayed(typeWithoutThreshold);
     assertThat(isDelayed).isFalse();
   }
 
@@ -183,7 +190,7 @@ class AmlHealthIntegrationTest {
         Map.of(typeNeverRun.name(), Duration.ofHours(1)));
     assertThat(amlHealthThresholdCache.getThreshold(typeNeverRun.name())).isPresent();
 
-    boolean isDelayed = amlHealthSanityService.isCheckTypeDelayed(typeNeverRun);
+    boolean isDelayed = amlHealthCheckService.isCheckTypeDelayed(typeNeverRun);
     assertThat(isDelayed).isTrue();
   }
 }

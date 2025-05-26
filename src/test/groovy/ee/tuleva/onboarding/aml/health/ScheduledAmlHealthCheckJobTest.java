@@ -14,7 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ScheduledAmlHealthCheckJobTest {
 
-  @Mock private AmlHealthSanityService mockAmlHealthSanityService;
+  @Mock private AmlHealthCheckService mockAmlHealthCheckService;
 
   @InjectMocks private ScheduledAmlHealthCheckJob scheduledJob;
 
@@ -32,15 +32,15 @@ class ScheduledAmlHealthCheckJobTest {
     AmlCheckType delayedType = AmlCheckType.DOCUMENT;
     AmlCheckType okType = AmlCheckType.CONTACT_DETAILS;
 
-    when(mockAmlHealthSanityService.isCheckTypeDelayed(delayedType)).thenReturn(true);
-    when(mockAmlHealthSanityService.isCheckTypeDelayed(okType)).thenReturn(false);
+    when(mockAmlHealthCheckService.isCheckTypeDelayed(delayedType)).thenReturn(true);
+    when(mockAmlHealthCheckService.isCheckTypeDelayed(okType)).thenReturn(false);
 
     // when
     scheduledJob.checkForDelayedAmlChecks();
 
     // then
-    verify(mockAmlHealthSanityService).isCheckTypeDelayed(delayedType);
-    verify(mockAmlHealthSanityService).isCheckTypeDelayed(okType);
+    verify(mockAmlHealthCheckService).isCheckTypeDelayed(delayedType);
+    verify(mockAmlHealthCheckService).isCheckTypeDelayed(okType);
   }
 
   @Test
@@ -50,16 +50,16 @@ class ScheduledAmlHealthCheckJobTest {
     AmlCheckType typeThatCausesError = AmlCheckType.SANCTION; // Not in default SKIPPED_IN_JOB
     AmlCheckType typeCheckedAfterError = AmlCheckType.RISK_LEVEL; // Not in default SKIPPED_IN_JOB
 
-    when(mockAmlHealthSanityService.isCheckTypeDelayed(typeThatCausesError))
+    when(mockAmlHealthCheckService.isCheckTypeDelayed(typeThatCausesError))
         .thenThrow(new RuntimeException("Simulated service error for SANCTION"));
-    when(mockAmlHealthSanityService.isCheckTypeDelayed(typeCheckedAfterError)).thenReturn(false);
+    when(mockAmlHealthCheckService.isCheckTypeDelayed(typeCheckedAfterError)).thenReturn(false);
 
     // when
     scheduledJob.checkForDelayedAmlChecks();
 
     // then
-    verify(mockAmlHealthSanityService).isCheckTypeDelayed(typeThatCausesError);
-    verify(mockAmlHealthSanityService).isCheckTypeDelayed(typeCheckedAfterError);
+    verify(mockAmlHealthCheckService).isCheckTypeDelayed(typeThatCausesError);
+    verify(mockAmlHealthCheckService).isCheckTypeDelayed(typeCheckedAfterError);
   }
 
   @Test
@@ -68,7 +68,7 @@ class ScheduledAmlHealthCheckJobTest {
     // given
     for (AmlCheckType type : AmlCheckType.values()) {
       if (!SKIPPED_IN_JOB.contains(type)) {
-        when(mockAmlHealthSanityService.isCheckTypeDelayed(type)).thenReturn(false);
+        when(mockAmlHealthCheckService.isCheckTypeDelayed(type)).thenReturn(false);
       }
     }
 
@@ -78,9 +78,9 @@ class ScheduledAmlHealthCheckJobTest {
     // then
     for (AmlCheckType type : AmlCheckType.values()) {
       if (!SKIPPED_IN_JOB.contains(type)) {
-        verify(mockAmlHealthSanityService).isCheckTypeDelayed(type);
+        verify(mockAmlHealthCheckService).isCheckTypeDelayed(type);
       } else {
-        verify(mockAmlHealthSanityService, never()).isCheckTypeDelayed(type);
+        verify(mockAmlHealthCheckService, never()).isCheckTypeDelayed(type);
       }
     }
   }

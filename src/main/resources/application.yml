@@ -62,7 +62,7 @@ swedbank-gateway:
     path: "test_keys/swedbank-gateway.p12"
     password: changeit
   url: 'https://psd2.api.swedbank.com/partner/sandbox/v1/sgw/'
-  client-id: ${SWEDBANK_GATEWAY_CLIENT_ID}
+  client-id: ${SWEDBANK_GATEWAY_CLIENT_ID:mock_client_id}
 
 springdoc:
   swagger-ui:

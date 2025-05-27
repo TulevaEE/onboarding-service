@@ -38,11 +38,7 @@ public class SwedbankGatewayClient {
   public void sendPong() {
     HttpEntity<String> requestEntity = new HttpEntity<>(getPingXml(), getHeaders("TEST-ID-1234"));
 
-    var a =
-        restTemplate.exchange(
-            getRequestUrl("communication-tests"), POST, requestEntity, String.class);
-
-    return;
+    restTemplate.exchange(getRequestUrl("communication-tests"), POST, requestEntity, String.class);
   }
 
   @SneakyThrows

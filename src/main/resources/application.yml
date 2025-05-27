@@ -59,10 +59,10 @@ truststore:
 
 swedbank-gateway:
   keystore:
-    path: "test_keys/swedbank-gateway.p12"
+    path: "src/main/resources/empty-swedbank-keystore.p12"
     password: changeit
-  url: 'https://psd2.api.swedbank.com/partner/sandbox/v1/sgw/'
-  client-id: ${SWEDBANK_GATEWAY_CLIENT_ID:mock_client_id}
+  url: ''
+  client-id: ''
 
 springdoc:
   swagger-ui:
@@ -168,7 +168,19 @@ administration:
   portfolio:
     key: ${ADMINISTRATION_ANALYTICS_KEY:administration-analytics-key}
     secret: ${ADMINISTRATION_ANALYTICS_SECRET:administration-analytics-secret}
+---
+spring:
+  config:
+    activate:
+      on-profile:
+        - dev
 
+swedbank-gateway:
+  keystore:
+    path: "test_keys/swedbank-gateway.p12"
+    password: changeit
+  url: 'https://psd2.api.swedbank.com/partner/sandbox/v1/sgw/'
+  client-id: ${SWEDBANK_GATEWAY_CLIENT_ID:mock_client_id}
 ---
 spring:
   flyway:

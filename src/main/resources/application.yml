@@ -232,7 +232,7 @@ truststore:
 
 swedbank-gateway:
   keystore:
-    path: "/home/webapp/swedbank-gateway.p12"
+    path: "/swedbank-gateway.p12"
     password: ${SWEDBANK_GATEWAY_KEYSTORE_PASSWORD}
   client-id: ${SWEDBANK_GATEWAY_CLIENT_ID}
   url: ''

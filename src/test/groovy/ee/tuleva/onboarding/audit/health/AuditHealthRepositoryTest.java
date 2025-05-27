@@ -28,8 +28,7 @@ import org.springframework.test.context.ActiveProfiles;
 @Import(AuditHealthRepository.class)
 class AuditHealthRepositoryTest {
 
-  @Autowired
-  private AuditHealthRepository repository;
+  @Autowired private AuditHealthRepository repository;
 
   @Autowired private AuditHealthRepository auditHealthRepository;
 
@@ -95,11 +94,7 @@ class AuditHealthRepositoryTest {
         VALUES (?, ?, 'test_schema', 'test_table', 0, 'test_user', ?, ?, NULL, 'test_app', NULL, NULL, 'test_query', FALSE)
         """;
     jdbcTemplate.update(
-        sql,
-        Timestamp.from(time),
-        actionType,
-        Timestamp.from(time),
-        Timestamp.from(time));
+        sql, Timestamp.from(time), actionType, Timestamp.from(time), Timestamp.from(time));
   }
 
   @Test

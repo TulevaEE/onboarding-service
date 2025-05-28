@@ -1,8 +1,10 @@
 package ee.tuleva.onboarding.config.http;
 
 import ee.tuleva.onboarding.error.RestResponseErrorHandler;
+
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -40,7 +42,7 @@ public class RestTemplateConfiguration {
           .getInterceptors()
           .add(
               (request, body, execution) -> {
-                log.info("Sending request to {}", request.getURI());
+                log.info("Sending {} request to {}", request.getMethod(), request.getURI());
                 ClientHttpResponse response = execution.execute(request, body);
                 log.info("Response status {}", response.getStatusCode());
                 log.debug(

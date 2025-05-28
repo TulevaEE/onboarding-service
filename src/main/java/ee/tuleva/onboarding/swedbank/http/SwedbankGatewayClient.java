@@ -3,14 +3,12 @@ package ee.tuleva.onboarding.swedbank.http;
 import static org.springframework.http.HttpMethod.*;
 
 import ee.swedbank.gateway.response.B4B;
-
 import java.net.URI;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;

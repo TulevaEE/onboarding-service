@@ -29,7 +29,7 @@ class SwedbankGatewayMarshaller {
   }
 
   @SneakyThrows
-  public SwedbankGatewayMarshaller() {b
+  public SwedbankGatewayMarshaller() {
     var requestClasses =
         findAllClassesUsingClassLoader("ee.swedbank.gateway.request").stream()
             .toArray(Class[]::new);

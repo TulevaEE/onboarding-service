@@ -29,16 +29,7 @@ class SwedbankGatewayMarshaller {
   }
 
   @SneakyThrows
-  public SwedbankGatewayMarshaller() {
-    /*var requestClasses = findAllClassesUsingClassLoader("ee.swedbank.gateway.request");
-    var responseClasses = findAllClassesUsingClassLoader("ee.swedbank.gateway.response");
-    var allClasses = concat(requestClasses.stream(), responseClasses.stream()).toArray(Class[]::new);
-
-    JAXBContext marshalContext = JAXBContext.newInstance(requestClasses);
-
-    this.marshaller = context.createMarshaller();
-    this.unmarshaller = context.createUnmarshaller();*/
-
+  public SwedbankGatewayMarshaller() {b
     var requestClasses =
         findAllClassesUsingClassLoader("ee.swedbank.gateway.request").stream()
             .toArray(Class[]::new);

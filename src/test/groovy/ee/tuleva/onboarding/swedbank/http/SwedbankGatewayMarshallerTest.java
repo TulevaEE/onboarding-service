@@ -12,12 +12,12 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest
 public class SwedbankGatewayMarshallerTest {
 
-  @Autowired SwedbankGatewayMarshaller swedbankGatewayMarshaller;
+  @Autowired
+  SwedbankGatewayMarshaller swedbankGatewayMarshaller;
 
   @Test
   @DisplayName("marshals request class")
   public void marshalRequestClass() {
-
     Ping ping = new Ping();
     ping.setValue("Test");
 
@@ -30,12 +30,11 @@ public class SwedbankGatewayMarshallerTest {
   @Test
   @DisplayName("unmarshals response class")
   public void unmarshalResponseClass() {
-
     var responseXml =
         "<B4B xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"http://swedbankgateway.net/valid/hgw-response.xsd\"> <Pong from=\"EE\"> <Value>Test</Value> </Pong> </B4B>";
 
     var pong = swedbankGatewayMarshaller.unMarshal(responseXml, B4B.class);
 
-    assertEquals(pong.getPong().getValue(), "Test");
+    assertEquals("Test", pong.getPong().getValue());
   }
 }

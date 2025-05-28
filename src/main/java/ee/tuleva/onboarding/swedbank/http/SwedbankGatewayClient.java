@@ -1,20 +1,21 @@
 package ee.tuleva.onboarding.swedbank.http;
 
-import static org.springframework.http.HttpMethod.POST;
+import static org.springframework.http.HttpMethod.*;
 
-import ee.swedbank.gateway.request.Ping;
-import jakarta.xml.bind.JAXBContext;
-import java.io.StringWriter;
+import ee.swedbank.gateway.response.B4B;
+import java.net.URI;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -31,28 +32,52 @@ public class SwedbankGatewayClient {
 
   private final Clock clock;
 
+  private final SwedbankGatewayMarshaller marshaller;
+
   @Autowired
   @Qualifier("swedbankGatewayRestTemplate")
   private final RestTemplate restTemplate;
 
-  public void sendPong() {
-    HttpEntity<String> requestEntity = new HttpEntity<>(getPingXml(), getHeaders("TEST-ID-1234"));
+  public String sendRequest(Object entity) {
+    var pongRequestId = UUID.randomUUID().toString();
+    var requestXml = marshaller.marshalToString(entity);
 
-    restTemplate.exchange(getRequestUrl("communication-tests"), POST, requestEntity, String.class);
+    HttpEntity<String> pongEntity = new HttpEntity<>(requestXml, getHeaders(pongRequestId));
+
+    restTemplate.exchange(getRequestUrl("communication-tests"), POST, pongEntity, String.class);
+
+    return pongRequestId;
   }
 
-  @SneakyThrows
-  private String getPingXml() {
-    Ping ping = new Ping();
-    ping.setValue("Test");
+  public Optional<SwedbankGatewayResponse> getResponse() {
+    HttpEntity<Void> messageEntity = new HttpEntity<>(getHeaders(UUID.randomUUID().toString()));
 
-    // TODO WIP, more generic logic in the future
-    JAXBContext context = JAXBContext.newInstance(Ping.class);
-    var marshaller = context.createMarshaller();
+    var messagesResponse =
+        restTemplate.exchange(getRequestUrl("messages"), GET, messageEntity, String.class);
+    var response = marshaller.unMarshal(messagesResponse.getBody(), B4B.class);
+    if (messagesResponse.getStatusCode().isSameCodeAs(HttpStatusCode.valueOf(204))) {
+      // 204 no content
+      return Optional.empty();
+    }
 
-    StringWriter sw = new StringWriter();
-    marshaller.marshal(ping, sw);
-    return sw.toString();
+    return Optional.of(
+        new SwedbankGatewayResponse(
+            response,
+            messagesResponse.getHeaders().get("X-Request-ID").getFirst(),
+            messagesResponse.getHeaders().get("X-Tracking-ID").getFirst()));
+  }
+
+  public void acknowledgePong(SwedbankGatewayResponse response) {
+    String requestId = UUID.randomUUID().toString();
+    HttpEntity<Void> messageEntity = new HttpEntity<>(getHeaders(requestId));
+
+    URI uri =
+        UriComponentsBuilder.fromUriString(getRequestUrl("messages"))
+            .queryParam("trackingId", response.responseTrackingId())
+            .build()
+            .toUri();
+
+    restTemplate.exchange(uri, DELETE, messageEntity, String.class);
   }
 
   private String getRequestUrl(String path) {

@@ -11,7 +11,7 @@ import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 
 @Service
-public class SwedbankGatewayMarshaller {
+class SwedbankGatewayMarshaller {
 
   private final Marshaller marshaller;
   private final Unmarshaller unmarshaller;

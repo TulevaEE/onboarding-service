@@ -1,10 +1,8 @@
 package ee.tuleva.onboarding.config.http;
 
 import ee.tuleva.onboarding.error.RestResponseErrorHandler;
-
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.springframework.boot.web.client.RestTemplateBuilder;

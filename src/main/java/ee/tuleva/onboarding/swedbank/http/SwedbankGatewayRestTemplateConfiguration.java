@@ -1,14 +1,10 @@
 package ee.tuleva.onboarding.swedbank.http;
 
 import java.io.File;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyStore;
 import javax.net.ssl.SSLContext;
-
-import ee.tuleva.onboarding.error.RestResponseErrorHandler;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.IOUtils;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
@@ -18,11 +14,9 @@ import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.ClientHttpRequestFactory;
-import org.springframework.http.client.ClientHttpResponse;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
@@ -57,7 +51,6 @@ public class SwedbankGatewayRestTemplateConfiguration {
     CloseableHttpClient httpClient = HttpClients.custom().setConnectionManager(cm).build();
     ClientHttpRequestFactory requestFactory =
         new HttpComponentsClientHttpRequestFactory(httpClient);
-
 
     var restTemplate = new RestTemplate(requestFactory);
 

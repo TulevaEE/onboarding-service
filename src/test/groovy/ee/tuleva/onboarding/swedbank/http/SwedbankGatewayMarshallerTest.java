@@ -12,8 +12,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 @SpringBootTest
 public class SwedbankGatewayMarshallerTest {
 
-  @Autowired
-  SwedbankGatewayMarshaller swedbankGatewayMarshaller;
+  @Autowired SwedbankGatewayMarshaller swedbankGatewayMarshaller;
 
   @Test
   @DisplayName("marshals request class")

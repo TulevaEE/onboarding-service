@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 
+import ee.swedbank.gateway.request.Ping;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.user.User;
@@ -65,10 +66,22 @@ public class LedgerTestController {
 
   @Operation(summary = "Swedbank Gateway pong")
   @GetMapping("/swedbank/pong")
-  public void swedbankGatewayPong(
+  public String swedbankGatewayPong(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    var ping = new Ping();
+    ping.setValue("Test");
 
-    swedbankGatewayClient.sendPong();
+    var requestId = swedbankGatewayClient.sendRequest(ping);
+
+    var response = swedbankGatewayClient.getResponse();
+
+    if (response.isEmpty()) {
+      return null;
+    }
+
+    swedbankGatewayClient.acknowledgePong(response.get());
+
+    return response.get().response().getPong().getValue().toString();
   }
 
   record DepositDto(BigDecimal amount) {}

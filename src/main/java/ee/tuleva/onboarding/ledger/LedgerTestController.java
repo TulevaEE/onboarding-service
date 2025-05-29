@@ -64,25 +64,5 @@ public class LedgerTestController {
     return ledgerService.deposit(user, depositDto.amount(), EUR);
   }
 
-  @Operation(summary = "Swedbank Gateway pong")
-  @GetMapping("/swedbank/pong")
-  public String swedbankGatewayPong(
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    var ping = new Ping();
-    ping.setValue("Test");
-
-    var requestId = swedbankGatewayClient.sendRequest(ping);
-
-    var response = swedbankGatewayClient.getResponse();
-
-    if (response.isEmpty()) {
-      return null;
-    }
-
-    swedbankGatewayClient.acknowledgePong(response.get());
-
-    return response.get().response().getPong().getValue().toString();
-  }
-
   record DepositDto(BigDecimal amount) {}
 }

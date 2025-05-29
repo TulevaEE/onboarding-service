@@ -2,13 +2,16 @@ package ee.tuleva.onboarding.swedbank.http;
 
 import static org.springframework.http.HttpMethod.*;
 
+import ee.swedbank.gateway.request.AccountStatement;
 import ee.swedbank.gateway.response.B4B;
+
 import java.net.URI;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -38,15 +41,11 @@ public class SwedbankGatewayClient {
   @Qualifier("swedbankGatewayRestTemplate")
   private final RestTemplate restTemplate;
 
-  public String sendRequest(Object entity) {
-    var pongRequestId = UUID.randomUUID().toString();
+  public void sendStatementRequest(AccountStatement entity, String uuid) {
     var requestXml = marshaller.marshalToString(entity);
 
-    HttpEntity<String> pongEntity = new HttpEntity<>(requestXml, getHeaders(pongRequestId));
-
-    restTemplate.exchange(getRequestUrl("communication-tests"), POST, pongEntity, String.class);
-
-    return pongRequestId;
+    HttpEntity<String> requestEntity = new HttpEntity<>(requestXml, getHeaders(uuid));
+    restTemplate.exchange(getRequestUrl("account-statement"), POST, requestEntity, String.class);
   }
 
   public Optional<SwedbankGatewayResponse> getResponse() {

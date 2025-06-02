@@ -55,7 +55,9 @@ class AmlCheckHealthRepositoryTest {
       );
       """;
   private static final String TRUNCATE_AML_CHECK_TABLE =
-      "TRUNCATE TABLE public.aml_check RESTART IDENTITY";
+      "SET REFERENTIAL_INTEGRITY FALSE;"
+          + "TRUNCATE TABLE public.aml_check RESTART IDENTITY;"
+          + "SET REFERENTIAL_INTEGRITY TRUE;";
 
   @BeforeAll
   static void setupDatabase(@Autowired DataSource ds) throws Exception {

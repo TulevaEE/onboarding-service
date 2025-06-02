@@ -1,12 +1,9 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
-
-import ee.tuleva.onboarding.ledger.LedgerTransaction;
 import jakarta.persistence.*;
-import lombok.*;
-
 import java.time.Instant;
 import java.util.UUID;
+import lombok.*;
 
 @Entity
 @Table(name = "swedbank_statement_fetch_job")
@@ -21,13 +18,11 @@ public class SwedbankStatementFetchJob {
   @Column(nullable = false)
   private UUID id;
 
-  @Column()
-  private UUID trackingId;
+  private String trackingId;
 
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false)
   private JobStatus jobStatus;
-
 
   @Column(columnDefinition = "TIMESTAMPTZ")
   private Instant lastCheckAt;
@@ -38,10 +33,8 @@ public class SwedbankStatementFetchJob {
   public enum JobStatus {
     SCHEDULED,
     WAITING_FOR_REPLY,
+    RESPONSE_RECEIVED,
     DONE,
     FAILED
   }
-
-
-
 }

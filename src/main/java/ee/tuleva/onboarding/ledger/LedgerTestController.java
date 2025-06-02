@@ -2,9 +2,8 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 
-import ee.swedbank.gateway.request.Ping;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
+import ee.tuleva.onboarding.swedbank.statement.SwedbankStatementFetcher;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,7 +25,7 @@ public class LedgerTestController {
   private final LedgerPartyService ledgerPartyService;
   private final LedgerAccountService ledgerAccountService;
   private final LedgerService ledgerService;
-  private final SwedbankGatewayClient swedbankGatewayClient;
+  private final SwedbankStatementFetcher swedbankStatementFetcher;
 
   @Operation(summary = "Get my ledger accounts")
   @GetMapping("/account")
@@ -62,6 +61,12 @@ public class LedgerTestController {
     User user = userService.getById(userId);
 
     return ledgerService.deposit(user, depositDto.amount(), EUR);
+  }
+
+  @Operation(summary = "Send statement request")
+  @PostMapping("/swedbank-satement")
+  public void sendSwedbankRequest() {
+    swedbankStatementFetcher.sendRequest();
   }
 
   record DepositDto(BigDecimal amount) {}

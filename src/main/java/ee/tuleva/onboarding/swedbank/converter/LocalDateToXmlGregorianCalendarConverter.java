@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.swedbank.converter;
 import java.time.LocalDate;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.XMLGregorianCalendar;
-
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.convert.converter.Converter;

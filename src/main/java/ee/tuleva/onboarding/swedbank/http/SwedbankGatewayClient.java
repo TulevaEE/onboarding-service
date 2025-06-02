@@ -4,14 +4,12 @@ import static org.springframework.http.HttpMethod.*;
 
 import ee.swedbank.gateway.request.AccountStatement;
 import ee.swedbank.gateway.response.B4B;
-
 import java.net.URI;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -66,7 +64,7 @@ public class SwedbankGatewayClient {
             messagesResponse.getHeaders().get("X-Tracking-ID").getFirst()));
   }
 
-  public void acknowledgePong(SwedbankGatewayResponse response) {
+  public void acknowledgeResponse(SwedbankGatewayResponse response) {
     String requestId = UUID.randomUUID().toString();
     HttpEntity<Void> messageEntity = new HttpEntity<>(getHeaders(requestId));
 

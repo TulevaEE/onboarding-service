@@ -12,18 +12,19 @@ import java.util.Optional;
 import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jvnet.hk2.annotations.Service;
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 
-@Service
 @RequiredArgsConstructor
 @Slf4j
+@Service
 public class SwedbankStatementFetcher {
 
   private final Clock clock;
 
-  private final String accountIban = "EE_TEST_IBAN";
+  private final static String accountIban = "EE_TEST_IBAN";
 
   private final SwedbankStatementFetchJobRepository swedbankStatementFetchJobRepository;
   private final SwedbankGatewayClient swedbankGatewayClient;
@@ -54,7 +55,12 @@ public class SwedbankStatementFetcher {
           getAccountStatementRequestEntity(), fetchJob.getId().toString());
       fetchJob.setJobStatus(WAITING_FOR_REPLY);
       swedbankStatementFetchJobRepository.save(fetchJob);
-    } finally {
+
+    } catch(RestClientException e) {
+      fetchJob.setRawResponse(e.getMessage());
+      throw e;
+    }
+    finally {
       fetchJob.setJobStatus(FAILED);
       swedbankStatementFetchJobRepository.save(fetchJob);
     }
@@ -103,6 +109,7 @@ public class SwedbankStatementFetcher {
 
     lastInProgressFetchJob.setJobStatus(RESPONSE_RECEIVED);
     lastInProgressFetchJob.setTrackingId(response.responseTrackingId());
+    lastInProgressFetchJob.setRawResponse(response.rawResponse());
     swedbankStatementFetchJobRepository.save(lastInProgressFetchJob);
 
     processStatementResponse(response);
@@ -123,8 +130,8 @@ public class SwedbankStatementFetcher {
 
   private AccountStatement getAccountStatementRequestEntity() {
     AccountStatement accountStatement = new AccountStatement();
-    accountStatement.setStartDate(dateConverter.convert(LocalDate.from(clock.instant())));
-    accountStatement.setEndDate(dateConverter.convert(LocalDate.from(clock.instant())));
+    accountStatement.setStartDate(dateConverter.convert(LocalDate.now(clock)));
+    accountStatement.setEndDate(dateConverter.convert(LocalDate.now(clock)));
     accountStatement.setIBAN(accountIban);
 
     return accountStatement;

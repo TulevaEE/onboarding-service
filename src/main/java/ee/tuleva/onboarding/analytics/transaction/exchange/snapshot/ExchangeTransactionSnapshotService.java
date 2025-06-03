@@ -24,39 +24,59 @@ public class ExchangeTransactionSnapshotService {
     OffsetDateTime jobStartTime = OffsetDateTime.now(ClockHolder.clock());
     log.info("Starting {} exchange transaction snapshot job taken at {}.", jobType, jobStartTime);
 
-    List<ExchangeTransaction> currentTransactions = currentTransactionRepository.findAll();
+    currentTransactionRepository
+        .findTopByOrderByReportingDateDesc()
+        .map(ExchangeTransaction::getReportingDate)
+        .ifPresentOrElse(
+            latestReportingDate -> {
+              log.info(
+                  "Latest reporting date determined as {} for {} job.",
+                  latestReportingDate,
+                  jobType);
 
-    if (currentTransactions.isEmpty()) {
-      log.info("No current exchange transactions found to snapshot for {} job.", jobType);
-      return;
-    }
+              List<ExchangeTransaction> transactionsToSnapshot =
+                  currentTransactionRepository.findByReportingDate(latestReportingDate);
 
-    List<ExchangeTransactionSnapshot> snapshots =
-        currentTransactions.stream()
-            .map(
-                currentTransaction ->
-                    ExchangeTransactionSnapshot.builder()
-                        .snapshotTakenAt(jobStartTime)
-                        .createdAt(OffsetDateTime.now(ClockHolder.clock()))
-                        .reportingDate(currentTransaction.getReportingDate())
-                        .securityFrom(currentTransaction.getSecurityFrom())
-                        .securityTo(currentTransaction.getSecurityTo())
-                        .fundManagerFrom(currentTransaction.getFundManagerFrom())
-                        .fundManagerTo(currentTransaction.getFundManagerTo())
-                        .code(currentTransaction.getCode())
-                        .firstName(currentTransaction.getFirstName())
-                        .name(currentTransaction.getName())
-                        .percentage(currentTransaction.getPercentage())
-                        .unitAmount(currentTransaction.getUnitAmount())
-                        .sourceDateCreated(currentTransaction.getDateCreated())
-                        .build())
-            .collect(Collectors.toList());
+              if (transactionsToSnapshot.isEmpty()) {
+                log.info(
+                    "No transactions found with the latest reporting date ({}) to snapshot for {} job.",
+                    latestReportingDate,
+                    jobType);
+                return;
+              }
 
-    snapshotRepository.saveAll(snapshots);
-    log.info(
-        "Successfully created {} exchange transaction snapshots for {} job, taken at {}.",
-        snapshots.size(),
-        jobType,
-        jobStartTime);
+              List<ExchangeTransactionSnapshot> snapshots =
+                  transactionsToSnapshot.stream()
+                      .map(
+                          currentTransaction ->
+                              ExchangeTransactionSnapshot.builder()
+                                  .snapshotTakenAt(jobStartTime)
+                                  .createdAt(OffsetDateTime.now(ClockHolder.clock()))
+                                  .reportingDate(currentTransaction.getReportingDate())
+                                  .securityFrom(currentTransaction.getSecurityFrom())
+                                  .securityTo(currentTransaction.getSecurityTo())
+                                  .fundManagerFrom(currentTransaction.getFundManagerFrom())
+                                  .fundManagerTo(currentTransaction.getFundManagerTo())
+                                  .code(currentTransaction.getCode())
+                                  .firstName(currentTransaction.getFirstName())
+                                  .name(currentTransaction.getName())
+                                  .percentage(currentTransaction.getPercentage())
+                                  .unitAmount(currentTransaction.getUnitAmount())
+                                  .sourceDateCreated(currentTransaction.getDateCreated())
+                                  .build())
+                      .collect(Collectors.toList());
+
+              snapshotRepository.saveAll(snapshots);
+              log.info(
+                  "Successfully created {} exchange transaction snapshots for records with reporting date {} for {} job, taken at {}.",
+                  snapshots.size(),
+                  latestReportingDate,
+                  jobType,
+                  jobStartTime);
+            },
+            () ->
+                log.info(
+                    "No current exchange transactions found to determine latest reporting date for {} job.",
+                    jobType));
   }
 }

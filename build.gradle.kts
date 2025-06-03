@@ -339,6 +339,10 @@ tasks {
     }
 }
 
+tasks.named<org.gradle.api.tasks.compile.JavaCompile>("compileJava") {
+    dependsOn(tasks.named("generateXSDClasses"))
+}
+
 sourceSets {
     main {
         java {

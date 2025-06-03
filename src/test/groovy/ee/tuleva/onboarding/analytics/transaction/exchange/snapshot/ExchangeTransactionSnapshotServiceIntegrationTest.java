@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.analytics.transaction.exchange.ExchangeTransactionFi
 import ee.tuleva.onboarding.analytics.transaction.exchange.ExchangeTransactionRepository;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.time.TestClockHolder;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -28,12 +29,16 @@ class ExchangeTransactionSnapshotServiceIntegrationTest {
 
   private OffsetDateTime fixedTestTime;
   private OffsetDateTime recordCreationTime;
+  private LocalDate today;
+  private LocalDate yesterday;
 
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(TestClockHolder.clock);
     fixedTestTime = OffsetDateTime.now(ClockHolder.clock());
     recordCreationTime = fixedTestTime;
+    today = LocalDate.now(ClockHolder.clock());
+    yesterday = today.minusDays(1);
 
     snapshotRepository.deleteAllInBatch();
     currentTransactionRepository.deleteAllInBatch();
@@ -45,16 +50,35 @@ class ExchangeTransactionSnapshotServiceIntegrationTest {
   }
 
   @Test
-  void takeSnapshot_savesSnapshotsOfAllCurrentTransactions() {
+  void takeSnapshot_savesSnapshotsOnlyForLatestReportingDate() {
     // given
-    ExchangeTransaction tx1 = ExchangeTransactionFixture.exampleTransaction();
-    ExchangeTransaction tx2 = ExchangeTransactionFixture.anotherExampleTransaction();
-    currentTransactionRepository.saveAll(List.of(tx1, tx2));
-    assertThat(currentTransactionRepository.count()).isEqualTo(2);
+    ExchangeTransaction tx1Latest =
+        ExchangeTransactionFixture.exampleTransactionBuilder()
+            .reportingDate(today)
+            .code("LATEST_1")
+            .build();
+    ExchangeTransaction tx2Latest =
+        ExchangeTransactionFixture.anotherExampleTransactionBuilder()
+            .reportingDate(today)
+            .code("LATEST_2")
+            .build();
+    ExchangeTransaction txOld =
+        ExchangeTransactionFixture.exampleTransactionBuilder()
+            .reportingDate(yesterday)
+            .code("OLD_1")
+            .build();
+    ExchangeTransaction txVeryOld =
+        ExchangeTransactionFixture.anotherExampleTransactionBuilder()
+            .reportingDate(yesterday.minusDays(5))
+            .code("VERY_OLD_1")
+            .build();
+
+    currentTransactionRepository.saveAll(List.of(txOld, tx1Latest, txVeryOld, tx2Latest));
+    assertThat(currentTransactionRepository.count()).isEqualTo(4);
     assertThat(snapshotRepository.count()).isEqualTo(0);
 
     // when
-    snapshotService.takeSnapshot("INTEGRATION_TEST_JOB");
+    snapshotService.takeSnapshot("INTEGRATION_TEST_JOB_LATEST_ONLY");
 
     // then
     assertThat(snapshotRepository.count()).isEqualTo(2);
@@ -65,7 +89,46 @@ class ExchangeTransactionSnapshotServiceIntegrationTest {
             snapshot -> {
               assertThat(snapshot.getSnapshotTakenAt()).isEqualTo(fixedTestTime);
               assertThat(snapshot.getCreatedAt()).isEqualTo(recordCreationTime);
+              assertThat(snapshot.getReportingDate()).isEqualTo(today);
             });
+
+    ExchangeTransactionSnapshot snapshotForTx1Latest =
+        snapshots.stream()
+            .filter(s -> s.getCode().equals(tx1Latest.getCode()))
+            .findFirst()
+            .orElse(null);
+    assertThat(snapshotForTx1Latest).isNotNull();
+    assertSnapshotMatchesTransaction(snapshotForTx1Latest, tx1Latest);
+
+    ExchangeTransactionSnapshot snapshotForTx2Latest =
+        snapshots.stream()
+            .filter(s -> s.getCode().equals(tx2Latest.getCode()))
+            .findFirst()
+            .orElse(null);
+    assertThat(snapshotForTx2Latest).isNotNull();
+    assertSnapshotMatchesTransaction(snapshotForTx2Latest, tx2Latest);
+
+    assertThat(snapshots.stream().map(ExchangeTransactionSnapshot::getCode))
+        .doesNotContain(txOld.getCode(), txVeryOld.getCode());
+  }
+
+  @Test
+  void takeSnapshot_savesAllWhenAllHaveLatestReportingDate() {
+    // given
+    ExchangeTransaction tx1 =
+        ExchangeTransactionFixture.exampleTransactionBuilder().reportingDate(today).build();
+    ExchangeTransaction tx2 =
+        ExchangeTransactionFixture.anotherExampleTransactionBuilder().reportingDate(today).build();
+    currentTransactionRepository.saveAll(List.of(tx1, tx2));
+    assertThat(currentTransactionRepository.count()).isEqualTo(2);
+    assertThat(snapshotRepository.count()).isEqualTo(0);
+
+    // when
+    snapshotService.takeSnapshot("INTEGRATION_TEST_ALL_LATEST");
+
+    // then
+    assertThat(snapshotRepository.count()).isEqualTo(2);
+    List<ExchangeTransactionSnapshot> snapshots = snapshotRepository.findAll();
 
     ExchangeTransactionSnapshot snapshotForTx1 =
         snapshots.stream().filter(s -> s.getCode().equals(tx1.getCode())).findFirst().orElse(null);

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.swedbank.http;
 
+import ee.swedbank.gateway.iso.request.AccountReportingRequestV03;
+import ee.swedbank.gateway.iso.response.BankToCustomerStatementV02;
 import ee.swedbank.gateway.request.AccountStatement;
 import ee.swedbank.gateway.request.GetBalance;
 import ee.swedbank.gateway.request.Ping;
@@ -32,14 +34,14 @@ class SwedbankGatewayMarshaller {
   @SneakyThrows
   public SwedbankGatewayMarshaller() {
     Class[] requestClasses = {
-      AccountStatement.class, GetBalance.class, Ping.class,
+       Ping.class, AccountReportingRequestV03.class,
     };
 
     JAXBContext marshalContext = JAXBContext.newInstance(requestClasses);
     this.marshaller = marshalContext.createMarshaller();
 
     Class[] responseClasses = {
-      B4B.class,
+      B4B.class, BankToCustomerStatementV02.class,
     };
     JAXBContext unMarshalContext = JAXBContext.newInstance(responseClasses);
     this.unmarshaller = unMarshalContext.createUnmarshaller();

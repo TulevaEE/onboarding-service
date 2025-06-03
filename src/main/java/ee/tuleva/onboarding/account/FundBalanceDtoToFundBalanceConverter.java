@@ -11,15 +11,13 @@ import java.math.BigDecimal;
 import java.util.function.Predicate;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
 @AllArgsConstructor
-public class FundBalanceDtoToFundBalanceConverter
-    implements Converter<FundBalanceDto, FundBalance> {
+public class FundBalanceDtoToFundBalanceConverter {
 
   private final FundRepository fundRepository;
   private final CashFlowService cashFlowService;
@@ -39,7 +37,6 @@ public class FundBalanceDtoToFundBalanceConverter
     return fundBalance;
   }
 
-  @Override
   @NonNull
   public FundBalance convert(FundBalanceDto fundBalanceDto) {
     Fund fund = fundRepository.findByIsin(fundBalanceDto.getIsin());

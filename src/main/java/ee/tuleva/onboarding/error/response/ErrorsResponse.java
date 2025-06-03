@@ -2,17 +2,14 @@ package ee.tuleva.onboarding.error.response;
 
 import java.util.ArrayList;
 import java.util.List;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
+@EqualsAndHashCode
 public class ErrorsResponse {
 
   private List<ErrorResponse> errors = new ArrayList<>();

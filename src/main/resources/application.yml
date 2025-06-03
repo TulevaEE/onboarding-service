@@ -228,7 +228,7 @@ smartid:
   hostUrl: https://rp-api.smart-id.com/v1
 
 truststore:
-  path: "/home/webapp/truststore.jks"
+  path: "/truststore.jks"
 
 swedbank-gateway:
   keystore:

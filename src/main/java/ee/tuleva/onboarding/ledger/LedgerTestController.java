@@ -64,7 +64,7 @@ public class LedgerTestController {
   }
 
   @Operation(summary = "Send statement request")
-  @PostMapping("/swedbank-satement")
+  @PostMapping("/swedbank-statement")
   public void sendSwedbankRequest() {
     swedbankStatementFetcher.sendRequest();
   }

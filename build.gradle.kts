@@ -15,15 +15,15 @@ buildscript {
     }
 }
 
-val springCloudVersion = "2024.0.1"
+val springCloudVersion = "2025.0.0"
 
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.4.5"
+    id("org.springframework.boot") version "3.5.0"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.0"
-    id("com.diffplug.spotless") version "7.0.3"
+    id("com.diffplug.spotless") version "7.0.4"
     id("io.freefair.lombok") version "8.13.1"
     jacoco
 }
@@ -78,7 +78,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:10.2")
+    implementation("com.nimbusds:nimbus-jose-jwt:10.3")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
     implementation("org.springdoc:springdoc-openapi-starter-common:2.8.8")
@@ -115,8 +115,8 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.11.1")
-    implementation("io.sentry:sentry-logback:8.11.1")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.13.2")
+    implementation("io.sentry:sentry-logback:8.13.2")
 
     implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.9.10")
 
@@ -128,7 +128,7 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.31.38")
+    implementation("software.amazon.awssdk:s3:2.31.54")
     implementation("commons-io:commons-io:2.19.0")
     implementation("org.apache.commons:commons-csv:1.14.0")
 
@@ -143,9 +143,12 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-M6-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.26")
+    testImplementation("org.apache.groovy:groovy-all:4.0.27")
+
+    // TODO: migrate to WireMock
     testImplementation("org.mock-server:mockserver-netty:5.15.0")
     testImplementation("org.mock-server:mockserver-spring-test-listener:5.15.0")
+
     testImplementation("org.springframework.security:spring-security-test")
     testImplementation("org.mockftpserver:MockFtpServer:3.2.0")
     testImplementation("io.github.origin-energy:java-snapshot-testing-spock:4.0.8")

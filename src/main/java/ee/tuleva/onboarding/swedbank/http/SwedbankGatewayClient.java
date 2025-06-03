@@ -43,7 +43,7 @@ public class SwedbankGatewayClient {
     var requestXml = marshaller.marshalToString(entity);
 
     HttpEntity<String> requestEntity = new HttpEntity<>(requestXml, getHeaders(uuid));
-    restTemplate.exchange(getRequestUrl("account-statement"), POST, requestEntity, String.class);
+    restTemplate.exchange(getRequestUrl("account-statements"), POST, requestEntity, String.class);
   }
 
   public Optional<SwedbankGatewayResponse> getResponse() {
@@ -60,6 +60,7 @@ public class SwedbankGatewayClient {
     return Optional.of(
         new SwedbankGatewayResponse(
             response,
+            messagesResponse.getBody(),
             messagesResponse.getHeaders().get("X-Request-ID").getFirst(),
             messagesResponse.getHeaders().get("X-Tracking-ID").getFirst()));
   }

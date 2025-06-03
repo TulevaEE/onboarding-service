@@ -6,6 +6,8 @@ import static org.springframework.security.config.http.SessionCreationPolicy.IF_
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 
 import ee.tuleva.onboarding.auth.jwt.JwtAuthorizationFilter;
+import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
+import ee.tuleva.onboarding.auth.principal.PrincipalService;
 import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -73,5 +75,11 @@ public class SecurityConfiguration {
         .addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
+  }
+
+  @Bean
+  public JwtAuthorizationFilter jwtAuthorizationFilter(
+      JwtTokenUtil jwtTokenUtil, PrincipalService principalService) {
+    return new JwtAuthorizationFilter(jwtTokenUtil, principalService);
   }
 }

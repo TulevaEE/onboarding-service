@@ -14,7 +14,6 @@ import ee.tuleva.onboarding.mandate.exception.InvalidMandateException;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import io.jsonwebtoken.ExpiredJwtException;
 import java.util.Map;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -29,10 +28,10 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 @Slf4j
 @ControllerAdvice
 @Order(Ordered.HIGHEST_PRECEDENCE)
-@RequiredArgsConstructor
 public class ErrorHandlingControllerAdvice {
 
-  private final ErrorResponseEntityFactory errorResponseEntityFactory;
+  private final ErrorResponseEntityFactory errorResponseEntityFactory =
+      new ErrorResponseEntityFactory();
 
   @ExceptionHandler(ValidationErrorsException.class)
   public ResponseEntity<ErrorsResponse> handleErrors(ValidationErrorsException exception) {

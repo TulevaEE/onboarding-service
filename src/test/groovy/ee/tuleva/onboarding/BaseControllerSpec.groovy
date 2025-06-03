@@ -51,17 +51,10 @@ class BaseControllerSpec extends Specification {
     private StandaloneMockMvcBuilder getMockMvcWithControllerAdvice(Object... controllers) {
         return standaloneSetup(controllers)
                 .setMessageConverters(jacksonMessageConverter())
-                .setControllerAdvice(errorHandlingControllerAdvice())
+                .setControllerAdvice(new ErrorHandlingControllerAdvice())
     }
 
-    private ErrorHandlingControllerAdvice errorHandlingControllerAdvice() {
-        ErrorHandlingControllerAdvice controllerAdvice =
-                new ErrorHandlingControllerAdvice(new ErrorResponseEntityFactory(new InputErrorsConverter()))
-
-        return controllerAdvice
-    }
-
-    private MappingJackson2HttpMessageConverter jacksonMessageConverter() {
+  private MappingJackson2HttpMessageConverter jacksonMessageConverter() {
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules()
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
         objectMapper.enable(JsonGenerator.Feature.WRITE_BIGDECIMAL_AS_PLAIN)

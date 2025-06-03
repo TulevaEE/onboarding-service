@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.swedbank.http;
 
 import static org.springframework.http.HttpMethod.*;
 
-import ee.swedbank.gateway.request.AccountStatement;
-import ee.swedbank.gateway.response.B4B;
+import ee.swedbank.gateway.iso.request.AccountReportingRequestV03;
+import ee.swedbank.gateway.iso.response.BankToCustomerStatementV02;
 import java.net.URI;
 import java.time.Clock;
 import java.time.ZoneId;
@@ -39,7 +39,7 @@ public class SwedbankGatewayClient {
   @Qualifier("swedbankGatewayRestTemplate")
   private final RestTemplate restTemplate;
 
-  public void sendStatementRequest(AccountStatement entity, String uuid) {
+  public void sendStatementRequest(AccountReportingRequestV03 entity, String uuid) {
     var requestXml = marshaller.marshalToString(entity);
 
     HttpEntity<String> requestEntity = new HttpEntity<>(requestXml, getHeaders(uuid));
@@ -56,7 +56,7 @@ public class SwedbankGatewayClient {
       return Optional.empty();
     }
 
-    var response = marshaller.unMarshal(messagesResponse.getBody(), B4B.class);
+    var response = marshaller.unMarshal(messagesResponse.getBody(), BankToCustomerStatementV02.class);
     return Optional.of(
         new SwedbankGatewayResponse(
             response,

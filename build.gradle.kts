@@ -312,6 +312,8 @@ tasks {
             listOf(
                 file("$xsdDir/hgw.xsd") to "ee.swedbank.gateway.request",
                 file("$xsdDir/hgw-response.xsd") to "ee.swedbank.gateway.response",
+                file("$xsdDir/camt.060.001.03.xsd") to "ee.swedbank.gateway.iso.request",
+                file("$xsdDir/camt.053.001.02.xsd") to "ee.swedbank.gateway.iso.response",
             )
 
         doLast {

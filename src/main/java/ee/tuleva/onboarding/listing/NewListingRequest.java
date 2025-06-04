@@ -1,6 +1,9 @@
 package ee.tuleva.onboarding.listing;
 
+import static java.time.temporal.ChronoUnit.DAYS;
+
 import ee.tuleva.onboarding.currency.Currency;
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -25,5 +28,10 @@ public record NewListingRequest(
         .currency(currency)
         .expiryTime(expiryDate)
         .build();
+  }
+
+  @AssertTrue(message = "expiryDate must be within one year")
+  private boolean isWithinOneYear() {
+    return expiryDate.isBefore(Instant.now().plus(365, DAYS));
   }
 }

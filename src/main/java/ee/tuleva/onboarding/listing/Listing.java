@@ -11,11 +11,10 @@ import lombok.*;
 
 @Entity
 @Table(name = "listing")
-@Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Data
 public class Listing {
 
   @Id

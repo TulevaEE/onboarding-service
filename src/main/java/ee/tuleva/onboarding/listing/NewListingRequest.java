@@ -3,10 +3,7 @@ package ee.tuleva.onboarding.listing;
 import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.currency.Currency;
-import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.Digits;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.Builder;
@@ -15,7 +12,7 @@ import lombok.Builder;
 public record NewListingRequest(
     @NotNull ListingType type,
     @Positive @Digits(integer = 12, fraction = 2) BigDecimal units,
-    @Positive @Digits(integer = 12, fraction = 2) BigDecimal pricePerUnit,
+    @DecimalMin("1") @Digits(integer = 4, fraction = 2) BigDecimal pricePerUnit,
     @NotNull Currency currency,
     @NotNull Instant expiryDate) {
 

@@ -86,4 +86,8 @@ public class User implements Person, Emailable, Serializable {
   public boolean hasContactDetails() {
     return email != null || phoneNumber != null;
   }
+
+  public Long getMemberId() {
+    return getMemberOrThrow().getId();
+  }
 }

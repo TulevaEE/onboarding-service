@@ -8,12 +8,9 @@ import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
 import spock.lang.Specification
 
-import java.time.Instant
-
-import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.listing.ListingContactPreference.EMAIL_AND_PHONE
-import static ee.tuleva.onboarding.listing.ListingType.BUY
-import static ee.tuleva.onboarding.listing.ListingType.SELL
+import static ee.tuleva.onboarding.listing.ListingsFixture.activeListing
+import static ee.tuleva.onboarding.listing.ListingsFixture.newListingRequest
 import static ee.tuleva.onboarding.listing.MessageResponse.Status.QUEUED
 import static org.springframework.http.MediaType.APPLICATION_JSON
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
@@ -36,50 +33,40 @@ class ListingControllerSpec extends Specification {
 
   def "can create listings"() {
     given:
-    def request = new NewListingRequest(
-        BUY,
-        100.00,
-        4.75,
-        EUR,
-        Instant.parse("2030-01-01T00:00:00Z")
-    )
-    def listing = new ListingDto(
-        1L,
-        BUY,
-        100.00,
-        4.75,
-        EUR,
-        Instant.parse("2030-01-01T00:00:00Z"),
-        Instant.now()
-    )
+    def request = newListingRequest().build()
+    def listingDto = ListingDto.from(activeListing().build())
 
-    1 * listingService.createListing(request, _) >> listing
+    1 * listingService.createListing(request, _) >> listingDto
 
     expect:
     mvc.perform(post("/v1/listings").with(csrf())
         .contentType(APPLICATION_JSON)
         .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath('$.id').value(1))
+        .andExpect(jsonPath('$.id').value(listingDto.id()))
+        .andExpect(jsonPath('$.type').value(listingDto.type().name()))
+        .andExpect(jsonPath('$.units').value(listingDto.units().doubleValue()))
+        .andExpect(jsonPath('$.pricePerUnit').value(listingDto.pricePerUnit().doubleValue()))
+        .andExpect(jsonPath('$.currency').value(listingDto.currency().name()))
+        .andExpect(jsonPath('$.expiryTime').value(listingDto.expiryTime().toString()))
+        .andExpect(jsonPath('$.createdTime').value(listingDto.createdTime().toString()))
   }
 
   def "can find listings"() {
     given:
-    def listing = new ListingDto(
-        3L,
-        SELL,
-        50.00,
-        6.00,
-        EUR,
-        Instant.parse("2030-01-01T00:00:00Z"),
-        Instant.now()
-    )
-    1 * listingService.findActiveListings() >> [listing]
+    def listingDto = ListingDto.from(activeListing().build())
+    1 * listingService.findActiveListings() >> [listingDto]
 
     expect:
     mvc.perform(get("/v1/listings"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath('$[0].type').value("SELL"))
+        .andExpect(jsonPath('$[0].id').value(listingDto.id()))
+        .andExpect(jsonPath('$[0].type').value(listingDto.type().name()))
+        .andExpect(jsonPath('$[0].units').value(listingDto.units().doubleValue()))
+        .andExpect(jsonPath('$[0].pricePerUnit').value(listingDto.pricePerUnit().doubleValue()))
+        .andExpect(jsonPath('$[0].currency').value(listingDto.currency().name()))
+        .andExpect(jsonPath('$[0].expiryTime').value(listingDto.expiryTime().toString()))
+        .andExpect(jsonPath('$[0].createdTime').value(listingDto.createdTime().toString()))
   }
 
   def "can delete a listing"() {

@@ -373,5 +373,9 @@ tasks.withType<JavaExec> {
 }
 
 tasks.withType<Test> {
-    jvmArgs("--enable-preview")
+    jvmArgs(
+        "--enable-preview",
+        "-XX:+HeapDumpOnOutOfMemoryError",
+        "-XX:HeapDumpPath=/tmp/heapdump.hprof",
+    )
 }

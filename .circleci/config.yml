@@ -22,6 +22,21 @@ jobs:
           name: Build
           command: ./gradlew build --no-daemon --stacktrace
 
+      - run:
+          name: Copy heap dump if it exists
+          when: always
+          command: |
+            if [ -f /tmp/heapdump.hprof ]; then
+              cp /tmp/heapdump.hprof ./heapdump.hprof
+              echo "Heap dump copied for upload"
+            else
+              echo "No heap dump found"
+            fi
+
+      - store_artifacts:
+          path: ./heapdump.hprof
+          destination: heapdump
+
       - snyk/scan:
           fail-on-issues: false
           organization: tuleva

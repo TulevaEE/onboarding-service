@@ -23,14 +23,15 @@ public class WithdrawalsController {
 
   @Operation(summary = "Get fund pension status")
   @GetMapping("/fund-pension-status")
-  public FundPensionStatus getFundPensionStatus(@AuthenticationPrincipal AuthenticatedPerson user) {
-    return fundPensionStatusService.getFundPensionStatus(user);
+  public FundPensionStatus getFundPensionStatus(
+      @AuthenticationPrincipal AuthenticatedPerson person) {
+    return fundPensionStatusService.getFundPensionStatus(person);
   }
 
   @Operation(summary = "Get withdrawal eligibility")
   @GetMapping("/eligibility")
   public WithdrawalEligibilityDto getWithdrawalEligibility(
-      @AuthenticationPrincipal AuthenticatedPerson user) {
-    return withdrawalEligibilityService.getWithdrawalEligibility(user);
+      @AuthenticationPrincipal AuthenticatedPerson person) {
+    return withdrawalEligibilityService.getWithdrawalEligibility(person);
   }
 }

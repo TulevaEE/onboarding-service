@@ -18,8 +18,7 @@ public class SwedbankStatementFetchJob {
   @Column(nullable = false)
   private UUID id;
 
-  @Column
-  private String trackingId;
+  @Column private String trackingId;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
@@ -28,8 +27,7 @@ public class SwedbankStatementFetchJob {
   @Column(columnDefinition = "TIMESTAMPTZ")
   private Instant lastCheckAt;
 
-  @Column
-  private String rawResponse;
+  @Column private String rawResponse;
 
   @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;

@@ -1,19 +1,26 @@
 package ee.tuleva.onboarding.swedbank.http;
 
+import static ee.swedbank.gateway.iso.request.QueryType3Code.ALLL;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.springframework.http.HttpMethod.*;
 
-import ee.swedbank.gateway.iso.request.AccountReportingRequestV03;
+import ee.swedbank.gateway.iso.request.*;
 import ee.swedbank.gateway.iso.response.BankToCustomerStatementV02;
+import jakarta.xml.bind.JAXBElement;
 import java.net.URI;
 import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
+import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
@@ -35,11 +42,14 @@ public class SwedbankGatewayClient {
 
   private final SwedbankGatewayMarshaller marshaller;
 
+  private final Converter<LocalDate, XMLGregorianCalendar> dateConverter;
+  private final Converter<Instant, XMLGregorianCalendar> timeConverter;
+
   @Autowired
   @Qualifier("swedbankGatewayRestTemplate")
   private final RestTemplate restTemplate;
 
-  public void sendStatementRequest(AccountReportingRequestV03 entity, String uuid) {
+  public void sendStatementRequest(JAXBElement<Document> entity, UUID uuid) {
     var requestXml = marshaller.marshalToString(entity);
 
     HttpEntity<String> requestEntity = new HttpEntity<>(requestXml, getHeaders(uuid));
@@ -47,7 +57,7 @@ public class SwedbankGatewayClient {
   }
 
   public Optional<SwedbankGatewayResponse> getResponse() {
-    HttpEntity<Void> messageEntity = new HttpEntity<>(getHeaders(UUID.randomUUID().toString()));
+    HttpEntity<Void> messageEntity = new HttpEntity<>(getHeaders(UUID.randomUUID()));
 
     var messagesResponse =
         restTemplate.exchange(getRequestUrl("messages"), GET, messageEntity, String.class);
@@ -56,17 +66,18 @@ public class SwedbankGatewayClient {
       return Optional.empty();
     }
 
-    var response = marshaller.unMarshal(messagesResponse.getBody(), BankToCustomerStatementV02.class);
+    var response =
+        marshaller.unMarshal(messagesResponse.getBody(), BankToCustomerStatementV02.class);
     return Optional.of(
         new SwedbankGatewayResponse(
             response,
             messagesResponse.getBody(),
-            messagesResponse.getHeaders().get("X-Request-ID").getFirst(),
+            deSerializeRequestId(messagesResponse.getHeaders().get("X-Request-ID").getFirst()),
             messagesResponse.getHeaders().get("X-Tracking-ID").getFirst()));
   }
 
   public void acknowledgeResponse(SwedbankGatewayResponse response) {
-    String requestId = UUID.randomUUID().toString();
+    var requestId = UUID.randomUUID();
     HttpEntity<Void> messageEntity = new HttpEntity<>(getHeaders(requestId));
 
     URI uri =
@@ -85,9 +96,9 @@ public class SwedbankGatewayClient {
         .toUriString();
   }
 
-  private HttpHeaders getHeaders(String requestId) {
+  private HttpHeaders getHeaders(UUID requestId) {
     var headers = new HttpHeaders();
-    headers.add("X-Request-ID", requestId);
+    headers.add("X-Request-ID", serializeRequestId(requestId));
     headers.add("X-Agreement-ID", "1234"); // TODO sandbox hardcode
     headers.add(
         "Date",
@@ -97,5 +108,78 @@ public class SwedbankGatewayClient {
     headers.add("Content-Type", "application/xml; charset=utf-8");
 
     return headers;
+  }
+
+  public JAXBElement<Document> getAccountStatementRequestEntity(
+      String accountIban, UUID messageId) {
+    AccountReportingRequestV03 accountReportingRequest = new AccountReportingRequestV03();
+
+    GroupHeader59 groupHeader = new GroupHeader59();
+    groupHeader.setMsgId(serializeRequestId(messageId));
+    groupHeader.setCreDtTm(timeConverter.convert(clock.instant()));
+    accountReportingRequest.setGrpHdr(groupHeader);
+
+    ReportingRequest3 reportingRequest = new ReportingRequest3();
+
+    reportingRequest.setId(serializeRequestId(messageId));
+    reportingRequest.setReqdMsgNmId("camt.053.001.02");
+
+    CashAccount24 cashAccount24 = new CashAccount24();
+    AccountIdentification4Choice accountIdentification = new AccountIdentification4Choice();
+
+    accountIdentification.setIBAN(accountIban);
+
+    cashAccount24.setId(accountIdentification);
+    reportingRequest.setAcct(cashAccount24);
+
+    var partyChoice = new Party12Choice();
+    var party = new PartyIdentification43();
+    party.setNm("Tuleva");
+    partyChoice.setPty(party);
+
+    reportingRequest.setAcctOwnr(partyChoice);
+
+    ReportingPeriod1 period = new ReportingPeriod1();
+
+    DatePeriodDetails1 datePeriodDetails = new DatePeriodDetails1();
+
+    datePeriodDetails.setFrDt(dateConverter.convert(LocalDate.now(clock)));
+    datePeriodDetails.setToDt(dateConverter.convert(LocalDate.now(clock)));
+
+    period.setFrToDt(datePeriodDetails);
+    period.setTp(ALLL);
+
+    TimePeriodDetails1 timePeriodDetails = new TimePeriodDetails1();
+
+    // TODO revisit this, maybe run for last hour to better deal with limits
+    timePeriodDetails.setFrTm(
+        timeConverter.convert(LocalDate.now(clock).atStartOfDay(clock.getZone()).toInstant()));
+    timePeriodDetails.setToTm(
+        timeConverter.convert(
+            LocalDate.now(clock).atStartOfDay(clock.getZone()).plus(1, DAYS).toInstant()));
+
+    period.setFrToTm(timePeriodDetails);
+
+    reportingRequest.setRptgPrd(period);
+
+    accountReportingRequest.getRptgReq().add(reportingRequest);
+
+    Document document = new Document();
+    document.setAcctRptgReq(accountReportingRequest);
+    var objectFactory = new ObjectFactory();
+
+    return objectFactory.createDocument(document);
+  }
+
+  private static String serializeRequestId(UUID requestId) {
+    return requestId.toString().replace("-", "");
+  }
+
+  private static String deSerializeRequestId(String requestId) {
+    return UUID.fromString(
+            requestId.replaceFirst(
+                "(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)",
+                "$1-$2-$3-$4-$5"))
+        .toString();
   }
 }

@@ -1,9 +1,7 @@
 package ee.tuleva.onboarding.swedbank.http;
 
-import ee.swedbank.gateway.iso.request.AccountReportingRequestV03;
+import ee.swedbank.gateway.iso.request.Document;
 import ee.swedbank.gateway.iso.response.BankToCustomerStatementV02;
-import ee.swedbank.gateway.request.AccountStatement;
-import ee.swedbank.gateway.request.GetBalance;
 import ee.swedbank.gateway.request.Ping;
 import ee.swedbank.gateway.response.B4B;
 import jakarta.xml.bind.JAXBContext;
@@ -34,7 +32,7 @@ class SwedbankGatewayMarshaller {
   @SneakyThrows
   public SwedbankGatewayMarshaller() {
     Class[] requestClasses = {
-       Ping.class, AccountReportingRequestV03.class,
+      Ping.class, Document.class,
     };
 
     JAXBContext marshalContext = JAXBContext.newInstance(requestClasses);

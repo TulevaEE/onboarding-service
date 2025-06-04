@@ -9,7 +9,6 @@ import org.springframework.test.web.servlet.MockMvc
 import spock.lang.Specification
 
 import java.time.Instant
-import java.time.OffsetDateTime
 
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.listing.ListingContactPreference.EMAIL_AND_PHONE
@@ -42,11 +41,10 @@ class ListingControllerSpec extends Specification {
         100.00,
         4.75,
         EUR,
-        OffsetDateTime.parse("2030-01-01T00:00:00Z")
+        Instant.parse("2030-01-01T00:00:00Z")
     )
-    def dto = new ListingDto(
+    def listing = new ListingDto(
         1L,
-        2L,
         BUY,
         100.00,
         4.75,
@@ -55,7 +53,7 @@ class ListingControllerSpec extends Specification {
         Instant.now()
     )
 
-    1 * listingService.createListing(request) >> dto
+    1 * listingService.createListing(request, _) >> listing
 
     expect:
     mvc.perform(post("/v1/listings").with(csrf())
@@ -69,7 +67,6 @@ class ListingControllerSpec extends Specification {
     given:
     def listing = new ListingDto(
         3L,
-        4L,
         SELL,
         50.00,
         6.00,

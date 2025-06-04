@@ -9,10 +9,21 @@ import java.time.Instant;
 
 public record ListingDto(
     @NotNull Long id,
-    @NotNull Long ownerId,
     @NotNull ListingType type,
     @Positive @Digits(integer = 12, fraction = 2) BigDecimal units,
-    @Positive BigDecimal pricePerUnit,
+    @Positive @Digits(integer = 12, fraction = 2) BigDecimal pricePerUnit,
     @NotNull Currency currency,
     @NotNull Instant expiryTime,
-    @NotNull Instant createdTime) {}
+    @NotNull Instant createdTime) {
+
+  public static ListingDto from(Listing listing) {
+    return new ListingDto(
+        listing.getId(),
+        listing.getType(),
+        listing.getUnits(),
+        listing.getPricePerUnit(),
+        listing.getCurrency(),
+        listing.getExpiryTime(),
+        listing.getCreatedTime());
+  }
+}

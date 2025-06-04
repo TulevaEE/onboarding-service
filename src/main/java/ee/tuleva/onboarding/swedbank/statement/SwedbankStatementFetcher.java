@@ -1,10 +1,7 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
-import static ee.swedbank.gateway.iso.request.EntryStatus2Code.BOOK;
 import static ee.tuleva.onboarding.swedbank.statement.SwedbankStatementFetchJob.JobStatus.*;
 
-import ee.swedbank.gateway.iso.request.*;
-import ee.swedbank.gateway.request.AccountStatement;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayResponse;
 import java.time.Clock;
@@ -12,7 +9,6 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-import java.util.UUID;
 import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +24,7 @@ public class SwedbankStatementFetcher {
 
   private final Clock clock;
 
-  private final static String accountIban = "EE062200221055091966"; // TODO test value
+  private static final String accountIban = "EE062200221055091966"; // TODO test value
 
   private final SwedbankStatementFetchJobRepository swedbankStatementFetchJobRepository;
   private final SwedbankGatewayClient swedbankGatewayClient;
@@ -57,16 +53,16 @@ public class SwedbankStatementFetcher {
 
     try {
       swedbankGatewayClient.sendStatementRequest(
-          getAccountStatementRequestEntity(fetchJob.getId()), fetchJob.getId().toString());
+          swedbankGatewayClient.getAccountStatementRequestEntity(accountIban, fetchJob.getId()),
+          fetchJob.getId());
       fetchJob.setJobStatus(WAITING_FOR_REPLY);
       swedbankStatementFetchJobRepository.save(fetchJob);
 
-    } catch(RestClientException e) {
+    } catch (RestClientException e) {
+      fetchJob.setJobStatus(FAILED);
       fetchJob.setRawResponse(e.getMessage());
       throw e;
-    }
-    finally {
-      fetchJob.setJobStatus(FAILED);
+    } finally {
       swedbankStatementFetchJobRepository.save(fetchJob);
     }
   }
@@ -131,57 +127,5 @@ public class SwedbankStatementFetcher {
 
     job.setJobStatus(DONE);
     swedbankStatementFetchJobRepository.save(job);
-  }
-
-  private AccountReportingRequestV03 getAccountStatementRequestEntity(UUID messageId) {
-    AccountReportingRequestV03 accountReportingRequest = new AccountReportingRequestV03();
-
-    GroupHeader59 groupHeader = new GroupHeader59();
-    groupHeader.setMsgId(messageId.toString());
-    groupHeader.setCreDtTm(timeConverter.convert(clock.instant()));
-    accountReportingRequest.setGrpHdr(groupHeader);
-
-    ReportingRequest3 reportingRequest = new ReportingRequest3();
-
-    reportingRequest.setId(messageId.toString());
-    reportingRequest.setReqdMsgNmId("camt.053.001.02");
-
-
-    CashAccount24 cashAccount24 = new CashAccount24();
-    AccountIdentification4Choice accountIdentification = new AccountIdentification4Choice();
-
-    accountIdentification.setIBAN(accountIban);
-
-    cashAccount24.setId(accountIdentification);
-    reportingRequest.setAcct(cashAccount24);
-
-    reportingRequest.setAcctOwnr(new Party12Choice());
-
-    ReportingPeriod1 period = new ReportingPeriod1();
-
-    DatePeriodDetails1 datePeriodDetails = new DatePeriodDetails1();
-
-    datePeriodDetails.setFrDt(dateConverter.convert(LocalDate.now(clock)));
-    datePeriodDetails.setToDt(dateConverter.convert(LocalDate.now(clock)));
-
-    period.setFrToDt(datePeriodDetails);
-
-    TimePeriodDetails1 timePeriodDetails = new TimePeriodDetails1();
-
-    // TODO revisit this, maybe run for last hour to better deal with limits
-    timePeriodDetails.setFrTm(timeConverter.convert(LocalDate.now(clock).atStartOfDay(clock.getZone()).toInstant()));
-    timePeriodDetails.setToTm(timeConverter.convert(LocalDate.now(clock).atStartOfDay(clock.getZone()).with(LocalDate.MAX).toInstant()));
-
-    period.setFrToTm(timePeriodDetails);
-
-
-
-    TransactionType1 transactionType = new TransactionType1();
-    transactionType.setSts(BOOK); // TODO ?? docs has "ALLL"
-    reportingRequest.setReqdTxTp(transactionType);
-
-    accountReportingRequest.getRptgReq().add(reportingRequest);
-
-    return accountReportingRequest;
   }
 }

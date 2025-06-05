@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.audit.health;
 
-public interface AuditLogInterval {
-  Double getMaxIntervalSeconds();
+import lombok.Value;
+
+@Value
+public class AuditLogInterval {
+  Double maxIntervalSeconds;
 }

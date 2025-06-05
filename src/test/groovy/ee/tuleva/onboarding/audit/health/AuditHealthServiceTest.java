@@ -30,13 +30,8 @@ class AuditHealthServiceTest {
 
   private final long THRESHOLD_CALCULATION_PERIOD_DAYS = 10;
 
-  private AuditLogInterval createProjection(final Double seconds) {
-    return new AuditLogInterval() {
-      @Override
-      public Double getMaxIntervalSeconds() {
-        return seconds;
-      }
-    };
+  private AuditLogInterval createInterval(final Double seconds) {
+    return new AuditLogInterval(seconds);
   }
 
   @BeforeEach
@@ -55,7 +50,7 @@ class AuditHealthServiceTest {
     // given
     Instant sinceTime = NOW.minus(THRESHOLD_CALCULATION_PERIOD_DAYS, ChronoUnit.DAYS);
     when(mockAuditHealthRepository.findLongestIntervalSecondsSince(sinceTime))
-        .thenReturn(createProjection(3600.0));
+        .thenReturn(createInterval(3600.0));
     // when
     auditHealthService.initializeOrRefreshThreshold();
     // then
@@ -75,7 +70,7 @@ class AuditHealthServiceTest {
     // given
     Instant sinceTime = NOW.minus(THRESHOLD_CALCULATION_PERIOD_DAYS, ChronoUnit.DAYS);
     when(mockAuditHealthRepository.findLongestIntervalSecondsSince(sinceTime))
-        .thenReturn(createProjection(0.0));
+        .thenReturn(createInterval(0.0));
     // when
     auditHealthService.initializeOrRefreshThreshold();
     // then
@@ -91,7 +86,7 @@ class AuditHealthServiceTest {
     // given
     Instant sinceTime = NOW.minus(THRESHOLD_CALCULATION_PERIOD_DAYS, ChronoUnit.DAYS);
     when(mockAuditHealthRepository.findLongestIntervalSecondsSince(sinceTime))
-        .thenReturn(createProjection(-100.0));
+        .thenReturn(createInterval(-100.0));
     // when
     auditHealthService.initializeOrRefreshThreshold();
     // then
@@ -107,7 +102,7 @@ class AuditHealthServiceTest {
     // given
     Instant sinceTime = NOW.minus(THRESHOLD_CALCULATION_PERIOD_DAYS, ChronoUnit.DAYS);
     when(mockAuditHealthRepository.findLongestIntervalSecondsSince(sinceTime))
-        .thenReturn(createProjection(null));
+        .thenReturn(createInterval(null));
     // when
     auditHealthService.initializeOrRefreshThreshold();
     // then

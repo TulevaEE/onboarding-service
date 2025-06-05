@@ -3,9 +3,7 @@ package ee.tuleva.onboarding.audit.health;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
-import java.sql.Timestamp;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
@@ -54,43 +52,23 @@ public class AuditHealthRepository {
     query.setParameter("sinceTime", sinceTime);
     Number singleResult = (Number) query.getSingleResult();
     final Double resultSeconds = singleResult.doubleValue();
-    return new AuditLogInterval() {
-      @Override
-      public Double getMaxIntervalSeconds() {
-        return resultSeconds;
-      }
-    };
+    return new AuditLogInterval(resultSeconds);
   }
 
   public Optional<Instant> findLastAuditEventTimestamp() {
-    Query query = entityManager.createNativeQuery(LAST_EVENT_TIMESTAMP_SQL);
-    Object result = query.getSingleResult();
-    return convertDbResultToInstant(result);
-  }
+    try {
+      Object resultObject =
+          entityManager
+              .createNativeQuery(LAST_EVENT_TIMESTAMP_SQL, Instant.class)
+              .getSingleResult();
 
-  Optional<Instant> convertDbResultToInstant(Object result) {
-    if (result == null) {
-      return Optional.empty();
-    }
-
-    if (result instanceof Timestamp) {
-      return Optional.of(((Timestamp) result).toInstant());
-    } else if (result instanceof OffsetDateTime) {
-      return Optional.of(((OffsetDateTime) result).toInstant());
-    } else if (result instanceof Instant) {
-      return Optional.of((Instant) result);
-    } else {
-      log.warn(
-          "Unexpected object type for last audit event timestamp: {}", result.getClass().getName());
-      try {
-        return Optional.of(Instant.parse(result.toString()));
-      } catch (Exception e) {
-        log.error(
-            "Failed to convert last audit event timestamp of type {} to Instant.",
-            result.getClass().getName(),
-            e);
+      if (resultObject == null) {
         return Optional.empty();
       }
+      return Optional.of((Instant) resultObject);
+    } catch (Exception e) {
+      log.warn("Could not retrieve last audit event timestamp. Error: {}", e.getMessage(), e);
+      return Optional.empty();
     }
   }
 }

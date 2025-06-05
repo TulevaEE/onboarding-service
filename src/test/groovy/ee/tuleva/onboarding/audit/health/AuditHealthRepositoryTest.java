@@ -9,11 +9,8 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
 import java.util.Optional;
 import javax.sql.DataSource;
 import org.junit.jupiter.api.*;
@@ -29,8 +26,6 @@ import org.springframework.test.context.ActiveProfiles;
 class AuditHealthRepositoryTest {
 
   @Autowired private AuditHealthRepository repository;
-
-  @Autowired private AuditHealthRepository auditHealthRepository;
 
   @Autowired private JdbcTemplate jdbcTemplate;
 
@@ -76,8 +71,13 @@ class AuditHealthRepositoryTest {
   }
 
   @BeforeEach
-  void setUp() {
+  void setUp() throws Exception {
     ClockHolder.setClock(FIXED_CLOCK);
+    try (Connection conn = this.dataSource.getConnection();
+        Statement stmt = conn.createStatement()) {
+      stmt.execute(CREATE_AUDIT_SCHEMA_IF_NOT_EXISTS);
+      stmt.execute(CREATE_LOGGED_ACTIONS_TABLE_H2);
+    }
     jdbcTemplate.execute(TRUNCATE_LOGGED_ACTIONS_TABLE);
   }
 
@@ -120,6 +120,20 @@ class AuditHealthRepositoryTest {
     assertThat(lastTimestamp).isPresent();
     assertThat(lastTimestamp.get().truncatedTo(ChronoUnit.SECONDS))
         .isEqualTo(time2Latest.truncatedTo(ChronoUnit.SECONDS));
+  }
+
+  @Test
+  @DisplayName(
+      "findLastAuditEventTimestamp returns empty and logs warning on query execution exception")
+  void findLastAuditEventTimestamp_handlesQueryExecutionException() {
+    // given
+    jdbcTemplate.execute("DROP TABLE audit.logged_actions");
+
+    // when
+    Optional<Instant> result = repository.findLastAuditEventTimestamp();
+
+    // then
+    assertThat(result).isEmpty();
   }
 
   @Test
@@ -206,83 +220,5 @@ class AuditHealthRepositoryTest {
     // then
     assertThat(result).isNotNull();
     assertThat(result.getMaxIntervalSeconds()).isEqualTo(Duration.ofMinutes(30).getSeconds());
-  }
-
-  @Test
-  @DisplayName("convertDbResultToInstant handles null result")
-  void convertDbResultToInstant_handlesNull() {
-    // when
-    Optional<Instant> result = auditHealthRepository.convertDbResultToInstant(null);
-    // then
-    assertThat(result).isEmpty();
-  }
-
-  @Test
-  @DisplayName("convertDbResultToInstant handles java.sql.Timestamp")
-  void convertDbResultToInstant_handlesSqlTimestamp() {
-    // given
-    Instant expectedInstant = NOW_FOR_TESTS.minusSeconds(12345);
-    Timestamp sqlTimestamp = Timestamp.from(expectedInstant);
-    // when
-    Optional<Instant> result = auditHealthRepository.convertDbResultToInstant(sqlTimestamp);
-    // then
-    assertThat(result).isPresent().contains(expectedInstant);
-  }
-
-  @Test
-  @DisplayName("convertDbResultToInstant handles java.time.OffsetDateTime")
-  void convertDbResultToInstant_handlesOffsetDateTime() {
-    // given
-    Instant expectedInstant = NOW_FOR_TESTS.plusSeconds(54321);
-    OffsetDateTime offsetDateTime = OffsetDateTime.ofInstant(expectedInstant, ZoneOffset.UTC);
-    // when
-    Optional<Instant> result = auditHealthRepository.convertDbResultToInstant(offsetDateTime);
-    // then
-    assertThat(result).isPresent().contains(expectedInstant);
-  }
-
-  @Test
-  @DisplayName("convertDbResultToInstant handles java.time.Instant")
-  void convertDbResultToInstant_handlesInstant() {
-    // given
-    Instant expectedInstant = NOW_FOR_TESTS.plus(Duration.ofDays(3));
-    // when
-    Optional<Instant> result = auditHealthRepository.convertDbResultToInstant(expectedInstant);
-    // then
-    assertThat(result).isPresent().contains(expectedInstant);
-  }
-
-  @Test
-  @DisplayName("convertDbResultToInstant handles String parsable to Instant")
-  void convertDbResultToInstant_handlesParsableString() {
-    // given
-    String parsableString = "2024-03-10T10:15:30.00Z";
-    Instant expectedInstant = Instant.parse(parsableString);
-    // when
-    Optional<Instant> result = auditHealthRepository.convertDbResultToInstant(parsableString);
-    // then
-    assertThat(result).isPresent().contains(expectedInstant);
-  }
-
-  @Test
-  @DisplayName("convertDbResultToInstant handles unparsable String (other type fallback)")
-  void convertDbResultToInstant_handlesUnparsableString() {
-    // given
-    String unparsableString = "not a timestamp";
-    // when
-    Optional<Instant> result = auditHealthRepository.convertDbResultToInstant(unparsableString);
-    // then
-    assertThat(result).isEmpty();
-  }
-
-  @Test
-  @DisplayName("convertDbResultToInstant handles other unconvertible object type")
-  void convertDbResultToInstant_handlesOtherObjectType() {
-    // given
-    Object otherObject = new Date();
-    // when
-    Optional<Instant> result = auditHealthRepository.convertDbResultToInstant(otherObject);
-    // then
-    assertThat(result).isEmpty();
   }
 }

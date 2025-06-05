@@ -1,9 +1,7 @@
 package ee.tuleva.onboarding.swedbank.http;
 
-import ee.swedbank.gateway.iso.response.BankToCustomerStatementV02;
+import ee.swedbank.gateway.iso.response.Document;
+import java.util.UUID;
 
 public record SwedbankGatewayResponse(
-    BankToCustomerStatementV02 response,
-    String rawResponse,
-    String messageTrackingId,
-    String responseTrackingId) {}
+    Document response, String rawResponse, UUID requestTrackingId, String responseTrackingId) {}

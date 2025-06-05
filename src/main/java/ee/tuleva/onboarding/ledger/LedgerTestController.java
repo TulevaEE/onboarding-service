@@ -64,9 +64,15 @@ public class LedgerTestController {
   }
 
   @Operation(summary = "Send statement request")
-  @PostMapping("/swedbank-statement")
+  @PostMapping("/swedbank/statement")
   public void sendSwedbankRequest() {
     swedbankStatementFetcher.sendRequest();
+  }
+
+  @Operation(summary = "Get statement response")
+  @GetMapping("/swedbank/statement")
+  public void getSwedbankResponse() {
+    swedbankStatementFetcher.getResponse();
   }
 
   record DepositDto(BigDecimal amount) {}

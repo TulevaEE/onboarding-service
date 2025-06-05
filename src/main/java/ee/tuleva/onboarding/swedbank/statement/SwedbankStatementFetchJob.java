@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
+import jakarta.annotation.Nullable;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
@@ -18,16 +19,17 @@ public class SwedbankStatementFetchJob {
   @Column(nullable = false)
   private UUID id;
 
-  @Column private String trackingId;
+  @Column @Nullable private String trackingId;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private JobStatus jobStatus;
 
+  @Nullable
   @Column(columnDefinition = "TIMESTAMPTZ")
   private Instant lastCheckAt;
 
-  @Column private String rawResponse;
+  @Column @Nullable private String rawResponse;
 
   @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;

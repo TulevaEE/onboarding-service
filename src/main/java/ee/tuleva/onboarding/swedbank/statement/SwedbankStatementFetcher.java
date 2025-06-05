@@ -35,15 +35,16 @@ public class SwedbankStatementFetcher {
   public void sendRequest() {
     log.info("Running Swedbank statement request sender");
 
-    var lastScheduledFetchJob =
-        swedbankStatementFetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(SCHEDULED);
+    var lastPendingFetchJob =
+        swedbankStatementFetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(
+            WAITING_FOR_REPLY);
     var oneHourAgo = clock.instant().minus(1, ChronoUnit.HOURS);
 
-    if (lastScheduledFetchJob.isPresent()
-        && !lastScheduledFetchJob.get().getCreatedAt().isBefore(oneHourAgo)) {
+    if (lastPendingFetchJob.isPresent()
+        && !lastPendingFetchJob.get().getCreatedAt().isBefore(oneHourAgo)) {
       log.info(
-          "Last scheduled job id={} was less than 1 hour ago, skipping...",
-          lastScheduledFetchJob.get().getId());
+          "Last pending job id={} was less than 1 hour ago, skipping...",
+          lastPendingFetchJob.get().getId());
       return;
     }
 
@@ -83,7 +84,7 @@ public class SwedbankStatementFetcher {
     var lastInProgressFetchJob = optionalLastInProgressFetchJob.get();
 
     var lastRequestTime =
-        Optional.of(lastInProgressFetchJob.getLastCheckAt())
+        Optional.ofNullable(lastInProgressFetchJob.getLastCheckAt())
             .orElse(lastInProgressFetchJob.getCreatedAt());
     var oneMinuteAgo = clock.instant().minus(1, ChronoUnit.MINUTES);
 
@@ -97,24 +98,35 @@ public class SwedbankStatementFetcher {
 
     var optionalResponse = swedbankGatewayClient.getResponse();
     lastInProgressFetchJob.setLastCheckAt(clock.instant());
+    swedbankStatementFetchJobRepository.save(lastInProgressFetchJob);
 
     if (optionalResponse.isEmpty()) {
-      log.info(
-          "Swedbank statement response for job id={} is not ready yet... ",
-          lastInProgressFetchJob.getId());
-      swedbankStatementFetchJobRepository.save(lastInProgressFetchJob);
+      log.info("Swedbank statement response is not ready yet... ");
       return;
     }
 
     var response = optionalResponse.get();
 
-    lastInProgressFetchJob.setJobStatus(RESPONSE_RECEIVED);
-    lastInProgressFetchJob.setTrackingId(response.responseTrackingId());
-    lastInProgressFetchJob.setRawResponse(response.rawResponse());
-    swedbankStatementFetchJobRepository.save(lastInProgressFetchJob);
+    // Even though we hope that swedbank returns the response for the last job, there really is no
+    // guarantee as no ID is taken
+    var optionalJobForResponseFromSwedbank =
+        swedbankStatementFetchJobRepository.findById(response.requestTrackingId());
+
+    if (optionalJobForResponseFromSwedbank.isEmpty()) {
+      throw new IllegalStateException(
+          "No corresponding Swedbank statement job found for swedbank response id="
+              + response.requestTrackingId());
+    }
+
+    var jobForResponseFromSwedbank = optionalJobForResponseFromSwedbank.get();
+
+    jobForResponseFromSwedbank.setJobStatus(RESPONSE_RECEIVED);
+    jobForResponseFromSwedbank.setTrackingId(response.responseTrackingId());
+    jobForResponseFromSwedbank.setRawResponse(response.rawResponse());
+    swedbankStatementFetchJobRepository.save(jobForResponseFromSwedbank);
 
     processStatementResponse(response);
-    acknowledgeResponse(response, lastInProgressFetchJob);
+    acknowledgeResponse(response, jobForResponseFromSwedbank);
   }
 
   private void processStatementResponse(SwedbankGatewayResponse response) {

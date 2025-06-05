@@ -3,8 +3,12 @@ package ee.tuleva.onboarding.swedbank.http;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+import ee.swedbank.gateway.iso.request.Document;
 import ee.swedbank.gateway.response.B4B;
+import ee.tuleva.onboarding.swedbank.converter.InstantToXmlGregorianCalendarConverter;
+import ee.tuleva.onboarding.swedbank.converter.LocalDateToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.time.TestClockHolder;
+import jakarta.xml.bind.JAXBElement;
 import java.net.URI;
 import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +37,13 @@ class SwedbankGatewayClientTest {
   void setUp() {
     MockitoAnnotations.openMocks(this);
 
-    client = new SwedbankGatewayClient(TestClockHolder.clock, marshaller, restTemplate);
+    client =
+        new SwedbankGatewayClient(
+            TestClockHolder.clock,
+            marshaller,
+            new LocalDateToXmlGregorianCalendarConverter(),
+            new InstantToXmlGregorianCalendarConverter(),
+            restTemplate);
     ReflectionTestUtils.setField(client, "baseUrl", baseUrl);
     ReflectionTestUtils.setField(client, "clientId", clientId);
   }
@@ -41,7 +51,8 @@ class SwedbankGatewayClientTest {
   @Test
   @DisplayName("send request – sends request and returns request id")
   void sendRequest() {
-    Object request = new Object();
+    var id = UUID.fromString("474a3afd-9faa-469b-ab02-93262aa38ab1");
+    JAXBElement<Document> request = client.getAccountStatementRequestEntity("EE_TEST_IBAN", id);
     String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Ping><Value>Test</Value></Ping>";
     String expectedUrl = baseUrl + "communication-tests?client_id=" + clientId;
 
@@ -50,9 +61,8 @@ class SwedbankGatewayClientTest {
             eq(expectedUrl), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
         .thenReturn(ResponseEntity.ok("OK"));
 
-    String requestId = client.sendRequest(request);
+    client.sendStatementRequest(request, id);
 
-    assertThat(requestId).isNotNull();
     verify(restTemplate)
         .exchange(eq(expectedUrl), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class));
   }
@@ -80,7 +90,7 @@ class SwedbankGatewayClientTest {
 
     assertThat(response).isPresent();
     assertThat(response.get().response()).isEqualTo(mockB4B);
-    assertThat(response.get().messageTrackingId()).isEqualTo("req-123");
+    assertThat(response.get().requestTrackingId()).isEqualTo("req-123");
     assertThat(response.get().responseTrackingId()).isEqualTo("track-456");
   }
 
@@ -102,8 +112,11 @@ class SwedbankGatewayClientTest {
   @Test
   @DisplayName("acknowledges messages – calls delete endpoint")
   void acknowledgePong_shouldCallDeleteEndpoint() {
+    var id = UUID.fromString("474a3afd-9faa-469b-ab02-93262aa38ab1");
+
     SwedbankGatewayResponse response =
-        new SwedbankGatewayResponse(new B4B(), "req-abc", "track-xyz");
+        new SwedbankGatewayResponse(
+            new ee.swedbank.gateway.iso.response.Document(), "req-abc", id, "SWED-TRACKING-ID");
 
     URI expectedUri =
         URI.create(baseUrl + "messages?client_id=" + clientId + "&trackingId=track-xyz");
@@ -112,7 +125,7 @@ class SwedbankGatewayClientTest {
             eq(expectedUri), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(String.class)))
         .thenReturn(ResponseEntity.ok(""));
 
-    client.acknowledgePong(response);
+    client.acknowledgeResponse(response);
 
     verify(restTemplate)
         .exchange(eq(expectedUri), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(String.class));

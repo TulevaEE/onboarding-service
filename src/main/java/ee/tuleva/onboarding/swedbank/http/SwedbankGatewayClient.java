@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.swedbank.http;
 
 import static ee.swedbank.gateway.iso.request.QueryType3Code.ALLL;
-import static java.time.temporal.ChronoUnit.DAYS;
 import static org.springframework.http.HttpMethod.*;
 
 import ee.swedbank.gateway.iso.request.*;
-import ee.swedbank.gateway.iso.response.BankToCustomerStatementV02;
+import ee.swedbank.gateway.iso.response.Document;
 import jakarta.xml.bind.JAXBElement;
 import java.net.URI;
 import java.time.Clock;
@@ -49,7 +48,8 @@ public class SwedbankGatewayClient {
   @Qualifier("swedbankGatewayRestTemplate")
   private final RestTemplate restTemplate;
 
-  public void sendStatementRequest(JAXBElement<Document> entity, UUID uuid) {
+  public void sendStatementRequest(
+      JAXBElement<ee.swedbank.gateway.iso.request.Document> entity, UUID uuid) {
     var requestXml = marshaller.marshalToString(entity);
 
     HttpEntity<String> requestEntity = new HttpEntity<>(requestXml, getHeaders(uuid));
@@ -66,8 +66,7 @@ public class SwedbankGatewayClient {
       return Optional.empty();
     }
 
-    var response =
-        marshaller.unMarshal(messagesResponse.getBody(), BankToCustomerStatementV02.class);
+    var response = marshaller.unMarshal(messagesResponse.getBody(), Document.class);
     return Optional.of(
         new SwedbankGatewayResponse(
             response,
@@ -110,7 +109,7 @@ public class SwedbankGatewayClient {
     return headers;
   }
 
-  public JAXBElement<Document> getAccountStatementRequestEntity(
+  public JAXBElement<ee.swedbank.gateway.iso.request.Document> getAccountStatementRequestEntity(
       String accountIban, UUID messageId) {
     AccountReportingRequestV03 accountReportingRequest = new AccountReportingRequestV03();
 
@@ -156,7 +155,7 @@ public class SwedbankGatewayClient {
         timeConverter.convert(LocalDate.now(clock).atStartOfDay(clock.getZone()).toInstant()));
     timePeriodDetails.setToTm(
         timeConverter.convert(
-            LocalDate.now(clock).atStartOfDay(clock.getZone()).plus(1, DAYS).toInstant()));
+            LocalDate.now(clock).atStartOfDay(clock.getZone()).plusDays(1).toInstant()));
 
     period.setFrToTm(timePeriodDetails);
 
@@ -164,7 +163,8 @@ public class SwedbankGatewayClient {
 
     accountReportingRequest.getRptgReq().add(reportingRequest);
 
-    Document document = new Document();
+    ee.swedbank.gateway.iso.request.Document document =
+        new ee.swedbank.gateway.iso.request.Document();
     document.setAcctRptgReq(accountReportingRequest);
     var objectFactory = new ObjectFactory();
 
@@ -175,11 +175,10 @@ public class SwedbankGatewayClient {
     return requestId.toString().replace("-", "");
   }
 
-  private static String deSerializeRequestId(String requestId) {
+  private static UUID deSerializeRequestId(String requestId) {
     return UUID.fromString(
-            requestId.replaceFirst(
-                "(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)",
-                "$1-$2-$3-$4-$5"))
-        .toString();
+        requestId.replaceFirst(
+            "(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)",
+            "$1-$2-$3-$4-$5"));
   }
 }

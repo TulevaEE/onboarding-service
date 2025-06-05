@@ -1,9 +1,8 @@
 package ee.tuleva.onboarding.swedbank.http;
 
 import ee.swedbank.gateway.iso.request.Document;
-import ee.swedbank.gateway.iso.response.BankToCustomerStatementV02;
+import ee.swedbank.gateway.iso.response.ObjectFactory;
 import ee.swedbank.gateway.request.Ping;
-import ee.swedbank.gateway.response.B4B;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
@@ -38,10 +37,7 @@ class SwedbankGatewayMarshaller {
     JAXBContext marshalContext = JAXBContext.newInstance(requestClasses);
     this.marshaller = marshalContext.createMarshaller();
 
-    Class[] responseClasses = {
-      B4B.class, BankToCustomerStatementV02.class,
-    };
-    JAXBContext unMarshalContext = JAXBContext.newInstance(responseClasses);
+    JAXBContext unMarshalContext = JAXBContext.newInstance(ObjectFactory.class);
     this.unmarshaller = unMarshalContext.createUnmarshaller();
   }
 }

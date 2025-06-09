@@ -2,21 +2,20 @@ package ee.tuleva.onboarding.swedbank.statement;
 
 import static ee.tuleva.onboarding.swedbank.statement.SwedbankStatementFetchJob.JobStatus.*;
 
+import ee.swedbank.gateway.iso.response.Document;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
-import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayResponse;
+import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayResponseDto;
 import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.convert.converter.Converter;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 
+@Profile({"dev", "test"})
 @RequiredArgsConstructor
 @Slf4j
 @Service
@@ -29,9 +28,7 @@ public class SwedbankStatementFetcher {
   private final SwedbankStatementFetchJobRepository swedbankStatementFetchJobRepository;
   private final SwedbankGatewayClient swedbankGatewayClient;
 
-  private final Converter<LocalDate, XMLGregorianCalendar> dateConverter;
-  private final Converter<Instant, XMLGregorianCalendar> timeConverter;
-
+  @Scheduled(cron = "0 */15 9-17 * * MON-FRI")
   public void sendRequest() {
     log.info("Running Swedbank statement request sender");
 
@@ -41,7 +38,7 @@ public class SwedbankStatementFetcher {
     var oneHourAgo = clock.instant().minus(1, ChronoUnit.HOURS);
 
     if (lastPendingFetchJob.isPresent()
-        && !lastPendingFetchJob.get().getCreatedAt().isBefore(oneHourAgo)) {
+        && lastPendingFetchJob.get().getCreatedAt().isAfter(oneHourAgo)) {
       log.info(
           "Last pending job id={} was less than 1 hour ago, skipping...",
           lastPendingFetchJob.get().getId());
@@ -57,7 +54,6 @@ public class SwedbankStatementFetcher {
           swedbankGatewayClient.getAccountStatementRequestEntity(accountIban, fetchJob.getId()),
           fetchJob.getId());
       fetchJob.setJobStatus(WAITING_FOR_REPLY);
-      swedbankStatementFetchJobRepository.save(fetchJob);
 
     } catch (RestClientException e) {
       fetchJob.setJobStatus(FAILED);
@@ -125,16 +121,23 @@ public class SwedbankStatementFetcher {
     jobForResponseFromSwedbank.setRawResponse(response.rawResponse());
     swedbankStatementFetchJobRepository.save(jobForResponseFromSwedbank);
 
-    processStatementResponse(response);
+    try {
+      processStatementResponse(jobForResponseFromSwedbank);
+    } catch(Exception e) {
+      log.error("Failed to process Swedbank statement response", e);
+    }
+
     acknowledgeResponse(response, jobForResponseFromSwedbank);
   }
 
-  private void processStatementResponse(SwedbankGatewayResponse response) {
-    log.info("Swedbank statement response: {}", response.response()); // TODO to DB
+  private void processStatementResponse(SwedbankStatementFetchJob job) {
+    Document response = swedbankGatewayClient.getParsedStatementResponse(job.getRawResponse());
+
+    log.info("Swedbank statement response: {}", response);
   }
 
   private void acknowledgeResponse(
-      SwedbankGatewayResponse response, SwedbankStatementFetchJob job) {
+      SwedbankGatewayResponseDto response, SwedbankStatementFetchJob job) {
     swedbankGatewayClient.acknowledgeResponse(response);
 
     job.setJobStatus(DONE);

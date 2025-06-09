@@ -86,10 +86,9 @@ class SwedbankGatewayClientTest {
         .thenReturn(responseEntity);
     when(marshaller.unMarshal(xml, B4B.class)).thenReturn(mockB4B);
 
-    Optional<SwedbankGatewayResponse> response = client.getResponse();
+    Optional<SwedbankGatewayResponseDto> response = client.getResponse();
 
     assertThat(response).isPresent();
-    assertThat(response.get().response()).isEqualTo(mockB4B);
     assertThat(response.get().requestTrackingId()).isEqualTo("req-123");
     assertThat(response.get().responseTrackingId()).isEqualTo("track-456");
   }
@@ -104,7 +103,7 @@ class SwedbankGatewayClientTest {
             eq(expectedUrl), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
         .thenReturn(responseEntity);
 
-    Optional<SwedbankGatewayResponse> response = client.getResponse();
+    Optional<SwedbankGatewayResponseDto> response = client.getResponse();
 
     assertThat(response).isEmpty();
   }
@@ -114,9 +113,9 @@ class SwedbankGatewayClientTest {
   void acknowledgePong_shouldCallDeleteEndpoint() {
     var id = UUID.fromString("474a3afd-9faa-469b-ab02-93262aa38ab1");
 
-    SwedbankGatewayResponse response =
-        new SwedbankGatewayResponse(
-            new ee.swedbank.gateway.iso.response.Document(), "req-abc", id, "SWED-TRACKING-ID");
+    SwedbankGatewayResponseDto response =
+        new SwedbankGatewayResponseDto(
+            "req-abc", id, "SWED-TRACKING-ID");
 
     URI expectedUri =
         URI.create(baseUrl + "messages?client_id=" + clientId + "&trackingId=track-xyz");

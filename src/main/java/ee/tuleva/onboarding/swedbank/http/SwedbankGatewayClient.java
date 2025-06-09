@@ -4,7 +4,6 @@ import static ee.swedbank.gateway.iso.request.QueryType3Code.ALLL;
 import static org.springframework.http.HttpMethod.*;
 
 import ee.swedbank.gateway.iso.request.*;
-import ee.swedbank.gateway.iso.response.Document;
 import jakarta.xml.bind.JAXBElement;
 import java.net.URI;
 import java.time.Clock;
@@ -56,7 +55,7 @@ public class SwedbankGatewayClient {
     restTemplate.exchange(getRequestUrl("account-statements"), POST, requestEntity, String.class);
   }
 
-  public Optional<SwedbankGatewayResponse> getResponse() {
+  public Optional<SwedbankGatewayResponseDto> getResponse() {
     HttpEntity<Void> messageEntity = new HttpEntity<>(getHeaders(UUID.randomUUID()));
 
     var messagesResponse =
@@ -66,16 +65,14 @@ public class SwedbankGatewayClient {
       return Optional.empty();
     }
 
-    var response = marshaller.unMarshal(messagesResponse.getBody(), Document.class);
     return Optional.of(
-        new SwedbankGatewayResponse(
-            response,
+        new SwedbankGatewayResponseDto(
             messagesResponse.getBody(),
             deSerializeRequestId(messagesResponse.getHeaders().get("X-Request-ID").getFirst()),
             messagesResponse.getHeaders().get("X-Tracking-ID").getFirst()));
   }
 
-  public void acknowledgeResponse(SwedbankGatewayResponse response) {
+  public void acknowledgeResponse(SwedbankGatewayResponseDto response) {
     var requestId = UUID.randomUUID();
     HttpEntity<Void> messageEntity = new HttpEntity<>(getHeaders(requestId));
 
@@ -171,6 +168,11 @@ public class SwedbankGatewayClient {
     return objectFactory.createDocument(document);
   }
 
+
+  public ee.swedbank.gateway.iso.response.Document getParsedStatementResponse(String rawResponse) {
+    return marshaller.unMarshal(rawResponse,  ee.swedbank.gateway.iso.response.Document.class);
+  }
+
   private static String serializeRequestId(UUID requestId) {
     return requestId.toString().replace("-", "");
   }
@@ -181,4 +183,6 @@ public class SwedbankGatewayClient {
             "(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)",
             "$1-$2-$3-$4-$5"));
   }
+
+
 }

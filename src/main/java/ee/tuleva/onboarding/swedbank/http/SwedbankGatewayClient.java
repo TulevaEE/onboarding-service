@@ -168,9 +168,8 @@ public class SwedbankGatewayClient {
     return objectFactory.createDocument(document);
   }
 
-
   public ee.swedbank.gateway.iso.response.Document getParsedStatementResponse(String rawResponse) {
-    return marshaller.unMarshal(rawResponse,  ee.swedbank.gateway.iso.response.Document.class);
+    return marshaller.unMarshal(rawResponse, ee.swedbank.gateway.iso.response.Document.class);
   }
 
   private static String serializeRequestId(UUID requestId) {
@@ -183,6 +182,4 @@ public class SwedbankGatewayClient {
             "(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)",
             "$1-$2-$3-$4-$5"));
   }
-
-
 }

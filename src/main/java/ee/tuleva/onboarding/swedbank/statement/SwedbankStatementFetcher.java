@@ -123,7 +123,7 @@ public class SwedbankStatementFetcher {
 
     try {
       processStatementResponse(jobForResponseFromSwedbank);
-    } catch(Exception e) {
+    } catch (Exception e) {
       log.error("Failed to process Swedbank statement response", e);
     }
 

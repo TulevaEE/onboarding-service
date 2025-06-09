@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
 import ee.tuleva.onboarding.swedbank.statement.SwedbankStatementFetchJob.JobStatus;
-
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.repository.CrudRepository;

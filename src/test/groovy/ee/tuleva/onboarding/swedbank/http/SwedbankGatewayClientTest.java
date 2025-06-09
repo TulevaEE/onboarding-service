@@ -114,8 +114,7 @@ class SwedbankGatewayClientTest {
     var id = UUID.fromString("474a3afd-9faa-469b-ab02-93262aa38ab1");
 
     SwedbankGatewayResponseDto response =
-        new SwedbankGatewayResponseDto(
-            "req-abc", id, "SWED-TRACKING-ID");
+        new SwedbankGatewayResponseDto("req-abc", id, "SWED-TRACKING-ID");
 
     URI expectedUri =
         URI.create(baseUrl + "messages?client_id=" + clientId + "&trackingId=track-xyz");

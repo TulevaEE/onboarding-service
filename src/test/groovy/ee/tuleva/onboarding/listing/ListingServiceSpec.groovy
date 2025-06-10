@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.listing
 
+
 import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
@@ -12,7 +13,6 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.listing.ListingType.SELL
 import static ee.tuleva.onboarding.listing.ListingsFixture.activeListing
 import static ee.tuleva.onboarding.listing.ListingsFixture.newListingRequest
-
 
 class ListingServiceSpec extends Specification {
 
@@ -57,10 +57,15 @@ class ListingServiceSpec extends Specification {
   }
 
   def "deleteListing delegates to repository"() {
+    given:
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+    def user = sampleUser().build()
+    userService.getById(authenticatedPerson.userId) >> user
+
     when:
-    service.deleteListing(1L)
+    service.deleteListing(1L, authenticatedPerson)
 
     then:
-    1 * listingRepository.deleteById(1L)
+    1 * listingRepository.deleteByIdAndMemberId(1L, user.memberId)
   }
 }

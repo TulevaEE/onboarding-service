@@ -8,6 +8,7 @@ import static jakarta.persistence.GenerationType.IDENTITY;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.time.ClockHolder;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -27,36 +28,47 @@ public class Listing {
   @GeneratedValue(strategy = IDENTITY)
   private Long id;
 
-  @Column(nullable = false)
+  @NotNull
+  @Column(nullable = false, updatable = false)
   private Long memberId;
 
   @Enumerated(STRING)
-  @Column(nullable = false, length = 4)
+  @NotNull
+  @Column(nullable = false, updatable = false)
   private ListingType type;
 
-  @Column(nullable = false, precision = 14, scale = 2)
+  @NotNull
+  @Column(nullable = false, updatable = false)
   private BigDecimal units;
 
-  @Column(nullable = false, precision = 14, scale = 2)
+  @NotNull
+  @Column(nullable = false, updatable = false)
   private BigDecimal pricePerUnit;
 
   @Enumerated(STRING)
-  @Column(nullable = false, length = 3)
+  @NotNull
+  @Column(nullable = false, updatable = false)
   private Currency currency;
 
   /** ACTIVE → IN_PROGRESS → CANCELLED / COMPLETED */
   @Enumerated(STRING)
+  @NotNull
   private State state;
 
-  @Column(nullable = false)
+  @Column(updatable = false)
+  private String iban;
+
+  @Column(nullable = false, updatable = false)
+  @NotNull
   private Instant expiryTime;
 
   @Column(nullable = false, updatable = false)
+  @NotNull
   private Instant createdTime;
 
-  @Column private Instant cancelledTime;
+  private Instant cancelledTime;
 
-  @Column private Instant completedTime;
+  private Instant completedTime;
 
   @PrePersist
   void prePersist() {

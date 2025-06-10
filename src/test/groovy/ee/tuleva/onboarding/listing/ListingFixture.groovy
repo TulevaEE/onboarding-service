@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.listing
 
-
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.listing.Listing.ListingBuilder
 import static ee.tuleva.onboarding.listing.Listing.builder

@@ -74,4 +74,31 @@ class UserRepositorySpec extends Specification {
         then:
         !user.getMember().isPresent()
     }
+
+  def "can find a user by member id"() {
+    given:
+    def user = entityManager.persist(User.builder()
+        .firstName("Erko")
+        .lastName("Risthein")
+        .personalCode("38501010002")
+        .email("erko@risthein.ee")
+        .phoneNumber("5555555")
+        .active(true)
+        .build())
+
+    entityManager.flush()
+    def member = entityManager.persist(Member.builder()
+        .user(user)
+        .memberNumber(234)
+        .active(true)
+        .build())
+    entityManager.flush()
+
+    when:
+    def foundUser = repository.findByMember_Id(member.id).get()
+
+    then:
+    foundUser == user
+  }
+
 }

@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.user;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
+import static jakarta.persistence.CascadeType.*;
+import static jakarta.persistence.GenerationType.*;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.notification.email.Emailable;
@@ -29,10 +31,10 @@ import lombok.*;
 public class User implements Person, Emailable, Serializable {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = IDENTITY)
   private Long id;
 
-  @OneToOne(cascade = CascadeType.ALL, mappedBy = "user", fetch = FetchType.LAZY)
+  @OneToOne(cascade = ALL, mappedBy = "user")
   Member member;
 
   @ValidPersonalCode private String personalCode;

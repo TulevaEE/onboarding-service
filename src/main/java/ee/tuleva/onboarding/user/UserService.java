@@ -98,4 +98,10 @@ public class UserService {
     Optional<User> existingUser = userRepository.findByEmail(email.get());
     return existingUser.isPresent() && !personalCode.equals(existingUser.get().getPersonalCode());
   }
+
+  public User getByMemberId(Long memberId) {
+    return userRepository
+        .findByMember_Id(memberId)
+        .orElseThrow(() -> new IllegalStateException("No user found: memberId=" + memberId));
+  }
 }

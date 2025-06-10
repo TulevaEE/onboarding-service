@@ -8,10 +8,3 @@ CREATE TABLE IF NOT EXISTS swedbank_statement_fetch_job
   raw_response TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
-
-CREATE TABLE IF NOT EXISTS swedbank_statement_transaction
-(
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  job_id UUID NOT NULL REFERENCES swedbank_statement_fetch_job
-);

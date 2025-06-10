@@ -34,10 +34,12 @@ public class ListingService {
         .toList();
   }
 
-  public void deleteListing(Long id, AuthenticatedPerson authenticatedPerson) {
+  public Listing cancelListing(Long id, AuthenticatedPerson authenticatedPerson) {
     User user = userService.getById(authenticatedPerson.getUserId());
     Member member = user.getMember().orElseThrow();
-    listingRepository.deleteByIdAndMemberId(id, member.getId());
+    Listing listing = listingRepository.findByIdAndMemberId(id, member.getId()).orElseThrow();
+    listing.cancel();
+    return listingRepository.save(listing);
   }
 
   public MessageResponse contactListingOwner(

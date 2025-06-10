@@ -35,7 +35,7 @@ public class ListingController {
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> delete(
       @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    listingService.deleteListing(id, authenticatedPerson);
+    listingService.cancelListing(id, authenticatedPerson);
     return ResponseEntity.noContent().build();
   }
 

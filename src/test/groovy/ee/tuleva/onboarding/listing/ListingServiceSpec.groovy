@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.listing
 
-
+import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
@@ -10,8 +10,10 @@ import java.time.Instant
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.listing.Listing.State.CANCELLED
 import static ee.tuleva.onboarding.listing.ListingType.SELL
 import static ee.tuleva.onboarding.listing.ListingsFixture.activeListing
+import static ee.tuleva.onboarding.listing.ListingsFixture.expiredListing
 import static ee.tuleva.onboarding.listing.ListingsFixture.newListingRequest
 
 class ListingServiceSpec extends Specification {
@@ -21,7 +23,11 @@ class ListingServiceSpec extends Specification {
   Clock clock = TestClockHolder.clock
   ListingService service = new ListingService(listingRepository, userService, clock)
 
-  def 'createListing maps request, saves entity, and returns DTO'() {
+  def setup() {
+    ClockHolder.setClock(TestClockHolder.clock)
+  }
+
+  def "createListing maps request, saves entity, and returns DTO"() {
     given:
     def request = newListingRequest().build()
     def person = sampleAuthenticatedPersonAndMember().build()
@@ -40,7 +46,7 @@ class ListingServiceSpec extends Specification {
     createdListing == ListingDto.from(savedListing)
   }
 
-  def 'findActiveListings retrieves and maps active listings'() {
+  def "findActiveListings retrieves and maps active listings"() {
     given:
     def entity = activeListing()
         .id(1L)
@@ -56,16 +62,40 @@ class ListingServiceSpec extends Specification {
     results == [ListingDto.from(entity)]
   }
 
-  def "deleteListing delegates to repository"() {
+  def "can cancel active listings"() {
     given:
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     def user = sampleUser().build()
     userService.getById(authenticatedPerson.userId) >> user
+    def listing = activeListing().id(1L).memberId(user.memberId).build()
+    1 * listingRepository.findByIdAndMemberId(1L, user.memberId) >> Optional.of(listing)
+    1 * listingRepository.save(_) >> { Listing it ->
+      it.tap {
+        state = CANCELLED
+        cancelledTime = clock.instant()
+      }
+    }
 
     when:
-    service.deleteListing(1L, authenticatedPerson)
+    def returnedListing = service.cancelListing(1L, authenticatedPerson)
 
     then:
-    1 * listingRepository.deleteByIdAndMemberId(1L, user.memberId)
+    returnedListing.state == CANCELLED
+    returnedListing.cancelledTime == clock.instant()
+  }
+
+  def "can not cancel listings that are in other states"() {
+    given:
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+    def user = sampleUser().build()
+    userService.getById(authenticatedPerson.userId) >> user
+    def listing = expiredListing().id(1L).memberId(user.memberId).build()
+    1 * listingRepository.findByIdAndMemberId(1L, user.memberId) >> Optional.of(listing)
+
+    when:
+    service.cancelListing(1L, authenticatedPerson)
+
+    then:
+    thrown(IllegalStateException)
   }
 }

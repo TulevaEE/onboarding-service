@@ -77,7 +77,7 @@ class ListingControllerSpec extends Specification {
   def "can delete a listing"() {
     given:
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-    listingService.deleteListing(1L, authenticatedPerson) >> {}
+    listingService.cancelListing(1L, authenticatedPerson) >> {}
 
     expect:
     mvc.perform(delete("/v1/listings/1")

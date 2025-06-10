@@ -15,7 +15,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 
-@Profile({"dev", "test"})
+@Profile({"dev"})
 @RequiredArgsConstructor
 @Slf4j
 @Service

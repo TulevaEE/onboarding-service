@@ -22,9 +22,9 @@ public class ListingController {
       @Valid @RequestBody NewListingRequest request,
       UriComponentsBuilder uriBuilder,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    ListingDto created = listingService.createListing(request, authenticatedPerson);
-    URI location = uriBuilder.path("/v1/listings/{id}").buildAndExpand(created.id()).toUri();
-    return ResponseEntity.created(location).body(created);
+    ListingDto listing = listingService.createListing(request, authenticatedPerson);
+    URI location = uriBuilder.path("/v1/listings/{id}").buildAndExpand(listing.id()).toUri();
+    return ResponseEntity.created(location).body(listing);
   }
 
   @GetMapping
@@ -33,15 +33,18 @@ public class ListingController {
   }
 
   @DeleteMapping("/{id}")
-  public ResponseEntity<Void> delete(@PathVariable Long id) {
-    listingService.deleteListing(id);
+  public ResponseEntity<Void> delete(
+      @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    listingService.deleteListing(id, authenticatedPerson);
     return ResponseEntity.noContent().build();
   }
 
   @PostMapping("/{id}/contact")
   public ResponseEntity<MessageResponse> contact(
-      @PathVariable Long id, @Valid @RequestBody ContactMessageRequest request) {
-    MessageResponse response = listingService.contactListingOwner(id, request);
+      @PathVariable Long id,
+      @Valid @RequestBody ContactMessageRequest request,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    MessageResponse response = listingService.contactListingOwner(id, request, authenticatedPerson);
     return ResponseEntity.accepted().body(response);
   }
 }

@@ -92,13 +92,8 @@ class AmlHealthIntegrationTest {
     assertThat(thresholdOpt.get()).isEqualTo(baseThreshold);
 
     // given
-    // Base (5h) + 50% grace (2.5h) + 1 minute
     Instant futureTime =
-        lastCheck
-            .getCreatedTime()
-            .plus(baseThreshold)
-            .plus(Duration.ofHours(2))
-            .plus(Duration.ofMinutes(31));
+        lastCheck.getCreatedTime().plus(baseThreshold.multipliedBy(3)).plus(Duration.ofMinutes(1));
     ClockHolder.setClock(Clock.fixed(futureTime, ZoneId.of("UTC")));
 
     // when
@@ -130,7 +125,6 @@ class AmlHealthIntegrationTest {
     assertThat(thresholdOpt.get()).isEqualTo(baseThreshold);
 
     // given
-    // Within 50% grace (30 minutes)
     Instant futureTime =
         lastCheck.getCreatedTime().plus(baseThreshold).plus(Duration.ofMinutes(10));
     ClockHolder.setClock(Clock.fixed(futureTime, ZoneId.of("UTC")));

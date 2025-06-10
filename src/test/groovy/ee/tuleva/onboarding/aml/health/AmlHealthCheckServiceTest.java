@@ -30,6 +30,7 @@ class AmlHealthCheckServiceTest {
   @InjectMocks private AmlHealthCheckService amlHealthCheckService;
 
   private final Instant NOW_INSTANT = Instant.parse("2025-05-16T12:00:00.00Z");
+  private static final double GRACE_PERIOD_PERCENTAGE = 2.0;
 
   @BeforeEach
   void setUp() {
@@ -46,11 +47,10 @@ class AmlHealthCheckServiceTest {
   void isCheckTypeDelayed_whenTimeSinceLastCheckExceedsThresholdPlusGrace_returnsTrue() {
     // given
     AmlCheckType checkType = AmlCheckType.CONTACT_DETAILS;
-    Duration baseThreshold = Duration.ofHours(1); // 3600 seconds
-    // 50% grace = 1800 seconds. Effective threshold = 3600 + 1800 = 5400 seconds
-    // Last check was 1 hour and 31 minutes ago (3600 + 1860 = 5460 seconds ago)
-    Instant lastCheckTime =
-        NOW_INSTANT.minus(baseThreshold).minus(Duration.ofMinutes(31)); // Exceeds grace
+    Duration baseThreshold = Duration.ofHours(1);
+    Duration effectiveThreshold =
+        baseThreshold.plusNanos((long) (baseThreshold.toNanos() * GRACE_PERIOD_PERCENTAGE));
+    Instant lastCheckTime = NOW_INSTANT.minus(effectiveThreshold).minusSeconds(1);
 
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
@@ -68,11 +68,8 @@ class AmlHealthCheckServiceTest {
   void isCheckTypeDelayed_whenTimeSinceLastCheckIsWithinThresholdPlusGrace_returnsFalse() {
     // given
     AmlCheckType checkType = AmlCheckType.DOCUMENT;
-    Duration baseThreshold = Duration.ofHours(1); // 3600 seconds
-    // 50% grace = 1800 seconds. Effective threshold = 5400 seconds
-    // Last check was 1 hour and 20 minutes ago (3600 + 1200 = 4800 seconds ago)
-    Instant lastCheckTime =
-        NOW_INSTANT.minus(baseThreshold).minus(Duration.ofMinutes(20)); // Within grace
+    Duration baseThreshold = Duration.ofHours(1);
+    Instant lastCheckTime = NOW_INSTANT.minus(baseThreshold).minus(Duration.ofMinutes(50));
 
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
@@ -90,11 +87,11 @@ class AmlHealthCheckServiceTest {
   void isCheckTypeDelayed_whenTimeSinceLastCheckIsExactlyAtEffectiveThreshold_returnsFalse() {
     // given
     AmlCheckType checkType = AmlCheckType.PENSION_REGISTRY_NAME;
-    Duration baseThreshold = Duration.ofMinutes(100); // 6000 seconds
-    long graceNanos = (long) (baseThreshold.toNanos() * 0.5); // 50% grace = 3000 seconds
-    Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos); // 150 minutes
+    Duration baseThreshold = Duration.ofMinutes(100);
+    long graceNanos = (long) (baseThreshold.toNanos() * GRACE_PERIOD_PERCENTAGE);
+    Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos);
 
-    Instant lastCheckTime = NOW_INSTANT.minus(effectiveThreshold); // Exactly at effective threshold
+    Instant lastCheckTime = NOW_INSTANT.minus(effectiveThreshold);
 
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
@@ -112,12 +109,11 @@ class AmlHealthCheckServiceTest {
   void isCheckTypeDelayed_whenTimeSinceLastCheckIsJustOverEffectiveThreshold_returnsTrue() {
     // given
     AmlCheckType checkType = AmlCheckType.RISK_LEVEL;
-    Duration baseThreshold = Duration.ofMinutes(100); // 6000 seconds
-    long graceNanos = (long) (baseThreshold.toNanos() * 0.5); // 50% grace = 3000 seconds
-    Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos); // 150 minutes
+    Duration baseThreshold = Duration.ofMinutes(100);
+    long graceNanos = (long) (baseThreshold.toNanos() * GRACE_PERIOD_PERCENTAGE);
+    Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos);
 
-    Instant lastCheckTime =
-        NOW_INSTANT.minus(effectiveThreshold).minusSeconds(1); // 1 second over effective threshold
+    Instant lastCheckTime = NOW_INSTANT.minus(effectiveThreshold).minusSeconds(1);
 
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
@@ -136,8 +132,7 @@ class AmlHealthCheckServiceTest {
     // given
     AmlCheckType checkType = AmlCheckType.DOCUMENT;
     Duration baseThreshold = Duration.ofHours(2);
-    Instant lastCheckTime =
-        NOW_INSTANT.minus(Duration.ofHours(1)); // 1 hour ago, well within 2h threshold
+    Instant lastCheckTime = NOW_INSTANT.minus(Duration.ofHours(1));
 
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
@@ -187,10 +182,8 @@ class AmlHealthCheckServiceTest {
   void isCheckTypeDelayed_whenTimeSinceLastCheckEqualsBaseThreshold_returnsFalse() {
     // given
     AmlCheckType checkType = AmlCheckType.POLITICALLY_EXPOSED_PERSON;
-    Duration baseThreshold = Duration.ofHours(1); // 3600 seconds
-    // Effective threshold = 5400 seconds
-    Instant lastCheckTime =
-        NOW_INSTANT.minus(baseThreshold); // Exactly 1 hour ago (3600s), within grace
+    Duration baseThreshold = Duration.ofHours(1);
+    Instant lastCheckTime = NOW_INSTANT.minus(baseThreshold);
 
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));

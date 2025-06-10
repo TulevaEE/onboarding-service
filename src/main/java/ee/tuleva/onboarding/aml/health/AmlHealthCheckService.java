@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class AmlHealthCheckService {
 
-  private static final double GRACE_PERIOD_PERCENTAGE = 0.5;
+  private static final double GRACE_PERIOD_PERCENTAGE = 2.0;
 
   private final AmlHealthThresholdCache amlHealthThresholdCache;
   private final AmlCheckHealthRepository amlCheckHealthRepository;
@@ -37,7 +37,6 @@ public class AmlHealthCheckService {
     }
     Duration baseThreshold = thresholdOptional.get();
 
-    // Calculate effective threshold with grace period
     long baseNanos = baseThreshold.toNanos();
     long graceNanos = (long) (baseNanos * GRACE_PERIOD_PERCENTAGE);
     Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos);

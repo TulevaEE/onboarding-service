@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.listing
 
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.listing.Listing.ListingBuilder
+import static ee.tuleva.onboarding.listing.Listing.State.ACTIVE
 import static ee.tuleva.onboarding.listing.Listing.builder
 import static ee.tuleva.onboarding.listing.ListingType.BUY
 import static ee.tuleva.onboarding.listing.NewListingRequest.NewListingRequestBuilder
@@ -19,6 +20,7 @@ class ListingsFixture {
         .pricePerUnit(5.00)
         .currency(EUR)
         .expiryTime(now.plus(30, DAYS))
+        .state(ACTIVE)
         .createdTime(now)
   }
 

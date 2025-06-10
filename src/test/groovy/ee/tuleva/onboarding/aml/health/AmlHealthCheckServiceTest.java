@@ -47,10 +47,10 @@ class AmlHealthCheckServiceTest {
     // given
     AmlCheckType checkType = AmlCheckType.CONTACT_DETAILS;
     Duration baseThreshold = Duration.ofHours(1); // 3600 seconds
-    // 20% grace = 720 seconds. Effective threshold = 3600 + 720 = 4320 seconds
-    // Last check was 1 hour and 13 minutes ago (3600 + 780 = 4380 seconds ago)
+    // 50% grace = 1800 seconds. Effective threshold = 3600 + 1800 = 5400 seconds
+    // Last check was 1 hour and 31 minutes ago (3600 + 1860 = 5460 seconds ago)
     Instant lastCheckTime =
-        NOW_INSTANT.minus(baseThreshold).minus(Duration.ofMinutes(13)); // Exceeds grace
+        NOW_INSTANT.minus(baseThreshold).minus(Duration.ofMinutes(31)); // Exceeds grace
 
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
@@ -69,10 +69,10 @@ class AmlHealthCheckServiceTest {
     // given
     AmlCheckType checkType = AmlCheckType.DOCUMENT;
     Duration baseThreshold = Duration.ofHours(1); // 3600 seconds
-    // 20% grace = 720 seconds. Effective threshold = 4320 seconds
-    // Last check was 1 hour and 10 minutes ago (3600 + 600 = 4200 seconds ago)
+    // 50% grace = 1800 seconds. Effective threshold = 5400 seconds
+    // Last check was 1 hour and 20 minutes ago (3600 + 1200 = 4800 seconds ago)
     Instant lastCheckTime =
-        NOW_INSTANT.minus(baseThreshold).minus(Duration.ofMinutes(10)); // Within grace
+        NOW_INSTANT.minus(baseThreshold).minus(Duration.ofMinutes(20)); // Within grace
 
     when(mockAmlHealthThresholdCache.getThreshold(checkType.name()))
         .thenReturn(Optional.of(baseThreshold));
@@ -91,8 +91,8 @@ class AmlHealthCheckServiceTest {
     // given
     AmlCheckType checkType = AmlCheckType.PENSION_REGISTRY_NAME;
     Duration baseThreshold = Duration.ofMinutes(100); // 6000 seconds
-    long graceNanos = (long) (baseThreshold.toNanos() * 0.2); // 20% grace = 1200 seconds
-    Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos); // 120 minutes
+    long graceNanos = (long) (baseThreshold.toNanos() * 0.5); // 50% grace = 3000 seconds
+    Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos); // 150 minutes
 
     Instant lastCheckTime = NOW_INSTANT.minus(effectiveThreshold); // Exactly at effective threshold
 
@@ -113,8 +113,8 @@ class AmlHealthCheckServiceTest {
     // given
     AmlCheckType checkType = AmlCheckType.RISK_LEVEL;
     Duration baseThreshold = Duration.ofMinutes(100); // 6000 seconds
-    long graceNanos = (long) (baseThreshold.toNanos() * 0.2); // 20% grace = 1200 seconds
-    Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos); // 120 minutes
+    long graceNanos = (long) (baseThreshold.toNanos() * 0.5); // 50% grace = 3000 seconds
+    Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos); // 150 minutes
 
     Instant lastCheckTime =
         NOW_INSTANT.minus(effectiveThreshold).minusSeconds(1); // 1 second over effective threshold
@@ -188,7 +188,7 @@ class AmlHealthCheckServiceTest {
     // given
     AmlCheckType checkType = AmlCheckType.POLITICALLY_EXPOSED_PERSON;
     Duration baseThreshold = Duration.ofHours(1); // 3600 seconds
-    // Effective threshold = 4320 seconds
+    // Effective threshold = 5400 seconds
     Instant lastCheckTime =
         NOW_INSTANT.minus(baseThreshold); // Exactly 1 hour ago (3600s), within grace
 

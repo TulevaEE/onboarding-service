@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class AmlHealthCheckService {
 
+  private static final double GRACE_PERIOD_PERCENTAGE = 0.5;
+
   private final AmlHealthThresholdCache amlHealthThresholdCache;
   private final AmlCheckHealthRepository amlCheckHealthRepository;
 
@@ -35,9 +37,9 @@ public class AmlHealthCheckService {
     }
     Duration baseThreshold = thresholdOptional.get();
 
-    // Calculate effective threshold with 20% grace period
+    // Calculate effective threshold with grace period
     long baseNanos = baseThreshold.toNanos();
-    long graceNanos = (long) (baseNanos * 0.2);
+    long graceNanos = (long) (baseNanos * GRACE_PERIOD_PERCENTAGE);
     Duration effectiveThreshold = baseThreshold.plusNanos(graceNanos);
 
     Optional<Instant> lastCheckTimeOptional =
@@ -58,19 +60,21 @@ public class AmlHealthCheckService {
 
     if (isDelayed) {
       log.warn(
-          "AML check type: {} IS DELAYED for health check. Last check: {}, Current time: {}, Time since last check: {}s, Base Threshold: {}s, Effective Threshold (w/5% grace): {}s",
+          "AML check type: {} IS DELAYED for health check. Last check: {}, Current time: {}, Time since last check: {}s, Base Threshold: {}s, Effective Threshold (w/{}% grace): {}s",
           checkType,
           lastCheckTime,
           currentTime,
           timeSinceLastCheck.toSeconds(),
           baseThreshold.toSeconds(),
+          (int) (GRACE_PERIOD_PERCENTAGE * 100),
           effectiveThreshold.toSeconds());
     } else {
       log.debug(
-          "AML check type: {} is not delayed for health check. Time since last check: {}s, Base Threshold: {}s, Effective Threshold (w/5% grace): {}s",
+          "AML check type: {} is not delayed for health check. Time since last check: {}s, Base Threshold: {}s, Effective Threshold (w/{}% grace): {}s",
           checkType,
           timeSinceLastCheck.toSeconds(),
           baseThreshold.toSeconds(),
+          (int) (GRACE_PERIOD_PERCENTAGE * 100),
           effectiveThreshold.toSeconds());
     }
     return isDelayed;

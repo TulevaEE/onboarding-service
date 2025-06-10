@@ -64,7 +64,7 @@ class AmlHealthIntegrationTest {
             .metadata(Map.of("integrationTest", true))
             .build();
     AmlCheck saved = amlCheckHealthRepository.saveAndFlush(check);
-    ClockHolder.setClock(FIXED_CLOCK); // Reset clock
+    ClockHolder.setClock(FIXED_CLOCK);
     return saved;
   }
 
@@ -92,15 +92,13 @@ class AmlHealthIntegrationTest {
     assertThat(thresholdOpt.get()).isEqualTo(baseThreshold);
 
     // given
+    // Base (5h) + 50% grace (2.5h) + 1 minute
     Instant futureTime =
         lastCheck
             .getCreatedTime()
-            .plus(Duration.ofHours(5))
-            .plus(
-                Duration.ofHours(1)
-                    .plus(
-                        Duration.ofMinutes(
-                            1))); // Base + 20% grace + 1 minute (exceeds 1 hour grace period)
+            .plus(baseThreshold)
+            .plus(Duration.ofHours(2))
+            .plus(Duration.ofMinutes(31));
     ClockHolder.setClock(Clock.fixed(futureTime, ZoneId.of("UTC")));
 
     // when
@@ -132,11 +130,9 @@ class AmlHealthIntegrationTest {
     assertThat(thresholdOpt.get()).isEqualTo(baseThreshold);
 
     // given
+    // Within 50% grace (30 minutes)
     Instant futureTime =
-        lastCheck
-            .getCreatedTime()
-            .plus(Duration.ofHours(1))
-            .plus(Duration.ofMinutes(10)); // Within 20% grace (12 minutes)
+        lastCheck.getCreatedTime().plus(baseThreshold).plus(Duration.ofMinutes(10));
     ClockHolder.setClock(Clock.fixed(futureTime, ZoneId.of("UTC")));
 
     // when

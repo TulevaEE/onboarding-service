@@ -4,22 +4,22 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import org.spockframework.spring.SpringBean
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
-import org.springframework.security.test.context.support.WithMockUser
 import org.springframework.test.web.servlet.MockMvc
 import spock.lang.Specification
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.config.SecurityTestHelper.mockAuthentication
 import static ee.tuleva.onboarding.listing.ListingContactPreference.EMAIL_AND_PHONE
 import static ee.tuleva.onboarding.listing.ListingsFixture.activeListing
 import static ee.tuleva.onboarding.listing.ListingsFixture.newListingRequest
-import static ee.tuleva.onboarding.listing.MessageResponse.Status.QUEUED
 import static org.springframework.http.MediaType.APPLICATION_JSON
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
 @WebMvcTest(ListingController)
-@WithMockUser
 class ListingControllerSpec extends Specification {
 
   @Autowired
@@ -39,9 +39,12 @@ class ListingControllerSpec extends Specification {
     1 * listingService.createListing(request, _) >> listingDto
 
     expect:
-    mvc.perform(post("/v1/listings").with(csrf())
+    mvc.perform(post("/v1/listings")
+        .with(csrf())
+        .with(authentication(mockAuthentication()))
         .contentType(APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(request)))
+        .content(objectMapper.writeValueAsString(request))
+    )
         .andExpect(status().isCreated())
         .andExpect(jsonPath('$.id').value(listingDto.id()))
         .andExpect(jsonPath('$.type').value(listingDto.type().name()))
@@ -58,7 +61,9 @@ class ListingControllerSpec extends Specification {
     1 * listingService.findActiveListings() >> [listingDto]
 
     expect:
-    mvc.perform(get("/v1/listings"))
+    mvc.perform(get("/v1/listings")
+        .with(authentication(mockAuthentication()))
+    )
         .andExpect(status().isOk())
         .andExpect(jsonPath('$[0].id').value(listingDto.id()))
         .andExpect(jsonPath('$[0].type').value(listingDto.type().name()))
@@ -71,24 +76,32 @@ class ListingControllerSpec extends Specification {
 
   def "can delete a listing"() {
     given:
-    listingService.deleteListing(1L) >> {}
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+    listingService.deleteListing(1L, authenticatedPerson) >> {}
 
     expect:
-    mvc.perform(delete("/v1/listings/1").with(csrf()))
+    mvc.perform(delete("/v1/listings/1")
+        .with(csrf())
+        .with(authentication(mockAuthentication()))
+    )
         .andExpect(status().isNoContent())
   }
 
   def "can contact a listing owner"() {
     given:
     def request = new ContactMessageRequest("Hello", EMAIL_AND_PHONE)
-    def response = new MessageResponse(10L, QUEUED)
-    listingService.contactListingOwner(1L, request) >> response
+    def response = new MessageResponse(10L, "QUEUED")
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+    listingService.contactListingOwner(1L, request, authenticatedPerson) >> response
 
     expect:
-    mvc.perform(post("/v1/listings/1/contact").with(csrf())
+    mvc.perform(post("/v1/listings/1/contact")
+        .with(csrf())
+        .with(authentication(mockAuthentication()))
         .contentType(APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(request)))
+        .content(objectMapper.writeValueAsString(request))
+    )
         .andExpect(status().isAccepted())
-        .andExpect(jsonPath('$.status').value(QUEUED.name()))
+        .andExpect(jsonPath('$.status').value("QUEUED"))
   }
 }

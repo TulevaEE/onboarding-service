@@ -23,4 +23,15 @@ class ListingRepositorySpec extends Specification {
     expect:
     repository.findByExpiryTimeAfter(now) == [active]
   }
+
+  def "can delete a listing by id and member id"() {
+    given:
+    def listing = repository.save(activeListing().id(null).build())
+
+    when:
+    repository.deleteByIdAndMemberId(listing.id, listing.memberId)
+
+    then:
+    !repository.findById(listing.id).isPresent()
+  }
 }

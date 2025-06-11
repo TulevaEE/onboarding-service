@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.aml;
 
+import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -182,8 +183,12 @@ class AmlAutoCheckerTest {
   void beforeMandateCreated_addsSanctionAndPepCheck_forThirdPillar_whenChecksPass() {
     // given
     BeforeMandateCreatedEvent mockEvent = mock(BeforeMandateCreatedEvent.class);
-    Integer pillar = 3;
+    var mandate = thirdPillarMandate();
+    Integer pillar = mandate.getPillar();
+    assertEquals(3, pillar);
+
     when(mockEvent.getUser()).thenReturn(mockUser);
+    when(mockEvent.getMandate()).thenReturn(mandate);
     when(mockEvent.getPillar()).thenReturn(pillar);
     when(mockEvent.getAddress()).thenReturn(mockAddress);
     when(mockEvent.isThirdPillar()).thenReturn(true);
@@ -221,12 +226,16 @@ class AmlAutoCheckerTest {
 
   @Test
   @DisplayName(
-      "beforeMandateCreated: Should not add sanction and PEP check for non-Tuleva III pillar customers")
-  void beforeMandateCreated_notCustomer() {
+      "beforeMandateCreated: Should not add sanction and PEP check for non-Tuleva customer's III pillar withdrawal mandates")
+  void beforeMandateCreated_notCustomer_withdrawal() {
     // given
     BeforeMandateCreatedEvent mockEvent = mock(BeforeMandateCreatedEvent.class);
-    Integer pillar = 3;
+    var mandate = samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails);
+    Integer pillar = mandate.getPillar();
+    assertEquals(3, pillar);
+
     when(mockEvent.getUser()).thenReturn(mockUser);
+    when(mockEvent.getMandate()).thenReturn(mandate);
     when(mockEvent.getPillar()).thenReturn(pillar);
     when(mockEvent.isThirdPillar()).thenReturn(true);
     when(amlService.allChecksPassed(mockUser, pillar)).thenReturn(true);
@@ -243,18 +252,74 @@ class AmlAutoCheckerTest {
 
   @Test
   @DisplayName(
+      "beforeMandateCreated: Should add sanction and PEP check for Tuleva customer's III pillar withdrawal mandates")
+  void beforeMandateCreated_customer_withdrawal() {
+    // given
+    BeforeMandateCreatedEvent mockEvent = mock(BeforeMandateCreatedEvent.class);
+    var mandate = samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails);
+    Integer pillar = mandate.getPillar();
+    assertEquals(3, pillar);
+
+    when(mockEvent.getUser()).thenReturn(mockUser);
+    when(mockEvent.getMandate()).thenReturn(mandate);
+    when(mockEvent.getPillar()).thenReturn(pillar);
+    when(mockEvent.isThirdPillar()).thenReturn(true);
+    when(amlService.allChecksPassed(mockUser, pillar)).thenReturn(true);
+    when(userConversionService.getConversion(mockUser))
+        .thenReturn(ConversionResponseFixture.fullyConverted());
+
+    // when
+    assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
+
+    // then
+    verify(amlService).addSanctionAndPepCheckIfMissing(any(), any());
+    verify(amlService).allChecksPassed(mockUser, pillar);
+  }
+
+  @Test
+  @DisplayName(
+      "beforeMandateCreated: Should add sanction and PEP check for non-Tuleva customer's III pillar non-withdrawal mandate")
+  void beforeMandateCreated_notCustomer_notWithdrawal() {
+    // given
+    BeforeMandateCreatedEvent mockEvent = mock(BeforeMandateCreatedEvent.class);
+    var mandate = thirdPillarMandate();
+    Integer pillar = mandate.getPillar();
+    assertEquals(3, pillar);
+
+    when(mockEvent.getUser()).thenReturn(mockUser);
+    when(mockEvent.getMandate()).thenReturn(mandate);
+    when(mockEvent.getPillar()).thenReturn(pillar);
+    when(mockEvent.isThirdPillar()).thenReturn(true);
+    when(amlService.allChecksPassed(mockUser, pillar)).thenReturn(true);
+    when(userConversionService.getConversion(mockUser))
+        .thenReturn(ConversionResponseFixture.notConverted());
+
+    // when
+    assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
+
+    // then
+    verify(amlService).addSanctionAndPepCheckIfMissing(any(), any());
+    verify(amlService).allChecksPassed(mockUser, pillar);
+  }
+
+  @Test
+  @DisplayName(
       "beforeMandateCreated: Should throw AmlChecksMissingException if not all checks passed (3rd pillar)")
   void beforeMandateCreated_throwsException_whenChecksFail_thirdPillar() {
     // given
     BeforeMandateCreatedEvent mockEvent = mock(BeforeMandateCreatedEvent.class);
-    Integer pillar = 3;
+    var mandate = thirdPillarMandate();
+    Integer pillar = mandate.getPillar();
+    assertEquals(3, mandate.getPillar());
+
     when(mockEvent.getUser()).thenReturn(mockUser);
+    when(mockEvent.getMandate()).thenReturn(mandate);
     when(mockEvent.getPillar()).thenReturn(pillar);
     when(mockEvent.getAddress()).thenReturn(mockAddress);
     when(mockEvent.isThirdPillar()).thenReturn(true);
     when(amlService.allChecksPassed(mockUser, pillar)).thenReturn(false);
     when(userConversionService.getConversion(mockUser))
-        .thenReturn(ConversionResponseFixture.notFullyConverted());
+        .thenReturn(ConversionResponseFixture.fullyConverted());
 
     // when
     AmlChecksMissingException exception =

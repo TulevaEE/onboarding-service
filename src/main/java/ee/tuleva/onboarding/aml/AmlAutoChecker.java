@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
+import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
@@ -69,12 +70,7 @@ public class AmlAutoChecker {
     Address address = event.getAddress();
 
     if (event.isThirdPillar()) {
-      var conversion = userConversionService.getConversion(user).getThirdPillar();
-      var isTulevaThirdPillarClient =
-          conversion.isPartiallyConverted() || conversion.isFullyConverted();
-
-      // only run third pillar AML checks for own customers
-      if (isTulevaThirdPillarClient) {
+      if (isThirdPillarMandateAmlCheckRequired(user, event.getMandate())) {
         amlService.addSanctionAndPepCheckIfMissing(user, address);
       }
     }
@@ -82,6 +78,20 @@ public class AmlAutoChecker {
     if (!amlService.allChecksPassed(user, pillar)) {
       throw AmlChecksMissingException.newInstance();
     }
+  }
+
+  private Boolean isThirdPillarMandateAmlCheckRequired(User user, Mandate mandate) {
+    var conversion = userConversionService.getConversion(user).getThirdPillar();
+    var isTulevaThirdPillarClient =
+        conversion.isPartiallyConverted() || conversion.isFullyConverted();
+    var isWithdrawalMandate = mandate.getMandateType().isWithdrawalType();
+
+    // intentionally returning boolean literal and not expression for clarity
+    if (!isTulevaThirdPillarClient && isWithdrawalMandate) {
+      return false;
+    }
+
+    return true;
   }
 
   private Boolean isResident(BeforeTokenGrantedEvent event) {

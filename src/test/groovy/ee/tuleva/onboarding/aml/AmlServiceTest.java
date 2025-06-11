@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
+import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.*;
+import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -20,8 +22,11 @@ import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillar;
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarRepository;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
+import ee.tuleva.onboarding.conversion.ConversionResponse;
+import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
+import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
@@ -60,6 +65,7 @@ class AmlServiceTest {
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PepAndSanctionCheckService pepAndSanctionCheckService;
   @Mock private AnalyticsThirdPillarRepository analyticsThirdPillarRepository;
+  @Mock private UserConversionService userConversionService;
 
   @InjectMocks private AmlService amlService;
 
@@ -318,10 +324,12 @@ class AmlServiceTest {
   void allChecksPassed_trueForPillar2() {
     // given
     User user = createUser("123", "Test", "User", 1L);
-    Integer pillar = 2;
+    var mandate = sampleMandate();
+
+    assertEquals(2, mandate.getPillar());
 
     // when
-    boolean result = amlService.allChecksPassed(user, pillar);
+    boolean result = amlService.allChecksPassed(user, mandate);
 
     // then
     assertTrue(result);
@@ -402,18 +410,21 @@ class AmlServiceTest {
 
   @ParameterizedTest
   @MethodSource("allChecksPassedThirdPillarScenarios")
-  @DisplayName("allChecksPassed: evaluates third pillar checks correctly")
+  @DisplayName("allChecksPassed: evaluates third pillar non-withdrawal checks correctly")
   void allChecksPassed_evaluatesThirdPillar(
       List<AmlCheck> checks, boolean expectedResult, boolean eventExpected) {
     // given
     User user = createUser("12345", "Test", "User", 1L);
-    Integer pillar = 3;
+    var mandate = thirdPillarMandate();
+    assertEquals(3, mandate.getPillar());
     when(amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
             user.getPersonalCode(), aYearAgoFromTestClock))
         .thenReturn(checks);
 
+    when(userConversionService.getConversion(user)).thenReturn(fullyConverted());
+
     // when
-    boolean actualResult = amlService.allChecksPassed(user, pillar);
+    boolean actualResult = amlService.allChecksPassed(user, mandate);
 
     // then
     assertEquals(expectedResult, actualResult);
@@ -422,6 +433,60 @@ class AmlServiceTest {
     } else {
       verify(eventPublisher, never()).publishEvent(any(TrackableEvent.class));
     }
+  }
+
+  private static Stream<Arguments> amlChecksRequiredMandateScenarios() {
+
+    var tulevaClientScenarios =
+        Stream.of(
+            Arguments.of(fullyConverted(), thirdPillarMandate(), true),
+            Arguments.of(notFullyConverted(), thirdPillarMandate(), true),
+            Arguments.of(fullyConverted(), sampleMandate(), false),
+            Arguments.of(notFullyConverted(), sampleMandate(), false),
+            Arguments.of(
+                fullyConverted(),
+                samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails),
+                true),
+            Arguments.of(
+                notFullyConverted(),
+                samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails),
+                true),
+            Arguments.of(
+                fullyConverted(),
+                samplePartialWithdrawalMandate(aPartialWithdrawalMandateDetails),
+                false),
+            Arguments.of(
+                notFullyConverted(),
+                samplePartialWithdrawalMandate(aPartialWithdrawalMandateDetails),
+                false));
+
+    var notTulevaClientScenarios =
+        Stream.of(
+            Arguments.of(notConverted(), thirdPillarMandate(), true),
+            Arguments.of(notConverted(), sampleMandate(), false),
+            Arguments.of(
+                notConverted(),
+                samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails),
+                false),
+            Arguments.of(
+                notConverted(),
+                samplePartialWithdrawalMandate(aPartialWithdrawalMandateDetails),
+                false));
+
+    return Stream.concat(tulevaClientScenarios, notTulevaClientScenarios);
+  }
+
+  @ParameterizedTest
+  @MethodSource("amlChecksRequiredMandateScenarios")
+  @DisplayName("isMandateAmlCheckRequired: works correctly")
+  void isMandateAmlCheckRequired_returnsTrue(
+      ConversionResponse conversion, Mandate mandate, boolean expectedResult) {
+    User user = createUser("12345", "Test", "User", 1L);
+    when(userConversionService.getConversion(user)).thenReturn(conversion);
+
+    boolean actualResult = amlService.isMandateAmlCheckRequired(user, mandate);
+
+    assertEquals(expectedResult, actualResult);
   }
 
   @Test

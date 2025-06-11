@@ -2,7 +2,11 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.*;
+import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate;
+import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,6 +15,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarRepository;
+import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import java.time.Instant;
@@ -30,12 +35,17 @@ public class AmlServiceIntegrationTest {
   @Autowired private AnalyticsThirdPillarRepository analyticsThirdPillarRepository;
   private AmlService amlService;
   @MockBean private PepAndSanctionCheckService checkService;
+  @MockBean private UserConversionService userConversionService;
 
   @BeforeEach
   void setUp() {
     amlService =
         new AmlService(
-            amlCheckRepository, eventPublisher, checkService, analyticsThirdPillarRepository);
+            amlCheckRepository,
+            eventPublisher,
+            checkService,
+            analyticsThirdPillarRepository,
+            userConversionService);
 
     MatchResponse mockResponse = mock(MatchResponse.class);
     ObjectMapper objectMapper = new ObjectMapper();
@@ -47,6 +57,8 @@ public class AmlServiceIntegrationTest {
     when(mockResponse.query()).thenReturn(emptyQueryNode);
 
     when(checkService.match(any(), any())).thenReturn(mockResponse);
+
+    when(userConversionService.getConversion(any())).thenReturn(notFullyConverted());
   }
 
   @Test
@@ -111,7 +123,10 @@ public class AmlServiceIntegrationTest {
             .build();
     amlCheckRepository.save(occupationCheck);
 
-    boolean allPassed = amlService.allChecksPassed(user, 3);
+    var mandate = thirdPillarMandate();
+    assertEquals(3, mandate.getPillar());
+
+    boolean allPassed = amlService.allChecksPassed(user, mandate);
     assertThat(allPassed).isTrue();
   }
 
@@ -122,7 +137,9 @@ public class AmlServiceIntegrationTest {
 
     amlService.checkUserBeforeLogin(user, user, true);
 
-    boolean allPassed = amlService.allChecksPassed(user, 3);
+    var mandate = thirdPillarMandate();
+    assertEquals(3, mandate.getPillar());
+    boolean allPassed = amlService.allChecksPassed(user, mandate);
     assertThat(allPassed).isFalse();
   }
 
@@ -176,7 +193,10 @@ public class AmlServiceIntegrationTest {
   @Transactional
   public void shouldAlwaysPassForSecondPillar() {
     User user = sampleUser().build();
-    boolean allPassed = amlService.allChecksPassed(user, 2);
+
+    var mandate = sampleMandate();
+    assertEquals(2, mandate.getPillar());
+    boolean allPassed = amlService.allChecksPassed(user, mandate);
     assertThat(allPassed).isTrue();
   }
 

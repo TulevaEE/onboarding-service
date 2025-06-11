@@ -13,9 +13,11 @@ import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillar;
 import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarRepository;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
+import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
+import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
 import java.util.List;
@@ -38,6 +40,7 @@ public class AmlService {
   private final ApplicationEventPublisher eventPublisher;
   private final PepAndSanctionCheckService pepAndSanctionCheckService;
   private final AnalyticsThirdPillarRepository analyticsThirdPillarRepository;
+  private final UserConversionService userConversionService;
 
   public void checkUserBeforeLogin(User user, Person person, Boolean isResident) {
     addDocumentCheck(user);
@@ -239,9 +242,8 @@ public class AmlService {
         person.getPersonalCode(), aYearAgo());
   }
 
-  boolean allChecksPassed(User user, Integer pillar) {
-    if (pillar == 2) {
-      // No checks needed for second pillar
+  boolean allChecksPassed(User user, Mandate mandate) {
+    if (!isMandateAmlCheckRequired(user, mandate)) {
       return true;
     }
     var successfulTypes =
@@ -275,5 +277,23 @@ public class AmlService {
     eventPublisher.publishEvent(new TrackableEvent(user, TrackableEventType.MANDATE_DENIED));
 
     return false;
+  }
+
+  Boolean isMandateAmlCheckRequired(User user, Mandate mandate) {
+    if (mandate.getPillar() == 2) {
+      return false;
+    }
+
+    var conversion = userConversionService.getConversion(user).getThirdPillar();
+    var isTulevaThirdPillarClient =
+        conversion.isPartiallyConverted() || conversion.isFullyConverted();
+    var isWithdrawalMandate = mandate.getMandateType().isWithdrawalType();
+
+    // intentionally returning boolean literal and not expression for clarity
+    if (!isTulevaThirdPillarClient && isWithdrawalMandate) {
+      return false;
+    }
+
+    return true;
   }
 }

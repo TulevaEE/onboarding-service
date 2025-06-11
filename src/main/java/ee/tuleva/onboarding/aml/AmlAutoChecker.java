@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.aml.exception.AmlChecksMissingException;
 import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent;
@@ -23,6 +24,7 @@ public class AmlAutoChecker {
   private final AmlService amlService;
   private final UserService userService;
   private final ContactDetailsService contactDetailsService;
+  private final UserConversionService userConversionService;
 
   @EventListener
   public void beforeLogin(BeforeTokenGrantedEvent event) {
@@ -67,7 +69,14 @@ public class AmlAutoChecker {
     Address address = event.getAddress();
 
     if (event.isThirdPillar()) {
-      amlService.addSanctionAndPepCheckIfMissing(user, address);
+      var conversion = userConversionService.getConversion(user).getThirdPillar();
+      var isTulevaThirdPillarClient =
+          conversion.isPartiallyConverted() || conversion.isFullyConverted();
+
+      // only run third pillar AML checks for own customers
+      if (isTulevaThirdPillarClient) {
+        amlService.addSanctionAndPepCheckIfMissing(user, address);
+      }
     }
 
     if (!amlService.allChecksPassed(user, pillar)) {

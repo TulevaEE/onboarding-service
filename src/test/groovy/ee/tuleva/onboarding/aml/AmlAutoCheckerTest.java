@@ -8,6 +8,8 @@ import ee.tuleva.onboarding.auth.event.AfterTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.event.BeforeTokenGrantedEvent;
 import ee.tuleva.onboarding.auth.idcard.IdDocumentType;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.conversion.ConversionResponseFixture;
+import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.epis.contact.event.ContactDetailsUpdatedEvent;
@@ -28,6 +30,7 @@ class AmlAutoCheckerTest {
 
   @Mock private AmlService amlService;
   @Mock private UserService userService;
+  @Mock private UserConversionService userConversionService;
   @Mock private ContactDetailsService contactDetailsService;
 
   @InjectMocks private AmlAutoChecker amlAutoChecker;
@@ -185,6 +188,8 @@ class AmlAutoCheckerTest {
     when(mockEvent.getAddress()).thenReturn(mockAddress);
     when(mockEvent.isThirdPillar()).thenReturn(true);
     when(amlService.allChecksPassed(mockUser, pillar)).thenReturn(true);
+    when(userConversionService.getConversion(mockUser))
+        .thenReturn(ConversionResponseFixture.fullyConverted());
 
     // when
     assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
@@ -216,6 +221,28 @@ class AmlAutoCheckerTest {
 
   @Test
   @DisplayName(
+      "beforeMandateCreated: Should not add sanction and PEP check for non-Tuleva III pillar customers")
+  void beforeMandateCreated_notCustomer() {
+    // given
+    BeforeMandateCreatedEvent mockEvent = mock(BeforeMandateCreatedEvent.class);
+    Integer pillar = 3;
+    when(mockEvent.getUser()).thenReturn(mockUser);
+    when(mockEvent.getPillar()).thenReturn(pillar);
+    when(mockEvent.isThirdPillar()).thenReturn(true);
+    when(amlService.allChecksPassed(mockUser, pillar)).thenReturn(true);
+    when(userConversionService.getConversion(mockUser))
+        .thenReturn(ConversionResponseFixture.notConverted());
+
+    // when
+    assertDoesNotThrow(() -> amlAutoChecker.beforeMandateCreated(mockEvent));
+
+    // then
+    verify(amlService, never()).addSanctionAndPepCheckIfMissing(any(), any());
+    verify(amlService).allChecksPassed(mockUser, pillar);
+  }
+
+  @Test
+  @DisplayName(
       "beforeMandateCreated: Should throw AmlChecksMissingException if not all checks passed (3rd pillar)")
   void beforeMandateCreated_throwsException_whenChecksFail_thirdPillar() {
     // given
@@ -226,6 +253,8 @@ class AmlAutoCheckerTest {
     when(mockEvent.getAddress()).thenReturn(mockAddress);
     when(mockEvent.isThirdPillar()).thenReturn(true);
     when(amlService.allChecksPassed(mockUser, pillar)).thenReturn(false);
+    when(userConversionService.getConversion(mockUser))
+        .thenReturn(ConversionResponseFixture.notFullyConverted());
 
     // when
     AmlChecksMissingException exception =

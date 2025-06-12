@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 
 import ee.swedbank.gateway.iso.response.Document;
-import ee.tuleva.onboarding.swedbank.converter.InstantToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.swedbank.converter.LocalDateToXmlGregorianCalendarConverter;
+import ee.tuleva.onboarding.swedbank.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import jakarta.xml.bind.JAXBElement;
 import java.util.UUID;
@@ -28,7 +28,7 @@ public class SwedbankGatewayMarshallerTest {
             TestClockHolder.clock,
             swedbankGatewayMarshaller,
             new LocalDateToXmlGregorianCalendarConverter(),
-            new InstantToXmlGregorianCalendarConverter(),
+            new ZonedDateTimeToXmlGregorianCalendarConverter(),
             mock(RestTemplate.class));
   }
 
@@ -42,7 +42,7 @@ public class SwedbankGatewayMarshallerTest {
     var requestXml = swedbankGatewayMarshaller.marshalToString(request);
 
     assertEquals(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.060.001.03\"><AcctRptgReq><GrpHdr><MsgId>cdb18c2ead184f0893a61f91492fb9f5</MsgId><CreDtTm>2020-01-01T16:13:15.000+02:00</CreDtTm></GrpHdr><RptgReq><Id>cdb18c2ead184f0893a61f91492fb9f5</Id><ReqdMsgNmId>camt.053.001.02</ReqdMsgNmId><Acct><Id><IBAN>EE_TEST_IBAN</IBAN></Id></Acct><AcctOwnr><Pty><Nm>Tuleva</Nm></Pty></AcctOwnr><RptgPrd><FrToDt><FrDt>2020-01-01</FrDt><ToDt>2020-01-01</ToDt></FrToDt><FrToTm><FrTm>02:00:00+02:00</FrTm><ToTm>02:00:00+02:00</ToTm></FrToTm><Tp>ALLL</Tp></RptgPrd></RptgReq></AcctRptgReq></Document>",
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.060.001.03\"><AcctRptgReq><GrpHdr><MsgId>cdb18c2ead184f0893a61f91492fb9f5</MsgId><CreDtTm>2020-01-01T14:13:15.000Z</CreDtTm></GrpHdr><RptgReq><Id>cdb18c2ead184f0893a61f91492fb9f5</Id><ReqdMsgNmId>camt.053.001.02</ReqdMsgNmId><Acct><Id><IBAN>EE_TEST_IBAN</IBAN></Id></Acct><AcctOwnr><Pty><Nm>Tuleva</Nm></Pty></AcctOwnr><RptgPrd><FrToDt><FrDt>2020-01-01</FrDt><ToDt>2020-01-02</ToDt></FrToDt><FrToTm><FrTm>00:00:00+02:00</FrTm><ToTm>00:00:00+02:00</ToTm></FrToTm><Tp>ALLL</Tp></RptgPrd></RptgReq></AcctRptgReq></Document>",
         requestXml);
   }
 

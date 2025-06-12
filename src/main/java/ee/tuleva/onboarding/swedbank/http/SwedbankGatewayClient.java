@@ -6,10 +6,7 @@ import static org.springframework.http.HttpMethod.*;
 import ee.swedbank.gateway.iso.request.*;
 import jakarta.xml.bind.JAXBElement;
 import java.net.URI;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,7 +38,7 @@ public class SwedbankGatewayClient {
   private final SwedbankGatewayMarshaller marshaller;
 
   private final Converter<LocalDate, XMLGregorianCalendar> dateConverter;
-  private final Converter<Instant, XMLGregorianCalendar> timeConverter;
+  private final Converter<ZonedDateTime, XMLGregorianCalendar> timeConverter;
 
   @Autowired
   @Qualifier("swedbankGatewayRestTemplate")
@@ -112,7 +109,7 @@ public class SwedbankGatewayClient {
 
     GroupHeader59 groupHeader = new GroupHeader59();
     groupHeader.setMsgId(serializeRequestId(messageId));
-    groupHeader.setCreDtTm(timeConverter.convert(clock.instant()));
+    groupHeader.setCreDtTm(timeConverter.convert(ZonedDateTime.now(clock)));
     accountReportingRequest.setGrpHdr(groupHeader);
 
     ReportingRequest3 reportingRequest = new ReportingRequest3();
@@ -140,7 +137,7 @@ public class SwedbankGatewayClient {
     DatePeriodDetails1 datePeriodDetails = new DatePeriodDetails1();
 
     datePeriodDetails.setFrDt(dateConverter.convert(LocalDate.now(clock)));
-    datePeriodDetails.setToDt(dateConverter.convert(LocalDate.now(clock)));
+    datePeriodDetails.setToDt(dateConverter.convert(LocalDate.now(clock).plusDays(1)));
 
     period.setFrToDt(datePeriodDetails);
     period.setTp(ALLL);
@@ -149,10 +146,10 @@ public class SwedbankGatewayClient {
 
     // TODO revisit this, maybe run for last hour to better deal with limits
     timePeriodDetails.setFrTm(
-        timeConverter.convert(LocalDate.now(clock).atStartOfDay(clock.getZone()).toInstant()));
+        timeConverter.convert(LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn"))));
     timePeriodDetails.setToTm(
         timeConverter.convert(
-            LocalDate.now(clock).atStartOfDay(clock.getZone()).plusDays(1).toInstant()));
+            LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn")).plusDays(1)));
 
     period.setFrToTm(timePeriodDetails);
 

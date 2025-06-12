@@ -77,6 +77,17 @@ class AmlServiceTest {
   private static final Clock FIXED_CLOCK = Clock.fixed(FIXED_INSTANT, ZoneOffset.UTC);
   private Instant aYearAgoFromTestClock;
 
+  enum Checks {
+    REQUIRED(true),
+    NOT_REQUIRED(false);
+
+    private final boolean checksRequired;
+
+    Checks(boolean required) {
+      this.checksRequired = required;
+    }
+  }
+
   private User createUser(String personalCode, String firstName, String lastName, Long id) {
     User user = mock(User.class);
     when(user.getPersonalCode()).thenReturn(personalCode);
@@ -436,42 +447,41 @@ class AmlServiceTest {
   }
 
   private static Stream<Arguments> amlChecksRequiredMandateScenarios() {
-
     var tulevaClientScenarios =
         Stream.of(
-            Arguments.of(fullyConverted(), thirdPillarMandate(), true),
-            Arguments.of(notFullyConverted(), thirdPillarMandate(), true),
-            Arguments.of(fullyConverted(), sampleMandate(), false),
-            Arguments.of(notFullyConverted(), sampleMandate(), false),
+            Arguments.of(fullyConverted(), thirdPillarMandate(), Checks.REQUIRED),
+            Arguments.of(notFullyConverted(), thirdPillarMandate(), Checks.REQUIRED),
+            Arguments.of(fullyConverted(), sampleMandate(), Checks.NOT_REQUIRED),
+            Arguments.of(notFullyConverted(), sampleMandate(), Checks.NOT_REQUIRED),
             Arguments.of(
                 fullyConverted(),
                 samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails),
-                true),
+                Checks.REQUIRED),
             Arguments.of(
                 notFullyConverted(),
                 samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails),
-                true),
+                Checks.REQUIRED),
             Arguments.of(
                 fullyConverted(),
                 samplePartialWithdrawalMandate(aPartialWithdrawalMandateDetails),
-                false),
+                Checks.NOT_REQUIRED),
             Arguments.of(
                 notFullyConverted(),
                 samplePartialWithdrawalMandate(aPartialWithdrawalMandateDetails),
-                false));
+                Checks.NOT_REQUIRED));
 
     var notTulevaClientScenarios =
         Stream.of(
-            Arguments.of(notConverted(), thirdPillarMandate(), true),
-            Arguments.of(notConverted(), sampleMandate(), false),
+            Arguments.of(notConverted(), thirdPillarMandate(), Checks.REQUIRED),
+            Arguments.of(notConverted(), sampleMandate(), Checks.NOT_REQUIRED),
             Arguments.of(
                 notConverted(),
                 samplePartialWithdrawalMandate(aThirdPillarPartialWithdrawalMandateDetails),
-                false),
+                Checks.NOT_REQUIRED),
             Arguments.of(
                 notConverted(),
                 samplePartialWithdrawalMandate(aPartialWithdrawalMandateDetails),
-                false));
+                Checks.NOT_REQUIRED));
 
     return Stream.concat(tulevaClientScenarios, notTulevaClientScenarios);
   }
@@ -480,13 +490,13 @@ class AmlServiceTest {
   @MethodSource("amlChecksRequiredMandateScenarios")
   @DisplayName("isMandateAmlCheckRequired: works correctly")
   void isMandateAmlCheckRequired_returnsTrue(
-      ConversionResponse conversion, Mandate mandate, boolean expectedResult) {
+      ConversionResponse conversion, Mandate mandate, Checks expectedResult) {
     User user = createUser("12345", "Test", "User", 1L);
     when(userConversionService.getConversion(user)).thenReturn(conversion);
 
     boolean actualResult = amlService.isMandateAmlCheckRequired(user, mandate);
 
-    assertEquals(expectedResult, actualResult);
+    assertEquals(expectedResult.checksRequired, actualResult);
   }
 
   @Test

@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.swedbank.converter;
 
-import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.GregorianCalendar;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
@@ -12,15 +12,14 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Slf4j
-public class InstantToXmlGregorianCalendarConverter
-    implements Converter<Instant, XMLGregorianCalendar> {
+public class ZonedDateTimeToXmlGregorianCalendarConverter
+    implements Converter<ZonedDateTime, XMLGregorianCalendar> {
 
   @Override
   @NonNull
-  public XMLGregorianCalendar convert(Instant instant) {
+  public XMLGregorianCalendar convert(ZonedDateTime zonedDateTime) {
     try {
-      GregorianCalendar calendar = new GregorianCalendar();
-      calendar.setTimeInMillis(instant.toEpochMilli());
+      GregorianCalendar calendar = GregorianCalendar.from(zonedDateTime);
       return DatatypeFactory.newInstance().newXMLGregorianCalendar(calendar);
     } catch (DatatypeConfigurationException e) {
       throw new RuntimeException(e);

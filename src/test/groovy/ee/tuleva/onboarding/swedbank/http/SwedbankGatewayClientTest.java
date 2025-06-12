@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.swedbank.http;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.swedbank.converter.InstantToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.swedbank.converter.LocalDateToXmlGregorianCalendarConverter;
+import ee.tuleva.onboarding.swedbank.converter.ZonedDateTimeToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import jakarta.xml.bind.JAXBElement;
 import java.net.URI;
@@ -43,7 +43,7 @@ class SwedbankGatewayClientTest {
             TestClockHolder.clock,
             marshaller,
             new LocalDateToXmlGregorianCalendarConverter(),
-            new InstantToXmlGregorianCalendarConverter(),
+            new ZonedDateTimeToXmlGregorianCalendarConverter(),
             restTemplate);
     ReflectionTestUtils.setField(client, "baseUrl", baseUrl);
     ReflectionTestUtils.setField(client, "clientId", clientId);

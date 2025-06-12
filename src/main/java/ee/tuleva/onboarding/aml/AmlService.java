@@ -279,7 +279,7 @@ public class AmlService {
     return false;
   }
 
-  Boolean isMandateAmlCheckRequired(User user, Mandate mandate) {
+  boolean isMandateAmlCheckRequired(User user, Mandate mandate) {
     if (mandate.getPillar() == 2) {
       return false;
     }

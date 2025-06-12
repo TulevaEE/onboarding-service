@@ -1,21 +1,36 @@
 package ee.tuleva.onboarding.swedbank.http;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
 
 import ee.swedbank.gateway.iso.response.Document;
+import ee.tuleva.onboarding.swedbank.converter.InstantToXmlGregorianCalendarConverter;
+import ee.tuleva.onboarding.swedbank.converter.LocalDateToXmlGregorianCalendarConverter;
+import ee.tuleva.onboarding.time.TestClockHolder;
 import jakarta.xml.bind.JAXBElement;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.web.client.RestTemplate;
 
-@SpringBootTest
 public class SwedbankGatewayMarshallerTest {
 
-  @Autowired SwedbankGatewayMarshaller swedbankGatewayMarshaller;
+  private SwedbankGatewayMarshaller swedbankGatewayMarshaller;
 
-  @Autowired SwedbankGatewayClient swedbankGatewayClient;
+  private SwedbankGatewayClient swedbankGatewayClient;
+
+  @BeforeEach
+  void setUp() {
+    this.swedbankGatewayMarshaller = new SwedbankGatewayMarshaller();
+    this.swedbankGatewayClient =
+        new SwedbankGatewayClient(
+            TestClockHolder.clock,
+            swedbankGatewayMarshaller,
+            new LocalDateToXmlGregorianCalendarConverter(),
+            new InstantToXmlGregorianCalendarConverter(),
+            mock(RestTemplate.class));
+  }
 
   @Test
   @DisplayName("marshals request class")
@@ -27,7 +42,7 @@ public class SwedbankGatewayMarshallerTest {
     var requestXml = swedbankGatewayMarshaller.marshalToString(request);
 
     assertEquals(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><ns0:Document xmlns:ns0=\"urn:iso:std:iso:20022:tech:xsd:camt.060.001.03\"><ns0:AcctRptgReq><ns0:GrpHdr><ns0:MsgId>cdb18c2ead184f0893a61f91492fb9f5</ns0:MsgId><ns0:CreDtTm>2025-06-05T12:34:11.100+03:00</ns0:CreDtTm></ns0:GrpHdr><ns0:RptgReq><ns0:Id>cdb18c2ead184f0893a61f91492fb9f5</ns0:Id><ns0:ReqdMsgNmId>camt.053.001.02</ns0:ReqdMsgNmId><ns0:Acct><ns0:Id><ns0:IBAN>EE_TEST_IBAN</ns0:IBAN></ns0:Id></ns0:Acct><ns0:AcctOwnr><ns0:Pty><ns0:Nm>Tuleva</ns0:Nm></ns0:Pty></ns0:AcctOwnr><ns0:RptgPrd><ns0:FrToDt><ns0:FrDt>2025-06-05</ns0:FrDt><ns0:ToDt>2025-06-05</ns0:ToDt></ns0:FrToDt><ns0:FrToTm><ns0:FrTm>03:00:00+03:00</ns0:FrTm><ns0:ToTm>03:00:00+03:00</ns0:ToTm></ns0:FrToTm><ns0:Tp>ALLL</ns0:Tp></ns0:RptgPrd></ns0:RptgReq></ns0:AcctRptgReq></ns0:Document>",
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.060.001.03\"><AcctRptgReq><GrpHdr><MsgId>cdb18c2ead184f0893a61f91492fb9f5</MsgId><CreDtTm>2020-01-01T16:13:15.000+02:00</CreDtTm></GrpHdr><RptgReq><Id>cdb18c2ead184f0893a61f91492fb9f5</Id><ReqdMsgNmId>camt.053.001.02</ReqdMsgNmId><Acct><Id><IBAN>EE_TEST_IBAN</IBAN></Id></Acct><AcctOwnr><Pty><Nm>Tuleva</Nm></Pty></AcctOwnr><RptgPrd><FrToDt><FrDt>2020-01-01</FrDt><ToDt>2020-01-01</ToDt></FrToDt><FrToTm><FrTm>02:00:00+02:00</FrTm><ToTm>02:00:00+02:00</ToTm></FrToTm><Tp>ALLL</Tp></RptgPrd></RptgReq></AcctRptgReq></Document>",
         requestXml);
   }
 

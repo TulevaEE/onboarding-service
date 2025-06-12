@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.swedbank.http;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
-import ee.swedbank.gateway.iso.request.Document;
-import ee.swedbank.gateway.response.B4B;
 import ee.tuleva.onboarding.swedbank.converter.InstantToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.swedbank.converter.LocalDateToXmlGregorianCalendarConverter;
 import ee.tuleva.onboarding.time.TestClockHolder;
@@ -33,6 +31,9 @@ class SwedbankGatewayClientTest {
   private final String baseUrl = "https://swedbank-gateway.test/";
   private final String clientId = "test-client";
 
+  private final UUID requestUuid = UUID.fromString("49171497-dc12-4f84-bc08-b03b13616399");
+  private final String trackingId = "swedbank-tracking-id";
+
   @BeforeEach
   void setUp() {
     MockitoAnnotations.openMocks(this);
@@ -51,46 +52,42 @@ class SwedbankGatewayClientTest {
   @Test
   @DisplayName("send request – sends request and returns request id")
   void sendRequest() {
-    var id = UUID.fromString("474a3afd-9faa-469b-ab02-93262aa38ab1");
-    JAXBElement<Document> request = client.getAccountStatementRequestEntity("EE_TEST_IBAN", id);
     String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Ping><Value>Test</Value></Ping>";
-    String expectedUrl = baseUrl + "communication-tests?client_id=" + clientId;
+    String expectedUrl = baseUrl + "account-statements?client_id=" + clientId;
 
-    when(marshaller.marshalToString(request)).thenReturn(xml);
+    when(marshaller.marshalToString(any())).thenReturn(xml);
+
     when(restTemplate.exchange(
             eq(expectedUrl), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class)))
         .thenReturn(ResponseEntity.ok("OK"));
 
-    client.sendStatementRequest(request, id);
+    client.sendStatementRequest(mock(JAXBElement.class), requestUuid);
 
-    verify(restTemplate)
-        .exchange(eq(expectedUrl), eq(HttpMethod.POST), any(HttpEntity.class), eq(String.class));
+    verify(restTemplate).exchange(eq(expectedUrl), eq(HttpMethod.POST), any(), eq(String.class));
   }
 
   @Test
   @DisplayName("get messages – returns response")
-  void getResponse_shouldReturnUnmarshalledObject() {
-    String xml =
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?> <B4B xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:noNamespaceSchemaLocation=\"http://swedbankgateway.net/valid/hgw-response.xsd\"> <Pong from=\"EE\"> <Value>Test</Value> </Pong> </B4B>";
+  void getResponse_shouldReturnResponse() {
+    String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><test></test>";
     String expectedUrl = baseUrl + "messages?client_id=" + clientId;
 
-    B4B mockB4B = new B4B();
     HttpHeaders headers = new HttpHeaders();
-    headers.add("X-Request-ID", "req-123");
-    headers.add("X-Tracking-ID", "track-456");
+    headers.add("X-Request-ID", requestUuid.toString().replace("-", ""));
+    headers.add("X-Tracking-ID", trackingId);
 
     ResponseEntity<String> responseEntity = new ResponseEntity<>(xml, headers, HttpStatus.OK);
 
     when(restTemplate.exchange(
             eq(expectedUrl), eq(HttpMethod.GET), any(HttpEntity.class), eq(String.class)))
         .thenReturn(responseEntity);
-    when(marshaller.unMarshal(xml, B4B.class)).thenReturn(mockB4B);
 
     Optional<SwedbankGatewayResponseDto> response = client.getResponse();
 
     assertThat(response).isPresent();
-    assertThat(response.get().requestTrackingId()).isEqualTo("req-123");
-    assertThat(response.get().responseTrackingId()).isEqualTo("track-456");
+    assertThat(response.get().rawResponse()).isEqualTo(xml);
+    assertThat(response.get().requestTrackingId()).isEqualTo(requestUuid);
+    assertThat(response.get().responseTrackingId()).isEqualTo(trackingId);
   }
 
   @Test
@@ -111,17 +108,12 @@ class SwedbankGatewayClientTest {
   @Test
   @DisplayName("acknowledges messages – calls delete endpoint")
   void acknowledgePong_shouldCallDeleteEndpoint() {
-    var id = UUID.fromString("474a3afd-9faa-469b-ab02-93262aa38ab1");
 
     SwedbankGatewayResponseDto response =
-        new SwedbankGatewayResponseDto("req-abc", id, "SWED-TRACKING-ID");
+        new SwedbankGatewayResponseDto("req-abc", requestUuid, trackingId);
 
     URI expectedUri =
-        URI.create(baseUrl + "messages?client_id=" + clientId + "&trackingId=track-xyz");
-
-    when(restTemplate.exchange(
-            eq(expectedUri), eq(HttpMethod.DELETE), any(HttpEntity.class), eq(String.class)))
-        .thenReturn(ResponseEntity.ok(""));
+        URI.create(baseUrl + "messages?client_id=" + clientId + "&trackingId=" + trackingId);
 
     client.acknowledgeResponse(response);
 

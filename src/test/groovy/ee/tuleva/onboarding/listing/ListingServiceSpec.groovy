@@ -12,9 +12,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.listing.Listing.State.CANCELLED
 import static ee.tuleva.onboarding.listing.ListingType.SELL
-import static ee.tuleva.onboarding.listing.ListingsFixture.activeListing
-import static ee.tuleva.onboarding.listing.ListingsFixture.expiredListing
-import static ee.tuleva.onboarding.listing.ListingsFixture.newListingRequest
+import static ee.tuleva.onboarding.listing.ListingsFixture.*
 
 class ListingServiceSpec extends Specification {
 
@@ -25,6 +23,10 @@ class ListingServiceSpec extends Specification {
 
   def setup() {
     ClockHolder.setClock(TestClockHolder.clock)
+  }
+
+  def cleanup() {
+    ClockHolder.setDefaultClock();
   }
 
   def "createListing maps request, saves entity, and returns DTO"() {

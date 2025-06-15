@@ -27,18 +27,20 @@ class SecurityConfigurationSpec extends Specification {
   @Autowired
   MockMvc mvc
 
-  def "PARTNER token may hit only pension-account-statement"() {
+  def "PARTNER token may hit only specific endpoints"() {
     given:
     var jwtToken = generateJwtToken(samplePerson, HANDOVER, [PARTNER])
 
     expect:
-    mvc.perform(get('/v1/pension-account-statement')
+    mvc.perform(get(url)
         .header("Authorization", "Bearer " + jwtToken))
-        .andExpect(status().isOk())
+        .andExpect(status)
 
-    mvc.perform(get('/v1/me')
-        .header("Authorization", "Bearer " + jwtToken))
-        .andExpect(status().isForbidden())
+    where:
+    url                               | status
+    "/v1/pension-account-statement"   | status().isOk()
+    "/v1/me"                          | status().isOk()
+    "/v1/applications?status=PENDING" | status().isForbidden()
   }
 
   def "USER token has unhindered access"() {
@@ -46,14 +48,15 @@ class SecurityConfigurationSpec extends Specification {
     var jwtToken = generateJwtToken(samplePerson, ACCESS, [USER])
 
     expect:
-    mvc.perform(get('/v1/pension-account-statement')
+    mvc.perform(get(url)
         .header("Authorization", "Bearer " + jwtToken))
-        .andExpect(status().isOk())
+        .andExpect(status)
 
-    and:
-    mvc.perform(get('/v1/me')
-        .header("Authorization", "Bearer " + jwtToken))
-        .andExpect(status().isOk())
+    where:
+    url                               | status
+    "/v1/pension-account-statement"   | status().isOk()
+    "/v1/me"                          | status().isOk()
+    "/v1/applications?status=PENDING" | status().isOk()
   }
 
   def "invalid token combinations has no extra access"() {
@@ -61,14 +64,15 @@ class SecurityConfigurationSpec extends Specification {
     var jwtToken = generateJwtToken(samplePerson, ACCESS, [PARTNER])
 
     expect:
-    mvc.perform(get('/v1/pension-account-statement')
+    mvc.perform(get(url)
         .header("Authorization", "Bearer " + jwtToken))
-        .andExpect(status().isOk())
+        .andExpect(status)
 
-    and:
-    mvc.perform(get('/v1/me')
-        .header("Authorization", "Bearer " + jwtToken))
-        .andExpect(status().isForbidden())
+    where:
+    url                               | status
+    "/v1/pension-account-statement"   | status().isOk()
+    "/v1/me"                          | status().isOk()
+    "/v1/applications?status=PENDING" | status().isForbidden()
   }
 
   def "partner cannot add any extra authorities"() {
@@ -76,13 +80,14 @@ class SecurityConfigurationSpec extends Specification {
     var jwtToken = generateJwtToken(samplePerson, HANDOVER, [PARTNER, USER])
 
     expect:
-    mvc.perform(get('/v1/pension-account-statement')
+    mvc.perform(get(url)
         .header("Authorization", "Bearer " + jwtToken))
-        .andExpect(status().isOk())
+        .andExpect(status)
 
-    and:
-    mvc.perform(get('/v1/me')
-        .header("Authorization", "Bearer " + jwtToken))
-        .andExpect(status().isForbidden())
+    where:
+    url                               | status
+    "/v1/pension-account-statement"   | status().isOk()
+    "/v1/me"                          | status().isOk()
+    "/v1/applications?status=PENDING" | status().isForbidden()
   }
 }

@@ -26,7 +26,7 @@ class ListingServiceSpec extends Specification {
   }
 
   def cleanup() {
-    ClockHolder.setDefaultClock();
+    ClockHolder.setDefaultClock()
   }
 
   def "createListing maps request, saves entity, and returns DTO"() {

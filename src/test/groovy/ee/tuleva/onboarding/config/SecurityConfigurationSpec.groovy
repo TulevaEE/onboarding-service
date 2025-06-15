@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.transaction.annotation.Transactional
+import spock.lang.Shared
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.JwtTokenGenerator.generateJwtToken
@@ -26,6 +27,11 @@ class SecurityConfigurationSpec extends Specification {
 
   @Autowired
   MockMvc mvc
+
+  @Shared
+  var memberToken = generateJwtToken(samplePerson, ACCESS, [USER, MEMBER])
+  @Shared
+  var userToken = generateJwtToken(samplePerson, ACCESS, [USER])
 
   def "PARTNER token may hit only specific endpoints"() {
     given:
@@ -92,18 +98,14 @@ class SecurityConfigurationSpec extends Specification {
   }
 
   def "member has access to listings"() {
-    given:
-    var memberToken = generateJwtToken(samplePerson, ACCESS, [USER, MEMBER])
-    var userToken = generateJwtToken(samplePerson, ACCESS, [USER])
-
     expect:
-    mvc.perform(get('/v1/listings')
-        .header("Authorization", "Bearer " + memberToken))
-        .andExpect(status().isOk())
+    mvc.perform(get(url)
+        .header("Authorization", "Bearer " + token))
+        .andExpect(status)
 
-    and:
-    mvc.perform(get('/v1/listings')
-        .header("Authorization", "Bearer " + userToken))
-        .andExpect(status().isForbidden())
+    where:
+    url            | token       | status
+    "/v1/listings" | memberToken | status().isOk()
+    "/v1/listings" | userToken   | status().isForbidden()
   }
 }

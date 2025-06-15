@@ -25,6 +25,8 @@ public enum EmailType {
 
   WITHDRAWAL_BATCH("withdrawal_batch");
 
+  //  LISTING_CONTACT("listing_contact");
+
   private final String templateName;
 
   EmailType(String templateName) {

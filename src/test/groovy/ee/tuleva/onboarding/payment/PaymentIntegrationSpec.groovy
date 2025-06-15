@@ -86,9 +86,11 @@ class PaymentIntegrationSpec extends Specification {
       .build()
 
   String aToken = "token-string"
+  User aUser
 
   def setup() {
     mockSecurityContext()
+    aUser = userRepository.save(sampleUserNonMember().id(null).build())
   }
 
   def mockMontonioOrderApi() {
@@ -125,13 +127,11 @@ class PaymentIntegrationSpec extends Specification {
     SecurityContextHolder.clearContext()
     paymentRepository.deleteAll()
     eventLogRepository.deleteAll()
-    userRepository.deleteAll()
+    userRepository.delete(aUser)
   }
 
   def "Payment happy flow"() {
     given:
-
-    User aUser = userRepository.save(sampleUserNonMember().id(null).build())
     AuthenticatedPerson anAuthenticatedPerson = authenticatedPersonFromUser(aUser).build()
 
     mockEpisContactDetails()

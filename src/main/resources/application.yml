@@ -289,3 +289,32 @@ slack:
   webhooks:
     "aml": ${SLACK_AML_WEBHOOK_URL:${SLACK_WEBHOOK_URL}}
     "withdrawals": ${SLACK_WITHDRAWALS_WEBHOOK_URL}
+
+#Sentry environment configuration
+---
+spring:
+  config:
+    activate:
+      on-profile:
+        - dev
+
+sentry:
+  environment: dev
+---
+spring:
+  config:
+    activate:
+      on-profile:
+        - staging
+
+sentry:
+  environment: staging
+---
+spring:
+  config:
+    activate:
+      on-profile:
+        - production
+
+sentry:
+  environment: production

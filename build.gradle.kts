@@ -80,7 +80,7 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:10.3")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
     implementation("org.springdoc:springdoc-openapi-starter-common:2.8.8")
     implementation("org.springframework.session:spring-session-jdbc")
 

@@ -23,6 +23,7 @@ import ee.tuleva.onboarding.time.TestClockHolder;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -58,16 +59,17 @@ class RiskLevelServiceTest {
   @Test
   @DisplayName("Should create a new AML check for a valid high-risk row with a personal ID")
   void testRunRiskLevelCheck_createsAmlCheck_forValidNewHighRiskRow() {
+    // given
     RiskLevelResult highRiskRow = new RiskLevelResult("38888888880", 1, Map.of("some_key", 999));
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(highRiskRow));
-    when(amlRiskRepositoryService.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
-        .thenReturn(Collections.emptyList());
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             anyString(), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(Collections.emptyList());
 
+    // when
     riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
 
+    // then
     verify(amlRiskRepositoryService).refreshMaterializedView();
     verify(amlRiskRepositoryService).getHighRiskRows();
     verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY));
@@ -78,26 +80,25 @@ class RiskLevelServiceTest {
     assertEquals("38888888880", createdCheck.getPersonalCode());
     assertEquals(AmlCheckType.RISK_LEVEL, createdCheck.getType());
     assertFalse(createdCheck.isSuccess());
-    assertEquals(Map.of("some_key", 999), createdCheck.getMetadata());
+    assertEquals(999, createdCheck.getMetadata().get("some_key"));
+    assertEquals("high", createdCheck.getMetadata().get("level"));
 
     verify(eventPublisher).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
 
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
-    verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
-    AmlRiskLevelJobRunEvent jobRunEvent =
-        jobEventCaptor.getAllValues().stream()
-            .filter(AmlRiskLevelJobRunEvent.class::isInstance)
-            .map(AmlRiskLevelJobRunEvent.class::cast)
-            .findFirst()
-            .orElseThrow();
+    verify(eventPublisher).publishEvent(jobEventCaptor.capture());
+    AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
     assertEquals(1, jobRunEvent.getHighRiskRowCount());
+    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
+    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
     assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
   }
 
   @Test
   @DisplayName("Should create a new AML check for a valid medium-risk sample row")
   void testRunRiskLevelCheck_createsAmlCheck_forValidMediumRiskSample() {
+    // given
     RiskLevelResult mediumRiskSample =
         new RiskLevelResult("49999999990", 2, Map.of("medium_key", 777));
     when(amlRiskRepositoryService.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
@@ -106,8 +107,10 @@ class RiskLevelServiceTest {
             anyString(), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(Collections.emptyList());
 
+    // when
     riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
 
+    // then
     verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY));
 
     ArgumentCaptor<AmlCheck> checkCaptor = ArgumentCaptor.forClass(AmlCheck.class);
@@ -116,26 +119,24 @@ class RiskLevelServiceTest {
     assertEquals("49999999990", createdCheck.getPersonalCode());
     assertEquals(AmlCheckType.RISK_LEVEL, createdCheck.getType());
     assertFalse(createdCheck.isSuccess());
-    assertEquals(Map.of("medium_key", 777), createdCheck.getMetadata());
+    assertEquals(777, createdCheck.getMetadata().get("medium_key"));
+    assertEquals("medium", createdCheck.getMetadata().get("level"));
 
     verify(eventPublisher).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
-
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
-    verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
-    AmlRiskLevelJobRunEvent jobRunEvent =
-        jobEventCaptor.getAllValues().stream()
-            .filter(AmlRiskLevelJobRunEvent.class::isInstance)
-            .map(AmlRiskLevelJobRunEvent.class::cast)
-            .findFirst()
-            .orElseThrow();
-    assertEquals(1, jobRunEvent.getHighRiskRowCount());
+    verify(eventPublisher).publishEvent(jobEventCaptor.capture());
+    AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
+    assertEquals(0, jobRunEvent.getHighRiskRowCount());
+    assertEquals(1, jobRunEvent.getMediumRiskRowCount());
+    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
     assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
   }
 
   @Test
   @DisplayName("Should process both high-risk and medium-risk sample rows")
   void testRunRiskLevelCheck_processesBothHighAndMediumRisk() {
+    // given
     RiskLevelResult highRiskRow = new RiskLevelResult("38888888880", 1, Map.of("high_key", 999));
     RiskLevelResult mediumRiskSample =
         new RiskLevelResult("49999999990", 2, Map.of("medium_key", 777));
@@ -147,63 +148,66 @@ class RiskLevelServiceTest {
             anyString(), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(Collections.emptyList());
 
+    // when
     riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
 
+    // then
     ArgumentCaptor<AmlCheck> checkCaptor = ArgumentCaptor.forClass(AmlCheck.class);
     verify(amlCheckRepository, times(2)).save(checkCaptor.capture());
     List<AmlCheck> createdChecks = checkCaptor.getAllValues();
     assertEquals(2, createdChecks.size());
-    assertTrue(createdChecks.stream().anyMatch(c -> c.getPersonalCode().equals("38888888880")));
-    assertTrue(createdChecks.stream().anyMatch(c -> c.getPersonalCode().equals("49999999990")));
+
+    AmlCheck highRiskCheck =
+        createdChecks.stream()
+            .filter(c -> c.getPersonalCode().equals("38888888880"))
+            .findFirst()
+            .get();
+    assertEquals("high", highRiskCheck.getMetadata().get("level"));
+    AmlCheck mediumRiskCheck =
+        createdChecks.stream()
+            .filter(c -> c.getPersonalCode().equals("49999999990"))
+            .findFirst()
+            .get();
+    assertEquals("medium", mediumRiskCheck.getMetadata().get("level"));
 
     verify(eventPublisher, times(2)).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
-
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
-    verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
-    AmlRiskLevelJobRunEvent jobRunEvent =
-        jobEventCaptor.getAllValues().stream()
-            .filter(AmlRiskLevelJobRunEvent.class::isInstance)
-            .map(AmlRiskLevelJobRunEvent.class::cast)
-            .findFirst()
-            .orElseThrow();
-    assertEquals(2, jobRunEvent.getHighRiskRowCount());
+    verify(eventPublisher).publishEvent(jobEventCaptor.capture());
+    AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
+    assertEquals(1, jobRunEvent.getHighRiskRowCount());
+    assertEquals(1, jobRunEvent.getMediumRiskRowCount());
+    assertEquals(2, jobRunEvent.getTotalRowsProcessed());
     assertEquals(2, jobRunEvent.getAmlChecksCreatedCount());
   }
 
   @Test
   @DisplayName("Should skip AML check creation when the personal ID is blank")
   void testRunRiskLevelCheck_skipsEmptyPersonalId() {
+    // given
     RiskLevelResult row = new RiskLevelResult("   ", 1, Map.of());
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
-    when(amlRiskRepositoryService.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
-        .thenReturn(Collections.emptyList());
 
+    // when
     riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
 
-    verify(amlRiskRepositoryService).refreshMaterializedView();
-    verify(amlRiskRepositoryService).getHighRiskRows();
-    verify(amlRiskRepositoryService).getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY));
-
+    // then
     verify(amlCheckRepository, never()).save(any());
     verify(eventPublisher, never()).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
-
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
-    verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
-    AmlRiskLevelJobRunEvent jobRunEvent =
-        jobEventCaptor.getAllValues().stream()
-            .filter(AmlRiskLevelJobRunEvent.class::isInstance)
-            .map(AmlRiskLevelJobRunEvent.class::cast)
-            .findFirst()
-            .orElseThrow();
+    verify(eventPublisher).publishEvent(jobEventCaptor.capture());
+    AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
     assertEquals(1, jobRunEvent.getHighRiskRowCount());
+    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
+    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
     assertEquals(0, jobRunEvent.getAmlChecksCreatedCount());
   }
 
   @Test
   @DisplayName("Should skip creating a new AML check if duplicate exists within six months")
   void testRunRiskLevelCheck_skipsDuplicateWithinSixMonths() {
+    // given
     RiskLevelResult row = new RiskLevelResult("38888888888", 1, Map.of("abc", "123"));
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
 
@@ -219,21 +223,19 @@ class RiskLevelServiceTest {
             eq("38888888888"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(List.of(existingCheck));
 
+    // when
     riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
 
+    // then
     verify(amlCheckRepository, never()).save(any());
     verify(eventPublisher, never()).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
-
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
-    verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
-    AmlRiskLevelJobRunEvent jobRunEvent =
-        jobEventCaptor.getAllValues().stream()
-            .filter(AmlRiskLevelJobRunEvent.class::isInstance)
-            .map(AmlRiskLevelJobRunEvent.class::cast)
-            .findFirst()
-            .orElseThrow();
+    verify(eventPublisher).publishEvent(jobEventCaptor.capture());
+    AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
     assertEquals(1, jobRunEvent.getHighRiskRowCount());
+    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
+    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
     assertEquals(0, jobRunEvent.getAmlChecksCreatedCount());
   }
 
@@ -241,71 +243,33 @@ class RiskLevelServiceTest {
   @DisplayName(
       "Should create a new AML check if the last same metadata check is older than six months")
   void testRunRiskLevelCheck_createsNewIfExistingIsOlderThanSixMonths() {
+    // given
     RiskLevelResult row = new RiskLevelResult("38888888888", 1, Map.of("abc", "123"));
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
             eq("38888888888"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(Collections.emptyList());
 
+    // when
     riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
 
+    // then
     verify(amlCheckRepository, times(1)).save(any(AmlCheck.class));
     verify(eventPublisher, times(1)).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
-
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
-    verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
-    AmlRiskLevelJobRunEvent jobRunEvent =
-        jobEventCaptor.getAllValues().stream()
-            .filter(AmlRiskLevelJobRunEvent.class::isInstance)
-            .map(AmlRiskLevelJobRunEvent.class::cast)
-            .findFirst()
-            .orElseThrow();
+    verify(eventPublisher).publishEvent(jobEventCaptor.capture());
+    AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
     assertEquals(1, jobRunEvent.getHighRiskRowCount());
-    assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
-  }
-
-  @Test
-  @DisplayName(
-      "Should skip creating a new AML check if duplicate exists within one year (legacy test case consideration)")
-  void testRunRiskLevelCheck_skipsDuplicateWithinOneYear() {
-    RiskLevelResult row = new RiskLevelResult("38888888888", 1, Map.of("abc", "123"));
-    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
-
-    AmlCheck existingCheckWithinOneYearButOlderThanSixMonths =
-        AmlCheck.builder()
-            .personalCode("38888888888")
-            .type(AmlCheckType.RISK_LEVEL)
-            .success(false)
-            .metadata(Map.of("abc", "123"))
-            .createdTime(TestClockHolder.now.minus(200, ChronoUnit.DAYS)) // e.g. ~7 months ago
-            .build();
-
-    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
-            eq("38888888888"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
-        .thenReturn(Collections.emptyList()); // No *recent* (within 6 months) duplicates
-
-    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
-
-    verify(amlCheckRepository, times(1)).save(any(AmlCheck.class));
-    verify(eventPublisher, times(1)).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
-
-    ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
-        ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
-    verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
-    AmlRiskLevelJobRunEvent jobRunEvent =
-        jobEventCaptor.getAllValues().stream()
-            .filter(AmlRiskLevelJobRunEvent.class::isInstance)
-            .map(AmlRiskLevelJobRunEvent.class::cast)
-            .findFirst()
-            .orElseThrow();
-    assertEquals(1, jobRunEvent.getHighRiskRowCount());
+    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
+    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
     assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
   }
 
   @Test
   @DisplayName("Should create a new AML check if existing check has different metadata")
   void testRunRiskLevelCheck_createsNewIfExistingIsDifferentMetadata() {
+    // given
     RiskLevelResult row = new RiskLevelResult("38888888888", 1, Map.of("abc", "123"));
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
 
@@ -321,46 +285,136 @@ class RiskLevelServiceTest {
             eq("38888888888"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
         .thenReturn(List.of(existingCheck));
 
+    // when
     riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
 
+    // then
     verify(amlCheckRepository, times(1)).save(any(AmlCheck.class));
     verify(eventPublisher, times(1)).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
-
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
-    verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
-    AmlRiskLevelJobRunEvent jobRunEvent =
-        jobEventCaptor.getAllValues().stream()
-            .filter(AmlRiskLevelJobRunEvent.class::isInstance)
-            .map(AmlRiskLevelJobRunEvent.class::cast)
-            .findFirst()
-            .orElseThrow();
+    verify(eventPublisher).publishEvent(jobEventCaptor.capture());
+    AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
     assertEquals(1, jobRunEvent.getHighRiskRowCount());
+    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
+    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
     assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
   }
 
   @Test
   @DisplayName("Should not create AML checks when no risk rows are returned")
   void testRunRiskLevelCheck_noRows_noAction() {
+    // given
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(Collections.emptyList());
     when(amlRiskRepositoryService.getMediumRiskRowsSample(eq(SOME_TEST_PROBABILITY)))
         .thenReturn(Collections.emptyList());
 
+    // when
     riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
 
+    // then
     verify(amlCheckRepository, never()).save(any());
     verify(eventPublisher, never()).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
 
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
         ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
     verify(eventPublisher, atLeastOnce()).publishEvent(jobEventCaptor.capture());
-    AmlRiskLevelJobRunEvent jobRunEvent =
-        jobEventCaptor.getAllValues().stream()
-            .filter(AmlRiskLevelJobRunEvent.class::isInstance)
-            .map(AmlRiskLevelJobRunEvent.class::cast)
-            .findFirst()
-            .orElseThrow();
+    AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
     assertEquals(0, jobRunEvent.getHighRiskRowCount());
+    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
+    assertEquals(0, jobRunEvent.getTotalRowsProcessed());
     assertEquals(0, jobRunEvent.getAmlChecksCreatedCount());
+  }
+
+  @Test
+  @DisplayName(
+      "addCheckIfMissing should return false when existing check has the same metadata instance")
+  void addCheckIfMissing_returnsFalse_forSameMetadataInstance() {
+    // given
+    Map<String, Object> sharedMetadata = new HashMap<>();
+    sharedMetadata.put("key", "value");
+    AmlCheck newCheck =
+        AmlCheck.builder()
+            .personalCode("12345")
+            .metadata(sharedMetadata)
+            .type(AmlCheckType.RISK_LEVEL)
+            .build();
+    AmlCheck existingCheck =
+        AmlCheck.builder()
+            .personalCode("12345")
+            .metadata(sharedMetadata)
+            .type(AmlCheckType.RISK_LEVEL)
+            .build();
+
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            any(), any(), any()))
+        .thenReturn(List.of(existingCheck));
+
+    // when
+    boolean result = riskLevelService.addCheckIfMissing(newCheck);
+
+    // then
+    assertFalse(result);
+    verify(amlCheckRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("addCheckIfMissing should return true when new check metadata is null")
+  void addCheckIfMissing_returnsTrue_whenNewMetadataIsNull() {
+    // given
+    AmlCheck newCheck =
+        AmlCheck.builder()
+            .personalCode("12345")
+            .metadata(null)
+            .type(AmlCheckType.RISK_LEVEL)
+            .build();
+    AmlCheck existingCheck =
+        AmlCheck.builder()
+            .personalCode("12345")
+            .metadata(Map.of("key", "value"))
+            .type(AmlCheckType.RISK_LEVEL)
+            .build();
+
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            any(), any(), any()))
+        .thenReturn(List.of(existingCheck));
+    when(amlCheckRepository.save(any(AmlCheck.class))).thenReturn(newCheck);
+
+    // when
+    boolean result = riskLevelService.addCheckIfMissing(newCheck);
+
+    // then
+    assertTrue(result);
+    verify(amlCheckRepository).save(newCheck);
+  }
+
+  @Test
+  @DisplayName("addCheckIfMissing should return true when existing check metadata is null")
+  void addCheckIfMissing_returnsTrue_whenExistingMetadataIsNull() {
+    // given
+    AmlCheck newCheck =
+        AmlCheck.builder()
+            .personalCode("12345")
+            .metadata(Map.of("key", "value"))
+            .type(AmlCheckType.RISK_LEVEL)
+            .build();
+    AmlCheck existingCheck =
+        AmlCheck.builder()
+            .personalCode("12345")
+            .metadata(null)
+            .type(AmlCheckType.RISK_LEVEL)
+            .build();
+
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            any(), any(), any()))
+        .thenReturn(List.of(existingCheck));
+    when(amlCheckRepository.save(any(AmlCheck.class))).thenReturn(newCheck);
+
+    // when
+    boolean result = riskLevelService.addCheckIfMissing(newCheck);
+
+    // then
+    assertTrue(result);
+    verify(amlCheckRepository).save(newCheck);
   }
 }

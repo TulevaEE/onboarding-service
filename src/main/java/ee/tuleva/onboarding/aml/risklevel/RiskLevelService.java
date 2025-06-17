@@ -7,8 +7,11 @@ import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlRiskLevelJobRunEvent;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.Instant;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -39,30 +42,27 @@ public class RiskLevelService {
         mediumRiskSamples.size(),
         String.format("%.8f", mediumRiskIndividualSelectionProbability));
 
-    List<RiskLevelResult> allRowsToProcess = new ArrayList<>(highRiskRows);
-    allRowsToProcess.addAll(mediumRiskSamples);
+    Stream<AmlCheck> highRiskChecks =
+        highRiskRows.stream()
+            .filter(row -> StringUtils.hasText(row.getPersonalId()))
+            .map(row -> buildAmlCheck(row, "high"));
 
-    log.info("Running AML risk level checks, identified {} total rows", allRowsToProcess.size());
-    createAmlChecks(allRowsToProcess);
-  }
+    Stream<AmlCheck> mediumRiskChecks =
+        mediumRiskSamples.stream()
+            .filter(row -> StringUtils.hasText(row.getPersonalId()))
+            .map(row -> buildAmlCheck(row, "medium"));
 
-  private void createAmlChecks(List<RiskLevelResult> rows) {
-    int totalRowsForProcessing = rows.size();
+    List<AmlCheck> allChecks =
+        Stream.concat(highRiskChecks, mediumRiskChecks).collect(Collectors.toList());
 
-    int createdCount =
-        (int)
-            rows.stream()
-                .filter(row -> StringUtils.hasText(row.getPersonalId()))
-                .map(
-                    row ->
-                        AmlCheck.builder()
-                            .personalCode(row.getPersonalId())
-                            .type(AmlCheckType.RISK_LEVEL)
-                            .success(false)
-                            .metadata(row.getMetadata())
-                            .build())
-                .filter(this::addCheckIfMissing)
-                .count();
+    int highRiskCount = highRiskRows.size();
+    int mediumRiskCount = mediumRiskSamples.size();
+    int totalRowsForProcessing = highRiskCount + mediumRiskCount;
+    log.info(
+        "Running AML risk level checks, identified {} total rows for processing",
+        totalRowsForProcessing);
+
+    int createdCount = (int) allChecks.stream().filter(this::addCheckIfMissing).count();
 
     log.info(
         "Ran risk-level check. Total rows processed: {}, New AML checks created: {}",
@@ -70,7 +70,18 @@ public class RiskLevelService {
         createdCount);
 
     eventPublisher.publishEvent(
-        new AmlRiskLevelJobRunEvent(this, totalRowsForProcessing, createdCount));
+        new AmlRiskLevelJobRunEvent(this, highRiskCount, mediumRiskCount, createdCount));
+  }
+
+  private AmlCheck buildAmlCheck(RiskLevelResult row, String level) {
+    Map<String, Object> metadata = new HashMap<>(row.getMetadata());
+    metadata.put("level", level);
+    return AmlCheck.builder()
+        .personalCode(row.getPersonalId())
+        .type(AmlCheckType.RISK_LEVEL)
+        .success(false)
+        .metadata(metadata)
+        .build();
   }
 
   public boolean addCheckIfMissing(AmlCheck amlCheck) {
@@ -80,12 +91,31 @@ public class RiskLevelService {
             amlCheck.getPersonalCode(), AmlCheckType.RISK_LEVEL, cutoff);
 
     for (AmlCheck e : existing) {
-      if (e.getMetadata().equals(amlCheck.getMetadata())) {
+      if (metadataEqualsIgnoringLevel(e.getMetadata(), amlCheck.getMetadata())) {
         return false;
       }
     }
     AmlCheck saved = amlCheckRepository.save(amlCheck);
     eventPublisher.publishEvent(new AmlCheckCreatedEvent(this, saved));
     return true;
+  }
+
+  // can be removed 2026-02 and use default compare
+  // since all checks then will have `level` attribute
+  private boolean metadataEqualsIgnoringLevel(Map<String, Object> m1, Map<String, Object> m2) {
+    if (m1 == m2) {
+      return true;
+    }
+    if (m1 == null || m2 == null) {
+      return false;
+    }
+
+    Map<String, Object> m1Copy = new HashMap<>(m1);
+    Map<String, Object> m2Copy = new HashMap<>(m2);
+
+    m1Copy.remove("level");
+    m2Copy.remove("level");
+
+    return m1Copy.equals(m2Copy);
   }
 }

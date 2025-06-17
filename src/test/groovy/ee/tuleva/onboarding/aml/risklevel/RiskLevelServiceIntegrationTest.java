@@ -19,6 +19,7 @@ import java.sql.Statement;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -76,6 +77,7 @@ class RiskLevelServiceIntegrationTest {
   @Test
   @DisplayName("Should create a new AML check for high-risk rows")
   void testRiskLevelCheck_withHighRiskRows() throws Exception {
+    // given
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(INSERT_PERSON_4_2_RISK_LEVEL_1);
@@ -87,8 +89,10 @@ class RiskLevelServiceIntegrationTest {
         .when(amlRiskRepositoryService)
         .getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
+    // when
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
+    // then
     InOrder inOrder = inOrder(amlRiskRepositoryService);
     inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
     inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
@@ -106,11 +110,13 @@ class RiskLevelServiceIntegrationTest {
     assertEquals(3, metadata.get("attribute_1"));
     assertEquals(2, metadata.get("attribute_2"));
     assertEquals(1, metadata.get("risk_level"));
+    assertEquals("high", metadata.get("level"));
   }
 
   @Test
   @DisplayName("Should create an AML check if a medium-risk row is sampled")
   void testRiskLevelCheck_withMediumRiskRowSampled() throws Exception {
+    // given
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(INSERT_PERSON_5_RISK_LEVEL_2);
@@ -131,8 +137,10 @@ class RiskLevelServiceIntegrationTest {
         .when(amlRiskRepositoryService)
         .getMediumRiskRowsSample(eq(PROBABILITY_FOR_DAILY_RUN));
 
+    // when
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
+    // then
     InOrder inOrder = inOrder(amlRiskRepositoryService);
     inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
     inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
@@ -146,12 +154,16 @@ class RiskLevelServiceIntegrationTest {
     assertEquals(PERSON_ID_5, check.getPersonalCode());
     assertEquals(AmlCheckType.RISK_LEVEL, check.getType());
     assertEquals(false, check.isSuccess());
-    assertEquals(person5Metadata, check.getMetadata());
+
+    Map<String, Object> expectedMetadata = new HashMap<>(person5Metadata);
+    expectedMetadata.put("level", "medium");
+    assertEquals(expectedMetadata, check.getMetadata());
   }
 
   @Test
   @DisplayName("Should not create a new check when existing check has the same metadata")
   void testRiskLevelCheck_existingCheckWithSameMetadata_noNewCheckCreated() throws Exception {
+    // given
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(INSERT_PERSON_4_RISK_LEVEL_1);
@@ -177,8 +189,10 @@ class RiskLevelServiceIntegrationTest {
 
     amlCheckRepository.save(existingCheck);
 
+    // when
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
+    // then
     InOrder inOrder = inOrder(amlRiskRepositoryService);
     inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
     inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
@@ -191,8 +205,10 @@ class RiskLevelServiceIntegrationTest {
   @Test
   @DisplayName("Should not create AML checks when no data in the view")
   void testRiskLevelCheck_noRows_noChecksCreated() {
+    // when
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
+    // then
     InOrder inOrder = inOrder(amlRiskRepositoryService);
     inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
     inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
@@ -205,6 +221,7 @@ class RiskLevelServiceIntegrationTest {
   @Test
   @DisplayName("Should create a new AML check even if an existing check is success=true")
   void testRiskLevelCheck_existingCheckButSuccessTrue_newCheckCreated() throws Exception {
+    // given
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(INSERT_PERSON_6_RISK_LEVEL_1);
@@ -212,18 +229,12 @@ class RiskLevelServiceIntegrationTest {
 
     Map<String, Object> existingMetadata =
         Map.of(
-            "attribute_1",
-            5,
-            "attribute_2",
-            4,
-            "attribute_3",
-            0,
-            "attribute_4",
-            0,
-            "attribute_5",
-            0,
-            "risk_level",
-            1);
+            "attribute_1", 5,
+            "attribute_2", 4,
+            "attribute_3", 0,
+            "attribute_4", 0,
+            "attribute_5", 0,
+            "risk_level", 1);
 
     AmlCheck existingCheck =
         AmlCheck.builder()
@@ -236,8 +247,10 @@ class RiskLevelServiceIntegrationTest {
 
     amlCheckRepository.save(existingCheck);
 
+    // when
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
+    // then
     InOrder inOrder = inOrder(amlRiskRepositoryService);
     inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
     inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
@@ -249,28 +262,29 @@ class RiskLevelServiceIntegrationTest {
         checksAfter.size(),
         "We should have one old (success=true) + one new (success=false) check");
 
+    Map<String, Object> expectedMetadata = new HashMap<>(existingMetadata);
+    expectedMetadata.put("level", "high");
+
     assertTrue(
         checksAfter.stream()
             .anyMatch(
                 c ->
                     c.getPersonalCode().equals(PERSON_ID_6)
                         && !c.isSuccess()
-                        && c.getMetadata().equals(existingMetadata)));
+                        && c.getMetadata().equals(expectedMetadata)));
   }
 
   @Test
-  @DisplayName("Should create a new AML check if the existing one is older than one year")
+  @DisplayName("Should create a new AML check if the existing one is older than six months")
   void testRiskLevelCheck_existingCheckIsTooOld_newCheckCreated() throws Exception {
+    // given
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(INSERT_PERSON_4_RISK_LEVEL_1);
     }
 
     Map<String, Object> existingMetadata =
-        Map.of(
-            "attribute_1", 1,
-            "attribute_2", 1,
-            "risk_level", 1);
+        Map.of("attribute_1", 1, "attribute_2", 1, "risk_level", 1);
 
     AmlCheck oldCheck =
         AmlCheck.builder()
@@ -278,13 +292,15 @@ class RiskLevelServiceIntegrationTest {
             .type(AmlCheckType.RISK_LEVEL)
             .success(false)
             .metadata(existingMetadata)
-            .createdTime(TestClockHolder.now.minus(730, ChronoUnit.DAYS))
+            .createdTime(TestClockHolder.now.minus(190, ChronoUnit.DAYS))
             .build();
 
     amlCheckRepository.save(oldCheck);
 
+    // when
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
+    // then
     InOrder inOrder = inOrder(amlRiskRepositoryService);
     inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
     inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
@@ -298,6 +314,7 @@ class RiskLevelServiceIntegrationTest {
   @DisplayName("Should skip check if existing check with same metadata is within six months")
   void testRiskLevelCheck_existingCheckSameMetadataWithinSixMonths_noNewCheckCreated()
       throws Exception {
+    // given
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(INSERT_PERSON_4_RISK_LEVEL_1);
@@ -323,8 +340,10 @@ class RiskLevelServiceIntegrationTest {
 
     amlCheckRepository.save(existingCheck);
 
+    // when
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
+    // then
     InOrder inOrder = inOrder(amlRiskRepositoryService);
     inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
     inOrder.verify(amlRiskRepositoryService).getHighRiskRows();
@@ -338,6 +357,7 @@ class RiskLevelServiceIntegrationTest {
   @DisplayName("Should create check if existing check with same metadata is older than six months")
   void testRiskLevelCheck_existingCheckSameMetadataOlderThanSixMonths_newCheckCreated()
       throws Exception {
+    // given
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(INSERT_PERSON_4_RISK_LEVEL_1);
@@ -369,8 +389,10 @@ class RiskLevelServiceIntegrationTest {
       ClockHolder.setClock(originalClock);
     }
 
+    // when
     riskLevelService.runRiskLevelCheck(PROBABILITY_FOR_DAILY_RUN);
 
+    // then
     InOrder inOrder = inOrder(amlRiskRepositoryService);
     inOrder.verify(amlRiskRepositoryService).refreshMaterializedView();
     inOrder.verify(amlRiskRepositoryService).getHighRiskRows();

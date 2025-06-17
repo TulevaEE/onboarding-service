@@ -7,11 +7,16 @@ import org.springframework.context.ApplicationEvent;
 public class AmlRiskLevelJobRunEvent extends ApplicationEvent {
 
   private final int highRiskRowCount;
+  private final int mediumRiskRowCount;
+  private final int totalRowsProcessed;
   private final int amlChecksCreatedCount;
 
-  public AmlRiskLevelJobRunEvent(Object source, int highRiskRowCount, int amlChecksCreatedCount) {
+  public AmlRiskLevelJobRunEvent(
+      Object source, int highRiskRowCount, int mediumRiskRowCount, int amlChecksCreatedCount) {
     super(source);
-    this.amlChecksCreatedCount = amlChecksCreatedCount;
     this.highRiskRowCount = highRiskRowCount;
+    this.mediumRiskRowCount = mediumRiskRowCount;
+    this.totalRowsProcessed = highRiskRowCount + mediumRiskRowCount;
+    this.amlChecksCreatedCount = amlChecksCreatedCount;
   }
 }

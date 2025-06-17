@@ -19,7 +19,6 @@ import java.sql.Statement;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import javax.sql.DataSource;
@@ -129,7 +128,8 @@ class RiskLevelServiceIntegrationTest {
             "attribute_3", 0,
             "attribute_4", 0,
             "attribute_5", 0,
-            "risk_level", 2);
+            "risk_level", 2,
+            "level", 2);
     RiskLevelResult sampledMediumRiskPerson = new RiskLevelResult(PERSON_ID_5, 2, person5Metadata);
 
     doReturn(Collections.emptyList()).when(amlRiskRepositoryService).getHighRiskRows();
@@ -154,10 +154,7 @@ class RiskLevelServiceIntegrationTest {
     assertEquals(PERSON_ID_5, check.getPersonalCode());
     assertEquals(AmlCheckType.RISK_LEVEL, check.getType());
     assertEquals(false, check.isSuccess());
-
-    Map<String, Object> expectedMetadata = new HashMap<>(person5Metadata);
-    expectedMetadata.put("level", 2);
-    assertEquals(expectedMetadata, check.getMetadata());
+    assertEquals(person5Metadata, check.getMetadata());
   }
 
   @Test
@@ -227,7 +224,7 @@ class RiskLevelServiceIntegrationTest {
       stmt.execute(INSERT_PERSON_6_RISK_LEVEL_1);
     }
 
-    Map<String, Object> existingMetadata =
+    Map<String, Object> existingCheckMetadata =
         Map.of(
             "attribute_1", 5,
             "attribute_2", 4,
@@ -241,7 +238,7 @@ class RiskLevelServiceIntegrationTest {
             .personalCode(PERSON_ID_6)
             .type(AmlCheckType.RISK_LEVEL)
             .success(true)
-            .metadata(existingMetadata)
+            .metadata(existingCheckMetadata)
             .createdTime(TestClockHolder.now.minus(60, ChronoUnit.DAYS))
             .build();
 
@@ -262,8 +259,15 @@ class RiskLevelServiceIntegrationTest {
         checksAfter.size(),
         "We should have one old (success=true) + one new (success=false) check");
 
-    Map<String, Object> expectedMetadata = new HashMap<>(existingMetadata);
-    expectedMetadata.put("level", 1);
+    Map<String, Object> expectedNewCheckMetadata =
+        Map.of(
+            "attribute_1", 5,
+            "attribute_2", 4,
+            "attribute_3", 0,
+            "attribute_4", 0,
+            "attribute_5", 0,
+            "risk_level", 1,
+            "level", 1);
 
     assertTrue(
         checksAfter.stream()
@@ -271,7 +275,7 @@ class RiskLevelServiceIntegrationTest {
                 c ->
                     c.getPersonalCode().equals(PERSON_ID_6)
                         && !c.isSuccess()
-                        && c.getMetadata().equals(expectedMetadata)));
+                        && c.getMetadata().equals(expectedNewCheckMetadata)));
   }
 
   @Test

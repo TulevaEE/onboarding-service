@@ -81,7 +81,7 @@ class RiskLevelServiceTest {
     assertEquals(AmlCheckType.RISK_LEVEL, createdCheck.getType());
     assertFalse(createdCheck.isSuccess());
     assertEquals(999, createdCheck.getMetadata().get("some_key"));
-    assertEquals("high", createdCheck.getMetadata().get("level"));
+    assertEquals(1, createdCheck.getMetadata().get("level"));
 
     verify(eventPublisher).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
 
@@ -120,7 +120,7 @@ class RiskLevelServiceTest {
     assertEquals(AmlCheckType.RISK_LEVEL, createdCheck.getType());
     assertFalse(createdCheck.isSuccess());
     assertEquals(777, createdCheck.getMetadata().get("medium_key"));
-    assertEquals("medium", createdCheck.getMetadata().get("level"));
+    assertEquals(2, createdCheck.getMetadata().get("level"));
 
     verify(eventPublisher).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
@@ -162,13 +162,13 @@ class RiskLevelServiceTest {
             .filter(c -> c.getPersonalCode().equals("38888888880"))
             .findFirst()
             .get();
-    assertEquals("high", highRiskCheck.getMetadata().get("level"));
+    assertEquals(1, highRiskCheck.getMetadata().get("level"));
     AmlCheck mediumRiskCheck =
         createdChecks.stream()
             .filter(c -> c.getPersonalCode().equals("49999999990"))
             .findFirst()
             .get();
-    assertEquals("medium", mediumRiskCheck.getMetadata().get("level"));
+    assertEquals(2, mediumRiskCheck.getMetadata().get("level"));
 
     verify(eventPublisher, times(2)).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
     ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =

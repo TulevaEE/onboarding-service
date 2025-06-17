@@ -110,7 +110,7 @@ class RiskLevelServiceIntegrationTest {
     assertEquals(3, metadata.get("attribute_1"));
     assertEquals(2, metadata.get("attribute_2"));
     assertEquals(1, metadata.get("risk_level"));
-    assertEquals("high", metadata.get("level"));
+    assertEquals(1, metadata.get("level"));
   }
 
   @Test
@@ -156,7 +156,7 @@ class RiskLevelServiceIntegrationTest {
     assertEquals(false, check.isSuccess());
 
     Map<String, Object> expectedMetadata = new HashMap<>(person5Metadata);
-    expectedMetadata.put("level", "medium");
+    expectedMetadata.put("level", 2);
     assertEquals(expectedMetadata, check.getMetadata());
   }
 
@@ -263,7 +263,7 @@ class RiskLevelServiceIntegrationTest {
         "We should have one old (success=true) + one new (success=false) check");
 
     Map<String, Object> expectedMetadata = new HashMap<>(existingMetadata);
-    expectedMetadata.put("level", "high");
+    expectedMetadata.put("level", 1);
 
     assertTrue(
         checksAfter.stream()

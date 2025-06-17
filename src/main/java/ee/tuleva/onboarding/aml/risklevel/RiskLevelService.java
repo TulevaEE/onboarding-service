@@ -45,12 +45,12 @@ public class RiskLevelService {
     Stream<AmlCheck> highRiskChecks =
         highRiskRows.stream()
             .filter(row -> StringUtils.hasText(row.getPersonalId()))
-            .map(row -> buildAmlCheck(row, "high"));
+            .map(row -> buildAmlCheck(row, 1));
 
     Stream<AmlCheck> mediumRiskChecks =
         mediumRiskSamples.stream()
             .filter(row -> StringUtils.hasText(row.getPersonalId()))
-            .map(row -> buildAmlCheck(row, "medium"));
+            .map(row -> buildAmlCheck(row, 2));
 
     List<AmlCheck> allChecks =
         Stream.concat(highRiskChecks, mediumRiskChecks).collect(Collectors.toList());
@@ -73,7 +73,7 @@ public class RiskLevelService {
         new AmlRiskLevelJobRunEvent(this, highRiskCount, mediumRiskCount, createdCount));
   }
 
-  private AmlCheck buildAmlCheck(RiskLevelResult row, String level) {
+  private AmlCheck buildAmlCheck(RiskLevelResult row, Integer level) {
     Map<String, Object> metadata = new HashMap<>(row.getMetadata());
     metadata.put("level", level);
     return AmlCheck.builder()

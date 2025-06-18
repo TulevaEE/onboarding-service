@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -57,8 +56,7 @@ public class EpisService {
   private final String FUND_PENSION_STATUS_CACHE_NAME = "fundPensionStatus";
   private final String ARRESTS_BANKRUPTCIES_CACHE_NAME = "arrestsBankruptcies";
 
-  @Qualifier("episRestTemplate")
-  private final RestTemplate restTemplate;
+  private final RestTemplate episRestTemplate;
 
   private final JwtTokenUtil jwtTokenUtil;
 
@@ -72,7 +70,7 @@ public class EpisService {
     log.info("Getting applications from {} for {}", url, person.getPersonalCode());
 
     ResponseEntity<ApplicationDTO[]> response =
-        restTemplate.exchange(url, GET, getHeadersEntity(), ApplicationDTO[].class);
+        episRestTemplate.exchange(url, GET, getHeadersEntity(), ApplicationDTO[].class);
 
     return asList(response.getBody());
   }
@@ -91,7 +89,9 @@ public class EpisService {
             .toUriString();
 
     log.info("Getting cash flows from {}", url);
-    return restTemplate.exchange(url, GET, getHeadersEntity(), CashFlowStatement.class).getBody();
+    return episRestTemplate
+        .exchange(url, GET, getHeadersEntity(), CashFlowStatement.class)
+        .getBody();
   }
 
   @Caching(
@@ -120,7 +120,7 @@ public class EpisService {
     log.info("Getting contact details from {} for {}", url, person.getPersonalCode());
 
     ResponseEntity<ContactDetails> response =
-        restTemplate.exchange(url, GET, getHeadersEntity(jwtToken), ContactDetails.class);
+        episRestTemplate.exchange(url, GET, getHeadersEntity(jwtToken), ContactDetails.class);
 
     return response.getBody();
   }
@@ -132,7 +132,7 @@ public class EpisService {
     log.info("Getting account statement from {} for {}", url, person.getPersonalCode());
 
     ResponseEntity<FundBalanceDto[]> response =
-        restTemplate.exchange(url, GET, getHeadersEntity(), FundBalanceDto[].class);
+        episRestTemplate.exchange(url, GET, getHeadersEntity(), FundBalanceDto[].class);
 
     return asList(response.getBody());
   }
@@ -144,7 +144,7 @@ public class EpisService {
     log.info("Getting contributions for {}", person.getPersonalCode());
 
     ResponseEntity<Contribution[]> response =
-        restTemplate.exchange(url, GET, getHeadersEntity(), Contribution[].class);
+        episRestTemplate.exchange(url, GET, getHeadersEntity(), Contribution[].class);
 
     return asList(response.getBody());
   }
@@ -156,7 +156,7 @@ public class EpisService {
     log.info("Getting funds from {}", url);
 
     ResponseEntity<FundDto[]> response =
-        restTemplate.exchange(url, GET, getHeadersEntity(), FundDto[].class);
+        episRestTemplate.exchange(url, GET, getHeadersEntity(), FundDto[].class);
 
     return asList(response.getBody());
   }
@@ -168,7 +168,7 @@ public class EpisService {
     log.info("Getting fund pension calculation for {}", person.getPersonalCode());
 
     ResponseEntity<FundPensionCalculationDto> response =
-        restTemplate.exchange(url, GET, getHeadersEntity(), FundPensionCalculationDto.class);
+        episRestTemplate.exchange(url, GET, getHeadersEntity(), FundPensionCalculationDto.class);
 
     return response.getBody();
   }
@@ -180,7 +180,7 @@ public class EpisService {
     log.info("Getting fund pension status for {}", person.getPersonalCode());
 
     ResponseEntity<FundPensionStatusDto> response =
-        restTemplate.exchange(url, GET, getHeadersEntity(), FundPensionStatusDto.class);
+        episRestTemplate.exchange(url, GET, getHeadersEntity(), FundPensionStatusDto.class);
 
     return response.getBody();
   }
@@ -192,7 +192,7 @@ public class EpisService {
     log.info("Getting arrests/bankruptcies information for {}", person.getPersonalCode());
 
     ResponseEntity<ArrestsBankruptciesDto> response =
-        restTemplate.exchange(url, GET, getHeadersEntity(), ArrestsBankruptciesDto.class);
+        episRestTemplate.exchange(url, GET, getHeadersEntity(), ArrestsBankruptciesDto.class);
 
     return response.getBody();
   }
@@ -200,7 +200,7 @@ public class EpisService {
   public NavDto getNav(String isin, LocalDate date) {
     log.info("Fetching NAV for fund from EPIS service: isin={}, date={}", isin, date);
     String url = episServiceUrl + "/navs/" + isin + "?date=" + date;
-    return restTemplate
+    return episRestTemplate
         .exchange(url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), NavDto.class)
         .getBody();
   }
@@ -221,7 +221,7 @@ public class EpisService {
     log.debug("Calling remote transactions endpoint at URL: {}", url);
 
     ThirdPillarTransactionDto[] responseArray =
-        restTemplate
+        episRestTemplate
             .exchange(
                 url,
                 GET,
@@ -258,7 +258,7 @@ public class EpisService {
     log.debug("Calling remote exchange transactions endpoint at URL: {}", url);
 
     ExchangeTransactionDto[] responseArray =
-        restTemplate
+        episRestTemplate
             .exchange(
                 url,
                 GET,
@@ -288,7 +288,7 @@ public class EpisService {
     log.debug("Calling remote fund transactions endpoint at URL: {}", url);
 
     ResponseEntity<FundTransactionDto[]> response =
-        restTemplate.exchange(
+        episRestTemplate.exchange(
             url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), FundTransactionDto[].class);
 
     return Arrays.asList(response.getBody());
@@ -306,7 +306,7 @@ public class EpisService {
     log.debug("Calling remote fund balances endpoint at URL: {}", url);
 
     ResponseEntity<TransactionFundBalanceDto[]> response =
-        restTemplate.exchange(
+        episRestTemplate.exchange(
             url,
             GET,
             new HttpEntity<>(getHeaders(serviceJwtToken())),
@@ -324,7 +324,7 @@ public class EpisService {
     log.debug("Calling remote unit owners endpoint at URL: {}", url);
 
     ResponseEntity<UnitOwnerDto[]> response =
-        restTemplate.exchange(
+        episRestTemplate.exchange(
             url, GET, new HttpEntity<>(getHeaders(serviceJwtToken())), UnitOwnerDto[].class);
 
     return Arrays.asList(response.getBody());
@@ -333,14 +333,14 @@ public class EpisService {
   public MandateCommandResponse sendMandateV2(MandateCommand<?> mandate) {
     String url = episServiceUrl + "/mandates-v2";
 
-    return restTemplate.postForObject(
+    return episRestTemplate.postForObject(
         url, new HttpEntity<>(mandate, getUserHeaders()), MandateCommandResponse.class);
   }
 
   public ApplicationResponseDTO sendMandate(MandateDto mandate) {
     String url = episServiceUrl + "/mandates";
 
-    return restTemplate.postForObject(
+    return episRestTemplate.postForObject(
         url, new HttpEntity<>(mandate, getUserHeaders()), ApplicationResponseDTO.class);
   }
 
@@ -350,7 +350,7 @@ public class EpisService {
 
     log.info("Updating contact details for {}", contactDetails.getPersonalCode());
 
-    return restTemplate.postForObject(
+    return episRestTemplate.postForObject(
         url, new HttpEntity<>(contactDetails, getUserHeaders()), ContactDetails.class);
   }
 

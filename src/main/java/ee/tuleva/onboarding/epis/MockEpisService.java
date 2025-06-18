@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CASH;
 import static ee.tuleva.onboarding.epis.cashflows.CashFlow.Type.CONTRIBUTION_CASH;
 import static ee.tuleva.onboarding.epis.fund.FundDto.FundStatus.ACTIVE;
 import static ee.tuleva.onboarding.epis.mandate.ApplicationStatus.COMPLETE;
-import static ee.tuleva.onboarding.mandate.application.ApplicationType.*;
+import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION;
 import static java.time.LocalDate.parse;
 import static java.time.temporal.ChronoUnit.DAYS;
 
@@ -29,10 +29,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -42,24 +38,11 @@ import org.springframework.web.client.RestTemplate;
 @Profile("mock")
 public class MockEpisService extends EpisService {
 
-  private final String APPLICATIONS_CACHE_NAME = "applications";
-  private final String TRANSFER_APPLICATIONS_CACHE_NAME = "transferApplications";
-  private final String CONTACT_DETAILS_CACHE_NAME = "contactDetails";
-  private final String ACCOUNT_STATEMENT_CACHE_NAME = "accountStatement";
-  private final String CASH_FLOW_STATEMENT_CACHE_NAME = "cashFlowStatement";
-  private final String FUNDS_CACHE_NAME = "funds";
-  private final String FUND_PENSION_CALCULATION_CACHE_NAME = "fundPensionCalculation";
-  private final String FUND_PENSION_STATUS_CACHE_NAME = "fundPensionStatus";
-  private final String ARRESTS_BANKRUPTCIES_CACHE_NAME = "arrestsBankruptcies";
-
-  @Value("${epis.service.url}")
-  String episServiceUrl;
-
   public MockEpisService(RestTemplate restTemplate) {
     super(restTemplate, null);
   }
 
-  @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Override
   public List<ApplicationDTO> getApplications(Person person) {
     return List.of(
         ApplicationDTO.builder()
@@ -72,10 +55,7 @@ public class MockEpisService extends EpisService {
             .build());
   }
 
-  @Cacheable(
-      value = CASH_FLOW_STATEMENT_CACHE_NAME,
-      key = "{ #person.personalCode, #fromDate, #toDate }",
-      sync = true)
+  @Override
   public CashFlowStatement getCashFlowStatement(
       Person person, LocalDate fromDate, LocalDate toDate) {
 
@@ -133,23 +113,17 @@ public class MockEpisService extends EpisService {
         .build();
   }
 
-  @Caching(
-      evict = {
-        @CacheEvict(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = TRANSFER_APPLICATIONS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode"),
-        @CacheEvict(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode"),
-      })
+  @Override
   public void clearCache(Person person) {
     log.info("Clearing cache for {}", person.getPersonalCode());
   }
 
-  @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
+  @Override
   public ContactDetails getContactDetails(Person person) {
     return mockContactDetails();
   }
 
-  @Cacheable(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
+  @Override
   public ContactDetails getContactDetails(Person person, String token) {
     return mockContactDetails();
   }
@@ -172,7 +146,7 @@ public class MockEpisService extends EpisService {
         .build();
   }
 
-  @Cacheable(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode")
+  @Override
   public List<FundBalanceDto> getAccountStatement(Person person) {
     return List.of(
         FundBalanceDto.builder()
@@ -213,12 +187,12 @@ public class MockEpisService extends EpisService {
             .build());
   }
 
-  @Cacheable(value = FUND_PENSION_CALCULATION_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Override
   public FundPensionCalculationDto getFundPensionCalculation(Person person) {
     return new FundPensionCalculationDto(20);
   }
 
-  @Cacheable(value = FUND_PENSION_STATUS_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Override
   public FundPensionStatusDto getFundPensionStatus(Person person) {
     // return new FundPensionStatusDto(List.of(new
     // FundPensionStatusDto.FundPensionDto(Instant.parse("2019-10-01T12:13:27.141Z"), null, 20,
@@ -228,21 +202,23 @@ public class MockEpisService extends EpisService {
     return new FundPensionStatusDto(List.of(), List.of());
   }
 
-  @Cacheable(value = ARRESTS_BANKRUPTCIES_CACHE_NAME, key = "#person.personalCode", sync = true)
+  @Override
   public ArrestsBankruptciesDto getArrestsBankruptciesPresent(Person person) {
     return new ArrestsBankruptciesDto(false, false);
   }
 
-  @Cacheable(value = FUNDS_CACHE_NAME, unless = "#result.isEmpty()")
+  @Override
   public List<FundDto> getFunds() {
     return List.of(
         new FundDto("EE3600109435", "Tuleva Maailma Aktsiate Pensionifond", "TUK75", 2, ACTIVE));
   }
 
+  @Override
   public NavDto getNav(String isin, LocalDate date) {
     return new NavDto(isin, parse("2019-08-19"), new BigDecimal("19.0"));
   }
 
+  @Override
   public ApplicationResponseDTO sendMandate(MandateDto mandate) {
     return new ApplicationResponseDTO();
   }
@@ -251,7 +227,7 @@ public class MockEpisService extends EpisService {
     return new ApplicationResponse();
   }
 
-  @CacheEvict(value = CONTACT_DETAILS_CACHE_NAME, key = "#person.personalCode")
+  @Override
   public ContactDetails updateContactDetails(Person person, ContactDetails contactDetails) {
     return mockContactDetails();
   }

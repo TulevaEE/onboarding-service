@@ -20,12 +20,23 @@ class ContributionControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(controller)
     1 * episService.getContributions(_) >> [
-        new Contribution(
+        new SecondPillarContribution(
             Instant.parse("2023-04-26T10:00:00Z"),
             "Tuleva Fondid AS",
             12.34,
             EUR,
-            2
+            2,
+            0.00,
+            2.00,
+            4.00,
+            0.10
+        ),
+        new ThirdPillarContribution(
+            Instant.parse("2023-04-27T10:00:00Z"),
+            "Tuleva Fondid AS",
+            34.56,
+            EUR,
+            3
         )
     ]
 
@@ -38,5 +49,15 @@ class ContributionControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$.[0].amount', is(12.34d)))
         .andExpect(jsonPath('$.[0].currency', is("EUR")))
         .andExpect(jsonPath('$.[0].pillar', is(2)))
+        .andExpect(jsonPath('$.[0].additionalParentalBenefit', is(0.00d)))
+        .andExpect(jsonPath('$.[0].employeeWithheldPortion', is(2.00d)))
+        .andExpect(jsonPath('$.[0].socialTaxPortion', is(4.00d)))
+        .andExpect(jsonPath('$.[0].interest', is(0.10d)))
+
+        .andExpect(jsonPath('$.[1].time', is("2023-04-27T10:00:00Z")))
+        .andExpect(jsonPath('$.[1].sender', is("Tuleva Fondid AS")))
+        .andExpect(jsonPath('$.[1].amount', is(34.56d)))
+        .andExpect(jsonPath('$.[1].currency', is("EUR")))
+        .andExpect(jsonPath('$.[1].pillar', is(3)))
   }
 }

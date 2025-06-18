@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.epis
 
 
-import ee.tuleva.onboarding.contribution.Contribution
+import ee.tuleva.onboarding.contribution.ThirdPillarContribution
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
 import ee.tuleva.onboarding.epis.mandate.ApplicationResponseDTO
@@ -37,11 +37,9 @@ import java.util.concurrent.TimeUnit
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.MandateCommandResponseFixture.sampleMandateCommandResponse
-import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleEarlyWithdrawalCancellation
-import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleTransferCancellation
-import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.sampleWithdrawalCancellation
-import static ee.tuleva.onboarding.pillar.Pillar.SECOND
+import static ee.tuleva.onboarding.epis.cancellation.CancellationFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.TRANSFER
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND
 import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 import static org.mockserver.model.HttpRequest.request
 import static org.mockserver.model.HttpResponse.response
@@ -406,12 +404,12 @@ class EpisServiceIntegrationSpec extends Specification {
     given:
     def person = samplePerson()
 
-    def expectedResponse = [new Contribution(
+    def expectedResponse = [new ThirdPillarContribution(
         Instant.parse("2023-04-26T10:00:00Z"),
         "Tuleva Fondid AS",
         12.34,
         EUR,
-        2
+        3
     )]
 
     mockServerClient

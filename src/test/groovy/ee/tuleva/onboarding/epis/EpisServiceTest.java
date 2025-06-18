@@ -16,6 +16,7 @@ import static org.springframework.http.HttpStatus.OK;
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.contribution.Contribution;
+import ee.tuleva.onboarding.contribution.ThirdPillarContribution;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
 import ee.tuleva.onboarding.epis.cashflows.CashFlowStatement;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
@@ -34,11 +35,16 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.*;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.*;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -221,7 +227,9 @@ class EpisServiceTest {
   void getContributions() {
     // given
     setupUserAuthentication();
-    Contribution[] contributions = {Contribution.builder().amount(BigDecimal.TEN).build()};
+    Contribution[] contributions = {
+      ThirdPillarContribution.builder().amount(BigDecimal.TEN).build()
+    };
     var responseEntity = new ResponseEntity<>(contributions, OK);
 
     when(restTemplate.exchange(

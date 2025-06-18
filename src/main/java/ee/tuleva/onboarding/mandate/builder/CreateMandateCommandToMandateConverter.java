@@ -18,20 +18,17 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class CreateMandateCommandToMandateConverter
-    implements Converter<CreateMandateCommandWrapper, Mandate> {
+public class CreateMandateCommandToMandateConverter {
 
   private final AccountStatementService accountStatementService;
   private final FundRepository fundRepository;
   private final ConversionDecorator conversionDecorator;
 
-  @Override
   @NonNull
   public Mandate convert(CreateMandateCommandWrapper wrapper) {
     User user = wrapper.getUser();

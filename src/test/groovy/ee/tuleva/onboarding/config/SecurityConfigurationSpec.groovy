@@ -1,17 +1,18 @@
 package ee.tuleva.onboarding.config
 
+
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.transaction.annotation.Transactional
+import spock.lang.Shared
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.JwtTokenGenerator.generateJwtToken
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
-import static ee.tuleva.onboarding.auth.authority.Authority.PARTNER
-import static ee.tuleva.onboarding.auth.authority.Authority.USER
+import static ee.tuleva.onboarding.auth.authority.Authority.*
 import static ee.tuleva.onboarding.auth.jwt.TokenType.ACCESS
 import static ee.tuleva.onboarding.auth.jwt.TokenType.HANDOVER
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.MOCK
@@ -26,6 +27,11 @@ class SecurityConfigurationSpec extends Specification {
 
   @Autowired
   MockMvc mvc
+
+  @Shared
+  var memberToken = generateJwtToken(samplePerson, ACCESS, [USER, MEMBER])
+  @Shared
+  var userToken = generateJwtToken(samplePerson, ACCESS, [USER])
 
   def "PARTNER token may hit only specific endpoints"() {
     given:
@@ -89,5 +95,17 @@ class SecurityConfigurationSpec extends Specification {
     "/v1/pension-account-statement"   | status().isOk()
     "/v1/me"                          | status().isOk()
     "/v1/applications?status=PENDING" | status().isForbidden()
+  }
+
+  def "member has access to listings"() {
+    expect:
+    mvc.perform(get(url)
+        .header("Authorization", "Bearer " + token))
+        .andExpect(status)
+
+    where:
+    url            | token       | status
+    "/v1/listings" | memberToken | status().isOk()
+    "/v1/listings" | userToken   | status().isForbidden()
   }
 }

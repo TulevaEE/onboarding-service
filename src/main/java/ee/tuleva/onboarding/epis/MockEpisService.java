@@ -147,7 +147,7 @@ public class MockEpisService extends EpisService {
   }
 
   @Override
-  public List<FundBalanceDto> getAccountStatement(Person person) {
+  public List<FundBalanceDto> getAccountStatement(Person person, LocalDate atDate) {
     return List.of(
         FundBalanceDto.builder()
             .isin("EE3600109435")

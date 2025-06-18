@@ -216,7 +216,7 @@ class EpisServiceTest {
         .thenReturn(responseEntity);
 
     // when
-    List<FundBalanceDto> fundBalances = service.getAccountStatement(samplePerson);
+    List<FundBalanceDto> fundBalances = service.getAccountStatement(samplePerson, null);
 
     // then
     assertEquals(1, fundBalances.size());

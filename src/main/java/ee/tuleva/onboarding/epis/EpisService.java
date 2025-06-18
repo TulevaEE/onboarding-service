@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -82,7 +83,8 @@ public class EpisService {
   public CashFlowStatement getCashFlowStatement(
       Person person, LocalDate fromDate, LocalDate toDate) {
     String url =
-        UriComponentsBuilder.fromHttpUrl(episServiceUrl + "/account-cash-flow-statement")
+        UriComponentsBuilder.fromUriString(episServiceUrl)
+            .path("/account-cash-flow-statement")
             .queryParam("from-date", fromDate)
             .queryParam("to-date", toDate)
             .build()
@@ -125,9 +127,17 @@ public class EpisService {
     return response.getBody();
   }
 
-  @Cacheable(value = ACCOUNT_STATEMENT_CACHE_NAME, key = "#person.personalCode", sync = true)
-  public List<FundBalanceDto> getAccountStatement(Person person) {
-    String url = episServiceUrl + "/account-statement";
+  @Cacheable(
+      value = ACCOUNT_STATEMENT_CACHE_NAME,
+      key = "{ #person.personalCode, #atDate }",
+      sync = true)
+  public List<FundBalanceDto> getAccountStatement(Person person, @Nullable LocalDate atDate) {
+    String url =
+        UriComponentsBuilder.fromUriString(episServiceUrl)
+            .path("/account-statement")
+            .queryParamIfPresent("at-date", Optional.ofNullable(atDate))
+            .build()
+            .toUriString();
 
     log.info("Getting account statement from {} for {}", url, person.getPersonalCode());
 
@@ -212,7 +222,7 @@ public class EpisService {
         endDate);
 
     String url =
-        UriComponentsBuilder.fromHttpUrl(episServiceUrl)
+        UriComponentsBuilder.fromUriString(episServiceUrl)
             .pathSegment("transactions")
             .queryParam("startDate", startDate)
             .queryParam("endDate", endDate)
@@ -246,7 +256,7 @@ public class EpisService {
         pikFlag);
 
     UriComponentsBuilder urlBuilder =
-        UriComponentsBuilder.fromHttpUrl(episServiceUrl)
+        UriComponentsBuilder.fromUriString(episServiceUrl)
             .pathSegment("exchange-transactions")
             .queryParam("startDate", startDate)
             .queryParam("pikFlag", pikFlag);
@@ -278,7 +288,7 @@ public class EpisService {
         toDate);
 
     String url =
-        UriComponentsBuilder.fromHttpUrl(episServiceUrl)
+        UriComponentsBuilder.fromUriString(episServiceUrl)
             .pathSegment("fund-transactions")
             .queryParam("isin", isin)
             .queryParam("fromDate", fromDate)
@@ -298,7 +308,7 @@ public class EpisService {
     log.info("Fetching fund balances from EPIS service for date: {}", requestDate);
 
     String url =
-        UriComponentsBuilder.fromHttpUrl(episServiceUrl)
+        UriComponentsBuilder.fromUriString(episServiceUrl)
             .pathSegment("fund-balances")
             .queryParam("requestDate", requestDate)
             .toUriString();
@@ -319,7 +329,7 @@ public class EpisService {
     log.info("Fetching unit owners from EPIS service.");
 
     String url =
-        UriComponentsBuilder.fromHttpUrl(episServiceUrl).pathSegment("unit-owners").toUriString();
+        UriComponentsBuilder.fromUriString(episServiceUrl).pathSegment("unit-owners").toUriString();
 
     log.debug("Calling remote unit owners endpoint at URL: {}", url);
 

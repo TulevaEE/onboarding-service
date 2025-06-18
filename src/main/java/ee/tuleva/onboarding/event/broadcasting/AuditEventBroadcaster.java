@@ -17,7 +17,7 @@ public class AuditEventBroadcaster {
   private final ApplicationEventPublisher eventPublisher;
 
   @Before(
-      "execution(* ee.tuleva.onboarding.account.AccountStatementService.getAccountStatement(..)) && args(person)")
+      "execution(* ee.tuleva.onboarding.account.AccountStatementService.getAccountStatement(..)) && args(person, ..)")
   public void logServiceAccess(Person person) {
     eventPublisher.publishEvent(
         new TrackableEvent(person, TrackableEventType.GET_ACCOUNT_STATEMENT));

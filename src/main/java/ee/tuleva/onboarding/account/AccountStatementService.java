@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.account.FundBalanceDto;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,7 +20,11 @@ public class AccountStatementService {
   private final FundBalanceDtoToFundBalanceConverter fundBalanceConverter;
 
   public List<FundBalance> getAccountStatement(Person person) {
-    List<FundBalanceDto> accountStatement = episService.getAccountStatement(person);
+    return getAccountStatement(person, null);
+  }
+
+  public List<FundBalance> getAccountStatement(Person person, LocalDate atDate) {
+    List<FundBalanceDto> accountStatement = episService.getAccountStatement(person, atDate);
 
     return accountStatement.stream()
         .filter(fundBalanceDto -> fundBalanceDto.getIsin() != null)

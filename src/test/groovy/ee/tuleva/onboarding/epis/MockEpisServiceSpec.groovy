@@ -51,7 +51,7 @@ class MockEpisServiceSpec extends Specification {
 
   def "getAccountStatement has a mock response"() {
     when:
-    List<FundBalanceDto> response = episService.getAccountStatement(samplePerson())
+    List<FundBalanceDto> response = episService.getAccountStatement(samplePerson(), LocalDate.now())
     then:
     !response.isEmpty()
   }

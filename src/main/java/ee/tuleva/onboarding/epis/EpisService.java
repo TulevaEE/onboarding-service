@@ -129,7 +129,8 @@ public class EpisService {
 
   @Cacheable(
       value = ACCOUNT_STATEMENT_CACHE_NAME,
-      key = "{ #person.personalCode, #fromDate, #toDate }",
+      key = "#person.personalCode",
+      condition = "#fromDate == null && #toDate == null",
       sync = true)
   public List<FundBalanceDto> getAccountStatement(
       Person person, @Nullable LocalDate fromDate, @Nullable LocalDate toDate) {

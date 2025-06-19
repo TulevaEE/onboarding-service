@@ -39,7 +39,7 @@ class IndexReturnProviderSpec extends Specification {
         def returnAsAmount = 123.12
         def payments = 234.12
 
-        accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
+        accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar) >> overview
         rateOfReturnCalculator.getSimulatedReturn(overview, EpiFundValueRetriever.KEY) >>
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
         rateOfReturnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY) >>
@@ -50,7 +50,7 @@ class IndexReturnProviderSpec extends Specification {
 
         when:
         def returns = returnProvider.getReturns(
-            new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
+            new ReturnCalculationParameters(person, startTime, endTime, pillar, returnProvider.getKeys()))
 
         then:
         with(returns.returns[0]) {

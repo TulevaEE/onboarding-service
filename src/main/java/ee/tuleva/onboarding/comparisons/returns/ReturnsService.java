@@ -29,9 +29,10 @@ public class ReturnsService {
   private final FundValueRepository fundValueRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
 
-  public Returns get(Person person, LocalDate fromDate, List<String> keys) {
+  public Returns get(Person person, LocalDate fromDate, LocalDate toDate, List<String> keys) {
     int pillar = getPillar(keys);
     Instant fromTime = getRevisedFromTime(fromDate, keys, pillar);
+    Instant toTime = toDate.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
 
     List<Return> allReturns = new ArrayList<>();
 
@@ -41,7 +42,7 @@ public class ReturnsService {
       Returns providerReturns =
           provider.getReturns(
               new ReturnCalculationParameters(
-                  person, fromTime, pillar, relevantKeysForTheProvider));
+                  person, fromTime, toTime, pillar, relevantKeysForTheProvider));
 
       if (providerReturns != null && providerReturns.getReturns() != null) {
         allReturns.addAll(providerReturns.getReturns());

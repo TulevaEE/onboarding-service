@@ -5,4 +5,4 @@ import java.time.Instant;
 import java.util.List;
 
 public record ReturnCalculationParameters(
-    Person person, Instant startTime, Integer pillar, List<String> keys) {}
+    Person person, Instant startTime, Instant endTime, Integer pillar, List<String> keys) {}

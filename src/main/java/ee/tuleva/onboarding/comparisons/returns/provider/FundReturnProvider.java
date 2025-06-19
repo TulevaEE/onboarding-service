@@ -30,7 +30,7 @@ public class FundReturnProvider implements ReturnProvider {
 
     AccountOverview accountOverview =
         accountOverviewProvider.getAccountOverview(
-            parameters.person(), parameters.startTime(), parameters.pillar());
+            parameters.person(), parameters.startTime(), parameters.endTime(), parameters.pillar());
 
     List<Return> returns =
         fundIsins().stream()

@@ -29,6 +29,7 @@ class ReturnsControllerSpec extends BaseControllerSpec {
     def "can GET /returns"() {
         given:
         def fromDate = "2017-01-01"
+        def toDate = "2017-02-01"
         def type = FUND
         def key = "EE123"
         def rate = 1.0
@@ -46,11 +47,12 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def returns = Returns.builder()
             .returns([aReturn])
             .build()
-        returnsService.get(_ as Person, LocalDate.parse(fromDate), null) >> returns
+        returnsService.get(_ as Person, LocalDate.parse(fromDate), LocalDate.parse(toDate), null) >> returns
 
         expect:
         mockMvc.perform(get("/v1/returns")
-            .param("from", fromDate))
+            .param("from", fromDate)
+            .param("to", toDate))
             .andExpect(status().isOk())
             .andExpect(content().contentType(MediaType.APPLICATION_JSON))
             .andExpect(jsonPath('$.from', is(fromDate)))
@@ -73,7 +75,8 @@ class ReturnsControllerSpec extends BaseControllerSpec {
         def returns = Returns.builder()
             .returns([aReturn])
             .build()
-        returnsService.get(_ as Person, BEGINNING_OF_TIMES, null) >> returns
+        def today = LocalDate.now()
+        returnsService.get(_ as Person, BEGINNING_OF_TIMES, today, null) >> returns
 
         expect:
         mockMvc.perform(get("/v1/returns"))
@@ -104,11 +107,12 @@ class ReturnsControllerSpec extends BaseControllerSpec {
                 Return.builder().key(key3).type(INDEX).rate(rate).amount(amount).paymentsSum(paymentsSum).currency(EUR).from(LocalDate.parse(fromDate)).build(),
             ])
             .build()
-        returnsService.get(_ as Person, LocalDate.parse(fromDate), [key1, key2, key3]) >> returns
+        returnsService.get(_ as Person, LocalDate.parse(fromDate), LocalDate.parse(toDate), [key1, key2, key3]) >> returns
 
         expect:
         mockMvc.perform(get("/v1/returns")
             .param("from", fromDate)
+            .param("to", toDate)
             .param("keys[]", key1)
             .param("keys[]", key2)
             .param("keys[]", key3))

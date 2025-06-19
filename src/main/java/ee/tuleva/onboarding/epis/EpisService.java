@@ -129,13 +129,15 @@ public class EpisService {
 
   @Cacheable(
       value = ACCOUNT_STATEMENT_CACHE_NAME,
-      key = "{ #person.personalCode, #atDate }",
+      key = "{ #person.personalCode, #fromDate, #toDate }",
       sync = true)
-  public List<FundBalanceDto> getAccountStatement(Person person, @Nullable LocalDate atDate) {
+  public List<FundBalanceDto> getAccountStatement(
+      Person person, @Nullable LocalDate fromDate, @Nullable LocalDate toDate) {
     String url =
         UriComponentsBuilder.fromUriString(episServiceUrl)
             .path("/account-statement")
-            .queryParamIfPresent("at-date", Optional.ofNullable(atDate))
+            .queryParamIfPresent("from-date", Optional.ofNullable(fromDate))
+            .queryParamIfPresent("to-date", Optional.ofNullable(toDate))
             .build()
             .toUriString();
 

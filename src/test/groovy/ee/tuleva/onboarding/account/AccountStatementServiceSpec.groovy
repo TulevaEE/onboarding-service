@@ -23,7 +23,7 @@ class AccountStatementServiceSpec extends Specification {
     def fundBalanceDto = FundBalanceDto.builder().isin("someIsin").build()
     def fundBalance = activeTuleva2ndPillarFundBalance.first()
 
-    episService.getAccountStatement(person, null) >> [fundBalanceDto]
+    episService.getAccountStatement(person, null, null) >> [fundBalanceDto]
     fundBalanceConverter.convert(fundBalanceDto, person) >> fundBalance
 
     when:
@@ -37,7 +37,7 @@ class AccountStatementServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def fundBalanceDto = FundBalanceDto.builder().isin(null).build()
-    episService.getAccountStatement(person, null) >> [fundBalanceDto]
+    episService.getAccountStatement(person, null, null) >> [fundBalanceDto]
 
     when:
     List<FundBalance> accountStatement = service.getAccountStatement(person)
@@ -55,7 +55,7 @@ class AccountStatementServiceSpec extends Specification {
     def activeZeroFund = FundBalanceDto.builder().isin("3").value(ZERO).activeContributions(true).build()
     def activeNonZeroFund = FundBalanceDto.builder().isin("4").value(ONE).activeContributions(true).build()
 
-    episService.getAccountStatement(person, null) >> [inactiveZeroFund, inactiveNonZeroFund, activeZeroFund, activeNonZeroFund]
+    episService.getAccountStatement(person, null, null) >> [inactiveZeroFund, inactiveNonZeroFund, activeZeroFund, activeNonZeroFund]
     fundBalanceConverter.convert(_, _) >> { FundBalanceDto fundBalanceDto, _ ->
       FundBalance.builder()
           .fund(Fund.builder()
@@ -83,7 +83,7 @@ class AccountStatementServiceSpec extends Specification {
     def person = samplePerson()
     def inactiveZeroFund = FundBalanceDto.builder().isin("1").value(ZERO).activeContributions(false).build()
 
-    episService.getAccountStatement(person, null) >> [inactiveZeroFund]
+    episService.getAccountStatement(person, null, null) >> [inactiveZeroFund]
     fundBalanceConverter.convert(_, _) >> { FundBalanceDto fundBalanceDto, _ ->
       FundBalance.builder().fund(Fund.builder().isin(fundBalanceDto.isin).pillar(2).build()).build()
     }
@@ -101,7 +101,7 @@ class AccountStatementServiceSpec extends Specification {
     def person = samplePerson()
     def fundBalanceDto = FundBalanceDto.builder().isin("someIsin").build()
 
-    episService.getAccountStatement(person, null) >> [fundBalanceDto]
+    episService.getAccountStatement(person, null, null) >> [fundBalanceDto]
     fundBalanceConverter.convert(fundBalanceDto, person) >> {
       throw new IllegalArgumentException()
     }

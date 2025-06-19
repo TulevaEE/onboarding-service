@@ -20,11 +20,13 @@ public class AccountStatementService {
   private final FundBalanceDtoToFundBalanceConverter fundBalanceConverter;
 
   public List<FundBalance> getAccountStatement(Person person) {
-    return getAccountStatement(person, null);
+    return getAccountStatement(person, null, null);
   }
 
-  public List<FundBalance> getAccountStatement(Person person, LocalDate atDate) {
-    List<FundBalanceDto> accountStatement = episService.getAccountStatement(person, atDate);
+  public List<FundBalance> getAccountStatement(
+      Person person, LocalDate fromDate, LocalDate toDate) {
+    List<FundBalanceDto> accountStatement =
+        episService.getAccountStatement(person, fromDate, toDate);
 
     return accountStatement.stream()
         .filter(fundBalanceDto -> fundBalanceDto.getIsin() != null)

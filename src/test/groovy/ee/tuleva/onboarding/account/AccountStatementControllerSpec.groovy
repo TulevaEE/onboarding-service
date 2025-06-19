@@ -28,7 +28,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
   def "/pension-account-statement endpoint works"() {
     given:
     List<FundBalance> fundBalances = activeTuleva2ndPillarFundBalance
-    1 * accountStatementService.getAccountStatement(_ as Person, _) >> fundBalances
+    1 * accountStatementService.getAccountStatement(_ as Person, _, _) >> fundBalances
     localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
 
     expect:
@@ -62,7 +62,7 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
   def "/pension-account-statement endpoint accepts language header and responds with appropriate fund.name"() {
     given:
     List<FundBalance> fundBalances = activeTuleva2ndPillarFundBalance
-    1 * accountStatementService.getAccountStatement(_ as Person, _) >> fundBalances
+    1 * accountStatementService.getAccountStatement(_ as Person, _, _) >> fundBalances
     localeService.getCurrentLocale() >> Locale.forLanguageTag(language)
 
     expect:

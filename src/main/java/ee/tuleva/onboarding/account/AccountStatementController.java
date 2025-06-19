@@ -26,10 +26,11 @@ public class AccountStatementController {
   @Operation(summary = "Get pension register account statement")
   @GetMapping("/pension-account-statement")
   public List<ApiFundBalanceResponse> getMyPensionAccountStatement(
-      @RequestParam(value = "at-date", required = false) LocalDate atDate,
+      @RequestParam(value = "from-date", required = false) LocalDate fromDate,
+      @RequestParam(value = "to-date", required = false) LocalDate toDate,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     List<FundBalance> fundBalances =
-        accountStatementService.getAccountStatement(authenticatedPerson, atDate);
+        accountStatementService.getAccountStatement(authenticatedPerson, fromDate, toDate);
     return convertToDtos(fundBalances, localeService.getCurrentLocale());
   }
 

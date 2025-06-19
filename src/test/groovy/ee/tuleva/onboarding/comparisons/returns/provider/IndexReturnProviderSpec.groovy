@@ -39,18 +39,18 @@ class IndexReturnProviderSpec extends Specification {
         def returnAsAmount = 123.12
         def payments = 234.12
 
-        accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
+        accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar) >> overview
         rateOfReturnCalculator.getSimulatedReturn(overview, EpiFundValueRetriever.KEY) >>
-            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
         rateOfReturnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY) >>
-            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
         rateOfReturnCalculator.getSimulatedReturn(overview, CpiValueRetriever.KEY) >>
-            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
 
 
         when:
         def returns = returnProvider.getReturns(
-            new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
+            new ReturnCalculationParameters(person, startTime, endTime, pillar, returnProvider.getKeys()))
 
         then:
         with(returns.returns[0]) {
@@ -61,6 +61,7 @@ class IndexReturnProviderSpec extends Specification {
           paymentsSum == payments
           currency == EUR
           from == earliestTransactionDate
+          to == LocalDate.now()
         }
         with(returns.returns[1]) {
           key == UnionStockIndexRetriever.KEY
@@ -70,6 +71,7 @@ class IndexReturnProviderSpec extends Specification {
           paymentsSum == payments
           currency == EUR
           from == earliestTransactionDate
+          to == LocalDate.now()
         }
         with(returns.returns[2]) {
           key == CpiValueRetriever.KEY
@@ -79,6 +81,7 @@ class IndexReturnProviderSpec extends Specification {
           paymentsSum == payments
           currency == EUR
           from == earliestTransactionDate
+          to == LocalDate.now()
         }
         returns.returns.size() == returnProvider.getKeys().size()
         returns.from == earliestTransactionDate

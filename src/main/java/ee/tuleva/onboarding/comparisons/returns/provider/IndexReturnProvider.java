@@ -34,7 +34,7 @@ public class IndexReturnProvider implements ReturnProvider {
   public Returns getReturns(ReturnCalculationParameters parameters) {
     AccountOverview accountOverview =
         accountOverviewProvider.getAccountOverview(
-            parameters.person(), parameters.startTime(), parameters.pillar());
+            parameters.person(), parameters.startTime(), parameters.endTime(), parameters.pillar());
 
     List<Return> returns =
         comparisonIndexes().stream()
@@ -54,6 +54,7 @@ public class IndexReturnProvider implements ReturnProvider {
                         .paymentsSum(tuple.aReturn.paymentsSum())
                         .currency(tuple.aReturn.currency())
                         .from(tuple.aReturn.from())
+                        .to(tuple.aReturn.to())
                         .build())
             .toList();
 

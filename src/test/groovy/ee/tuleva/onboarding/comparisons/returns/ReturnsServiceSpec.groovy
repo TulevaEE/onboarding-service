@@ -36,15 +36,17 @@ class ReturnsServiceSpec extends Specification {
     def person = samplePerson()
     def fromDate = LocalDate.parse("2019-08-28")
     def startTime = fromDate.plusDays(2).atStartOfDay().toInstant(ZoneOffset.UTC)
+    def endDate = LocalDate.now()
+    def endTime = endDate.atStartOfDay().toInstant(ZoneOffset.UTC)
     def pillar = 3
 
     def (return1, returns1) = sampleReturns1(fromDate)
     def (return2, returns2) = sampleReturns2(fromDate)
     def (return3, returns3) = sampleReturns3(fromDate)
 
-    returnProvider1.getReturns(new ReturnCalculationParameters(person, startTime, pillar, [return1.key])) >> returns1
-    returnProvider2.getReturns(new ReturnCalculationParameters(person, startTime, pillar, [return2.key])) >> returns2
-    returnProvider3.getReturns(new ReturnCalculationParameters(person, startTime, pillar, [return3.key])) >> returns3
+    returnProvider1.getReturns(new ReturnCalculationParameters(person, startTime, endTime, pillar, [return1.key])) >> returns1
+    returnProvider2.getReturns(new ReturnCalculationParameters(person, startTime, endTime, pillar, [return2.key])) >> returns2
+    returnProvider3.getReturns(new ReturnCalculationParameters(person, startTime, endTime, pillar, [return3.key])) >> returns3
 
     returnProvider1.getKeys() >> [return1.key]
     returnProvider2.getKeys() >> [return2.key]
@@ -55,7 +57,7 @@ class ReturnsServiceSpec extends Specification {
     fundValueRepository.findEarliestDateForKey(return3.key) >> Optional.of(return3.from)
 
     when:
-    def theReturns = returnsService.get(person, fromDate, [return1.key, return2.key, return3.key])
+    def theReturns = returnsService.get(person, fromDate, endDate, [return1.key, return2.key, return3.key])
 
     then:
     with(theReturns) {
@@ -68,6 +70,7 @@ class ReturnsServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def fromDate = LocalDate.parse("2019-08-28")
+    def endDate = LocalDate.now()
 
     def (return1, returns1) = sampleReturns1(fromDate)
     def (return2, returns2) = sampleReturns2(fromDate)
@@ -82,7 +85,7 @@ class ReturnsServiceSpec extends Specification {
     returnProvider3.getKeys() >> [return3.key]
 
     when:
-    def theReturns = returnsService.get(person, fromDate, null)
+    def theReturns = returnsService.get(person, fromDate, endDate, null)
 
     then:
     with(theReturns) {
@@ -95,6 +98,7 @@ class ReturnsServiceSpec extends Specification {
     given:
     def person = samplePerson()
     def fromDate = LocalDate.parse("2019-08-28")
+    def endDate = LocalDate.now()
 
     def (return1) = sampleReturns1(fromDate)
     def (return2) = sampleReturns2(fromDate)
@@ -117,7 +121,7 @@ class ReturnsServiceSpec extends Specification {
     fundValueRepository.findEarliestDateForKey(return3.key) >> Optional.of(return3.from)
 
     when:
-    def theReturns = returnsService.get(person, fromDate, [return1.key])
+    def theReturns = returnsService.get(person, fromDate, endDate, [return1.key])
 
     then:
     with(theReturns) {
@@ -133,15 +137,17 @@ class ReturnsServiceSpec extends Specification {
         LocalDate earliestNavDate = LocalDate.parse("2020-02-01")
         Instant adjustedStartTime = Instant.parse("2020-05-01T00:00:00Z")
         LocalDate adjustedStartDate = LocalDate.parse("2020-05-01")
+        LocalDate endDate = LocalDate.now()
+        Instant endTime = endDate.atStartOfDay().toInstant(ZoneOffset.UTC)
 
         def (return1, returns1) = sampleReturns1(adjustedStartDate)
         def (return2, returns2) = sampleReturns2(adjustedStartDate)
         def (return3, returns3) = sampleReturns3(adjustedStartDate)
 
 
-        returnProvider1.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, 2, [return1.key])) >> returns1
-        returnProvider2.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, 2, [return2.key])) >> returns2
-        returnProvider3.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, 2, [return3.key])) >> returns3
+        returnProvider1.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, endTime, 2, [return1.key])) >> returns1
+        returnProvider2.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, endTime, 2, [return2.key])) >> returns2
+        returnProvider3.getReturns(new ReturnCalculationParameters(person, adjustedStartTime, endTime, 2, [return3.key])) >> returns3
 
         returnProvider1.getKeys() >> [return1.key]
         returnProvider2.getKeys() >> [return2.key]
@@ -153,7 +159,7 @@ class ReturnsServiceSpec extends Specification {
         fundValueRepository.findEarliestDateForKey(return2.key) >> Optional.of(earliestNavDate)
 
     when:
-        Returns returns = returnsService.get(person, originalFromDate, keys)
+        Returns returns = returnsService.get(person, originalFromDate, endDate, keys)
 
     then:
         returns.returns.size() == 2
@@ -166,14 +172,16 @@ class ReturnsServiceSpec extends Specification {
         def person = samplePerson()
         LocalDate originalFromDate = LocalDate.parse("2020-01-01")
         Instant fromTime = originalFromDate.plusDays(2).atStartOfDay().toInstant(ZoneOffset.UTC)
+        LocalDate endDate = LocalDate.now()
+        Instant endTime = endDate.atStartOfDay().toInstant(ZoneOffset.UTC)
 
         def (return1, returns1) = sampleReturns1(originalFromDate)
         def (return2, returns2) = sampleReturns2(originalFromDate)
         def (return3, returns3) = sampleReturns3(originalFromDate)
 
-        returnProvider1.getReturns(new ReturnCalculationParameters(person, fromTime, 3, [return1.key])) >> returns1
-        returnProvider2.getReturns(new ReturnCalculationParameters(person, fromTime, 3, [return2.key])) >> returns2
-        returnProvider3.getReturns(new ReturnCalculationParameters(person, fromTime, 3, [return3.key])) >> returns3
+        returnProvider1.getReturns(new ReturnCalculationParameters(person, fromTime, endTime, 3, [return1.key])) >> returns1
+        returnProvider2.getReturns(new ReturnCalculationParameters(person, fromTime, endTime, 3, [return2.key])) >> returns2
+        returnProvider3.getReturns(new ReturnCalculationParameters(person, fromTime, endTime, 3, [return3.key])) >> returns3
 
         returnProvider1.getKeys() >> [return1.key]
         returnProvider2.getKeys() >> [return2.key]
@@ -186,7 +194,7 @@ class ReturnsServiceSpec extends Specification {
         fundValueRepository.findEarliestDateForKey(return3.key) >> Optional.of(originalFromDate)
 
     when:
-        Returns returns = returnsService.get(person, originalFromDate, keys)
+        Returns returns = returnsService.get(person, originalFromDate, endDate, keys)
 
     then:
         returns.returns.size() == 3
@@ -203,6 +211,7 @@ class ReturnsServiceSpec extends Specification {
         .paymentsSum(345.67)
         .currency(EUR)
         .from(fromDate)
+        .to(LocalDate.now())
         .build()
 
     def returns = Returns.builder()
@@ -221,6 +230,7 @@ class ReturnsServiceSpec extends Specification {
         .paymentsSum(456.78)
         .currency(EUR)
         .from(fromDate)
+        .to(LocalDate.now())
         .build()
 
     def returns =  Returns.builder()
@@ -239,6 +249,7 @@ class ReturnsServiceSpec extends Specification {
         .paymentsSum(567.89)
         .currency(EUR)
         .from(fromDate)
+        .to(LocalDate.now())
         .build()
 
     def returns =  Returns.builder()

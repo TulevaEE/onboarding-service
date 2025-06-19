@@ -29,7 +29,7 @@ public class PersonalReturnProvider implements ReturnProvider {
 
     AccountOverview accountOverview =
         accountOverviewProvider.getAccountOverview(
-            parameters.person(), parameters.startTime(), parameters.pillar());
+            parameters.person(), parameters.startTime(), parameters.endTime(), parameters.pillar());
     ReturnDto aReturn = rateOfReturnCalculator.getReturn(accountOverview);
 
     var returns =
@@ -42,6 +42,7 @@ public class PersonalReturnProvider implements ReturnProvider {
                 .paymentsSum(aReturn.paymentsSum())
                 .currency(aReturn.currency())
                 .from(aReturn.from())
+                .to(aReturn.to())
                 .build());
 
     return Returns.builder().returns(returns).build();

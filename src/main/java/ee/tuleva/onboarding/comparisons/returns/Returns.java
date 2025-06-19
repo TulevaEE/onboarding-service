@@ -25,6 +25,7 @@ public class Returns {
     Currency currency;
     Type type;
     @JsonIgnore LocalDate from;
+    @JsonIgnore LocalDate to;
 
     public enum Type {
       PERSONAL,
@@ -48,5 +49,22 @@ public class Returns {
             })
         .get()
         .getFrom();
+  }
+
+  public LocalDate getTo() {
+    return returns.stream()
+        .reduce(
+            (aReturn1, aReturn2) -> {
+              if (!aReturn1.getTo().equals(aReturn2.getTo())) {
+                throw new IllegalStateException(
+                    "Returns have different toDates: "
+                        + aReturn1.getTo()
+                        + ", "
+                        + aReturn2.getTo());
+              }
+              return aReturn1;
+            })
+        .get()
+        .getTo();
   }
 }

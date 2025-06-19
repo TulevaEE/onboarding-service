@@ -26,8 +26,9 @@ public class AccountOverviewProvider {
   private final CashFlowService cashFlowService;
   private final Clock clock;
 
-  public AccountOverview getAccountOverview(Person person, Instant startTime, Integer pillar) {
-    Instant endTime = startTime.isAfter(clock.instant()) ? startTime : clock.instant();
+  public AccountOverview getAccountOverview(
+      Person person, Instant startTime, Instant endTime, Integer pillar) {
+    endTime = startTime.isAfter(clock.instant()) ? startTime : endTime;
     CashFlowStatement cashFlowStatement =
         cashFlowService.getCashFlowStatement(person, toLocalDate(startTime), toLocalDate(endTime));
 
@@ -68,7 +69,7 @@ public class AccountOverviewProvider {
     return cashFlows.stream()
         .filter(cashFlowFilter)
         .map(cashFlow -> new Transaction(cashFlow.getAmount(), cashFlow.getPriceTime()))
-        .collect(toList());
+        .collect(toList()); // needs to be a mutable list for sorting later
   }
 
   private LocalDate toLocalDate(Instant instant) {

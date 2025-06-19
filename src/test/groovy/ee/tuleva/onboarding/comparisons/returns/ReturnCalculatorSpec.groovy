@@ -43,16 +43,19 @@ class ReturnCalculatorSpec extends Specification {
     personalReturn.amount() == 0
     personalReturn.paymentsSum() == 100 + 100
     personalReturn.from() == LocalDate.parse("2018-06-17")
+    personalReturn.to() == LocalDate.parse("2018-06-18")
 
     estonianAverageReturn.rate() == 0
     estonianAverageReturn.amount() == 0
     estonianAverageReturn.paymentsSum() == 100 + 100
     estonianAverageReturn.from() == LocalDate.parse("2018-06-17")
+    estonianAverageReturn.to() == LocalDate.parse("2018-06-18")
 
     marketAverageReturn.rate() == 0
     marketAverageReturn.amount() == 0
     marketAverageReturn.paymentsSum() == 100 + 100
     marketAverageReturn.from() == LocalDate.parse("2018-06-17")
+    marketAverageReturn.to() == LocalDate.parse("2018-06-18")
   }
 
   def "it successfully calculates a return for 0-valued transactions"() {
@@ -76,16 +79,19 @@ class ReturnCalculatorSpec extends Specification {
     personalReturn.amount() == 0
     personalReturn.paymentsSum() == firstTransaction + secondTransaction
     personalReturn.from() == LocalDate.parse("2018-06-17")
+    personalReturn.to() == LocalDate.parse("2018-06-18")
 
     estonianAverageReturn.rate() == 0
     estonianAverageReturn.amount() == 0
     personalReturn.paymentsSum() == firstTransaction + secondTransaction
     estonianAverageReturn.from() == LocalDate.parse("2018-06-17")
+    estonianAverageReturn.to() == LocalDate.parse("2018-06-18")
 
     marketAverageReturn.rate() == 0
     marketAverageReturn.amount() == 0
     marketAverageReturn.paymentsSum() == firstTransaction + secondTransaction
     marketAverageReturn.from() == LocalDate.parse("2018-06-17")
+    marketAverageReturn.to() == LocalDate.parse("2018-06-18")
 
     where:
     firstTransaction | secondTransaction | beginningBalance | endingBalance || xirr
@@ -114,16 +120,19 @@ class ReturnCalculatorSpec extends Specification {
     personalReturn.amount() == 110
     personalReturn.paymentsSum() == 16 * 30
     personalReturn.from() == LocalDate.parse("2010-01-01")
+    personalReturn.to() == LocalDate.parse("2018-07-18")
 
     estonianAverageReturn.rate() == 0
     estonianAverageReturn.amount() == 0
     personalReturn.paymentsSum() == 16 * 30
     estonianAverageReturn.from() == LocalDate.parse("2010-01-01")
+    estonianAverageReturn.to() == LocalDate.parse("2018-07-18")
 
     marketAverageReturn.rate() == 0
     marketAverageReturn.amount() == 0
     personalReturn.paymentsSum() == 16 * 30
     marketAverageReturn.from() == LocalDate.parse("2010-01-01")
+    marketAverageReturn.to() == LocalDate.parse("2018-07-18")
   }
 
   def "it correctly calculates simulated return using a different fund taking into account the beginning balance"() {
@@ -146,11 +155,13 @@ class ReturnCalculatorSpec extends Specification {
     estonianAverageReturn.amount() == 81.76
     estonianAverageReturn.paymentsSum() == 16 * 30
     estonianAverageReturn.from() == LocalDate.parse("2010-01-01")
+    estonianAverageReturn.to() == LocalDate.parse("2018-07-16")
 
     marketAverageReturn.rate() == 0
     marketAverageReturn.amount() == 0
     marketAverageReturn.paymentsSum() == 16 * 30
     marketAverageReturn.from() == LocalDate.parse("2010-01-01")
+    marketAverageReturn.to() == LocalDate.parse("2018-07-16")
   }
 
   def "it handles missing fund values"() {
@@ -170,11 +181,13 @@ class ReturnCalculatorSpec extends Specification {
     estonianAverageReturn.amount() == 0
     estonianAverageReturn.paymentsSum() == 0
     estonianAverageReturn.from() == LocalDate.parse("2010-01-01")
+    estonianAverageReturn.to() == LocalDate.parse("2018-07-16")
 
     marketAverageReturn.rate() == 0
     marketAverageReturn.amount() == 0
     marketAverageReturn.paymentsSum() == 0
     marketAverageReturn.from() == LocalDate.parse("2010-01-01")
+    marketAverageReturn.to() == LocalDate.parse("2018-07-16")
   }
 
   private static Map<String, BigDecimal> epiFundValues() {

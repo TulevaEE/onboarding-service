@@ -43,14 +43,14 @@ class FundReturnProviderSpec extends Specification {
     def returnAsAmount = 123.12
     def payments = 234.12
 
-    accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
+    accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar) >> overview
     rateOfReturnCalculator.getSimulatedReturn(overview, _ as String) >>
-        new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
+        new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
     fundRepository.findAllByStatus(ACTIVE) >> List.of(tuleva2ndPillarBondFund(), tuleva2ndPillarStockFund())
 
     when:
     Returns returns = returnProvider.getReturns(
-        new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
+        new ReturnCalculationParameters(person, startTime, endTime, pillar, returnProvider.getKeys()))
 
     then:
     with(returns.returns[0]) {
@@ -61,6 +61,7 @@ class FundReturnProviderSpec extends Specification {
       paymentsSum == payments
       currency == EUR
       from == earliestTransactionDate
+      to == LocalDate.now()
     }
     returns.returns.size() == returnProvider.getKeys().size()
     returns.from == earliestTransactionDate
@@ -81,16 +82,16 @@ class FundReturnProviderSpec extends Specification {
         def returnAsAmount = 123.12
         def payments = 234.12
 
-        accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
+        accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar) >> overview
         rateOfReturnCalculator.getSimulatedReturn(overview, _ as String) >>
-            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
         fundRepository.findAllByStatus(ACTIVE) >> List.of(tuleva2ndPillarBondFund(), tuleva2ndPillarStockFund())
 
         def specifiedKeys = [tuleva2ndPillarStockFund().isin]
 
     when:
         Returns returns = returnProvider.getReturns(
-            new ReturnCalculationParameters(person, startTime, pillar, specifiedKeys))
+            new ReturnCalculationParameters(person, startTime, endTime, pillar, specifiedKeys))
 
     then:
         with(returns.returns[0]) {
@@ -101,6 +102,7 @@ class FundReturnProviderSpec extends Specification {
           paymentsSum == payments
           currency == EUR
           from == earliestTransactionDate
+          to == LocalDate.now()
         }
         returns.returns.size() == specifiedKeys.size()
         returns.from == earliestTransactionDate

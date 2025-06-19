@@ -46,7 +46,7 @@ class AccountOverviewProviderSpec extends Specification {
 
     def "it sets the right start and end times"() {
         when:
-        AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, startTime, pillar)
+        AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar)
         then:
         accountOverview.startTime == startTime
         verifyTimeCloseToNow(accountOverview.endTime)
@@ -54,7 +54,7 @@ class AccountOverviewProviderSpec extends Specification {
 
     def "it bunches together and converts the starting and ending balance"() {
         when:
-        AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, startTime, pillar)
+        AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar)
         then:
         accountOverview.beginningBalance == 1000.00 + 115.00
         accountOverview.endingBalance == 1100.00 + 125.00
@@ -62,7 +62,7 @@ class AccountOverviewProviderSpec extends Specification {
 
     def "it converts all transactions"() {
         when:
-        AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, startTime, pillar)
+        AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar)
         then:
         accountOverview.pillar == pillar
         accountOverview.transactions.size() == 2
@@ -80,7 +80,7 @@ class AccountOverviewProviderSpec extends Specification {
 
     when:
         1 * cashFlowService.getCashFlowStatement(person, futureStartDate, futureStartDate) >> cashFlowStatement
-        AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, futureStartTime, pillar)
+        AccountOverview accountOverview = accountOverviewProvider.getAccountOverview(person, futureStartTime, endTime, pillar)
 
     then:
         0 * cashFlowService.getCashFlowStatement(person, futureStartDate, endDate)

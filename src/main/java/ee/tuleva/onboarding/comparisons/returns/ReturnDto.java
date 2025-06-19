@@ -9,4 +9,5 @@ public record ReturnDto(
     BigDecimal amount,
     BigDecimal paymentsSum,
     Currency currency,
-    LocalDate from) {}
+    LocalDate from,
+    LocalDate to) {}

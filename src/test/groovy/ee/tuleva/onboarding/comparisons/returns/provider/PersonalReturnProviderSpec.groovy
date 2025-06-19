@@ -38,13 +38,13 @@ class PersonalReturnProviderSpec extends Specification {
         def returnAsAmount = 123.12
         def payments = 234.12
 
-        accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
+        accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar) >> overview
         rateOfReturnCalculator.getReturn(overview) >>
-            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
 
         when:
         def returns = returnProvider.getReturns(
-            new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
+            new ReturnCalculationParameters(person, startTime, endTime, pillar, returnProvider.getKeys()))
 
         then:
         with(returns.returns[0]) {
@@ -55,6 +55,7 @@ class PersonalReturnProviderSpec extends Specification {
           paymentsSum == payments
           currency == EUR
           from == earliestTransactionDate
+          to == LocalDate.now()
         }
         returns.returns.size() == 1
         returns.from == earliestTransactionDate
@@ -74,13 +75,13 @@ class PersonalReturnProviderSpec extends Specification {
         def returnAsAmount = 123.21
         def payments = 234.45
 
-        accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
+        accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar) >> overview
         rateOfReturnCalculator.getReturn(overview) >>
-            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
 
         when:
         def returns = returnProvider.getReturns(
-            new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
+            new ReturnCalculationParameters(person, startTime, endTime, pillar, returnProvider.getKeys()))
 
         then:
         with(returns.returns[0]) {
@@ -91,6 +92,7 @@ class PersonalReturnProviderSpec extends Specification {
           paymentsSum == payments
           currency == EUR
           from == earliestTransactionDate
+          to == LocalDate.now()
         }
         returns.returns.size() == 1
         returns.from == earliestTransactionDate
@@ -110,13 +112,13 @@ class PersonalReturnProviderSpec extends Specification {
         def returnAsAmount = 123.21
         def payments = 234.45
 
-        accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
+        accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar) >> overview
         rateOfReturnCalculator.getReturn(overview) >>
-            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
 
     when:
         returnProvider.getReturns(
-            new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
+            new ReturnCalculationParameters(person, startTime, endTime, pillar, returnProvider.getKeys()))
 
     then:
         thrown(IllegalArgumentException)

@@ -29,7 +29,7 @@ public class PersonalReturnProvider implements ReturnProvider {
 
     AccountOverview accountOverview =
         accountOverviewProvider.getAccountOverview(
-            parameters.person(), parameters.startTime(), parameters.pillar());
+            parameters.person(), parameters.startTime(), parameters.endTime(), parameters.pillar());
     ReturnDto aReturn = rateOfReturnCalculator.getReturn(accountOverview);
 
     var returns =

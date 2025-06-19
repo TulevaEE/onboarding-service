@@ -43,14 +43,14 @@ class FundReturnProviderSpec extends Specification {
     def returnAsAmount = 123.12
     def payments = 234.12
 
-    accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
+    accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar) >> overview
     rateOfReturnCalculator.getSimulatedReturn(overview, _ as String) >>
         new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
     fundRepository.findAllByStatus(ACTIVE) >> List.of(tuleva2ndPillarBondFund(), tuleva2ndPillarStockFund())
 
     when:
     Returns returns = returnProvider.getReturns(
-        new ReturnCalculationParameters(person, startTime, pillar, returnProvider.getKeys()))
+        new ReturnCalculationParameters(person, startTime, endTime, pillar, returnProvider.getKeys()))
 
     then:
     with(returns.returns[0]) {
@@ -81,7 +81,7 @@ class FundReturnProviderSpec extends Specification {
         def returnAsAmount = 123.12
         def payments = 234.12
 
-        accountOverviewProvider.getAccountOverview(person, startTime, pillar) >> overview
+        accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar) >> overview
         rateOfReturnCalculator.getSimulatedReturn(overview, _ as String) >>
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate)
         fundRepository.findAllByStatus(ACTIVE) >> List.of(tuleva2ndPillarBondFund(), tuleva2ndPillarStockFund())
@@ -90,7 +90,7 @@ class FundReturnProviderSpec extends Specification {
 
     when:
         Returns returns = returnProvider.getReturns(
-            new ReturnCalculationParameters(person, startTime, pillar, specifiedKeys))
+            new ReturnCalculationParameters(person, startTime, endTime, pillar, specifiedKeys))
 
     then:
         with(returns.returns[0]) {

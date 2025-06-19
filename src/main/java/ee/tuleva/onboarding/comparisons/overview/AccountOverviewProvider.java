@@ -26,10 +26,16 @@ public class AccountOverviewProvider {
   private final CashFlowService cashFlowService;
   private final Clock clock;
 
-  public AccountOverview getAccountOverview(Person person, Instant startTime, Integer pillar) {
-    Instant endTime = startTime.isAfter(clock.instant()) ? startTime : clock.instant();
+  public AccountOverview getAccountOverview(
+      Person person, Instant startTime, Instant endTime, Integer pillar) {
+    Instant now = clock.instant();
+    Instant actualEndTime = (endTime == null || endTime.isAfter(now)) ? now : endTime;
+    if (startTime.isAfter(actualEndTime)) {
+      actualEndTime = startTime;
+    }
     CashFlowStatement cashFlowStatement =
-        cashFlowService.getCashFlowStatement(person, toLocalDate(startTime), toLocalDate(endTime));
+        cashFlowService.getCashFlowStatement(
+            person, toLocalDate(startTime), toLocalDate(actualEndTime));
 
     Predicate<CashFlow> pillarFilter = createPillarFilter(pillar);
 
@@ -43,7 +49,7 @@ public class AccountOverviewProvider {
         .endingBalance(endingBalance)
         .transactions(transactions)
         .startTime(startTime)
-        .endTime(endTime)
+        .endTime(actualEndTime)
         .pillar(pillar)
         .build()
         .sort();

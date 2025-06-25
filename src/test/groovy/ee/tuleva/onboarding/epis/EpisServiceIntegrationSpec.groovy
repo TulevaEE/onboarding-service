@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.epis
 
-
 import ee.tuleva.onboarding.contribution.ThirdPillarContribution
 import ee.tuleva.onboarding.epis.application.ApplicationResponse
 import ee.tuleva.onboarding.epis.mandate.ApplicationDTO
@@ -15,13 +14,8 @@ import org.mockserver.model.MediaType
 import org.mockserver.springtest.MockServerTest
 import org.mockserver.verify.VerificationTimes
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.web.servlet.error.DefaultErrorAttributes
-import org.springframework.boot.web.servlet.error.ErrorAttributes
 import org.springframework.cache.CacheManager
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.TestingAuthenticationToken
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
@@ -45,20 +39,10 @@ import static org.mockserver.model.HttpRequest.request
 import static org.mockserver.model.HttpResponse.response
 import static org.mockserver.model.JsonBody.json
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest
 @MockServerTest("epis.service.url=http://localhost:\${mockServerPort}")
 @TestPropertySource(properties = "spring.cache.type=SIMPLE")
-@Import(Config.class)
 class EpisServiceIntegrationSpec extends Specification {
-
-
-  static class Config {
-    @Bean
-    @ConditionalOnMissingBean(value = ErrorAttributes.class)
-    DefaultErrorAttributes errorAttributes() {
-      return new DefaultErrorAttributes()
-    }
-  }
 
   @Autowired
   private EpisService episService

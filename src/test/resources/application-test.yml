@@ -1,6 +1,9 @@
 #debug: true
 
+
 spring:
+  main:
+    banner-mode: off
   cache:
     type: NONE
   datasource:
@@ -40,6 +43,13 @@ morningstar:
 payment-provider:
   url: http://localhost:4321/api
   use-fake-notification-url: false
+  payment-channels:
+    lhv:
+      access-key: exampleAccessKey
+      secret-key: exampleSecretKeyexampleSecretKeyexampleSecretKey
+
+opensanctions:
+  url: https://dummyUrl
 
 async:
   enabled: false

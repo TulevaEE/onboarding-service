@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.config
 
-
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
 import org.springframework.boot.test.context.SpringBootTest
@@ -15,11 +14,10 @@ import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.auth.authority.Authority.*
 import static ee.tuleva.onboarding.auth.jwt.TokenType.ACCESS
 import static ee.tuleva.onboarding.auth.jwt.TokenType.HANDOVER
-import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.MOCK
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 
-@SpringBootTest(webEnvironment = MOCK)
+@SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles(["test", "mock"])
 @Transactional

@@ -1,15 +1,14 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.persistence
 
-import ee.tuleva.onboarding.OnboardingServiceApplication
+
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiFundValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.jdbc.core.JdbcTemplate
-import org.springframework.test.context.ContextConfiguration
 import org.springframework.test.jdbc.JdbcTestUtils
 import org.springframework.transaction.annotation.Transactional
 import spock.lang.Specification
@@ -19,8 +18,7 @@ import java.time.LocalDate
 
 import static java.time.LocalDate.parse
 
-@SpringBootTest(classes = OnboardingServiceApplication)
-@ContextConfiguration
+@SpringBootTest
 @Transactional
 class JdbcFundValueRepositoryIntSpec extends Specification {
 

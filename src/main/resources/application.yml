@@ -105,16 +105,16 @@ logging:
     ee:
       sk:
         smartid: TRACE
-      tuleva:
-        onboarding:
-          comparisons:
-            fundvalue:
-              retrieval:
-                globalstock: DEBUG
-    com:
-      zaxxer:
-        hikari:
-          HikariConfig: DEBUG
+#      tuleva:
+#        onboarding:
+#          comparisons:
+#            fundvalue:
+#              retrieval:
+#                globalstock: DEBUG
+#    com:
+#      zaxxer:
+#        hikari:
+#          HikariConfig: DEBUG
 #    org:
 #      hibernate:
 #        SQL: DEBUG

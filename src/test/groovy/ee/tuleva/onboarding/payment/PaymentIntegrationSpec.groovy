@@ -17,16 +17,10 @@ import org.mockserver.model.Header
 import org.mockserver.springtest.MockServerTest
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.web.servlet.error.DefaultErrorAttributes
-import org.springframework.boot.web.servlet.error.ErrorAttributes
-import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Import
 import org.springframework.security.authentication.TestingAuthenticationToken
 import org.springframework.security.core.context.SecurityContext
 import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.test.context.TestPropertySource
 import org.springframework.web.servlet.view.RedirectView
 import spock.lang.Specification
 
@@ -43,20 +37,9 @@ import static org.mockserver.model.HttpRequest.request
 import static org.mockserver.model.HttpResponse.response
 import static org.mockserver.model.MediaType.APPLICATION_JSON
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
+@SpringBootTest
 @MockServerTest(["epis.service.url=http://localhost:\${mockServerPort}", "payment-provider.url=http://localhost:\${mockServerPort}/api"])
-@Import(Config.class)
-@TestPropertySource(properties = "PAYMENT_SECRET_LHV=exampleSecretKeyexampleSecretKeyexampleSecretKey")
-@TestPropertySource(properties = "payment-provider.payment-channels.lhv.access-key=exampleAccessKey")
 class PaymentIntegrationSpec extends Specification {
-
-  static class Config {
-    @Bean
-    @ConditionalOnMissingBean(value = ErrorAttributes.class)
-    DefaultErrorAttributes errorAttributes() {
-      return new DefaultErrorAttributes()
-    }
-  }
 
   @Autowired
   PaymentController paymentController

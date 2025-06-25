@@ -62,6 +62,7 @@ public class EpisService {
   private final JwtTokenUtil jwtTokenUtil;
 
   @Value("${epis.service.url}")
+  @Nullable
   String episServiceUrl;
 
   @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode", sync = true)

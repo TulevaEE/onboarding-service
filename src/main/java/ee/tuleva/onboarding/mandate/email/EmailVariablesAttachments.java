@@ -6,7 +6,9 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.user.User;
-import java.util.*;
+import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 
 public class EmailVariablesAttachments {
   public static Map<String, Object> getPillarSuggestionMergeVars(
@@ -48,13 +50,14 @@ public class EmailVariablesAttachments {
   }
 
   private static String getNameSuffix(User user) {
-    String nameSuffix = user.getFirstName() + "_" + user.getLastName();
-    nameSuffix = nameSuffix.toLowerCase();
-    nameSuffix.replace("õ", "o");
-    nameSuffix.replace("ä", "a");
-    nameSuffix.replace("ö", "o");
-    nameSuffix.replace("ü", "u");
-    nameSuffix.replaceAll("[^a-zA-Z0-9_\\-\\.]", "_");
-    return nameSuffix;
+    return (user.getFirstName() + "_" + user.getLastName())
+        .toLowerCase()
+        .replace('õ', 'o')
+        .replace('ä', 'a')
+        .replace('ö', 'o')
+        .replace('ü', 'u')
+        .replace('š', 's')
+        .replace('ž', 'z')
+        .replaceAll("[^a-z0-9_.-]", "_");
   }
 }

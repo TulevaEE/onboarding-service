@@ -1,3 +1,4 @@
+import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
 import org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED
@@ -25,6 +26,7 @@ plugins {
     id("com.gorylenko.gradle-git-properties") version "2.5.0"
     id("com.diffplug.spotless") version "7.0.4"
     id("io.freefair.lombok") version "8.13.1"
+    id("net.ltgt.errorprone") version "4.2.0"
     jacoco
 }
 
@@ -75,6 +77,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-aop")
     implementation("org.springframework.boot:spring-boot-starter-json")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    compileOnly("org.jspecify:jspecify:1.0.0")
+    annotationProcessor("com.uber.nullaway:nullaway:0.12.7")
+    errorprone("com.google.errorprone:error_prone_core:2.38.0")
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
@@ -366,6 +371,16 @@ tasks.withType<JavaCompile> {
 //    options.compilerArgs.add("-Xlint:-serial")
 //    options.compilerArgs.add("-Xlint:-deprecation")
 //    options.compilerArgs.add("-Werror")
+    options.errorprone {
+        disableAllChecks.set(true)
+        warn("NullAway")
+        option("NullAway:AnnotatedPackages", "ee.tuleva.onboarding")
+        disableWarningsInGeneratedCode.set(true)
+    }
+}
+
+tasks.named<JavaCompile>("compileJava") {
+    options.errorprone.warn("NullAway")
 }
 
 tasks.withType<JavaExec> {

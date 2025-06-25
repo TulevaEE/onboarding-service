@@ -39,7 +39,7 @@ spotless {
     java {
         target("src/*/java/**/*.java", "src/*/groovy/**/*.java")
         removeUnusedImports()
-        googleJavaFormat("1.22.0") // TODO: upgrade once it's compatible with Java String Templates
+        googleJavaFormat()
         replaceRegex("Remove String Templates", "STR\\.\"\"\"", "\"\"\"")
         replaceRegex("Remove String Templates interpolation", "\\\\\\{([^}]*)\\}", "%s")
     }

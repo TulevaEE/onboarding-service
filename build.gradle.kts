@@ -26,7 +26,7 @@ plugins {
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.0"
     id("com.diffplug.spotless") version "7.0.4"
-    id("io.freefair.lombok") version "8.13.1"
+    id("io.freefair.lombok") version "8.14"
     id("net.ltgt.errorprone") version "4.2.0"
     jacoco
 }

@@ -57,7 +57,7 @@ class WithdrawalEligibilityServiceTest {
     assertThat(result.hasReachedEarlyRetirementAge()).isTrue();
     assertThat(result.canWithdrawThirdPillarWithReducedTax()).isTrue();
     assertThat(result.recommendedDurationYears()).isEqualTo(30);
-    assertThat(result.age()).isNotNull();
+    assertThat(result.age()).isEqualTo(60);
     assertThat(result.arrestsOrBankruptciesPresent()).isFalse();
   }
 
@@ -81,7 +81,7 @@ class WithdrawalEligibilityServiceTest {
     assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
     assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
     assertThat(result.recommendedDurationYears()).isEqualTo(0);
-    assertThat(result.age()).isNotNull();
+    assertThat(result.age()).isEqualTo(35);
   }
 
   @Test
@@ -104,7 +104,7 @@ class WithdrawalEligibilityServiceTest {
     assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
     assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
     assertThat(result.recommendedDurationYears()).isEqualTo(0);
-    assertThat(result.age()).isNotNull();
+    assertThat(result.age()).isEqualTo(35);
     assertThat(result.arrestsOrBankruptciesPresent()).isTrue();
   }
 
@@ -128,7 +128,7 @@ class WithdrawalEligibilityServiceTest {
     assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
     assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
     assertThat(result.recommendedDurationYears()).isEqualTo(0);
-    assertThat(result.age()).isNotNull();
+    assertThat(result.age()).isEqualTo(35);
     assertThat(result.arrestsOrBankruptciesPresent()).isTrue();
   }
 
@@ -172,7 +172,7 @@ class WithdrawalEligibilityServiceTest {
       assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
       assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
       assertThat(result.recommendedDurationYears()).isEqualTo(0);
-      assertThat(result.age()).isNotNull();
+      assertThat(result.age()).isEqualTo(55);
     }
 
     @Test
@@ -205,7 +205,7 @@ class WithdrawalEligibilityServiceTest {
       assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
       assertThat(result.canWithdrawThirdPillarWithReducedTax()).isTrue();
       assertThat(result.recommendedDurationYears()).isEqualTo(0);
-      assertThat(result.age()).isNotNull();
+      assertThat(result.age()).isEqualTo(55);
     }
 
     @Test
@@ -240,7 +240,7 @@ class WithdrawalEligibilityServiceTest {
       assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
       assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
       assertThat(result.recommendedDurationYears()).isEqualTo(0);
-      assertThat(result.age()).isNotNull();
+      assertThat(result.age()).isEqualTo(55);
     }
 
     @Test
@@ -275,7 +275,7 @@ class WithdrawalEligibilityServiceTest {
       assertThat(result.hasReachedEarlyRetirementAge()).isFalse();
       assertThat(result.canWithdrawThirdPillarWithReducedTax()).isFalse();
       assertThat(result.recommendedDurationYears()).isEqualTo(0);
-      assertThat(result.age()).isNotNull();
+      assertThat(result.age()).isEqualTo(55);
     }
   }
 }

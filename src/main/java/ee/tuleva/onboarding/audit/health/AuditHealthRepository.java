@@ -5,14 +5,16 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import java.time.Instant;
 import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Repository;
 
 @Repository
 @Slf4j
+@RequiredArgsConstructor
 public class AuditHealthRepository {
 
-  @PersistenceContext private EntityManager entityManager;
+  @PersistenceContext private final EntityManager entityManager;
 
   private static final String LONGEST_INTERVAL_SQL =
       """

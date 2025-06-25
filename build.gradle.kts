@@ -1,3 +1,4 @@
+import net.ltgt.gradle.errorprone.CheckSeverity.WARN
 import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
@@ -78,8 +79,9 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-json")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     compileOnly("org.jspecify:jspecify:1.0.0")
-    annotationProcessor("com.uber.nullaway:nullaway:0.12.7")
     errorprone("com.google.errorprone:error_prone_core:2.38.0")
+    errorprone("com.uber.nullaway:nullaway:0.12.7")
+
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
@@ -366,21 +368,24 @@ tasks.test {
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
     options.compilerArgs.add("--enable-preview")
-//    options.compilerArgs.add("-Xlint:all")
-//    options.compilerArgs.add("-Xlint:-processing")
-//    options.compilerArgs.add("-Xlint:-serial")
-//    options.compilerArgs.add("-Xlint:-deprecation")
+    options.compilerArgs.add("-Xlint:all")
+    options.compilerArgs.add("-Xlint:-processing")
+    options.compilerArgs.add("-Xlint:-path")
+    options.compilerArgs.add("-Xlint:-serial")
+    options.compilerArgs.add("-Xlint:-deprecation")
+    options.compilerArgs.add("-Xdiags:verbose")
 //    options.compilerArgs.add("-Werror")
+
     options.errorprone {
-        disableAllChecks.set(true)
-        warn("NullAway")
+        check("NullAway", WARN)
         option("NullAway:AnnotatedPackages", "ee.tuleva.onboarding")
         disableWarningsInGeneratedCode.set(true)
+        if (name.contains("test", ignoreCase = true)) {
+            options.errorprone {
+                disable("NullAway")
+            }
+        }
     }
-}
-
-tasks.named<JavaCompile>("compileJava") {
-    options.errorprone.warn("NullAway")
 }
 
 tasks.withType<JavaExec> {

@@ -18,8 +18,8 @@ import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
-import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillar;
-import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarRepository;
+import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillar;
+import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillarRepository;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.ConversionResponse;
@@ -64,7 +64,7 @@ class AmlServiceTest {
   @Mock private AmlCheckRepository amlCheckRepository;
   @Mock private ApplicationEventPublisher eventPublisher;
   @Mock private PepAndSanctionCheckService pepAndSanctionCheckService;
-  @Mock private AnalyticsThirdPillarRepository analyticsThirdPillarRepository;
+  @Mock private AnalyticsRecentThirdPillarRepository analyticsRecentThirdPillarRepository;
   @Mock private UserConversionService userConversionService;
 
   @InjectMocks private AmlService amlService;
@@ -633,14 +633,14 @@ class AmlServiceTest {
   @DisplayName("runAmlChecksOnThirdPillarCustomers: processes records and adds checks")
   void runAmlChecksOnThirdPillarCustomers_processesRecords() {
     // given
-    AnalyticsThirdPillar record1 = mock(AnalyticsThirdPillar.class);
+    AnalyticsRecentThirdPillar record1 = mock(AnalyticsRecentThirdPillar.class);
     when(record1.getPersonalCode()).thenReturn("p1");
     when(record1.getCountry()).thenReturn("EE");
     when(record1.getFirstName()).thenReturn("F1");
     when(record1.getLastName()).thenReturn("L1");
 
-    List<AnalyticsThirdPillar> records = List.of(record1);
-    when(analyticsThirdPillarRepository.findAllWithMostRecentReportingDate()).thenReturn(records);
+    List<AnalyticsRecentThirdPillar> records = List.of(record1);
+    when(analyticsRecentThirdPillarRepository.findAll()).thenReturn(records);
 
     MatchResponse emptyMatchResponse =
         new MatchResponse(objectMapper.createArrayNode(), objectMapper.createObjectNode());

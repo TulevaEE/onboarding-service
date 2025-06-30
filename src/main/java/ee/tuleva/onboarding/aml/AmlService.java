@@ -9,8 +9,8 @@ import ee.tuleva.onboarding.aml.notification.AmlCheckCreatedEvent;
 import ee.tuleva.onboarding.aml.notification.AmlChecksRunEvent;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
-import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillar;
-import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarRepository;
+import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillar;
+import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsRecentThirdPillarRepository;
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.conversion.UserConversionService;
@@ -39,7 +39,7 @@ public class AmlService {
   private final AmlCheckRepository amlCheckRepository;
   private final ApplicationEventPublisher eventPublisher;
   private final PepAndSanctionCheckService pepAndSanctionCheckService;
-  private final AnalyticsThirdPillarRepository analyticsThirdPillarRepository;
+  private final AnalyticsRecentThirdPillarRepository analyticsRecentThirdPillarRepository;
   private final UserConversionService userConversionService;
 
   public void checkUserBeforeLogin(User user, Person person, Boolean isResident) {
@@ -142,8 +142,7 @@ public class AmlService {
   }
 
   public void runAmlChecksOnThirdPillarCustomers() {
-    List<AnalyticsThirdPillar> records =
-        analyticsThirdPillarRepository.findAllWithMostRecentReportingDate();
+    List<AnalyticsRecentThirdPillar> records = analyticsRecentThirdPillarRepository.findAll();
 
     log.info("Running III pillar AML checks on {} records", records.size());
     eventPublisher.publishEvent(new AmlChecksRunEvent(this, records));

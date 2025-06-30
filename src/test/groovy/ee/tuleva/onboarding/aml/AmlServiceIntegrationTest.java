@@ -2,19 +2,20 @@ package ee.tuleva.onboarding.aml;
 
 import static ee.tuleva.onboarding.aml.AmlCheckType.*;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.*;
+import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notFullyConverted;
 import static ee.tuleva.onboarding.mandate.MandateFixture.sampleMandate;
 import static ee.tuleva.onboarding.mandate.MandateFixture.thirdPillarMandate;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import ee.tuleva.onboarding.aml.sanctions.MatchResponse;
 import ee.tuleva.onboarding.aml.sanctions.PepAndSanctionCheckService;
-import ee.tuleva.onboarding.analytics.thirdpillar.AnalyticsThirdPillarRepository;
 import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.address.Address;
@@ -24,29 +25,37 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public class AmlServiceIntegrationTest {
+
+  @TestConfiguration
+  static class AmlServiceTestConfiguration {
+    @Bean
+    @Primary
+    public PepAndSanctionCheckService pepAndSanctionCheckService() {
+      return mock(PepAndSanctionCheckService.class);
+    }
+
+    @Bean
+    @Primary
+    public UserConversionService userConversionService() {
+      return mock(UserConversionService.class);
+    }
+  }
+
+  @Autowired private AmlService amlService;
   @Autowired private AmlCheckRepository amlCheckRepository;
-  @Autowired private ApplicationEventPublisher eventPublisher;
-  @Autowired private AnalyticsThirdPillarRepository analyticsThirdPillarRepository;
-  private AmlService amlService;
-  @MockBean private PepAndSanctionCheckService checkService;
-  @MockBean private UserConversionService userConversionService;
+  @Autowired private PepAndSanctionCheckService checkService;
+  @Autowired private UserConversionService userConversionService;
 
   @BeforeEach
   void setUp() {
-    amlService =
-        new AmlService(
-            amlCheckRepository,
-            eventPublisher,
-            checkService,
-            analyticsThirdPillarRepository,
-            userConversionService);
-
+    // given
     MatchResponse mockResponse = mock(MatchResponse.class);
     ObjectMapper objectMapper = new ObjectMapper();
 
@@ -57,17 +66,19 @@ public class AmlServiceIntegrationTest {
     when(mockResponse.query()).thenReturn(emptyQueryNode);
 
     when(checkService.match(any(), any())).thenReturn(mockResponse);
-
     when(userConversionService.getConversion(any())).thenReturn(notFullyConverted());
   }
 
   @Test
   @Transactional
-  public void shouldAddDocumentCheckForUser() {
+  void shouldAddDocumentCheckForUser() {
+    // given
     User user = sampleUser().build();
 
+    // when
     amlService.checkUserBeforeLogin(user, user, true);
 
+    // then
     List<AmlCheck> checks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
             user.getPersonalCode(), Instant.now().minusSeconds(3600));
@@ -79,11 +90,14 @@ public class AmlServiceIntegrationTest {
 
   @Test
   @Transactional
-  public void doesResidencyCheck() {
+  void doesResidencyCheck() {
+    // given
     User user = sampleUser().build();
 
+    // when
     amlService.checkUserBeforeLogin(user, user, true);
 
+    // then
     List<AmlCheck> checks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
             user.getPersonalCode(), Instant.now().minusSeconds(3600));
@@ -95,12 +109,15 @@ public class AmlServiceIntegrationTest {
 
   @Test
   @Transactional
-  public void shouldAddPepAndSanctionChecks() {
+  void shouldAddPepAndSanctionChecks() {
+    // given
     User user = sampleUser().build();
     Address address = Address.builder().countryCode("EE").build();
 
+    // when
     List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, address);
 
+    // then
     assertThat(checks).hasSize(2);
     assertThat(checks).anyMatch(check -> check.getType() == POLITICALLY_EXPOSED_PERSON_AUTO);
     assertThat(checks).anyMatch(check -> check.getType() == SANCTION);
@@ -108,7 +125,8 @@ public class AmlServiceIntegrationTest {
 
   @Test
   @Transactional
-  public void shouldVerifyAllChecksPassForThirdPillar() {
+  void shouldVerifyAllChecksPassForThirdPillar() {
+    // given
     User user = sampleUser().build();
     Address address = Address.builder().countryCode("EE").build();
 
@@ -126,26 +144,33 @@ public class AmlServiceIntegrationTest {
     var mandate = thirdPillarMandate();
     assertEquals(3, mandate.getPillar());
 
+    // when
     boolean allPassed = amlService.allChecksPassed(user, mandate);
+
+    // then
     assertThat(allPassed).isTrue();
   }
 
   @Test
   @Transactional
-  public void shouldFailThirdPillarWhenMissingChecks() {
+  void shouldFailThirdPillarWhenMissingChecks() {
+    // given
     User user = sampleUser().build();
-
     amlService.checkUserBeforeLogin(user, user, true);
-
     var mandate = thirdPillarMandate();
     assertEquals(3, mandate.getPillar());
+
+    // when
     boolean allPassed = amlService.allChecksPassed(user, mandate);
+
+    // then
     assertThat(allPassed).isFalse();
   }
 
   @Test
   @Transactional
-  public void shouldFailWhenSanctionMatchIsFound() {
+  void shouldFailWhenSanctionMatchIsFound() {
+    // given
     User user = sampleUser().build();
     Address address = Address.builder().countryCode("EE").build();
 
@@ -166,21 +191,25 @@ public class AmlServiceIntegrationTest {
     MatchResponse sanctionMatchResponse = mock(MatchResponse.class);
     when(sanctionMatchResponse.results()).thenReturn(results);
     when(sanctionMatchResponse.query()).thenReturn(query);
-
     when(checkService.match(any(), any())).thenReturn(sanctionMatchResponse);
 
+    // when
     List<AmlCheck> checks = amlService.addSanctionAndPepCheckIfMissing(user, address);
 
+    // then
     assertThat(checks).anyMatch(check -> check.getType() == SANCTION && !check.isSuccess());
   }
 
   @Test
   @Transactional
-  public void shouldNotAddResidencyCheckWhenNull() {
+  void shouldNotAddResidencyCheckWhenNull() {
+    // given
     User user = sampleUser().build();
 
+    // when
     amlService.checkUserBeforeLogin(user, user, null);
 
+    // then
     List<AmlCheck> checks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
             user.getPersonalCode(), Instant.now().minusSeconds(3600));
@@ -191,23 +220,30 @@ public class AmlServiceIntegrationTest {
 
   @Test
   @Transactional
-  public void shouldAlwaysPassForSecondPillar() {
+  void shouldAlwaysPassForSecondPillar() {
+    // given
     User user = sampleUser().build();
-
     var mandate = sampleMandate();
     assertEquals(2, mandate.getPillar());
+
+    // when
     boolean allPassed = amlService.allChecksPassed(user, mandate);
+
+    // then
     assertThat(allPassed).isTrue();
   }
 
   @Test
   @Transactional
-  public void shouldFailNameCheckWhenNamesDontMatch() {
+  void shouldFailNameCheckWhenNamesDontMatch() {
+    // given
     User user = sampleUser().firstName("John").lastName("Doe").build();
     User differingPerson = sampleUser().firstName("Jane").lastName("Dough").build();
 
+    // when
     amlService.checkUserBeforeLogin(user, differingPerson, true);
 
+    // then
     List<AmlCheck> checks =
         amlCheckRepository.findAllByPersonalCodeAndCreatedTimeAfter(
             user.getPersonalCode(), Instant.now().minusSeconds(3600));

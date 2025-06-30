@@ -27,7 +27,7 @@ plugins {
     id("com.gorylenko.gradle-git-properties") version "2.5.0"
     id("com.diffplug.spotless") version "7.0.4"
     id("io.freefair.lombok") version "8.13.1"
-    id("net.ltgt.errorprone") version "4.2.0"
+    id("net.ltgt.errorprone") version "4.3.0"
     jacoco
 }
 

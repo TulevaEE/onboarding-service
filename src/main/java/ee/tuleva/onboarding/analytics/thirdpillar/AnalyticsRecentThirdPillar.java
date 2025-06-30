@@ -21,7 +21,7 @@ import org.hibernate.annotations.Immutable;
 @NoArgsConstructor
 @Entity
 @Immutable
-@Table(name = "v_third_pillar_api_weekly", schema = "analytics")
+@Table(name = "v_third_pillar_api_weekly_recent", schema = "analytics")
 public class AnalyticsRecentThirdPillar implements Person {
 
   @Id private Long id;

@@ -62,7 +62,7 @@ class AnalyticsRecentThirdPillarRepositoryTest {
                 FOREIGN KEY ("unit_owner_id") REFERENCES "analytics"."unit_owner"("id")
             );
             """;
-  private static final String CREATE_VIEW_H2 =
+  private static final String CREATE_BASE_VIEW_H2 =
       """
             CREATE OR REPLACE VIEW "analytics"."v_third_pillar_api_weekly" AS
             SELECT o."id",
@@ -91,6 +91,15 @@ class AnalyticsRecentThirdPillarRepositoryTest {
             LEFT JOIN "analytics"."unit_owner_balance" b ON o."id" = b."unit_owner_id"
             WHERE b."security_short_name" = 'TUV100'
             """;
+  private static final String CREATE_RECENT_VIEW_H2 =
+      """
+            CREATE OR REPLACE VIEW "analytics"."v_third_pillar_api_weekly_recent" AS
+            SELECT * FROM "analytics"."v_third_pillar_api_weekly"
+            WHERE "reporting_date" = (
+                SELECT MAX("reporting_date")
+                FROM "analytics"."v_third_pillar_api_weekly"
+            )
+            """;
   private static final String TRUNCATE_TABLES =
       """
             SET REFERENTIAL_INTEGRITY FALSE;
@@ -106,7 +115,8 @@ class AnalyticsRecentThirdPillarRepositoryTest {
       stmt.execute(CREATE_ANALYTICS_SCHEMA);
       stmt.execute(CREATE_UNIT_OWNER_TABLE);
       stmt.execute(CREATE_UNIT_OWNER_BALANCE_TABLE);
-      stmt.execute(CREATE_VIEW_H2);
+      stmt.execute(CREATE_BASE_VIEW_H2);
+      stmt.execute(CREATE_RECENT_VIEW_H2);
     }
   }
 
@@ -114,6 +124,7 @@ class AnalyticsRecentThirdPillarRepositoryTest {
   static void tearDownDatabase(@Autowired DataSource ds) throws Exception {
     try (Connection conn = ds.getConnection();
         Statement stmt = conn.createStatement()) {
+      stmt.execute("DROP VIEW IF EXISTS \"analytics\".\"v_third_pillar_api_weekly_recent\"");
       stmt.execute("DROP VIEW IF EXISTS \"analytics\".\"v_third_pillar_api_weekly\"");
       stmt.execute("DROP TABLE IF EXISTS \"analytics\".\"unit_owner_balance\"");
       stmt.execute("DROP TABLE IF EXISTS \"analytics\".\"unit_owner\"");
@@ -129,14 +140,14 @@ class AnalyticsRecentThirdPillarRepositoryTest {
   }
 
   @Test
-  @DisplayName("findAll fetches records correctly from the underlying view")
-  void findAll_fetchesRecordsFromView() {
+  @DisplayName("findAll fetches only records from the most recent reporting date")
+  void findAll_fetchesOnlyRecentRecordsFromView() {
     // given
-    // Record 1: Should be in the view
+    // Record 1: Latest date, should be in the view
     insertUnitOwner(1L, "11111", "John", "Doe", LocalDate.of(2025, 6, 27));
     insertUnitOwnerBalance(1L, 1L, new BigDecimal("1000.00"), "TUV100");
 
-    // Record 2: Should be in the view
+    // Record 2: Latest date, should be in the view
     insertUnitOwner(2L, "22222", "Jane", "Smith", LocalDate.of(2025, 6, 27));
     insertUnitOwnerBalance(2L, 2L, new BigDecimal("2500.50"), "TUV100");
 
@@ -144,7 +155,7 @@ class AnalyticsRecentThirdPillarRepositoryTest {
     insertUnitOwner(3L, "33333", "Peter", "Jones", LocalDate.of(2025, 6, 27));
     insertUnitOwnerBalance(3L, 3L, new BigDecimal("500.00"), "OTHER_FUND");
 
-    // Record 4: Should be in the view
+    // Record 4: Older date, should NOT be in the recent view
     insertUnitOwner(4L, "44444", "Mary", "Anne", LocalDate.of(2025, 6, 20));
     insertUnitOwnerBalance(4L, 4L, new BigDecimal("1234.56"), "TUV100");
 
@@ -152,10 +163,10 @@ class AnalyticsRecentThirdPillarRepositoryTest {
     List<AnalyticsRecentThirdPillar> results = repository.findAll();
 
     // then
-    assertThat(results).hasSize(3);
+    assertThat(results).hasSize(2);
     assertThat(results)
         .extracting(AnalyticsRecentThirdPillar::getPersonalCode)
-        .containsExactlyInAnyOrder("11111", "22222", "44444");
+        .containsExactlyInAnyOrder("11111", "22222");
 
     AnalyticsRecentThirdPillar johnDoe =
         results.stream().filter(r -> r.getPersonalCode().equals("11111")).findFirst().orElseThrow();

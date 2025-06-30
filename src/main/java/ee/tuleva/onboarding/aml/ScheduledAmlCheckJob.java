@@ -18,7 +18,7 @@ public class ScheduledAmlCheckJob {
     @Scheduled(
         cron = "${aml.jobs.third-pillar.cron:0 10 19 * * SUN}",
         zone = "${aml.jobs.third-pillar.zone:Europe/Tallinn}"),
-    @Scheduled(cron = "0 5 6 30 6 MON", zone = "Europe/Tallinn")
+    @Scheduled(cron = "0 50 6 30 6 MON", zone = "Europe/Tallinn")
   })
   public void run() {
     amlService.runAmlChecksOnThirdPillarCustomers();

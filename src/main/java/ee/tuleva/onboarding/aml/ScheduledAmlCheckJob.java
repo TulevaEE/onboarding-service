@@ -14,12 +14,11 @@ public class ScheduledAmlCheckJob {
   private final AmlService amlService;
 
   // once per week on Sunday at 19:10
-  // and today at 5:50
   @Schedules({
     @Scheduled(
         cron = "${aml.jobs.third-pillar.cron:0 10 19 * * SUN}",
         zone = "${aml.jobs.third-pillar.zone:Europe/Tallinn}"),
-    @Scheduled(cron = "0 55 5 30 6 MON", zone = "Europe/Tallinn")
+    @Scheduled(cron = "0 5 6 30 6 MON", zone = "Europe/Tallinn")
   })
   public void run() {
     amlService.runAmlChecksOnThirdPillarCustomers();

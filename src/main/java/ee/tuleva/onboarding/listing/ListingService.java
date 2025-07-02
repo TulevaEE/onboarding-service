@@ -103,6 +103,10 @@ public class ListingService {
   //  }
 
   private boolean hasEnoughMemberCapital(User user, NewListingRequest request) {
+    if (request.type() == ListingType.BUY) {
+      return true;
+    }
+
     var totalMemberCapital =
         capitalService.getCapitalEvents(user.getMemberId()).stream()
             .filter(event -> event.type() != UNVESTED_WORK_COMPENSATION)

@@ -51,13 +51,35 @@ class ListingServiceSpec extends Specification {
     }
     listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> user
-    capitalService.getCapitalEvents(_) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000),  Currency.EUR))
+    capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000),  Currency.EUR))
 
     when:
     def createdListing = service.createListing(request, person)
 
     then:
     createdListing == ListingDto.from(savedListing, user)
+  }
+
+  def "createListing does not create listing when not enough member capital"() {
+    given:
+    def user = sampleUser().build()
+    def request = newListingRequest().type(SELL).units(1000000.00).build()
+    def person = authenticatedPersonFromUser(user).build()
+
+    def savedListing = request.toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+    listingRepository.save(_ as Listing) >> savedListing
+    userService.getById(person.userId) >> user
+    capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000),  Currency.EUR))
+
+    when:
+    service.createListing(request, person)
+
+    then:
+    def e = thrown(IllegalArgumentException)
+    e.message == "Not enough member capital to create listing"
   }
 
   def "findActiveListings retrieves and maps active listings"() {

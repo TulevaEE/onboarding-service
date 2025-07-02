@@ -1,5 +1,10 @@
 package ee.tuleva.onboarding.listing
 
+
+import ee.tuleva.onboarding.capital.ApiCapitalEvent
+import ee.tuleva.onboarding.capital.CapitalService
+import ee.tuleva.onboarding.currency.Currency
+import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.user.UserService
@@ -7,9 +12,12 @@ import spock.lang.Specification
 
 import java.time.Clock
 import java.time.Instant
+import java.time.LocalDate
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT
 import static ee.tuleva.onboarding.listing.Listing.State.CANCELLED
 import static ee.tuleva.onboarding.listing.ListingType.SELL
 import static ee.tuleva.onboarding.listing.ListingsFixture.*
@@ -19,7 +27,9 @@ class ListingServiceSpec extends Specification {
   ListingRepository listingRepository = Mock()
   UserService userService = Mock()
   Clock clock = TestClockHolder.clock
-  ListingService service = new ListingService(listingRepository, userService, clock)
+  LocaleService localeService = Mock()
+  CapitalService capitalService = Mock()
+  ListingService service = new ListingService(listingRepository, userService, clock, capitalService, localeService)
 
   def setup() {
     ClockHolder.setClock(TestClockHolder.clock)
@@ -31,21 +41,23 @@ class ListingServiceSpec extends Specification {
 
   def "createListing maps request, saves entity, and returns DTO"() {
     given:
+    def user = sampleUser().build()
     def request = newListingRequest().build()
-    def person = sampleAuthenticatedPersonAndMember().build()
+    def person = authenticatedPersonFromUser(user).build()
 
-    def savedListing = request.toListing(42L).tap {
+    def savedListing = request.toListing(42L, 'et').tap {
       id = 1L
       createdTime = Instant.now()
     }
     listingRepository.save(_ as Listing) >> savedListing
-    userService.getById(person.userId) >> sampleUser().build()
+    userService.getById(person.userId) >> user
+    capitalService.getCapitalEvents(_) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000),  Currency.EUR))
 
     when:
     def createdListing = service.createListing(request, person)
 
     then:
-    createdListing == ListingDto.from(savedListing)
+    createdListing == ListingDto.from(savedListing, user)
   }
 
   def "findActiveListings retrieves and maps active listings"() {
@@ -57,11 +69,13 @@ class ListingServiceSpec extends Specification {
         .build()
     listingRepository.findByExpiryTimeAfter(clock.instant()) >> [entity]
 
+    var person = sampleAuthenticatedPersonAndMember()
+    userService.getById(_) >> sampleUser().build()
     when:
-    def results = service.findActiveListings()
+    def results = service.findActiveListings(person.build())
 
     then:
-    results == [ListingDto.from(entity)]
+    results == [ListingDto.from(entity, sampleUser().build())]
   }
 
   def "can cancel active listings"() {

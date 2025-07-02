@@ -9,6 +9,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 class MemberFixture {
 
     public static Member sampleMember = Member.builder()
+            .id(1)
             .user(sampleUser().build())
             .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
             .memberNumber(1234567)
@@ -16,6 +17,7 @@ class MemberFixture {
 
     static Member.MemberBuilder memberFixture() {
         return Member.builder()
+            .id(1)
             .user(sampleUser().build())
             .createdDate(Instant.parse("2017-01-31T10:06:01Z"))
             .memberNumber(1234567)

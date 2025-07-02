@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.listing
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import org.spockframework.spring.SpringBean
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
@@ -8,6 +9,8 @@ import org.springframework.test.web.servlet.MockMvc
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.config.SecurityTestHelper.mockAuthentication
 import static ee.tuleva.onboarding.listing.ListingContactPreference.EMAIL_AND_PHONE
 import static ee.tuleva.onboarding.listing.ListingsFixture.activeListing
@@ -33,8 +36,9 @@ class ListingControllerSpec extends Specification {
 
   def "can create listings"() {
     given:
+    var anUser = sampleUser().build()
     def request = newListingRequest().build()
-    def listingDto = ListingDto.from(activeListing().build())
+    def listingDto = ListingDto.from(activeListing().build(), anUser)
 
     1 * listingService.createListing(request, _) >> listingDto
 
@@ -57,8 +61,10 @@ class ListingControllerSpec extends Specification {
 
   def "can find listings"() {
     given:
-    def listingDto = ListingDto.from(activeListing().build())
-    1 * listingService.findActiveListings() >> [listingDto]
+    var anUser = sampleUser().build()
+
+    var listingDto = ListingDto.from(activeListing().build(), anUser)
+    1 * listingService.findActiveListings(_) >> [listingDto]
 
     expect:
     mvc.perform(get("/v1/listings")

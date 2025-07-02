@@ -22,12 +22,12 @@ val springCloudVersion = "2025.0.0"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.5.0"
+    id("org.springframework.boot") version "3.5.3"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.0"
     id("com.diffplug.spotless") version "7.0.4"
-    id("io.freefair.lombok") version "8.13.1"
-    id("net.ltgt.errorprone") version "4.2.0"
+    id("io.freefair.lombok") version "8.14"
+    id("net.ltgt.errorprone") version "4.3.0"
     jacoco
 }
 
@@ -87,8 +87,8 @@ dependencies {
 
     implementation("com.nimbusds:nimbus-jose-jwt:10.3")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.8")
-    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.8")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
+    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.9")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
@@ -100,12 +100,12 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-    implementation("org.jsoup:jsoup:1.20.1")
+    implementation("org.jsoup:jsoup:1.21.1")
     implementation("commons-net:commons-net:3.11.1")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.6")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.7")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
 
     xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")
@@ -122,10 +122,10 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.13.2")
-    implementation("io.sentry:sentry-logback:8.13.2")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.16.0")
+    implementation("io.sentry:sentry-logback:8.16.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.9.10")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.10.1")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")

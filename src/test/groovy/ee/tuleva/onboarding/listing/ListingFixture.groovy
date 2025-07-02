@@ -19,6 +19,7 @@ class ListingsFixture {
         .units(100.00)
         .pricePerUnit(5.00)
         .currency(EUR)
+        .language("et")
         .expiryTime(now.plus(30, DAYS))
         .state(ACTIVE)
         .createdTime(now)
@@ -34,6 +35,6 @@ class ListingsFixture {
         .units(100.00)
         .pricePerUnit(4.50)
         .currency(EUR)
-        .expiryDate(now.plus(30, DAYS))
+        .expiryTime(now.plus(30, DAYS))
   }
 }

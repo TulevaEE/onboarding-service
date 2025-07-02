@@ -72,7 +72,7 @@ class MemberCapitalEventRepositorySpec extends Specification {
     }
 
     private Member generateSecondMember() {
-        MemberFixture.memberFixture().user(
+        MemberFixture.memberFixture().id(null).user(
             entityManager.persist(sampleUserNonMember().id(null)
                 .personalCode("37605030299")
                 .email("jordan@valdma.com")
@@ -81,7 +81,7 @@ class MemberCapitalEventRepositorySpec extends Specification {
     }
 
     private Member generateMember() {
-        MemberFixture.memberFixture().user(
+        MemberFixture.memberFixture().id(null).user(
             entityManager.persist(sampleUserNonMember().id(null).build())
         ).build()
     }

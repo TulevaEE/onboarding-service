@@ -28,8 +28,8 @@ public class ListingController {
   }
 
   @GetMapping
-  public List<ListingDto> find() {
-    return listingService.findActiveListings();
+  public List<ListingDto> find(@AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    return listingService.findActiveListings(authenticatedPerson);
   }
 
   @DeleteMapping("/{id}")

@@ -50,6 +50,10 @@ public class Listing {
   @Column(nullable = false, updatable = false)
   private Currency currency;
 
+  @Column(nullable = false)
+  @NotNull
+  private String language;
+
   /** ACTIVE → IN_PROGRESS → CANCELLED / COMPLETED */
   @Enumerated(STRING)
   @NotNull

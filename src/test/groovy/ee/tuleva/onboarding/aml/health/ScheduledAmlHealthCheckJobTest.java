@@ -23,7 +23,8 @@ class ScheduledAmlHealthCheckJobTest {
           AmlCheckType.POLITICALLY_EXPOSED_PERSON_OVERRIDE,
           AmlCheckType.RISK_LEVEL_OVERRIDE,
           AmlCheckType.RISK_LEVEL_OVERRIDE_CONFIRMATION,
-          AmlCheckType.SANCTION_OVERRIDE);
+          AmlCheckType.SANCTION_OVERRIDE,
+          AmlCheckType.INTERNAL_ESCALATION);
 
   @Test
   @DisplayName("checkForDelayedAmlChecks logs error when a type is delayed")

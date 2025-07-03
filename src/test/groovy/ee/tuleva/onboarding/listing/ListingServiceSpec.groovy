@@ -18,6 +18,7 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticated
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION
 import static ee.tuleva.onboarding.listing.Listing.State.CANCELLED
 import static ee.tuleva.onboarding.listing.ListingType.SELL
 import static ee.tuleva.onboarding.listing.ListingsFixture.*
@@ -73,6 +74,28 @@ class ListingServiceSpec extends Specification {
     listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> user
     capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000),  Currency.EUR))
+
+    when:
+    service.createListing(request, person)
+
+    then:
+    def e = thrown(IllegalArgumentException)
+    e.message == "Not enough member capital to create listing"
+  }
+
+  def "createListing does not consider unvested work compensation as sellable member capital"() {
+    given:
+    def user = sampleUser().build()
+    def request = newListingRequest().type(SELL).units(100.00).build()
+    def person = authenticatedPersonFromUser(user).build()
+
+    def savedListing = request.toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+    listingRepository.save(_ as Listing) >> savedListing
+    userService.getById(person.userId) >> user
+    capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), UNVESTED_WORK_COMPENSATION, BigDecimal.valueOf(1000),  Currency.EUR))
 
     when:
     service.createListing(request, person)

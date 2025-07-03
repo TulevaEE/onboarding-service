@@ -32,7 +32,7 @@ public class LedgerTestController {
   public List<LedgerAccount> getAccounts(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
 
     LedgerParty ledgerParty =
         ledgerPartyService
@@ -47,7 +47,7 @@ public class LedgerTestController {
   public List<LedgerAccount> onboardUser(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
 
     return ledgerService.onboardUser(user);
   }
@@ -58,7 +58,7 @@ public class LedgerTestController {
       @Valid @RequestBody DepositDto depositDto,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
 
     return ledgerService.deposit(user, depositDto.amount(), EUR);
   }

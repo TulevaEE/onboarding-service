@@ -23,9 +23,9 @@ public enum EmailType {
   MEMBERSHIP("membership"),
   BATCH_FAILED("batch_failed"),
 
-  WITHDRAWAL_BATCH("withdrawal_batch");
+  WITHDRAWAL_BATCH("withdrawal_batch"),
 
-  //  LISTING_CONTACT("listing_contact");
+  LISTING_CONTACT("listing_contact");
 
   private final String templateName;
 
@@ -80,6 +80,10 @@ public enum EmailType {
   }
 
   public String getTemplateName(Locale locale) {
-    return templateName + "_" + locale.getLanguage();
+    return getTemplateName(locale.getLanguage());
+  }
+
+  public String getTemplateName(String language) {
+    return templateName + "_" + language;
   }
 }

@@ -150,7 +150,7 @@ public class MandateBatchService {
 
   private MandateSignatureStatus checkIfFileSignedToStartProcessing(
       Long userId, Long mandateBatchId, Optional<byte[]> signedFile, Locale locale) {
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (!mandateBatch.isSigned()) {
@@ -182,7 +182,7 @@ public class MandateBatchService {
       IdCardSignatureSession session,
       String signedHashInHex,
       Locale locale) {
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
 
     if (!mandateBatch.isSigned()) {

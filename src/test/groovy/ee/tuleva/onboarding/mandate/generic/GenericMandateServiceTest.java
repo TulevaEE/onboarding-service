@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,7 +64,7 @@ public class GenericMandateServiceTest {
     var anDto =
         MandateFixture.sampleMandateCreationDto(new EarlyWithdrawalCancellationMandateDetails());
 
-    when(userService.getById(any())).thenReturn(anUser);
+    when(userService.getById(any())).thenReturn(Optional.of(anUser));
     when(mandateService.save(any(User.class), any(Mandate.class))).thenReturn(aMandate);
 
     when(earlyWithdrawalCancellationMandateFactory.supports(any())).thenCallRealMethod();
@@ -100,7 +101,7 @@ public class GenericMandateServiceTest {
               }
             });
 
-    when(userService.getById(any())).thenReturn(anUser);
+    when(userService.getById(any())).thenReturn(Optional.of(anUser));
     when(mandateService.save(any(User.class), any(Mandate.class))).thenReturn(aMandate);
 
     //

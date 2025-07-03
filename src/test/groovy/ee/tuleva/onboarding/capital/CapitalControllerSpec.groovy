@@ -33,7 +33,7 @@ class CapitalControllerSpec extends BaseControllerSpec {
   def "Member capital statement"() {
     given:
     User user = sampleUser().build()
-    1 * userService.getById(user.id) >> user
+    1 * userService.getById(user.id) >> Optional.of(user)
     1 * capitalService.getCapitalRows(user.memberOrThrow.id) >> [
         new CapitalRow(MEMBERSHIP_BONUS, 100.0, 200.0, EUR),
         new CapitalRow(CAPITAL_PAYMENT, 300.0, 400.0, EUR),

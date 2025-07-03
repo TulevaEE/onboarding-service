@@ -23,6 +23,10 @@ public class ClockHolder {
     return clock;
   }
 
+  public static Clock getClock() {
+    return clock;
+  }
+
   public static Instant aYearAgo() {
     return Instant.now(clock).minus(365, DAYS);
   }

@@ -103,10 +103,10 @@ class ExchangeTransactionLeaversRepositoryTest {
 
     assertTrue(sql.contains("date_created >= :startDate"), "Should filter by start date");
     assertTrue(sql.contains("date_created < :endDate"), "Should filter by end date");
-    assertTrue(sql.contains("security_from = 'TUK75'"), "Should filter by TUK75");
-    assertTrue(sql.contains("security_from = 'TUK00'"), "Should filter by TUK00");
-    assertTrue(sql.contains("security_to <> 'TUK00'"), "Should exclude TUK00 security_to");
-    assertTrue(sql.contains("security_to <> 'TUK75'"), "Should exclude TUK75 security_to");
+    assertTrue(sql.contains("security_from = 'EE3600109435'"), "Should filter by TUK75");
+    assertTrue(sql.contains("security_from = 'EE3600109443'"), "Should filter by TUK00");
+    assertTrue(sql.contains("security_to <> 'EE3600109443'"), "Should exclude TUK00 security_to");
+    assertTrue(sql.contains("security_to <> 'EE3600109435'"), "Should exclude TUK75 security_to");
     assertTrue(sql.contains("ongoing_charges_figure >= 0.005"), "Should filter by charges");
     assertTrue(sql.contains("email IS NOT NULL"), "Should require email");
     assertTrue(sql.contains("keel = 'ENG'"), "Should filter by ENG language");

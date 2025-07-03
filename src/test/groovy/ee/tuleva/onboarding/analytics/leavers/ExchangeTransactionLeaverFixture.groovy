@@ -8,8 +8,8 @@ class ExchangeTransactionLeaverFixture {
 
   static ExchangeTransactionLeaver leaverFixture(LocalDateTime lastEmailSent = LocalDateTime.parse("2019-04-30T00:00:00")) {
     new ExchangeTransactionLeaver(
-        "TUK75",
-        "LXK75",
+        "EE3600109435",
+        "EE3600019766",
         "38510309513",
         "John",
         "Doe",
@@ -26,8 +26,8 @@ class ExchangeTransactionLeaverFixture {
 
   static ExchangeTransactionLeaver leaverFixture2(LocalDateTime lastEmailSent = LocalDateTime.parse("2019-04-30T00:00:00")) {
     new ExchangeTransactionLeaver(
-        "TUK75",
-        "LXK00",
+        "EE3600109443",
+        "EE3600019782",
         "48510309513",
         "Jane",
         "Doe",

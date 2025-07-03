@@ -38,7 +38,7 @@ public class ExchangeTransactionLeaversRepository
         FROM
             public.exchange_transaction et
         LEFT JOIN
-            public.fund fund ON et.security_to = fund.short_name
+            public.fund fund ON et.security_to = fund.isin
         LEFT JOIN
             analytics.mv_crm_mailchimp mcmp ON et.code = mcmp.isikukood
         LEFT JOIN
@@ -47,11 +47,11 @@ public class ExchangeTransactionLeaversRepository
             et.date_created >= :startDate AND
             et.date_created < :endDate AND
             et.reporting_date = (SELECT MAX(reporting_date) FROM public.exchange_transaction) AND
-            (et.security_from = 'TUK75' OR et.security_from = 'TUK00') AND
-            et.security_to <> 'TUK00' AND
-            et.security_to <> 'TUK75' AND
+            (et.security_from = 'EE3600109435' OR et.security_from = 'EE3600109443') AND
+            et.security_to <> 'EE3600109435' AND
+            et.security_to <> 'EE3600109443' AND
             fund.ongoing_charges_figure >= 0.005 AND
-            mcmp.email IS NOT NULL AND
+            mcmp.email IS NOT NULL AND TRIM(mcmp.email) <> '' AND
             (mcmp.keel = 'ENG' OR mcmp.keel = 'EST') AND
             et.percentage >= 10 AND
             (em.type = '%s' OR em.type IS NULL) -- type is null = no email sent yet

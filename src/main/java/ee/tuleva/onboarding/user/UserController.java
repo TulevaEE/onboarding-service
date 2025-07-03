@@ -36,7 +36,7 @@ public class UserController {
   @GetMapping("/me")
   public UserResponse me(@AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
     ContactDetails contactDetails = episService.getContactDetails(authenticatedPerson);
     return UserResponse.from(
         user, contactDetails, secondPillarPaymentRateService.getPaymentRates(authenticatedPerson));

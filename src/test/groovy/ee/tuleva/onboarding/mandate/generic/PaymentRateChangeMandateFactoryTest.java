@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,7 +48,7 @@ public class PaymentRateChangeMandateFactoryTest {
 
     var anDto = sampleMandateCreationDto(new PaymentRateChangeMandateDetails(SIX));
 
-    when(userService.getById(any())).thenReturn(anUser);
+    when(userService.getById(any())).thenReturn(Optional.of(anUser));
     when(conversionService.getConversion(any())).thenReturn(fullyConverted());
     when(episService.getContactDetails(any())).thenReturn(aContactDetails);
 

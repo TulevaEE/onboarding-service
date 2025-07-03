@@ -442,7 +442,7 @@ public class MandateBatchServiceTest {
 
   User mockUser() {
     var user = sampleUser().build();
-    when(userService.getById(user.getId())).thenReturn(user);
+    when(userService.getById(user.getId())).thenReturn(Optional.of(user));
 
     return user;
   }

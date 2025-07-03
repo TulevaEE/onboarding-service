@@ -33,7 +33,7 @@ class UserServiceSpec extends Specification {
     userRepository.findById(1L) >> Optional.of(user)
 
     when:
-    def returnedUser = service.getById(1L)
+    def returnedUser = service.getById(1L).get()
 
     then:
     returnedUser == user

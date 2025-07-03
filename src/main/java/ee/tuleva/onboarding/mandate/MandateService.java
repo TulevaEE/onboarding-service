@@ -57,7 +57,7 @@ public class MandateService {
   public Mandate save(
       AuthenticatedPerson authenticatedPerson, CreateMandateCommand createMandateCommand) {
     mandateValidator.validate(createMandateCommand, authenticatedPerson);
-    User user = userService.getById(authenticatedPerson.getUserId());
+    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
     ConversionResponse conversion = conversionService.getConversion(user);
     ContactDetails contactDetails = episService.getContactDetails(user);
     CreateMandateCommandWrapper wrapper =
@@ -75,7 +75,7 @@ public class MandateService {
           "Invalid application type: " + applicationTypeToCancel);
     }
 
-    User user = userService.getById(authenticatedPerson.getUserId());
+    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
     ConversionResponse conversion = conversionService.getConversion(user);
     ContactDetails contactDetails = episService.getContactDetails(user);
     Mandate mandate =
@@ -91,20 +91,20 @@ public class MandateService {
   }
 
   public MobileIdSignatureSession mobileIdSign(Long mandateId, Long userId, String phoneNumber) {
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
     List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
     return signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber);
   }
 
   public SmartIdSignatureSession smartIdSign(Long mandateId, Long userId) {
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
     List<SignatureFile> files = mandateFileService.getMandateFiles(mandateId, userId);
     return signService.startSmartIdSign(files, user.getPersonalCode());
   }
 
   public MandateSignatureStatus finalizeSmartIdSignature(
       Long userId, Long mandateId, SmartIdSignatureSession session, Locale locale) {
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate.isSigned()) {
@@ -134,7 +134,7 @@ public class MandateService {
 
   public MandateSignatureStatus finalizeMobileIdSignature(
       Long userId, Long mandateId, MobileIdSignatureSession session, Locale locale) {
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate.isSigned()) {
@@ -155,7 +155,7 @@ public class MandateService {
       IdCardSignatureSession session,
       String signedHashInHex,
       Locale locale) {
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     if (mandate.isSigned()) {

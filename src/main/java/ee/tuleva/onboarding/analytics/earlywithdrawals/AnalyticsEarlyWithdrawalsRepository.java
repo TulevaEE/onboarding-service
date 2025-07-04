@@ -64,7 +64,7 @@ public class AnalyticsEarlyWithdrawalsRepository
                     tuk00.early_withdrawal_status = 'A' AND
                     tuk00.email IS NOT NULL
             ) w
-            LEFT JOIN public.email em ON w.personal_id = em.personal_code
+            LEFT JOIN email em ON w.personal_id = em.personal_code
             WHERE
                 em.type = '%s' OR em.type IS NULL -- type is null = no email sent yet
             GROUP BY

@@ -65,7 +65,8 @@ public class FundValueIndexingJob {
     log.info(
         "Last update for comparison fund {}: {}. Updating from {}", fund, lastUpdate, startDate);
 
-    if (lastUpdate.isBefore(LocalDate.now().minusWeeks(1)) && fund.startsWith("EE")) {
+    if (lastUpdate.isBefore(LocalDate.now().minusWeeks(1))
+        && (fund.startsWith("EE") || fund.startsWith("EPI"))) {
       log.error(
           "Last update for comparison fund {} is more than 1 week old. Last update: {}",
           fund,

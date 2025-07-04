@@ -6,19 +6,17 @@ import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 @Slf4j
-@Service
 @RequiredArgsConstructor
 public class EpiFundValueRetriever implements ComparisonIndexRetriever {
 
-  public static final String KEY = "EPI";
   private final PensionikeskusDataDownloader downloader;
+  private final EpiIndex index;
 
   @Override
   public String getKey() {
-    return KEY;
+    return index.getKey();
   }
 
   @Override
@@ -28,9 +26,9 @@ public class EpiFundValueRetriever implements ComparisonIndexRetriever {
     var valueColumn = 2;
     var config =
         CsvParserConfig.builder()
-            .keyPrefix(KEY)
+            .keyPrefix(index.getKey())
             .filterColumn(indexColumn)
-            .filterValue("EPI")
+            .filterValue(index.getValue())
             .valueColumn(valueColumn)
             .build();
     return downloader.downloadData(baseUrl, startDate, endDate, config);

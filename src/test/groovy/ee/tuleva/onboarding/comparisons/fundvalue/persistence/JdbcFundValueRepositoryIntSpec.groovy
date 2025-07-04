@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.comparisons.fundvalue.persistence
 
-
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiFundValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiIndex
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.WorldIndexValueRetriever
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.globalstock.GlobalStockIndexRetriever
@@ -46,7 +45,7 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
             List<FundValue> values = getFakeFundValues()
             fundValueRepository.saveAll(values)
         when:
-            Optional<FundValue> epiLatestValue = fundValueRepository.findLastValueForFund(EpiFundValueRetriever.KEY)
+            Optional<FundValue> epiLatestValue = fundValueRepository.findLastValueForFund(EpiIndex.EPI.key)
             Optional<FundValue> marketLatestValue = fundValueRepository.findLastValueForFund(UnionStockIndexRetriever.KEY)
         then:
             epiLatestValue.isPresent()
@@ -57,7 +56,7 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
 
     def "it handles missing fund values properly"() {
         when:
-            Optional<FundValue> value = fundValueRepository.findLastValueForFund(EpiFundValueRetriever.KEY)
+            Optional<FundValue> value = fundValueRepository.findLastValueForFund(EpiIndex.EPI.key)
         then:
             !value.isPresent()
     }
@@ -65,16 +64,16 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
     def "it can find the value closest for a time for a fund"() {
         given:
         List<FundValue> values = [
-            new FundValue(EpiFundValueRetriever.KEY, parse("1990-01-04"), 104.12345),
-            new FundValue(EpiFundValueRetriever.KEY, parse("1990-01-02"), 102.12345),
-            new FundValue(EpiFundValueRetriever.KEY, parse("1990-01-01"), 101.12345),
+            new FundValue(EpiIndex.EPI.key, parse("1990-01-04"), 104.12345),
+            new FundValue(EpiIndex.EPI.key, parse("1990-01-02"), 102.12345),
+            new FundValue(EpiIndex.EPI.key, parse("1990-01-01"), 101.12345),
             new FundValue(UnionStockIndexRetriever.KEY, parse("1990-01-04"), 204.12345),
             new FundValue(UnionStockIndexRetriever.KEY, parse("1990-01-02"), 202.12345),
             new FundValue(UnionStockIndexRetriever.KEY, parse("1990-01-01"), 201.12345),
         ]
         fundValueRepository.saveAll(values)
         when:
-        Optional<FundValue> epiValue = fundValueRepository.getLatestValue(EpiFundValueRetriever.KEY, parse("1990-01-03"))
+        Optional<FundValue> epiValue = fundValueRepository.getLatestValue(EpiIndex.EPI.key, parse("1990-01-03"))
         Optional<FundValue> marketValue = fundValueRepository.getLatestValue(UnionStockIndexRetriever.KEY, parse("1990-01-06"))
         Optional<FundValue> olderValue = fundValueRepository.getLatestValue(UnionStockIndexRetriever.KEY, parse("1970-01-01"))
         then:
@@ -156,8 +155,8 @@ class JdbcFundValueRepositoryIntSpec extends Specification {
         return [
             new FundValue(UnionStockIndexRetriever.KEY, today, 100.12345),
             new FundValue(UnionStockIndexRetriever.KEY, yesterday, 10.12345),
-            new FundValue(EpiFundValueRetriever.KEY, today, 200.12345),
-            new FundValue(EpiFundValueRetriever.KEY, yesterday, 20.12345),
+            new FundValue(EpiIndex.EPI.key, today, 200.12345),
+            new FundValue(EpiIndex.EPI.key, yesterday, 20.12345),
         ]
     }
 

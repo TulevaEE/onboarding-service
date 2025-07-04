@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.comparisons.returns
 
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValue
 import ee.tuleva.onboarding.comparisons.fundvalue.FundValueProvider
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiFundValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiIndex
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.Transaction
@@ -34,7 +34,7 @@ class ReturnCalculatorSpec extends Specification {
     when:
     def personalReturn = returnCalculator.getReturn(overview)
     def estonianAverageReturn =
-        returnCalculator.getSimulatedReturn(overview, EpiFundValueRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key)
     def marketAverageReturn =
         returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
@@ -70,7 +70,7 @@ class ReturnCalculatorSpec extends Specification {
     when:
     def personalReturn = returnCalculator.getReturn(overview)
     def estonianAverageReturn =
-        returnCalculator.getSimulatedReturn(overview, EpiFundValueRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key)
     def marketAverageReturn =
         returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
@@ -111,7 +111,7 @@ class ReturnCalculatorSpec extends Specification {
     when:
     def personalReturn = returnCalculator.getReturn(overview)
     def estonianAverageReturn =
-        returnCalculator.getSimulatedReturn(overview, EpiFundValueRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key)
     def marketAverageReturn =
         returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
@@ -139,14 +139,14 @@ class ReturnCalculatorSpec extends Specification {
     given:
     Instant startTime = parseInstant("2010-01-01")
     Instant endTime = parseInstant("2018-07-16")
-    mockFundValues(EpiFundValueRetriever.KEY, epiFundValues())
+    mockFundValues(EpiIndex.EPI.key, epiFundValues())
     fundValueProvider.getLatestValue(UnionStockIndexRetriever.KEY, _ as LocalDate) >> {
       String givenFund, LocalDate date -> Optional.of(new FundValue(givenFund, date, 123.0))
     }
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
     when:
     def estonianAverageReturn =
-        returnCalculator.getSimulatedReturn(overview, EpiFundValueRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key)
     def marketAverageReturn =
         returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 
@@ -172,7 +172,7 @@ class ReturnCalculatorSpec extends Specification {
     def overview = new AccountOverview(exampleTransactions, 30.0, 123123.0, startTime, endTime, 2)
     when:
     def estonianAverageReturn =
-        returnCalculator.getSimulatedReturn(overview, EpiFundValueRetriever.KEY)
+        returnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key)
     def marketAverageReturn =
         returnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY)
 

@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.comparisons.returns.provider
 
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.CpiValueRetriever
-import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiFundValueRetriever
+import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.EpiIndex
 import ee.tuleva.onboarding.comparisons.fundvalue.retrieval.UnionStockIndexRetriever
 import ee.tuleva.onboarding.comparisons.overview.AccountOverview
 import ee.tuleva.onboarding.comparisons.overview.AccountOverviewProvider
@@ -24,7 +24,7 @@ class IndexReturnProviderSpec extends Specification {
 
     def returnProvider = new IndexReturnProvider(accountOverviewProvider, rateOfReturnCalculator)
 
-    def "can assemble a Returns object for EPI, UNION STOCK INDEX and CPI"() {
+    def "can assemble a Returns object for EPI, EPI_3, UNION STOCK INDEX and CPI"() {
         given:
         def person = samplePerson()
         def startTime = Instant.parse("2019-08-28T10:06:01Z")
@@ -40,7 +40,9 @@ class IndexReturnProviderSpec extends Specification {
         def payments = 234.12
 
         accountOverviewProvider.getAccountOverview(person, startTime, endTime, pillar) >> overview
-        rateOfReturnCalculator.getSimulatedReturn(overview, EpiFundValueRetriever.KEY) >>
+        rateOfReturnCalculator.getSimulatedReturn(overview, EpiIndex.EPI.key) >>
+            new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
+        rateOfReturnCalculator.getSimulatedReturn(overview, EpiIndex.EPI_3.key) >>
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
         rateOfReturnCalculator.getSimulatedReturn(overview, UnionStockIndexRetriever.KEY) >>
             new ReturnDto(expectedReturn, returnAsAmount, payments, EUR, earliestTransactionDate, LocalDate.now())
@@ -54,7 +56,7 @@ class IndexReturnProviderSpec extends Specification {
 
         then:
         with(returns.returns[0]) {
-          key == EpiFundValueRetriever.KEY
+          key == EpiIndex.EPI.key
           type == INDEX
           rate == expectedReturn
           amount == returnAsAmount
@@ -64,7 +66,7 @@ class IndexReturnProviderSpec extends Specification {
           to == LocalDate.now()
         }
         with(returns.returns[1]) {
-          key == UnionStockIndexRetriever.KEY
+          key == EpiIndex.EPI_3.key
           type == INDEX
           rate == expectedReturn
           amount == returnAsAmount
@@ -74,6 +76,16 @@ class IndexReturnProviderSpec extends Specification {
           to == LocalDate.now()
         }
         with(returns.returns[2]) {
+          key == UnionStockIndexRetriever.KEY
+          type == INDEX
+          rate == expectedReturn
+          amount == returnAsAmount
+          paymentsSum == payments
+          currency == EUR
+          from == earliestTransactionDate
+          to == LocalDate.now()
+        }
+        with(returns.returns[3]) {
           key == CpiValueRetriever.KEY
           type == INDEX
           rate == expectedReturn

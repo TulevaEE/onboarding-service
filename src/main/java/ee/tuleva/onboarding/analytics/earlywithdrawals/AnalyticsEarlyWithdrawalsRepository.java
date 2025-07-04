@@ -22,54 +22,33 @@ public class AnalyticsEarlyWithdrawalsRepository
     String sql =
         String.format(
             """
-            SELECT
-                w.personal_id AS personalCode,
-                w.first_name AS firstName,
-                w.last_name AS lastName,
-                w.email,
-                w.language,
-                w.early_withdrawal_date AS earlyWithdrawalDate,
-                w.early_withdrawal_status AS earlyWithdrawalStatus,
-                MAX(em.created_date) AS lastEmailSentDate
-            FROM (
-                SELECT
-                    tuk75.personal_id,
-                    tuk75.first_name,
-                    tuk75.last_name,
-                    tuk75.email,
-                    tuk75.language,
-                    tuk75.early_withdrawal_date,
-                    tuk75.early_withdrawal_status
-                FROM
-                    analytics.tuk75
-                WHERE
-                    tuk75.early_withdrawal_date >= :startDate AND
-                    tuk75.early_withdrawal_date < :endDate AND
-                    tuk75.early_withdrawal_status = 'A' AND
-                    tuk75.email IS NOT NULL
-                UNION ALL
-                SELECT
-                    tuk00.personal_id,
-                    tuk00.first_name,
-                    tuk00.last_name,
-                    tuk00.email,
-                    tuk00.language,
-                    tuk00.early_withdrawal_date,
-                    tuk00.early_withdrawal_status
-                FROM
-                    analytics.tuk00
-                WHERE
-                    tuk00.early_withdrawal_date >= :startDate AND
-                    tuk00.early_withdrawal_date < :endDate AND
-                    tuk00.early_withdrawal_status = 'A' AND
-                    tuk00.email IS NOT NULL
-            ) w
-            LEFT JOIN email em ON w.personal_id = em.personal_code
-            WHERE
-                em.type = '%s' OR em.type IS NULL -- type is null = no email sent yet
-            GROUP BY
-                w.personal_id, w.first_name, w.last_name,
-                w.email, w.language, w.early_withdrawal_date, w.early_withdrawal_status
+            SELECT unit_owner.personal_id         AS personalCode,
+                   unit_owner.first_name          AS firstName,
+                   unit_owner.last_name           AS lastName,
+                   unit_owner.email               AS email,
+                   unit_owner.language_preference AS language,
+                   unit_owner.p2_rava_date        AS earlyWithdrawalDate,
+                   unit_owner.p2_rava_status      AS earlyWithdrawalStatus,
+                   MAX(email.created_date)        AS lastEmailSentDate
+            FROM unit_owner
+                     LEFT JOIN unit_owner_balance ON unit_owner.id = unit_owner_balance.unit_owner_id
+                     LEFT JOIN email ON unit_owner.personal_id = email.personal_code
+            WHERE (unit_owner.p2_choice IN ('TUK00', 'TUK75')
+                OR unit_owner_balance.security_short_name IN ('TUK00', 'TUK75'))
+              AND unit_owner.snapshot_date = (SELECT MAX(snapshot_date) FROM unit_owner)
+              AND unit_owner.p2_rava_status = 'A'
+              AND unit_owner.email IS NOT NULL
+              AND TRIM(unit_owner.email) <> ''
+              AND (email.type = '%s' OR email.type IS NULL)
+              AND unit_owner.p2_rava_date > :startDate
+              AND unit_owner.p2_rava_date <= :endDate
+            GROUP BY unit_owner.personal_id,
+                     unit_owner.first_name,
+                     unit_owner.last_name,
+                     unit_owner.email,
+                     unit_owner.language_preference,
+                     unit_owner.p2_rava_date,
+                     unit_owner.p2_rava_status;
             """,
             getEmailType());
 

@@ -19,94 +19,149 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
   JdbcClient jdbcClient
 
   @Autowired
-  AnalyticsEarlyWithdrawalsRepository analyticsEarlyWithdrawalsRepository
+  AnalyticsEarlyWithdrawalsRepository repository
 
-  def "can fetch withdrawals"() {
+  def "fetches withdrawals when filtered by choice application"() {
     given:
-    def aWithdrawal = anEarlyWithdrawal(1)
-
-    insertStockFund(aWithdrawal)
-    insertEmail(aWithdrawal)
+    def withdrawal = anEarlyWithdrawal(1, "A")
+    insertUnitOwner(1001L, withdrawal, "TUK75", LocalDate.of(2023, 3, 31))
+    insertEmail(withdrawal)
 
     when:
-    List<AnalyticsEarlyWithdrawal> withdrawals =
-        analyticsEarlyWithdrawalsRepository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+    def result = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
 
     then:
-    withdrawals == [aWithdrawal]
+    result == [withdrawal]
   }
 
-  def "can fetch withdrawals from both tables"() {
+  def "fetches withdrawals when matched via existing balance"() {
     given:
-    def aWithdrawal = anEarlyWithdrawal(1, null)
-    def anotherWithdrawal = anEarlyWithdrawal(2)
-
-    insertStockFund(aWithdrawal)
-    insertBondFund(anotherWithdrawal)
-    insertEmail(anotherWithdrawal)
+    def withdrawal = anEarlyWithdrawal(2, "A")
+    long ownerId = insertUnitOwner(1002L, withdrawal, "Fond", LocalDate.of(2023, 3, 31))
+    insertUnitOwnerBalance(ownerId, "TUK00")
+    insertEmail(withdrawal)
 
     when:
-    List<AnalyticsEarlyWithdrawal> withdrawals =
-        analyticsEarlyWithdrawalsRepository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+    def result = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
 
     then:
-    withdrawals == [aWithdrawal, anotherWithdrawal]
+    result == [withdrawal]
   }
 
-  def "ignores missing emails"() {
+  def "returns only rows from the latest snapshot"() {
     given:
-    def aWithdrawal = anEarlyWithdrawalWithMissingEmail(3)
-    def anotherWithdrawal = anEarlyWithdrawalWithMissingEmail(4)
+    def newest = anEarlyWithdrawal(3, "A")
+    def older  = anEarlyWithdrawal(4, "A")
 
-    insertStockFund(aWithdrawal)
-    insertBondFund(anotherWithdrawal)
+    insertUnitOwner(1003L, newest, "TUK75", LocalDate.of(2023, 3, 31))
+    insertEmail(newest)
+
+    insertUnitOwner(1004L, older, "TUK75", LocalDate.of(2023, 2, 28))
+    insertEmail(older)
 
     when:
-    List<AnalyticsEarlyWithdrawal> withdrawals =
-        analyticsEarlyWithdrawalsRepository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+    def results = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
 
     then:
-    withdrawals == []
+    results == [newest]
   }
 
-  private void insertBondFund(AnalyticsEarlyWithdrawal withdrawal) {
+  def "includes unit owners that have never been e‑mailed"() {
+    given:
+    def withdrawal = anEarlyWithdrawal(5, "A", null)
+    insertUnitOwner(1005L, withdrawal, "TUK00", LocalDate.of(2023, 3, 31))
+
+    when:
+    def results = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+
+    then:
+    results == [withdrawal]
+    results.first().lastEmailSentDate() == null
+  }
+
+  def "ignores unit owners with a blank e‑mail address"() {
+    given:
+    def withdrawal = anEarlyWithdrawalWithMissingEmail(6)
+    insertUnitOwner(1006L, withdrawal, "TUK00", LocalDate.of(2023, 3, 31))
+
+    when:
+    def results = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+
+    then:
+    results == []
+  }
+
+  def "ignores unit owners whose previous e‑mail was of a different type"() {
+    given:
+    def withdrawal = anEarlyWithdrawal(7, "A")
+    insertUnitOwner(1007L, withdrawal, "TUK75", LocalDate.of(2023, 3, 31))
+    insertEmail(withdrawal, "SOME_OTHER_TYPE")
+
+    when:
+    def result = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+
+    then:
+    result == []
+  }
+
+  def "ignores unit owners with p2_rava_status not equal to 'A'"() {
+    given:
+    def withdrawal = anEarlyWithdrawal(8, "P")
+    insertUnitOwner(1008L, withdrawal, "TUK75", LocalDate.of(2023, 3, 31))
+
+    when:
+    def result = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+
+    then:
+    result == []
+  }
+
+  private long insertUnitOwner(long ownerId,
+                               AnalyticsEarlyWithdrawal withdrawal,
+                               String choiceApplication,
+                               LocalDate snapshotDate) {
     jdbcClient.sql("""
-    INSERT INTO analytics.tuk00 
-      (personal_id, first_name, last_name, email, language, early_withdrawal_date, early_withdrawal_status)
-    VALUES (:personal_id, :first_name, :last_name, :email, :language, :early_withdrawal_date, :early_withdrawal_status)""")
+            INSERT INTO unit_owner
+              (id, personal_id, first_name, last_name, email, language_preference,
+               p2_choice, p2_rava_date, p2_rava_status, snapshot_date, date_created)
+            VALUES
+              (:id, :personal_id, :first_name, :last_name, :email, :language_preference,
+               :p2_choice, :p2_rava_date, :p2_rava_status, :snapshot_date, :date_created)""")
+        .param("id", ownerId)
         .param("personal_id", withdrawal.personalCode())
         .param("first_name", withdrawal.firstName())
         .param("last_name", withdrawal.lastName())
         .param("email", withdrawal.email())
-        .param("language", withdrawal.language())
-        .param("early_withdrawal_date", withdrawal.earlyWithdrawalDate())
-        .param("early_withdrawal_status", withdrawal.earlyWithdrawalStatus())
+        .param("language_preference", withdrawal.language())
+        .param("p2_choice", choiceApplication)
+        .param("p2_rava_date", withdrawal.earlyWithdrawalDate())
+        .param("p2_rava_status", withdrawal.earlyWithdrawalStatus())
+        .param("snapshot_date", snapshotDate)
+        .param("date_created", snapshotDate)
         .update()
+    return ownerId
   }
 
-  private void insertStockFund(AnalyticsEarlyWithdrawal withdrawal) {
+  private void insertUnitOwnerBalance(long unitOwnerId, String shortName) {
     jdbcClient.sql("""
-    INSERT INTO analytics.tuk75 
-      (personal_id, first_name, last_name, email, language, early_withdrawal_date, early_withdrawal_status)
-    VALUES (:personal_id, :first_name, :last_name, :email, :language, :early_withdrawal_date, :early_withdrawal_status)""")
-        .param("personal_id", withdrawal.personalCode())
-        .param("first_name", withdrawal.firstName())
-        .param("last_name", withdrawal.lastName())
-        .param("email", withdrawal.email())
-        .param("language", withdrawal.language())
-        .param("early_withdrawal_date", withdrawal.earlyWithdrawalDate())
-        .param("early_withdrawal_status", withdrawal.earlyWithdrawalStatus())
+            INSERT INTO unit_owner_balance (unit_owner_id, security_short_name)
+            VALUES (:unit_owner_id, :security_short_name)""")
+        .param("unit_owner_id", unitOwnerId)
+        .param("security_short_name", shortName)
         .update()
   }
 
   private void insertEmail(AnalyticsEarlyWithdrawal withdrawal) {
+    insertEmail(withdrawal, "SECOND_PILLAR_EARLY_WITHDRAWAL")
+  }
+
+  private void insertEmail(AnalyticsEarlyWithdrawal withdrawal, String type) {
     jdbcClient.sql("""
-    INSERT INTO public.email 
-    (personal_code, type, status, created_date)
-    VALUES (:personal_code, :type, :status, :created_date)""")
+            INSERT INTO public.email (personal_code, type, status, created_date)
+            VALUES (:personal_code, :type, :status, :created_date)""")
         .param("personal_code", withdrawal.personalCode())
-        .param("type", "SECOND_PILLAR_EARLY_WITHDRAWAL")
-        .param("status", "SCHEDULED")
+        .param("type", type)
+        .param("status", "SENT")
         .param("created_date", withdrawal.lastEmailSentDate())
         .update()
   }

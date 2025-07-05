@@ -36,7 +36,7 @@ public class MandateBatchSignatureService {
   public MobileSignatureResponse startSmartIdSignature(
       Long mandateBatchId, AuthenticatedPerson authenticatedPerson) {
 
-    User user = userService.getById(authenticatedPerson.getUserId());
+    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
     List<SignatureFile> files =
         mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
@@ -69,7 +69,7 @@ public class MandateBatchSignatureService {
       AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody StartIdCardSignCommand signCommand) {
 
-    User user = userService.getById(authenticatedPerson.getUserId());
+    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
     List<SignatureFile> files =
         mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 
@@ -107,7 +107,7 @@ public class MandateBatchSignatureService {
   public MobileSignatureResponse startMobileIdSignature(
       Long mandateBatchId, AuthenticatedPerson authenticatedPerson) {
 
-    User user = userService.getById(authenticatedPerson.getUserId());
+    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
     List<SignatureFile> files =
         mandateBatchService.getMandateBatchContentFiles(mandateBatchId, user);
 

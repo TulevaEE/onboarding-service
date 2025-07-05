@@ -19,7 +19,7 @@ class GrantedAuthorityFactorySpec extends Specification {
     def "from: get member role from authenticated person who is a member"() {
         given:
         def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
-        userService.getById(authenticatedPerson.userId) >> sampleUser().build()
+        userService.getById(authenticatedPerson.userId) >> Optional.of(sampleUser().build())
 
         expect:
         factory.from(authenticatedPerson) == asList(new SimpleGrantedAuthority(Authority.USER),
@@ -28,7 +28,7 @@ class GrantedAuthorityFactorySpec extends Specification {
 
     def "from: get only user role from authenticated person who is not member"() {
         def authenticatedPerson = sampleAuthenticatedPersonNonMember().build()
-        userService.getById(authenticatedPerson.userId) >> sampleUserNonMember().build()
+        userService.getById(authenticatedPerson.userId) >> Optional.of(sampleUserNonMember().build())
 
         expect:
         factory.from(authenticatedPerson) == singletonList(new SimpleGrantedAuthority(Authority.USER))

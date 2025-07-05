@@ -24,7 +24,7 @@ public class MandateFileService {
   private final UserService userService;
 
   public List<SignatureFile> getMandateFiles(Long mandateId, Long userId) {
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
     Mandate mandate = mandateRepository.findByIdAndUserId(mandateId, userId);
 
     ContactDetails contactDetails = episService.getContactDetails(user);

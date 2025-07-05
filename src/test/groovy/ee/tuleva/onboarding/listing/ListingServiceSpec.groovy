@@ -5,6 +5,8 @@ import ee.tuleva.onboarding.capital.ApiCapitalEvent
 import ee.tuleva.onboarding.capital.CapitalService
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.locale.LocaleService
+import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
+import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.user.UserService
@@ -30,7 +32,9 @@ class ListingServiceSpec extends Specification {
   Clock clock = TestClockHolder.clock
   LocaleService localeService = Mock()
   CapitalService capitalService = Mock()
-  ListingService service = new ListingService(listingRepository, userService, clock, capitalService, localeService)
+  EmailPersistenceService emailPersistenceService = Mock()
+  EmailService emailService = Mock()
+  ListingService service = new ListingService(listingRepository, userService, emailPersistenceService, emailService, clock, capitalService, localeService)
 
   def setup() {
     ClockHolder.setClock(TestClockHolder.clock)
@@ -51,7 +55,7 @@ class ListingServiceSpec extends Specification {
       createdTime = Instant.now()
     }
     listingRepository.save(_ as Listing) >> savedListing
-    userService.getById(person.userId) >> user
+    userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000),  Currency.EUR))
 
     when:
@@ -72,7 +76,7 @@ class ListingServiceSpec extends Specification {
       createdTime = Instant.now()
     }
     listingRepository.save(_ as Listing) >> savedListing
-    userService.getById(person.userId) >> user
+    userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000),  Currency.EUR))
 
     when:
@@ -94,7 +98,7 @@ class ListingServiceSpec extends Specification {
       createdTime = Instant.now()
     }
     listingRepository.save(_ as Listing) >> savedListing
-    userService.getById(person.userId) >> user
+    userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), UNVESTED_WORK_COMPENSATION, BigDecimal.valueOf(1000),  Currency.EUR))
 
     when:
@@ -115,7 +119,7 @@ class ListingServiceSpec extends Specification {
     listingRepository.findByExpiryTimeAfter(clock.instant()) >> [entity]
 
     var person = sampleAuthenticatedPersonAndMember()
-    userService.getById(_) >> sampleUser().build()
+    userService.getById(_) >> Optional.of(sampleUser().build())
     when:
     def results = service.findActiveListings(person.build())
 
@@ -127,7 +131,7 @@ class ListingServiceSpec extends Specification {
     given:
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     def user = sampleUser().build()
-    userService.getById(authenticatedPerson.userId) >> user
+    userService.getById(authenticatedPerson.userId) >> Optional.of(user)
     def listing = activeListing().id(1L).memberId(user.memberId).build()
     1 * listingRepository.findByIdAndMemberId(1L, user.memberId) >> Optional.of(listing)
     1 * listingRepository.save(_) >> { Listing it ->
@@ -149,7 +153,7 @@ class ListingServiceSpec extends Specification {
     given:
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     def user = sampleUser().build()
-    userService.getById(authenticatedPerson.userId) >> user
+    userService.getById(authenticatedPerson.userId) >> Optional.of(user)
     def listing = expiredListing().id(1L).memberId(user.memberId).build()
     1 * listingRepository.findByIdAndMemberId(1L, user.memberId) >> Optional.of(listing)
 

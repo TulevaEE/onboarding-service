@@ -60,7 +60,7 @@ class MandateServiceSpec extends Specification {
   User sampleUser = sampleUser()
 
   def setup() {
-    userService.getById(sampleUser.id) >> sampleUser
+    userService.getById(sampleUser.id) >> Optional.of(sampleUser)
   }
 
   def "save: Converting create mandate command and persisting a mandate"() {

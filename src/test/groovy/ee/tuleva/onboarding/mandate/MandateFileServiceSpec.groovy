@@ -33,7 +33,7 @@ class MandateFileServiceSpec extends Specification {
     given:
     ContactDetails sampleContactDetails = contactDetailsFixture()
 
-    1 * userService.getById(user.id) >> user
+    1 * userService.getById(user.id) >> Optional.of(user)
     1 * mandateRepository.findByIdAndUserId(mandate.id, user.id) >> Mandate.builder().pillar(2).build()
     1 * episService.getContactDetails(user) >> sampleContactDetails
 

@@ -29,7 +29,7 @@ public abstract class MandateFactory<TDetails extends MandateDetails> {
 
   Mandate setupMandate(
       AuthenticatedPerson authenticatedPerson, MandateDto<TDetails> mandateCreationDto) {
-    User user = userService.getById(authenticatedPerson.getUserId());
+    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
     ConversionResponse conversion = conversionService.getConversion(user);
     ContactDetails contactDetails = episService.getContactDetails(user);
 

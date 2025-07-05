@@ -30,7 +30,7 @@ public class GenericMandateService {
             .orElseThrow(() -> new IllegalStateException("Unsupported mandateType: " + mandateType))
             .createMandate(authenticatedPerson, (MandateDto<T>) mandateCreationDto);
 
-    User user = userService.getById(authenticatedPerson.getUserId());
+    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
     mandateService.save(user, mandate);
 
     return mandate;
@@ -51,7 +51,7 @@ public class GenericMandateService {
             .orElseThrow(() -> new IllegalStateException("Unsupported mandateType: " + mandateType))
             .createMandate(authenticatedPerson, (MandateDto<T>) mandateCreationDto);
 
-    User user = userService.getById(authenticatedPerson.getUserId());
+    User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
 
     mandate.setMandateBatch(batch);
     mandateService.save(user, mandate);

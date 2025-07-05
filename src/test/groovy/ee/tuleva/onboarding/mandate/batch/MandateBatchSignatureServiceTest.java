@@ -59,7 +59,7 @@ class MandateBatchSignatureServiceTest {
       var authenticatedPerson =
           authenticatedPersonFromUser(user).attributes(Map.of(PHONE_NUMBER, phoneNumber)).build();
 
-      when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(user);
+      when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(Optional.of(user));
       when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user)))
           .thenReturn(List.of());
       when(signService.startMobileIdSign(
@@ -106,7 +106,7 @@ class MandateBatchSignatureServiceTest {
       var user = sampleUser().build();
       var authenticatedPerson = authenticatedPersonFromUser(user).build();
 
-      when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(user);
+      when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(Optional.of(user));
       when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user)))
           .thenReturn(List.of());
       when(signService.startSmartIdSign(any(), eq(user.getPersonalCode()))).thenReturn(mockSession);
@@ -154,7 +154,7 @@ class MandateBatchSignatureServiceTest {
       var user = sampleUser().build();
       var authenticatedPerson = authenticatedPersonFromUser(user).build();
 
-      when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(user);
+      when(userService.getById(eq(authenticatedPerson.getUserId()))).thenReturn(Optional.of(user));
       when(mandateBatchService.getMandateBatchContentFiles(eq(mandateBatchId), eq(user)))
           .thenReturn(List.of());
       when(signService.startIdCardSign(any(), eq(clientCertificate))).thenReturn(mockSession);

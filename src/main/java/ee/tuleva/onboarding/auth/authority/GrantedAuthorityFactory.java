@@ -22,7 +22,7 @@ public class GrantedAuthorityFactory {
 
   public List<? extends GrantedAuthority> from(AuthenticatedPerson authenticatedPerson) {
     Long userId = authenticatedPerson.getUserId();
-    User user = userService.getById(userId);
+    User user = userService.getById(userId).orElseThrow();
 
     List<SimpleGrantedAuthority> grantedAuthorities =
         user.getMember()

@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.user.member.MemberRepository;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -21,10 +20,8 @@ public class UserService {
   private final MemberRepository memberRepository;
   private final ApplicationEventPublisher applicationEventPublisher;
 
-  // TODO: replace with Optional<User>
-  @Nullable
-  public User getById(Long userId) {
-    return userRepository.findById(userId).orElse(null);
+  public Optional<User> getById(Long userId) {
+    return userRepository.findById(userId);
   }
 
   public Optional<User> findByPersonalCode(String personalCode) {

@@ -34,7 +34,7 @@ class UserControllerSpec extends BaseControllerSpec {
     def contactDetails = contactDetailsFixture()
     def user = userFrom(sampleAuthenticatedPerson)
     def samplePaymentRates = new PaymentRates(2, 6)
-    1 * userService.getById(sampleAuthenticatedPerson.userId) >> user
+    1 * userService.getById(sampleAuthenticatedPerson.userId) >> Optional.of(user)
     1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
     1 * secondPillarPaymentRateService
         .getPaymentRates(sampleAuthenticatedPerson) >> samplePaymentRates
@@ -71,7 +71,7 @@ class UserControllerSpec extends BaseControllerSpec {
     def contactDetails = contactDetailsFixture()
     def user = userFrom(sampleAuthenticatedPerson)
     def samplePaymentRates = new PaymentRates(2, null)
-    1 * userService.getById(sampleAuthenticatedPerson.userId) >> user
+    1 * userService.getById(sampleAuthenticatedPerson.userId) >> Optional.of(user)
     1 * episService.getContactDetails(sampleAuthenticatedPerson) >> contactDetails
     1 * secondPillarPaymentRateService
         .getPaymentRates(sampleAuthenticatedPerson) >> samplePaymentRates
@@ -106,7 +106,7 @@ class UserControllerSpec extends BaseControllerSpec {
     def user = sampleUser().build()
     def contactDetails = contactDetailsFixture()
     def samplePaymentRates = new PaymentRates(2, 6)
-    1 * userService.getById(user.id) >> user
+    1 * userService.getById(user.id) >> Optional.of(user)
     1 * episService.getContactDetails(authenticatedPerson) >> contactDetails
     1 * secondPillarPaymentRateService
         .getPaymentRates(authenticatedPerson) >> samplePaymentRates

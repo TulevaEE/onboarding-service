@@ -69,6 +69,19 @@ public class EmailService {
     return message;
   }
 
+  public MandrillMessage newMandrillMessage(
+      String to,
+      String replyTo,
+      String templateName,
+      Map<String, Object> mergeVars,
+      List<String> tags,
+      List<MessageContent> attachments) {
+    MandrillMessage message = newMandrillMessage(to, templateName, mergeVars, tags, attachments);
+    message.setHeaders(Map.of("Reply-To", replyTo));
+
+    return message;
+  }
+
   public Optional<MandrillMessageStatus> send(
       User user, MandrillMessage message, String templateName) {
     return send(user, message, templateName, null);

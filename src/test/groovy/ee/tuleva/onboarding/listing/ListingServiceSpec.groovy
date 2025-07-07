@@ -1,11 +1,14 @@
 package ee.tuleva.onboarding.listing
 
-
+import com.microtripit.mandrillapp.lutung.view.MandrillMessage
+import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.capital.ApiCapitalEvent
 import ee.tuleva.onboarding.capital.CapitalService
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.locale.LocaleService
+import ee.tuleva.onboarding.mandate.email.persistence.Email
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
+import ee.tuleva.onboarding.mandate.email.persistence.EmailType
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.time.TestClockHolder
@@ -24,6 +27,7 @@ import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.U
 import static ee.tuleva.onboarding.listing.Listing.State.CANCELLED
 import static ee.tuleva.onboarding.listing.ListingType.SELL
 import static ee.tuleva.onboarding.listing.ListingsFixture.*
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_CONTACT
 
 class ListingServiceSpec extends Specification {
 
@@ -162,5 +166,43 @@ class ListingServiceSpec extends Specification {
 
     then:
     thrown(IllegalStateException)
+  }
+
+  def "can contact listing owner"() {
+    given:
+    def contacter = sampleUser().build()
+    def listingOwner = sampleUser().firstName("Sander").email("sander@tuleva.ee").id(1111).build()
+    def contacterPerson = authenticatedPersonFromUser(contacter).build()
+
+    def contactMessageRequest = new ContactMessageRequest("Hello!\n I would like to buy your shares.\n Best, Jordan", ListingContactPreference.EMAIL_ONLY)
+
+    def savedListing = newListingRequest().type(SELL).units(100.00).build().toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+
+    def mockMessage = Mock(MandrillMessage)
+
+    def messageStatus = Mock(MandrillMessageStatus)
+    messageStatus.getStatus() >> "QUEUED"
+    messageStatus.getId() >> "ID"
+    listingRepository.findById(_) >> Optional.of(savedListing)
+    userService.getByMemberId(42L) >> listingOwner
+    userService.getById(contacterPerson.userId) >> Optional.of(contacter)
+    emailService.newMandrillMessage(
+        listingOwner.email,
+        contacter.email,
+        LISTING_CONTACT.getTemplateName(savedListing.language),
+        { Map it -> it.get("message") == contactMessageRequest.message() },
+        _,
+        null
+    ) >> mockMessage
+    1 * emailService.send(listingOwner, mockMessage, LISTING_CONTACT.getTemplateName(savedListing.language)) >> Optional.of(messageStatus)
+    1 * emailPersistenceService.save(listingOwner, "ID", LISTING_CONTACT, "QUEUED") >> Email.builder().id(1).build()
+    when:
+    def message = service.contactListingOwner(savedListing.id, contactMessageRequest, contacterPerson)
+
+    then:
+    message.id() == 1
   }
 }

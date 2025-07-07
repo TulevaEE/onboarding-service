@@ -12,7 +12,6 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.config.SecurityTestHelper.mockAuthentication
-import static ee.tuleva.onboarding.listing.ListingContactPreference.EMAIL_AND_PHONE
 import static ee.tuleva.onboarding.listing.ListingsFixture.activeListing
 import static ee.tuleva.onboarding.listing.ListingsFixture.newListingRequest
 import static org.springframework.http.MediaType.APPLICATION_JSON
@@ -95,7 +94,7 @@ class ListingControllerSpec extends Specification {
 
   def "can contact a listing owner"() {
     given:
-    def request = new ContactMessageRequest("Hello", EMAIL_AND_PHONE)
+    def request = new ContactMessageRequest("Hello")
     def response = new MessageResponse(10L, "QUEUED")
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     listingService.contactListingOwner(1L, request, authenticatedPerson) >> response

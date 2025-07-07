@@ -9,9 +9,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ListingRepository extends JpaRepository<Listing, Long> {
-
   @NotNull
-  List<Listing> findByExpiryTimeAfter(Instant time);
+  List<Listing> findByExpiryTimeAfterAndCancelledTimeNullAndCompletedTimeNull(Instant expiryTime);
 
   Optional<Listing> findByIdAndMemberId(@NotNull Long id, @NotNull Long memberId);
 }

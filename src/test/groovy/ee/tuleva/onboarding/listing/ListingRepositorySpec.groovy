@@ -21,7 +21,7 @@ class ListingRepositorySpec extends Specification {
     repository.save(cancelledListing().id(null).build())
 
     expect:
-    repository.findByExpiryTimeAfterAndCancelledTimeNullAndCompletedTimeNull(now) == [active]
+    repository.findByExpiryTimeAfter(now) == [active]
   }
 
   def "can find a listing by id and member id"() {

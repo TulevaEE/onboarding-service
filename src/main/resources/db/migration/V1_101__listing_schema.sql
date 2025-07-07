@@ -1,5 +1,3 @@
--- TODO: move to src/main/resources/db/migration once finished
-
 CREATE TABLE listing
 (
   id             SERIAL PRIMARY KEY NOT NULL,
@@ -8,9 +6,8 @@ CREATE TABLE listing
   units          NUMERIC(14, 2)     NOT NULL,
   price_per_unit NUMERIC(14, 2)     NOT NULL,
   currency       VARCHAR(3)         NOT NULL,
-  state          VARCHAR(20)        NOT NULL,
-  iban           VARCHAR(34),
-  language       VARCHAR(255),
+  state          VARCHAR(255)       NOT NULL,
+  language       VARCHAR(255)       NOT NULL,
   expiry_time    TIMESTAMP          NOT NULL,
   created_time   TIMESTAMP          NOT NULL DEFAULT NOW(),
   cancelled_time TIMESTAMP,

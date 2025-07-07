@@ -57,7 +57,9 @@ public class ListingService {
   public List<ListingDto> findActiveListings(AuthenticatedPerson authenticatedPerson) {
     User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
 
-    return listingRepository.findByExpiryTimeAfter(clock.instant()).stream()
+    return listingRepository
+        .findByExpiryTimeAfterAndCancelledTimeNullAndCompletedTimeNull(clock.instant())
+        .stream()
         .filter(listing -> listing.getState().equals(ACTIVE))
         .map((listing) -> ListingDto.from(listing, user))
         .toList();
@@ -81,9 +83,10 @@ public class ListingService {
 
     Map<String, Object> mergeVars =
         Map.of(
-            "message", messageRequest.message(),
-            "contactPreference", messageRequest.contactPreference().name(),
-            "counterParty", new PersonImpl(authenticatedPerson));
+            "message",
+            messageRequest.message(),
+            "counterParty",
+            new PersonImpl(authenticatedPerson));
     List<String> tags = List.of();
     EmailType emailType = LISTING_CONTACT;
 
@@ -97,7 +100,7 @@ public class ListingService {
             templateName,
             mergeVars,
             tags,
-            null);
+            List.of());
 
     return emailService
         .send(listingOwner, message, templateName)

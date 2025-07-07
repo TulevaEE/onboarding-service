@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.mandate.email.persistence.Email
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.time.TestClockHolder
@@ -120,7 +119,7 @@ class ListingServiceSpec extends Specification {
         .memberId(42L)
         .type(SELL)
         .build()
-    listingRepository.findByExpiryTimeAfter(clock.instant()) >> [entity]
+    listingRepository.findByExpiryTimeAfterAndCancelledTimeEmptyAndCompletedTimeEmpty(clock.instant()) >> [entity]
 
     var person = sampleAuthenticatedPersonAndMember()
     userService.getById(_) >> Optional.of(sampleUser().build())
@@ -174,7 +173,7 @@ class ListingServiceSpec extends Specification {
     def listingOwner = sampleUser().firstName("Sander").email("sander@tuleva.ee").id(1111).build()
     def contacterPerson = authenticatedPersonFromUser(contacter).build()
 
-    def contactMessageRequest = new ContactMessageRequest("Hello!\n I would like to buy your shares.\n Best, Jordan", ListingContactPreference.EMAIL_ONLY)
+    def contactMessageRequest = new ContactMessageRequest("Hello!\n I would like to buy your shares.\n Best, Jordan")
 
     def savedListing = newListingRequest().type(SELL).units(100.00).build().toListing(42L, 'et').tap {
       id = 1L
@@ -195,7 +194,7 @@ class ListingServiceSpec extends Specification {
         LISTING_CONTACT.getTemplateName(savedListing.language),
         { Map it -> it.get("message") == contactMessageRequest.message() },
         _,
-        null
+        _
     ) >> mockMessage
     1 * emailService.send(listingOwner, mockMessage, LISTING_CONTACT.getTemplateName(savedListing.language)) >> Optional.of(messageStatus)
     1 * emailPersistenceService.save(listingOwner, "ID", LISTING_CONTACT, "QUEUED") >> Email.builder().id(1).build()

@@ -59,9 +59,6 @@ public class Listing {
   @NotNull
   private State state;
 
-  @Column(updatable = false)
-  private String iban;
-
   @Column(nullable = false, updatable = false)
   @NotNull
   private Instant expiryTime;

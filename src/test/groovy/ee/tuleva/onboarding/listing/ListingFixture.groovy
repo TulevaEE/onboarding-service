@@ -29,6 +29,14 @@ class ListingsFixture {
     activeListing().expiryTime(now.minus(30, DAYS))
   }
 
+  static ListingBuilder completedListing() {
+    activeListing().completedTime(now.minus(30, DAYS))
+  }
+
+  static ListingBuilder cancelledListing() {
+    activeListing().completedTime(now.minus(30, DAYS))
+  }
+
   static NewListingRequestBuilder newListingRequest() {
     new NewListingRequestBuilder()
         .type(BUY)

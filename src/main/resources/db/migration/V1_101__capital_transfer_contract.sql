@@ -1,20 +1,25 @@
 CREATE TABLE capital_transfer_contract (
                                          id BIGSERIAL PRIMARY KEY,
-                                         seller_member_id BIGINT NOT NULL,
-                                         buyer_personal_code VARCHAR(255) NOT NULL,
+                                         seller_id BIGINT NOT NULL,
+                                         buyer_id BIGINT NOT NULL,
                                          iban VARCHAR(255) NOT NULL,
-                                         unit_price NUMERIC(19, 4) NOT NULL, -- Using a higher precision for financial values
+                                         unit_price NUMERIC(19, 8) NOT NULL,
                                          unit_count INTEGER NOT NULL,
                                          share_type VARCHAR(255) NOT NULL,
-                                         status VARCHAR(255) NOT NULL,
-                                         buyer_member_id BIGINT,
+                                         state VARCHAR(255) NOT NULL,
                                          original_content BYTEA NOT NULL,
                                          digi_doc_container BYTEA NOT NULL,
                                          created_at TIMESTAMP WITH TIME ZONE,
-                                         updated_at TIMESTAMP WITH TIME ZONE
+                                         updated_at TIMESTAMP WITH TIME ZONE,
+
+                                         CONSTRAINT fk_capital_transfer_contract_seller
+                                           FOREIGN KEY (seller_id)
+                                             REFERENCES member (id),
+
+                                         CONSTRAINT fk_capital_transfer_contract_buyer
+                                           FOREIGN KEY (buyer_id)
+                                             REFERENCES member (id)
 );
 
-CREATE INDEX idx_capital_transfer_contract_seller_member_id ON capital_transfer_contract (seller_member_id);
-CREATE INDEX idx_capital_transfer_contract_buyer_personal_code ON capital_transfer_contract (buyer_personal_code);
-CREATE INDEX idx_capital_transfer_contract_status ON capital_transfer_contract (status);
-
+CREATE INDEX idx_capital_transfer_contract_seller_id ON capital_transfer_contract (seller_id);
+CREATE INDEX idx_capital_transfer_contract_buyer_id ON capital_transfer_contract (buyer_id);

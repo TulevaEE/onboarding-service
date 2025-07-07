@@ -1,11 +1,10 @@
 package ee.tuleva.onboarding.capital.transfer;
 
-public enum CapitalTransferContractStatus {
+public enum CapitalTransferContractState {
   SELLER_SIGNED,
   BUYER_SIGNED,
   PAYMENT_CONFIRMED_BY_BUYER,
   PAYMENT_CONFIRMED_BY_SELLER,
-  BOARD_APPROVED,
-  COMPLETED,
+  APPROVED,
   CANCELLED
 }

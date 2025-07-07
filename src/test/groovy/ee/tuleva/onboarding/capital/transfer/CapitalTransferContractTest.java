@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import ee.tuleva.onboarding.time.ClockHolder;
-import ee.tuleva.onboarding.user.personalcode.ValidPersonalCode;
+import ee.tuleva.onboarding.user.member.Member;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
@@ -25,6 +25,8 @@ class CapitalTransferContractTest {
 
   private CapitalTransferContract.CapitalTransferContractBuilder contractBuilder;
   private byte[] updatedContainer;
+  private Member seller;
+  private Member buyer;
   private static Validator validator;
 
   @BeforeAll
@@ -37,18 +39,20 @@ class CapitalTransferContractTest {
   @BeforeEach
   void setUp() {
     // given
+    seller = Member.builder().id(1L).memberNumber(101).build();
+    buyer = Member.builder().id(2L).memberNumber(102).build();
     updatedContainer = "buyer_signed".getBytes();
     contractBuilder =
         CapitalTransferContract.builder()
-            .sellerMemberId(1L)
-            .buyerPersonalCode("38801010000")
+            .seller(seller)
+            .buyer(buyer)
             .iban("EE471000001020145685")
             .unitPrice(BigDecimal.TEN)
             .unitCount(100)
             .shareType(ShareType.MEMBER_CAPITAL)
             .originalContent("original".getBytes())
             .digiDocContainer("seller_signed".getBytes())
-            .status(CapitalTransferContractStatus.SELLER_SIGNED);
+            .state(CapitalTransferContractState.SELLER_SIGNED);
   }
 
   @Nested
@@ -70,16 +74,16 @@ class CapitalTransferContractTest {
     }
 
     @Test
-    @DisplayName("onCreate sets default status if it is null")
-    void onCreate_setsDefaultStatus() {
+    @DisplayName("onCreate sets default state if it is null")
+    void onCreate_setsDefaultState() {
       // given
-      CapitalTransferContract contract = contractBuilder.status(null).build();
+      CapitalTransferContract contract = contractBuilder.state(null).build();
 
       // when
       contract.onCreate();
 
       // then
-      assertThat(contract.getStatus()).isEqualTo(CapitalTransferContractStatus.SELLER_SIGNED);
+      assertThat(contract.getState()).isEqualTo(CapitalTransferContractState.SELLER_SIGNED);
     }
 
     @Test
@@ -114,40 +118,36 @@ class CapitalTransferContractTest {
 
       // when / then: sign by buyer
       contract.signByBuyer(updatedContainer);
-      assertThat(contract.getStatus()).isEqualTo(CapitalTransferContractStatus.BUYER_SIGNED);
+      assertThat(contract.getState()).isEqualTo(CapitalTransferContractState.BUYER_SIGNED);
       assertThat(contract.getDigiDocContainer()).isEqualTo(updatedContainer);
 
       // when / then: confirm payment by buyer
       contract.confirmPaymentByBuyer();
-      assertThat(contract.getStatus())
-          .isEqualTo(CapitalTransferContractStatus.PAYMENT_CONFIRMED_BY_BUYER);
+      assertThat(contract.getState())
+          .isEqualTo(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_BUYER);
 
       // when / then: confirm payment by seller
       contract.confirmPaymentBySeller();
-      assertThat(contract.getStatus())
-          .isEqualTo(CapitalTransferContractStatus.PAYMENT_CONFIRMED_BY_SELLER);
+      assertThat(contract.getState())
+          .isEqualTo(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_SELLER);
 
       // when / then: approve by board
-      contract.approveByBoard();
-      assertThat(contract.getStatus()).isEqualTo(CapitalTransferContractStatus.BOARD_APPROVED);
-
-      // when / then: complete
-      contract.complete();
-      assertThat(contract.getStatus()).isEqualTo(CapitalTransferContractStatus.COMPLETED);
+      contract.approve();
+      assertThat(contract.getState()).isEqualTo(CapitalTransferContractState.APPROVED);
     }
 
     @Test
-    @DisplayName("can assign a buyer member id")
+    @DisplayName("can assign a buyer member")
     void assignBuyer() {
       // given
       CapitalTransferContract contract = contractBuilder.build();
-      Long buyerId = 2L;
+      Member newBuyer = Member.builder().id(3L).build();
 
       // when
-      contract.assignBuyer(buyerId);
+      contract.assignBuyer(newBuyer);
 
       // then
-      assertThat(contract.getBuyerMemberId()).isEqualTo(buyerId);
+      assertThat(contract.getBuyer()).isEqualTo(newBuyer);
     }
 
     @Test
@@ -159,8 +159,7 @@ class CapitalTransferContractTest {
       // then
       assertThrows(IllegalStateException.class, contract::confirmPaymentByBuyer);
       assertThrows(IllegalStateException.class, contract::confirmPaymentBySeller);
-      assertThrows(IllegalStateException.class, contract::approveByBoard);
-      assertThrows(IllegalStateException.class, contract::complete);
+      assertThrows(IllegalStateException.class, contract::approve);
     }
 
     @Test
@@ -168,21 +167,21 @@ class CapitalTransferContractTest {
     void cancel() {
       // given
       CapitalTransferContract contract =
-          contractBuilder.status(CapitalTransferContractStatus.PAYMENT_CONFIRMED_BY_SELLER).build();
+          contractBuilder.state(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_SELLER).build();
 
       // when
       contract.cancel();
 
       // then
-      assertThat(contract.getStatus()).isEqualTo(CapitalTransferContractStatus.CANCELLED);
+      assertThat(contract.getState()).isEqualTo(CapitalTransferContractState.CANCELLED);
     }
 
     @Test
-    @DisplayName("throws exception when cancelling a completed contract")
+    @DisplayName("throws exception when cancelling an approved contract")
     void cancel_failsOnCompleted() {
       // given
       CapitalTransferContract contract =
-          contractBuilder.status(CapitalTransferContractStatus.COMPLETED).build();
+          contractBuilder.state(CapitalTransferContractState.APPROVED).build();
 
       // then
       assertThrows(IllegalStateException.class, contract::cancel);
@@ -206,10 +205,10 @@ class CapitalTransferContractTest {
     }
 
     @Test
-    @DisplayName("fails for a non-Estonian IBAN")
+    @DisplayName("fails for a invalid IBAN")
     void validation_failsForInvalidIban() {
       // given
-      CapitalTransferContract contract = contractBuilder.iban("DE75512108001245126199").build();
+      CapitalTransferContract contract = contractBuilder.iban("DE75512108001245126190").build();
 
       // when
       Set<ConstraintViolation<CapitalTransferContract>> violations = validator.validate(contract);
@@ -219,43 +218,35 @@ class CapitalTransferContractTest {
       ConstraintViolation<CapitalTransferContract> violation = violations.iterator().next();
       assertThat(violation.getPropertyPath().toString()).isEqualTo("iban");
       assertThat(violation.getMessage())
-          .isEqualTo("IBAN must be an Estonian IBAN (starting with EE).");
+          .isEqualTo("{ee.tuleva.onboarding.capital.transfer.iban.ValidIban.message}");
     }
 
     @Test
-    @DisplayName("fails for an invalid personal code")
-    void validation_failsForInvalidPersonalCode() {
+    @DisplayName("fails when seller is null")
+    void validation_failsForNullSeller() {
       // given
-      CapitalTransferContract contract = contractBuilder.buyerPersonalCode("123").build();
+      CapitalTransferContract contract = contractBuilder.seller(null).build();
 
       // when
       Set<ConstraintViolation<CapitalTransferContract>> violations = validator.validate(contract);
 
       // then
       assertThat(violations).hasSize(1);
-      assertThat(
-              violations
-                  .iterator()
-                  .next()
-                  .getConstraintDescriptor()
-                  .getAnnotation()
-                  .annotationType())
-          .isEqualTo(ValidPersonalCode.class);
+      assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("seller");
     }
 
     @Test
-    @DisplayName("fails when sellerMemberId is null")
-    void validation_failsForNullSellerMemberId() {
+    @DisplayName("fails when buyer is null")
+    void validation_failsForNullBuyer() {
       // given
-      CapitalTransferContract contract = contractBuilder.sellerMemberId(null).build();
+      CapitalTransferContract contract = contractBuilder.buyer(null).build();
 
       // when
       Set<ConstraintViolation<CapitalTransferContract>> violations = validator.validate(contract);
 
       // then
       assertThat(violations).hasSize(1);
-      assertThat(violations.iterator().next().getPropertyPath().toString())
-          .isEqualTo("sellerMemberId");
+      assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("buyer");
     }
 
     @Test

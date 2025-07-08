@@ -158,7 +158,8 @@ class CapitalTransferContractTest {
           IllegalStateException.class,
           () -> contractInCreatedState.signByBuyer(buyerSignedContainer));
       assertThrows(IllegalStateException.class, contractInCreatedState::confirmPaymentByBuyer);
-      assertThrows(IllegalStateException.class, contractInSellerSignedState::confirmPaymentBySeller);
+      assertThrows(
+          IllegalStateException.class, contractInSellerSignedState::confirmPaymentBySeller);
       assertThrows(IllegalStateException.class, contractInSellerSignedState::approve);
     }
 

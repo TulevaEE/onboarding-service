@@ -47,7 +47,7 @@ public class CapitalTransferContract {
 
   @NotNull @Lob private byte[] originalContent;
 
-  @NotNull @Lob private byte[] digiDocContainer;
+  @Lob private byte[] digiDocContainer;
 
   private LocalDateTime createdAt;
 
@@ -59,9 +59,6 @@ public class CapitalTransferContract {
         ClockHolder.getClock().instant().atZone(ClockHolder.getClock().getZone()).toLocalDateTime();
     createdAt = now;
     updatedAt = now;
-    if (state == null) {
-      state = CapitalTransferContractState.SELLER_SIGNED;
-    }
   }
 
   @PreUpdate
@@ -79,6 +76,13 @@ public class CapitalTransferContract {
 
   public CapitalTransferContract assignBuyer(Member buyer) {
     this.setBuyer(buyer);
+    return this;
+  }
+
+  public CapitalTransferContract signBySeller(byte[] container) {
+    requireState(CapitalTransferContractState.CREATED);
+    this.setDigiDocContainer(container);
+    this.setState(CapitalTransferContractState.SELLER_SIGNED);
     return this;
   }
 

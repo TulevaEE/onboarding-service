@@ -24,7 +24,8 @@ import org.junit.jupiter.api.Test;
 class CapitalTransferContractTest {
 
   private CapitalTransferContract.CapitalTransferContractBuilder contractBuilder;
-  private byte[] updatedContainer;
+  private byte[] sellerSignedContainer;
+  private byte[] buyerSignedContainer;
   private Member seller;
   private Member buyer;
   private static Validator validator;
@@ -41,7 +42,8 @@ class CapitalTransferContractTest {
     // given
     seller = Member.builder().id(1L).memberNumber(101).build();
     buyer = Member.builder().id(2L).memberNumber(102).build();
-    updatedContainer = "buyer_signed".getBytes();
+    sellerSignedContainer = "seller_signed".getBytes();
+    buyerSignedContainer = "buyer_signed".getBytes();
     contractBuilder =
         CapitalTransferContract.builder()
             .seller(seller)
@@ -51,8 +53,8 @@ class CapitalTransferContractTest {
             .unitCount(100)
             .shareType(ShareType.MEMBER_CAPITAL)
             .originalContent("original".getBytes())
-            .digiDocContainer("seller_signed".getBytes())
-            .state(CapitalTransferContractState.SELLER_SIGNED);
+            .digiDocContainer(null)
+            .state(CapitalTransferContractState.CREATED);
   }
 
   @Nested
@@ -71,19 +73,6 @@ class CapitalTransferContractTest {
       assertThat(contract.getCreatedAt()).isNotNull();
       assertThat(contract.getUpdatedAt()).isNotNull();
       assertThat(contract.getCreatedAt()).isEqualTo(contract.getUpdatedAt());
-    }
-
-    @Test
-    @DisplayName("onCreate sets default state if it is null")
-    void onCreate_setsDefaultState() {
-      // given
-      CapitalTransferContract contract = contractBuilder.state(null).build();
-
-      // when
-      contract.onCreate();
-
-      // then
-      assertThat(contract.getState()).isEqualTo(CapitalTransferContractState.SELLER_SIGNED);
     }
 
     @Test
@@ -115,11 +104,17 @@ class CapitalTransferContractTest {
     void happyPath() {
       // given
       CapitalTransferContract contract = contractBuilder.build();
+      assertThat(contract.getState()).isEqualTo(CapitalTransferContractState.CREATED);
+
+      // when / then: sign by seller
+      contract.signBySeller(sellerSignedContainer);
+      assertThat(contract.getState()).isEqualTo(CapitalTransferContractState.SELLER_SIGNED);
+      assertThat(contract.getDigiDocContainer()).isEqualTo(sellerSignedContainer);
 
       // when / then: sign by buyer
-      contract.signByBuyer(updatedContainer);
+      contract.signByBuyer(buyerSignedContainer);
       assertThat(contract.getState()).isEqualTo(CapitalTransferContractState.BUYER_SIGNED);
-      assertThat(contract.getDigiDocContainer()).isEqualTo(updatedContainer);
+      assertThat(contract.getDigiDocContainer()).isEqualTo(buyerSignedContainer);
 
       // when / then: confirm payment by buyer
       contract.confirmPaymentByBuyer();
@@ -154,12 +149,17 @@ class CapitalTransferContractTest {
     @DisplayName("throws exception for invalid transitions")
     void invalidTransitions() {
       // given
-      CapitalTransferContract contract = contractBuilder.build();
+      CapitalTransferContract contractInCreatedState = contractBuilder.build();
+      CapitalTransferContract contractInSellerSignedState =
+          contractBuilder.state(CapitalTransferContractState.SELLER_SIGNED).build();
 
       // then
-      assertThrows(IllegalStateException.class, contract::confirmPaymentByBuyer);
-      assertThrows(IllegalStateException.class, contract::confirmPaymentBySeller);
-      assertThrows(IllegalStateException.class, contract::approve);
+      assertThrows(
+          IllegalStateException.class,
+          () -> contractInCreatedState.signByBuyer(buyerSignedContainer));
+      assertThrows(IllegalStateException.class, contractInCreatedState::confirmPaymentByBuyer);
+      assertThrows(IllegalStateException.class, contractInSellerSignedState::confirmPaymentBySeller);
+      assertThrows(IllegalStateException.class, contractInSellerSignedState::approve);
     }
 
     @Test
@@ -307,8 +307,8 @@ class CapitalTransferContractTest {
     }
 
     @Test
-    @DisplayName("fails when digiDocContainer is null")
-    void validation_failsForNullDigiDocContainer() {
+    @DisplayName("passes when digiDocContainer is null")
+    void validation_passesForNullDigiDocContainer() {
       // given
       CapitalTransferContract contract = contractBuilder.digiDocContainer(null).build();
 
@@ -316,9 +316,7 @@ class CapitalTransferContractTest {
       Set<ConstraintViolation<CapitalTransferContract>> violations = validator.validate(contract);
 
       // then
-      assertThat(violations).hasSize(1);
-      assertThat(violations.iterator().next().getPropertyPath().toString())
-          .isEqualTo("digiDocContainer");
+      assertThat(violations).isEmpty();
     }
   }
 }

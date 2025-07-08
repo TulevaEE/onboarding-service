@@ -21,5 +21,6 @@ CREATE TABLE capital_transfer_contract (
                                              REFERENCES member (id)
 );
 
+CREATE INDEX idx_capital_transfer_contract_state ON capital_transfer_contract (state);
 CREATE INDEX idx_capital_transfer_contract_seller_id ON capital_transfer_contract (seller_id);
 CREATE INDEX idx_capital_transfer_contract_buyer_id ON capital_transfer_contract (buyer_id);

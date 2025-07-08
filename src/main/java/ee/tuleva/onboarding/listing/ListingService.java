@@ -57,9 +57,7 @@ public class ListingService {
   public List<ListingDto> findActiveListings(AuthenticatedPerson authenticatedPerson) {
     User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
 
-    return listingRepository
-        .findByExpiryTimeAfter(clock.instant())
-        .stream()
+    return listingRepository.findByExpiryTimeAfter(clock.instant()).stream()
         .filter(listing -> listing.getState().equals(ACTIVE))
         .map((listing) -> ListingDto.from(listing, user))
         .toList();

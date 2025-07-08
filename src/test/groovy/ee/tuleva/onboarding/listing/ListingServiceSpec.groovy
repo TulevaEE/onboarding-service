@@ -119,7 +119,7 @@ class ListingServiceSpec extends Specification {
         .memberId(42L)
         .type(SELL)
         .build()
-    listingRepository.findByExpiryTimeAfterAndCancelledTimeEmptyAndCompletedTimeEmpty(clock.instant()) >> [entity]
+    listingRepository.findByExpiryTimeAfter(clock.instant()) >> [entity]
 
     var person = sampleAuthenticatedPersonAndMember()
     userService.getById(_) >> Optional.of(sampleUser().build())

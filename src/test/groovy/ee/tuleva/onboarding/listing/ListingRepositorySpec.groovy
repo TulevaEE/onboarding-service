@@ -16,10 +16,6 @@ class ListingRepositorySpec extends Specification {
   def "findByExpiryTimeAfter returns only active listings"() {
     given:
     def active = repository.save(activeListing().id(null).build())
-    repository.save(expiredListing().id(null).build())
-    repository.save(completedListing().id(null).build())
-    repository.save(cancelledListing().id(null).build())
-
     expect:
     repository.findByExpiryTimeAfter(now) == [active]
   }

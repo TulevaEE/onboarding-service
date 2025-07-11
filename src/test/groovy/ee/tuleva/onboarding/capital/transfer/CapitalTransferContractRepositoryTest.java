@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixture.sampleCapitalTransferContract;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.CREATED;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.SELLER_SIGNED;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -71,7 +72,8 @@ class CapitalTransferContractRepositoryTest {
   private CapitalTransferContract createAndSaveContract(
       Member contractSeller, Member contractBuyer) {
     CapitalTransferContract contract =
-        CapitalTransferContract.builder()
+        sampleCapitalTransferContract()
+            .id(null)
             .state(CREATED)
             .seller(contractSeller)
             .buyer(contractBuyer)
@@ -90,7 +92,8 @@ class CapitalTransferContractRepositoryTest {
   void saveAndRetrieve() {
     // given
     CapitalTransferContract contractToSave =
-        CapitalTransferContract.builder()
+        sampleCapitalTransferContract()
+            .id(null)
             .state(SELLER_SIGNED)
             .seller(seller)
             .buyer(buyer)

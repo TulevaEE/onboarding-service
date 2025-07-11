@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixture.sampleCapitalTransferContract;
+import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -40,12 +42,12 @@ class CapitalTransferContractTest {
   @BeforeEach
   void setUp() {
     // given
-    seller = Member.builder().id(1L).memberNumber(101).build();
-    buyer = Member.builder().id(2L).memberNumber(102).build();
+    seller = memberFixture().id(1L).memberNumber(101).build();
+    buyer = memberFixture().id(2L).memberNumber(102).build();
     sellerSignedContainer = "seller_signed".getBytes();
     buyerSignedContainer = "buyer_signed".getBytes();
     contractBuilder =
-        CapitalTransferContract.builder()
+        sampleCapitalTransferContract()
             .seller(seller)
             .buyer(buyer)
             .iban("EE471000001020145685")

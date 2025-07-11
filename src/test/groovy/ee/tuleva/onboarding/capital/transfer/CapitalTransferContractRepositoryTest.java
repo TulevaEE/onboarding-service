@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.CREATED;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.SELLER_SIGNED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -70,6 +72,7 @@ class CapitalTransferContractRepositoryTest {
       Member contractSeller, Member contractBuyer) {
     CapitalTransferContract contract =
         CapitalTransferContract.builder()
+            .state(CREATED)
             .seller(contractSeller)
             .buyer(contractBuyer)
             .iban("EE471000001020145685")
@@ -88,6 +91,7 @@ class CapitalTransferContractRepositoryTest {
     // given
     CapitalTransferContract contractToSave =
         CapitalTransferContract.builder()
+            .state(SELLER_SIGNED)
             .seller(seller)
             .buyer(buyer)
             .iban("EE471000001020145685")

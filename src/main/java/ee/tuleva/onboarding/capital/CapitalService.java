@@ -43,6 +43,8 @@ public class CapitalService {
   List<CapitalRow> getCapitalRows(Long memberId) {
     List<MemberCapitalEvent> events = memberCapitalEventRepository.findAllByMemberId(memberId);
 
+    var latestUnitPrice = getLatestOwnershipUnitPrice();
+
     Map<MemberCapitalEventType, CapitalRow> grouped =
         events.stream()
             .filter(pastEvents())
@@ -50,29 +52,11 @@ public class CapitalService {
                 groupingBy(
                     MemberCapitalEvent::getType,
                     reducing(
-                        new CapitalRow(null, ZERO, ZERO, EUR),
-                        event ->
-                            new CapitalRow(
-                                event.getType(),
-                                event.getFiatValue(),
-                                getProfit(List.of(event)),
-                                EUR),
-                        (CapitalRow a, CapitalRow b) ->
-                            new CapitalRow(
-                                a.type() != null ? a.type() : b.type(),
-                                a.contributions().add(b.contributions()),
-                                a.profit().add(b.profit()),
-                                EUR))));
+                        CapitalRow.empty(),
+                        event -> CapitalRow.from(event, latestUnitPrice, getProfit(event)),
+                        CapitalRow::sum)));
 
-    return grouped.values().stream()
-        .map(
-            row ->
-                new CapitalRow(
-                    row.type(),
-                    row.contributions().setScale(2, HALF_DOWN),
-                    row.profit().setScale(2, HALF_DOWN),
-                    row.currency()))
-        .toList();
+    return grouped.values().stream().map(CapitalRow::rounded).toList();
   }
 
   CapitalStatement getCapitalStatement(Long memberId) {
@@ -98,6 +82,10 @@ public class CapitalService {
         .setScale(2, HALF_DOWN);
   }
 
+  private BigDecimal getProfit(MemberCapitalEvent event) {
+    return getProfit(List.of(event));
+  }
+
   private BigDecimal getProfit(List<MemberCapitalEvent> events) {
 
     BigDecimal totalFiatValue =
@@ -112,6 +100,14 @@ public class CapitalService {
             .map(MemberCapitalEvent::getOwnershipUnitAmount)
             .reduce(ZERO, BigDecimal::add);
 
+    BigDecimal latestUnitPrice = getLatestOwnershipUnitPrice();
+
+    BigDecimal investmentFiatValue = latestUnitPrice.multiply(totalOwnershipUnitAmount);
+
+    return investmentFiatValue.subtract(totalFiatValue).setScale(2, HALF_DOWN);
+  }
+
+  private BigDecimal getLatestOwnershipUnitPrice() {
     AggregatedCapitalEvent latestAggregatedCapitalEvent =
         aggregatedCapitalEventRepository.findTopByOrderByDateDesc();
 
@@ -119,10 +115,7 @@ public class CapitalService {
       return ZERO;
     }
 
-    BigDecimal investmentFiatValue =
-        latestAggregatedCapitalEvent.getOwnershipUnitPrice().multiply(totalOwnershipUnitAmount);
-
-    return investmentFiatValue.subtract(totalFiatValue).setScale(2, HALF_DOWN);
+    return latestAggregatedCapitalEvent.getOwnershipUnitPrice();
   }
 
   private Predicate<MemberCapitalEvent> pastEvents() {

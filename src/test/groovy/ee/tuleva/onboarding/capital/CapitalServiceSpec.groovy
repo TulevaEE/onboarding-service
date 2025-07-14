@@ -13,6 +13,7 @@ import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*
 import static ee.tuleva.onboarding.capital.event.organisation.OrganisationCapitalEventType.INVESTMENT_RETURN
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture
+import static java.math.RoundingMode.HALF_DOWN
 
 class CapitalServiceSpec extends Specification {
   MemberCapitalEventRepository memberCapitalEventRepository = Mock()
@@ -102,6 +103,7 @@ class CapitalServiceSpec extends Specification {
     memberCapitalEventRepository.findAllByMemberId(member.id) >> events
 
     def ownershipUnitPrice = 1.567890
+
     aggregatedCapitalEventRepository.findTopByOrderByDateDesc() >>
         getAggregatedCapitalEvent(ownershipUnitPrice)
 
@@ -119,18 +121,21 @@ class CapitalServiceSpec extends Specification {
       contributions() == 1000.12
       profit() == 567.92
       getValue() == 1000.12 + 567.92
+      unitPrice() == ownershipUnitPrice
       currency() == EUR
     }
     with(capitalRows.find({ it.type() == WORK_COMPENSATION })) {
       contributions() == 4000.46
       profit() == 2114.94
       getValue() == 4000.46 + 2114.94
+      unitPrice() == ownershipUnitPrice
       currency() == EUR
     }
     with(capitalRows.find({ it.type() == UNVESTED_WORK_COMPENSATION })) {
       contributions() == 3000.35
       profit() == 1547.00
       getValue() == 3000.35 + 1547.00
+      unitPrice() == ownershipUnitPrice
       currency() == EUR
     }
   }

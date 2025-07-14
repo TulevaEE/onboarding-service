@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Predicate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -53,7 +54,8 @@ public class CapitalService {
                     MemberCapitalEvent::getType,
                     reducing(
                         CapitalRow.empty(),
-                        event -> CapitalRow.from(event, latestUnitPrice, getProfit(event)),
+                        event ->
+                            CapitalRow.from(event, latestUnitPrice.orElse(ZERO), getProfit(event)),
                         CapitalRow::sum)));
 
     return grouped.values().stream().map(CapitalRow::rounded).toList();
@@ -100,22 +102,26 @@ public class CapitalService {
             .map(MemberCapitalEvent::getOwnershipUnitAmount)
             .reduce(ZERO, BigDecimal::add);
 
-    BigDecimal latestUnitPrice = getLatestOwnershipUnitPrice();
+    Optional<BigDecimal> latestUnitPrice = getLatestOwnershipUnitPrice();
 
-    BigDecimal investmentFiatValue = latestUnitPrice.multiply(totalOwnershipUnitAmount);
+    if (latestUnitPrice.isEmpty()) {
+      return ZERO;
+    }
+
+    BigDecimal investmentFiatValue = latestUnitPrice.get().multiply(totalOwnershipUnitAmount);
 
     return investmentFiatValue.subtract(totalFiatValue).setScale(2, HALF_DOWN);
   }
 
-  private BigDecimal getLatestOwnershipUnitPrice() {
+  private Optional<BigDecimal> getLatestOwnershipUnitPrice() {
     AggregatedCapitalEvent latestAggregatedCapitalEvent =
         aggregatedCapitalEventRepository.findTopByOrderByDateDesc();
 
     if (latestAggregatedCapitalEvent == null) {
-      return ZERO;
+      return Optional.empty();
     }
 
-    return latestAggregatedCapitalEvent.getOwnershipUnitPrice();
+    return Optional.of(latestAggregatedCapitalEvent.getOwnershipUnitPrice());
   }
 
   private Predicate<MemberCapitalEvent> pastEvents() {

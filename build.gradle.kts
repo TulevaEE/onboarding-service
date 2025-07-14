@@ -79,7 +79,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-json")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     compileOnly("org.jspecify:jspecify:1.0.0")
-    errorprone("com.google.errorprone:error_prone_core:2.39.0")
+    errorprone("com.google.errorprone:error_prone_core:2.40.0")
     errorprone("com.uber.nullaway:nullaway:0.12.7")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")

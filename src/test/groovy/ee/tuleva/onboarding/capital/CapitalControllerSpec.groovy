@@ -35,8 +35,8 @@ class CapitalControllerSpec extends BaseControllerSpec {
     User user = sampleUser().build()
     1 * userService.getById(user.id) >> Optional.of(user)
     1 * capitalService.getCapitalRows(user.memberOrThrow.id) >> [
-        new CapitalRow(MEMBERSHIP_BONUS, 100.0, 200.0, EUR),
-        new CapitalRow(CAPITAL_PAYMENT, 300.0, 400.0, EUR),
+        new CapitalRow(MEMBERSHIP_BONUS, 100.0, 200.0, 100.0, 3.0, EUR),
+        new CapitalRow(CAPITAL_PAYMENT, 300.0, 900.0, 400.0, 3.0, EUR),
     ]
 
     expect:
@@ -47,12 +47,16 @@ class CapitalControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$[0].contributions', is(100.0.doubleValue())))
         .andExpect(jsonPath('$[0].profit', is(200.0.doubleValue())))
         .andExpect(jsonPath('$[0].value', is(300.0.doubleValue())))
+        .andExpect(jsonPath('$[0].unitCount', is(100.0.doubleValue())))
+        .andExpect(jsonPath('$[0].unitPrice', is(3.0.doubleValue())))
         .andExpect(jsonPath('$[0].currency', is(EUR.name())))
 
         .andExpect(jsonPath('$[1].type', is(CAPITAL_PAYMENT.name())))
         .andExpect(jsonPath('$[1].contributions', is(300.0.doubleValue())))
-        .andExpect(jsonPath('$[1].profit', is(400.0.doubleValue())))
-        .andExpect(jsonPath('$[1].value', is(700.0.doubleValue())))
+        .andExpect(jsonPath('$[1].profit', is(900.0.doubleValue())))
+        .andExpect(jsonPath('$[1].value', is(1200.0.doubleValue())))
+        .andExpect(jsonPath('$[1].unitCount', is(400.0.doubleValue())))
+        .andExpect(jsonPath('$[1].unitPrice', is(3.0.doubleValue())))
         .andExpect(jsonPath('$[1].currency', is(EUR.name())))
   }
 }

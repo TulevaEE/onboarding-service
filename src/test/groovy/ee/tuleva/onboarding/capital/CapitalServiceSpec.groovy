@@ -115,12 +115,15 @@ class CapitalServiceSpec extends Specification {
       contributions() == 2000.23
       profit() == 979.07
       getValue() == 2000.23 + 979.07
+      unitCount() == 1900.00 + 0.20
+      unitPrice() == ownershipUnitPrice
       currency() == EUR
     }
     with(capitalRows.find({ it.type() == CAPITAL_PAYMENT })) {
       contributions() == 1000.12
       profit() == 567.92
       getValue() == 1000.12 + 567.92
+      unitCount() == 1000 + 0.10
       unitPrice() == ownershipUnitPrice
       currency() == EUR
     }
@@ -129,6 +132,7 @@ class CapitalServiceSpec extends Specification {
       profit() == 2114.94
       getValue() == 4000.46 + 2114.94
       unitPrice() == ownershipUnitPrice
+      unitCount() == 3900.0 + 0.40
       currency() == EUR
     }
     with(capitalRows.find({ it.type() == UNVESTED_WORK_COMPENSATION })) {
@@ -136,6 +140,7 @@ class CapitalServiceSpec extends Specification {
       profit() == 1547.00
       getValue() == 3000.35 + 1547.00
       unitPrice() == ownershipUnitPrice
+      unitCount() == 2900.0 + 0.30
       currency() == EUR
     }
   }

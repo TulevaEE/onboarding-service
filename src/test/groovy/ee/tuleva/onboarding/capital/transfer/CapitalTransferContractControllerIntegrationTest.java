@@ -208,12 +208,9 @@ class CapitalTransferContractControllerIntegrationTest {
 
     // then
     verify(emailService)
-        .send(any(User.class), any(MandrillMessage.class), eq("capital.transfer.seller.signed"));
+        .send(any(User.class), any(MandrillMessage.class), eq("capital_transfer_seller_signed_et"));
     verify(emailService)
-        .send(
-            any(User.class),
-            any(MandrillMessage.class),
-            eq("capital.transfer.buyer.needs.to.sign"));
+        .send(any(User.class), any(MandrillMessage.class), eq("capital_transfer_buyer_to_sign_et"));
 
     // given
     SmartIdSignatureSession buyerSession =
@@ -274,21 +271,5 @@ class CapitalTransferContractControllerIntegrationTest {
         // then
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.state").value("PAYMENT_CONFIRMED_BY_SELLER"));
-
-    // given
-    UpdateCapitalTransferContractStateCommand approveCommand =
-        new UpdateCapitalTransferContractStateCommand();
-    approveCommand.setState(CapitalTransferContractState.APPROVED);
-
-    // when
-    mockMvc
-        .perform(
-            patch("/api/v1/capital-transfer-contracts/{id}", contractId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(approveCommand))
-                .with(authentication(sellerAuthentication)))
-        // then
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.state").value("APPROVED"));
   }
 }

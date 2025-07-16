@@ -127,10 +127,6 @@ class CapitalTransferContractTest {
       contract.confirmPaymentBySeller();
       assertThat(contract.getState())
           .isEqualTo(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_SELLER);
-
-      // when / then: approve by board
-      contract.approve();
-      assertThat(contract.getState()).isEqualTo(CapitalTransferContractState.APPROVED);
     }
 
     @Test
@@ -162,7 +158,6 @@ class CapitalTransferContractTest {
       assertThrows(IllegalStateException.class, contractInCreatedState::confirmPaymentByBuyer);
       assertThrows(
           IllegalStateException.class, contractInSellerSignedState::confirmPaymentBySeller);
-      assertThrows(IllegalStateException.class, contractInSellerSignedState::approve);
     }
 
     @Test

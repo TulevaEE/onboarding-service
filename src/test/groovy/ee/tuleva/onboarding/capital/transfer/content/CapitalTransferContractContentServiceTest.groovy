@@ -5,7 +5,6 @@ import au.com.origin.snapshots.annotations.SnapshotName
 import au.com.origin.snapshots.spock.EnableSnapshots
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState
-import ee.tuleva.onboarding.capital.transfer.ShareType
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.member.Member
 import org.springframework.beans.factory.annotation.Autowired
@@ -52,8 +51,8 @@ class CapitalTransferContractContentServiceTest extends Specification {
         .buyer(buyer)
         .iban("EE471000001020145685")
         .unitPrice(new BigDecimal("12.50"))
-        .unitCount(100)
-        .shareType(ShareType.MEMBER_CAPITAL)
+        .unitCount(new BigDecimal("100"))
+        .unitsOfMemberBonus(new BigDecimal("2.0"))
         .state(CapitalTransferContractState.CREATED)
         .createdAt(LocalDateTime.of(2023, 12, 15, 10, 30))
         .build()
@@ -90,8 +89,8 @@ class CapitalTransferContractContentServiceTest extends Specification {
         .buyer(buyer)
         .iban("EE382200221020145685")
         .unitPrice(new BigDecimal("25.00"))
-        .unitCount(50)
-        .shareType(ShareType.MEMBER_BONUS)
+        .unitCount(new BigDecimal("50"))
+        .unitsOfMemberBonus(new BigDecimal("2.0"))
         .state(CapitalTransferContractState.CREATED)
         .createdAt(LocalDateTime.of(2024, 1, 20, 14, 45))
         .build()
@@ -122,8 +121,8 @@ class CapitalTransferContractContentServiceTest extends Specification {
         .buyer(buyer)
         .iban("EE471000001020145685")
         .unitPrice(new BigDecimal("12.50"))
-        .unitCount(100)
-        .shareType(ShareType.MEMBER_CAPITAL)
+        .unitCount(new BigDecimal("100"))
+        .unitsOfMemberBonus(new BigDecimal("2.0"))
         .state(CapitalTransferContractState.CREATED)
         .createdAt(LocalDateTime.of(2023, 12, 15, 10, 30))
         .build()

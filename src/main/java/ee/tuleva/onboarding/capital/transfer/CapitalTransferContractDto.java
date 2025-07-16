@@ -14,8 +14,8 @@ public class CapitalTransferContractDto {
   UserResponse buyer;
   String iban;
   BigDecimal unitPrice;
-  Integer unitCount;
-  ShareType shareType;
+  BigDecimal unitCount;
+  BigDecimal unitsOfMemberBonus;
   CapitalTransferContractState state;
   LocalDateTime createdAt;
   LocalDateTime updatedAt;
@@ -28,7 +28,7 @@ public class CapitalTransferContractDto {
         .iban(contract.getIban())
         .unitPrice(contract.getUnitPrice())
         .unitCount(contract.getUnitCount())
-        .shareType(contract.getShareType())
+        .unitsOfMemberBonus(contract.getUnitsOfMemberBonus())
         .state(contract.getState())
         .createdAt(contract.getCreatedAt())
         .updatedAt(contract.getUpdatedAt())

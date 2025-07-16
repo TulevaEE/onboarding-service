@@ -35,11 +35,9 @@ public class CapitalTransferContract {
 
   @NotNull private BigDecimal unitPrice;
 
-  @NotNull private Integer unitCount;
+  @NotNull private BigDecimal unitCount;
 
-  @NotNull
-  @Enumerated(EnumType.STRING)
-  private ShareType shareType;
+  @NotNull private BigDecimal unitsOfMemberBonus;
 
   @NotNull
   @Enumerated(EnumType.STRING)

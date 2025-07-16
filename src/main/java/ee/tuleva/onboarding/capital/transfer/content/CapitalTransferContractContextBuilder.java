@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.capital.transfer.content;
 
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState;
-import ee.tuleva.onboarding.capital.transfer.ShareType;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -47,14 +46,13 @@ public class CapitalTransferContractContextBuilder {
     return this;
   }
 
-  public CapitalTransferContractContextBuilder unitCount(Integer unitCount) {
+  public CapitalTransferContractContextBuilder unitCount(BigDecimal unitCount) {
     ctx.setVariable("unitCount", unitCount);
     return this;
   }
 
-  public CapitalTransferContractContextBuilder shareType(ShareType shareType) {
-    ctx.setVariable("shareType", shareType);
-    ctx.setVariable("shareTypeName", shareType.name());
+  public CapitalTransferContractContextBuilder unitsOfMemberBonus(BigDecimal unitCount) {
+    ctx.setVariable("unitCount", unitCount);
     return this;
   }
 

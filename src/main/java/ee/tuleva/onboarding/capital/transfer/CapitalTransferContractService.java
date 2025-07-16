@@ -44,7 +44,7 @@ public class CapitalTransferContractService {
             .iban(command.getIban())
             .unitPrice(command.getUnitPrice())
             .unitCount(command.getUnitCount())
-            .shareType(command.getShareType())
+            .unitsOfMemberBonus(command.getUnitsOfMemberBonus())
             .state(CapitalTransferContractState.CREATED)
             .build();
 
@@ -58,10 +58,10 @@ public class CapitalTransferContractService {
     // TODO: Implement actual validation logic
     // 1. Check if seller has enough capital
     log.info(
-        "Validating seller {} has {} units of {}",
+        "Validating seller {} has {} units of member capital, {} of that member bonus",
         seller.getId(),
         command.getUnitCount(),
-        command.getShareType());
+        command.getUnitsOfMemberBonus());
     // 2. Check for 10% concentration limit for buyer
     log.info("Validating concentration limit for buyer {}", buyer.getId());
     if (seller.getId().equals(buyer.getId())) {

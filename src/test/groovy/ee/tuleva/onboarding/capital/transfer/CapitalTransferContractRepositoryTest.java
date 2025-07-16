@@ -79,8 +79,8 @@ class CapitalTransferContractRepositoryTest {
             .buyer(contractBuyer)
             .iban("EE471000001020145685")
             .unitPrice(BigDecimal.ONE)
-            .unitCount(1)
-            .shareType(ShareType.MEMBER_CAPITAL)
+            .unitCount(BigDecimal.ONE)
+            .unitsOfMemberBonus(BigDecimal.ZERO)
             .originalContent(new byte[] {})
             .digiDocContainer(new byte[] {})
             .build();
@@ -99,8 +99,8 @@ class CapitalTransferContractRepositoryTest {
             .buyer(buyer)
             .iban("EE471000001020145685")
             .unitPrice(new BigDecimal("12.34"))
-            .unitCount(50)
-            .shareType(ShareType.MEMBER_BONUS)
+            .unitCount(new BigDecimal("50"))
+            .unitsOfMemberBonus(BigDecimal.ONE)
             .originalContent(new byte[] {1, 2})
             .digiDocContainer(new byte[] {3, 4})
             .build();
@@ -117,7 +117,8 @@ class CapitalTransferContractRepositoryTest {
     assertThat(retrievedContract.getBuyer().getId()).isEqualTo(buyer.getId());
     assertThat(retrievedContract.getIban()).isEqualTo("EE471000001020145685");
     assertThat(retrievedContract.getUnitPrice()).isEqualByComparingTo("12.34");
-    assertThat(retrievedContract.getShareType()).isEqualTo(ShareType.MEMBER_BONUS);
+    assertThat(retrievedContract.getUnitsOfMemberBonus()).isEqualByComparingTo("1");
+    assertThat(retrievedContract.getUnitCount()).isEqualByComparingTo("50");
     assertThat(retrievedContract.getState()).isEqualTo(CapitalTransferContractState.SELLER_SIGNED);
     assertThat(retrievedContract.getCreatedAt())
         .isEqualTo(NOW_INSTANT.atZone(FIXED_CLOCK.getZone()).toLocalDateTime());

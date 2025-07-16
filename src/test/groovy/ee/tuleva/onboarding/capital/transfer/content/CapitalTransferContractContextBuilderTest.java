@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState;
-import ee.tuleva.onboarding.capital.transfer.ShareType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
@@ -87,26 +86,13 @@ class CapitalTransferContractContextBuilderTest {
   @Test
   void unitCount_setsUnitCountVariable() {
     // given
-    Integer unitCount = 100;
+    BigDecimal unitCount = new BigDecimal("100.0");
 
     // when
     Context context = CapitalTransferContractContextBuilder.builder().unitCount(unitCount).build();
 
     // then
     assertThat(context.getVariable("unitCount")).isEqualTo(unitCount);
-  }
-
-  @Test
-  void shareType_setsShareTypeVariables() {
-    // given
-    ShareType shareType = ShareType.MEMBER_CAPITAL;
-
-    // when
-    Context context = CapitalTransferContractContextBuilder.builder().shareType(shareType).build();
-
-    // then
-    assertThat(context.getVariable("shareType")).isEqualTo(shareType);
-    assertThat(context.getVariable("shareTypeName")).isEqualTo("MEMBER_CAPITAL");
   }
 
   @Test
@@ -175,8 +161,8 @@ class CapitalTransferContractContextBuilderTest {
 
     String iban = "EE471000001020145685";
     BigDecimal unitPrice = new BigDecimal("12.50");
-    Integer unitCount = 100;
-    ShareType shareType = ShareType.MEMBER_CAPITAL;
+    BigDecimal unitCount = BigDecimal.valueOf(100.0);
+    BigDecimal unitsOfMemberBonus = BigDecimal.valueOf(2.0);
     BigDecimal totalAmount = new BigDecimal("1250.00");
     CapitalTransferContractState contractState = CapitalTransferContractState.CREATED;
     LocalDateTime createdAt = LocalDateTime.of(2023, 12, 15, 10, 30);
@@ -190,7 +176,7 @@ class CapitalTransferContractContextBuilderTest {
             .iban(iban)
             .unitPrice(unitPrice)
             .unitCount(unitCount)
-            .shareType(shareType)
+            .unitsOfMemberBonus(unitsOfMemberBonus)
             .totalAmount(totalAmount)
             .contractState(contractState)
             .createdAt(createdAt)
@@ -211,25 +197,11 @@ class CapitalTransferContractContextBuilderTest {
     assertThat(context.getVariable("iban")).isEqualTo(iban);
     assertThat(context.getVariable("unitPrice")).isEqualTo(unitPrice);
     assertThat(context.getVariable("unitCount")).isEqualTo(unitCount);
-    assertThat(context.getVariable("shareType")).isEqualTo(shareType);
     assertThat(context.getVariable("shareTypeName")).isEqualTo("MEMBER_CAPITAL");
     assertThat(context.getVariable("totalAmount")).isEqualTo(totalAmount);
     assertThat(context.getVariable("contractState")).isEqualTo(contractState);
     assertThat(context.getVariable("createdAt")).isEqualTo(createdAt);
     assertThat(context.getVariable("formattedCreatedAt")).isEqualTo(formattedCreatedAt);
-  }
-
-  @Test
-  void shareType_memberBonus_setsCorrectShareTypeName() {
-    // given
-    ShareType shareType = ShareType.MEMBER_BONUS;
-
-    // when
-    Context context = CapitalTransferContractContextBuilder.builder().shareType(shareType).build();
-
-    // then
-    assertThat(context.getVariable("shareType")).isEqualTo(shareType);
-    assertThat(context.getVariable("shareTypeName")).isEqualTo("MEMBER_BONUS");
   }
 
   @Test

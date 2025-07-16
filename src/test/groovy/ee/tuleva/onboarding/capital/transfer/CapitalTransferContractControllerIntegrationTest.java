@@ -149,8 +149,8 @@ class CapitalTransferContractControllerIntegrationTest {
             .buyerMemberId(buyerMember.getId())
             .iban("EE471000001020145685")
             .unitPrice(new BigDecimal("12.50"))
-            .unitCount(100)
-            .shareType(ShareType.MEMBER_CAPITAL)
+            .unitCount(new BigDecimal("100.0"))
+            .unitsOfMemberBonus(new BigDecimal("2.0"))
             .build();
 
     String responseBody =

@@ -19,12 +19,14 @@ public class CreateCapitalTransferContractCommand {
   @NotNull @ValidIban private String iban;
 
   @NotNull
-  @Min(0)
+  @Min(1) // TODO can we get this from somewhere else
   private BigDecimal unitPrice;
 
   @NotNull
-  @Min(1)
-  private Integer unitCount;
+  @Min(0)
+  private BigDecimal unitCount;
 
-  @NotNull private ShareType shareType;
+  @NotNull
+  @Min(0)
+  private BigDecimal unitsOfMemberBonus;
 }

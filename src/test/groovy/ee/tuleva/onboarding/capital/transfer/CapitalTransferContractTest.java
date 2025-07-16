@@ -52,8 +52,8 @@ class CapitalTransferContractTest {
             .buyer(buyer)
             .iban("EE471000001020145685")
             .unitPrice(BigDecimal.TEN)
-            .unitCount(100)
-            .shareType(ShareType.MEMBER_CAPITAL)
+            .unitCount(new BigDecimal("100.0"))
+            .unitsOfMemberBonus(new BigDecimal("2.0"))
             .originalContent("original".getBytes())
             .digiDocContainer(null)
             .state(CapitalTransferContractState.CREATED);
@@ -278,20 +278,6 @@ class CapitalTransferContractTest {
       // then
       assertThat(violations).hasSize(1);
       assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("unitCount");
-    }
-
-    @Test
-    @DisplayName("fails when shareType is null")
-    void validation_failsForNullShareType() {
-      // given
-      CapitalTransferContract contract = contractBuilder.shareType(null).build();
-
-      // when
-      Set<ConstraintViolation<CapitalTransferContract>> violations = validator.validate(contract);
-
-      // then
-      assertThat(violations).hasSize(1);
-      assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("shareType");
     }
 
     @Test

@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.capital.transfer.content;
 
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import lombok.RequiredArgsConstructor;
@@ -36,8 +35,8 @@ public class CapitalTransferContractContentService {
         .iban(contract.getIban())
         .unitPrice(contract.getUnitPrice())
         .unitCount(contract.getUnitCount())
-        .shareType(contract.getShareType())
-        .totalAmount(contract.getUnitPrice().multiply(BigDecimal.valueOf(contract.getUnitCount())))
+        .unitsOfMemberBonus(contract.getUnitsOfMemberBonus())
+        .totalAmount(contract.getUnitPrice().multiply(contract.getUnitCount()))
         .contractState(contract.getState())
         .createdAt(contract.getCreatedAt())
         .formattedCreatedAt(formatDateTime(contract.getCreatedAt()))

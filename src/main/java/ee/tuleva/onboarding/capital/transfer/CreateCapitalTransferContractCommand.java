@@ -19,7 +19,7 @@ public class CreateCapitalTransferContractCommand {
   @NotNull @ValidIban private String iban;
 
   @NotNull
-  @Min(1) // TODO can we get this from somewhere else
+  @Min(1) // TODO can we get this minimum from somewhere else
   private BigDecimal unitPrice;
 
   @NotNull

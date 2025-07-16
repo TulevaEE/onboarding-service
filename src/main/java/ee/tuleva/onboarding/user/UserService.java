@@ -24,6 +24,10 @@ public class UserService {
     return userRepository.findById(userId);
   }
 
+  public User getByIdOrThrow(Long userId) {
+    return userRepository.findById(userId).orElseThrow();
+  }
+
   public Optional<User> findByPersonalCode(String personalCode) {
     return userRepository.findByPersonalCode(personalCode);
   }

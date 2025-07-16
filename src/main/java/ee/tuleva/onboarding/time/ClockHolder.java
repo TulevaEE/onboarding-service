@@ -19,6 +19,10 @@ public class ClockHolder {
     clock = defaultClock;
   }
 
+  public static Clock getClock() {
+    return clock();
+  }
+
   public static Clock clock() {
     return clock;
   }

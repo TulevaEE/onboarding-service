@@ -29,3 +29,8 @@ nbdist/
 
 
 test_keys/*.p12
+
+.run/
+.vscode/
+bin/
+*.log

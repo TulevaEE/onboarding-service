@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.capital.transfer;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContentFile;
-import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Component;
 public class CapitalTransferFileService {
 
   private final CapitalTransferContractRepository contractRepository;
-  private final CapitalTransferContractContentService contractContentService;
 
   public List<SignatureFile> getContractFiles(Long contractId) {
     CapitalTransferContract contract =
@@ -35,11 +33,10 @@ public class CapitalTransferFileService {
   }
 
   private List<CapitalTransferContentFile> getContentFiles(CapitalTransferContract contract) {
-    byte[] contractContent = contractContentService.generateContractContent(contract);
     return List.of(
         CapitalTransferContentFile.builder()
             .name("liikmekapital-%d.html".formatted(contract.getId()))
-            .content(contractContent)
+            .content(contract.getOriginalContent())
             .build());
   }
 }

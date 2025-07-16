@@ -45,7 +45,7 @@ public class CapitalTransferContract {
   @Enumerated(EnumType.STRING)
   private CapitalTransferContractState state;
 
-  @Lob private byte[] originalContent;
+  @NotNull @Lob private byte[] originalContent;
 
   @Lob private byte[] digiDocContainer;
 

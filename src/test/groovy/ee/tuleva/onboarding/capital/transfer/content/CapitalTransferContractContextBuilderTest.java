@@ -197,7 +197,7 @@ class CapitalTransferContractContextBuilderTest {
     assertThat(context.getVariable("iban")).isEqualTo(iban);
     assertThat(context.getVariable("unitPrice")).isEqualTo(unitPrice);
     assertThat(context.getVariable("unitCount")).isEqualTo(unitCount);
-    assertThat(context.getVariable("shareTypeName")).isEqualTo("MEMBER_CAPITAL");
+    assertThat(context.getVariable("unitsOfMemberBonus")).isEqualTo(unitsOfMemberBonus);
     assertThat(context.getVariable("totalAmount")).isEqualTo(totalAmount);
     assertThat(context.getVariable("contractState")).isEqualTo(contractState);
     assertThat(context.getVariable("createdAt")).isEqualTo(createdAt);

@@ -222,42 +222,6 @@ class CapitalTransferContractControllerTest {
   }
 
   @Test
-  void updateContractState_approves_contract() throws Exception {
-    // given
-    Long contractId = 1L;
-    UpdateCapitalTransferContractStateCommand command =
-        new UpdateCapitalTransferContractStateCommand();
-    command.setState(CapitalTransferContractState.APPROVED);
-
-    User sellerUser = sampleUser().id(1L).personalCode("37605030299").build();
-    Member sellerMember = memberFixture().id(1L).user(sellerUser).memberNumber(1001).build();
-    User buyerUser = sampleUser().id(2L).personalCode("60001019906").build();
-    Member buyerMember = memberFixture().id(2L).user(buyerUser).memberNumber(1002).build();
-
-    CapitalTransferContract contract =
-        sampleCapitalTransferContract()
-            .id(contractId)
-            .seller(sellerMember)
-            .buyer(buyerMember)
-            .state(CapitalTransferContractState.APPROVED)
-            .build();
-
-    given(contractService.approve(contractId)).willReturn(contract);
-
-    // when, then
-    mvc.perform(
-            patch("/api/v1/capital-transfer-contracts/{id}", contractId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(command))
-                .with(csrf()))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id", is(1)))
-        .andExpect(jsonPath("$.state", is("APPROVED")));
-
-    verify(contractService).approve(contractId);
-  }
-
-  @Test
   void startSmartIdSignature_initiates_signature_process() throws Exception {
     // given
     Long contractId = 1L;

@@ -45,7 +45,6 @@ public class CapitalTransferContractController {
     switch (command.getState()) {
       case PAYMENT_CONFIRMED_BY_BUYER -> contract = contractService.confirmPaymentByBuyer(id);
       case PAYMENT_CONFIRMED_BY_SELLER -> contract = contractService.confirmPaymentBySeller(id);
-      case APPROVED -> contract = contractService.approve(id);
       default ->
           throw new IllegalArgumentException("Unsupported state transition: " + command.getState());
     }

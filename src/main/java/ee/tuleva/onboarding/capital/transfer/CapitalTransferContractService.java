@@ -1,8 +1,11 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
+
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
+import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
@@ -81,9 +84,8 @@ public class CapitalTransferContractService {
     contractRepository.save(contract);
     log.info("Contract {} signed by seller {}", contractId, contract.getSeller().getId());
 
-    sendContractEmail(contract.getSeller().getUser(), "capital.transfer.seller.signed", contract);
-    sendContractEmail(
-        contract.getBuyer().getUser(), "capital.transfer.buyer.needs.to.sign", contract);
+    sendContractEmail(contract.getSeller().getUser(), CAPITAL_TRANSFER_SELLER_SIGNED, contract);
+    sendContractEmail(contract.getBuyer().getUser(), CAPITAL_TRANSFER_BUYER_TO_SIGN, contract);
   }
 
   public void signByBuyer(Long contractId, byte[] container) {
@@ -98,7 +100,7 @@ public class CapitalTransferContractService {
     contract.confirmPaymentByBuyer();
     log.info("Payment confirmed by buyer for contract {}", id);
     sendContractEmail(
-        contract.getSeller().getUser(), "capital.transfer.payment.confirmed.by.buyer", contract);
+        contract.getSeller().getUser(), CAPITAL_TRANSFER_CONFIRMED_BY_BUYER, contract);
     return contractRepository.save(contract);
   }
 
@@ -109,27 +111,14 @@ public class CapitalTransferContractService {
     return contractRepository.save(contract);
   }
 
-  public CapitalTransferContract approve(Long id) {
-    CapitalTransferContract contract = getContract(id);
-    contract.approve();
-    log.info("Contract {} approved by the board.", id);
-    // TODO: Implement adding registry entries
-    sendContractEmail(contract.getSeller().getUser(), "capital.transfer.complete", contract);
-    sendContractEmail(contract.getBuyer().getUser(), "capital.transfer.complete", contract);
-    return contractRepository.save(contract);
-  }
-
   public List<SignatureFile> getSignatureFiles(Long contractId) {
     return capitalTransferFileService.getContractFiles(contractId);
   }
 
   private void sendContractEmail(
-      User recipient, String templateName, CapitalTransferContract contract) {
+      User recipient, EmailType emailType, CapitalTransferContract contract) {
     if (recipient.getEmail() == null) {
-      log.error(
-          "User {} has no email, not sending email for template {}",
-          recipient.getId(),
-          templateName);
+      log.error("User {} has no email, not sending email {}", recipient.getId(), emailType);
       return;
     }
 
@@ -142,8 +131,10 @@ public class CapitalTransferContractService {
             "buyerLastName", contract.getBuyer().getUser().getLastName(),
             "contractId", contract.getId());
 
+    var templateName = emailType.getTemplateName("et");
     MandrillMessage message =
         emailService.newMandrillMessage(
+            // TODO language
             recipient.getEmail(), templateName, mergeVars, List.of("capital-transfer"), null);
 
     emailService.send(recipient, message, templateName);

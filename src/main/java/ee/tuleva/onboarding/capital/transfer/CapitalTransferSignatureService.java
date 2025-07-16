@@ -38,7 +38,8 @@ public class CapitalTransferSignatureService {
       Long contractId, AuthenticatedPerson authenticatedPerson) {
 
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
-    List<SignatureFile> files = contractService.getSignatureFiles(contractId);
+    // TODO does this create new container or add container to current?
+    List<SignatureFile> files = contractService.getSignatureFiles(contractId, user);
 
     SmartIdSignatureSession signatureSession =
         signService.startSmartIdSign(files, user.getPersonalCode());
@@ -56,7 +57,7 @@ public class CapitalTransferSignatureService {
         signatureSession.orElseThrow(IdSessionException::smartIdSignatureSessionNotFound);
 
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
-    CapitalTransferContract contract = contractService.getContract(contractId);
+    CapitalTransferContract contract = contractService.getContract(contractId, user);
 
     byte[] signedFile = signService.getSignedFile(session);
 
@@ -75,7 +76,8 @@ public class CapitalTransferSignatureService {
       AuthenticatedPerson authenticatedPerson,
       StartIdCardSignCommand signCommand) {
 
-    List<SignatureFile> files = contractService.getSignatureFiles(contractId);
+    User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    List<SignatureFile> files = contractService.getSignatureFiles(contractId, user);
 
     IdCardSignatureSession signatureSession =
         signService.startIdCardSign(files, signCommand.getClientCertificate());
@@ -96,7 +98,7 @@ public class CapitalTransferSignatureService {
         signatureSession.orElseThrow(IdSessionException::cardSignatureSessionNotFound);
 
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
-    CapitalTransferContract contract = contractService.getContract(contractId);
+    CapitalTransferContract contract = contractService.getContract(contractId, user);
 
     byte[] signedFile = signService.getSignedFile(session, signCommand.getSignedHash());
 
@@ -112,7 +114,7 @@ public class CapitalTransferSignatureService {
       Long contractId, AuthenticatedPerson authenticatedPerson) {
 
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
-    List<SignatureFile> files = contractService.getSignatureFiles(contractId);
+    List<SignatureFile> files = contractService.getSignatureFiles(contractId, user);
 
     MobileIdSignatureSession signatureSession =
         signService.startMobileIdSign(
@@ -131,7 +133,7 @@ public class CapitalTransferSignatureService {
         signatureSession.orElseThrow(IdSessionException::mobileSignatureSessionNotFound);
 
     User user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
-    CapitalTransferContract contract = contractService.getContract(contractId);
+    CapitalTransferContract contract = contractService.getContract(contractId, user);
 
     byte[] signedFile = signService.getSignedFile(session);
 
@@ -148,10 +150,10 @@ public class CapitalTransferSignatureService {
   private void finalizeSignature(CapitalTransferContract contract, User user, byte[] signedFile) {
     if (contract.getState() == CapitalTransferContractState.CREATED
         && contract.getSeller().getUser().equals(user)) {
-      contractService.signBySeller(contract.getId(), signedFile);
+      contractService.signBySeller(contract.getId(), signedFile, user);
     } else if (contract.getState() == CapitalTransferContractState.SELLER_SIGNED
         && contract.getBuyer().getUser().equals(user)) {
-      contractService.signByBuyer(contract.getId(), signedFile);
+      contractService.signByBuyer(contract.getId(), signedFile, user);
     } else {
       log.error(
           "Cannot sign contract {} in state {} by user {}",

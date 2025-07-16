@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.capital.transfer;
 
 import ee.tuleva.onboarding.capital.transfer.iban.ValidIban;
 import ee.tuleva.onboarding.time.ClockHolder;
+import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.member.Member;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
@@ -107,5 +108,12 @@ public class CapitalTransferContract {
     }
     this.setState(CapitalTransferContractState.CANCELLED);
     return this;
+  }
+
+  public boolean canBeAccessedBy(User user) {
+    var isSeller = user.getMemberOrThrow().getId().equals(seller.getId());
+    var isBuyer = user.getMemberOrThrow().getId().equals(buyer.getId());
+
+    return isBuyer || isSeller;
   }
 }

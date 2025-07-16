@@ -7,6 +7,7 @@ import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.IdCardSignatureStatusResponse;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ public class CapitalTransferContractController {
 
   private final CapitalTransferContractService contractService;
   private final CapitalTransferSignatureService signatureService;
+  private final UserService userService;
 
   @Operation(summary = "Create a capital transfer contract")
   @PostMapping
@@ -32,23 +34,21 @@ public class CapitalTransferContractController {
 
   @Operation(summary = "Get a capital transfer contract by ID")
   @GetMapping("/{id}")
-  public CapitalTransferContractDto getContract(@PathVariable Long id) {
-    return CapitalTransferContractDto.from(contractService.getContract(id));
+  public CapitalTransferContractDto getContract(
+      @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    var user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    return CapitalTransferContractDto.from(contractService.getContract(id, user));
   }
 
   @Operation(summary = "Update the state of a capital transfer contract")
   @PatchMapping("/{id}")
   public CapitalTransferContractDto updateContractState(
       @PathVariable Long id,
-      @Valid @RequestBody UpdateCapitalTransferContractStateCommand command) {
-    CapitalTransferContract contract;
-    switch (command.getState()) {
-      case PAYMENT_CONFIRMED_BY_BUYER -> contract = contractService.confirmPaymentByBuyer(id);
-      case PAYMENT_CONFIRMED_BY_SELLER -> contract = contractService.confirmPaymentBySeller(id);
-      default ->
-          throw new IllegalArgumentException("Unsupported state transition: " + command.getState());
-    }
-    return CapitalTransferContractDto.from(contract);
+      @Valid @RequestBody UpdateCapitalTransferContractStateCommand command,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    return CapitalTransferContractDto.from(
+        contractService.updateState(
+            id, command.getState(), userService.getByIdOrThrow(authenticatedPerson.getUserId())));
   }
 
   @Operation(summary = "Start Smart-ID signing for a capital transfer contract")

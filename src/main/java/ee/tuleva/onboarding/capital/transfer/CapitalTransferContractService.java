@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -72,14 +73,21 @@ public class CapitalTransferContractService {
     }
   }
 
-  public CapitalTransferContract getContract(Long id) {
-    return contractRepository
-        .findById(id)
-        .orElseThrow(() -> new IllegalArgumentException("Contract not found with id " + id));
+  public CapitalTransferContract getContract(Long id, User user) {
+    var contract =
+        contractRepository
+            .findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("Contract not found with id " + id));
+
+    if (!contract.canBeAccessedBy(user)) {
+      throw new IllegalArgumentException("Contract not found with id " + id);
+    }
+
+    return contract;
   }
 
-  public void signBySeller(Long contractId, byte[] container) {
-    CapitalTransferContract contract = getContract(contractId);
+  public void signBySeller(Long contractId, byte[] container, User user) {
+    CapitalTransferContract contract = getContract(contractId, user);
     contract.signBySeller(container);
     contractRepository.save(contract);
     log.info("Contract {} signed by seller {}", contractId, contract.getSeller().getId());
@@ -88,15 +96,38 @@ public class CapitalTransferContractService {
     sendContractEmail(contract.getBuyer().getUser(), CAPITAL_TRANSFER_BUYER_TO_SIGN, contract);
   }
 
-  public void signByBuyer(Long contractId, byte[] container) {
-    CapitalTransferContract contract = getContract(contractId);
+  public void signByBuyer(Long contractId, byte[] container, User user) {
+    CapitalTransferContract contract = getContract(contractId, user);
     contract.signByBuyer(container);
     contractRepository.save(contract);
     log.info("Contract {} signed by buyer {}", contractId, contract.getBuyer().getId());
   }
 
-  public CapitalTransferContract confirmPaymentByBuyer(Long id) {
-    CapitalTransferContract contract = getContract(id);
+  public CapitalTransferContract updateState(
+      Long id, CapitalTransferContractState desiredState, User user) {
+    CapitalTransferContract contract = getContract(id, user);
+
+    if (contract.getState().equals(BUYER_SIGNED)
+        && desiredState.equals(PAYMENT_CONFIRMED_BY_BUYER)) {
+      return confirmPaymentByBuyer(id, user);
+    }
+
+    if (contract.getState().equals(PAYMENT_CONFIRMED_BY_BUYER)
+        && desiredState.equals(PAYMENT_CONFIRMED_BY_SELLER)) {
+      return confirmPaymentBySeller(id, user);
+    }
+
+    throw new IllegalArgumentException(
+        "Unsupported state transition for contract(id=" + id + ") to " + desiredState);
+  }
+
+  private CapitalTransferContract confirmPaymentByBuyer(Long id, User user) {
+    CapitalTransferContract contract = getContract(id, user);
+
+    if (!contract.getBuyer().getId().equals(user.getMemberId())) {
+      throw new IllegalStateException("Payment can only be confirmed by buyer");
+    }
+
     contract.confirmPaymentByBuyer();
     log.info("Payment confirmed by buyer for contract {}", id);
     sendContractEmail(
@@ -104,15 +135,17 @@ public class CapitalTransferContractService {
     return contractRepository.save(contract);
   }
 
-  public CapitalTransferContract confirmPaymentBySeller(Long id) {
-    CapitalTransferContract contract = getContract(id);
+  private CapitalTransferContract confirmPaymentBySeller(Long id, User user) {
+    CapitalTransferContract contract = getContract(id, user);
     contract.confirmPaymentBySeller();
     log.info("Payment confirmed by seller for contract {}.", id);
     return contractRepository.save(contract);
   }
 
-  public List<SignatureFile> getSignatureFiles(Long contractId) {
-    return capitalTransferFileService.getContractFiles(contractId);
+  public List<SignatureFile> getSignatureFiles(Long contractId, User user) {
+    // prevent enumeration
+    var contract = getContract(contractId, user);
+    return capitalTransferFileService.getContractFiles(contract.getId());
   }
 
   private void sendContractEmail(

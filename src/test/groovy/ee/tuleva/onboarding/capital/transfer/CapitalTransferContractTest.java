@@ -295,21 +295,6 @@ class CapitalTransferContractTest {
     }
 
     @Test
-    @DisplayName("fails when originalContent is null")
-    void validation_failsForNullOriginalContent() {
-      // given
-      CapitalTransferContract contract = contractBuilder.originalContent(null).build();
-
-      // when
-      Set<ConstraintViolation<CapitalTransferContract>> violations = validator.validate(contract);
-
-      // then
-      assertThat(violations).hasSize(1);
-      assertThat(violations.iterator().next().getPropertyPath().toString())
-          .isEqualTo("originalContent");
-    }
-
-    @Test
     @DisplayName("passes when digiDocContainer is null")
     void validation_passesForNullDigiDocContainer() {
       // given

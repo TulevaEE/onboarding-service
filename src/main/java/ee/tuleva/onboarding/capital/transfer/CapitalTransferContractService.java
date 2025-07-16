@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.capital.transfer;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.user.User;
@@ -26,7 +25,7 @@ public class CapitalTransferContractService {
   private final UserService userService;
   private final MemberService memberService;
   private final EmailService emailService;
-  private final CapitalTransferContractContentService contractContentService;
+  private final CapitalTransferFileService capitalTransferFileService;
 
   public CapitalTransferContract create(
       AuthenticatedPerson sellerPerson, CreateCapitalTransferContractCommand command) {
@@ -46,9 +45,6 @@ public class CapitalTransferContractService {
             .shareType(command.getShareType())
             .state(CapitalTransferContractState.CREATED)
             .build();
-
-    byte[] contractContent = contractContentService.generateContractContent(contract);
-    contract.setOriginalContent(contractContent);
 
     return contractRepository.save(contract);
   }
@@ -119,12 +115,7 @@ public class CapitalTransferContractService {
   }
 
   public List<SignatureFile> getSignatureFiles(Long contractId) {
-    CapitalTransferContract contract = getContract(contractId);
-    return List.of(
-        new SignatureFile(
-            "liikmekapital-%d.bdoc".formatted(contractId),
-            "application/vnd.etsi.asic-e+zip",
-            contract.getOriginalContent()));
+    return capitalTransferFileService.getContractFiles(contractId);
   }
 
   private void sendContractEmail(

@@ -36,9 +36,12 @@ public class MemberController {
 
   @Operation(summary = "Get member by personal code")
   @RequestMapping(method = GET, value = "/members/lookup")
-  public ResponseEntity<Member> getMemberByPersonalCode(@RequestParam String personalCode) {
+  public ResponseEntity<MemberLookupResponse> getMemberByPersonalCode(
+      @RequestParam String personalCode) {
     return memberRepository
         .findByUserPersonalCode(personalCode)
+        .filter(Member::getActive)
+        .map(MemberLookupResponse::from)
         .map(ResponseEntity::ok)
         .orElse(ResponseEntity.notFound().build());
   }

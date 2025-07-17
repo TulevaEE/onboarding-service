@@ -50,8 +50,16 @@ class MemberControllerTest {
   void getMemberByPersonalCode_finds_member_by_personal_code() throws Exception {
     // given
     String personalCode = "38501010000";
-    User user = User.builder().id(1L).personalCode(personalCode).build();
-    Member member = Member.builder().id(1L).user(user).memberNumber(123).build();
+    String firstName = "Liivi";
+    String lastName = "Liige";
+    User user =
+        User.builder()
+            .id(1L)
+            .firstName(firstName)
+            .lastName(lastName)
+            .personalCode(personalCode)
+            .build();
+    Member member = Member.builder().id(1L).user(user).active(true).memberNumber(123).build();
     given(memberRepository.findByUserPersonalCode(personalCode)).willReturn(Optional.of(member));
 
     // when, then
@@ -59,7 +67,31 @@ class MemberControllerTest {
         .andExpect(status().isOk())
         .andExpect(content().contentType("application/json"))
         .andExpect(jsonPath("$.id", is(1)))
+        .andExpect(jsonPath("$.personalCode", is(personalCode)))
+        .andExpect(jsonPath("$.firstName", is(firstName)))
+        .andExpect(jsonPath("$.lastName", is(lastName)))
         .andExpect(jsonPath("$.memberNumber", is(123)));
+  }
+
+  @Test
+  void getMemberByPersonalCode_non_active_member() throws Exception {
+    // given
+    String personalCode = "38501010000";
+    String firstName = "Liivi";
+    String lastName = "Liige";
+    User user =
+        User.builder()
+            .id(1L)
+            .firstName(firstName)
+            .lastName(lastName)
+            .personalCode(personalCode)
+            .build();
+    Member member = Member.builder().id(1L).user(user).active(false).memberNumber(123).build();
+    given(memberRepository.findByUserPersonalCode(personalCode)).willReturn(Optional.of(member));
+
+    // when, then
+    mvc.perform(get("/v1/members/lookup").param("personalCode", personalCode))
+        .andExpect(status().isNotFound());
   }
 
   @Test

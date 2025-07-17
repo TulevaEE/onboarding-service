@@ -35,7 +35,7 @@ public class MemberController {
   }
 
   @Operation(summary = "Get member by personal code")
-  @RequestMapping(method = GET, value = "/members")
+  @RequestMapping(method = GET, value = "/members/lookup")
   public ResponseEntity<Member> getMemberByPersonalCode(@RequestParam String personalCode) {
     return memberRepository
         .findByUserPersonalCode(personalCode)

@@ -55,7 +55,7 @@ class MemberControllerTest {
     given(memberRepository.findByUserPersonalCode(personalCode)).willReturn(Optional.of(member));
 
     // when, then
-    mvc.perform(get("/v1/members").param("personalCode", personalCode))
+    mvc.perform(get("/v1/members/lookup").param("personalCode", personalCode))
         .andExpect(status().isOk())
         .andExpect(content().contentType("application/json"))
         .andExpect(jsonPath("$.id", is(1)))
@@ -69,7 +69,7 @@ class MemberControllerTest {
     given(memberRepository.findByUserPersonalCode(personalCode)).willReturn(Optional.empty());
 
     // when, then
-    mvc.perform(get("/v1/members").param("personalCode", personalCode))
+    mvc.perform(get("/v1/members/lookup").param("personalCode", personalCode))
         .andExpect(status().isNotFound());
   }
 }

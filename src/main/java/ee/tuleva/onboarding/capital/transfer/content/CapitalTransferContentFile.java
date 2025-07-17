@@ -6,7 +6,7 @@ import lombok.Getter;
 @Getter
 @Builder
 public class CapitalTransferContentFile {
-  private final String mimeType = "text/html";
+  @Builder.Default private String mimeType = "text/html";
   private String name;
   private byte[] content;
 }

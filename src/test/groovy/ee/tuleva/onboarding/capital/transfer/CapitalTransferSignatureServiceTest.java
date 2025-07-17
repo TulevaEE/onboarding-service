@@ -64,7 +64,7 @@ class CapitalTransferSignatureServiceTest {
     signatureSession.setVerificationCode("12345");
 
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(contractService.getSignatureFiles(contractId)).thenReturn(files);
+    when(contractService.getSignatureFiles(contractId, user)).thenReturn(files);
     when(signService.startSmartIdSign(files, user.getPersonalCode())).thenReturn(signatureSession);
 
     // when
@@ -97,7 +97,7 @@ class CapitalTransferSignatureServiceTest {
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(contractService.getContract(contractId)).thenReturn(contract);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
     when(signService.getSignedFile(signatureSession)).thenReturn(signedFile);
 
     // when
@@ -107,7 +107,7 @@ class CapitalTransferSignatureServiceTest {
     // then
     assertThat(response.getStatusCode()).isEqualTo(MandateSignatureStatus.SIGNATURE);
     assertThat(response.getChallengeCode()).isEqualTo("12345");
-    verify(contractService).signBySeller(contractId, signedFile);
+    verify(contractService).signBySeller(contractId, signedFile, user);
   }
 
   @Test
@@ -130,7 +130,7 @@ class CapitalTransferSignatureServiceTest {
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(contractService.getContract(contractId)).thenReturn(contract);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
     when(signService.getSignedFile(signatureSession)).thenReturn(null);
 
     // when
@@ -190,7 +190,7 @@ class CapitalTransferSignatureServiceTest {
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(buyerUser.getId())).thenReturn(buyerUser);
-    when(contractService.getContract(contractId)).thenReturn(contract);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
     when(signService.getSignedFile(signatureSession)).thenReturn(signedFile);
 
     // when
@@ -199,7 +199,7 @@ class CapitalTransferSignatureServiceTest {
 
     // then
     assertThat(response.getStatusCode()).isEqualTo(MandateSignatureStatus.SIGNATURE);
-    verify(contractService).signByBuyer(contractId, signedFile);
+    verify(contractService).signByBuyer(contractId, signedFile, user);
   }
 
   @Test
@@ -223,7 +223,7 @@ class CapitalTransferSignatureServiceTest {
 
     when(sessionStore.get(SmartIdSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(contractService.getContract(contractId)).thenReturn(contract);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
     when(signService.getSignedFile(signatureSession)).thenReturn(signedFile);
 
     // when & then
@@ -250,7 +250,8 @@ class CapitalTransferSignatureServiceTest {
     IdCardSignatureSession signatureSession =
         IdCardSignatureSession.builder().hashToSignInHex("hash-to-sign").build();
 
-    when(contractService.getSignatureFiles(contractId)).thenReturn(files);
+    when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
+    when(contractService.getSignatureFiles(contractId, user)).thenReturn(files);
     when(signService.startIdCardSign(files, "test-certificate")).thenReturn(signatureSession);
 
     // when
@@ -285,7 +286,7 @@ class CapitalTransferSignatureServiceTest {
 
     when(sessionStore.get(IdCardSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(contractService.getContract(contractId)).thenReturn(contract);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
     when(signService.getSignedFile(signatureSession, "signed-hash")).thenReturn(signedFile);
 
     // when
@@ -295,7 +296,7 @@ class CapitalTransferSignatureServiceTest {
 
     // then
     assertThat(response.getStatusCode()).isEqualTo(MandateSignatureStatus.SIGNATURE);
-    verify(contractService).signBySeller(contractId, signedFile);
+    verify(contractService).signBySeller(contractId, signedFile, user);
   }
 
   @Test
@@ -321,7 +322,7 @@ class CapitalTransferSignatureServiceTest {
 
     when(sessionStore.get(IdCardSignatureSession.class)).thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(contractService.getContract(contractId)).thenReturn(contract);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
     when(signService.getSignedFile(signatureSession, "signed-hash")).thenReturn(null);
 
     // when
@@ -350,7 +351,7 @@ class CapitalTransferSignatureServiceTest {
         MobileIdSignatureSession.builder().verificationCode("98765").build();
 
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(contractService.getSignatureFiles(contractId)).thenReturn(files);
+    when(contractService.getSignatureFiles(contractId, user)).thenReturn(files);
     when(signService.startMobileIdSign(files, user.getPersonalCode(), phoneNumber))
         .thenReturn(signatureSession);
 
@@ -384,7 +385,7 @@ class CapitalTransferSignatureServiceTest {
     when(sessionStore.get(MobileIdSignatureSession.class))
         .thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(contractService.getContract(contractId)).thenReturn(contract);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
     when(signService.getSignedFile(signatureSession)).thenReturn(signedFile);
 
     // when
@@ -394,7 +395,7 @@ class CapitalTransferSignatureServiceTest {
     // then
     assertThat(response.getStatusCode()).isEqualTo(MandateSignatureStatus.SIGNATURE);
     assertThat(response.getChallengeCode()).isEqualTo("98765");
-    verify(contractService).signBySeller(contractId, signedFile);
+    verify(contractService).signBySeller(contractId, signedFile, user);
   }
 
   @Test
@@ -417,7 +418,7 @@ class CapitalTransferSignatureServiceTest {
     when(sessionStore.get(MobileIdSignatureSession.class))
         .thenReturn(Optional.of(signatureSession));
     when(userService.getByIdOrThrow(user.getId())).thenReturn(user);
-    when(contractService.getContract(contractId)).thenReturn(contract);
+    when(contractService.getContract(contractId, user)).thenReturn(contract);
     when(signService.getSignedFile(signatureSession)).thenReturn(null);
 
     // when

@@ -53,7 +53,7 @@ public class SecurityConfiguration {
                     .permitAll()
                     .requestMatchers(HEAD, "/v1/members")
                     .permitAll()
-                    .requestMatchers(HEAD, "/v1/members/lookup")
+                    .requestMatchers(GET, "/v1/members/lookup")
                     .hasAuthority(MEMBER)
                     .requestMatchers(GET, "/v1/payments/success")
                     .permitAll()

@@ -47,6 +47,8 @@ public class SecurityConfiguration {
                     .hasAuthority(MEMBER)
                     .requestMatchers("/v1/listings/**")
                     .hasAuthority(MEMBER)
+                    .requestMatchers("/v1/capital-transfer-contracts/**")
+                    .hasAuthority(MEMBER)
                     .requestMatchers(GET, "/v1/funds")
                     .permitAll()
                     .requestMatchers(HEAD, "/v1/members")

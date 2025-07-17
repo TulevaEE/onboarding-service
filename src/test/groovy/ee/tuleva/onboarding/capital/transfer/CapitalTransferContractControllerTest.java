@@ -1,12 +1,17 @@
 package ee.tuleva.onboarding.capital.transfer;
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser;
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixture.sampleCapitalTransferContract;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.PAYMENT_CONFIRMED_BY_BUYER;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.PAYMENT_CONFIRMED_BY_SELLER;
+import static ee.tuleva.onboarding.config.SecurityTestHelper.mockAuthentication;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
 import static org.hamcrest.Matchers.is;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -22,6 +27,7 @@ import ee.tuleva.onboarding.mandate.response.MandateSignatureStatus;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
 import ee.tuleva.onboarding.mandate.response.MobileSignatureStatusResponse;
 import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -47,6 +53,7 @@ class CapitalTransferContractControllerTest {
   @Autowired private ObjectMapper objectMapper;
   @Autowired private CapitalTransferContractService contractService;
   @Autowired private CapitalTransferSignatureService signatureService;
+  @Autowired private UserService userService;
 
   @TestConfiguration
   static class CapitalTransferContractControllerTestConfiguration {
@@ -60,6 +67,12 @@ class CapitalTransferContractControllerTest {
     @Primary
     public CapitalTransferSignatureService signatureService() {
       return Mockito.mock(CapitalTransferSignatureService.class);
+    }
+
+    @Bean
+    @Primary
+    public UserService userService() {
+      return Mockito.mock(UserService.class);
     }
   }
 
@@ -138,15 +151,19 @@ class CapitalTransferContractControllerTest {
             .state(CapitalTransferContractState.CREATED)
             .build();
 
-    given(contractService.getContract(contractId)).willReturn(contract);
+    when(userService.getByIdOrThrow(sampleAuthenticatedPersonNonMember().build().getUserId()))
+        .thenReturn(sellerUser);
+    given(contractService.getContract(contractId, sellerUser)).willReturn(contract);
 
     // when, then
-    mvc.perform(get("/api/v1/capital-transfer-contracts/{id}", contractId))
+    mvc.perform(
+            get("/api/v1/capital-transfer-contracts/{id}", contractId)
+                .with(authentication(mockAuthentication())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id", is(1)))
         .andExpect(jsonPath("$.state", is("CREATED")));
 
-    verify(contractService).getContract(contractId);
+    verify(contractService).getContract(contractId, sellerUser);
   }
 
   @Test
@@ -155,7 +172,7 @@ class CapitalTransferContractControllerTest {
     Long contractId = 1L;
     UpdateCapitalTransferContractStateCommand command =
         new UpdateCapitalTransferContractStateCommand();
-    command.setState(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_BUYER);
+    command.setState(PAYMENT_CONFIRMED_BY_BUYER);
 
     User sellerUser = sampleUser().id(1L).personalCode("37605030299").build();
     Member sellerMember = memberFixture().id(1L).user(sellerUser).memberNumber(1001).build();
@@ -167,14 +184,17 @@ class CapitalTransferContractControllerTest {
             .id(contractId)
             .seller(sellerMember)
             .buyer(buyerMember)
-            .state(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_BUYER)
+            .state(PAYMENT_CONFIRMED_BY_BUYER)
             .build();
-
-    given(contractService.confirmPaymentByBuyer(contractId)).willReturn(contract);
+    when(userService.getByIdOrThrow(sampleAuthenticatedPersonNonMember().build().getUserId()))
+        .thenReturn(sellerUser);
+    given(contractService.updateState(contractId, PAYMENT_CONFIRMED_BY_BUYER, buyerUser))
+        .willReturn(contract);
 
     // when, then
     mvc.perform(
             patch("/api/v1/capital-transfer-contracts/{id}", contractId)
+                .with(authentication(mockAuthentication()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(command))
                 .with(csrf()))
@@ -182,7 +202,7 @@ class CapitalTransferContractControllerTest {
         .andExpect(jsonPath("$.id", is(1)))
         .andExpect(jsonPath("$.state", is("PAYMENT_CONFIRMED_BY_BUYER")));
 
-    verify(contractService).confirmPaymentByBuyer(contractId);
+    verify(contractService).updateState(contractId, PAYMENT_CONFIRMED_BY_BUYER, buyerUser);
   }
 
   @Test
@@ -206,11 +226,15 @@ class CapitalTransferContractControllerTest {
             .state(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_SELLER)
             .build();
 
-    given(contractService.confirmPaymentBySeller(contractId)).willReturn(contract);
+    when(userService.getByIdOrThrow(sampleAuthenticatedPersonNonMember().build().getUserId()))
+        .thenReturn(sellerUser);
+    given(contractService.updateState(contractId, PAYMENT_CONFIRMED_BY_SELLER, sellerUser))
+        .willReturn(contract);
 
     // when, then
     mvc.perform(
             patch("/api/v1/capital-transfer-contracts/{id}", contractId)
+                .with(authentication(mockAuthentication()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(command))
                 .with(csrf()))
@@ -218,7 +242,7 @@ class CapitalTransferContractControllerTest {
         .andExpect(jsonPath("$.id", is(1)))
         .andExpect(jsonPath("$.state", is("PAYMENT_CONFIRMED_BY_SELLER")));
 
-    verify(contractService).confirmPaymentBySeller(contractId);
+    verify(contractService).updateState(contractId, PAYMENT_CONFIRMED_BY_SELLER, sellerUser);
   }
 
   @Test

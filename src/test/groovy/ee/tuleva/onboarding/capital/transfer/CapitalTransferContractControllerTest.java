@@ -186,8 +186,9 @@ class CapitalTransferContractControllerTest {
             .buyer(buyerMember)
             .state(PAYMENT_CONFIRMED_BY_BUYER)
             .build();
+
     when(userService.getByIdOrThrow(sampleAuthenticatedPersonNonMember().build().getUserId()))
-        .thenReturn(sellerUser);
+        .thenReturn(buyerUser);
     given(contractService.updateState(contractId, PAYMENT_CONFIRMED_BY_BUYER, buyerUser))
         .willReturn(contract);
 

@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
@@ -26,7 +27,7 @@ import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
 import java.math.BigDecimal;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,6 +41,7 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -110,8 +112,13 @@ class CapitalTransferContractControllerIntegrationTest {
             .firstName(sellerUser.getFirstName())
             .lastName(sellerUser.getLastName())
             .build();
-    sellerAuthentication =
-        new UsernamePasswordAuthenticationToken(sellerAuth, null, Collections.emptyList());
+
+    var authorities =
+        new ArrayList<>(
+            List.of(
+                new SimpleGrantedAuthority(Authority.USER),
+                new SimpleGrantedAuthority(Authority.MEMBER)));
+    sellerAuthentication = new UsernamePasswordAuthenticationToken(sellerAuth, null, authorities);
 
     buyerUser =
         userRepository.save(
@@ -134,8 +141,7 @@ class CapitalTransferContractControllerIntegrationTest {
             .firstName(buyerUser.getFirstName())
             .lastName(buyerUser.getLastName())
             .build();
-    buyerAuthentication =
-        new UsernamePasswordAuthenticationToken(buyerAuth, null, Collections.emptyList());
+    buyerAuthentication = new UsernamePasswordAuthenticationToken(buyerAuth, null, authorities);
 
     when(emailService.newMandrillMessage(any(), any(), any(), any(), any()))
         .thenReturn(new MandrillMessage());
@@ -156,7 +162,7 @@ class CapitalTransferContractControllerIntegrationTest {
     String responseBody =
         mockMvc
             .perform(
-                post("/api/v1/capital-transfer-contracts")
+                post("/v1/capital-transfer-contracts")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(createCommand))
                     .with(authentication(sellerAuthentication)))
@@ -187,7 +193,7 @@ class CapitalTransferContractControllerIntegrationTest {
     // when
     mockMvc
         .perform(
-            put("/api/v1/capital-transfer-contracts/{id}/signature/smart-id", contractId)
+            put("/v1/capital-transfer-contracts/{id}/signature/smart-id", contractId)
                 .with(authentication(sellerAuthentication)))
         // then
         .andExpect(status().isOk())
@@ -200,7 +206,7 @@ class CapitalTransferContractControllerIntegrationTest {
     // when
     mockMvc
         .perform(
-            get("/api/v1/capital-transfer-contracts/{id}/signature/smart-id/status", contractId)
+            get("/v1/capital-transfer-contracts/{id}/signature/smart-id/status", contractId)
                 .with(authentication(sellerAuthentication)))
         // then
         .andExpect(status().isOk())
@@ -225,7 +231,7 @@ class CapitalTransferContractControllerIntegrationTest {
     // when
     mockMvc
         .perform(
-            put("/api/v1/capital-transfer-contracts/{id}/signature/smart-id", contractId)
+            put("/v1/capital-transfer-contracts/{id}/signature/smart-id", contractId)
                 .with(authentication(buyerAuthentication)))
         // then
         .andExpect(status().isOk())
@@ -234,7 +240,7 @@ class CapitalTransferContractControllerIntegrationTest {
     // when
     mockMvc
         .perform(
-            get("/api/v1/capital-transfer-contracts/{id}/signature/smart-id/status", contractId)
+            get("/v1/capital-transfer-contracts/{id}/signature/smart-id/status", contractId)
                 .with(authentication(buyerAuthentication)))
         // then
         .andExpect(status().isOk())
@@ -248,7 +254,7 @@ class CapitalTransferContractControllerIntegrationTest {
     // when
     mockMvc
         .perform(
-            patch("/api/v1/capital-transfer-contracts/{id}", contractId)
+            patch("/v1/capital-transfer-contracts/{id}", contractId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(confirmPaymentCommand))
                 .with(authentication(buyerAuthentication)))
@@ -264,7 +270,7 @@ class CapitalTransferContractControllerIntegrationTest {
     // when
     mockMvc
         .perform(
-            patch("/api/v1/capital-transfer-contracts/{id}", contractId)
+            patch("/v1/capital-transfer-contracts/{id}", contractId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(confirmReceivedCommand))
                 .with(authentication(sellerAuthentication)))

@@ -15,7 +15,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/capital-transfer-contracts")
+@RequestMapping("/v1/capital-transfer-contracts")
 @RequiredArgsConstructor
 public class CapitalTransferContractController {
 

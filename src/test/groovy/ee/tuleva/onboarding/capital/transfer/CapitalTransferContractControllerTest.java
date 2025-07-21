@@ -119,7 +119,7 @@ class CapitalTransferContractControllerTest {
 
     // when, then
     mvc.perform(
-            post("/api/v1/capital-transfer-contracts")
+            post("/v1/capital-transfer-contracts")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(command))
                 .with(csrf())
@@ -157,7 +157,7 @@ class CapitalTransferContractControllerTest {
 
     // when, then
     mvc.perform(
-            get("/api/v1/capital-transfer-contracts/{id}", contractId)
+            get("/v1/capital-transfer-contracts/{id}", contractId)
                 .with(authentication(mockAuthentication())))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id", is(1)))
@@ -194,7 +194,7 @@ class CapitalTransferContractControllerTest {
 
     // when, then
     mvc.perform(
-            patch("/api/v1/capital-transfer-contracts/{id}", contractId)
+            patch("/v1/capital-transfer-contracts/{id}", contractId)
                 .with(authentication(mockAuthentication()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(command))
@@ -234,7 +234,7 @@ class CapitalTransferContractControllerTest {
 
     // when, then
     mvc.perform(
-            patch("/api/v1/capital-transfer-contracts/{id}", contractId)
+            patch("/v1/capital-transfer-contracts/{id}", contractId)
                 .with(authentication(mockAuthentication()))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(command))
@@ -266,7 +266,7 @@ class CapitalTransferContractControllerTest {
 
     // when, then
     mvc.perform(
-            put("/api/v1/capital-transfer-contracts/{id}/signature/smart-id", contractId)
+            put("/v1/capital-transfer-contracts/{id}/signature/smart-id", contractId)
                 .with(csrf())
                 .with(authentication(authentication)))
         .andExpect(status().isOk())
@@ -296,7 +296,7 @@ class CapitalTransferContractControllerTest {
 
     // when, then
     mvc.perform(
-            get("/api/v1/capital-transfer-contracts/{id}/signature/smart-id/status", contractId)
+            get("/v1/capital-transfer-contracts/{id}/signature/smart-id/status", contractId)
                 .with(authentication(authentication)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.statusCode", is("SIGNATURE")))
@@ -330,7 +330,7 @@ class CapitalTransferContractControllerTest {
 
     // when, then
     mvc.perform(
-            put("/api/v1/capital-transfer-contracts/{id}/signature/id-card", contractId)
+            put("/v1/capital-transfer-contracts/{id}/signature/id-card", contractId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(command))
                 .with(csrf())
@@ -370,7 +370,7 @@ class CapitalTransferContractControllerTest {
 
     // when, then
     mvc.perform(
-            put("/api/v1/capital-transfer-contracts/{id}/signature/id-card/status", contractId)
+            put("/v1/capital-transfer-contracts/{id}/signature/id-card/status", contractId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(command))
                 .with(csrf())
@@ -404,7 +404,7 @@ class CapitalTransferContractControllerTest {
 
     // when, then
     mvc.perform(
-            put("/api/v1/capital-transfer-contracts/{id}/signature/mobile-id", contractId)
+            put("/v1/capital-transfer-contracts/{id}/signature/mobile-id", contractId)
                 .with(csrf())
                 .with(authentication(authentication)))
         .andExpect(status().isOk())
@@ -434,7 +434,7 @@ class CapitalTransferContractControllerTest {
 
     // when, then
     mvc.perform(
-            get("/api/v1/capital-transfer-contracts/{id}/signature/mobile-id/status", contractId)
+            get("/v1/capital-transfer-contracts/{id}/signature/mobile-id/status", contractId)
                 .with(authentication(authentication)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.statusCode", is("SIGNATURE")))

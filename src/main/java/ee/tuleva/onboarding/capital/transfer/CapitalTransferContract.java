@@ -44,9 +44,9 @@ public class CapitalTransferContract {
   @Enumerated(EnumType.STRING)
   private CapitalTransferContractState state;
 
-  @NotNull @Lob private byte[] originalContent;
+  @NotNull private byte[] originalContent;
 
-  @Lob private byte[] digiDocContainer;
+  private byte[] digiDocContainer;
 
   private LocalDateTime createdAt;
 

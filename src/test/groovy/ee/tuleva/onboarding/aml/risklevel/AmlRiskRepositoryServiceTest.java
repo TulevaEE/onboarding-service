@@ -168,15 +168,19 @@ class AmlRiskRepositoryServiceTest {
   }
 
   @Test
-  @DisplayName("Should refresh materialized view")
+  @DisplayName("Should refresh materialized views")
   void testRefreshMaterializedView() {
     var jdbcOperations = Mockito.mock(org.springframework.jdbc.core.JdbcOperations.class);
     when(jdbcTemplate.getJdbcOperations()).thenReturn(jdbcOperations);
 
     service.refreshMaterializedView();
 
-    String expectedSql =
+    String expectedThirdPillarRefresh =
         "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.mv_third_pillar_latest_residency;";
-    verify(jdbcOperations).execute(expectedSql);
+    String expectedRiskMetadataRefresh =
+        "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata;";
+
+    verify(jdbcOperations).execute(expectedThirdPillarRefresh);
+    verify(jdbcOperations).execute(expectedRiskMetadataRefresh);
   }
 }

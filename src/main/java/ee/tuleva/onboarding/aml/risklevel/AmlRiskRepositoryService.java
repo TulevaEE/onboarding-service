@@ -50,9 +50,15 @@ public class AmlRiskRepositoryService {
 
   public void refreshMaterializedView() {
     log.info("Start materialized view refresh: analytics.mv_third_pillar_latest_residency");
-    String sql =
+    String refreshThirdPillarResidencyView =
         "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.mv_third_pillar_latest_residency;";
-    jdbcTemplate.getJdbcOperations().execute(sql);
+    jdbcTemplate.getJdbcOperations().execute(refreshThirdPillarResidencyView);
     log.info("Materialized view refreshed: analytics.mv_third_pillar_latest_residency");
+
+    log.info("Start materialized view refresh: analytics.v_aml_risk_metadata");
+    String refreshRiskMetadata =
+        "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata;";
+    jdbcTemplate.getJdbcOperations().execute(refreshRiskMetadata);
+    log.info("Materialized view refreshed: analytics.v_aml_risk_metadata");
   }
 }

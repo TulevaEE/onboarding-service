@@ -14,7 +14,7 @@ public class RefreshMaterializedViewsJob {
 
   private final MaterializedViewRepository materializedViewRepository;
 
-  @Scheduled(cron = "0 20 7 21 7 ?", zone = "Europe/Tallinn") // Initial sync
+  @Scheduled(cron = "0 45 7 21 7 ?", zone = "Europe/Tallinn") // Initial sync
   @Scheduled(cron = "0 0 4 * * ?", zone = "Europe/Tallinn") // Daily at 4:00 AM
   public void refreshViews() {
     log.info("Starting analytics materialized views refresh job");

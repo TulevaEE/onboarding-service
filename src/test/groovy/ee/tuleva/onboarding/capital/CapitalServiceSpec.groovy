@@ -164,6 +164,18 @@ class CapitalServiceSpec extends Specification {
     ]
   }
 
+  def "getConcentrationLimit"() {
+    def ownershipUnitPrice = 1.567890
+    aggregatedCapitalEventRepository.findTopByOrderByDateDesc() >>
+        getAggregatedCapitalEvent(ownershipUnitPrice)
+
+    when:
+    BigDecimal concentrationUnitLimit = service.getCapitalConcentrationUnitLimit()
+
+    then:
+    concentrationUnitLimit.compareTo(BigDecimal.TEN) == 0
+  }
+
   private AggregatedCapitalEvent getAggregatedCapitalEvent(BigDecimal ownershipUnitPrice) {
     new AggregatedCapitalEvent(0,
         INVESTMENT_RETURN,

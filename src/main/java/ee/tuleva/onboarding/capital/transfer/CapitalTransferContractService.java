@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.capital.transfer;
 
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
+import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -84,6 +85,15 @@ public class CapitalTransferContractService {
     }
 
     return contract;
+  }
+
+  public List<CapitalTransferContract> getMyContracts(User user) {
+    var myMemberId = user.getMemberId();
+
+    var myBuyerContracts = contractRepository.findAllByBuyerId(myMemberId);
+    var mySellerContracts = contractRepository.findAllBySellerId(myMemberId);
+
+    return concat(myBuyerContracts.stream(), mySellerContracts.stream()).toList();
   }
 
   public void signBySeller(Long contractId, byte[] container, User user) {

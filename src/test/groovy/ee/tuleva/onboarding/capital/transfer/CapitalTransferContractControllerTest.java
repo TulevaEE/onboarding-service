@@ -31,6 +31,7 @@ import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.util.Collections;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -164,6 +165,36 @@ class CapitalTransferContractControllerTest {
         .andExpect(jsonPath("$.state", is("CREATED")));
 
     verify(contractService).getContract(contractId, sellerUser);
+  }
+
+  @Test
+  void getContracts_returns_my_contracts() throws Exception {
+    // given
+    Long contractId = 1L;
+    User sellerUser = sampleUser().id(1L).personalCode("37605030299").build();
+    Member sellerMember = memberFixture().id(1L).user(sellerUser).memberNumber(1001).build();
+    User buyerUser = sampleUser().id(2L).personalCode("60001019906").build();
+    Member buyerMember = memberFixture().id(2L).user(buyerUser).memberNumber(1002).build();
+
+    CapitalTransferContract contract =
+        sampleCapitalTransferContract()
+            .id(contractId)
+            .seller(sellerMember)
+            .buyer(buyerMember)
+            .state(CapitalTransferContractState.CREATED)
+            .build();
+
+    when(userService.getByIdOrThrow(sampleAuthenticatedPersonNonMember().build().getUserId()))
+        .thenReturn(sellerUser);
+    given(contractService.getMyContracts(sellerUser)).willReturn(List.of(contract));
+
+    // when, then
+    mvc.perform(get("/v1/capital-transfer-contracts").with(authentication(mockAuthentication())))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].id", is(1)))
+        .andExpect(jsonPath("$[0].state", is("CREATED")));
+
+    verify(contractService).getMyContracts(sellerUser);
   }
 
   @Test

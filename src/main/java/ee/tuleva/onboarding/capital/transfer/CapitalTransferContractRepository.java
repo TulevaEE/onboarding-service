@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface CapitalTransferContractRepository
     extends JpaRepository<CapitalTransferContract, Long> {
 
-  List<CapitalTransferContract> findAllBySellerId(Long sellerId);
+  List<CapitalTransferContract> findAllBySellerId(Long sellerMemberId);
 
-  List<CapitalTransferContract> findAllByBuyerId(Long sellerId);
+  List<CapitalTransferContract> findAllByBuyerId(Long buyerMemberId);
 }

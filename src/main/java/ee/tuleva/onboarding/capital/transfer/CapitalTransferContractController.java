@@ -10,6 +10,7 @@ import ee.tuleva.onboarding.mandate.response.MobileSignatureStatusResponse;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -38,6 +39,16 @@ public class CapitalTransferContractController {
       @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     var user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
     return CapitalTransferContractDto.from(contractService.getContract(id, user));
+  }
+
+  @Operation(summary = "Get my capital transfer contracts")
+  @GetMapping
+  public List<CapitalTransferContractDto> getContracts(
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    var user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
+    return contractService.getMyContracts(user).stream()
+        .map(CapitalTransferContractDto::from)
+        .toList();
   }
 
   @Operation(summary = "Update the state of a capital transfer contract")

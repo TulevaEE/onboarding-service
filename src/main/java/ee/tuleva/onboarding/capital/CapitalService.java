@@ -29,6 +29,8 @@ public class CapitalService {
 
   private final AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
 
+  private static final BigDecimal CONCENTRATION_LIMIT_COEFFICIENT = new BigDecimal("0.1");
+
   public List<ApiCapitalEvent> getCapitalEvents(Long memberId) {
     return memberCapitalEventRepository.findAllByMemberId(memberId).stream()
         .map(
@@ -73,6 +75,20 @@ public class CapitalService {
         EUR);
   }
 
+  public BigDecimal getCapitalConcentrationUnitLimit() {
+    var latestEvent =
+        Optional.ofNullable(aggregatedCapitalEventRepository.findTopByOrderByDateDesc());
+
+    if (latestEvent.isEmpty()) {
+      return BigDecimal.valueOf(1e7); // TODO ?
+    }
+
+    return latestEvent
+        .get()
+        .getTotalOwnershipUnitAmount()
+        .multiply(CONCENTRATION_LIMIT_COEFFICIENT); // TODO no subtract membrship capitl?
+  }
+
   @NotNull
   private BigDecimal getCapitalAmount(
       List<MemberCapitalEvent> events, List<MemberCapitalEventType> eventTypes) {
@@ -114,6 +130,11 @@ public class CapitalService {
   }
 
   private Optional<BigDecimal> getLatestOwnershipUnitPrice() {
+    return this.getLatestAggregatedCapitalEvent()
+        .map(AggregatedCapitalEvent::getOwnershipUnitPrice);
+  }
+
+  private Optional<AggregatedCapitalEvent> getLatestAggregatedCapitalEvent() {
     AggregatedCapitalEvent latestAggregatedCapitalEvent =
         aggregatedCapitalEventRepository.findTopByOrderByDateDesc();
 
@@ -121,7 +142,7 @@ public class CapitalService {
       return Optional.empty();
     }
 
-    return Optional.of(latestAggregatedCapitalEvent.getOwnershipUnitPrice());
+    return Optional.of(latestAggregatedCapitalEvent);
   }
 
   private Predicate<MemberCapitalEvent> pastEvents() {

@@ -1,11 +1,15 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS;
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
 import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.capital.ApiCapitalEvent;
+import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
@@ -14,6 +18,7 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberService;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +38,9 @@ public class CapitalTransferContractService {
   private final EmailService emailService;
   private final CapitalTransferFileService capitalTransferFileService;
   private final CapitalTransferContractContentService contractContentService;
+  private final CapitalService capitalService;
+
+  private static final BigDecimal MINIMUM_UNIT_PRICE = BigDecimal.ONE;
 
   public CapitalTransferContract create(
       AuthenticatedPerson sellerPerson, CreateCapitalTransferContractCommand command) {
@@ -60,18 +68,71 @@ public class CapitalTransferContractService {
   }
 
   private void validate(Member seller, Member buyer, CreateCapitalTransferContractCommand command) {
-    // TODO: Implement actual validation logic
-    // 1. Check if seller has enough capital
     log.info(
-        "Validating seller {} has {} units of member capital, {} of that member bonus",
-        seller.getId(),
-        command.getUnitCount(),
-        command.getUnitsOfMemberBonus());
-    // 2. Check for 10% concentration limit for buyer
-    log.info("Validating concentration limit for buyer {}", buyer.getId());
+        "Validating command {} for seller {} and buyer {}", command, seller.getId(), buyer.getId());
+
+    if (!hasEnoughMemberCapital(seller, command)) {
+      throw new IllegalStateException("Seller does not have enough member capital");
+    }
+
+    if (!hasEnoughMemberBonus(seller, command)) {
+      throw new IllegalStateException("Seller does not have enough member bonus");
+    }
+
+    if (!isTransferWithinConcentrationLimit(buyer, command)) {
+      throw new IllegalStateException("Buyer would exceed concentration limit after transfer");
+    }
+
+    if (!isUnitPriceOverMinimum(command)) {
+      throw new IllegalArgumentException("Unit price below minimum");
+    }
+
     if (seller.getId().equals(buyer.getId())) {
       throw new IllegalArgumentException("Seller and buyer cannot be the same person.");
     }
+  }
+
+  private boolean isTransferWithinConcentrationLimit(
+      Member buyer, CreateCapitalTransferContractCommand command) {
+    var user = buyer.getUser();
+
+    var totalMemberCapital =
+        capitalService.getCapitalEvents(user.getMemberId()).stream()
+            .filter(event -> event.type() != UNVESTED_WORK_COMPENSATION)
+            .map(ApiCapitalEvent::value)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    var concentrationLimit = capitalService.getCapitalConcentrationUnitLimit();
+    var buyerMemberCapitalAfterPurchase =
+        totalMemberCapital.add(command.getUnitCount()).subtract(command.getUnitsOfMemberBonus());
+
+    return concentrationLimit.compareTo(buyerMemberCapitalAfterPurchase) > 0;
+  }
+
+  private boolean hasEnoughMemberCapital(
+      Member seller, CreateCapitalTransferContractCommand command) {
+    var totalMemberCapital =
+        capitalService.getCapitalEvents(seller.getId()).stream()
+            .filter(event -> event.type() != UNVESTED_WORK_COMPENSATION)
+            .map(ApiCapitalEvent::value)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    return totalMemberCapital.compareTo(command.getUnitCount()) >= 0;
+  }
+
+  private boolean hasEnoughMemberBonus(
+      Member seller, CreateCapitalTransferContractCommand command) {
+    var totalMemberCapital =
+        capitalService.getCapitalEvents(seller.getId()).stream()
+            .filter(event -> event.type() == MEMBERSHIP_BONUS)
+            .map(ApiCapitalEvent::value)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    return totalMemberCapital.compareTo(command.getUnitsOfMemberBonus()) >= 0;
+  }
+
+  private boolean isUnitPriceOverMinimum(CreateCapitalTransferContractCommand request) {
+    return request.getUnitPrice().compareTo(MINIMUM_UNIT_PRICE) >= 0;
   }
 
   public CapitalTransferContract getContract(Long id, User user) {

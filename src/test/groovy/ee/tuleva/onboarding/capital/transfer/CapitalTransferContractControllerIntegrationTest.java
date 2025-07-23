@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT;
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS;
+import static ee.tuleva.onboarding.time.TestClockHolder.clock;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -18,6 +21,9 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
+import ee.tuleva.onboarding.capital.ApiCapitalEvent;
+import ee.tuleva.onboarding.capital.CapitalService;
+import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.mandate.signature.SignatureService;
 import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
@@ -27,6 +33,7 @@ import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -58,6 +65,7 @@ class CapitalTransferContractControllerIntegrationTest {
   @Autowired private SignatureService signatureService;
   @Autowired private GenericSessionStore sessionStore;
   @Autowired private EmailService emailService;
+  @Autowired private CapitalService capitalService;
 
   private User sellerUser;
   private Member sellerMember;
@@ -85,6 +93,12 @@ class CapitalTransferContractControllerIntegrationTest {
     @Primary
     public EmailService emailService() {
       return mock(EmailService.class);
+    }
+
+    @Bean
+    @Primary
+    public CapitalService capitalService() {
+      return mock(CapitalService.class);
     }
   }
 
@@ -145,6 +159,16 @@ class CapitalTransferContractControllerIntegrationTest {
 
     when(emailService.newMandrillMessage(any(), any(), any(), any(), any()))
         .thenReturn(new MandrillMessage());
+
+    when(capitalService.getCapitalEvents(sellerMember.getId()))
+        .thenReturn(
+            List.of(
+                new ApiCapitalEvent(
+                    LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000), Currency.EUR),
+                new ApiCapitalEvent(
+                    LocalDate.now(clock), MEMBERSHIP_BONUS, BigDecimal.valueOf(5), Currency.EUR)));
+
+    when(capitalService.getCapitalConcentrationUnitLimit()).thenReturn(BigDecimal.valueOf(1e7));
   }
 
   @Test
@@ -158,6 +182,8 @@ class CapitalTransferContractControllerIntegrationTest {
             .unitCount(new BigDecimal("100.0"))
             .unitsOfMemberBonus(new BigDecimal("2.0"))
             .build();
+
+    var sellerMemberId = sellerMember.getId();
 
     String responseBody =
         mockMvc

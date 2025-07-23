@@ -18,6 +18,10 @@ public class DigiDocFacade {
   private final Configuration digiDocConfig;
 
   public Container buildContainer(List<SignatureFile> files) {
+    if (isExistingContainer(files)) {
+      return buildContainerFromExistingContainer(files.getFirst());
+    }
+
     ContainerBuilder builder = ContainerBuilder.aContainer().withConfiguration(digiDocConfig);
     files.forEach(
         file ->
@@ -26,7 +30,7 @@ public class DigiDocFacade {
     return builder.build();
   }
 
-  public Container buildContainerFromExistingContainer(SignatureFile containerFile) {
+  private Container buildContainerFromExistingContainer(SignatureFile containerFile) {
     if (!containerFile.isContainer()) {
       throw new IllegalArgumentException("File is not an existing container");
     }
@@ -34,6 +38,18 @@ public class DigiDocFacade {
     ContainerBuilder builder = ContainerBuilder.aContainer().withConfiguration(digiDocConfig);
     builder.fromStream(new ByteArrayInputStream(containerFile.getContent()));
     return builder.build();
+  }
+
+  // This has the unfortunate side effect that containers with a single zip archive are not
+  // signable,
+  // but since the container itself is a zip archive which can hold multiple files,
+  // it seems like a very small edge case
+  private boolean isExistingContainer(List<SignatureFile> files) {
+    if (files.size() != 1) {
+      return false;
+    }
+
+    return files.getFirst().isContainer();
   }
 
   public DataToSign dataToSign(Container container, X509Certificate certificate) {

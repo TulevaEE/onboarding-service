@@ -26,6 +26,16 @@ public class DigiDocFacade {
     return builder.build();
   }
 
+  public Container buildContainerFromExistingContainer(SignatureFile containerFile) {
+    if (!containerFile.isContainer()) {
+      throw new IllegalArgumentException("File is not an existing container");
+    }
+
+    ContainerBuilder builder = ContainerBuilder.aContainer().withConfiguration(digiDocConfig);
+    builder.fromStream(new ByteArrayInputStream(containerFile.getContent()));
+    return builder.build();
+  }
+
   public DataToSign dataToSign(Container container, X509Certificate certificate) {
     return SignatureBuilder.aSignature(container)
         .withSigningCertificate(certificate)

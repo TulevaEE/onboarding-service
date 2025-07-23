@@ -48,6 +48,10 @@ public class CapitalTransferFileService {
   private byte[] getContentToSign(CapitalTransferContract contract) {
     if (contract.getState() == CapitalTransferContractState.SELLER_SIGNED
         && contract.getDigiDocContainer() != null) {
+      // TODO: Lift this logic up and use it at signing point – do we need to create new container
+      // oad signature to it?
+      // TODO: or don't lift and use magic bytes at signer level... digidoc container magic bytes
+      // appear to be zip ones 50 4b
       return contract.getDigiDocContainer();
     }
     return contract.getOriginalContent();

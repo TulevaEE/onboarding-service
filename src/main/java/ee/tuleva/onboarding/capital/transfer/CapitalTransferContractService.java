@@ -159,6 +159,9 @@ public class CapitalTransferContractService {
 
   public void signBySeller(Long contractId, byte[] container, User user) {
     CapitalTransferContract contract = getContract(contractId, user);
+    if (!contract.getSeller().getId().equals(user.getMemberId())) {
+      throw new IllegalStateException("Can only be signed by seller at this point");
+    }
     contract.signBySeller(container);
     contractRepository.save(contract);
     log.info("Contract {} signed by seller {}", contractId, contract.getSeller().getId());
@@ -169,6 +172,9 @@ public class CapitalTransferContractService {
 
   public void signByBuyer(Long contractId, byte[] container, User user) {
     CapitalTransferContract contract = getContract(contractId, user);
+    if (!contract.getBuyer().getId().equals(user.getMemberId())) {
+      throw new IllegalStateException("Can only be signed by buyer at this point");
+    }
     contract.signByBuyer(container);
     contractRepository.save(contract);
     log.info("Contract {} signed by buyer {}", contractId, contract.getBuyer().getId());
@@ -208,6 +214,9 @@ public class CapitalTransferContractService {
 
   private CapitalTransferContract confirmPaymentBySeller(Long id, User user) {
     CapitalTransferContract contract = getContract(id, user);
+    if (!contract.getSeller().getId().equals(user.getMemberId())) {
+      throw new IllegalStateException("Payment can only be confirmed by seller");
+    }
     contract.confirmPaymentBySeller();
     log.info("Payment confirmed by seller for contract {}.", id);
     return contractRepository.save(contract);

@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.capital.transfer;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT;
-import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS;
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.time.TestClockHolder.clock;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
 import static org.junit.jupiter.api.Assertions.*;
@@ -80,6 +80,217 @@ class CapitalTransferContractServiceTest {
   }
 
   @Test
+  @DisplayName("getContract")
+  void getContract() {
+    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
+    var contract =
+        CapitalTransferContract.builder()
+            .id(1L)
+            .seller(sellerUser.getMemberOrThrow())
+            .buyer(memberFixture().id(3L).build())
+            .build();
+
+    when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
+
+    var result = contractService.getContract(1L, sellerUser);
+    assertEquals(contract, result);
+  }
+
+  @Test
+  @DisplayName("getContract not found")
+  void getContractNotFound() {
+    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
+
+    when(contractRepository.findById(eq(1L))).thenReturn(Optional.empty());
+
+    assertThrows(IllegalArgumentException.class, () -> contractService.getContract(1L, sellerUser));
+  }
+
+  @Test
+  @DisplayName("getContract not accessible")
+  void getContractNotAccessible() {
+    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
+    var contract =
+        CapitalTransferContract.builder()
+            .id(1L)
+            .seller(memberFixture().id(4L).build())
+            .buyer(memberFixture().id(3L).build())
+            .build();
+
+    when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
+
+    assertThrows(IllegalArgumentException.class, () -> contractService.getContract(1L, sellerUser));
+  }
+
+  @Test
+  @DisplayName("getMyContracts")
+  void getMyContracts() {
+    var user = sampleUser().member(memberFixture().id(2L).build()).build();
+
+    var mockContract = mock(CapitalTransferContract.class);
+    var mockContract2 = mock(CapitalTransferContract.class);
+    var mockContract3 = mock(CapitalTransferContract.class);
+
+    when(contractRepository.findAllByBuyerId(eq(user.getMemberId())))
+        .thenReturn(List.of(mockContract));
+    when(contractRepository.findAllBySellerId(eq(user.getMemberId())))
+        .thenReturn(List.of(mockContract2, mockContract3));
+
+    var result = contractService.getMyContracts(user);
+    assertEquals(3, result.size());
+  }
+
+  @Test
+  @DisplayName("getMyContracts empty")
+  void getMyContractsEmpty() {
+    var user = sampleUser().member(memberFixture().id(2L).build()).build();
+
+    when(contractRepository.findAllByBuyerId(eq(user.getMemberId()))).thenReturn(List.of());
+    when(contractRepository.findAllBySellerId(eq(user.getMemberId()))).thenReturn(List.of());
+
+    var result = contractService.getMyContracts(user);
+    assertEquals(0, result.size());
+  }
+
+  @Test
+  @DisplayName("updateState payment confirmed by buyer")
+  void updateStateConfirmedByBuyer() {
+
+    for (CapitalTransferContractState state : CapitalTransferContractState.values()) {
+
+      var user = sampleUser().member(memberFixture().id(2L).build()).build();
+      var contract =
+          CapitalTransferContract.builder()
+              .id(1L)
+              .state(state)
+              .seller(memberFixture().id(3L).build())
+              .buyer(user.getMemberOrThrow())
+              .build();
+
+      when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
+
+      if (state == BUYER_SIGNED) {
+        when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
+        var result = contractService.updateState(1L, PAYMENT_CONFIRMED_BY_BUYER, user);
+        assertEquals(contract, result);
+
+      } else {
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> contractService.updateState(1L, PAYMENT_CONFIRMED_BY_BUYER, user));
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("updateState payment confirmed by buyer throws when attempted by seller")
+  void updateStateConfirmedByBuyerBySeller() {
+
+    var user = sampleUser().member(memberFixture().id(2L).build()).build();
+    var contract =
+        CapitalTransferContract.builder()
+            .id(1L)
+            .state(BUYER_SIGNED)
+            .seller(user.getMemberOrThrow())
+            .buyer(memberFixture().id(3L).build())
+            .build();
+
+    when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
+
+    assertThrows(
+        IllegalStateException.class,
+        () -> contractService.updateState(1L, PAYMENT_CONFIRMED_BY_BUYER, user));
+  }
+
+  @Test
+  @DisplayName("updateState payment confirmed by seller")
+  void updateStateConfirmedBySeller() {
+
+    for (CapitalTransferContractState state : CapitalTransferContractState.values()) {
+
+      var user = sampleUser().member(memberFixture().id(2L).build()).build();
+      var contract =
+          CapitalTransferContract.builder()
+              .id(1L)
+              .state(state)
+              .buyer(memberFixture().id(3L).build())
+              .seller(user.getMemberOrThrow())
+              .build();
+
+      when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
+
+      if (state == PAYMENT_CONFIRMED_BY_BUYER) {
+        when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
+        var result = contractService.updateState(1L, PAYMENT_CONFIRMED_BY_SELLER, user);
+        assertEquals(contract, result);
+
+      } else {
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> contractService.updateState(1L, PAYMENT_CONFIRMED_BY_SELLER, user));
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("updateState payment confirmed by seller throws when attempted by buyer")
+  void updateStateConfirmedBySellerByBuyer() {
+
+    var user = sampleUser().member(memberFixture().id(2L).build()).build();
+    var contract =
+        CapitalTransferContract.builder()
+            .id(1L)
+            .state(PAYMENT_CONFIRMED_BY_BUYER)
+            .buyer(user.getMemberOrThrow())
+            .seller(memberFixture().id(3L).build())
+            .build();
+
+    when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
+
+    assertThrows(
+        IllegalStateException.class,
+        () -> contractService.updateState(1L, PAYMENT_CONFIRMED_BY_SELLER, user));
+  }
+
+  @Test
+  @DisplayName("signBySeller throws when attempted by buyer")
+  void signBySellerByBuyer() {
+
+    var user = sampleUser().member(memberFixture().id(2L).build()).build();
+    var contract =
+        CapitalTransferContract.builder()
+            .id(1L)
+            .state(PAYMENT_CONFIRMED_BY_BUYER)
+            .buyer(user.getMemberOrThrow())
+            .seller(memberFixture().id(3L).build())
+            .build();
+
+    when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
+
+    assertThrows(
+        IllegalStateException.class, () -> contractService.signBySeller(1L, new byte[0], user));
+  }
+
+  @Test
+  @DisplayName("signByBuyer throws when attempted by seller")
+  void signByBuyerBySeller() {
+
+    var user = sampleUser().member(memberFixture().id(2L).build()).build();
+    var contract =
+        CapitalTransferContract.builder()
+            .id(1L)
+            .state(PAYMENT_CONFIRMED_BY_BUYER)
+            .seller(user.getMemberOrThrow())
+            .buyer(memberFixture().id(3L).build())
+            .build();
+
+    when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
+
+    assertThrows(
+        IllegalStateException.class, () -> contractService.signByBuyer(1L, new byte[0], user));
+  }
+
+  @Test
   @DisplayName("Create capital transfer throws when not enough capital")
   void createNotEnoughCapital() {
 
@@ -102,7 +313,14 @@ class CapitalTransferContractServiceTest {
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
         .thenReturn(memberFixture().id(3L).user(buyerUser).build());
 
-    when(capitalService.getCapitalEvents(sellerUser.getMemberId())).thenReturn(List.of());
+    when(capitalService.getCapitalEvents(sellerUser.getMemberId()))
+        .thenReturn(
+            List.of(
+                new ApiCapitalEvent(
+                    LocalDate.now(clock),
+                    UNVESTED_WORK_COMPENSATION,
+                    BigDecimal.valueOf(1000),
+                    Currency.EUR)));
 
     IllegalStateException thrown =
         assertThrows(

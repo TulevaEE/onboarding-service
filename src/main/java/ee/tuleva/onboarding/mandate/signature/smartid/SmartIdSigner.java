@@ -86,7 +86,11 @@ public class SmartIdSigner {
 
     X509Certificate certificate = smartIdCertificate.getCertificate();
     List<SignatureFile> files = session.getFiles();
-    Container container = digiDocFacade.buildContainer(files);
+
+    Container container =
+        isExistingContainer(session)
+            ? digiDocFacade.buildContainerFromExistingContainer(session.getFiles().getFirst())
+            : digiDocFacade.buildContainer(files);
 
     DataToSign dataToSign = digiDocFacade.dataToSign(container, certificate);
     byte[] digestToSign = digiDocFacade.digestToSign(dataToSign);
@@ -104,6 +108,16 @@ public class SmartIdSigner {
     session.setSignableHash(signableHash);
     session.setContainer(container);
     sessionStore.save(session);
+  }
+
+  private boolean isExistingContainer(SmartIdSignatureSession session) {
+    var files = session.getFiles();
+
+    if (files.size() != 1) {
+      return false;
+    }
+
+    return files.getFirst().isContainer();
   }
 
   @SneakyThrows

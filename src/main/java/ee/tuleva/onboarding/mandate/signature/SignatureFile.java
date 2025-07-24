@@ -1,20 +1,31 @@
 package ee.tuleva.onboarding.mandate.signature;
 
-import static java.util.Arrays.copyOfRange;
+import static ee.tuleva.onboarding.mandate.signature.SignatureFile.SignatureFileType.DIGIDOC_CONTAINER;
 
 import java.io.Serial;
 import java.io.Serializable;
-import java.util.Arrays;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @RequiredArgsConstructor
 @Getter
 public class SignatureFile implements Serializable {
+  public SignatureFile(String name, SignatureFileType fileType, byte[] content) {
+    this.name = name;
+    this.mimeType = fileType.getMimeType();
+    this.content = content;
+  }
 
-  private static final byte[] EXISTING_SIGNATURE_CONTAINER_MAGIC_BYTES = {
-    0x50, 0x4b
-  }; // ZIP archive/signature container magic bytes
+  public enum SignatureFileType {
+    HTML("text/html"),
+    DIGIDOC_CONTAINER("application/vnd.etsi.asic-e+zip");
+
+    @Getter private final String mimeType;
+
+    SignatureFileType(String mimeType) {
+      this.mimeType = mimeType;
+    }
+  }
 
   @Serial private static final long serialVersionUID = -2405222829412049325L;
 
@@ -23,10 +34,6 @@ public class SignatureFile implements Serializable {
   private final byte[] content;
 
   public boolean isContainer() {
-    // TODO use mimetype?
-    var fileMagicBytes = copyOfRange(content, 0, 2);
-
-    // is zip archive?
-    return Arrays.equals(fileMagicBytes, EXISTING_SIGNATURE_CONTAINER_MAGIC_BYTES);
+    return this.mimeType.equals(DIGIDOC_CONTAINER.getMimeType());
   }
 }

@@ -1,12 +1,15 @@
 package ee.tuleva.onboarding.capital.transfer.content;
 
+import static ee.tuleva.onboarding.mandate.signature.SignatureFile.SignatureFileType.HTML;
+
+import ee.tuleva.onboarding.mandate.signature.SignatureFile.SignatureFileType;
 import lombok.Builder;
 import lombok.Getter;
 
 @Getter
 @Builder
 public class CapitalTransferContentFile {
-  @Builder.Default private String mimeType = "text/html";
+  @Builder.Default private SignatureFileType fileType = HTML;
   private String name;
   private byte[] content;
 }

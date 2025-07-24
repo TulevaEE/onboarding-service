@@ -86,6 +86,7 @@ public class SmartIdSigner {
 
     X509Certificate certificate = smartIdCertificate.getCertificate();
     List<SignatureFile> files = session.getFiles();
+
     Container container = digiDocFacade.buildContainer(files);
 
     DataToSign dataToSign = digiDocFacade.dataToSign(container, certificate);

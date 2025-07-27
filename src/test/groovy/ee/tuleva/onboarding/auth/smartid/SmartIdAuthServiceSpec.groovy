@@ -9,13 +9,15 @@ import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException
 import ee.sk.smartid.exception.useraction.UserRefusedException
 import ee.sk.smartid.rest.SmartIdConnector
 import ee.sk.smartid.rest.dao.*
+import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
-import java.sql.Time
+import java.time.Clock
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 
 import static ee.tuleva.onboarding.auth.smartid.SmartIdFixture.*
+import static java.time.temporal.ChronoUnit.SECONDS
 
 class SmartIdAuthServiceSpec extends Specification {
 
@@ -23,7 +25,9 @@ class SmartIdAuthServiceSpec extends Specification {
   SmartIdAuthenticationHashGenerator hashGenerator = Mock(SmartIdAuthenticationHashGenerator)
   AuthenticationResponseValidator validator = Mock(AuthenticationResponseValidator)
   SmartIdConnector connector = Mock(SmartIdConnector)
+  Clock clock = TestClockHolder.clock
   AuthenticationHash hash
+
 
   def setup() {
     SmartIdClient smartIdClient = new SmartIdClient()
@@ -34,7 +38,7 @@ class SmartIdAuthServiceSpec extends Specification {
     hash = AuthenticationHash.generateRandomHash()
     hashGenerator.generateHash() >> hash
 
-    smartIdAuthService = new SmartIdAuthService(smartIdClient, hashGenerator, validator)
+    smartIdAuthService = new SmartIdAuthService(smartIdClient, hashGenerator, validator, clock)
   }
 
   def "StartLogin: Start smart id login generates hash"() {
@@ -48,8 +52,7 @@ class SmartIdAuthServiceSpec extends Specification {
 
   def "IsLoginComplete: Login is not complete when result is not valid"() {
     given:
-    1 * connector.authenticate(_ as SemanticsIdentifier, _) >>
-        response(aSessionId)
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "DOCUMENT_UNUSABLE")
     when:
     SmartIdSession session = smartIdAuthService.startLogin(personalCode)
@@ -60,8 +63,7 @@ class SmartIdAuthServiceSpec extends Specification {
 
   def "IsLoginComplete: Login is not complete when user account not found"() {
     given:
-    1 * connector.authenticate(_ as SemanticsIdentifier, _) >>
-        response(aSessionId)
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> {
       throw new UserAccountNotFoundException()
     }
@@ -74,8 +76,7 @@ class SmartIdAuthServiceSpec extends Specification {
 
   def "IsLoginComplete: Login is not complete when user refused authentication"() {
     given:
-    1 * connector.authenticate(_ as SemanticsIdentifier, _) >>
-        response(aSessionId)
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> {
       throw new UserRefusedException()
     }
@@ -88,8 +89,7 @@ class SmartIdAuthServiceSpec extends Specification {
 
   def "IsLoginComplete: Fetch state of smart id login"() {
     given:
-    1 * connector.authenticate(_ as SemanticsIdentifier, _) >>
-        response(aSessionId)
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "OK", "sessionSignature")
     1 * validator.validate(_) >> validAuthIdentity()
     when:
@@ -101,8 +101,7 @@ class SmartIdAuthServiceSpec extends Specification {
 
   def "IsLoginComplete: Error with authentication result"() {
     given:
-    1 * connector.authenticate(_ as SemanticsIdentifier, _) >>
-        response(aSessionId)
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
     1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "OK", "signature")
     1 * validator.validate(_) >> {
       throw new UnprocessableSmartIdResponseException("Something went wrong")
@@ -112,6 +111,50 @@ class SmartIdAuthServiceSpec extends Specification {
     waitForLoginComplete(session)
     then:
     thrown(SmartIdException)
+  }
+
+  def "Idempotent: authentication result can be fetched twice within TTL"() {
+    given:
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
+    1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "OK", "sessionSignature")
+    1 * validator.validate(_) >> validAuthIdentity()
+
+    when:
+    SmartIdSession session = smartIdAuthService.startLogin(personalCode)
+    waitForLoginComplete(session)
+
+    and:
+    def first = smartIdAuthService.getAuthenticationIdentity(session.authenticationHash.hashInBase64)
+    def second = smartIdAuthService.getAuthenticationIdentity(session.authenticationHash.hashInBase64)
+
+    then:
+    first == second
+  }
+
+  def "TTL expiry: authentication result is purged after 60 seconds"() {
+    given:
+    1 * connector.authenticate(_ as SemanticsIdentifier, _) >> response(aSessionId)
+    1 * connector.getSessionStatus(aSessionId) >> sessionStatus("COMPLETE", "OK", "sessionSignature")
+    1 * validator.validate(_) >> validAuthIdentity()
+
+    when:
+    SmartIdSession session = smartIdAuthService.startLogin(personalCode)
+    waitForLoginComplete(session)
+
+    and:
+    def first = smartIdAuthService.getAuthenticationIdentity(session.authenticationHash.hashInBase64)
+
+    then:
+    first.present
+
+    when:
+    TestClockHolder.tick(61, SECONDS)
+
+    and:
+    def second = smartIdAuthService.getAuthenticationIdentity(session.authenticationHash.hashInBase64)
+
+    then:
+    second.empty
   }
 
   private boolean waitForLoginComplete(SmartIdSession session) {

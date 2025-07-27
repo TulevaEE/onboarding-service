@@ -40,7 +40,7 @@ public class SmartIdAuthService {
 
     private AuthenticationIdentity authenticationIdentity;
     private SmartIdException error;
-    @Builder.Default private Instant createdAt = Instant.now();
+    private Instant createdAt;
   }
 
   private static final Duration TTL = Duration.ofSeconds(60);

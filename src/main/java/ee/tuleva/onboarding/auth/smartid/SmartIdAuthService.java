@@ -1,13 +1,10 @@
 package ee.tuleva.onboarding.auth.smartid;
 
 import static ee.tuleva.onboarding.error.response.ErrorsResponse.ofSingleError;
+import static java.util.Collections.*;
+import static java.util.concurrent.Executors.*;
 
-import ee.sk.smartid.AuthenticationHash;
-import ee.sk.smartid.AuthenticationIdentity;
-import ee.sk.smartid.AuthenticationRequestBuilder;
-import ee.sk.smartid.AuthenticationResponseValidator;
-import ee.sk.smartid.SmartIdAuthenticationResponse;
-import ee.sk.smartid.SmartIdClient;
+import ee.sk.smartid.*;
 import ee.sk.smartid.exception.UnprocessableSmartIdResponseException;
 import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException;
 import ee.sk.smartid.exception.useraction.UserRefusedException;
@@ -16,12 +13,13 @@ import ee.sk.smartid.rest.dao.SemanticsIdentifier;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier.CountryCode;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier.IdentityType;
 import jakarta.annotation.PreDestroy;
-import java.util.Collections;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import lombok.Builder;
 import lombok.Data;
@@ -40,17 +38,20 @@ public class SmartIdAuthService {
   @Data
   static class SmartIdResult {
 
-    AuthenticationIdentity authenticationIdentity;
-    SmartIdException error;
+    private AuthenticationIdentity authenticationIdentity;
+    private SmartIdException error;
+    @Builder.Default private Instant createdAt = Instant.now();
   }
 
-  private final Map<String, SmartIdResult> smartIdResults =
-      Collections.synchronizedMap(new LRUMap<>());
-  private final ExecutorService poller = Executors.newFixedThreadPool(20);
+  private static final Duration TTL = Duration.ofSeconds(60);
+
+  private final Map<String, SmartIdResult> smartIdResults = synchronizedMap(new LRUMap<>());
+  private final ExecutorService poller = newFixedThreadPool(20);
 
   private final SmartIdClient smartIdClient;
   private final SmartIdAuthenticationHashGenerator hashGenerator;
   private final AuthenticationResponseValidator authenticationResponseValidator;
+  private final Clock clock;
 
   @SneakyThrows
   @PreDestroy
@@ -74,8 +75,12 @@ public class SmartIdAuthService {
   }
 
   public Optional<AuthenticationIdentity> getAuthenticationIdentity(String authenticationHash) {
-    var result = smartIdResults.remove(authenticationHash);
+    var result = smartIdResults.get(authenticationHash);
     if (result == null) {
+      return Optional.empty();
+    }
+    if (Instant.now(clock).isAfter(result.getCreatedAt().plus(TTL))) {
+      smartIdResults.remove(authenticationHash);
       return Optional.empty();
     }
     if (result.error != null) {
@@ -88,7 +93,7 @@ public class SmartIdAuthService {
     log.info("Starting to poll");
     poller.submit(
         () -> {
-          final var resultBuilder = SmartIdResult.builder();
+          final var resultBuilder = SmartIdResult.builder().createdAt(Instant.now(clock));
           try {
             SmartIdAuthenticationResponse response =
                 requestBuilder(session.getPersonalCode(), session.getAuthenticationHash())

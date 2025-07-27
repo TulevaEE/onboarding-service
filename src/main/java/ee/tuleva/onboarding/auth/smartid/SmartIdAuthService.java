@@ -75,12 +75,13 @@ public class SmartIdAuthService {
   }
 
   public Optional<AuthenticationIdentity> getAuthenticationIdentity(String authenticationHash) {
-    var result = smartIdResults.get(authenticationHash);
+    var result = smartIdResults.computeIfPresent(authenticationHash, (key, value) -> {
+      if (Instant.now(clock).isAfter(value.getCreatedAt().plus(TTL))) {
+        return null; // Remove the entry
+      }
+      return value; // Keep the entry
+    });
     if (result == null) {
-      return Optional.empty();
-    }
-    if (Instant.now(clock).isAfter(result.getCreatedAt().plus(TTL))) {
-      smartIdResults.remove(authenticationHash);
       return Optional.empty();
     }
     if (result.error != null) {

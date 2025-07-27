@@ -9,7 +9,7 @@ import ee.sk.smartid.exception.useraccount.UserAccountNotFoundException
 import ee.sk.smartid.exception.useraction.UserRefusedException
 import ee.sk.smartid.rest.SmartIdConnector
 import ee.sk.smartid.rest.dao.*
-import ee.tuleva.onboarding.time.TestClockHolder
+import ee.tuleva.onboarding.time.MutableClock
 import spock.lang.Specification
 
 import java.time.Clock
@@ -25,9 +25,8 @@ class SmartIdAuthServiceSpec extends Specification {
   SmartIdAuthenticationHashGenerator hashGenerator = Mock(SmartIdAuthenticationHashGenerator)
   AuthenticationResponseValidator validator = Mock(AuthenticationResponseValidator)
   SmartIdConnector connector = Mock(SmartIdConnector)
-  Clock clock = TestClockHolder.clock
+  Clock clock = new MutableClock()
   AuthenticationHash hash
-
 
   def setup() {
     SmartIdClient smartIdClient = new SmartIdClient()
@@ -148,7 +147,7 @@ class SmartIdAuthServiceSpec extends Specification {
     first.present
 
     when:
-    TestClockHolder.tick(61, SECONDS)
+    clock.tick(61, SECONDS)
 
     and:
     def second = smartIdAuthService.getAuthenticationIdentity(session.authenticationHash.hashInBase64)

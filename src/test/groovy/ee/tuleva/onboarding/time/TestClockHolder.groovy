@@ -23,7 +23,7 @@ class TestClockHolder {
     Clock withZone(ZoneId zone) { this }
   }
 
-  static void tick(long amountToAdd, TemporalUnit unit = SECONDS) {
+  static void tick(long amountToAdd = 1, TemporalUnit unit = SECONDS) {
     now = now.plus(amountToAdd, unit)
   }
 }

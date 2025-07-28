@@ -40,10 +40,6 @@ public class DigiDocFacade {
     return builder.build();
   }
 
-  // This has the unfortunate side effect that containers with a single zip archive are not
-  // signable,
-  // but since the container itself is a zip archive which can hold multiple files,
-  // it seems like a very small edge case
   private boolean isExistingContainer(List<SignatureFile> files) {
     if (files.size() != 1) {
       return false;

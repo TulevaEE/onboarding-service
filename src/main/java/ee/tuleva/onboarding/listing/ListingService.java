@@ -2,11 +2,11 @@ package ee.tuleva.onboarding.listing;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION;
 import static ee.tuleva.onboarding.listing.Listing.State.ACTIVE;
+import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_CONTACT;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.auth.principal.PersonImpl;
 import ee.tuleva.onboarding.capital.ApiCapitalEvent;
 import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.locale.LocaleService;
@@ -19,8 +19,8 @@ import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -79,12 +79,12 @@ public class ListingService {
     User listingOwner = userService.getByMemberId(listing.getMemberId());
     User userContacting = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
 
-    Map<String, Object> mergeVars =
-        Map.of(
-            "message",
-            messageRequest.message(),
-            "counterParty",
-            new PersonImpl(authenticatedPerson));
+    var mergeVars = new HashMap<String, Object>();
+
+    mergeVars.put("message", transformMessageNewlines(messageRequest.message()));
+
+    mergeVars.putAll(getNameMergeVars(listingOwner));
+
     List<String> tags = List.of();
     EmailType emailType = LISTING_CONTACT;
 
@@ -124,5 +124,15 @@ public class ListingService {
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
     return totalMemberCapital.compareTo(request.units()) >= 0;
+  }
+
+  private String transformMessageNewlines(String message) {
+    var newLine = "<br />";
+
+    return message
+        .replace("\r\n", newLine)
+        .replace("\n\r", newLine)
+        .replace("\r", newLine)
+        .replace("\n", newLine);
   }
 }

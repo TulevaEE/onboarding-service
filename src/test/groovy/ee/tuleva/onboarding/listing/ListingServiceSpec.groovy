@@ -173,7 +173,10 @@ class ListingServiceSpec extends Specification {
     def listingOwner = sampleUser().firstName("Sander").email("sander@tuleva.ee").id(1111).build()
     def contacterPerson = authenticatedPersonFromUser(contacter).build()
 
-    def contactMessageRequest = new ContactMessageRequest("Hello!\n I would like to buy your shares.\n Best, Jordan")
+    var originalMessage = "Hello!\n I would like to buy your shares.\n Best, Jordan"
+    var transformedMessage = "Hello!<br /> I would like to buy your shares.<br /> Best, Jordan"
+
+    def contactMessageRequest = new ContactMessageRequest(originalMessage)
 
     def savedListing = newListingRequest().type(SELL).units(100.00).build().toListing(42L, 'et').tap {
       id = 1L
@@ -192,7 +195,9 @@ class ListingServiceSpec extends Specification {
         listingOwner.email,
         contacter.email,
         LISTING_CONTACT.getTemplateName(savedListing.language),
-        { Map it -> it.get("message") == contactMessageRequest.message() },
+        { Map it ->
+          it.get("message") == transformedMessage && it.get("fname") == listingOwner.firstName && it.get("lname") == listingOwner.lastName
+        },
         _,
         _
     ) >> mockMessage

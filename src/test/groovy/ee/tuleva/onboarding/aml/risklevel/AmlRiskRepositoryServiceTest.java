@@ -183,4 +183,18 @@ class AmlRiskRepositoryServiceTest {
     verify(jdbcOperations).execute(expectedThirdPillarRefresh);
     verify(jdbcOperations).execute(expectedRiskMetadataRefresh);
   }
+
+  @Test
+  @DisplayName("Should refresh only AML risk metadata view")
+  void testRefreshAmlRiskMetadataView() {
+    var jdbcOperations = Mockito.mock(org.springframework.jdbc.core.JdbcOperations.class);
+    when(jdbcTemplate.getJdbcOperations()).thenReturn(jdbcOperations);
+
+    service.refreshAmlRiskMetadataView();
+
+    String expectedRiskMetadataRefresh =
+        "REFRESH MATERIALIZED VIEW CONCURRENTLY analytics.v_aml_risk_metadata;";
+
+    verify(jdbcOperations).execute(expectedRiskMetadataRefresh);
+  }
 }

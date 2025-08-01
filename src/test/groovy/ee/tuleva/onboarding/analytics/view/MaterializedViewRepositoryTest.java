@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.analytics.view;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
@@ -9,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcOperations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -59,5 +62,19 @@ class MaterializedViewRepositoryTest {
         .execute("REFRESH MATERIALIZED VIEW analytics.mv_aasta_eelarve_vs_prognoos;");
     verify(jdbcOperations)
         .execute("REFRESH MATERIALIZED VIEW analytics.mv_ytd_eelarve_vs_tulemus;");
+  }
+
+  @Test
+  @DisplayName("refreshAllViews should throw exception when refresh fails")
+  void refreshAllViews_throwsExceptionWhenRefreshFails() {
+    // given
+    doThrow(new DataAccessException("Permission denied") {})
+        .when(jdbcOperations)
+        .execute(anyString());
+
+    // when & then
+    RuntimeException thrown =
+        assertThrows(RuntimeException.class, () -> repository.refreshAllViews());
+    assertTrue(thrown.getMessage().contains("Failed to refresh materialized view"));
   }
 }

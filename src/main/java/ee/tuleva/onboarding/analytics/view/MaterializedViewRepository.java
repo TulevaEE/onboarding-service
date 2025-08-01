@@ -41,7 +41,12 @@ public class MaterializedViewRepository {
   private void refreshMaterializedView(String viewName) {
     log.info("Start materialized view refresh: {}", viewName);
     String sql = "REFRESH MATERIALIZED VIEW " + viewName + ";";
-    jdbcTemplate.getJdbcOperations().execute(sql);
-    log.info("Materialized view refreshed: {}", viewName);
+    try {
+      jdbcTemplate.getJdbcOperations().execute(sql);
+      log.info("Materialized view refreshed: {}", viewName);
+    } catch (Exception e) {
+      log.error("Failed to refresh materialized view: {}. Error: {}", viewName, e.getMessage(), e);
+      throw new RuntimeException("Failed to refresh materialized view: " + viewName, e);
+    }
   }
 }

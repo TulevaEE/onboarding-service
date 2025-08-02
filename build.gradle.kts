@@ -22,10 +22,10 @@ val springCloudVersion = "2025.0.0"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.5.3"
+    id("org.springframework.boot") version "3.5.4"
     id("io.spring.dependency-management") version "1.1.7"
-    id("com.gorylenko.gradle-git-properties") version "2.5.0"
-    id("com.diffplug.spotless") version "7.0.4"
+    id("com.gorylenko.gradle-git-properties") version "2.5.2"
+    id("com.diffplug.spotless") version "7.2.1"
     id("io.freefair.lombok") version "8.14"
     id("net.ltgt.errorprone") version "4.3.0"
     jacoco
@@ -85,7 +85,7 @@ dependencies {
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:10.3")
+    implementation("com.nimbusds:nimbus-jose-jwt:10.4")
 
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
     implementation("org.springdoc:springdoc-openapi-starter-common:2.8.9")
@@ -122,10 +122,10 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.16.0")
-    implementation("io.sentry:sentry-logback:8.16.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.17.0")
+    implementation("io.sentry:sentry-logback:8.17.0")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.10.1")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.10.3")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -135,8 +135,8 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.31.75")
-    implementation("commons-io:commons-io:2.19.0")
+    implementation("software.amazon.awssdk:s3:2.32.14")
+    implementation("commons-io:commons-io:2.20.0")
     implementation("org.apache.commons:commons-csv:1.14.0")
 
     testImplementation("com.h2database:h2")
@@ -150,7 +150,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-M6-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.27")
+    testImplementation("org.apache.groovy:groovy-all:4.0.28")
 
     // TODO: migrate to WireMock
     testImplementation("org.mock-server:mockserver-netty:5.15.0")

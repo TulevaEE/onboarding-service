@@ -303,10 +303,10 @@ tasks {
             val shellArg = if (operatingSystem.isWindows) "/c" else "-c"
 
             execOps.exec {
-                commandLine(shellCommand, shellArg, "git", "config", "core.hooksPath", ".githooks")
+                commandLine(shellCommand, shellArg, "git config core.hooksPath .githooks")
             }
             execOps.exec {
-                commandLine(shellCommand, shellArg, "chmod", "+x", ".githooks/pre-commit")
+                commandLine(shellCommand, shellArg, "chmod +x .githooks/pre-commit")
             }
             println("Git hooks configured successfully!")
         }

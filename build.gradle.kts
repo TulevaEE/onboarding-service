@@ -7,7 +7,10 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent.SKIPPED
 import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_ERROR
 import org.gradle.api.tasks.testing.logging.TestLogEvent.STANDARD_OUT
 import org.gradle.api.tasks.testing.logging.TestLogEvent.STARTED
+import org.gradle.internal.extensions.core.serviceOf
+import org.gradle.process.ExecOperations
 
+val execOps = project.serviceOf<ExecOperations>()
 val xjc by configurations.creating
 
 buildscript {
@@ -299,11 +302,11 @@ tasks {
             val shellCommand = if (operatingSystem.isWindows) "cmd" else "sh"
             val shellArg = if (operatingSystem.isWindows) "/c" else "-c"
 
-            providers.exec {
+            execOps.exec {
                 commandLine(shellCommand, shellArg, "git", "config", "core.hooksPath", ".githooks")
             }
-            providers.exec {
-                commandLine(shellCommand, shellArg, "chmod +x .githooks/pre-commit")
+            execOps.exec {
+                commandLine(shellCommand, shellArg, "chmod", "+x", ".githooks/pre-commit")
             }
             println("Git hooks configured successfully!")
         }
@@ -325,19 +328,18 @@ tasks {
             outputDir.mkdirs()
 
             rootSchemas.forEach { (schemaFile, packageName) ->
-                providers.exec {
+                execOps.exec {
                     executable = "java"
-                    args =
-                        listOf(
-                            "-cp",
-                            configurations["xjc"].asPath,
-                            "com.sun.tools.xjc.XJCFacade",
-                            "-d",
-                            outputDir.absolutePath,
-                            "-p",
-                            packageName,
-                            schemaFile.absolutePath,
-                        )
+                    args(
+                        "-cp",
+                        configurations["xjc"].asPath,
+                        "com.sun.tools.xjc.XJCFacade",
+                        "-d",
+                        outputDir.absolutePath,
+                        "-p",
+                        packageName,
+                        schemaFile.absolutePath,
+                    )
                 }
             }
         }
@@ -349,7 +351,7 @@ tasks {
     }
 }
 
-tasks.named<org.gradle.api.tasks.compile.JavaCompile>("compileJava") {
+tasks.named<JavaCompile>("compileJava") {
     dependsOn(tasks.named("generateXSDClasses"))
 }
 

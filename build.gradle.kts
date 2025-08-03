@@ -299,10 +299,10 @@ tasks {
             val shellCommand = if (operatingSystem.isWindows) "cmd" else "sh"
             val shellArg = if (operatingSystem.isWindows) "/c" else "-c"
 
-            exec {
-                commandLine(shellCommand, shellArg, "git config core.hooksPath .githooks")
+            providers.exec {
+                commandLine(shellCommand, shellArg, "git", "config", "core.hooksPath", ".githooks")
             }
-            exec {
+            providers.exec {
                 commandLine(shellCommand, shellArg, "chmod +x .githooks/pre-commit")
             }
             println("Git hooks configured successfully!")
@@ -325,7 +325,7 @@ tasks {
             outputDir.mkdirs()
 
             rootSchemas.forEach { (schemaFile, packageName) ->
-                exec {
+                providers.exec {
                     executable = "java"
                     args =
                         listOf(

@@ -70,4 +70,18 @@ public class MandateDeadlinesServiceTest {
     LocalDate expectedCurrentPeriodStart = LocalDate.parse("2020-12-01");
     assertEquals(expectedCurrentPeriodStart, service.getCurrentPeriodStartDate());
   }
+
+  @Test
+  void canGetPeriodStartDateForSpecificDate() {
+    LocalDate dateInMidPeriod = LocalDate.parse("2021-05-15");
+    LocalDate expectedPeriodStart = LocalDate.parse("2021-04-01");
+    assertEquals(expectedPeriodStart, service.getPeriodStartDate(dateInMidPeriod));
+
+    LocalDate lastDayOfPeriod = LocalDate.parse("2021-07-31");
+    assertEquals(expectedPeriodStart, service.getPeriodStartDate(lastDayOfPeriod));
+
+    LocalDate firstDayOfNewPeriod = LocalDate.parse("2021-08-01");
+    LocalDate newPeriodStart = LocalDate.parse("2021-08-01");
+    assertEquals(newPeriodStart, service.getPeriodStartDate(firstDayOfNewPeriod));
+  }
 }

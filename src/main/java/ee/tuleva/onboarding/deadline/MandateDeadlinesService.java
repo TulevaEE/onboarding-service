@@ -24,4 +24,9 @@ public class MandateDeadlinesService {
   public LocalDate getCurrentPeriodStartDate() {
     return getDeadlines().getCurrentPeriodStartDate();
   }
+
+  public LocalDate getPeriodStartDate(LocalDate date) {
+    return getDeadlines(date.atStartOfDay(estonianClock.getZone()).toInstant())
+        .getCurrentPeriodStartDate();
+  }
 }

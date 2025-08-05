@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.analytics.transaction.exchange;
 
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.time.FixedClockConfig;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
@@ -21,18 +23,48 @@ class ScheduledExchangeTransactionSynchronizationJobTest extends FixedClockConfi
   @InjectMocks private ScheduledExchangeTransactionSynchronizationJob job;
 
   @Test
-  void run_callsSynchronizerWithStartDateFromMandateService() {
+  void run_callsSynchronizerWithPeriodStartDateForYesterday() {
     // given
-    LocalDate expectedStartDate = LocalDate.of(2025, 4, 1);
-    when(mandateDeadlinesService.getCurrentPeriodStartDate()).thenReturn(expectedStartDate);
+    LocalDate today = LocalDate.of(2025, 8, 1); // First day of new period
+    LocalDate yesterday = LocalDate.of(2025, 7, 31); // Last day of previous period
+    LocalDate expectedStartDate = LocalDate.of(2025, 4, 1); // Start of previous period
 
-    // when
-    job.run();
+    try (MockedStatic<LocalDate> mockedLocalDate =
+        mockStatic(LocalDate.class, CALLS_REAL_METHODS)) {
+      mockedLocalDate.when(LocalDate::now).thenReturn(today);
+      when(mandateDeadlinesService.getPeriodStartDate(yesterday)).thenReturn(expectedStartDate);
 
-    // then
-    verify(mandateDeadlinesService).getCurrentPeriodStartDate();
-    verify(exchangeTransactionSynchronizer)
-        .sync(eq(expectedStartDate), eq(Optional.empty()), eq(Optional.empty()), eq(false));
-    verifyNoMoreInteractions(exchangeTransactionSynchronizer, mandateDeadlinesService);
+      // when
+      job.run();
+
+      // then
+      verify(mandateDeadlinesService).getPeriodStartDate(yesterday);
+      verify(exchangeTransactionSynchronizer)
+          .sync(eq(expectedStartDate), eq(Optional.empty()), eq(Optional.empty()), eq(false));
+      verifyNoMoreInteractions(exchangeTransactionSynchronizer, mandateDeadlinesService);
+    }
+  }
+
+  @Test
+  void run_callsSynchronizerWithCorrectPeriodStartDateMidPeriod() {
+    // given
+    LocalDate today = LocalDate.of(2025, 5, 15); // Mid-period
+    LocalDate yesterday = LocalDate.of(2025, 5, 14);
+    LocalDate expectedStartDate = LocalDate.of(2025, 4, 1); // Current period start
+
+    try (MockedStatic<LocalDate> mockedLocalDate =
+        mockStatic(LocalDate.class, CALLS_REAL_METHODS)) {
+      mockedLocalDate.when(LocalDate::now).thenReturn(today);
+      when(mandateDeadlinesService.getPeriodStartDate(yesterday)).thenReturn(expectedStartDate);
+
+      // when
+      job.run();
+
+      // then
+      verify(mandateDeadlinesService).getPeriodStartDate(yesterday);
+      verify(exchangeTransactionSynchronizer)
+          .sync(eq(expectedStartDate), eq(Optional.empty()), eq(Optional.empty()), eq(false));
+      verifyNoMoreInteractions(exchangeTransactionSynchronizer, mandateDeadlinesService);
+    }
   }
 }

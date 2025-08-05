@@ -13,14 +13,14 @@ public class ExchangeTransactionSnapshotScheduledJob {
 
   private final ExchangeTransactionSnapshotService exchangeTransactionSnapshotService;
 
-  @Scheduled(cron = "0 45 0 * * SUN", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 45 3 * * SUN", zone = "Europe/Tallinn")
   @Transactional
   public void takeWeeklySnapshot() {
     log.info("Starting weekly exchange transaction snapshot job.");
     exchangeTransactionSnapshotService.takeSnapshot("WEEKLY");
   }
 
-  @Scheduled(cron = "0 5 0 1 * ?", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 5 3 1 * ?", zone = "Europe/Tallinn")
   @Transactional
   public void takeMonthlySnapshot() {
     log.info("Starting monthly exchange transaction snapshot job.");

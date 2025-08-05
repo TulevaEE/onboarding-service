@@ -44,7 +44,7 @@ class ExchangeTransactionSnapshotScheduledJobTest {
     LocalDateTime expectedDateTime = LocalDateTime.of(2025, 8, 1, 0, 1);
     ZoneId estonianZone = ZoneId.of("Europe/Tallinn");
     OffsetDateTime expectedSnapshotTime = expectedDateTime.atZone(estonianZone).toOffsetDateTime();
-    LocalDate expectedReportingDate = LocalDate.of(2025, 7, 31);
+    LocalDate expectedReportingDate = LocalDate.of(2025, 4, 1);
 
     // when
     scheduledJob.temporaryMissingPeriodSnapshot();

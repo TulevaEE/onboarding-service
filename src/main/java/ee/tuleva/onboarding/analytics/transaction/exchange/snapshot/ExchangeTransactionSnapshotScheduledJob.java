@@ -34,7 +34,7 @@ public class ExchangeTransactionSnapshotScheduledJob {
   // TEMPORARY: One-time run to create missing snapshot for previous period
   // This creates a snapshot as if it was taken at 2025-08-01 00:01 (first minute of new period)
   // TO BE REMOVED after successful execution
-  @Scheduled(cron = "0 26 19 5 8 ?", zone = "Europe/Tallinn") // Run at 18:50 on August 5, 2025
+  @Scheduled(cron = "0 0 20 5 8 ?", zone = "Europe/Tallinn") // Run at 19:35 on August 5, 2025
   @Transactional
   public void temporaryMissingPeriodSnapshot() {
     log.info("Starting TEMPORARY snapshot for previous period");
@@ -44,8 +44,8 @@ public class ExchangeTransactionSnapshotScheduledJob {
     ZoneId estonianZone = ZoneId.of("Europe/Tallinn");
     OffsetDateTime snapshotTakenAt = snapshotDateTime.atZone(estonianZone).toOffsetDateTime();
 
-    // Snapshot transactions from the last day of the previous period (July 31, 2025)
-    LocalDate reportingDate = LocalDate.of(2025, 7, 31);
+    // Snapshot transactions from the previous period (reporting date = period start: April 1, 2025)
+    LocalDate reportingDate = LocalDate.of(2025, 4, 1);
 
     exchangeTransactionSnapshotService.takeSnapshotForReportingDate(
         "PERIOD_FIX", snapshotTakenAt, reportingDate);

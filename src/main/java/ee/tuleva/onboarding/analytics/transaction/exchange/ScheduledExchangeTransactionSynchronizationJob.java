@@ -31,21 +31,4 @@ public class ScheduledExchangeTransactionSynchronizationJob {
 
     log.info("Transactions exchange synchronization job completed");
   }
-
-  // TEMPORARY: One-time run to fetch missing transactions from previous period (April 1 - July 31,
-  // 2025)
-  // This compensates for the bug where transactions on July 31st after 2 AM were missed
-  // TO BE REMOVED after successful execution
-  @Scheduled(cron = "0 45 18 5 8 ?", zone = "Europe/Tallinn")
-  public void temporaryMissingTransactionsSync() {
-    log.info("Starting TEMPORARY sync for missing transactions from previous period");
-
-    LocalDate previousPeriodStart = LocalDate.of(2025, 4, 1);
-
-    exchangeTransactionSynchronizer.sync(
-        previousPeriodStart, Optional.empty(), Optional.empty(), false);
-
-    log.info(
-        "TEMPORARY missing transactions sync completed - this method should be removed after execution");
-  }
 }

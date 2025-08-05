@@ -171,4 +171,93 @@ class ExchangeTransactionSnapshotServiceTest {
     assertThat(savedSnapshots.stream().map(ExchangeTransactionSnapshot::getCode))
         .containsExactlyInAnyOrder(tx1.getCode(), tx2.getCode());
   }
+
+  @Test
+  void takeSnapshot_withSpecificSnapshotDate_usesProvidedDateInsteadOfCurrentTime() {
+    // given
+    OffsetDateTime customSnapshotTime = fixedOffsetTime.minusDays(5).withHour(0).withMinute(1);
+    ExchangeTransaction tx1 =
+        ExchangeTransactionFixture.exampleTransactionBuilder().reportingDate(today).build();
+
+    when(currentTransactionRepository.findTopByOrderByReportingDateDesc())
+        .thenReturn(Optional.of(tx1));
+    when(currentTransactionRepository.findByReportingDate(today)).thenReturn(List.of(tx1));
+
+    // when
+    snapshotService.takeSnapshot("PERIOD_FIX", customSnapshotTime);
+
+    // then
+    verify(snapshotRepository).saveAll(savedSnapshotsCaptor.capture());
+    List<ExchangeTransactionSnapshot> savedSnapshots = savedSnapshotsCaptor.getValue();
+
+    assertThat(savedSnapshots).hasSize(1);
+    ExchangeTransactionSnapshot snapshot = savedSnapshots.getFirst();
+    assertThat(snapshot.getSnapshotTakenAt()).isEqualTo(customSnapshotTime);
+    assertThat(snapshot.getCreatedAt())
+        .isEqualTo(recordCreationTime); // Created at should still be current time
+    assertThat(snapshot.getReportingDate()).isEqualTo(today);
+    assertThat(snapshot.getCode()).isEqualTo(tx1.getCode());
+  }
+
+  @Test
+  void takeSnapshotForReportingDate_createsSnapshotsForSpecificReportingDate() {
+    // given
+    LocalDate specificReportingDate = yesterday;
+    OffsetDateTime customSnapshotTime = fixedOffsetTime.minusDays(2).withHour(0).withMinute(1);
+
+    ExchangeTransaction tx1 =
+        ExchangeTransactionFixture.exampleTransactionBuilder()
+            .reportingDate(specificReportingDate)
+            .build();
+    ExchangeTransaction tx2 =
+        ExchangeTransactionFixture.anotherExampleTransactionBuilder()
+            .reportingDate(specificReportingDate)
+            .build();
+    // Transaction with different reporting date - should not be included
+    ExchangeTransaction txDifferentDate =
+        ExchangeTransactionFixture.exampleTransactionBuilder()
+            .code("DIFFERENT_DATE")
+            .reportingDate(today)
+            .build();
+
+    when(currentTransactionRepository.findByReportingDate(specificReportingDate))
+        .thenReturn(List.of(tx1, tx2));
+
+    // when
+    snapshotService.takeSnapshotForReportingDate(
+        "PERIOD_FIX", customSnapshotTime, specificReportingDate);
+
+    // then
+    verify(snapshotRepository).saveAll(savedSnapshotsCaptor.capture());
+    List<ExchangeTransactionSnapshot> savedSnapshots = savedSnapshotsCaptor.getValue();
+
+    assertThat(savedSnapshots).hasSize(2);
+    assertThat(savedSnapshots)
+        .allSatisfy(
+            snapshot -> {
+              assertThat(snapshot.getSnapshotTakenAt()).isEqualTo(customSnapshotTime);
+              assertThat(snapshot.getCreatedAt()).isEqualTo(recordCreationTime);
+              assertThat(snapshot.getReportingDate()).isEqualTo(specificReportingDate);
+            });
+
+    assertThat(savedSnapshots.stream().map(ExchangeTransactionSnapshot::getCode))
+        .containsExactlyInAnyOrder(tx1.getCode(), tx2.getCode());
+  }
+
+  @Test
+  void takeSnapshotForReportingDate_doesNothingWhenNoTransactionsForSpecificDate() {
+    // given
+    LocalDate specificReportingDate = yesterday;
+    OffsetDateTime customSnapshotTime = fixedOffsetTime.minusDays(2).withHour(0).withMinute(1);
+
+    when(currentTransactionRepository.findByReportingDate(specificReportingDate))
+        .thenReturn(Collections.emptyList());
+
+    // when
+    snapshotService.takeSnapshotForReportingDate(
+        "PERIOD_FIX", customSnapshotTime, specificReportingDate);
+
+    // then
+    verify(snapshotRepository, never()).saveAll(any());
+  }
 }

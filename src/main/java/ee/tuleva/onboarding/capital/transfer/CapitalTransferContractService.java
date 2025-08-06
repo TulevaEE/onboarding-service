@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.M
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
+import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.CAPITAL_TRANSFER;
 import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -14,6 +15,7 @@ import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractCont
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.mandate.signature.SignatureFile;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.slack.SlackService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.Member;
@@ -39,6 +41,7 @@ public class CapitalTransferContractService {
   private final CapitalTransferFileService capitalTransferFileService;
   private final CapitalTransferContractContentService contractContentService;
   private final CapitalService capitalService;
+  private final SlackService slackService;
 
   private static final BigDecimal MINIMUM_UNIT_PRICE = BigDecimal.ONE;
 
@@ -219,6 +222,15 @@ public class CapitalTransferContractService {
     }
     contract.confirmPaymentBySeller();
     log.info("Payment confirmed by seller for contract {}.", id);
+
+    try {
+      this.slackService.sendMessage(
+          "Capital transfer id=" + contract.getId() + " awaiting board confirmation",
+          CAPITAL_TRANSFER);
+    } catch (Exception e) {
+      log.error("Failed to notify about capital transfer id=" + contract.getId());
+    }
+
     return contractRepository.save(contract);
   }
 

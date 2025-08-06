@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.capital.transfer;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
+import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.CAPITAL_TRANSFER;
 import static ee.tuleva.onboarding.time.TestClockHolder.clock;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
 import static org.junit.jupiter.api.Assertions.*;
@@ -15,6 +16,7 @@ import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.notification.email.EmailService;
+import ee.tuleva.onboarding.notification.slack.SlackService;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.MemberService;
 import java.math.BigDecimal;
@@ -38,6 +40,7 @@ class CapitalTransferContractServiceTest {
   @Mock private CapitalTransferFileService capitalTransferFileService;
   @Mock private CapitalTransferContractContentService contractContentService;
   @Mock private CapitalService capitalService;
+  @Mock private SlackService slackService;
 
   @InjectMocks private CapitalTransferContractService contractService;
 
@@ -223,6 +226,7 @@ class CapitalTransferContractServiceTest {
         when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
         var result = contractService.updateState(1L, PAYMENT_CONFIRMED_BY_SELLER, user);
         assertEquals(contract, result);
+        verify(slackService).sendMessage(anyString(), eq(CAPITAL_TRANSFER));
 
       } else {
         assertThrows(

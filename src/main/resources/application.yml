@@ -289,6 +289,7 @@ slack:
   webhooks:
     "aml": ${SLACK_AML_WEBHOOK_URL:${SLACK_WEBHOOK_URL}}
     "withdrawals": ${SLACK_WITHDRAWALS_WEBHOOK_URL}
+    "capital_transfer": ${SLACK_CAPITAL_TRANSFER_WEBHOOK_URL}
 
 #Sentry environment configuration
 ---

@@ -20,7 +20,8 @@ public class SlackService {
   // mapped from slack.webhooks.___ in application properties
   public enum SlackChannel {
     AML("aml"),
-    WITHDRAWALS("withdrawals");
+    WITHDRAWALS("withdrawals"),
+    CAPITAL_TRANSFER("capital_transfer");
 
     @Getter private final String configurationKey;
 

@@ -10,7 +10,7 @@ import ee.tuleva.onboarding.analytics.transaction.exchange.ExchangeTransactionRe
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -34,15 +34,15 @@ class ExchangeTransactionSnapshotServiceTest {
 
   @Captor private ArgumentCaptor<List<ExchangeTransactionSnapshot>> savedSnapshotsCaptor;
 
-  private OffsetDateTime fixedOffsetTime;
-  private OffsetDateTime recordCreationTime;
+  private LocalDateTime fixedOffsetTime;
+  private LocalDateTime recordCreationTime;
   private LocalDate today;
   private LocalDate yesterday;
 
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(TestClockHolder.clock);
-    fixedOffsetTime = OffsetDateTime.now(ClockHolder.clock());
+    fixedOffsetTime = LocalDateTime.now(ClockHolder.clock());
     recordCreationTime = fixedOffsetTime;
     today = LocalDate.now(ClockHolder.clock());
     yesterday = today.minusDays(1);
@@ -175,7 +175,7 @@ class ExchangeTransactionSnapshotServiceTest {
   @Test
   void takeSnapshot_withSpecificSnapshotDate_usesProvidedDateInsteadOfCurrentTime() {
     // given
-    OffsetDateTime customSnapshotTime = fixedOffsetTime.minusDays(5).withHour(0).withMinute(1);
+    LocalDateTime customSnapshotTime = fixedOffsetTime.minusDays(5).withHour(0).withMinute(1);
     ExchangeTransaction tx1 =
         ExchangeTransactionFixture.exampleTransactionBuilder().reportingDate(today).build();
 
@@ -203,7 +203,7 @@ class ExchangeTransactionSnapshotServiceTest {
   void takeSnapshotForReportingDate_createsSnapshotsForSpecificReportingDate() {
     // given
     LocalDate specificReportingDate = yesterday;
-    OffsetDateTime customSnapshotTime = fixedOffsetTime.minusDays(2).withHour(0).withMinute(1);
+    LocalDateTime customSnapshotTime = fixedOffsetTime.minusDays(2).withHour(0).withMinute(1);
 
     ExchangeTransaction tx1 =
         ExchangeTransactionFixture.exampleTransactionBuilder()
@@ -248,7 +248,7 @@ class ExchangeTransactionSnapshotServiceTest {
   void takeSnapshotForReportingDate_doesNothingWhenNoTransactionsForSpecificDate() {
     // given
     LocalDate specificReportingDate = yesterday;
-    OffsetDateTime customSnapshotTime = fixedOffsetTime.minusDays(2).withHour(0).withMinute(1);
+    LocalDateTime customSnapshotTime = fixedOffsetTime.minusDays(2).withHour(0).withMinute(1);
 
     when(currentTransactionRepository.findByReportingDate(specificReportingDate))
         .thenReturn(Collections.emptyList());

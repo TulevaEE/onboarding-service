@@ -8,7 +8,7 @@ import ee.tuleva.onboarding.analytics.transaction.exchange.ExchangeTransactionRe
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,15 +25,15 @@ class ExchangeTransactionSnapshotServiceIntegrationTest {
   @Autowired private ExchangeTransactionRepository currentTransactionRepository;
   @Autowired private ExchangeTransactionSnapshotRepository snapshotRepository;
 
-  private OffsetDateTime fixedTestTime;
-  private OffsetDateTime recordCreationTime;
+  private LocalDateTime fixedTestTime;
+  private LocalDateTime recordCreationTime;
   private LocalDate today;
   private LocalDate yesterday;
 
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(TestClockHolder.clock);
-    fixedTestTime = OffsetDateTime.now(ClockHolder.clock());
+    fixedTestTime = LocalDateTime.now(ClockHolder.clock());
     recordCreationTime = fixedTestTime;
     today = LocalDate.now(ClockHolder.clock());
     yesterday = today.minusDays(1);

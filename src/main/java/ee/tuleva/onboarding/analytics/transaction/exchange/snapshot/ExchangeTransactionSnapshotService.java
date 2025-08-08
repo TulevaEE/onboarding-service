@@ -4,7 +4,7 @@ import ee.tuleva.onboarding.analytics.transaction.exchange.ExchangeTransaction;
 import ee.tuleva.onboarding.analytics.transaction.exchange.ExchangeTransactionRepository;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -22,12 +22,12 @@ public class ExchangeTransactionSnapshotService {
 
   @Transactional
   public void takeSnapshot(String jobType) {
-    OffsetDateTime jobStartTime = OffsetDateTime.now(ClockHolder.clock());
+    LocalDateTime jobStartTime = LocalDateTime.now(ClockHolder.clock());
     takeSnapshot(jobType, jobStartTime);
   }
 
   @Transactional
-  public void takeSnapshot(String jobType, OffsetDateTime snapshotTakenAt) {
+  public void takeSnapshot(String jobType, LocalDateTime snapshotTakenAt) {
     log.info(
         "Starting {} exchange transaction snapshot job taken at {}.", jobType, snapshotTakenAt);
 
@@ -58,7 +58,7 @@ public class ExchangeTransactionSnapshotService {
                           currentTransaction ->
                               ExchangeTransactionSnapshot.builder()
                                   .snapshotTakenAt(snapshotTakenAt)
-                                  .createdAt(OffsetDateTime.now(ClockHolder.clock()))
+                                  .createdAt(LocalDateTime.now(ClockHolder.clock()))
                                   .reportingDate(currentTransaction.getReportingDate())
                                   .securityFrom(currentTransaction.getSecurityFrom())
                                   .securityTo(currentTransaction.getSecurityTo())
@@ -91,7 +91,7 @@ public class ExchangeTransactionSnapshotService {
   // issues
   @Transactional
   public void takeSnapshotForReportingDate(
-      String jobType, OffsetDateTime snapshotTakenAt, LocalDate reportingDate) {
+      String jobType, LocalDateTime snapshotTakenAt, LocalDate reportingDate) {
     log.info(
         "Starting {} exchange transaction snapshot job for reporting date {} taken at {}.",
         jobType,
@@ -115,7 +115,7 @@ public class ExchangeTransactionSnapshotService {
                 currentTransaction ->
                     ExchangeTransactionSnapshot.builder()
                         .snapshotTakenAt(snapshotTakenAt)
-                        .createdAt(OffsetDateTime.now(ClockHolder.clock()))
+                        .createdAt(LocalDateTime.now(ClockHolder.clock()))
                         .reportingDate(currentTransaction.getReportingDate())
                         .securityFrom(currentTransaction.getSecurityFrom())
                         .securityTo(currentTransaction.getSecurityTo())

@@ -9,8 +9,6 @@ import java.sql.Connection;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.Month;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 import javax.sql.DataSource;
@@ -29,10 +27,10 @@ class ExchangeTransactionSnapshotRepositoryTest {
 
   @Autowired DataSource dataSource;
 
-  private static final OffsetDateTime FIXED_SNAPSHOT_TAKEN_AT =
-      OffsetDateTime.of(2025, Month.MARCH.getValue(), 10, 10, 30, 0, 0, ZoneOffset.UTC);
-  private static final OffsetDateTime FIXED_CREATED_AT =
-      OffsetDateTime.of(2025, Month.MARCH.getValue(), 10, 10, 30, 5, 0, ZoneOffset.UTC);
+  private static final LocalDateTime FIXED_SNAPSHOT_TAKEN_AT =
+      LocalDateTime.of(2025, Month.MARCH.getValue(), 10, 10, 30, 0, 0);
+  private static final LocalDateTime FIXED_CREATED_AT =
+      LocalDateTime.of(2025, Month.MARCH.getValue(), 10, 10, 30, 5, 0);
   private static final LocalDateTime FIXED_SOURCE_DATE_CREATED =
       LocalDateTime.of(2025, Month.FEBRUARY, 15, 10, 0, 0);
 
@@ -40,8 +38,8 @@ class ExchangeTransactionSnapshotRepositoryTest {
   private static final String CREATE_EXCHANGE_TRANSACTION_SNAPSHOT_TABLE =
       "CREATE TABLE IF NOT EXISTS public.exchange_transaction_snapshot ("
           + "id BIGSERIAL PRIMARY KEY,"
-          + "snapshot_taken_at TIMESTAMP WITH TIME ZONE NOT NULL,"
-          + "created_at TIMESTAMP WITH TIME ZONE NOT NULL,"
+          + "snapshot_taken_at TIMESTAMP NOT NULL,"
+          + "created_at TIMESTAMP NOT NULL,"
           + "reporting_date DATE NOT NULL,"
           + "security_from TEXT NOT NULL,"
           + "security_to TEXT NOT NULL,"

@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.analytics.transaction.exchange.snapshot;
 
 import ee.tuleva.onboarding.analytics.transaction.exchange.ExchangeTransactionFixture;
 import ee.tuleva.onboarding.time.ClockHolder;
-import java.time.OffsetDateTime;
+import java.time.LocalDateTime;
 
 public class ExchangeTransactionSnapshotFixture {
 
@@ -10,8 +10,8 @@ public class ExchangeTransactionSnapshotFixture {
       exampleSnapshotBuilderFromTransaction(
           ee.tuleva.onboarding.analytics.transaction.exchange.ExchangeTransaction originalTx) {
     return ExchangeTransactionSnapshot.builder()
-        .snapshotTakenAt(OffsetDateTime.now(ClockHolder.clock()).minusHours(1))
-        .createdAt(OffsetDateTime.now(ClockHolder.clock()))
+        .snapshotTakenAt(LocalDateTime.now(ClockHolder.clock()).minusHours(1))
+        .createdAt(LocalDateTime.now(ClockHolder.clock()))
         .reportingDate(originalTx.getReportingDate())
         .securityFrom(originalTx.getSecurityFrom())
         .securityTo(originalTx.getSecurityTo())

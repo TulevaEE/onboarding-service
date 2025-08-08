@@ -4,7 +4,6 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
 import lombok.*;
 
 @Entity
@@ -21,10 +20,10 @@ public class ExchangeTransactionSnapshot {
   private Long id;
 
   @Column(nullable = false)
-  private OffsetDateTime snapshotTakenAt;
+  private LocalDateTime snapshotTakenAt;
 
   @Column(nullable = false)
-  private OffsetDateTime createdAt;
+  private LocalDateTime createdAt;
 
   @Column(nullable = false)
   private LocalDate reportingDate;

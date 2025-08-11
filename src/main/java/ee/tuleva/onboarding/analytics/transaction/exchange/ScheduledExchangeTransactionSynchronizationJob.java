@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.analytics.transaction.exchange;
 
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ public class ScheduledExchangeTransactionSynchronizationJob {
 
   private final ExchangeTransactionSynchronizer exchangeTransactionSynchronizer;
   private final MandateDeadlinesService mandateDeadlinesService;
+  private final Clock clock;
 
   @Scheduled(cron = "0 0 2 * * ?", zone = "Europe/Tallinn")
   public void run() {
@@ -24,7 +26,7 @@ public class ScheduledExchangeTransactionSynchronizationJob {
 
     // Get the period start date for yesterday to ensure we capture all transactions
     // from the correct period, even when running at the beginning of a new period
-    LocalDate yesterday = LocalDate.now().minusDays(1);
+    LocalDate yesterday = LocalDate.now(clock).minusDays(1);
     LocalDate startDate = mandateDeadlinesService.getPeriodStartDate(yesterday);
 
     exchangeTransactionSynchronizer.sync(startDate, Optional.empty(), Optional.empty(), false);

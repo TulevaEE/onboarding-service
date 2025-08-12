@@ -43,7 +43,7 @@ public class Listing {
 
   @NotNull
   @Column(nullable = false, updatable = false)
-  private BigDecimal pricePerUnit;
+  private BigDecimal totalPrice;
 
   @Enumerated(STRING)
   @NotNull

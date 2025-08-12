@@ -17,7 +17,7 @@ class ListingsFixture {
         .memberId(1L)
         .type(BUY)
         .units(100.00)
-        .pricePerUnit(5.00)
+        .totalPrice(300.00)
         .currency(EUR)
         .language("et")
         .expiryTime(now.plus(30, DAYS))
@@ -41,7 +41,7 @@ class ListingsFixture {
     new NewListingRequestBuilder()
         .type(BUY)
         .units(100.00)
-        .pricePerUnit(4.50)
+        .totalPrice(450.0)
         .currency(EUR)
         .expiryTime(now.plus(30, DAYS))
   }

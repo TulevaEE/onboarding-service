@@ -10,10 +10,10 @@ public record ListingDto(
     @NotNull Long id,
     @NotNull ListingType type,
     @Positive @Digits(integer = 12, fraction = 2) BigDecimal units,
-    @DecimalMin("1") @Digits(integer = 4, fraction = 2) BigDecimal pricePerUnit,
+    @DecimalMin("1") @Digits(integer = 4, fraction = 2) BigDecimal totalPrice,
     @NotNull Currency currency,
     @NotNull String language,
-    @NotNull boolean isOwnListing,
+    boolean isOwnListing,
     @NotNull @Future Instant expiryTime,
     @NotNull Instant createdTime) {
 
@@ -24,7 +24,7 @@ public record ListingDto(
         listing.getId(),
         listing.getType(),
         listing.getUnits(),
-        listing.getPricePerUnit(),
+        listing.getTotalPrice(),
         listing.getCurrency(),
         listing.getLanguage(),
         isOwner,

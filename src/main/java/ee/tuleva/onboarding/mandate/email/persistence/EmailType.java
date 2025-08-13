@@ -28,7 +28,8 @@ public enum EmailType {
   LISTING_CONTACT("listing_contact"),
   CAPITAL_TRANSFER_SELLER_SIGNED("capital_transfer_seller_signed"),
   CAPITAL_TRANSFER_BUYER_TO_SIGN("capital_transfer_buyer_to_sign"),
-  CAPITAL_TRANSFER_CONFIRMED_BY_BUYER("capital_transfer_confirmed_by_buyer");
+  CAPITAL_TRANSFER_CONFIRMED_BY_BUYER("capital_transfer_confirmed_by_buyer"),
+  CAPITAL_TRANSFER_APPROVED_BY_BOARD("capital_transfer_approved_by_board");
 
   private final String templateName;
 

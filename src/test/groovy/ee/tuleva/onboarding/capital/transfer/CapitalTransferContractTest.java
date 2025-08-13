@@ -51,7 +51,7 @@ class CapitalTransferContractTest {
             .seller(seller)
             .buyer(buyer)
             .iban("EE471000001020145685")
-            .unitPrice(BigDecimal.TEN)
+            .totalPrice(new BigDecimal("100.0"))
             .unitCount(new BigDecimal("100.0"))
             .unitsOfMemberBonus(new BigDecimal("2.0"))
             .originalContent("original".getBytes())
@@ -245,20 +245,6 @@ class CapitalTransferContractTest {
       // then
       assertThat(violations).hasSize(1);
       assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("buyer");
-    }
-
-    @Test
-    @DisplayName("fails when unitPrice is null")
-    void validation_failsForNullUnitPrice() {
-      // given
-      CapitalTransferContract contract = contractBuilder.unitPrice(null).build();
-
-      // when
-      Set<ConstraintViolation<CapitalTransferContract>> violations = validator.validate(contract);
-
-      // then
-      assertThat(violations).hasSize(1);
-      assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("unitPrice");
     }
 
     @Test

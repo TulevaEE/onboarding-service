@@ -56,7 +56,7 @@ class CapitalTransferContractServiceTest {
             .buyerMemberId(3L)
             .iban("TEST_IBAN")
             .unitCount(BigDecimal.TEN)
-            .unitPrice(BigDecimal.TEN)
+            .totalPrice(new BigDecimal("100"))
             .unitsOfMemberBonus(BigDecimal.ONE)
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
@@ -306,7 +306,7 @@ class CapitalTransferContractServiceTest {
             .buyerMemberId(3L)
             .iban("TEST_IBAN")
             .unitCount(BigDecimal.TEN)
-            .unitPrice(BigDecimal.TEN)
+            .totalPrice(new BigDecimal("100.0"))
             .unitsOfMemberBonus(BigDecimal.ONE)
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
@@ -344,7 +344,7 @@ class CapitalTransferContractServiceTest {
             .buyerMemberId(3L)
             .iban("TEST_IBAN")
             .unitCount(BigDecimal.TEN)
-            .unitPrice(BigDecimal.TEN)
+            .totalPrice(new BigDecimal("100.0"))
             .unitsOfMemberBonus(BigDecimal.TEN)
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
@@ -379,7 +379,7 @@ class CapitalTransferContractServiceTest {
             .buyerMemberId(3L)
             .iban("TEST_IBAN")
             .unitCount(BigDecimal.valueOf(100))
-            .unitPrice(BigDecimal.TEN)
+            .totalPrice(new BigDecimal("120.0"))
             .unitsOfMemberBonus(BigDecimal.ONE)
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
@@ -415,7 +415,7 @@ class CapitalTransferContractServiceTest {
             .buyerMemberId(3L)
             .iban("TEST_IBAN")
             .unitCount(BigDecimal.TEN)
-            .unitPrice(BigDecimal.valueOf(0.5))
+            .totalPrice(new BigDecimal("5.0"))
             .unitsOfMemberBonus(BigDecimal.ONE)
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
@@ -452,7 +452,7 @@ class CapitalTransferContractServiceTest {
             .buyerMemberId(1L)
             .iban("TEST_IBAN")
             .unitCount(BigDecimal.TEN)
-            .unitPrice(BigDecimal.TEN)
+            .totalPrice(new BigDecimal("100.0"))
             .unitsOfMemberBonus(BigDecimal.ZERO)
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();

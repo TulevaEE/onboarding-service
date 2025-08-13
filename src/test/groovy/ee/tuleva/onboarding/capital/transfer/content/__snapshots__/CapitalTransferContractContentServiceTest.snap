@@ -113,7 +113,7 @@ capital_transfer_contract_member_bonus=[
             </div>
             <div class="detail-row">
                 <div class="detail-label">Osa hind:</div>
-                <div class="detail-value">25.00 EUR</div>
+                <div class="detail-value">null EUR</div>
             </div>
             <div class="detail-row">
                 <div class="detail-label">Kogu summa:</div>
@@ -274,11 +274,11 @@ capital_transfer_contract_member_capital=[
             </div>
             <div class="detail-row">
                 <div class="detail-label">Osa hind:</div>
-                <div class="detail-value">12.50 EUR</div>
+                <div class="detail-value">null EUR</div>
             </div>
             <div class="detail-row">
                 <div class="detail-label">Kogu summa:</div>
-                <div class="detail-value">1250.00 EUR</div>
+                <div class="detail-value">1250 EUR</div>
             </div>
             <div class="detail-row">
                 <div class="detail-label">Ostja pangakonto:</div>

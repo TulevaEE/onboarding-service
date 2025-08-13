@@ -14,7 +14,7 @@ class CapitalTransferContractFixture {
             .seller(memberFixture().id(1L).build())
             .buyer(memberFixture().id(2L).build())
             .iban("EE123456789012345678")
-            .unitPrice(new BigDecimal("100.00"))
+            .totalPrice(new BigDecimal("100.00"))
             .unitCount(BigDecimal.TEN)
             .unitsOfMemberBonus(BigDecimal.ONE)
             .state(CapitalTransferContractState.CREATED)

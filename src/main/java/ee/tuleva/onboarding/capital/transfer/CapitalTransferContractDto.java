@@ -13,7 +13,7 @@ public class CapitalTransferContractDto {
   MemberLookupResponse seller;
   MemberLookupResponse buyer;
   String iban;
-  BigDecimal unitPrice;
+  BigDecimal totalPrice;
   BigDecimal unitCount;
   BigDecimal unitsOfMemberBonus;
   CapitalTransferContractState state;
@@ -26,7 +26,7 @@ public class CapitalTransferContractDto {
         .seller(MemberLookupResponse.from(contract.getSeller().getUser().getMemberOrThrow()))
         .buyer(MemberLookupResponse.from(contract.getBuyer().getUser().getMemberOrThrow()))
         .iban(contract.getIban())
-        .unitPrice(contract.getUnitPrice())
+        .totalPrice(contract.getTotalPrice())
         .unitCount(contract.getUnitCount())
         .unitsOfMemberBonus(contract.getUnitsOfMemberBonus())
         .state(contract.getState())

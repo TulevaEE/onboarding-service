@@ -41,11 +41,6 @@ public class CapitalTransferContractContextBuilder {
     return this;
   }
 
-  public CapitalTransferContractContextBuilder unitPrice(BigDecimal unitPrice) {
-    ctx.setVariable("unitPrice", unitPrice);
-    return this;
-  }
-
   public CapitalTransferContractContextBuilder unitCount(BigDecimal unitCount) {
     ctx.setVariable("unitCount", unitCount);
     return this;

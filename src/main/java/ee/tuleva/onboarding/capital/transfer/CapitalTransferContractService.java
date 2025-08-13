@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.U
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.CAPITAL_TRANSFER;
+import static java.math.RoundingMode.DOWN;
 import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -58,7 +59,7 @@ public class CapitalTransferContractService {
             .seller(seller)
             .buyer(buyer)
             .iban(command.getIban())
-            .unitPrice(command.getUnitPrice())
+            .totalPrice(command.getTotalPrice())
             .unitCount(command.getUnitCount())
             .unitsOfMemberBonus(command.getUnitsOfMemberBonus())
             .state(CapitalTransferContractState.CREATED)
@@ -135,7 +136,8 @@ public class CapitalTransferContractService {
   }
 
   private boolean isUnitPriceOverMinimum(CreateCapitalTransferContractCommand request) {
-    return request.getUnitPrice().compareTo(MINIMUM_UNIT_PRICE) >= 0;
+    var pricePerUnit = request.getTotalPrice().divide(request.getUnitCount(), DOWN);
+    return pricePerUnit.compareTo(MINIMUM_UNIT_PRICE) >= 0;
   }
 
   public CapitalTransferContract getContract(Long id, User user) {

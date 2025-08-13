@@ -178,7 +178,7 @@ class CapitalTransferContractControllerIntegrationTest {
         CreateCapitalTransferContractCommand.builder()
             .buyerMemberId(buyerMember.getId())
             .iban("EE471000001020145685")
-            .unitPrice(new BigDecimal("12.50"))
+            .totalPrice(new BigDecimal("1250.0"))
             .unitCount(new BigDecimal("100.0"))
             .unitsOfMemberBonus(new BigDecimal("2.0"))
             .build();

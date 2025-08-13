@@ -72,18 +72,6 @@ class CapitalTransferContractContextBuilderTest {
   }
 
   @Test
-  void unitPrice_setsUnitPriceVariable() {
-    // given
-    BigDecimal unitPrice = new BigDecimal("12.50");
-
-    // when
-    Context context = CapitalTransferContractContextBuilder.builder().unitPrice(unitPrice).build();
-
-    // then
-    assertThat(context.getVariable("unitPrice")).isEqualTo(unitPrice);
-  }
-
-  @Test
   void unitCount_setsUnitCountVariable() {
     // given
     BigDecimal unitCount = new BigDecimal("100.0");
@@ -160,7 +148,6 @@ class CapitalTransferContractContextBuilderTest {
     Member buyer = memberFixture().user(buyerUser).memberNumber(1002).build();
 
     String iban = "EE471000001020145685";
-    BigDecimal unitPrice = new BigDecimal("12.50");
     BigDecimal unitCount = BigDecimal.valueOf(100.0);
     BigDecimal unitsOfMemberBonus = BigDecimal.valueOf(2.0);
     BigDecimal totalAmount = new BigDecimal("1250.00");
@@ -174,7 +161,6 @@ class CapitalTransferContractContextBuilderTest {
             .seller(seller)
             .buyer(buyer)
             .iban(iban)
-            .unitPrice(unitPrice)
             .unitCount(unitCount)
             .unitsOfMemberBonus(unitsOfMemberBonus)
             .totalAmount(totalAmount)
@@ -195,7 +181,6 @@ class CapitalTransferContractContextBuilderTest {
     assertThat(context.getVariable("buyerPersonalCode")).isEqualTo("60001019906");
     assertThat(context.getVariable("buyerMemberNumber")).isEqualTo(1002);
     assertThat(context.getVariable("iban")).isEqualTo(iban);
-    assertThat(context.getVariable("unitPrice")).isEqualTo(unitPrice);
     assertThat(context.getVariable("unitCount")).isEqualTo(unitCount);
     assertThat(context.getVariable("unitsOfMemberBonus")).isEqualTo(unitsOfMemberBonus);
     assertThat(context.getVariable("totalAmount")).isEqualTo(totalAmount);

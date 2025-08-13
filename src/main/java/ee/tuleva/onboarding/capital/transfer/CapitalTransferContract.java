@@ -34,7 +34,7 @@ public class CapitalTransferContract {
 
   @NotNull @ValidIban private String iban;
 
-  @NotNull private BigDecimal unitPrice;
+  @NotNull private BigDecimal totalPrice;
 
   @NotNull private BigDecimal unitCount;
 

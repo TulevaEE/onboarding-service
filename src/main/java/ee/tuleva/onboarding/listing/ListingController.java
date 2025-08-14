@@ -39,6 +39,15 @@ public class ListingController {
     return ResponseEntity.noContent().build();
   }
 
+  @PostMapping("/{id}/preview-message")
+  public ResponseEntity<String> previewMessage(
+      @PathVariable Long id,
+      @Valid @RequestBody ContactMessageRequest request,
+      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
+    return ResponseEntity.ok()
+        .body(listingService.getContactMessage(id, request, authenticatedPerson));
+  }
+
   @PostMapping("/{id}/contact")
   public ResponseEntity<MessageResponse> contact(
       @PathVariable Long id,

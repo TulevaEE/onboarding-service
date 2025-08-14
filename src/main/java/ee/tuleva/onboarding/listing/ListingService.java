@@ -2,8 +2,10 @@ package ee.tuleva.onboarding.listing;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION;
 import static ee.tuleva.onboarding.listing.Listing.State.ACTIVE;
+import static ee.tuleva.onboarding.listing.ListingType.BUY;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_CONTACT;
+import static org.springframework.web.util.HtmlUtils.htmlEscape;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -81,7 +83,10 @@ public class ListingService {
 
     var mergeVars = new HashMap<String, Object>();
 
-    mergeVars.put("message", transformMessageNewlines(messageRequest.message()));
+    mergeVars.put(
+        "message",
+        transformMessageNewlines(
+            getContactMessage(listingId, messageRequest, authenticatedPerson)));
 
     mergeVars.putAll(getNameMergeVars(listingOwner));
 
@@ -112,8 +117,74 @@ public class ListingService {
         .orElseThrow();
   }
 
+  public String getContactMessage(
+      Long listingId,
+      ContactMessageRequest contactMessageRequest,
+      AuthenticatedPerson interestedParty) {
+
+    var listing = listingRepository.findById(listingId).orElseThrow();
+    var interestedUser = userService.getByIdOrThrow(interestedParty.getUserId());
+
+    var interestedUserPhoneNumber = htmlEscape(interestedUser.getPhoneNumber());
+    var interestedUserPersonalCode = htmlEscape(interestedUser.getPersonalCode());
+
+    var units = listing.getUnits().toString();
+    var totalAmount = listing.getTotalPrice();
+    var language = String.valueOf(listing.getLanguage());
+
+    if ("en".equalsIgnoreCase(language)) {
+      return ("""
+                Hello!
+
+                %s
+                Amount: %s; Price: €%s
+
+                If the amount and price are suitable, please initiate the application via the “Finalize the sale” button on the Tuleva <a href="https://pension.tuleva.ee/capital/listings">membership capital transfer</a> page. During the process, the seller will need to enter the buyer’s personal identification code.
+
+                Thank you,
+                %s
+                %s
+                %s
+                """)
+          .formatted(
+              listing.getType() == BUY
+                  ? "I’m interested in selling membership capital of Tuleva:"
+                  : "I’m interested in purchasing membership capital of Tuleva:",
+              units,
+              totalAmount,
+              interestedUser.getFullName(),
+              contactMessageRequest.addPhoneNumber() ? interestedUserPhoneNumber : "",
+              contactMessageRequest.addPersonalCode() ? interestedUserPersonalCode : "")
+          .trim();
+    }
+
+    return ("""
+            Tere!
+
+            %s
+            Mahus: %s; Hinnaga: €%s
+
+            Kui maht ja hind sobivad, siis palun alustage avalduse vormistamist “Vormistan müügi” nupu kaudu Tuleva <a href="https://pension.tuleva.ee/capital/listings">liikmekapitali võõrandamise</a> lehel. Vormistamisel küsitakse müüjalt ostja isikukoodi.
+
+            Aitäh,
+            %s
+            %s
+            %s
+            """)
+        .formatted(
+            listing.getType() == BUY
+                ? "Olen huvitatud Tuleva ühistu liikmekapitali müümisest:"
+                : "Olen huvitatud Tuleva ühistu liikmekapitali ostmisest:",
+            units,
+            totalAmount,
+            interestedUser.getFullName(),
+            contactMessageRequest.addPhoneNumber() ? interestedUserPhoneNumber : "",
+            contactMessageRequest.addPersonalCode() ? interestedUserPersonalCode : "")
+        .trim();
+  }
+
   private boolean hasEnoughMemberCapital(User user, NewListingRequest request) {
-    if (request.type() == ListingType.BUY) {
+    if (request.type() == BUY) {
       return true;
     }
 

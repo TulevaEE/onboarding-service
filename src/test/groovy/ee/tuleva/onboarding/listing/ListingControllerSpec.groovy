@@ -20,6 +20,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
 
 @WebMvcTest(ListingController)
 class ListingControllerSpec extends Specification {
@@ -94,7 +95,7 @@ class ListingControllerSpec extends Specification {
 
   def "can contact a listing owner"() {
     given:
-    def request = new ContactMessageRequest("Hello")
+    def request = new ContactMessageRequest(true, true)
     def response = new MessageResponse(10L, "QUEUED")
     def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
     listingService.contactListingOwner(1L, request, authenticatedPerson) >> response
@@ -108,5 +109,22 @@ class ListingControllerSpec extends Specification {
     )
         .andExpect(status().isAccepted())
         .andExpect(jsonPath('$.status').value("QUEUED"))
+  }
+
+  def "can get preview message"() {
+    given:
+    def request = new ContactMessageRequest(true, true)
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+    listingService.getContactMessage(1L, request, authenticatedPerson) >> "Test message"
+
+    expect:
+    mvc.perform(post("/v1/listings/1/preview-message")
+        .with(csrf())
+        .with(authentication(mockAuthentication()))
+        .contentType(APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(request))
+    )
+        .andExpect(status().isOk())
+        .andExpect(content().string("Test message"))
   }
 }

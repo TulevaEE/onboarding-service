@@ -24,6 +24,7 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION
 import static ee.tuleva.onboarding.listing.Listing.State.CANCELLED
+import static ee.tuleva.onboarding.listing.ListingType.BUY
 import static ee.tuleva.onboarding.listing.ListingType.SELL
 import static ee.tuleva.onboarding.listing.ListingsFixture.*
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_CONTACT
@@ -173,12 +174,10 @@ class ListingServiceSpec extends Specification {
     def listingOwner = sampleUser().firstName("Sander").email("sander@tuleva.ee").id(1111).build()
     def contacterPerson = authenticatedPersonFromUser(contacter).build()
 
-    var originalMessage = "Hello!\n I would like to buy your shares.\n Best, Jordan"
-    var transformedMessage = "Hello!<br /> I would like to buy your shares.<br /> Best, Jordan"
 
-    def contactMessageRequest = new ContactMessageRequest(originalMessage)
+    def contactMessageRequest = new ContactMessageRequest(true, true)
 
-    def savedListing = newListingRequest().type(SELL).units(100.00).build().toListing(42L, 'et').tap {
+    def savedListing = newListingRequest().type(SELL).units(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
       id = 1L
       createdTime = Instant.now()
     }
@@ -195,12 +194,14 @@ class ListingServiceSpec extends Specification {
         listingOwner.email,
         contacter.email,
         LISTING_CONTACT.getTemplateName(savedListing.language),
-        { Map it ->
-          it.get("message") == transformedMessage && it.get("fname") == listingOwner.firstName && it.get("lname") == listingOwner.lastName
+        { Map it -> it.get("fname") == listingOwner.firstName && it.get("lname") == listingOwner.lastName
+            && (it.get("message") as String).contains(contacter.getPersonalCode().toString())
+            && (it.get("message") as String).contains(contacter.getPhoneNumber())
         },
         _,
         _
     ) >> mockMessage
+    1 * userService.getByIdOrThrow(contacter.getId()) >> contacter
     1 * emailService.send(listingOwner, mockMessage, LISTING_CONTACT.getTemplateName(savedListing.language)) >> Optional.of(messageStatus)
     1 * emailPersistenceService.save(listingOwner, "ID", LISTING_CONTACT, "QUEUED") >> Email.builder().id(1).build()
     when:
@@ -208,5 +209,88 @@ class ListingServiceSpec extends Specification {
 
     then:
     message.id() == 1
+  }
+
+
+  def "can get correct messages in estonian"() {
+    given:
+    def contacter = sampleUser().build()
+    def contacterPerson = authenticatedPersonFromUser(contacter).build()
+
+    def sellListing = newListingRequest().type(SELL).units(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+
+    def buyListing = newListingRequest().type(BUY).units(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
+      id = 2L
+      createdTime = Instant.now()
+    }
+
+    2 * userService.getByIdOrThrow(contacter.getId()) >> contacter
+    1 * listingRepository.findById(1L) >> Optional.of(sellListing)
+    1 * listingRepository.findById(2L) >> Optional.of(buyListing)
+
+    when:
+    def sellMessage = service.getContactMessage(sellListing.id, new ContactMessageRequest(true, true), contacterPerson)
+    def buyMessage = service.getContactMessage(buyListing.id, new ContactMessageRequest(false, false), contacterPerson)
+
+
+    then:
+    sellMessage.contains("Mahus: 100.00")
+    sellMessage.contains("Hinnaga: €200.00")
+    sellMessage.contains("Olen huvitatud Tuleva ühistu liikmekapitali ostmisest:")
+    sellMessage.contains(contacter.getFullName())
+    sellMessage.contains(contacter.getPersonalCode().toString())
+    sellMessage.contains(contacter.getPhoneNumber())
+
+
+    buyMessage.contains("Mahus: 100.00")
+    buyMessage.contains("Hinnaga: €200.00")
+    buyMessage.contains("Olen huvitatud Tuleva ühistu liikmekapitali müümisest:")
+    buyMessage.contains(contacter.getFullName())
+    !buyMessage.contains(contacter.getPersonalCode().toString())
+    !buyMessage.contains(contacter.getPhoneNumber())
+  }
+
+  def "can get correct messages in english"() {
+    given:
+    def contacter = sampleUser().build()
+    def contacterPerson = authenticatedPersonFromUser(contacter).build()
+
+    def sellListing = newListingRequest().type(SELL).units(100.00).totalPrice(200.00).build().toListing(42L, 'en').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+
+    def buyListing = newListingRequest().type(BUY).units(100.00).totalPrice(200.00).build().toListing(42L, 'en').tap {
+      id = 2L
+      createdTime = Instant.now()
+    }
+
+    2 * userService.getByIdOrThrow(contacter.getId()) >> contacter
+    1 * listingRepository.findById(1L) >> Optional.of(sellListing)
+    1 * listingRepository.findById(2L) >> Optional.of(buyListing)
+
+    when:
+    def sellMessage = service.getContactMessage(sellListing.id, new ContactMessageRequest(true, true), contacterPerson)
+    def buyMessage = service.getContactMessage(buyListing.id, new ContactMessageRequest(false, false), contacterPerson)
+
+
+    then:
+    sellMessage.contains("Amount: 100.00")
+    sellMessage.contains("Price: €200.00")
+    sellMessage.contains("I’m interested in purchasing membership capital of Tuleva:")
+    sellMessage.contains(contacter.getFullName())
+    sellMessage.contains(contacter.getPersonalCode().toString())
+    sellMessage.contains(contacter.getPhoneNumber())
+
+
+    buyMessage.contains("Amount: 100.00")
+    buyMessage.contains("Price: €200.00")
+    buyMessage.contains("I’m interested in selling membership capital of Tuleva:")
+    buyMessage.contains(contacter.getFullName())
+    !buyMessage.contains(contacter.getPersonalCode().toString())
+    !buyMessage.contains(contacter.getPhoneNumber())
   }
 }

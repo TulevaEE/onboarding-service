@@ -13,11 +13,11 @@ import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
-import ee.tuleva.onboarding.mandate.response.*;
-import ee.tuleva.onboarding.mandate.signature.SignatureFile;
-import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignatureFile;
+import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.response.*;
+import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -98,7 +98,7 @@ public class MandateController {
 
     Locale locale = localeResolver.resolveLocale(request);
 
-    MandateSignatureStatus statusCode =
+    SignatureStatus statusCode =
         mandateService.finalizeMobileIdSignature(
             authenticatedPerson.getUserId(), mandateId, session, locale);
 
@@ -131,7 +131,7 @@ public class MandateController {
 
     Locale locale = localeResolver.resolveLocale(request);
 
-    MandateSignatureStatus statusCode =
+    SignatureStatus statusCode =
         mandateService.finalizeSmartIdSignature(
             authenticatedPerson.getUserId(), mandateId, session, locale);
 
@@ -172,7 +172,7 @@ public class MandateController {
 
     Locale locale = localeResolver.resolveLocale(request);
 
-    MandateSignatureStatus statusCode =
+    SignatureStatus statusCode =
         mandateService.finalizeIdCardSignature(
             authenticatedPerson.getUserId(),
             mandateId,

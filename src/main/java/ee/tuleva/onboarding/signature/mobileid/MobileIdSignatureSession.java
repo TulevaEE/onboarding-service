@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.signature.mobileid;
+package ee.tuleva.onboarding.signature.mobileid;
 
 import java.io.Serial;
 import java.io.Serializable;

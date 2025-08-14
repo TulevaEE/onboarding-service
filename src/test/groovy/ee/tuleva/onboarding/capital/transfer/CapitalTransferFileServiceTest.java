@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixtu
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.mandate.signature.SignatureFile;
+import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.user.MemberFixture;
 import ee.tuleva.onboarding.user.member.Member;
 import java.util.List;

@@ -1,8 +1,8 @@
-package ee.tuleva.onboarding.mandate.signature.idcard;
+package ee.tuleva.onboarding.signature.idcard;
 
 import ee.tuleva.onboarding.auth.ocsp.OCSPUtils;
-import ee.tuleva.onboarding.mandate.signature.DigiDocFacade;
-import ee.tuleva.onboarding.mandate.signature.SignatureFile;
+import ee.tuleva.onboarding.signature.DigiDocFacade;
+import ee.tuleva.onboarding.signature.SignatureFile;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

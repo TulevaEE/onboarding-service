@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate
 
-import ee.tuleva.onboarding.mandate.signature.SignatureFile
+import ee.tuleva.onboarding.signature.SignatureFile
 import spock.lang.Specification
 
 

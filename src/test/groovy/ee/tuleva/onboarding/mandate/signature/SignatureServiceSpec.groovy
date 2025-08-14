@@ -1,11 +1,13 @@
 package ee.tuleva.onboarding.mandate.signature
 
-import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
-import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSigner
-import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
-import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSigner
-import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession
-import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSigner
+import ee.tuleva.onboarding.signature.SignatureFile
+import ee.tuleva.onboarding.signature.SignatureService
+import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession
+import ee.tuleva.onboarding.signature.idcard.IdCardSigner
+import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession
+import ee.tuleva.onboarding.signature.mobileid.MobileIdSigner
+import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession
+import ee.tuleva.onboarding.signature.smartid.SmartIdSigner
 import spock.lang.Specification
 
 class SignatureServiceSpec extends Specification {

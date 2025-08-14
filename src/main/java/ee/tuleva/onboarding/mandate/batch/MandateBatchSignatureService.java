@@ -8,12 +8,12 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.exception.IdSessionException;
-import ee.tuleva.onboarding.mandate.response.*;
-import ee.tuleva.onboarding.mandate.signature.SignatureFile;
-import ee.tuleva.onboarding.mandate.signature.SignatureService;
-import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
+import ee.tuleva.onboarding.signature.SignatureFile;
+import ee.tuleva.onboarding.signature.SignatureService;
+import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.response.*;
+import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import jakarta.validation.Valid;
@@ -57,7 +57,7 @@ public class MandateBatchSignatureService {
 
     Locale locale = localeService.getCurrentLocale();
 
-    MandateSignatureStatus statusCode =
+    SignatureStatus statusCode =
         mandateBatchService.finalizeMobileSignature(
             authenticatedPerson.getUserId(), mandateBatchId, session, locale);
 
@@ -93,7 +93,7 @@ public class MandateBatchSignatureService {
 
     Locale locale = localeService.getCurrentLocale();
 
-    MandateSignatureStatus statusCode =
+    SignatureStatus statusCode =
         mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
             authenticatedPerson.getUserId(),
             mandateBatchId,
@@ -129,7 +129,7 @@ public class MandateBatchSignatureService {
 
     Locale locale = localeService.getCurrentLocale();
 
-    MandateSignatureStatus statusCode =
+    SignatureStatus statusCode =
         mandateBatchService.finalizeMobileSignature(
             authenticatedPerson.getUserId(), mandateBatchId, session, locale);
 

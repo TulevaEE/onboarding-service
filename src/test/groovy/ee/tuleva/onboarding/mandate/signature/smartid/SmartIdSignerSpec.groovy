@@ -4,8 +4,10 @@ import ee.sk.smartid.*
 import ee.sk.smartid.rest.SmartIdConnector
 import ee.sk.smartid.rest.dao.SessionStatus
 import ee.tuleva.onboarding.auth.session.GenericSessionStore
-import ee.tuleva.onboarding.mandate.signature.DigiDocFacade
-import ee.tuleva.onboarding.mandate.signature.SignatureFile
+import ee.tuleva.onboarding.signature.DigiDocFacade
+import ee.tuleva.onboarding.signature.SignatureFile
+import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession
+import ee.tuleva.onboarding.signature.smartid.SmartIdSigner
 import org.digidoc4j.Container
 import org.digidoc4j.DataToSign
 import spock.lang.Specification
@@ -20,7 +22,7 @@ class SmartIdSignerSpec extends Specification {
   def smartIdConnector = Mock(SmartIdConnector)
   def sessionStore = Mock(GenericSessionStore)
   def digiDocFacade = Mock(DigiDocFacade)
-  SmartIdSigner smartIdSigner
+    SmartIdSigner smartIdSigner
 
   def files = [new SignatureFile("test.txt", "text/plain", "Test".bytes)]
   def personalCode = "38501010002"

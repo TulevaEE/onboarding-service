@@ -1,12 +1,12 @@
 package ee.tuleva.onboarding.capital.transfer;
 
-import static ee.tuleva.onboarding.mandate.signature.SignatureFile.SignatureFileType.DIGIDOC_CONTAINER;
-import static ee.tuleva.onboarding.mandate.signature.SignatureFile.SignatureFileType.HTML;
+import static ee.tuleva.onboarding.signature.SignatureFile.SignatureFileType.DIGIDOC_CONTAINER;
+import static ee.tuleva.onboarding.signature.SignatureFile.SignatureFileType.HTML;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContentFile;
-import ee.tuleva.onboarding.mandate.signature.SignatureFile;
-import ee.tuleva.onboarding.mandate.signature.SignatureFile.SignatureFileType;
+import ee.tuleva.onboarding.signature.SignatureFile;
+import ee.tuleva.onboarding.signature.SignatureFile.SignatureFileType;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

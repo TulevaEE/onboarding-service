@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.signature;
+package ee.tuleva.onboarding.signature;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;

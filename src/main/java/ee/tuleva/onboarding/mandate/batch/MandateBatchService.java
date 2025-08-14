@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.mandate.batch;
 
-import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.*;
-import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.WITHDRAWALS;
 import static ee.tuleva.onboarding.pillar.Pillar.SECOND;
+import static ee.tuleva.onboarding.signature.response.SignatureStatus.OUTSTANDING_TRANSACTION;
+import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE;
 import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
@@ -18,13 +18,13 @@ import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.generic.MandateDto;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
-import ee.tuleva.onboarding.mandate.response.MandateSignatureStatus;
-import ee.tuleva.onboarding.mandate.signature.SignatureFile;
-import ee.tuleva.onboarding.mandate.signature.SignatureService;
-import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.notification.slack.SlackService;
+import ee.tuleva.onboarding.signature.SignatureFile;
+import ee.tuleva.onboarding.signature.SignatureService;
+import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.response.SignatureStatus;
+import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
@@ -136,19 +136,19 @@ public class MandateBatchService {
         .toList();
   }
 
-  public MandateSignatureStatus finalizeMobileSignature(
+  public SignatureStatus finalizeMobileSignature(
       Long userId, Long mandateBatchId, SmartIdSignatureSession session, Locale locale) {
     var signedFile = Optional.ofNullable(signService.getSignedFile(session));
     return checkIfFileSignedToStartProcessing(userId, mandateBatchId, signedFile, locale);
   }
 
-  public MandateSignatureStatus finalizeMobileSignature(
+  public SignatureStatus finalizeMobileSignature(
       Long userId, Long mandateBatchId, MobileIdSignatureSession session, Locale locale) {
     var signedFile = Optional.ofNullable(signService.getSignedFile(session));
     return checkIfFileSignedToStartProcessing(userId, mandateBatchId, signedFile, locale);
   }
 
-  private MandateSignatureStatus checkIfFileSignedToStartProcessing(
+  private SignatureStatus checkIfFileSignedToStartProcessing(
       Long userId, Long mandateBatchId, Optional<byte[]> signedFile, Locale locale) {
     User user = userService.getById(userId).orElseThrow();
     MandateBatch mandateBatch = getByIdAndUser(mandateBatchId, user).orElseThrow();
@@ -160,7 +160,7 @@ public class MandateBatchService {
     return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
   }
 
-  private MandateSignatureStatus persistFileSignedWithIdCard(
+  private SignatureStatus persistFileSignedWithIdCard(
       User user,
       MandateBatch mandateBatch,
       IdCardSignatureSession session,
@@ -176,7 +176,7 @@ public class MandateBatchService {
         user, mandateBatch, Optional.of(signedFile), locale);
   }
 
-  public MandateSignatureStatus persistIdCardSignedFileOrGetBatchProcessingStatus(
+  public SignatureStatus persistIdCardSignedFileOrGetBatchProcessingStatus(
       Long userId,
       Long mandateBatchId,
       IdCardSignatureSession session,
@@ -192,7 +192,7 @@ public class MandateBatchService {
     return getBatchProcessingStatusAndHandleIfProcessed(user, mandateBatch, locale);
   }
 
-  private MandateSignatureStatus getBatchProcessingStatusAndHandleIfProcessed(
+  private SignatureStatus getBatchProcessingStatusAndHandleIfProcessed(
       User user, MandateBatch mandateBatch, Locale locale) {
 
     var allMandatesHaveFinishedProcessing =
@@ -230,7 +230,7 @@ public class MandateBatchService {
     }
   }
 
-  private MandateSignatureStatus persistSignedFileIfPresentAndStartProcessing(
+  private SignatureStatus persistSignedFileIfPresentAndStartProcessing(
       User user, MandateBatch mandateBatch, Optional<byte[]> signedFile, Locale locale) {
     signedFile.ifPresent(
         it -> {

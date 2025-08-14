@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.response;
+package ee.tuleva.onboarding.signature.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,6 +9,6 @@ import lombok.Data;
 @AllArgsConstructor
 public class MobileSignatureStatusResponse {
 
-  private final MandateSignatureStatus statusCode;
+  private final SignatureStatus statusCode;
   private final String challengeCode;
 }

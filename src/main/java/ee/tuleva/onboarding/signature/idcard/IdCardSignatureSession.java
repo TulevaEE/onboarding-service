@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.signature.idcard;
+package ee.tuleva.onboarding.signature.idcard;
 
 import java.io.Serializable;
 import lombok.Builder;

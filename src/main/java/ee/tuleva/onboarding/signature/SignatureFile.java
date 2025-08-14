@@ -1,6 +1,6 @@
-package ee.tuleva.onboarding.mandate.signature;
+package ee.tuleva.onboarding.signature;
 
-import static ee.tuleva.onboarding.mandate.signature.SignatureFile.SignatureFileType.DIGIDOC_CONTAINER;
+import static ee.tuleva.onboarding.signature.SignatureFile.SignatureFileType.DIGIDOC_CONTAINER;
 
 import java.io.Serial;
 import java.io.Serializable;

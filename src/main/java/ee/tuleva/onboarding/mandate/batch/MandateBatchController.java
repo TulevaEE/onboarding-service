@@ -5,10 +5,11 @@ import static ee.tuleva.onboarding.mandate.batch.MandateBatchController.MANDATE_
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
-import ee.tuleva.onboarding.mandate.response.IdCardSignatureStatusResponse;
-import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
-import ee.tuleva.onboarding.mandate.response.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.SignatureController;
+import ee.tuleva.onboarding.signature.response.IdCardSignatureResponse;
+import ee.tuleva.onboarding.signature.response.IdCardSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.response.MobileSignatureResponse;
+import ee.tuleva.onboarding.signature.response.MobileSignatureStatusResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/v1" + MANDATE_BATCHES_URI)
 @RequiredArgsConstructor
-public class MandateBatchController {
+public class MandateBatchController implements SignatureController<Long> {
   public static final String MANDATE_BATCHES_URI = "/mandate-batches";
 
   private final MandateBatchService mandateBatchService;
@@ -36,6 +37,7 @@ public class MandateBatchController {
         mandateBatchService.createMandateBatch(authenticatedPerson, mandateBatchDto));
   }
 
+  @Override
   @Operation(summary = "Start signing mandate batch with Smart ID")
   @PutMapping("/{id}/signature/smart-id")
   public MobileSignatureResponse startSmartIdSignature(
@@ -44,6 +46,7 @@ public class MandateBatchController {
     return mandateBatchSignatureService.startSmartIdSignature(mandateBatchId, authenticatedPerson);
   }
 
+  @Override
   @Operation(summary = "Is mandate batch successfully signed with Smart ID")
   @GetMapping("/{id}/signature/smart-id/status")
   public MobileSignatureStatusResponse getSmartIdSignatureStatus(
@@ -53,9 +56,10 @@ public class MandateBatchController {
         mandateBatchId, authenticatedPerson);
   }
 
+  @Override
   @Operation(summary = "Start signing mandate batch with ID card")
   @PutMapping("/{id}/signature/id-card")
-  public IdCardSignatureResponse startIdCardSign(
+  public IdCardSignatureResponse startIdCardSignature(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
       @Valid @RequestBody StartIdCardSignCommand signCommand) {
@@ -66,6 +70,7 @@ public class MandateBatchController {
   // TODO: split this into PUT and GET endpoints
   // Currently first call persists signed hex, and later polling calls just check if mandates have
   // been processsed
+  @Override
   @Operation(
       summary = "Persist ID-card signed mandate batch, and check if mandate batch is processed")
   @PutMapping("/{id}/signature/id-card/status")
@@ -77,6 +82,7 @@ public class MandateBatchController {
         mandateBatchId, signCommand, authenticatedPerson);
   }
 
+  @Override
   @Operation(summary = "Start signing mandate batch with mobile ID")
   @PutMapping("/{id}/signature/mobile-id")
   public MobileSignatureResponse startMobileIdSignature(
@@ -85,6 +91,7 @@ public class MandateBatchController {
     return mandateBatchSignatureService.startMobileIdSignature(mandateBatchId, authenticatedPerson);
   }
 
+  @Override
   @Operation(summary = "Is mandate batch successfully signed with mobile ID")
   @GetMapping("/{id}/signature/mobile-id/status")
   public MobileSignatureStatusResponse getMobileIdSignatureStatus(

@@ -4,9 +4,9 @@ import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.mandate.MandateFixture.*;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.INITIALIZED;
 import static ee.tuleva.onboarding.mandate.batch.MandateBatchStatus.SIGNED;
-import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.OUTSTANDING_TRANSACTION;
-import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.WITHDRAWALS;
+import static ee.tuleva.onboarding.signature.response.SignatureStatus.OUTSTANDING_TRANSACTION;
+import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -24,13 +24,13 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent;
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException;
 import ee.tuleva.onboarding.mandate.generic.GenericMandateService;
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService;
-import ee.tuleva.onboarding.mandate.response.MandateSignatureStatus;
-import ee.tuleva.onboarding.mandate.signature.SignatureFile;
-import ee.tuleva.onboarding.mandate.signature.SignatureService;
-import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession;
-import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession;
-import ee.tuleva.onboarding.mandate.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.notification.slack.SlackService;
+import ee.tuleva.onboarding.signature.SignatureFile;
+import ee.tuleva.onboarding.signature.SignatureService;
+import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession;
+import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession;
+import ee.tuleva.onboarding.signature.response.SignatureStatus;
+import ee.tuleva.onboarding.signature.smartid.SmartIdSignatureSession;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.personalcode.PersonalCode;
@@ -474,7 +474,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
       when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
 
-      MandateSignatureStatus status =
+      SignatureStatus status =
           mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -545,7 +545,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
       when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
 
-      MandateSignatureStatus status =
+      SignatureStatus status =
           mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -575,7 +575,7 @@ public class MandateBatchServiceTest {
 
       ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
 
-      MandateSignatureStatus status =
+      SignatureStatus status =
           mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -608,7 +608,7 @@ public class MandateBatchServiceTest {
           .thenReturn(Optional.of(mandateBatch));
       when(signService.getSignedFile(session)).thenReturn(null);
 
-      MandateSignatureStatus status =
+      SignatureStatus status =
           mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -647,7 +647,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
       when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
 
-      MandateSignatureStatus status =
+      SignatureStatus status =
           mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -718,7 +718,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
       when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
 
-      MandateSignatureStatus status =
+      SignatureStatus status =
           mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -748,7 +748,7 @@ public class MandateBatchServiceTest {
 
       ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
 
-      MandateSignatureStatus status =
+      SignatureStatus status =
           mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -781,7 +781,7 @@ public class MandateBatchServiceTest {
           .thenReturn(Optional.of(mandateBatch));
       when(signService.getSignedFile(session)).thenReturn(null);
 
-      MandateSignatureStatus status =
+      SignatureStatus status =
           mandateBatchService.finalizeMobileSignature(
               user.getId(), mandateBatch.getId(), session, Locale.ENGLISH);
 
@@ -820,7 +820,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.getErrors(mandate1)).thenReturn(new ErrorsResponse(List.of()));
       when(mandateProcessor.getErrors(mandate2)).thenReturn(new ErrorsResponse(List.of()));
 
-      MandateSignatureStatus status =
+      SignatureStatus status =
           mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
               user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 
@@ -892,7 +892,7 @@ public class MandateBatchServiceTest {
       when(mandateProcessor.isFinished(mandate1)).thenReturn(true);
       when(mandateProcessor.isFinished(mandate2)).thenReturn(false);
 
-      MandateSignatureStatus status =
+      SignatureStatus status =
           mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
               user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 
@@ -923,7 +923,7 @@ public class MandateBatchServiceTest {
 
       ArgumentCaptor<MandateBatch> mandateBatchCaptor = ArgumentCaptor.forClass(MandateBatch.class);
 
-      MandateSignatureStatus status =
+      SignatureStatus status =
           mandateBatchService.persistIdCardSignedFileOrGetBatchProcessingStatus(
               user.getId(), mandateBatch.getId(), session, "hash", Locale.ENGLISH);
 

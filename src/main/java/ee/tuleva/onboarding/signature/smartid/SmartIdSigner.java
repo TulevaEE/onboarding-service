@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.signature.smartid;
+package ee.tuleva.onboarding.signature.smartid;
 
 import static ee.sk.smartid.HashType.SHA256;
 
@@ -17,8 +17,8 @@ import ee.sk.smartid.rest.dao.SemanticsIdentifier.CountryCode;
 import ee.sk.smartid.rest.dao.SemanticsIdentifier.IdentityType;
 import ee.sk.smartid.rest.dao.SessionStatus;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
-import ee.tuleva.onboarding.mandate.signature.DigiDocFacade;
-import ee.tuleva.onboarding.mandate.signature.SignatureFile;
+import ee.tuleva.onboarding.signature.DigiDocFacade;
+import ee.tuleva.onboarding.signature.SignatureFile;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

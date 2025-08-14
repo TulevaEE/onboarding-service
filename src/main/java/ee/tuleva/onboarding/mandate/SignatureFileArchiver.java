@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.mandate;
 
-import ee.tuleva.onboarding.mandate.signature.SignatureFile;
+import ee.tuleva.onboarding.signature.SignatureFile;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;

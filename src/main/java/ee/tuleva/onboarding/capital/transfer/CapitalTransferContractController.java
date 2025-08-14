@@ -3,10 +3,11 @@ package ee.tuleva.onboarding.capital.transfer;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
-import ee.tuleva.onboarding.mandate.response.IdCardSignatureStatusResponse;
-import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
-import ee.tuleva.onboarding.mandate.response.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.SignatureController;
+import ee.tuleva.onboarding.signature.response.IdCardSignatureResponse;
+import ee.tuleva.onboarding.signature.response.IdCardSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.response.MobileSignatureResponse;
+import ee.tuleva.onboarding.signature.response.MobileSignatureStatusResponse;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -18,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/v1/capital-transfer-contracts")
 @RequiredArgsConstructor
-public class CapitalTransferContractController {
+public class CapitalTransferContractController implements SignatureController<Long> {
 
   private final CapitalTransferContractService contractService;
   private final CapitalTransferSignatureService signatureService;
@@ -62,22 +63,22 @@ public class CapitalTransferContractController {
             id, command.getState(), userService.getByIdOrThrow(authenticatedPerson.getUserId())));
   }
 
+  @Override
   @Operation(summary = "Start Smart-ID signing for a capital transfer contract")
-  @PutMapping("/{id}/signature/smart-id")
   public MobileSignatureResponse startSmartIdSignature(
       @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return signatureService.startSmartIdSignature(id, authenticatedPerson);
   }
 
+  @Override
   @Operation(summary = "Get Smart-ID signing status for a capital transfer contract")
-  @GetMapping("/{id}/signature/smart-id/status")
   public MobileSignatureStatusResponse getSmartIdSignatureStatus(
       @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return signatureService.getSmartIdSignatureStatus(id, authenticatedPerson);
   }
 
+  @Override
   @Operation(summary = "Start ID Card signing for a capital transfer contract")
-  @PutMapping("/{id}/signature/id-card")
   public IdCardSignatureResponse startIdCardSignature(
       @PathVariable Long id,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
@@ -85,10 +86,10 @@ public class CapitalTransferContractController {
     return signatureService.startIdCardSignature(id, authenticatedPerson, signCommand);
   }
 
+  @Override
   @Operation(
       summary =
           "Persist ID Card signed hash and get signing status for a capital transfer contract")
-  @PutMapping("/{id}/signature/id-card/status")
   public IdCardSignatureStatusResponse persistIdCardSignedHashOrGetSignatureStatus(
       @PathVariable Long id,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
@@ -97,15 +98,15 @@ public class CapitalTransferContractController {
         id, signCommand, authenticatedPerson);
   }
 
+  @Override
   @Operation(summary = "Start Mobile ID signing for a capital transfer contract")
-  @PutMapping("/{id}/signature/mobile-id")
   public MobileSignatureResponse startMobileIdSignature(
       @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return signatureService.startMobileIdSignature(id, authenticatedPerson);
   }
 
+  @Override
   @Operation(summary = "Get Mobile ID signing status for a capital transfer contract")
-  @GetMapping("/{id}/signature/mobile-id/status")
   public MobileSignatureStatusResponse getMobileIdSignatureStatus(
       @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return signatureService.getMobileIdSignatureStatus(id, authenticatedPerson);

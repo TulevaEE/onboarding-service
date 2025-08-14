@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.response;
+package ee.tuleva.onboarding.signature.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,5 +9,5 @@ import lombok.Data;
 @AllArgsConstructor
 public class IdCardSignatureStatusResponse {
 
-  private final MandateSignatureStatus statusCode;
+  private final SignatureStatus statusCode;
 }

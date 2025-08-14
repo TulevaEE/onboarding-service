@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.response;
+package ee.tuleva.onboarding.signature.response;
 
 import lombok.Builder;
 import lombok.Data;

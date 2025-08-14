@@ -5,8 +5,10 @@ import ee.sk.mid.MidSignature
 import ee.sk.mid.rest.MidConnector
 import ee.sk.mid.rest.dao.MidSessionStatus
 import ee.sk.mid.rest.dao.response.MidSignatureResponse
-import ee.tuleva.onboarding.mandate.signature.DigiDocFacade
-import ee.tuleva.onboarding.mandate.signature.SignatureFile
+import ee.tuleva.onboarding.signature.DigiDocFacade
+import ee.tuleva.onboarding.signature.SignatureFile
+import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession
+import ee.tuleva.onboarding.signature.mobileid.MobileIdSigner
 import org.digidoc4j.Container
 import org.digidoc4j.DataToSign
 import spock.lang.Specification

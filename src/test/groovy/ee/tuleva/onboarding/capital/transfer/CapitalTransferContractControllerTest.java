@@ -21,11 +21,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
-import ee.tuleva.onboarding.mandate.response.IdCardSignatureResponse;
-import ee.tuleva.onboarding.mandate.response.IdCardSignatureStatusResponse;
-import ee.tuleva.onboarding.mandate.response.MandateSignatureStatus;
-import ee.tuleva.onboarding.mandate.response.MobileSignatureResponse;
-import ee.tuleva.onboarding.mandate.response.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.response.IdCardSignatureResponse;
+import ee.tuleva.onboarding.signature.response.IdCardSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.response.MobileSignatureResponse;
+import ee.tuleva.onboarding.signature.response.MobileSignatureStatusResponse;
+import ee.tuleva.onboarding.signature.response.SignatureStatus;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.Member;
@@ -318,7 +318,7 @@ class CapitalTransferContractControllerTest {
         new UsernamePasswordAuthenticationToken(authenticatedPerson, null, Collections.emptyList());
 
     MobileSignatureStatusResponse response =
-        new MobileSignatureStatusResponse(MandateSignatureStatus.SIGNATURE, "1234");
+        new MobileSignatureStatusResponse(SignatureStatus.SIGNATURE, "1234");
 
     given(
             signatureService.getSmartIdSignatureStatus(
@@ -390,7 +390,7 @@ class CapitalTransferContractControllerTest {
     command.setSignedHash("signed-hash");
 
     IdCardSignatureStatusResponse response =
-        new IdCardSignatureStatusResponse(MandateSignatureStatus.SIGNATURE);
+        new IdCardSignatureStatusResponse(SignatureStatus.SIGNATURE);
 
     given(
             signatureService.persistIdCardSignedHashAndGetProcessingStatus(
@@ -456,7 +456,7 @@ class CapitalTransferContractControllerTest {
         new UsernamePasswordAuthenticationToken(authenticatedPerson, null, Collections.emptyList());
 
     MobileSignatureStatusResponse response =
-        new MobileSignatureStatusResponse(MandateSignatureStatus.SIGNATURE, "5678");
+        new MobileSignatureStatusResponse(SignatureStatus.SIGNATURE, "5678");
 
     given(
             signatureService.getMobileIdSignatureStatus(

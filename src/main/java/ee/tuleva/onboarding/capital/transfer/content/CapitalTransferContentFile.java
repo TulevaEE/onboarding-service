@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.capital.transfer.content;
 
-import static ee.tuleva.onboarding.mandate.signature.SignatureFile.SignatureFileType.HTML;
+import static ee.tuleva.onboarding.signature.SignatureFile.SignatureFileType.HTML;
 
-import ee.tuleva.onboarding.mandate.signature.SignatureFile.SignatureFileType;
+import ee.tuleva.onboarding.signature.SignatureFile.SignatureFileType;
 import lombok.Builder;
 import lombok.Getter;
 

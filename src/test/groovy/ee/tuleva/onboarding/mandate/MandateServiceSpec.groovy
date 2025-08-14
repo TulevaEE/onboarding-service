@@ -18,10 +18,10 @@ import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
 import ee.tuleva.onboarding.mandate.exception.MandateProcessingException
 import ee.tuleva.onboarding.mandate.processor.MandateProcessorService
-import ee.tuleva.onboarding.mandate.signature.SignatureFile
-import ee.tuleva.onboarding.mandate.signature.SignatureService
-import ee.tuleva.onboarding.mandate.signature.idcard.IdCardSignatureSession
-import ee.tuleva.onboarding.mandate.signature.mobileid.MobileIdSignatureSession
+import ee.tuleva.onboarding.signature.SignatureFile
+import ee.tuleva.onboarding.signature.SignatureService
+import ee.tuleva.onboarding.signature.idcard.IdCardSignatureSession
+import ee.tuleva.onboarding.signature.mobileid.MobileIdSignatureSession
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.context.ApplicationEventPublisher
@@ -33,8 +33,8 @@ import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDet
 import static ee.tuleva.onboarding.mandate.MandateFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.sampleTransferApplicationDto
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.SELECTION
-import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.OUTSTANDING_TRANSACTION
-import static ee.tuleva.onboarding.mandate.response.MandateSignatureStatus.SIGNATURE
+import static ee.tuleva.onboarding.signature.response.SignatureStatus.OUTSTANDING_TRANSACTION
+import static ee.tuleva.onboarding.signature.response.SignatureStatus.SIGNATURE
 import static java.util.Locale.ENGLISH
 
 class MandateServiceSpec extends Specification {

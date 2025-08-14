@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.mandate.signature.mobileid;
+package ee.tuleva.onboarding.signature.mobileid;
 
 import static ee.sk.mid.MidDisplayTextFormat.GSM7;
 import static ee.sk.mid.MidHashType.SHA256;
@@ -15,8 +15,8 @@ import ee.sk.mid.rest.dao.request.MidSessionStatusRequest;
 import ee.sk.mid.rest.dao.request.MidSignatureRequest;
 import ee.sk.mid.rest.dao.response.MidCertificateChoiceResponse;
 import ee.sk.mid.rest.dao.response.MidSignatureResponse;
-import ee.tuleva.onboarding.mandate.signature.DigiDocFacade;
-import ee.tuleva.onboarding.mandate.signature.SignatureFile;
+import ee.tuleva.onboarding.signature.DigiDocFacade;
+import ee.tuleva.onboarding.signature.SignatureFile;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;

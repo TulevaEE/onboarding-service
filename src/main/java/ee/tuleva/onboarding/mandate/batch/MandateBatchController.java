@@ -39,7 +39,6 @@ public class MandateBatchController implements SignatureController<Long> {
 
   @Override
   @Operation(summary = "Start signing mandate batch with Smart ID")
-  @PutMapping("/{id}/signature/smart-id")
   public MobileSignatureResponse startSmartIdSignature(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
@@ -48,7 +47,6 @@ public class MandateBatchController implements SignatureController<Long> {
 
   @Override
   @Operation(summary = "Is mandate batch successfully signed with Smart ID")
-  @GetMapping("/{id}/signature/smart-id/status")
   public MobileSignatureStatusResponse getSmartIdSignatureStatus(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
@@ -58,7 +56,6 @@ public class MandateBatchController implements SignatureController<Long> {
 
   @Override
   @Operation(summary = "Start signing mandate batch with ID card")
-  @PutMapping("/{id}/signature/id-card")
   public IdCardSignatureResponse startIdCardSignature(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson,
@@ -73,7 +70,6 @@ public class MandateBatchController implements SignatureController<Long> {
   @Override
   @Operation(
       summary = "Persist ID-card signed mandate batch, and check if mandate batch is processed")
-  @PutMapping("/{id}/signature/id-card/status")
   public IdCardSignatureStatusResponse persistIdCardSignedHashOrGetSignatureStatus(
       @PathVariable("id") Long mandateBatchId,
       @Valid @RequestBody FinishIdCardSignCommand signCommand,
@@ -84,7 +80,6 @@ public class MandateBatchController implements SignatureController<Long> {
 
   @Override
   @Operation(summary = "Start signing mandate batch with mobile ID")
-  @PutMapping("/{id}/signature/mobile-id")
   public MobileSignatureResponse startMobileIdSignature(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
@@ -93,7 +88,6 @@ public class MandateBatchController implements SignatureController<Long> {
 
   @Override
   @Operation(summary = "Is mandate batch successfully signed with mobile ID")
-  @GetMapping("/{id}/signature/mobile-id/status")
   public MobileSignatureStatusResponse getMobileIdSignatureStatus(
       @PathVariable("id") Long mandateBatchId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {

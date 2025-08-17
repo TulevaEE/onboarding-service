@@ -96,14 +96,9 @@ public class ReturnsService {
     }
 
     return keys.stream()
-        .map(
-            key ->
-                fundValueRepository
-                    .findEarliestDateForKey(key)
-                    .orElseThrow(
-                        () -> new IllegalStateException("No earliest NAV date for key: " + key)))
+        .map(key -> fundValueRepository.findEarliestDateForKey(key).orElse(fromDate))
         .max(LocalDate::compareTo)
-        .orElseThrow(() -> new IllegalStateException("Unexpected: no earliest dates found"));
+        .orElse(fromDate);
   }
 
   private Integer getPillar(List<String> keys) {

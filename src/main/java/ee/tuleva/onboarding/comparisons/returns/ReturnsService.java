@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.comparisons.returns;
 
 import static ee.tuleva.onboarding.comparisons.returns.provider.PersonalReturnProvider.THIRD_PILLAR;
-import static java.time.temporal.ChronoUnit.DAYS;
+import static java.time.ZoneOffset.UTC;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.comparisons.fundvalue.persistence.FundValueRepository;
@@ -13,10 +13,8 @@ import ee.tuleva.onboarding.deadline.MandateDeadlinesService;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
@@ -32,7 +30,7 @@ public class ReturnsService {
   public Returns get(Person person, LocalDate fromDate, LocalDate endDate, List<String> keys) {
     int pillar = getPillar(keys);
     Instant fromTime = getRevisedFromTime(fromDate, keys, pillar);
-    Instant toTime = endDate.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
+    Instant toTime = endDate.atStartOfDay().atZone(UTC).toInstant();
 
     List<Return> allReturns = new ArrayList<>();
 
@@ -69,35 +67,43 @@ public class ReturnsService {
     return relevantKeysForTheProvider;
   }
 
-  private Instant getRevisedFromTime(LocalDate fromDate, List<String> keys, int pillar) {
-    LocalDate earliestNavDate = chooseDateAccordingToDataAvailability(fromDate, keys);
-    Instant earliestNavTime = earliestNavDate.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
+  Instant getRevisedFromTime(LocalDate fromDate, List<String> keys, int pillar) {
+    LocalDate latestCommonStartDate = latestCommonStartDate(keys, fromDate);
 
-    if (earliestNavDate.equals(fromDate) || pillar == 3) {
-      // so you could always get the previous day's nav for the beginning balance
-      return earliestNavTime.plus(2, DAYS);
+    if (pillar == 3) {
+      // plus 1 day so you could always get the previous day's nav for the beginning balance
+      return toInstant(
+          !fromDate.isAfter(latestCommonStartDate) ? latestCommonStartDate.plusDays(1) : fromDate);
     }
 
-    MandateDeadlines deadlines = mandateDeadlinesService.getDeadlines(earliestNavTime);
-    PublicHolidays publicHolidays = new PublicHolidays();
+    // pillar == 2
+    MandateDeadlines deadlines =
+        mandateDeadlinesService.getDeadlines(toInstant(latestCommonStartDate));
     LocalDate transferMandateFulfillmentDate = deadlines.getTransferMandateFulfillmentDate();
     LocalDate navDatePlus1 =
-        publicHolidays.previousWorkingDay(transferMandateFulfillmentDate).plusDays(1);
-    return navDatePlus1.atStartOfDay().atZone(ZoneOffset.UTC).toInstant();
+        new PublicHolidays().previousWorkingDay(transferMandateFulfillmentDate).plusDays(1);
+
+    if (!fromDate.isAfter(latestCommonStartDate)
+        || transferMandateFulfillmentDate.isAfter(fromDate)) {
+      return toInstant(navDatePlus1);
+    }
+    return toInstant(fromDate);
   }
 
-  private LocalDate chooseDateAccordingToDataAvailability(LocalDate fromDate, List<String> keys) {
-    if (keys == null) return fromDate;
+  private LocalDate latestCommonStartDate(List<String> keys, LocalDate fromDate) {
+    if (keys == null) {
+      return fromDate;
+    }
 
-    Optional<LocalDate> latestKeyDataStartDate =
-        keys.stream()
-            .map(fundValueRepository::findEarliestDateForKey)
-            .flatMap(Optional::stream)
-            .max(LocalDate::compareTo);
-
-    return latestKeyDataStartDate
-        .filter(latestDate -> latestDate.isAfter(fromDate))
-        .orElse(fromDate);
+    return keys.stream()
+        .map(
+            key ->
+                fundValueRepository
+                    .findEarliestDateForKey(key)
+                    .orElseThrow(
+                        () -> new IllegalStateException("No earliest NAV date for key: " + key)))
+        .max(LocalDate::compareTo)
+        .orElseThrow(() -> new IllegalStateException("Unexpected: no earliest dates found"));
   }
 
   private Integer getPillar(List<String> keys) {
@@ -106,5 +112,9 @@ public class ReturnsService {
     } else {
       return 2;
     }
+  }
+
+  private static Instant toInstant(LocalDate localDate) {
+    return localDate.atStartOfDay().atZone(UTC).toInstant();
   }
 }

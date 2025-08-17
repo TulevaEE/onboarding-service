@@ -15,6 +15,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
@@ -91,12 +92,11 @@ public class ReturnsService {
   }
 
   private LocalDate latestCommonStartDate(List<String> keys, LocalDate fromDate) {
-    if (keys == null) {
-      return fromDate;
-    }
+    if (keys == null || keys.isEmpty()) return fromDate;
 
     return keys.stream()
-        .map(key -> fundValueRepository.findEarliestDateForKey(key).orElse(fromDate))
+        .map(fundValueRepository::findEarliestDateForKey)
+        .flatMap(Optional::stream)
         .max(LocalDate::compareTo)
         .orElse(fromDate);
   }

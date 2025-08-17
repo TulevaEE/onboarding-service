@@ -69,12 +69,15 @@ public class ReturnsService {
   }
 
   Instant getRevisedFromTime(LocalDate fromDate, List<String> keys, int pillar) {
+    boolean hasKeys = keys != null && !keys.isEmpty();
     LocalDate latestCommonStartDate = latestCommonStartDate(keys, fromDate);
 
     if (pillar == 3) {
       // plus 1 day so you could always get the previous day's nav for the beginning balance
       return toInstant(
-          !fromDate.isAfter(latestCommonStartDate) ? latestCommonStartDate.plusDays(1) : fromDate);
+          hasKeys && !fromDate.isAfter(latestCommonStartDate)
+              ? latestCommonStartDate.plusDays(1)
+              : fromDate);
     }
 
     // pillar == 2
@@ -84,7 +87,8 @@ public class ReturnsService {
     LocalDate navDatePlus1 =
         new PublicHolidays().previousWorkingDay(transferMandateFulfillmentDate).plusDays(1);
 
-    if (!fromDate.isAfter(latestCommonStartDate)
+    if (!hasKeys
+        || !fromDate.isAfter(latestCommonStartDate)
         || transferMandateFulfillmentDate.isAfter(fromDate)) {
       return toInstant(navDatePlus1);
     }

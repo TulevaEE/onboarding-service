@@ -234,6 +234,22 @@ class ReturnsServiceSpec extends Specification {
     "2020-06-01" | "2020-02-01" | 3      || "2020-06-01" // fromDate
   }
 
+  def "revises the from time correctly with no comparison keys"() {
+    given:
+    def fromDate = LocalDate.parse(from)
+
+    when:
+    Instant revisedFromTime = returnsService.getRevisedFromTime(fromDate, [], pillar)
+
+    then:
+    revisedFromTime == Instant.parse(expectedRevision + "T00:00:00Z")
+
+    where:
+    from          | pillar || expectedRevision
+    "2020-01-01"  | 2      || "2020-05-01" // transferMandateFulfillmentDate
+    "2020-01-01"  | 3      || "2020-01-01" // fromDate
+  }
+
   private def sampleReturns1(LocalDate fromDate) {
     def return1 = Return.builder()
         .key(UnionStockIndexRetriever.KEY)

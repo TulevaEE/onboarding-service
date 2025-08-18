@@ -13,6 +13,9 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.ApiCapitalEvent;
 import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
+import ee.tuleva.onboarding.listing.MessageResponse;
+import ee.tuleva.onboarding.mandate.email.persistence.Email;
+import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.slack.SlackService;
@@ -39,6 +42,7 @@ public class CapitalTransferContractService {
   private final UserService userService;
   private final MemberService memberService;
   private final EmailService emailService;
+  private final EmailPersistenceService emailPersistenceService;
   private final CapitalTransferFileService capitalTransferFileService;
   private final CapitalTransferContractContentService contractContentService;
   private final CapitalService capitalService;
@@ -185,7 +189,7 @@ public class CapitalTransferContractService {
     log.info("Contract {} signed by buyer {}", contractId, contract.getBuyer().getId());
   }
 
-  public CapitalTransferContract updateState(
+  public CapitalTransferContract updateStateByUser(
       Long id, CapitalTransferContractState desiredState, User user) {
     CapitalTransferContract contract = getContract(id, user);
 
@@ -197,6 +201,20 @@ public class CapitalTransferContractService {
     if (contract.getState().equals(PAYMENT_CONFIRMED_BY_BUYER)
         && desiredState.equals(PAYMENT_CONFIRMED_BY_SELLER)) {
       return confirmPaymentBySeller(id, user);
+    }
+
+    throw new IllegalArgumentException(
+        "Unsupported state transition for contract(id=" + id + ") to " + desiredState);
+  }
+
+  public CapitalTransferContract updateStateBySystem(
+      Long id, CapitalTransferContractState desiredState) {
+    CapitalTransferContract contract = contractRepository.findById(id).orElseThrow();
+
+    if (contract.getState().equals(APPROVED) && desiredState.equals(APPROVED_AND_NOTIFIED)) {
+
+      contract.approvedAndNotified();
+      return contractRepository.save(contract);
     }
 
     throw new IllegalArgumentException(
@@ -242,8 +260,7 @@ public class CapitalTransferContractService {
     return capitalTransferFileService.getContractFiles(contract.getId());
   }
 
-  private void sendContractEmail(
-      User recipient, EmailType emailType, CapitalTransferContract contract) {
+  void sendContractEmail(User recipient, EmailType emailType, CapitalTransferContract contract) {
     if (recipient.getEmail() == null) {
       log.error("User {} has no email, not sending email {}", recipient.getId(), emailType);
       return;
@@ -264,6 +281,15 @@ public class CapitalTransferContractService {
             // TODO language
             recipient.getEmail(), templateName, mergeVars, List.of("capital-transfer"), null);
 
-    emailService.send(recipient, message, templateName);
+    emailService
+        .send(recipient, message, templateName)
+        .map(
+            response -> {
+              Email saved =
+                  emailPersistenceService.save(
+                      recipient, response.getId(), emailType, response.getStatus());
+              return new MessageResponse(saved.getId(), response.getStatus());
+            })
+        .orElseThrow();
   }
 }

@@ -59,7 +59,7 @@ public class CapitalTransferContractController implements SignatureController<Lo
       @Valid @RequestBody UpdateCapitalTransferContractStateCommand command,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     return CapitalTransferContractDto.from(
-        contractService.updateState(
+        contractService.updateStateByUser(
             id, command.getState(), userService.getByIdOrThrow(authenticatedPerson.getUserId())));
   }
 

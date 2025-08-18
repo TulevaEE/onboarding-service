@@ -102,6 +102,12 @@ public class CapitalTransferContract {
     return this;
   }
 
+  public CapitalTransferContract approvedAndNotified() {
+    requireState(CapitalTransferContractState.APPROVED);
+    this.setState(CapitalTransferContractState.APPROVED_AND_NOTIFIED);
+    return this;
+  }
+
   public CapitalTransferContract cancel() {
     if (this.state == CapitalTransferContractState.APPROVED) {
       throw new IllegalStateException("Cannot cancel a contract that is already approved.");

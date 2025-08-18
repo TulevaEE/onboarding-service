@@ -237,17 +237,21 @@ class ListingServiceSpec extends Specification {
 
 
     then:
-    sellMessage.contains("Mahus: 100.00")
-    sellMessage.contains("Hinnaga: €200.00")
-    sellMessage.contains("Olen huvitatud Tuleva ühistu liikmekapitali ostmisest:")
+    sellMessage.contains("soovib osta sinu liikmekapitali:")
+    sellMessage.contains("mahus: 100.00")
+    sellMessage.contains("hinnaga: €200.00")
+    sellMessage.contains("siis võta palun ostjaga ühendust ja leppige kokku detailides")
+    sellMessage.contains("Siin on sulle ostja andmed üheskoos:")
     sellMessage.contains(contacter.getFullName())
     sellMessage.contains(contacter.getPersonalCode().toString())
     sellMessage.contains(contacter.getPhoneNumber())
 
 
-    buyMessage.contains("Mahus: 100.00")
-    buyMessage.contains("Hinnaga: €200.00")
-    buyMessage.contains("Olen huvitatud Tuleva ühistu liikmekapitali müümisest:")
+    buyMessage.contains("soovib sulle sulle müüa oma liikmekapitali:")
+    buyMessage.contains("mahus: 100.00")
+    buyMessage.contains("hinnaga: €200.00")
+    buyMessage.contains("siis võta palun müüjaga ühendust ja leppige kokku detailides")
+    buyMessage.contains("Siin on sulle müüja andmed üheskoos:")
     buyMessage.contains(contacter.getFullName())
     !buyMessage.contains(contacter.getPersonalCode().toString())
     !buyMessage.contains(contacter.getPhoneNumber())
@@ -278,19 +282,85 @@ class ListingServiceSpec extends Specification {
 
 
     then:
-    sellMessage.contains("Amount: 100.00")
-    sellMessage.contains("Price: €200.00")
-    sellMessage.contains("I’m interested in purchasing membership capital of Tuleva:")
+    sellMessage.contains("wants to buy your membership capital:")
+    sellMessage.contains("amount: 100.00")
+    sellMessage.contains("price: €200.00")
+    sellMessage.contains("please contact the buyer and agree on the details")
+    sellMessage.contains("Here are the buyer's details:")
     sellMessage.contains(contacter.getFullName())
     sellMessage.contains(contacter.getPersonalCode().toString())
     sellMessage.contains(contacter.getPhoneNumber())
 
 
-    buyMessage.contains("Amount: 100.00")
-    buyMessage.contains("Price: €200.00")
-    buyMessage.contains("I’m interested in selling membership capital of Tuleva:")
+    buyMessage.contains("wants to sell you their membership capital:")
+    buyMessage.contains("amount: 100.00")
+    buyMessage.contains("price: €200.00")
+    buyMessage.contains("please contact the seller and agree on the details")
+    buyMessage.contains("Here are the seller's details:")
     buyMessage.contains(contacter.getFullName())
     !buyMessage.contains(contacter.getPersonalCode().toString())
     !buyMessage.contains(contacter.getPhoneNumber())
+  }
+
+  def "user details are html escaped in estonian"() {
+    def evilFirstName = "<img src='https://http.cat/200.jpg'>"
+    def evilLastName = "<img src='https://http.cat/400.jpg'>"
+    def evilPhoneNumber = "<img src='https://http.cat/500.jpg'>"
+    def evilEmail = "<img src='https://http.cat/300.jpg'>"
+
+    given:
+    def contacter = sampleUser().firstName(evilFirstName).lastName(evilLastName).phoneNumber(evilPhoneNumber).email(evilEmail).build()
+    def contacterPerson = authenticatedPersonFromUser(contacter).build()
+
+    def listing = newListingRequest().type(SELL).units(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+
+    1 * userService.getByIdOrThrow(contacter.getId()) >> contacter
+    1 * listingRepository.findById(1L) >> Optional.of(listing)
+
+    when:
+    def listingMessage = service.getContactMessage(listing.id, new ContactMessageRequest(true, true), contacterPerson)
+
+
+    then:
+    listingMessage.contains("mahus")
+    !listingMessage.contains(evilFirstName)
+    !listingMessage.contains(evilLastName)
+    !listingMessage.contains(evilPhoneNumber)
+    !listingMessage.contains(evilEmail)
+    listingMessage.contains("&lt;img src=&#39;https://http.cat/200.jpg&#39;&gt;")
+  }
+
+  def "user details are html escaped in english"() {
+    def evilFirstName = "<img src='https://http.cat/200.jpg'>"
+    def evilLastName = "<img src='https://http.cat/400.jpg'>"
+    def evilPhoneNumber = "<img src='https://http.cat/500.jpg'>"
+    def evilEmail = "<img src='https://http.cat/300.jpg'>"
+
+    given:
+    def contacter = sampleUser().firstName(evilFirstName).lastName(evilLastName).phoneNumber(evilPhoneNumber).email(evilEmail).build()
+    def contacterPerson = authenticatedPersonFromUser(contacter).build()
+
+    def listing = newListingRequest().type(SELL).units(100.00).totalPrice(200.00).build().toListing(42L, 'en').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+
+    1 * userService.getByIdOrThrow(contacter.getId()) >> contacter
+    1 * listingRepository.findById(1L) >> Optional.of(listing)
+
+    when:
+    def listingMessage = service.getContactMessage(listing.id, new ContactMessageRequest(true, true), contacterPerson)
+
+
+    then:
+    listingMessage.contains("amount")
+    !listingMessage.contains(evilFirstName)
+    !listingMessage.contains(evilLastName)
+    !listingMessage.contains(evilPhoneNumber)
+    !listingMessage.contains(evilEmail)
+    listingMessage.contains("&lt;img src=&#39;https://http.cat/200.jpg&#39;&gt;")
   }
 }

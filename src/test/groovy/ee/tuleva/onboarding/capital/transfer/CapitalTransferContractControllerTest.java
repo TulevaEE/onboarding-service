@@ -220,7 +220,7 @@ class CapitalTransferContractControllerTest {
 
     when(userService.getByIdOrThrow(sampleAuthenticatedPersonNonMember().build().getUserId()))
         .thenReturn(buyerUser);
-    given(contractService.updateState(contractId, PAYMENT_CONFIRMED_BY_BUYER, buyerUser))
+    given(contractService.updateStateByUser(contractId, PAYMENT_CONFIRMED_BY_BUYER, buyerUser))
         .willReturn(contract);
 
     // when, then
@@ -234,7 +234,7 @@ class CapitalTransferContractControllerTest {
         .andExpect(jsonPath("$.id", is(1)))
         .andExpect(jsonPath("$.state", is("PAYMENT_CONFIRMED_BY_BUYER")));
 
-    verify(contractService).updateState(contractId, PAYMENT_CONFIRMED_BY_BUYER, buyerUser);
+    verify(contractService).updateStateByUser(contractId, PAYMENT_CONFIRMED_BY_BUYER, buyerUser);
   }
 
   @Test
@@ -260,7 +260,7 @@ class CapitalTransferContractControllerTest {
 
     when(userService.getByIdOrThrow(sampleAuthenticatedPersonNonMember().build().getUserId()))
         .thenReturn(sellerUser);
-    given(contractService.updateState(contractId, PAYMENT_CONFIRMED_BY_SELLER, sellerUser))
+    given(contractService.updateStateByUser(contractId, PAYMENT_CONFIRMED_BY_SELLER, sellerUser))
         .willReturn(contract);
 
     // when, then
@@ -274,7 +274,7 @@ class CapitalTransferContractControllerTest {
         .andExpect(jsonPath("$.id", is(1)))
         .andExpect(jsonPath("$.state", is("PAYMENT_CONFIRMED_BY_SELLER")));
 
-    verify(contractService).updateState(contractId, PAYMENT_CONFIRMED_BY_SELLER, sellerUser);
+    verify(contractService).updateStateByUser(contractId, PAYMENT_CONFIRMED_BY_SELLER, sellerUser);
   }
 
   @Test

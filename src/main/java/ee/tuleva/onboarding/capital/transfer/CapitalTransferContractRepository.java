@@ -9,4 +9,6 @@ public interface CapitalTransferContractRepository
   List<CapitalTransferContract> findAllBySellerId(Long sellerMemberId);
 
   List<CapitalTransferContract> findAllByBuyerId(Long buyerMemberId);
+
+  List<CapitalTransferContract> findAllByState(CapitalTransferContractState state);
 }

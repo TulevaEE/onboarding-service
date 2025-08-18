@@ -157,7 +157,7 @@ class CapitalTransferContractServiceTest {
 
   @Test
   @DisplayName("updateState payment confirmed by buyer")
-  void updateStateConfirmedByBuyer() {
+  void updateStateByUserConfirmedByBuyer() {
 
     for (CapitalTransferContractState state : CapitalTransferContractState.values()) {
 
@@ -174,20 +174,20 @@ class CapitalTransferContractServiceTest {
 
       if (state == BUYER_SIGNED) {
         when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
-        var result = contractService.updateState(1L, PAYMENT_CONFIRMED_BY_BUYER, user);
+        var result = contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_BUYER, user);
         assertEquals(contract, result);
 
       } else {
         assertThrows(
             IllegalArgumentException.class,
-            () -> contractService.updateState(1L, PAYMENT_CONFIRMED_BY_BUYER, user));
+            () -> contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_BUYER, user));
       }
     }
   }
 
   @Test
   @DisplayName("updateState payment confirmed by buyer throws when attempted by seller")
-  void updateStateConfirmedByBuyerBySeller() {
+  void updateStateByUserConfirmedByBuyerBySeller() {
 
     var user = sampleUser().member(memberFixture().id(2L).build()).build();
     var contract =
@@ -202,12 +202,12 @@ class CapitalTransferContractServiceTest {
 
     assertThrows(
         IllegalStateException.class,
-        () -> contractService.updateState(1L, PAYMENT_CONFIRMED_BY_BUYER, user));
+        () -> contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_BUYER, user));
   }
 
   @Test
   @DisplayName("updateState payment confirmed by seller")
-  void updateStateConfirmedBySeller() {
+  void updateStateByUserConfirmedBySeller() {
 
     for (CapitalTransferContractState state : CapitalTransferContractState.values()) {
 
@@ -224,21 +224,21 @@ class CapitalTransferContractServiceTest {
 
       if (state == PAYMENT_CONFIRMED_BY_BUYER) {
         when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
-        var result = contractService.updateState(1L, PAYMENT_CONFIRMED_BY_SELLER, user);
+        var result = contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_SELLER, user);
         assertEquals(contract, result);
         verify(slackService).sendMessage(anyString(), eq(CAPITAL_TRANSFER));
 
       } else {
         assertThrows(
             IllegalArgumentException.class,
-            () -> contractService.updateState(1L, PAYMENT_CONFIRMED_BY_SELLER, user));
+            () -> contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_SELLER, user));
       }
     }
   }
 
   @Test
   @DisplayName("updateState payment confirmed by seller throws when attempted by buyer")
-  void updateStateConfirmedBySellerByBuyer() {
+  void updateStateByUserConfirmedBySellerByBuyer() {
 
     var user = sampleUser().member(memberFixture().id(2L).build()).build();
     var contract =
@@ -253,7 +253,7 @@ class CapitalTransferContractServiceTest {
 
     assertThrows(
         IllegalStateException.class,
-        () -> contractService.updateState(1L, PAYMENT_CONFIRMED_BY_SELLER, user));
+        () -> contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_SELLER, user));
   }
 
   @Test

@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.time.TestClockHolder.clock;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -18,12 +17,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
+import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.auth.authority.Authority;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.capital.ApiCapitalEvent;
 import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.mandate.email.persistence.Email;
+import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.signature.SignatureFile;
 import ee.tuleva.onboarding.signature.SignatureService;
@@ -66,6 +68,7 @@ class CapitalTransferContractControllerIntegrationTest {
   @Autowired private GenericSessionStore sessionStore;
   @Autowired private EmailService emailService;
   @Autowired private CapitalService capitalService;
+  @Autowired private EmailPersistenceService emailPersistenceService;
 
   private User sellerUser;
   private Member sellerMember;
@@ -99,6 +102,12 @@ class CapitalTransferContractControllerIntegrationTest {
     @Primary
     public CapitalService capitalService() {
       return mock(CapitalService.class);
+    }
+
+    @Bean
+    @Primary
+    public EmailPersistenceService emailPersistenceService() {
+      return mock(EmailPersistenceService.class);
     }
   }
 
@@ -159,6 +168,9 @@ class CapitalTransferContractControllerIntegrationTest {
 
     when(emailService.newMandrillMessage(any(), any(), any(), any(), any()))
         .thenReturn(new MandrillMessage());
+
+    when(emailPersistenceService.save(any(), any(), any(), any()))
+        .thenReturn(Email.builder().id(1L).build());
 
     when(capitalService.getCapitalEvents(sellerMember.getId()))
         .thenReturn(
@@ -229,6 +241,13 @@ class CapitalTransferContractControllerIntegrationTest {
     when(signatureService.getSignedFile(sellerSession))
         .thenReturn("signed content by seller".getBytes());
 
+    when(emailService.send(
+            any(User.class), any(MandrillMessage.class), eq("capital_transfer_seller_signed_et")))
+        .thenReturn(Optional.of(new MandrillMessageStatus()));
+    when(emailService.send(
+            any(User.class), any(MandrillMessage.class), eq("capital_transfer_buyer_to_sign_et")))
+        .thenReturn(Optional.of(new MandrillMessageStatus()));
+
     // when
     mockMvc
         .perform(
@@ -239,10 +258,6 @@ class CapitalTransferContractControllerIntegrationTest {
         .andExpect(jsonPath("$.statusCode").value("SIGNATURE"));
 
     // then
-    verify(emailService)
-        .send(any(User.class), any(MandrillMessage.class), eq("capital_transfer_seller_signed_et"));
-    verify(emailService)
-        .send(any(User.class), any(MandrillMessage.class), eq("capital_transfer_buyer_to_sign_et"));
 
     // given
     SmartIdSignatureSession buyerSession =
@@ -276,6 +291,12 @@ class CapitalTransferContractControllerIntegrationTest {
     UpdateCapitalTransferContractStateCommand confirmPaymentCommand =
         new UpdateCapitalTransferContractStateCommand();
     confirmPaymentCommand.setState(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_BUYER);
+
+    when(emailService.send(
+            any(User.class),
+            any(MandrillMessage.class),
+            eq("capital_transfer_confirmed_by_buyer_et")))
+        .thenReturn(Optional.of(new MandrillMessageStatus()));
 
     // when
     mockMvc

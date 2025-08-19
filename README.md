@@ -247,6 +247,11 @@ For partitioning.
 
 And query `select * from s3papertraillogsdatabase.s3papertraillogstabletsv limit 10;`
 
+## Adding VPN routes
+For example, Pensionikeskus new IP-s
+1. Allow new routes in `private-rounting` tables for [VPCs](https://eu-central-1.console.aws.amazon.com/vpcconsole/home?region=eu-central-1#vpcs:) 
+2. Update `static routes` for [VPN](https://eu-central-1.console.aws.amazon.com/vpcconsole/home?region=eu-central-1#VpnConnections:)
+
 ## Configuring VPN Split Tunneling
 
 To configure traffic routing through a VPN split tunnel:

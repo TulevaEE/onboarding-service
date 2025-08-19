@@ -10,11 +10,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
 import ee.tuleva.onboarding.capital.ApiCapitalEvent;
 import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.mandate.email.persistence.Email;
+import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.slack.SlackService;
 import ee.tuleva.onboarding.user.UserService;
@@ -37,6 +40,7 @@ class CapitalTransferContractServiceTest {
   @Mock private UserService userService;
   @Mock private MemberService memberService;
   @Mock private EmailService emailService;
+  @Mock private EmailPersistenceService emailPersistenceService;
   @Mock private CapitalTransferFileService capitalTransferFileService;
   @Mock private CapitalTransferContractContentService contractContentService;
   @Mock private CapitalService capitalService;
@@ -156,7 +160,7 @@ class CapitalTransferContractServiceTest {
   }
 
   @Test
-  @DisplayName("updateState payment confirmed by buyer")
+  @DisplayName("updateStateByUser payment confirmed by buyer")
   void updateStateByUserConfirmedByBuyer() {
 
     for (CapitalTransferContractState state : CapitalTransferContractState.values()) {
@@ -174,6 +178,14 @@ class CapitalTransferContractServiceTest {
 
       if (state == BUYER_SIGNED) {
         when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
+        when(emailPersistenceService.save(any(), any(), any(), any()))
+            .thenReturn(Email.builder().id(1L).build());
+        when(emailService.send(
+                eq(contract.getSeller().getUser()),
+                any(),
+                eq("capital_transfer_confirmed_by_buyer_et")))
+            .thenReturn(Optional.of(new MandrillMessageStatus()));
+
         var result = contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_BUYER, user);
         assertEquals(contract, result);
 
@@ -186,7 +198,7 @@ class CapitalTransferContractServiceTest {
   }
 
   @Test
-  @DisplayName("updateState payment confirmed by buyer throws when attempted by seller")
+  @DisplayName("updateStateByUser payment confirmed by buyer throws when attempted by seller")
   void updateStateByUserConfirmedByBuyerBySeller() {
 
     var user = sampleUser().member(memberFixture().id(2L).build()).build();
@@ -206,7 +218,7 @@ class CapitalTransferContractServiceTest {
   }
 
   @Test
-  @DisplayName("updateState payment confirmed by seller")
+  @DisplayName("updateStateByUser payment confirmed by seller")
   void updateStateByUserConfirmedBySeller() {
 
     for (CapitalTransferContractState state : CapitalTransferContractState.values()) {
@@ -237,7 +249,7 @@ class CapitalTransferContractServiceTest {
   }
 
   @Test
-  @DisplayName("updateState payment confirmed by seller throws when attempted by buyer")
+  @DisplayName("updateStateByUser payment confirmed by seller throws when attempted by buyer")
   void updateStateByUserConfirmedBySellerByBuyer() {
 
     var user = sampleUser().member(memberFixture().id(2L).build()).build();
@@ -257,6 +269,63 @@ class CapitalTransferContractServiceTest {
   }
 
   @Test
+  @DisplayName("updateStateBySystem approved and notified by board")
+  void updateStateBySystemConfirmedBySeller() {
+    for (CapitalTransferContractState state : CapitalTransferContractState.values()) {
+
+      var user = sampleUser().member(memberFixture().id(2L).build()).build();
+      var contract =
+          CapitalTransferContract.builder()
+              .id(1L)
+              .state(state)
+              .buyer(memberFixture().id(3L).build())
+              .seller(user.getMemberOrThrow())
+              .build();
+
+      when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
+
+      if (state == APPROVED) {
+        when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
+        var result = contractService.updateStateBySystem(1L, APPROVED_AND_NOTIFIED);
+        assertEquals(contract, result);
+
+      } else {
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> contractService.updateStateByUser(1L, APPROVED_AND_NOTIFIED, user));
+      }
+    }
+  }
+
+  @Test
+  @DisplayName("signBySeller")
+  void signBySeller() {
+
+    var user = sampleUser().member(memberFixture().id(2L).build()).build();
+    var contract =
+        CapitalTransferContract.builder()
+            .id(1L)
+            .state(CREATED)
+            .buyer(memberFixture().id(3L).build())
+            .seller(user.getMemberOrThrow())
+            .build();
+
+    when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
+
+    when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
+    when(emailPersistenceService.save(any(), any(), any(), any()))
+        .thenReturn(Email.builder().id(1L).build());
+    when(emailService.send(
+            eq(contract.getSeller().getUser()), any(), eq("capital_transfer_seller_signed_et")))
+        .thenReturn(Optional.of(new MandrillMessageStatus()));
+    when(emailService.send(
+            eq(contract.getBuyer().getUser()), any(), eq("capital_transfer_buyer_to_sign_et")))
+        .thenReturn(Optional.of(new MandrillMessageStatus()));
+
+    assertDoesNotThrow(() -> contractService.signBySeller(1L, new byte[0], user));
+  }
+
+  @Test
   @DisplayName("signBySeller throws when attempted by buyer")
   void signBySellerByBuyer() {
 
@@ -273,6 +342,25 @@ class CapitalTransferContractServiceTest {
 
     assertThrows(
         IllegalStateException.class, () -> contractService.signBySeller(1L, new byte[0], user));
+  }
+
+  @Test
+  @DisplayName("signByBuyer")
+  void signByBuyer() {
+    var user = sampleUser().member(memberFixture().id(2L).build()).build();
+    var contract =
+        CapitalTransferContract.builder()
+            .id(1L)
+            .state(SELLER_SIGNED)
+            .buyer(user.getMemberOrThrow())
+            .seller(memberFixture().id(3L).build())
+            .build();
+
+    when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
+
+    when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
+
+    assertDoesNotThrow(() -> contractService.signByBuyer(1L, new byte[0], user));
   }
 
   @Test

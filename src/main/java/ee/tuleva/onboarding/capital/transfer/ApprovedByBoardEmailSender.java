@@ -24,14 +24,18 @@ public class ApprovedByBoardEmailSender {
   public void sendBoardApprovedEmails() {
     var approvedByBoardCapitalTransfers =
         capitalTransferContractRepository.findAllByState(APPROVED);
+
+    if (approvedByBoardCapitalTransfers.isEmpty()) {
+      log.info("No APPROVED capital transfer contracts found");
+      return;
+    }
     log.info(
         "Need to send {} emails about capital transfer contract board approval",
         approvedByBoardCapitalTransfers.size() * 2);
 
     for (var transfer : approvedByBoardCapitalTransfers) {
-
       try {
-        log.info("Sending approval email for capital transfer (id={})", transfer.getId());
+        log.info("Sending approval emails for capital transfer (id={})", transfer.getId());
         capitalTransferContractService.sendContractEmail(
             transfer.getBuyer().getUser(), CAPITAL_TRANSFER_APPROVED_BY_BOARD, transfer);
         capitalTransferContractService.sendContractEmail(

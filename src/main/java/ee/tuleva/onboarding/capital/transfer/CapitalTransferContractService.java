@@ -212,7 +212,6 @@ public class CapitalTransferContractService {
     CapitalTransferContract contract = contractRepository.findById(id).orElseThrow();
 
     if (contract.getState().equals(APPROVED) && desiredState.equals(APPROVED_AND_NOTIFIED)) {
-
       contract.approvedAndNotified();
       return contractRepository.save(contract);
     }
@@ -281,15 +280,16 @@ public class CapitalTransferContractService {
             // TODO language
             recipient.getEmail(), templateName, mergeVars, List.of("capital-transfer"), null);
 
-    emailService
-        .send(recipient, message, templateName)
-        .map(
-            response -> {
-              Email saved =
-                  emailPersistenceService.save(
-                      recipient, response.getId(), emailType, response.getStatus());
-              return new MessageResponse(saved.getId(), response.getStatus());
-            })
-        .orElseThrow();
+    var messageResponse =
+        emailService
+            .send(recipient, message, templateName)
+            .map(
+                response -> {
+                  Email saved =
+                      emailPersistenceService.save(
+                          recipient, response.getId(), emailType, response.getStatus());
+                  return new MessageResponse(saved.getId(), response.getStatus());
+                })
+            .orElseThrow();
   }
 }

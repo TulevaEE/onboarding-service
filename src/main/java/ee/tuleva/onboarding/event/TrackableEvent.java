@@ -4,8 +4,10 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import org.springframework.boot.actuate.audit.listener.AuditApplicationEvent;
 
+@Getter
 @EqualsAndHashCode(callSuper = false)
 public class TrackableEvent extends AuditApplicationEvent {
 

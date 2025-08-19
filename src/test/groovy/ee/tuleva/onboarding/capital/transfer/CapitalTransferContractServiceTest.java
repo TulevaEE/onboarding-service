@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.capital.transfer;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
+import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.CAPITAL_TRANSFER;
 import static ee.tuleva.onboarding.time.TestClockHolder.clock;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
@@ -16,10 +17,12 @@ import ee.tuleva.onboarding.capital.ApiCapitalEvent;
 import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
 import ee.tuleva.onboarding.notification.slack.SlackService;
+import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.MemberService;
 import java.math.BigDecimal;
@@ -29,9 +32,12 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatcher;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEvent;
+import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class CapitalTransferContractServiceTest {
@@ -45,6 +51,7 @@ class CapitalTransferContractServiceTest {
   @Mock private CapitalTransferContractContentService contractContentService;
   @Mock private CapitalService capitalService;
   @Mock private SlackService slackService;
+  @Mock private ApplicationEventPublisher eventPublisher;
 
   @InjectMocks private CapitalTransferContractService contractService;
 
@@ -188,6 +195,9 @@ class CapitalTransferContractServiceTest {
 
         var result = contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_BUYER, user);
         assertEquals(contract, result);
+        verify(eventPublisher)
+            .publishEvent(
+                argThat(getStateChangeEventMatcher(user, state, PAYMENT_CONFIRMED_BY_BUYER)));
 
       } else {
         assertThrows(
@@ -239,6 +249,9 @@ class CapitalTransferContractServiceTest {
         var result = contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_SELLER, user);
         assertEquals(contract, result);
         verify(slackService).sendMessage(anyString(), eq(CAPITAL_TRANSFER));
+        verify(eventPublisher)
+            .publishEvent(
+                argThat(getStateChangeEventMatcher(user, state, PAYMENT_CONFIRMED_BY_SELLER)));
 
       } else {
         assertThrows(
@@ -323,6 +336,9 @@ class CapitalTransferContractServiceTest {
         .thenReturn(Optional.of(new MandrillMessageStatus()));
 
     assertDoesNotThrow(() -> contractService.signBySeller(1L, new byte[0], user));
+
+    verify(eventPublisher)
+        .publishEvent(argThat(getStateChangeEventMatcher(user, CREATED, SELLER_SIGNED)));
   }
 
   @Test
@@ -333,7 +349,7 @@ class CapitalTransferContractServiceTest {
     var contract =
         CapitalTransferContract.builder()
             .id(1L)
-            .state(PAYMENT_CONFIRMED_BY_BUYER)
+            .state(CREATED)
             .buyer(user.getMemberOrThrow())
             .seller(memberFixture().id(3L).build())
             .build();
@@ -342,6 +358,7 @@ class CapitalTransferContractServiceTest {
 
     assertThrows(
         IllegalStateException.class, () -> contractService.signBySeller(1L, new byte[0], user));
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test
@@ -361,6 +378,8 @@ class CapitalTransferContractServiceTest {
     when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
 
     assertDoesNotThrow(() -> contractService.signByBuyer(1L, new byte[0], user));
+    verify(eventPublisher)
+        .publishEvent(argThat(getStateChangeEventMatcher(user, SELLER_SIGNED, BUYER_SIGNED)));
   }
 
   @Test
@@ -371,7 +390,7 @@ class CapitalTransferContractServiceTest {
     var contract =
         CapitalTransferContract.builder()
             .id(1L)
-            .state(PAYMENT_CONFIRMED_BY_BUYER)
+            .state(SELLER_SIGNED)
             .seller(user.getMemberOrThrow())
             .buyer(memberFixture().id(3L).build())
             .build();
@@ -380,6 +399,7 @@ class CapitalTransferContractServiceTest {
 
     assertThrows(
         IllegalStateException.class, () -> contractService.signByBuyer(1L, new byte[0], user));
+    verify(eventPublisher, never()).publishEvent(any());
   }
 
   @Test
@@ -563,5 +583,17 @@ class CapitalTransferContractServiceTest {
             IllegalArgumentException.class,
             () -> contractService.create(sellerPerson, sampleCommand));
     assertEquals("Seller and buyer cannot be the same person.", thrown.getMessage());
+  }
+
+  private ArgumentMatcher<ApplicationEvent> getStateChangeEventMatcher(
+      User user, CapitalTransferContractState oldState, CapitalTransferContractState newState) {
+    return event -> {
+      var castEvent = (TrackableEvent) event;
+      var data = castEvent.getData();
+      return castEvent.getType() == CAPITAL_TRANSFER_STATE_CHANGE
+          && castEvent.getPerson().equals(user)
+          && data.get("oldState").equals(oldState)
+          && data.get("newState").equals(newState);
+    };
   }
 }

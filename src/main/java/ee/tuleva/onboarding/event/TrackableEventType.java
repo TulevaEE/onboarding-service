@@ -9,4 +9,5 @@ public enum TrackableEventType {
   PAGE_VIEW,
   PAYMENT_LINK,
   CLICK,
+  CAPITAL_TRANSFER_STATE_CHANGE
 }

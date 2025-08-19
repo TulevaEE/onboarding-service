@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.capital.transfer;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
+import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.CAPITAL_TRANSFER;
 import static java.math.RoundingMode.DOWN;
@@ -13,6 +14,7 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.ApiCapitalEvent;
 import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
+import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.listing.MessageResponse;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
@@ -29,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,6 +50,7 @@ public class CapitalTransferContractService {
   private final CapitalTransferContractContentService contractContentService;
   private final CapitalService capitalService;
   private final SlackService slackService;
+  private final ApplicationEventPublisher eventPublisher;
 
   private static final BigDecimal MINIMUM_UNIT_PRICE = BigDecimal.ONE;
 
@@ -171,7 +175,7 @@ public class CapitalTransferContractService {
     if (!contract.getSeller().getId().equals(user.getMemberId())) {
       throw new IllegalStateException("Can only be signed by seller at this point");
     }
-    contract.signBySeller(container);
+    broadcastStateChangeEvent(() -> contract.signBySeller(container), contract, user);
     contractRepository.save(contract);
     log.info("Contract {} signed by seller {}", contractId, contract.getSeller().getId());
 
@@ -184,7 +188,7 @@ public class CapitalTransferContractService {
     if (!contract.getBuyer().getId().equals(user.getMemberId())) {
       throw new IllegalStateException("Can only be signed by buyer at this point");
     }
-    contract.signByBuyer(container);
+    broadcastStateChangeEvent(() -> contract.signByBuyer(container), contract, user);
     contractRepository.save(contract);
     log.info("Contract {} signed by buyer {}", contractId, contract.getBuyer().getId());
   }
@@ -226,8 +230,7 @@ public class CapitalTransferContractService {
     if (!contract.getBuyer().getId().equals(user.getMemberId())) {
       throw new IllegalStateException("Payment can only be confirmed by buyer");
     }
-
-    contract.confirmPaymentByBuyer();
+    broadcastStateChangeEvent(contract::confirmPaymentByBuyer, contract, user);
     log.info("Payment confirmed by buyer for contract {}", id);
     sendContractEmail(
         contract.getSeller().getUser(), CAPITAL_TRANSFER_CONFIRMED_BY_BUYER, contract);
@@ -239,7 +242,8 @@ public class CapitalTransferContractService {
     if (!contract.getSeller().getId().equals(user.getMemberId())) {
       throw new IllegalStateException("Payment can only be confirmed by seller");
     }
-    contract.confirmPaymentBySeller();
+    broadcastStateChangeEvent(contract::confirmPaymentBySeller, contract, user);
+
     log.info("Payment confirmed by seller for contract {}.", id);
 
     try {
@@ -257,6 +261,19 @@ public class CapitalTransferContractService {
     // prevent enumeration
     var contract = getContract(contractId, user);
     return capitalTransferFileService.getContractFiles(contract.getId());
+  }
+
+  private void broadcastStateChangeEvent(
+      Runnable stateUpdater, CapitalTransferContract contract, User user) {
+    var oldState = contract.getState();
+    stateUpdater.run();
+    var newState = contract.getState();
+
+    eventPublisher.publishEvent(
+        new TrackableEvent(
+            user,
+            CAPITAL_TRANSFER_STATE_CHANGE,
+            Map.of("id", contract.getId(), "oldState", oldState, "newState", newState)));
   }
 
   void sendContractEmail(User recipient, EmailType emailType, CapitalTransferContract contract) {

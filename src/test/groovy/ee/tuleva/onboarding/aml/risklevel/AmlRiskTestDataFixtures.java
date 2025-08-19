@@ -20,7 +20,8 @@ public final class AmlRiskTestDataFixtures {
           + "attribute_3 INT,"
           + "attribute_4 INT,"
           + "attribute_5 INT,"
-          + "risk_level INT"
+          + "risk_level INT,"
+          + "version TEXT DEFAULT '2.0'"
           + ")";
   public static final String TRUNCATE_AML_RISK = "TRUNCATE TABLE analytics.v_aml_risk";
 
@@ -29,12 +30,13 @@ public final class AmlRiskTestDataFixtures {
           + "SELECT personal_id,"
           + "       risk_level,"
           + "       JSON_OBJECT("
+          + "         KEY 'version' VALUE version,"
+          + "         KEY 'level' VALUE risk_level,"
           + "         KEY 'attribute_1' VALUE attribute_1,"
           + "         KEY 'attribute_2' VALUE attribute_2,"
           + "         KEY 'attribute_3' VALUE attribute_3,"
           + "         KEY 'attribute_4' VALUE attribute_4,"
-          + "         KEY 'attribute_5' VALUE attribute_5,"
-          + "         KEY 'risk_level' VALUE risk_level"
+          + "         KEY 'attribute_5' VALUE attribute_5"
           + "       ) AS metadata "
           + "FROM analytics.v_aml_risk";
 

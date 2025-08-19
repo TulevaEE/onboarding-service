@@ -212,7 +212,7 @@ class RiskLevelServiceTest {
             .personalCode("38888888888")
             .type(AmlCheckType.RISK_LEVEL)
             .success(false)
-            .metadata(Map.of("abc", "123"))
+            .metadata(Map.of("abc", "123", "level", 1))
             .createdTime(TestClockHolder.now.minus(90, ChronoUnit.DAYS))
             .build();
     when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
@@ -412,5 +412,77 @@ class RiskLevelServiceTest {
     // then
     assertTrue(result);
     verify(amlCheckRepository).save(newCheck);
+  }
+
+  @Test
+  @DisplayName("Should skip duplicate check when metadata differs only in version field")
+  void testRunRiskLevelCheck_skipsDuplicateWithDifferentVersion() {
+    // given
+    RiskLevelResult row =
+        new RiskLevelResult("38888888888", 1, Map.of("abc", "123", "version", "2.0"));
+    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
+
+    AmlCheck existingCheck =
+        AmlCheck.builder()
+            .personalCode("38888888888")
+            .type(AmlCheckType.RISK_LEVEL)
+            .success(false)
+            .metadata(Map.of("abc", "123", "level", 1, "version", "1.0"))
+            .createdTime(TestClockHolder.now.minus(90, ChronoUnit.DAYS))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            eq("38888888888"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
+        .thenReturn(List.of(existingCheck));
+
+    // when
+    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+
+    // then
+    verify(amlCheckRepository, never()).save(any());
+    verify(eventPublisher, never()).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
+        ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
+    verify(eventPublisher).publishEvent(jobEventCaptor.capture());
+    AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
+    assertEquals(1, jobRunEvent.getHighRiskRowCount());
+    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
+    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
+    assertEquals(0, jobRunEvent.getAmlChecksCreatedCount());
+  }
+
+  @Test
+  @DisplayName("Should create new check when metadata differs in fields other than version")
+  void testRunRiskLevelCheck_createsNewCheckWhenMetadataDiffersExceptVersion() {
+    // given
+    RiskLevelResult row =
+        new RiskLevelResult("38888888888", 1, Map.of("abc", "456", "version", "2.0"));
+    when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(List.of(row));
+
+    AmlCheck existingCheck =
+        AmlCheck.builder()
+            .personalCode("38888888888")
+            .type(AmlCheckType.RISK_LEVEL)
+            .success(false)
+            .metadata(Map.of("abc", "123", "level", 1, "version", "2.0"))
+            .createdTime(TestClockHolder.now.minus(90, ChronoUnit.DAYS))
+            .build();
+    when(amlCheckRepository.findAllByPersonalCodeAndTypeAndSuccessIsFalseAndCreatedTimeAfter(
+            eq("38888888888"), eq(AmlCheckType.RISK_LEVEL), any(Instant.class)))
+        .thenReturn(List.of(existingCheck));
+
+    // when
+    riskLevelService.runRiskLevelCheck(SOME_TEST_PROBABILITY);
+
+    // then
+    verify(amlCheckRepository, times(1)).save(any(AmlCheck.class));
+    verify(eventPublisher, times(1)).publishEvent(Mockito.isA(AmlCheckCreatedEvent.class));
+    ArgumentCaptor<AmlRiskLevelJobRunEvent> jobEventCaptor =
+        ArgumentCaptor.forClass(AmlRiskLevelJobRunEvent.class);
+    verify(eventPublisher).publishEvent(jobEventCaptor.capture());
+    AmlRiskLevelJobRunEvent jobRunEvent = jobEventCaptor.getValue();
+    assertEquals(1, jobRunEvent.getHighRiskRowCount());
+    assertEquals(0, jobRunEvent.getMediumRiskRowCount());
+    assertEquals(1, jobRunEvent.getTotalRowsProcessed());
+    assertEquals(1, jobRunEvent.getAmlChecksCreatedCount());
   }
 }

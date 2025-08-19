@@ -104,10 +104,10 @@ class RiskLevelServiceIntegrationTest {
     assertEquals(AmlCheckType.RISK_LEVEL, check.getType());
 
     Map<String, Object> metadata = check.getMetadata();
+    assertEquals("2.0", metadata.get("version"));
+    assertEquals(1, metadata.get("level"));
     assertEquals(3, metadata.get("attribute_1"));
     assertEquals(2, metadata.get("attribute_2"));
-    assertEquals(1, metadata.get("risk_level"));
-    assertEquals(1, metadata.get("level"));
   }
 
   @Test
@@ -121,13 +121,13 @@ class RiskLevelServiceIntegrationTest {
 
     Map<String, Object> person5Metadata =
         Map.of(
+            "version", "2.0",
+            "level", 2,
             "attribute_1", 4,
             "attribute_2", 0,
             "attribute_3", 0,
             "attribute_4", 0,
-            "attribute_5", 0,
-            "risk_level", 2,
-            "level", 2);
+            "attribute_5", 0);
     RiskLevelResult sampledMediumRiskPerson = new RiskLevelResult(PERSON_ID_5, 2, person5Metadata);
 
     doReturn(Collections.emptyList()).when(amlRiskRepositoryService).getHighRiskRows();
@@ -166,12 +166,13 @@ class RiskLevelServiceIntegrationTest {
 
     Map<String, Object> existingMetadata =
         Map.of(
+            "version", "2.0",
+            "level", 1,
             "attribute_1", 3,
             "attribute_2", 2,
             "attribute_3", 0,
             "attribute_4", 0,
-            "attribute_5", 0,
-            "risk_level", 1);
+            "attribute_5", 0);
 
     AmlCheck existingCheck =
         AmlCheck.builder()
@@ -224,12 +225,13 @@ class RiskLevelServiceIntegrationTest {
 
     Map<String, Object> existingCheckMetadata =
         Map.of(
+            "version", "2.0",
+            "level", 1,
             "attribute_1", 5,
             "attribute_2", 4,
             "attribute_3", 0,
             "attribute_4", 0,
-            "attribute_5", 0,
-            "risk_level", 1);
+            "attribute_5", 0);
 
     AmlCheck existingCheck =
         AmlCheck.builder()
@@ -259,13 +261,13 @@ class RiskLevelServiceIntegrationTest {
 
     Map<String, Object> expectedNewCheckMetadata =
         Map.of(
+            "version", "2.0",
+            "level", 1,
             "attribute_1", 5,
             "attribute_2", 4,
             "attribute_3", 0,
             "attribute_4", 0,
-            "attribute_5", 0,
-            "risk_level", 1,
-            "level", 1);
+            "attribute_5", 0);
 
     assertTrue(
         checksAfter.stream()
@@ -285,8 +287,7 @@ class RiskLevelServiceIntegrationTest {
       stmt.execute(INSERT_PERSON_4_RISK_LEVEL_1);
     }
 
-    Map<String, Object> existingMetadata =
-        Map.of("attribute_1", 1, "attribute_2", 1, "risk_level", 1);
+    Map<String, Object> existingMetadata = Map.of("attribute_1", 1, "attribute_2", 1, "level", 1);
 
     AmlCheck oldCheck =
         AmlCheck.builder()
@@ -324,12 +325,13 @@ class RiskLevelServiceIntegrationTest {
 
     Map<String, Object> existingMetadata =
         Map.of(
+            "version", "2.0",
+            "level", 1,
             "attribute_1", 3,
             "attribute_2", 2,
             "attribute_3", 0,
             "attribute_4", 0,
-            "attribute_5", 0,
-            "risk_level", 1);
+            "attribute_5", 0);
 
     AmlCheck existingCheck =
         AmlCheck.builder()
@@ -367,12 +369,13 @@ class RiskLevelServiceIntegrationTest {
 
     Map<String, Object> existingMetadata =
         Map.of(
+            "version", "2.0",
+            "level", 1,
             "attribute_1", 3,
             "attribute_2", 2,
             "attribute_3", 0,
             "attribute_4", 0,
-            "attribute_5", 0,
-            "risk_level", 1);
+            "attribute_5", 0);
 
     Clock originalClock = ClockHolder.clock();
     try {

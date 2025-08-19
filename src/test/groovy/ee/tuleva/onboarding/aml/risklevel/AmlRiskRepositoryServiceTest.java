@@ -44,7 +44,7 @@ class AmlRiskRepositoryServiceTest {
   @DisplayName("Should handle non-null metadata as a Map for high-risk rows")
   void getHighRiskRows_mapMetadata() {
     Map<String, Object> testMetadata =
-        Map.of("attribute_1", 5, "attribute_2", 3, "risk_level", HIGH_RISK_LEVEL);
+        Map.of("attribute_1", 5, "attribute_2", 3, "level", HIGH_RISK_LEVEL);
     AmlRiskMetadata row = new AmlRiskMetadata("somePersonalId", HIGH_RISK_LEVEL, testMetadata);
 
     when(repository.findAllByRiskLevel(HIGH_RISK_LEVEL)).thenReturn(List.of(row));

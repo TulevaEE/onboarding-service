@@ -91,7 +91,7 @@ public class RiskLevelService {
             amlCheck.getPersonalCode(), AmlCheckType.RISK_LEVEL, cutoff);
 
     for (AmlCheck e : existing) {
-      if (metadataEqualsIgnoringLevel(e.getMetadata(), amlCheck.getMetadata())) {
+      if (metadataEqualsIgnoringVersion(e.getMetadata(), amlCheck.getMetadata())) {
         return false;
       }
     }
@@ -100,9 +100,7 @@ public class RiskLevelService {
     return true;
   }
 
-  // can be removed 2026-02 and use default compare
-  // since all checks then will have `level` attribute
-  private boolean metadataEqualsIgnoringLevel(Map<String, Object> m1, Map<String, Object> m2) {
+  private boolean metadataEqualsIgnoringVersion(Map<String, Object> m1, Map<String, Object> m2) {
     if (m1 == m2) {
       return true;
     }
@@ -113,8 +111,8 @@ public class RiskLevelService {
     Map<String, Object> m1Copy = new HashMap<>(m1);
     Map<String, Object> m2Copy = new HashMap<>(m2);
 
-    m1Copy.remove("level");
-    m2Copy.remove("level");
+    m1Copy.remove("version");
+    m2Copy.remove("version");
 
     return m1Copy.equals(m2Copy);
   }

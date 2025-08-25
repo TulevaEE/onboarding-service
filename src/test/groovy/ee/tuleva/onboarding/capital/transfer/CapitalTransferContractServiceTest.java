@@ -15,6 +15,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
 import ee.tuleva.onboarding.capital.ApiCapitalEvent;
 import ee.tuleva.onboarding.capital.CapitalService;
+import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.event.TrackableEvent;
@@ -66,9 +67,10 @@ class CapitalTransferContractServiceTest {
         CreateCapitalTransferContractCommand.builder()
             .buyerMemberId(3L)
             .iban("TEST_IBAN")
-            .unitCount(BigDecimal.TEN)
-            .totalPrice(new BigDecimal("100"))
-            .unitsOfMemberBonus(BigDecimal.ONE)
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -413,9 +415,10 @@ class CapitalTransferContractServiceTest {
         CreateCapitalTransferContractCommand.builder()
             .buyerMemberId(3L)
             .iban("TEST_IBAN")
-            .unitCount(BigDecimal.TEN)
-            .totalPrice(new BigDecimal("100.0"))
-            .unitsOfMemberBonus(BigDecimal.ONE)
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -451,9 +454,10 @@ class CapitalTransferContractServiceTest {
         CreateCapitalTransferContractCommand.builder()
             .buyerMemberId(3L)
             .iban("TEST_IBAN")
-            .unitCount(BigDecimal.TEN)
-            .totalPrice(new BigDecimal("100.0"))
-            .unitsOfMemberBonus(BigDecimal.TEN)
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        MEMBERSHIP_BONUS, new BigDecimal("100.0"), new BigDecimal("10.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -486,9 +490,10 @@ class CapitalTransferContractServiceTest {
         CreateCapitalTransferContractCommand.builder()
             .buyerMemberId(3L)
             .iban("TEST_IBAN")
-            .unitCount(BigDecimal.valueOf(100))
-            .totalPrice(new BigDecimal("120.0"))
-            .unitsOfMemberBonus(BigDecimal.ONE)
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -522,9 +527,10 @@ class CapitalTransferContractServiceTest {
         CreateCapitalTransferContractCommand.builder()
             .buyerMemberId(3L)
             .iban("TEST_IBAN")
-            .unitCount(BigDecimal.TEN)
-            .totalPrice(new BigDecimal("5.0"))
-            .unitsOfMemberBonus(BigDecimal.ONE)
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("5.0"), new BigDecimal("10.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -559,9 +565,10 @@ class CapitalTransferContractServiceTest {
         CreateCapitalTransferContractCommand.builder()
             .buyerMemberId(1L)
             .iban("TEST_IBAN")
-            .unitCount(BigDecimal.TEN)
-            .totalPrice(new BigDecimal("100.0"))
-            .unitsOfMemberBonus(BigDecimal.ZERO)
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("5.0"), new BigDecimal("10.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 

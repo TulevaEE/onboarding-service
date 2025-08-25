@@ -87,6 +87,14 @@ public class CapitalTransferContractService {
       throw new IllegalStateException("Seller does not have enough member capital");
     }
 
+    if (isAmountsEmpty(command)) {
+      throw new IllegalStateException("No amounts specified");
+    }
+
+    if (!hasOnlyOneOfType(command)) {
+      throw new IllegalStateException("Duplicate types specified");
+    }
+
     if (!hasOnlyLiquidatableTypes(command)) {
       throw new IllegalStateException("Non-liquidatable capital types included in command");
     }
@@ -138,6 +146,14 @@ public class CapitalTransferContractService {
 
               return totalMemberCapitalOfType.compareTo(transferAmount.units()) >= 0;
             });
+  }
+
+  private boolean isAmountsEmpty(CreateCapitalTransferContractCommand command) {
+    return command.getTransferAmounts().isEmpty();
+  }
+
+  private boolean hasOnlyOneOfType(CreateCapitalTransferContractCommand command) {
+    return command.getTransferAmounts().stream().map(CapitalTransferAmount::type).collect(Collectors.toSet()).size() == command.getTransferAmounts().size();
   }
 
   private boolean hasOnlyLiquidatableTypes(CreateCapitalTransferContractCommand command) {
@@ -318,7 +334,6 @@ public class CapitalTransferContractService {
                       emailPersistenceService.save(
                           recipient, response.getId(), emailType, response.getStatus());
                   return new MessageResponse(saved.getId(), response.getStatus());
-                })
-            .orElseThrow();
+                });
   }
 }

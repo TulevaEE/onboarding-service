@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.capital.transfer;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser;
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonNonMember;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixture.sampleCapitalTransferContract;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.PAYMENT_CONFIRMED_BY_BUYER;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.PAYMENT_CONFIRMED_BY_SELLER;
@@ -19,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
 import ee.tuleva.onboarding.signature.response.IdCardSignatureResponse;
@@ -89,9 +91,10 @@ class CapitalTransferContractControllerTest {
         CreateCapitalTransferContractCommand.builder()
             .buyerMemberId(1L)
             .iban("EE471000001020145685")
-            .totalPrice(new BigDecimal("1250.0"))
-            .unitCount(new BigDecimal("100.0"))
-            .unitsOfMemberBonus(new BigDecimal("2.0"))
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("1250.0"), new BigDecimal("100.0"))))
             .build();
 
     User sellerUser = sampleUser().id(1L).personalCode("37605030299").build();

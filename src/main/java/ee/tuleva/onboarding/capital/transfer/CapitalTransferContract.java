@@ -1,5 +1,9 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS;
+import static org.hibernate.type.SqlTypes.JSON;
+
+import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
 import ee.tuleva.onboarding.capital.transfer.iban.ValidIban;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
@@ -8,7 +12,9 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
 
 @Entity
 @Table(name = "capital_transfer_contract")
@@ -34,11 +40,9 @@ public class CapitalTransferContract {
 
   @NotNull @ValidIban private String iban;
 
-  @NotNull private BigDecimal totalPrice;
-
-  @NotNull private BigDecimal unitCount;
-
-  @NotNull private BigDecimal unitsOfMemberBonus;
+  @JdbcTypeCode(JSON)
+  @NotNull
+  private List<CapitalTransferAmount> transferAmounts;
 
   @NotNull
   @Enumerated(EnumType.STRING)
@@ -122,4 +126,26 @@ public class CapitalTransferContract {
 
     return isBuyer || isSeller;
   }
+
+  public BigDecimal getTotalPrice() {
+    return transferAmounts.stream()
+        .map(CapitalTransferAmount::price)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  public BigDecimal getUnitCount() {
+    return transferAmounts.stream()
+        .map(CapitalTransferAmount::units)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  public BigDecimal getUnitsOfMemberBonus() {
+    return transferAmounts.stream()
+        .filter(amount -> amount.type == MEMBERSHIP_BONUS)
+        .map(CapitalTransferAmount::units)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+  }
+
+  public record CapitalTransferAmount(
+      MemberCapitalEventType type, BigDecimal price, BigDecimal units) {}
 }

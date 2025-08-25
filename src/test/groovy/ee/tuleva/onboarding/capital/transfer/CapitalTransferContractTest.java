@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixture.sampleCapitalTransferContract;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -16,6 +17,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,9 +53,10 @@ class CapitalTransferContractTest {
             .seller(seller)
             .buyer(buyer)
             .iban("EE471000001020145685")
-            .totalPrice(new BigDecimal("100.0"))
-            .unitCount(new BigDecimal("100.0"))
-            .unitsOfMemberBonus(new BigDecimal("2.0"))
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferContract.CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("100.0"))))
             .originalContent("original".getBytes())
             .digiDocContainer(null)
             .state(CapitalTransferContractState.CREATED);
@@ -248,17 +251,18 @@ class CapitalTransferContractTest {
     }
 
     @Test
-    @DisplayName("fails when unitCount is null")
+    @DisplayName("fails when transferAmounts is null")
     void validation_failsForNullUnitCount() {
       // given
-      CapitalTransferContract contract = contractBuilder.unitCount(null).build();
+      CapitalTransferContract contract = contractBuilder.transferAmounts(null).build();
 
       // when
       Set<ConstraintViolation<CapitalTransferContract>> violations = validator.validate(contract);
 
       // then
       assertThat(violations).hasSize(1);
-      assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("unitCount");
+      assertThat(violations.iterator().next().getPropertyPath().toString())
+          .isEqualTo("transferAmounts");
     }
 
     @Test

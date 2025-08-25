@@ -190,9 +190,10 @@ class CapitalTransferContractControllerIntegrationTest {
         CreateCapitalTransferContractCommand.builder()
             .buyerMemberId(buyerMember.getId())
             .iban("EE471000001020145685")
-            .totalPrice(new BigDecimal("1250.0"))
-            .unitCount(new BigDecimal("100.0"))
-            .unitsOfMemberBonus(new BigDecimal("2.0"))
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferContract.CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("1250.0"), new BigDecimal("100.0"))))
             .build();
 
     var sellerMemberId = sellerMember.getId();

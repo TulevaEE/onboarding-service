@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.iban.ValidIban;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
-import java.math.BigDecimal;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -18,15 +18,5 @@ public class CreateCapitalTransferContractCommand {
 
   @NotNull @ValidIban private String iban;
 
-  @NotNull
-  @Min(0)
-  private BigDecimal totalPrice;
-
-  @NotNull
-  @Min(0)
-  private BigDecimal unitCount;
-
-  @NotNull
-  @Min(0)
-  private BigDecimal unitsOfMemberBonus;
+  @NotNull private List<CapitalTransferAmount> transferAmounts;
 }

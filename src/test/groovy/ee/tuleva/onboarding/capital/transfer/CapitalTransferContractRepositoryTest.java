@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractFixture.sampleCapitalTransferContract;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.CREATED;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.SELLER_SIGNED;
@@ -78,9 +79,10 @@ class CapitalTransferContractRepositoryTest {
             .seller(contractSeller)
             .buyer(contractBuyer)
             .iban("EE471000001020145685")
-            .totalPrice(BigDecimal.ONE)
-            .unitCount(BigDecimal.ONE)
-            .unitsOfMemberBonus(BigDecimal.ZERO)
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferContract.CapitalTransferAmount(
+                        CAPITAL_PAYMENT, BigDecimal.ONE, BigDecimal.ONE)))
             .originalContent(new byte[] {})
             .digiDocContainer(new byte[] {})
             .build();
@@ -98,9 +100,10 @@ class CapitalTransferContractRepositoryTest {
             .seller(seller)
             .buyer(buyer)
             .iban("EE471000001020145685")
-            .totalPrice(new BigDecimal("200"))
-            .unitCount(new BigDecimal("50"))
-            .unitsOfMemberBonus(BigDecimal.ONE)
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferContract.CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("200"), new BigDecimal("50"))))
             .originalContent(new byte[] {1, 2})
             .digiDocContainer(new byte[] {3, 4})
             .build();

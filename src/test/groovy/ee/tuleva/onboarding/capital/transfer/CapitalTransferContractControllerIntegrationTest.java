@@ -211,6 +211,9 @@ class CapitalTransferContractControllerIntegrationTest {
             .andExpect(jsonPath("$.seller.firstName").value("Mikk"))
             .andExpect(jsonPath("$.buyer.firstName").value("Mari"))
             .andExpect(jsonPath("$.state").value("CREATED"))
+            .andExpect(jsonPath("$.transferAmounts.[0].type").value("CAPITAL_PAYMENT"))
+            .andExpect(jsonPath("$.transferAmounts.[0].price").value(1250.0))
+            .andExpect(jsonPath("$.transferAmounts.[0].units").value(100.0))
             .andReturn()
             .getResponse()
             .getContentAsString();

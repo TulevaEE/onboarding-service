@@ -83,24 +83,16 @@ public class CapitalTransferContractService {
     log.info(
         "Validating command {} for seller {} and buyer {}", command, seller.getId(), buyer.getId());
 
-    if (!hasEnoughMemberCapital(seller, command)) {
-      throw new IllegalStateException("Seller does not have enough member capital");
-    }
-
     if (isAmountsEmpty(command)) {
-      throw new IllegalStateException("No amounts specified");
+      throw new IllegalArgumentException("No amounts specified");
     }
 
     if (!hasOnlyOneOfType(command)) {
-      throw new IllegalStateException("Duplicate types specified");
+      throw new IllegalArgumentException("Duplicate types specified");
     }
 
     if (!hasOnlyLiquidatableTypes(command)) {
-      throw new IllegalStateException("Non-liquidatable capital types included in command");
-    }
-
-    if (!isTransferWithinConcentrationLimit(buyer, command)) {
-      throw new IllegalStateException("Buyer would exceed concentration limit after transfer");
+      throw new IllegalArgumentException("Non-liquidatable capital types included in command");
     }
 
     if (!isUnitPriceOverMinimum(command)) {
@@ -109,6 +101,14 @@ public class CapitalTransferContractService {
 
     if (seller.getId().equals(buyer.getId())) {
       throw new IllegalArgumentException("Seller and buyer cannot be the same person.");
+    }
+
+    if (!hasEnoughMemberCapital(seller, command)) {
+      throw new IllegalStateException("Seller does not have enough member capital");
+    }
+
+    if (!isTransferWithinConcentrationLimit(buyer, command)) {
+      throw new IllegalStateException("Buyer would exceed concentration limit after transfer");
     }
   }
 

@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.user.member.Member
 import java.math.BigDecimal
 import java.time.LocalDateTime
 
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture
 
 class CapitalTransferContractFixture {
@@ -14,9 +15,10 @@ class CapitalTransferContractFixture {
             .seller(memberFixture().id(1L).build())
             .buyer(memberFixture().id(2L).build())
             .iban("EE123456789012345678")
-            .totalPrice(new BigDecimal("100.00"))
-            .unitCount(BigDecimal.TEN)
-            .unitsOfMemberBonus(BigDecimal.ONE)
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferContract.CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0"))))
             .state(CapitalTransferContractState.CREATED)
             .originalContent("original content".getBytes())
             .createdAt(LocalDateTime.now())

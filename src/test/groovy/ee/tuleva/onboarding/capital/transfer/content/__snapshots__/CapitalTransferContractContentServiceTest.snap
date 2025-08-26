@@ -109,7 +109,7 @@ capital_transfer_contract_member_bonus=[
             </div>
             <div class="detail-row">
                 <div class="detail-label">Müüdavate osade arv:</div>
-                <div class="detail-value">50</div>
+                <div class="detail-value">50.0</div>
             </div>
             <div class="detail-row">
                 <div class="detail-label">Osa hind:</div>
@@ -117,7 +117,7 @@ capital_transfer_contract_member_bonus=[
             </div>
             <div class="detail-row">
                 <div class="detail-label">Kogu summa:</div>
-                <div class="detail-value">1250.00 EUR</div>
+                <div class="detail-value">100.0 EUR</div>
             </div>
             <div class="detail-row">
                 <div class="detail-label">Ostja pangakonto:</div>
@@ -270,7 +270,7 @@ capital_transfer_contract_member_capital=[
             </div>
             <div class="detail-row">
                 <div class="detail-label">Müüdavate osade arv:</div>
-                <div class="detail-value">100</div>
+                <div class="detail-value">100.0</div>
             </div>
             <div class="detail-row">
                 <div class="detail-label">Osa hind:</div>
@@ -278,7 +278,7 @@ capital_transfer_contract_member_capital=[
             </div>
             <div class="detail-row">
                 <div class="detail-label">Kogu summa:</div>
-                <div class="detail-value">1250 EUR</div>
+                <div class="detail-value">1250.0 EUR</div>
             </div>
             <div class="detail-row">
                 <div class="detail-label">Ostja pangakonto:</div>

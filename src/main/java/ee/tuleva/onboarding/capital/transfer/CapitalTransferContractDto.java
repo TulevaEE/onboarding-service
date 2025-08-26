@@ -5,7 +5,6 @@ import ee.tuleva.onboarding.member.MemberLookupResponse;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-
 import lombok.Builder;
 import lombok.Value;
 

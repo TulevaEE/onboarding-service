@@ -538,15 +538,6 @@ class CapitalTransferContractServiceTest {
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
         .thenReturn(memberFixture().id(3L).user(buyerUser).build());
 
-    when(capitalService.getCapitalEvents(sellerUser.getMemberId()))
-        .thenReturn(
-            List.of(
-                new ApiCapitalEvent(
-                    LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000), Currency.EUR),
-                new ApiCapitalEvent(
-                    LocalDate.now(clock), MEMBERSHIP_BONUS, BigDecimal.valueOf(5), Currency.EUR)));
-    when(capitalService.getCapitalConcentrationUnitLimit()).thenReturn(BigDecimal.valueOf(1e8));
-
     IllegalArgumentException thrown =
         assertThrows(
             IllegalArgumentException.class,
@@ -575,15 +566,6 @@ class CapitalTransferContractServiceTest {
     when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
         .thenReturn(memberFixture().id(1L).user(buyerUser).build());
-
-    when(capitalService.getCapitalEvents(sellerUser.getMemberId()))
-        .thenReturn(
-            List.of(
-                new ApiCapitalEvent(
-                    LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000), Currency.EUR),
-                new ApiCapitalEvent(
-                    LocalDate.now(clock), MEMBERSHIP_BONUS, BigDecimal.valueOf(5), Currency.EUR)));
-    when(capitalService.getCapitalConcentrationUnitLimit()).thenReturn(BigDecimal.valueOf(1e8));
 
     IllegalArgumentException thrown =
         assertThrows(

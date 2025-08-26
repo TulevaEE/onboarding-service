@@ -592,6 +592,94 @@ class CapitalTransferContractServiceTest {
     assertEquals("Seller and buyer cannot be the same person.", thrown.getMessage());
   }
 
+  @Test
+  @DisplayName("Create capital transfer throws no amounts")
+  void createNoAmounts() {
+
+    var buyerUser = sampleUser().firstName("Olev").lastName("Ostja").build();
+    var sellerUser = buyerUser;
+
+    var sampleCommand =
+        CreateCapitalTransferContractCommand.builder()
+            .buyerMemberId(1L)
+            .iban("TEST_IBAN")
+            .transferAmounts(List.of())
+            .build();
+    var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
+
+    when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
+    when(memberService.getById(sampleCommand.getBuyerMemberId()))
+        .thenReturn(memberFixture().id(1L).user(buyerUser).build());
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> contractService.create(sellerPerson, sampleCommand));
+    assertEquals("No amounts specified", thrown.getMessage());
+  }
+
+  @Test
+  @DisplayName("Create capital transfer throws duplicate types")
+  void createDuplicateTypes() {
+
+    var buyerUser = sampleUser().firstName("Olev").lastName("Ostja").build();
+    var sellerUser = buyerUser;
+
+    var sampleCommand =
+        CreateCapitalTransferContractCommand.builder()
+            .buyerMemberId(1L)
+            .iban("TEST_IBAN")
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("10.0"), new BigDecimal("5.0")),
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("10.0"), new BigDecimal("5.0"))))
+            .build();
+    var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
+
+    when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
+    when(memberService.getById(sampleCommand.getBuyerMemberId()))
+        .thenReturn(memberFixture().id(1L).user(buyerUser).build());
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> contractService.create(sellerPerson, sampleCommand));
+    assertEquals("Duplicate types specified", thrown.getMessage());
+  }
+
+  @Test
+  @DisplayName("Create capital transfer throws non-liquidatable types")
+  void createNonLiquidatableTypes() {
+
+    var buyerUser = sampleUser().firstName("Olev").lastName("Ostja").build();
+    var sellerUser = buyerUser;
+
+    var sampleCommand =
+        CreateCapitalTransferContractCommand.builder()
+            .buyerMemberId(1L)
+            .iban("TEST_IBAN")
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        INVESTMENT_RETURN, new BigDecimal("10.0"), new BigDecimal("5.0")),
+                    new CapitalTransferAmount(
+                        UNVESTED_WORK_COMPENSATION, new BigDecimal("10.0"), new BigDecimal("5.0"))))
+            .build();
+    var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
+
+    when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
+    when(memberService.getById(sampleCommand.getBuyerMemberId()))
+        .thenReturn(memberFixture().id(1L).user(buyerUser).build());
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> contractService.create(sellerPerson, sampleCommand));
+    assertEquals("Non-liquidatable capital types included in command", thrown.getMessage());
+  }
+
   private ArgumentMatcher<ApplicationEvent> getStateChangeEventMatcher(
       User user, CapitalTransferContractState oldState, CapitalTransferContractState newState) {
     return event -> {

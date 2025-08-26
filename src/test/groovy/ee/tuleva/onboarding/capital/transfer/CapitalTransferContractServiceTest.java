@@ -476,7 +476,7 @@ class CapitalTransferContractServiceTest {
     IllegalStateException thrown =
         assertThrows(
             IllegalStateException.class, () -> contractService.create(sellerPerson, sampleCommand));
-    assertEquals("Seller does not have enough member bonus", thrown.getMessage());
+    assertEquals("Seller does not have enough member capital", thrown.getMessage());
   }
 
   @Test
@@ -568,7 +568,7 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("5.0"), new BigDecimal("10.0"))))
+                        CAPITAL_PAYMENT, new BigDecimal("10.0"), new BigDecimal("5.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 

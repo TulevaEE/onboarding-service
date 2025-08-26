@@ -15,6 +15,8 @@ import java.math.BigDecimal
 import java.time.LocalDateTime
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT
+import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture
 
 @SpringBootTest
@@ -50,9 +52,10 @@ class CapitalTransferContractContentServiceTest extends Specification {
         .seller(seller)
         .buyer(buyer)
         .iban("EE471000001020145685")
-        .totalPrice(new BigDecimal("1250"))
-        .unitCount(new BigDecimal("100"))
-        .unitsOfMemberBonus(new BigDecimal("2.0"))
+        .transferAmounts(
+            List.of(
+                new CapitalTransferContract.CapitalTransferAmount(
+                    CAPITAL_PAYMENT, new BigDecimal("1250.0"), new BigDecimal("100.0"))))
         .state(CapitalTransferContractState.CREATED)
         .createdAt(LocalDateTime.of(2023, 12, 15, 10, 30))
         .build()
@@ -88,9 +91,10 @@ class CapitalTransferContractContentServiceTest extends Specification {
         .seller(seller)
         .buyer(buyer)
         .iban("EE382200221020145685")
-        .totalPrice(new BigDecimal("1250.00"))
-        .unitCount(new BigDecimal("50"))
-        .unitsOfMemberBonus(new BigDecimal("2.0"))
+        .transferAmounts(
+            List.of(
+                new CapitalTransferContract.CapitalTransferAmount(
+                    MEMBERSHIP_BONUS, new BigDecimal("100.0"), new BigDecimal("50.0"))))
         .state(CapitalTransferContractState.CREATED)
         .createdAt(LocalDateTime.of(2024, 1, 20, 14, 45))
         .build()
@@ -120,9 +124,10 @@ class CapitalTransferContractContentServiceTest extends Specification {
         .seller(seller)
         .buyer(buyer)
         .iban("EE471000001020145685")
-        .totalPrice(new BigDecimal("1250"))
-        .unitCount(new BigDecimal("100"))
-        .unitsOfMemberBonus(new BigDecimal("2.0"))
+        .transferAmounts(
+            List.of(
+                new CapitalTransferContract.CapitalTransferAmount(
+                    CAPITAL_PAYMENT, new BigDecimal("1250.0"), new BigDecimal("100.0"))))
         .state(CapitalTransferContractState.CREATED)
         .createdAt(LocalDateTime.of(2023, 12, 15, 10, 30))
         .build()

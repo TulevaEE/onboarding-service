@@ -153,7 +153,11 @@ public class CapitalTransferContractService {
   }
 
   private boolean hasOnlyOneOfType(CreateCapitalTransferContractCommand command) {
-    return command.getTransferAmounts().stream().map(CapitalTransferAmount::type).collect(Collectors.toSet()).size() == command.getTransferAmounts().size();
+    return command.getTransferAmounts().stream()
+            .map(CapitalTransferAmount::type)
+            .collect(Collectors.toSet())
+            .size()
+        == command.getTransferAmounts().size();
   }
 
   private boolean hasOnlyLiquidatableTypes(CreateCapitalTransferContractCommand command) {

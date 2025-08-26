@@ -120,7 +120,6 @@ class CapitalTransferContractRepositoryTest {
     assertThat(retrievedContract.getBuyer().getId()).isEqualTo(buyer.getId());
     assertThat(retrievedContract.getIban()).isEqualTo("EE471000001020145685");
     assertThat(retrievedContract.getTotalPrice()).isEqualByComparingTo("200");
-    assertThat(retrievedContract.getUnitsOfMemberBonus()).isEqualByComparingTo("1");
     assertThat(retrievedContract.getUnitCount()).isEqualByComparingTo("50");
     assertThat(retrievedContract.getState()).isEqualTo(CapitalTransferContractState.SELLER_SIGNED);
     assertThat(retrievedContract.getCreatedAt())

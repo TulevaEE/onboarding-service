@@ -43,7 +43,8 @@ public class SecurityConfiguration {
                         "/notifications/payments",
                         "/error")
                     .permitAll()
-                    .requestMatchers(GET, "/v1/me/capital", "/v1/me/capital/events")
+                    .requestMatchers(
+                        GET, "/v1/me/capital", "/v1/me/capital/events", "/v1/capital/total")
                     .hasAuthority(MEMBER)
                     .requestMatchers("/v1/listings/**")
                     .hasAuthority(MEMBER)

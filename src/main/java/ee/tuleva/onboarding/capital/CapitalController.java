@@ -40,4 +40,9 @@ public class CapitalController {
         .map(member -> capitalService.getCapitalEvents(member.getId()))
         .orElseThrow(NotAMemberException::new);
   }
+
+  @GetMapping("/capital/total")
+  public CapitalTotalDto getCapitalTotal() {
+    return CapitalTotalDto.from(capitalService.getLatestAggregatedCapitalEvent().orElseThrow());
+  }
 }

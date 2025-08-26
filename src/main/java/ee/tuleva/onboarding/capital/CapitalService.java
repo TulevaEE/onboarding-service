@@ -57,7 +57,7 @@ public class CapitalService {
                     reducing(
                         CapitalRow.empty(),
                         event ->
-                            CapitalRow.from(event, latestUnitPrice.orElse(ZERO), getProfit(event)),
+                            CapitalRow.from(event, latestUnitPrice.orElseThrow(), getProfit(event)),
                         CapitalRow::sum)));
 
     return grouped.values().stream().map(CapitalRow::rounded).toList();
@@ -134,7 +134,7 @@ public class CapitalService {
         .map(AggregatedCapitalEvent::getOwnershipUnitPrice);
   }
 
-  private Optional<AggregatedCapitalEvent> getLatestAggregatedCapitalEvent() {
+  public Optional<AggregatedCapitalEvent> getLatestAggregatedCapitalEvent() {
     AggregatedCapitalEvent latestAggregatedCapitalEvent =
         aggregatedCapitalEventRepository.findTopByOrderByDateDesc();
 

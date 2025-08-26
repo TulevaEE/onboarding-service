@@ -2,15 +2,19 @@ package ee.tuleva.onboarding.capital
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 
+import java.time.LocalDate
+
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS
+import static ee.tuleva.onboarding.capital.event.organisation.OrganisationCapitalEventType.INVESTMENT_RETURN
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static org.hamcrest.Matchers.is
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -58,5 +62,25 @@ class CapitalControllerSpec extends BaseControllerSpec {
         .andExpect(jsonPath('$[1].unitCount', is(400.0.doubleValue())))
         .andExpect(jsonPath('$[1].unitPrice', is(3.0.doubleValue())))
         .andExpect(jsonPath('$[1].currency', is(EUR.name())))
+  }
+
+
+  def "Capital totals"() {
+    given:
+    1 * capitalService.getLatestAggregatedCapitalEvent() >> Optional.of(new AggregatedCapitalEvent(0,
+        INVESTMENT_RETURN,
+        new BigDecimal(1),
+        new BigDecimal(1234.0),
+        new BigDecimal(100.0),
+        new BigDecimal(2.00),
+        LocalDate.now()
+    ))
+
+    expect:
+    mockMvc.perform(get("/v1/capital/total"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath('$.unitAmount', is(100)))
+        .andExpect(jsonPath('$.totalValue', is(1234)))
+        .andExpect(jsonPath('$.unitPrice', is(2)))
   }
 }

@@ -122,11 +122,12 @@ public class CapitalTransferContractService {
             .map(ApiCapitalEvent::value)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    var memberCapitalUnitsToBeAcquired =
+    var memberCapitalBookValueToBeAcquired =
         command.getTransferAmounts().stream()
-            .map(CapitalTransferAmount::units)
+            .map(CapitalTransferAmount::bookValue)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
-    var buyerMemberCapitalAfterPurchase = totalMemberCapital.add(memberCapitalUnitsToBeAcquired);
+    var buyerMemberCapitalAfterPurchase =
+        totalMemberCapital.add(memberCapitalBookValueToBeAcquired);
 
     var concentrationLimit = capitalService.getCapitalConcentrationUnitLimit();
     return concentrationLimit.compareTo(buyerMemberCapitalAfterPurchase) > 0;
@@ -144,7 +145,7 @@ public class CapitalTransferContractService {
                       .map(ApiCapitalEvent::value)
                       .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-              return totalMemberCapitalOfType.compareTo(transferAmount.units()) >= 0;
+              return totalMemberCapitalOfType.compareTo(transferAmount.bookValue()) >= 0;
             });
   }
 
@@ -175,7 +176,7 @@ public class CapitalTransferContractService {
     return request.getTransferAmounts().stream()
         .allMatch(
             transferAmount -> {
-              var pricePerUnit = transferAmount.price().divide(transferAmount.units(), DOWN);
+              var pricePerUnit = transferAmount.price().divide(transferAmount.bookValue(), DOWN);
               return pricePerUnit.compareTo(MINIMUM_UNIT_PRICE) >= 0;
             });
   }

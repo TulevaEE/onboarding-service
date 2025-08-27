@@ -72,18 +72,6 @@ class CapitalTransferContractContextBuilderTest {
   }
 
   @Test
-  void unitCount_setsUnitCountVariable() {
-    // given
-    BigDecimal unitCount = new BigDecimal("100.0");
-
-    // when
-    Context context = CapitalTransferContractContextBuilder.builder().unitCount(unitCount).build();
-
-    // then
-    assertThat(context.getVariable("unitCount")).isEqualTo(unitCount);
-  }
-
-  @Test
   void totalAmount_setsTotalAmountVariable() {
     // given
     BigDecimal totalAmount = new BigDecimal("1250.00");
@@ -161,8 +149,6 @@ class CapitalTransferContractContextBuilderTest {
             .seller(seller)
             .buyer(buyer)
             .iban(iban)
-            .unitCount(unitCount)
-            .unitsOfMemberBonus(unitsOfMemberBonus)
             .totalAmount(totalAmount)
             .contractState(contractState)
             .createdAt(createdAt)
@@ -181,8 +167,6 @@ class CapitalTransferContractContextBuilderTest {
     assertThat(context.getVariable("buyerPersonalCode")).isEqualTo("60001019906");
     assertThat(context.getVariable("buyerMemberNumber")).isEqualTo(1002);
     assertThat(context.getVariable("iban")).isEqualTo(iban);
-    assertThat(context.getVariable("unitCount")).isEqualTo(unitCount);
-    assertThat(context.getVariable("unitsOfMemberBonus")).isEqualTo(unitsOfMemberBonus);
     assertThat(context.getVariable("totalAmount")).isEqualTo(totalAmount);
     assertThat(context.getVariable("contractState")).isEqualTo(contractState);
     assertThat(context.getVariable("createdAt")).isEqualTo(createdAt);

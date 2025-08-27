@@ -41,16 +41,6 @@ public class CapitalTransferContractContextBuilder {
     return this;
   }
 
-  public CapitalTransferContractContextBuilder unitCount(BigDecimal unitCount) {
-    ctx.setVariable("unitCount", unitCount);
-    return this;
-  }
-
-  public CapitalTransferContractContextBuilder unitsOfMemberBonus(BigDecimal unitsOfMemberBonus) {
-    ctx.setVariable("unitsOfMemberBonus", unitsOfMemberBonus);
-    return this;
-  }
-
   public CapitalTransferContractContextBuilder totalAmount(BigDecimal totalAmount) {
     ctx.setVariable("totalAmount", totalAmount);
     return this;

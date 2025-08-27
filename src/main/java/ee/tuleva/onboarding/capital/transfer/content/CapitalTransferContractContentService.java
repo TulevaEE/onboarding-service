@@ -33,8 +33,6 @@ public class CapitalTransferContractContentService {
         .seller(contract.getSeller())
         .buyer(contract.getBuyer())
         .iban(contract.getIban())
-        .unitCount(contract.getUnitCount())
-        .unitsOfMemberBonus(contract.getUnitsOfMemberBonus())
         .totalAmount(contract.getTotalPrice())
         .contractState(contract.getState())
         .createdAt(contract.getCreatedAt())

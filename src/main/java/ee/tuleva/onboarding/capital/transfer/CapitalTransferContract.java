@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.capital.transfer;
 
-import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS;
 import static org.hibernate.type.SqlTypes.JSON;
 
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
@@ -133,19 +132,6 @@ public class CapitalTransferContract {
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
-  public BigDecimal getUnitCount() {
-    return transferAmounts.stream()
-        .map(CapitalTransferAmount::units)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
-  }
-
-  public BigDecimal getUnitsOfMemberBonus() {
-    return transferAmounts.stream()
-        .filter(amount -> amount.type == MEMBERSHIP_BONUS)
-        .map(CapitalTransferAmount::units)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
-  }
-
   public record CapitalTransferAmount(
-      MemberCapitalEventType type, BigDecimal price, BigDecimal units) {}
+      MemberCapitalEventType type, BigDecimal price, BigDecimal bookValue) {}
 }

@@ -109,7 +109,7 @@ capital_transfer_contract_member_bonus=[
             </div>
             <div class="detail-row">
                 <div class="detail-label">Müüdavate osade arv:</div>
-                <div class="detail-value">50.0</div>
+                <div class="detail-value"></div>
             </div>
             <div class="detail-row">
                 <div class="detail-label">Osa hind:</div>
@@ -270,7 +270,7 @@ capital_transfer_contract_member_capital=[
             </div>
             <div class="detail-row">
                 <div class="detail-label">Müüdavate osade arv:</div>
-                <div class="detail-value">100.0</div>
+                <div class="detail-value"></div>
             </div>
             <div class="detail-row">
                 <div class="detail-label">Osa hind:</div>

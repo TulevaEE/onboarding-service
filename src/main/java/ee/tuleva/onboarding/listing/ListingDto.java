@@ -9,7 +9,7 @@ import java.time.Instant;
 public record ListingDto(
     @NotNull Long id,
     @NotNull ListingType type,
-    @Positive @Digits(integer = 12, fraction = 2) BigDecimal units,
+    @Positive @Digits(integer = 12, fraction = 2) BigDecimal bookValue,
     @DecimalMin("1") @Digits(integer = 4, fraction = 2) BigDecimal totalPrice,
     @NotNull Currency currency,
     @NotNull String language,
@@ -23,7 +23,7 @@ public record ListingDto(
     return new ListingDto(
         listing.getId(),
         listing.getType(),
-        listing.getUnits(),
+        listing.getBookValue(),
         listing.getTotalPrice(),
         listing.getCurrency(),
         listing.getLanguage(),

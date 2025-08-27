@@ -1,14 +1,12 @@
 package ee.tuleva.onboarding.listing
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture
 import org.spockframework.spring.SpringBean
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.test.web.servlet.MockMvc
 import spock.lang.Specification
 
-import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.config.SecurityTestHelper.mockAuthentication
@@ -52,7 +50,7 @@ class ListingControllerSpec extends Specification {
         .andExpect(status().isCreated())
         .andExpect(jsonPath('$.id').value(listingDto.id()))
         .andExpect(jsonPath('$.type').value(listingDto.type().name()))
-        .andExpect(jsonPath('$.units').value(listingDto.units().doubleValue()))
+        .andExpect(jsonPath('$.bookValue').value(listingDto.bookValue().doubleValue()))
         .andExpect(jsonPath('$.totalPrice').value(listingDto.totalPrice().doubleValue()))
         .andExpect(jsonPath('$.currency').value(listingDto.currency().name()))
         .andExpect(jsonPath('$.expiryTime').value(listingDto.expiryTime().toString()))
@@ -73,7 +71,7 @@ class ListingControllerSpec extends Specification {
         .andExpect(status().isOk())
         .andExpect(jsonPath('$[0].id').value(listingDto.id()))
         .andExpect(jsonPath('$[0].type').value(listingDto.type().name()))
-        .andExpect(jsonPath('$[0].units').value(listingDto.units().doubleValue()))
+        .andExpect(jsonPath('$[0].bookValue').value(listingDto.bookValue().doubleValue()))
         .andExpect(jsonPath('$[0].totalPrice').value(listingDto.totalPrice().doubleValue()))
         .andExpect(jsonPath('$[0].currency').value(listingDto.currency().name()))
         .andExpect(jsonPath('$[0].expiryTime').value(listingDto.expiryTime().toString()))

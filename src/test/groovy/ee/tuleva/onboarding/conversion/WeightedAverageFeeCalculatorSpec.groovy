@@ -135,7 +135,7 @@ class WeightedAverageFeeCalculatorSpec extends Specification {
         new ApiFundResponse(sourceFund, locale),
         new ApiFundResponse(targetFund, locale),
         null,
-        2345.6789 // 100% of units
+        2345.6789 // 100% of bookValue
     )]
 
     expect:

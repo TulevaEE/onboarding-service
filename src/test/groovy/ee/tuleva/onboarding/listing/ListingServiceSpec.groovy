@@ -72,7 +72,7 @@ class ListingServiceSpec extends Specification {
   def "createListing does not create listing when not enough member capital"() {
     given:
     def user = sampleUser().build()
-    def request = newListingRequest().type(SELL).units(1000000.00).build()
+    def request = newListingRequest().type(SELL).bookValue(1000000.00).build()
     def person = authenticatedPersonFromUser(user).build()
 
     def savedListing = request.toListing(42L, 'et').tap {
@@ -94,7 +94,7 @@ class ListingServiceSpec extends Specification {
   def "createListing does not consider unvested work compensation as sellable member capital"() {
     given:
     def user = sampleUser().build()
-    def request = newListingRequest().type(SELL).units(100.00).build()
+    def request = newListingRequest().type(SELL).bookValue(100.00).build()
     def person = authenticatedPersonFromUser(user).build()
 
     def savedListing = request.toListing(42L, 'et').tap {
@@ -177,7 +177,7 @@ class ListingServiceSpec extends Specification {
 
     def contactMessageRequest = new ContactMessageRequest(true, true)
 
-    def savedListing = newListingRequest().type(SELL).units(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
+    def savedListing = newListingRequest().type(SELL).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
       id = 1L
       createdTime = Instant.now()
     }
@@ -217,12 +217,12 @@ class ListingServiceSpec extends Specification {
     def contacter = sampleUser().build()
     def contacterPerson = authenticatedPersonFromUser(contacter).build()
 
-    def sellListing = newListingRequest().type(SELL).units(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
+    def sellListing = newListingRequest().type(SELL).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
       id = 1L
       createdTime = Instant.now()
     }
 
-    def buyListing = newListingRequest().type(BUY).units(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
+    def buyListing = newListingRequest().type(BUY).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
       id = 2L
       createdTime = Instant.now()
     }
@@ -262,12 +262,12 @@ class ListingServiceSpec extends Specification {
     def contacter = sampleUser().build()
     def contacterPerson = authenticatedPersonFromUser(contacter).build()
 
-    def sellListing = newListingRequest().type(SELL).units(100.00).totalPrice(200.00).build().toListing(42L, 'en').tap {
+    def sellListing = newListingRequest().type(SELL).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'en').tap {
       id = 1L
       createdTime = Instant.now()
     }
 
-    def buyListing = newListingRequest().type(BUY).units(100.00).totalPrice(200.00).build().toListing(42L, 'en').tap {
+    def buyListing = newListingRequest().type(BUY).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'en').tap {
       id = 2L
       createdTime = Instant.now()
     }
@@ -312,7 +312,7 @@ class ListingServiceSpec extends Specification {
     def contacter = sampleUser().firstName(evilFirstName).lastName(evilLastName).phoneNumber(evilPhoneNumber).email(evilEmail).build()
     def contacterPerson = authenticatedPersonFromUser(contacter).build()
 
-    def listing = newListingRequest().type(SELL).units(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
+    def listing = newListingRequest().type(SELL).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'et').tap {
       id = 1L
       createdTime = Instant.now()
     }
@@ -343,7 +343,7 @@ class ListingServiceSpec extends Specification {
     def contacter = sampleUser().firstName(evilFirstName).lastName(evilLastName).phoneNumber(evilPhoneNumber).email(evilEmail).build()
     def contacterPerson = authenticatedPersonFromUser(contacter).build()
 
-    def listing = newListingRequest().type(SELL).units(100.00).totalPrice(200.00).build().toListing(42L, 'en').tap {
+    def listing = newListingRequest().type(SELL).bookValue(100.00).totalPrice(200.00).build().toListing(42L, 'en').tap {
       id = 1L
       createdTime = Instant.now()
     }

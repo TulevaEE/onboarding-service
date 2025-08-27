@@ -44,8 +44,8 @@ public class FundTransferExchange {
   private String sourceFundIsin;
 
   /**
-   * 2nd pillar: Fraction of units (i.e. min 0, max 1) 3rd pillar: Number of units (i.e. min 0, max
-   * number of units you have)
+   * 2nd pillar: Fraction of bookValue (i.e. min 0, max 1) 3rd pillar: Number of bookValue (i.e. min
+   * 0, max number of bookValue you have)
    */
   @Min(0)
   @JsonView(MandateView.Default.class)

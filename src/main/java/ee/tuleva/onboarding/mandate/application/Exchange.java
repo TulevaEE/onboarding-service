@@ -18,8 +18,8 @@ public class Exchange {
   private String targetPik;
 
   /*
-   * 2nd pillar: Fraction of units (i.e. min 0, max 1).
-   * 3rd pillar: Number of units (i.e. min 0, max number of units you have)
+   * 2nd pillar: Fraction of bookValue (i.e. min 0, max 1).
+   * 3rd pillar: Number of bookValue (i.e. min 0, max number of bookValue you have)
    */
   private BigDecimal amount;
 
@@ -77,7 +77,7 @@ public class Exchange {
     if (getPillar() != 2) {
       throw new IllegalStateException("isFullAmount() is only supported for 2nd pillar");
     }
-    return amount.intValue() == 1; // 100% of units
+    return amount.intValue() == 1; // 100% of bookValue
   }
 
   @JsonIgnore

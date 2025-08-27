@@ -39,7 +39,7 @@ public class Listing {
 
   @NotNull
   @Column(nullable = false, updatable = false)
-  private BigDecimal units;
+  private BigDecimal bookValue;
 
   @NotNull
   @Column(nullable = false, updatable = false)

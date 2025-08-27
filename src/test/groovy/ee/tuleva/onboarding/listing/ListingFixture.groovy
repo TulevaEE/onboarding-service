@@ -16,7 +16,7 @@ class ListingsFixture {
         .id(1L)
         .memberId(1L)
         .type(BUY)
-        .units(100.00)
+        .bookValue(100.00)
         .totalPrice(300.00)
         .currency(EUR)
         .language("et")
@@ -40,7 +40,7 @@ class ListingsFixture {
   static NewListingRequestBuilder newListingRequest() {
     new NewListingRequestBuilder()
         .type(BUY)
-        .units(100.00)
+        .bookValue(100.00)
         .totalPrice(450.0)
         .currency(EUR)
         .expiryTime(now.plus(30, DAYS))

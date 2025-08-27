@@ -13,7 +13,7 @@ import lombok.Builder;
 @Builder
 public record NewListingRequest(
     @NotNull ListingType type,
-    @Positive @Digits(integer = 12, fraction = 2) BigDecimal units,
+    @Positive @Digits(integer = 12, fraction = 2) BigDecimal bookValue,
     @DecimalMin("1") @Digits(integer = 4, fraction = 2) BigDecimal totalPrice,
     @NotNull Currency currency,
     @NotNull Instant expiryTime) {
@@ -22,7 +22,7 @@ public record NewListingRequest(
     return Listing.builder()
         .memberId(memberId)
         .type(type)
-        .units(units)
+        .bookValue(bookValue)
         .totalPrice(totalPrice)
         .language(language)
         .currency(currency)

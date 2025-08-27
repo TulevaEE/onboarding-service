@@ -126,7 +126,7 @@ public class ListingService {
     var interestedUserPhoneNumber = htmlEscape(interestedUser.getPhoneNumber());
     var interestedUserPersonalCode = htmlEscape(interestedUser.getPersonalCode());
 
-    var units = listing.getUnits().toString();
+    var units = listing.getBookValue().toString();
     var totalAmount = listing.getTotalPrice();
     var language = String.valueOf(listing.getLanguage());
 
@@ -134,7 +134,7 @@ public class ListingService {
       return transformMessageNewlines(
               """
                 %s %s
-                amount: %s; price: €%s
+                TODO amount: %s; price: €%s
 
                 If you’d like to proceed, please contact the %s and agree on the details: price, amount, and where and when you should transfer the money. You can simply reply to this email — that will start a direct email thread between you two, and Tuleva won’t see your messages.
 
@@ -163,7 +163,7 @@ public class ListingService {
     return transformMessageNewlines(
             """
             %s %s
-            mahus: %s, hinnaga: €%s
+            TODO mahus: %s, hinnaga: €%s
 
             Kui soovid tehinguga edasi minna, siis võta palun %s ühendust ja leppige kokku detailides: hind, kogus ning kuhu ja millal ostja raha peab kandma. Selleks võid vastata praegusele kirjale – nii algab teie omavaheline meilivahetus ja Tulevani need kirjad ei jõua.
 
@@ -202,7 +202,7 @@ public class ListingService {
             .map(ApiCapitalEvent::value)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    return totalMemberCapital.compareTo(request.units()) >= 0;
+    return totalMemberCapital.compareTo(request.bookValue()) >= 0;
   }
 
   private String transformMessageNewlines(String message) {

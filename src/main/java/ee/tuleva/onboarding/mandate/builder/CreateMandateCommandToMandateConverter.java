@@ -13,6 +13,7 @@ import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand;
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper;
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -28,6 +29,7 @@ public class CreateMandateCommandToMandateConverter {
   private final AccountStatementService accountStatementService;
   private final FundRepository fundRepository;
   private final ConversionDecorator conversionDecorator;
+  private final SecondPillarPaymentRateService secondPillarPaymentRateService;
 
   @NonNull
   public Mandate convert(CreateMandateCommandWrapper wrapper) {
@@ -41,8 +43,9 @@ public class CreateMandateCommandToMandateConverter {
     mandate.setUser(user);
     mandate.setPillar(getPillar(createMandateCommand));
     mandate.setAddress(createMandateCommand.getAddress());
+    var paymentRates = secondPillarPaymentRateService.getPaymentRates(authenticatedPerson);
     conversionDecorator.addConversionMetadata(
-        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson);
+        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson, paymentRates);
 
     List<FundTransferExchange> fundTransferExchanges =
         createMandateCommand.getFundTransferExchanges().stream()

@@ -7,6 +7,8 @@ import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService
 import ee.tuleva.onboarding.event.TrackableEvent
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
+import ee.tuleva.onboarding.paymentrate.PaymentRates
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
@@ -28,9 +30,10 @@ class LoginEventBroadcasterSpec extends Specification {
   ContactDetailsService contactDetailsService = Mock()
   ConversionDecorator conversionDecorator = Mock()
   GrantedAuthorityFactory grantedAuthorityFactory = Mock()
+  SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
 
   LoginEventBroadcaster service = new LoginEventBroadcaster(eventPublisher, conversionService, contactDetailsService,
-      conversionDecorator, grantedAuthorityFactory)
+      conversionDecorator, grantedAuthorityFactory, secondPillarPaymentRateService)
 
   def "OnAfterTokenGrantedEvent: Broadcast login event"() {
     given:
@@ -74,7 +77,8 @@ class LoginEventBroadcasterSpec extends Specification {
 
     1 * conversionService.getConversion(samplePerson) >> conversion
     1 * contactDetailsService.getContactDetails(samplePerson) >> contactDetails
-    1 * conversionDecorator.addConversionMetadata(_, conversion, contactDetails, samplePerson) >> {
+    1 * secondPillarPaymentRateService.getPaymentRates(samplePerson) >> new PaymentRates(4, null)
+    1 * conversionDecorator.addConversionMetadata(_, conversion, contactDetails, samplePerson, _) >> {
       (data) -> data.sample = "conversion"
     }
 

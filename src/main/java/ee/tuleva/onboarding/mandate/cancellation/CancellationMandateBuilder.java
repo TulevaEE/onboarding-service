@@ -17,6 +17,7 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class CancellationMandateBuilder {
 
   private final ConversionDecorator conversionDecorator;
   private final FundRepository fundRepository;
+  private final SecondPillarPaymentRateService secondPillarPaymentRateService;
 
   public Mandate build(
       ApplicationDTO applicationToCancel,
@@ -41,8 +43,9 @@ public class CancellationMandateBuilder {
     mandate.setUser(user);
     mandate.setAddress(contactDetails.getAddress());
 
+    var paymentRates = secondPillarPaymentRateService.getPaymentRates(authenticatedPerson);
     conversionDecorator.addConversionMetadata(
-        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson);
+        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson, paymentRates);
 
     if (applicationToCancel.getType() == WITHDRAWAL) {
       return buildWithdrawalCancellationMandate(mandate);

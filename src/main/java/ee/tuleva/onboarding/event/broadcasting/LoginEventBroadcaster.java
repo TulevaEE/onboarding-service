@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.conversion.UserConversionService;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import java.util.HashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class LoginEventBroadcaster {
   private final ContactDetailsService contactDetailsService;
   private final ConversionDecorator conversionDecorator;
   private final GrantedAuthorityFactory grantedAuthorityFactory;
+  private final SecondPillarPaymentRateService secondPillarPaymentRateService;
 
   @EventListener
   public void onAfterTokenGrantedEvent(AfterTokenGrantedEvent event) {
@@ -49,7 +51,9 @@ public class LoginEventBroadcaster {
 
       var conversion = conversionService.getConversion(person);
       var contactDetails = contactDetailsService.getContactDetails(person);
-      conversionDecorator.addConversionMetadata(data, conversion, contactDetails, person);
+      var paymentRates = secondPillarPaymentRateService.getPaymentRates(person);
+      conversionDecorator.addConversionMetadata(
+          data, conversion, contactDetails, person, paymentRates);
 
       eventPublisher.publishEvent(new TrackableEvent(person, LOGIN, data));
     } finally {

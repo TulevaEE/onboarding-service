@@ -7,6 +7,8 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommandWrapper
 import ee.tuleva.onboarding.mandate.command.MandateFundTransferExchangeCommand
+import ee.tuleva.onboarding.paymentrate.PaymentRates
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
@@ -20,8 +22,13 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
   AccountStatementService accountStatementService = Mock()
   FundRepository fundRepository = Mock()
   ConversionDecorator conversionDecorator = new ConversionDecorator()
+  SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
   CreateMandateCommandToMandateConverter converter =
-      new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository, conversionDecorator)
+      new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository, conversionDecorator, secondPillarPaymentRateService)
+
+  def setup() {
+    secondPillarPaymentRateService.getPaymentRates(_) >> new PaymentRates(4, null)
+  }
 
   def "converts to mandate"() {
     given:
@@ -50,6 +57,7 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
         secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
         thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee,
+        secondPillarPaymentRate         : 4,
         authAttributes                  : [:]
     ]
     0 * accountStatementService.getAccountStatement(_)
@@ -97,6 +105,7 @@ class CreateMandateCommandToMandateConverterSpec extends Specification {
         isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
         secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
         thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee,
+        secondPillarPaymentRate         : 4,
         authAttributes                  : [:]
     ]
     1 * accountStatementService.getAccountStatement(user) >> [fundBalance]

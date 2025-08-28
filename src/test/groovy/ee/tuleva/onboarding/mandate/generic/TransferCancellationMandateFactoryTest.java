@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.mandate.MandateType.*;
 import static ee.tuleva.onboarding.pillar.Pillar.*;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
@@ -18,6 +19,8 @@ import ee.tuleva.onboarding.fund.FundRepository;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateFixture;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
+import ee.tuleva.onboarding.paymentrate.PaymentRates;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -40,14 +43,19 @@ public class TransferCancellationMandateFactoryTest {
 
   @Mock private ConversionDecorator conversionDecorator;
 
+  @Mock private SecondPillarPaymentRateService secondPillarPaymentRateService;
+
   @InjectMocks private TransferCancellationMandateFactory transferCancellationMandateFactory;
 
   @Test
-  @DisplayName("delegates mandate creation to mandate factory")
+  @DisplayName("delegates mandate creation to mandate factory and fetches payment rates")
   void testDelegateToMandateFactory() {
     var anUser = sampleUser().build();
     var aContactDetails = contactDetailsFixture();
     var aFund = lhv3rdPillarFund();
+    var authenticatedPerson =
+        AuthenticatedPersonFixture.authenticatedPersonFromUser(anUser).build();
+    var paymentRates = new PaymentRates(4, null);
 
     var testIsin = aFund.getIsin();
     var testPillar = THIRD;
@@ -60,14 +68,23 @@ public class TransferCancellationMandateFactoryTest {
     when(conversionService.getConversion(any())).thenReturn(fullyConverted());
     when(episService.getContactDetails(any())).thenReturn(aContactDetails);
     when(fundRepository.findByIsin(eq(testIsin))).thenReturn(aFund);
+    when(secondPillarPaymentRateService.getPaymentRates(authenticatedPerson))
+        .thenReturn(paymentRates);
 
     Mandate genericMandate =
-        transferCancellationMandateFactory.createMandate(
-            AuthenticatedPersonFixture.authenticatedPersonFromUser(anUser).build(), anDto);
+        transferCancellationMandateFactory.createMandate(authenticatedPerson, anDto);
 
     assertThat(genericMandate.getUser()).isEqualTo(anUser);
     assertThat(genericMandate.getAddress()).isEqualTo(aContactDetails.getAddress());
-    verify(conversionDecorator, times(1)).addConversionMetadata(any(), any(), any(), any());
+
+    verify(secondPillarPaymentRateService).getPaymentRates(authenticatedPerson);
+    verify(conversionDecorator)
+        .addConversionMetadata(
+            any(),
+            eq(fullyConverted()),
+            eq(aContactDetails),
+            eq(authenticatedPerson),
+            eq(paymentRates));
 
     assertThat(genericMandate.getDetails()).isInstanceOf(TransferCancellationMandateDetails.class);
     assertThat(genericMandate.getGenericMandateDto().getMandateType())

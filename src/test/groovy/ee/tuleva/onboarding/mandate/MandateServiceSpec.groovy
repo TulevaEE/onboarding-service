@@ -13,6 +13,8 @@ import ee.tuleva.onboarding.mandate.builder.CreateMandateCommandToMandateConvert
 import ee.tuleva.onboarding.mandate.cancellation.CancellationMandateBuilder
 import ee.tuleva.onboarding.mandate.cancellation.InvalidApplicationTypeException
 import ee.tuleva.onboarding.mandate.command.CreateMandateCommand
+import ee.tuleva.onboarding.paymentrate.PaymentRates
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import ee.tuleva.onboarding.mandate.content.MandateContentFile
 import ee.tuleva.onboarding.mandate.event.AfterMandateSignedEvent
 import ee.tuleva.onboarding.mandate.event.BeforeMandateCreatedEvent
@@ -43,7 +45,9 @@ class MandateServiceSpec extends Specification {
   SignatureService signService = Mock()
   FundRepository fundRepository = Mock()
   AccountStatementService accountStatementService = Mock()
-  CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository, new ConversionDecorator())
+  SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
+  CreateMandateCommandToMandateConverter converter = new CreateMandateCommandToMandateConverter(accountStatementService, fundRepository, new ConversionDecorator(), secondPillarPaymentRateService)
+
   MandateProcessorService mandateProcessor = Mock()
   MandateFileService mandateFileService = Mock()
   UserService userService = Mock()
@@ -60,6 +64,7 @@ class MandateServiceSpec extends Specification {
   User sampleUser = sampleUser()
 
   def setup() {
+    secondPillarPaymentRateService.getPaymentRates(_) >> new PaymentRates(4, null)
     userService.getById(sampleUser.id) >> Optional.of(sampleUser)
   }
 

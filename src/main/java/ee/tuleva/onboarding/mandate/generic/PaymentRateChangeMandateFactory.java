@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.epis.mandate.details.PaymentRateChangeMandateDetails
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.UserService;
 import org.springframework.stereotype.Component;
 
@@ -20,8 +21,14 @@ public class PaymentRateChangeMandateFactory
       UserService userService,
       EpisService episService,
       UserConversionService conversionService,
-      ConversionDecorator conversionDecorator) {
-    super(userService, episService, conversionService, conversionDecorator);
+      ConversionDecorator conversionDecorator,
+      SecondPillarPaymentRateService secondPillarPaymentRateService) {
+    super(
+        userService,
+        episService,
+        conversionService,
+        conversionDecorator,
+        secondPillarPaymentRateService);
   }
 
   @Override

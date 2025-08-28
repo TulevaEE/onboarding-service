@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.epis.mandate.details.SelectionMandateDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -21,8 +22,14 @@ public class SelectionMandateFactory extends MandateFactory<SelectionMandateDeta
       UserService userService,
       EpisService episService,
       UserConversionService conversionService,
-      ConversionDecorator conversionDecorator) {
-    super(userService, episService, conversionService, conversionDecorator);
+      ConversionDecorator conversionDecorator,
+      SecondPillarPaymentRateService secondPillarPaymentRateService) {
+    super(
+        userService,
+        episService,
+        conversionService,
+        conversionDecorator,
+        secondPillarPaymentRateService);
   }
 
   @Override

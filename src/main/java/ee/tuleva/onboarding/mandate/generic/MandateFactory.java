@@ -9,6 +9,7 @@ import ee.tuleva.onboarding.epis.mandate.details.MandateDetails;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -21,6 +22,7 @@ public abstract class MandateFactory<TDetails extends MandateDetails> {
   private final EpisService episService;
   private final UserConversionService conversionService;
   private final ConversionDecorator conversionDecorator;
+  private final SecondPillarPaymentRateService secondPillarPaymentRateService;
 
   abstract Mandate createMandate(
       AuthenticatedPerson authenticatedPerson, MandateDto<TDetails> mandateCreationDto);
@@ -36,8 +38,9 @@ public abstract class MandateFactory<TDetails extends MandateDetails> {
     Mandate mandate = new Mandate();
     mandate.setUser(user);
     mandate.setAddress(contactDetails.getAddress());
+    var paymentRates = secondPillarPaymentRateService.getPaymentRates(authenticatedPerson);
     conversionDecorator.addConversionMetadata(
-        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson);
+        mandate.getMetadata(), conversion, contactDetails, authenticatedPerson, paymentRates);
 
     mandate.setFundTransferExchanges(List.of());
     mandate.setDetails(mandateCreationDto.getDetails());

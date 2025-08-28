@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.event.TrackableEventType;
 import ee.tuleva.onboarding.event.broadcasting.LoginEventBroadcaster;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import io.jsonwebtoken.Jwts;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -60,6 +61,7 @@ public class HandoverTokenLoginEventTest {
   @Mock private ConversionDecorator conversionDecorator;
   @Mock private AuthenticatedPerson authenticatedPerson;
   @Mock private GrantedAuthorityFactory grantedAuthorityFactory;
+  @Mock private SecondPillarPaymentRateService secondPillarPaymentRateService;
 
   private PartnerAuthProvider partnerAuthProvider;
   private LoginEventBroadcaster loginEventBroadcaster;
@@ -85,7 +87,8 @@ public class HandoverTokenLoginEventTest {
             conversionService,
             contactDetailsService,
             conversionDecorator,
-            grantedAuthorityFactory);
+            grantedAuthorityFactory,
+            secondPillarPaymentRateService);
 
     when(authenticatedPerson.getPersonalCode()).thenReturn(testPersonalCode);
 
@@ -146,7 +149,7 @@ public class HandoverTokenLoginEventTest {
               return null;
             })
         .when(conversionDecorator)
-        .addConversionMetadata(any(), any(), any(), any());
+        .addConversionMetadata(any(), any(), any(), any(), any());
 
     // When - authentication and login event
     partnerAuthProvider.authenticate(handoverToken);

@@ -12,6 +12,7 @@ import ee.tuleva.onboarding.mandate.FundTransferExchange;
 import ee.tuleva.onboarding.mandate.Mandate;
 import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator;
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -26,8 +27,14 @@ public class TransferCancellationMandateFactory
       EpisService episService,
       UserConversionService conversionService,
       ConversionDecorator conversionDecorator,
+      SecondPillarPaymentRateService secondPillarPaymentRateService,
       FundRepository fundRepository) {
-    super(userService, episService, conversionService, conversionDecorator);
+    super(
+        userService,
+        episService,
+        conversionService,
+        conversionDecorator,
+        secondPillarPaymentRateService);
     this.fundRepository = fundRepository;
   }
 

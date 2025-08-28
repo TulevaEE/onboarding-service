@@ -6,6 +6,8 @@ import ee.tuleva.onboarding.mandate.FundTransferExchange
 import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.MandateType
 import ee.tuleva.onboarding.mandate.builder.ConversionDecorator
+import ee.tuleva.onboarding.paymentrate.PaymentRates
+import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.authenticatedPersonFromUser
@@ -20,10 +22,12 @@ class CancellationMandateBuilderSpec extends Specification {
 
   ConversionDecorator conversionDecorator = new ConversionDecorator()
   FundRepository fundRepository = Mock()
+  SecondPillarPaymentRateService secondPillarPaymentRateService = Mock()
   CancellationMandateBuilder cancellationMandateBuilder
 
   def setup() {
-    cancellationMandateBuilder = new CancellationMandateBuilder(conversionDecorator, fundRepository)
+    secondPillarPaymentRateService.getPaymentRates(_) >> new PaymentRates(4, null)
+    cancellationMandateBuilder = new CancellationMandateBuilder(conversionDecorator, fundRepository, secondPillarPaymentRateService)
   }
 
   def "can build withdrawal cancellation mandates"() {
@@ -53,6 +57,7 @@ class CancellationMandateBuilderSpec extends Specification {
         isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
         secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
         thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee,
+        secondPillarPaymentRate         : 4,
         authAttributes                  : [:]
     ]
   }
@@ -84,6 +89,7 @@ class CancellationMandateBuilderSpec extends Specification {
         isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
         secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
         thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee,
+        secondPillarPaymentRate         : 4,
         authAttributes                  : [:]
     ]
   }
@@ -116,6 +122,7 @@ class CancellationMandateBuilderSpec extends Specification {
         isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
         secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
         thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee,
+        secondPillarPaymentRate         : 4,
         authAttributes                  : [:]
     ]
   }
@@ -148,6 +155,7 @@ class CancellationMandateBuilderSpec extends Specification {
         isThirdPillarPartiallyConverted : conversion.thirdPillarPartiallyConverted,
         secondPillarWeightedAverageFee  : conversion.secondPillarWeightedAverageFee,
         thirdPillarWeightedAverageFee   : conversion.thirdPillarWeightedAverageFee,
+        secondPillarPaymentRate         : 4,
         authAttributes                  : [:]
     ]
   }

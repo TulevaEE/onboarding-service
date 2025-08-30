@@ -8,5 +8,6 @@ public enum CapitalTransferContractState {
   PAYMENT_CONFIRMED_BY_SELLER,
   APPROVED,
   APPROVED_AND_NOTIFIED,
+  EXECUTED,
   CANCELLED
 }

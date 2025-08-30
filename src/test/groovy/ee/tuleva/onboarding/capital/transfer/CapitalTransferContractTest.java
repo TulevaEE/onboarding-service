@@ -179,10 +179,32 @@ class CapitalTransferContractTest {
 
     @Test
     @DisplayName("throws exception when cancelling an approved contract")
-    void cancel_failsOnCompleted() {
+    void cancel_failsOnApproved() {
       // given
       CapitalTransferContract contract =
           contractBuilder.state(CapitalTransferContractState.APPROVED).build();
+
+      // then
+      assertThrows(IllegalStateException.class, contract::cancel);
+    }
+
+    @Test
+    @DisplayName("throws exception when cancelling an approved and notified contract")
+    void cancel_failsOnApprovedAndNotified() {
+      // given
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.APPROVED_AND_NOTIFIED).build();
+
+      // then
+      assertThrows(IllegalStateException.class, contract::cancel);
+    }
+
+    @Test
+    @DisplayName("throws exception when cancelling an executed contract")
+    void cancel_failsOnExecuted() {
+      // given
+      CapitalTransferContract contract =
+          contractBuilder.state(CapitalTransferContractState.EXECUTED).build();
 
       // then
       assertThrows(IllegalStateException.class, contract::cancel);

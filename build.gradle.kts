@@ -125,8 +125,8 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.18.0")
-    implementation("io.sentry:sentry-logback:8.18.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.20.0")
+    implementation("io.sentry:sentry-logback:8.20.0")
 
     implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.10.3")
 

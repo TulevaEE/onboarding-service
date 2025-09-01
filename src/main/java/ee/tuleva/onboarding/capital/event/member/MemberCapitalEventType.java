@@ -7,5 +7,4 @@ public enum MemberCapitalEventType {
   MEMBERSHIP_BONUS,
   INVESTMENT_RETURN,
   CAPITAL_ACQUIRED,
-
 }

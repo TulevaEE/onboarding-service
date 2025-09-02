@@ -331,9 +331,6 @@ class CapitalTransferContractServiceTest {
     when(emailPersistenceService.save(any(), any(), any(), any()))
         .thenReturn(Email.builder().id(1L).build());
     when(emailService.send(
-            eq(contract.getSeller().getUser()), any(), eq("capital_transfer_seller_signed_et")))
-        .thenReturn(Optional.of(new MandrillMessageStatus()));
-    when(emailService.send(
             eq(contract.getBuyer().getUser()), any(), eq("capital_transfer_buyer_to_sign_et")))
         .thenReturn(Optional.of(new MandrillMessageStatus()));
 

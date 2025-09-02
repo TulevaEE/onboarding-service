@@ -212,7 +212,6 @@ public class CapitalTransferContractService {
     contractRepository.save(contract);
     log.info("Contract {} signed by seller {}", contractId, contract.getSeller().getId());
 
-    sendContractEmail(contract.getSeller().getUser(), CAPITAL_TRANSFER_SELLER_SIGNED, contract);
     sendContractEmail(contract.getBuyer().getUser(), CAPITAL_TRANSFER_BUYER_TO_SIGN, contract);
   }
 

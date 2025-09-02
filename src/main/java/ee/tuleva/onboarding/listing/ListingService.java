@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.U
 import static ee.tuleva.onboarding.listing.Listing.State.ACTIVE;
 import static ee.tuleva.onboarding.listing.ListingType.BUY;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_CONTACT;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
 import static org.springframework.web.util.HtmlUtils.htmlEscape;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -88,7 +88,8 @@ public class ListingService {
     mergeVars.putAll(getNameMergeVars(listingOwner));
 
     List<String> tags = List.of();
-    EmailType emailType = LISTING_CONTACT;
+    EmailType emailType =
+        listing.getType() == BUY ? LISTING_REPLY_TO_BUYER : LISTING_REPLY_TO_SELLER;
 
     String listingLanguage = listing.getLanguage();
     String templateName = emailType.getTemplateName(listingLanguage);

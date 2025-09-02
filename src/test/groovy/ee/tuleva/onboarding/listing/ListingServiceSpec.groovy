@@ -27,7 +27,7 @@ import static ee.tuleva.onboarding.listing.Listing.State.CANCELLED
 import static ee.tuleva.onboarding.listing.ListingType.BUY
 import static ee.tuleva.onboarding.listing.ListingType.SELL
 import static ee.tuleva.onboarding.listing.ListingsFixture.*
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_CONTACT
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.LISTING_REPLY_TO_SELLER
 
 class ListingServiceSpec extends Specification {
 
@@ -193,7 +193,7 @@ class ListingServiceSpec extends Specification {
     emailService.newMandrillMessage(
         listingOwner.email,
         contacter.email,
-        LISTING_CONTACT.getTemplateName(savedListing.language),
+        LISTING_REPLY_TO_SELLER.getTemplateName(savedListing.language),
         { Map it -> it.get("fname") == listingOwner.firstName && it.get("lname") == listingOwner.lastName
             && (it.get("message") as String).contains(contacter.getPersonalCode().toString())
             && (it.get("message") as String).contains(contacter.getPhoneNumber())
@@ -202,8 +202,8 @@ class ListingServiceSpec extends Specification {
         _
     ) >> mockMessage
     1 * userService.getByIdOrThrow(contacter.getId()) >> contacter
-    1 * emailService.send(listingOwner, mockMessage, LISTING_CONTACT.getTemplateName(savedListing.language)) >> Optional.of(messageStatus)
-    1 * emailPersistenceService.save(listingOwner, "ID", LISTING_CONTACT, "QUEUED") >> Email.builder().id(1).build()
+    1 * emailService.send(listingOwner, mockMessage, LISTING_REPLY_TO_SELLER.getTemplateName(savedListing.language)) >> Optional.of(messageStatus)
+    1 * emailPersistenceService.save(listingOwner, "ID", LISTING_REPLY_TO_SELLER, "QUEUED") >> Email.builder().id(1).build()
     when:
     def message = service.contactListingOwner(savedListing.id, contactMessageRequest, contacterPerson)
 

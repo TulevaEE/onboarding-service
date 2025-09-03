@@ -514,35 +514,6 @@ class CapitalTransferContractServiceTest {
   }
 
   @Test
-  @DisplayName("Create capital transfer throws when unit price below minimum")
-  void createPriceBelowMinimum() {
-
-    var buyerUser = sampleUser().firstName("Olev").lastName("Ostja").build();
-    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
-
-    var sampleCommand =
-        CreateCapitalTransferContractCommand.builder()
-            .buyerMemberId(3L)
-            .iban("TEST_IBAN")
-            .transferAmounts(
-                List.of(
-                    new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("5.0"), new BigDecimal("10.0"))))
-            .build();
-    var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
-
-    when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
-    when(memberService.getById(sampleCommand.getBuyerMemberId()))
-        .thenReturn(memberFixture().id(3L).user(buyerUser).build());
-
-    IllegalArgumentException thrown =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> contractService.create(sellerPerson, sampleCommand));
-    assertEquals("Unit price below minimum", thrown.getMessage());
-  }
-
-  @Test
   @DisplayName("Create capital transfer throws buyer seller same person")
   void createBuyerSellerSamePerson() {
 

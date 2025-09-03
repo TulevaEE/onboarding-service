@@ -5,7 +5,6 @@ import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState
 import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.CAPITAL_TRANSFER;
-import static java.math.RoundingMode.DOWN;
 import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
@@ -54,8 +53,6 @@ public class CapitalTransferContractService {
   private final SlackService slackService;
   private final ApplicationEventPublisher eventPublisher;
 
-  private static final BigDecimal MINIMUM_UNIT_PRICE = BigDecimal.ONE;
-
   public CapitalTransferContract create(
       AuthenticatedPerson sellerPerson, CreateCapitalTransferContractCommand command) {
     User sellerUser = userService.getById(sellerPerson.getUserId()).orElseThrow();
@@ -93,10 +90,6 @@ public class CapitalTransferContractService {
 
     if (!hasOnlyLiquidatableTypes(command)) {
       throw new IllegalArgumentException("Non-liquidatable capital types included in command");
-    }
-
-    if (!isUnitPriceOverMinimum(command)) {
-      throw new IllegalArgumentException("Unit price below minimum");
     }
 
     if (seller.getId().equals(buyer.getId())) {
@@ -170,15 +163,6 @@ public class CapitalTransferContractService {
     var liquidatableTypes = Set.of(CAPITAL_PAYMENT, WORK_COMPENSATION, MEMBERSHIP_BONUS);
 
     return liquidatableTypes.containsAll(typesToLiquidate);
-  }
-
-  private boolean isUnitPriceOverMinimum(CreateCapitalTransferContractCommand request) {
-    return request.getTransferAmounts().stream()
-        .allMatch(
-            transferAmount -> {
-              var pricePerUnit = transferAmount.price().divide(transferAmount.bookValue(), DOWN);
-              return pricePerUnit.compareTo(MINIMUM_UNIT_PRICE) >= 0;
-            });
   }
 
   public CapitalTransferContract getContract(Long id, User user) {

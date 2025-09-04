@@ -124,22 +124,22 @@ public class ListingService {
     var interestedUser = userService.getByIdOrThrow(interestedParty.getUserId());
 
     var interestedUserName = htmlEscape(interestedUser.getFullName());
+    var interestedUserEmail = htmlEscape(interestedUser.getEmail());
     var interestedUserPhoneNumber = htmlEscape(interestedUser.getPhoneNumber());
     var interestedUserPersonalCode = htmlEscape(interestedUser.getPersonalCode());
 
-    var units = listing.getBookValue().toString();
+    var bookValue = listing.getBookValue().toString();
     var totalAmount = listing.getTotalPrice();
     var language = String.valueOf(listing.getLanguage());
 
     if ("en".equalsIgnoreCase(language)) {
       return transformMessageNewlines(
               """
-                %s %s
-                TODO amount: %s; price: €%s
+                %s %s, amount: €%s; price: €%s
 
-                If you’d like to proceed, please contact the %s and agree on the details: price, amount, and where and when you should transfer the money. You can simply reply to this email — that will start a direct email thread between you two, and Tuleva won’t see your messages.
+                If you’d like to proceed, <b>please contact the interested party and agree on the details</b>: price, amount, and where and when you should transfer the money. You can simply reply to this email — that will start a direct email thread between you two. Tuleva won’t see your messages.
 
-                Once you’ve agreed on the transfer, the seller must start the application using the <a href="https://pension.tuleva.ee/capital/listings">Initiate the sale</a> button on Tuleva’s membership capital transfer page. In addition to the deal details, the seller will need the buyer's personal identification code.
+                Once you’ve agreed on the transfer, the seller must start the application. You can use the <a href="https://pension.tuleva.ee/capital/listings">Initiate the sale</a> button on Tuleva’s membership capital transfer page. In addition to the deal details, the seller will need the buyer's personal identification code.
 
                 Here are the %s details:,
                 %s
@@ -149,28 +149,28 @@ public class ListingService {
           .formatted(
               interestedUserName,
               listing.getType() == BUY
-                  ? "wants to sell you their membership capital:"
-                  : "wants to buy your membership capital:",
-              units,
+                  ? "wants to sell you their membership capital"
+                  : "wants to buy your membership capital",
+              bookValue,
               totalAmount,
-              listing.getType() == BUY ? "seller" : "buyer",
               listing.getType() == BUY ? "seller's" : "buyer's",
-              interestedUserName,
-              contactMessageRequest.addPhoneNumber() ? interestedUserPhoneNumber : "",
-              contactMessageRequest.addPersonalCode() ? interestedUserPersonalCode : "")
+              contactMessageRequest.addPersonalCode()
+                  ? interestedUserName + " (" + interestedUserPersonalCode + ")"
+                  : interestedUserName,
+              interestedUserEmail,
+              contactMessageRequest.addPhoneNumber() ? interestedUserPhoneNumber : "")
           .trim();
     }
 
     return transformMessageNewlines(
             """
-            %s %s
-            TODO mahus: %s, hinnaga: €%s
+            %s %s raamatupidamislikus väärtuses €%s hinnaga €%s.
 
-            Kui soovid tehinguga edasi minna, siis võta palun %s ühendust ja leppige kokku detailides: hind, kogus ning kuhu ja millal ostja raha peab kandma. Selleks võid vastata praegusele kirjale – nii algab teie omavaheline meilivahetus ja Tulevani need kirjad ei jõua.
+            Kui soovid tehinguga edasi minna, siis <b>võta palun huvilisega ise ühendust ja lepi kokku detailides</b>: kogus, hind ning kuhu ja millal ostja raha peab kandma. Selleks vasta praegusele kirjale – nii algab teie omavaheline suhtlus. Tulevani need kirjad ei jõua.
 
-            Kui olete liikmekapitali võõrandamises kokku leppinud, siis peab müüja alustama avalduse vormistamist <a href="https://pension.tuleva.ee/capital/listings">Vormistan müügi</a> nupu kaudu Tuleva liikmekapitali võõrandamise lehel. Selleks on vaja lisaks tehingu detailidele ka ostja isikukoodi.
+            Kui olete liikmekapitali võõrandamises kokku leppinud, siis peab müüja alustama avalduse vormistamist. Kasuta selleks <a href="https://pension.tuleva.ee/capital/listings">Vormistan müügi</a> nuppu kaudu Tuleva liikmekapitali võõrandamise lehel. Sul on vaja siis lisaks tehingu detailidele ka ostja isikukoodi.
 
-            Siin on sulle %s andmed üheskoos:
+            Siin on sulle %s andmed:
             %s
             %s
             %s
@@ -178,17 +178,16 @@ public class ListingService {
         .formatted(
             interestedUserName,
             listing.getType() == BUY
-                ? "soovib sulle sulle müüa oma liikmekapitali:"
-                : "soovib osta sinu liikmekapitali:",
-            units,
+                ? "soovib sulle sulle müüa oma liikmekapitali"
+                : "soovib osta sinu liikmekapitali",
+            bookValue,
             totalAmount,
-            listing.getType() == BUY ? "müüjaga" : "ostjaga",
             listing.getType() == BUY ? "müüja" : "ostja",
-            interestedUserName,
-            contactMessageRequest.addPhoneNumber() ? interestedUserPhoneNumber : "",
             contactMessageRequest.addPersonalCode()
-                ? "isikukood: " + interestedUserPersonalCode
-                : "")
+                ? interestedUserName + " (" + interestedUserPersonalCode + ")"
+                : interestedUserName,
+            interestedUserEmail,
+            contactMessageRequest.addPhoneNumber() ? interestedUserPhoneNumber : "")
         .trim();
   }
 

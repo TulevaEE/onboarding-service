@@ -237,21 +237,19 @@ class ListingServiceSpec extends Specification {
 
 
     then:
-    sellMessage.contains("soovib osta sinu liikmekapitali:")
-    sellMessage.contains("mahus: 100.00")
-    sellMessage.contains("hinnaga: €200.00")
-    sellMessage.contains("siis võta palun ostjaga ühendust ja leppige kokku detailides")
-    sellMessage.contains("Siin on sulle ostja andmed üheskoos:")
+    sellMessage.contains("soovib osta sinu liikmekapitali")
+    sellMessage.contains("raamatupidamislikus väärtuses €100.00")
+    sellMessage.contains("hinnaga €200.00")
+    sellMessage.contains("Siin on sulle ostja andmed:")
     sellMessage.contains(contacter.getFullName())
     sellMessage.contains(contacter.getPersonalCode().toString())
     sellMessage.contains(contacter.getPhoneNumber())
 
 
-    buyMessage.contains("soovib sulle sulle müüa oma liikmekapitali:")
-    buyMessage.contains("mahus: 100.00")
-    buyMessage.contains("hinnaga: €200.00")
-    buyMessage.contains("siis võta palun müüjaga ühendust ja leppige kokku detailides")
-    buyMessage.contains("Siin on sulle müüja andmed üheskoos:")
+    buyMessage.contains("soovib sulle sulle müüa oma liikmekapitali")
+    buyMessage.contains("raamatupidamislikus väärtuses €100.00")
+    buyMessage.contains("hinnaga €200.00")
+    buyMessage.contains("Siin on sulle müüja andmed:")
     buyMessage.contains(contacter.getFullName())
     !buyMessage.contains(contacter.getPersonalCode().toString())
     !buyMessage.contains(contacter.getPhoneNumber())
@@ -282,20 +280,18 @@ class ListingServiceSpec extends Specification {
 
 
     then:
-    sellMessage.contains("wants to buy your membership capital:")
-    sellMessage.contains("amount: 100.00")
+    sellMessage.contains("wants to buy your membership capital")
+    sellMessage.contains("amount: €100.00")
     sellMessage.contains("price: €200.00")
-    sellMessage.contains("please contact the buyer and agree on the details")
     sellMessage.contains("Here are the buyer's details:")
     sellMessage.contains(contacter.getFullName())
     sellMessage.contains(contacter.getPersonalCode().toString())
     sellMessage.contains(contacter.getPhoneNumber())
 
 
-    buyMessage.contains("wants to sell you their membership capital:")
-    buyMessage.contains("amount: 100.00")
+    buyMessage.contains("wants to sell you their membership capital")
+    buyMessage.contains("amount: €100.00")
     buyMessage.contains("price: €200.00")
-    buyMessage.contains("please contact the seller and agree on the details")
     buyMessage.contains("Here are the seller's details:")
     buyMessage.contains(contacter.getFullName())
     !buyMessage.contains(contacter.getPersonalCode().toString())
@@ -325,7 +321,7 @@ class ListingServiceSpec extends Specification {
 
 
     then:
-    listingMessage.contains("mahus")
+    listingMessage.contains("raamatupidamislikus väärtuses")
     !listingMessage.contains(evilFirstName)
     !listingMessage.contains(evilLastName)
     !listingMessage.contains(evilPhoneNumber)

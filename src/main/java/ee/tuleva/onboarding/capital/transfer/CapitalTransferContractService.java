@@ -159,8 +159,8 @@ public class CapitalTransferContractService {
         command.getTransferAmounts().stream()
             .map(CapitalTransferAmount::type)
             .collect(Collectors.toSet());
-    // TODO confirm these
-    var liquidatableTypes = Set.of(CAPITAL_PAYMENT, WORK_COMPENSATION, MEMBERSHIP_BONUS);
+    var liquidatableTypes =
+        Set.of(CAPITAL_PAYMENT, WORK_COMPENSATION, MEMBERSHIP_BONUS, CAPITAL_ACQUIRED);
 
     return liquidatableTypes.containsAll(typesToLiquidate);
   }

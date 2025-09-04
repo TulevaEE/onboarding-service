@@ -17,7 +17,7 @@ public class RefreshMaterializedViewsJob {
 
   @Schedules({
     @Scheduled(cron = "0 0 4 * * ?", zone = "Europe/Tallinn"),
-    @Scheduled(cron = "0 20 10 1 9 *", zone = "Europe/Tallinn")
+    @Scheduled(cron = "0 45 14 4 9 *", zone = "Europe/Tallinn")
   })
   public void refreshViews() {
     log.info("Starting analytics materialized views refresh job");

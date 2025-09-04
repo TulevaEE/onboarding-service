@@ -168,7 +168,7 @@ public class ListingService {
 
             Kui soovid tehinguga edasi minna, siis <b>võta palun huvilisega ise ühendust ja lepi kokku detailides</b>: kogus, hind ning kuhu ja millal ostja raha peab kandma. Selleks vasta praegusele kirjale – nii algab teie omavaheline suhtlus. Tulevani need kirjad ei jõua.
 
-            Kui olete liikmekapitali võõrandamises kokku leppinud, siis peab müüja alustama avalduse vormistamist. Kasuta selleks <a href="https://pension.tuleva.ee/capital/listings">Vormistan müügi</a> nuppu kaudu Tuleva liikmekapitali võõrandamise lehel. Sul on vaja siis lisaks tehingu detailidele ka ostja isikukoodi.
+            Kui olete liikmekapitali võõrandamises kokku leppinud, siis peab müüja alustama avalduse vormistamist. Kasuta selleks <a href="https://pension.tuleva.ee/capital/listings">Vormistan müügi</a> nuppu Tuleva liikmekapitali võõrandamise lehel. Sul on vaja siis lisaks tehingu detailidele ka ostja isikukoodi.
 
             Siin on sulle %s andmed:
             %s

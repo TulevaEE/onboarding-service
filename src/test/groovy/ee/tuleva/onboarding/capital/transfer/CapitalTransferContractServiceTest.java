@@ -441,6 +441,68 @@ class CapitalTransferContractServiceTest {
   }
 
   @Test
+  @DisplayName("Create capital transfer throws on zero amounts")
+  void createZeroAmounts() {
+
+    var buyerUser = sampleUser().firstName("Olev").lastName("Ostja").build();
+    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
+
+    var sampleCommand =
+        CreateCapitalTransferContractCommand.builder()
+            .buyerMemberId(3L)
+            .iban("TEST_IBAN")
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("200.0")),
+                    new CapitalTransferAmount(
+                        MEMBERSHIP_BONUS, new BigDecimal("0.0"), new BigDecimal("0.0"))))
+            .build();
+    var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
+
+    when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
+    when(memberService.getById(sampleCommand.getBuyerMemberId()))
+        .thenReturn(memberFixture().id(3L).user(buyerUser).build());
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> contractService.create(sellerPerson, sampleCommand));
+    assertEquals("Amounts or prices have negative or zero values", thrown.getMessage());
+  }
+
+  @Test
+  @DisplayName("Create capital transfer throws on negative amounts")
+  void createNegativeAmounts() {
+
+    var buyerUser = sampleUser().firstName("Olev").lastName("Ostja").build();
+    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
+
+    var sampleCommand =
+        CreateCapitalTransferContractCommand.builder()
+            .buyerMemberId(3L)
+            .iban("TEST_IBAN")
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("200.0")),
+                    new CapitalTransferAmount(
+                        MEMBERSHIP_BONUS, new BigDecimal("-30.0"), new BigDecimal("-20.0"))))
+            .build();
+    var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
+
+    when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
+    when(memberService.getById(sampleCommand.getBuyerMemberId()))
+        .thenReturn(memberFixture().id(3L).user(buyerUser).build());
+
+    IllegalArgumentException thrown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> contractService.create(sellerPerson, sampleCommand));
+    assertEquals("Amounts or prices have negative or zero values", thrown.getMessage());
+  }
+
+  @Test
   @DisplayName("Create capital transfer throws when not enough member bonus")
   void createNotEnoughMemberBonus() {
 

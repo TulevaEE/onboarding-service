@@ -84,6 +84,10 @@ public class CapitalTransferContractService {
       throw new IllegalArgumentException("No amounts specified");
     }
 
+    if (!hasPositiveNonZeroAmountsPrices(command)) {
+      throw new IllegalArgumentException("Amounts or prices have negative or zero values");
+    }
+
     if (!hasOnlyOneOfType(command)) {
       throw new IllegalArgumentException("Duplicate types specified");
     }
@@ -152,6 +156,14 @@ public class CapitalTransferContractService {
             .collect(Collectors.toSet())
             .size()
         == command.getTransferAmounts().size();
+  }
+
+  private boolean hasPositiveNonZeroAmountsPrices(CreateCapitalTransferContractCommand command) {
+    return command.getTransferAmounts().stream()
+        .allMatch(
+            amount ->
+                amount.bookValue().compareTo(BigDecimal.ZERO) > 0
+                    && amount.price().compareTo(BigDecimal.ZERO) > 0);
   }
 
   private boolean hasOnlyLiquidatableTypes(CreateCapitalTransferContractCommand command) {

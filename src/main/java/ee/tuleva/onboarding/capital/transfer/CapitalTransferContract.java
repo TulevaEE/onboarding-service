@@ -29,12 +29,12 @@ public class CapitalTransferContract {
   private Long id;
 
   @NotNull
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "seller_id")
   private Member seller;
 
   @NotNull
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "buyer_id")
   private Member buyer;
 

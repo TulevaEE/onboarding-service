@@ -27,7 +27,7 @@ plugins {
     groovy
     id("org.springframework.boot") version "3.5.4"
     id("io.spring.dependency-management") version "1.1.7"
-    id("com.gorylenko.gradle-git-properties") version "2.5.2"
+    id("com.gorylenko.gradle-git-properties") version "2.5.3"
     id("com.diffplug.spotless") version "7.2.1"
     id("io.freefair.lombok") version "8.14"
     id("net.ltgt.errorprone") version "4.3.0"

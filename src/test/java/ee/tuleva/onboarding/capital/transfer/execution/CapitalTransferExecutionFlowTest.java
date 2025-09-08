@@ -131,7 +131,7 @@ class CapitalTransferExecutionFlowTest {
     assertThat(buyerEvents).allMatch(event -> event.getFiatValue().compareTo(BigDecimal.ZERO) > 0);
 
     // 4. Verify contract state was updated
-    verify(contract).setState(EXECUTED);
+    verify(contract).executed();
     verify(contractRepository).save(contract);
   }
 
@@ -165,7 +165,7 @@ class CapitalTransferExecutionFlowTest {
 
     // Then - Only 2 events should be created (1 seller + 1 buyer for the valid transfer)
     verify(memberCapitalEventRepository, times(2)).save(any(MemberCapitalEvent.class));
-    verify(contract).setState(EXECUTED);
+    verify(contract).executed();
     verify(contractRepository).save(contract);
   }
 
@@ -186,7 +186,7 @@ class CapitalTransferExecutionFlowTest {
 
     // Then - No events should be created, no state change
     verify(memberCapitalEventRepository, never()).save(any());
-    verify(contract, never()).setState(any());
+    verify(contract, never()).executed();
     verify(contractRepository, never()).save(any());
   }
 
@@ -234,8 +234,8 @@ class CapitalTransferExecutionFlowTest {
     // 4 events total (2 per contract: 1 seller + 1 buyer each)
     verify(memberCapitalEventRepository, times(4)).save(any(MemberCapitalEvent.class));
 
-    verify(contract1).setState(EXECUTED);
-    verify(contract2).setState(EXECUTED);
+    verify(contract1).executed();
+    verify(contract2).executed();
     verify(contractRepository).save(contract1);
     verify(contractRepository).save(contract2);
   }
@@ -283,11 +283,11 @@ class CapitalTransferExecutionFlowTest {
     // Then - Only successful contract should be processed
     verify(memberCapitalEventRepository, times(2))
         .save(any(MemberCapitalEvent.class)); // Only success contract
-    verify(successContract).setState(EXECUTED);
+    verify(successContract).executed();
     verify(contractRepository).save(successContract);
 
     // Failed contract should not be updated
-    verify(failContract, never()).setState(any());
+    verify(failContract, never()).executed();
     verify(contractRepository, never()).save(failContract);
   }
 

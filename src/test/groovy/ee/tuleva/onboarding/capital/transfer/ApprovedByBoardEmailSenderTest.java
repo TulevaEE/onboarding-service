@@ -1,8 +1,7 @@
 package ee.tuleva.onboarding.capital.transfer;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.APPROVED;
-import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.APPROVED_AND_NOTIFIED;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.CAPITAL_TRANSFER_APPROVED_BY_BOARD;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
 import static org.mockito.Mockito.*;
@@ -32,12 +31,12 @@ class ApprovedByBoardEmailSenderTest {
     var contract =
         CapitalTransferContract.builder()
             .id(1L)
-            .state(APPROVED)
+            .state(EXECUTED)
             .seller(buyerMember)
             .buyer(sellerMember)
             .build();
 
-    when(capitalTransferContractRepository.findAllByState(APPROVED)).thenReturn(List.of(contract));
+    when(capitalTransferContractRepository.findAllByState(EXECUTED)).thenReturn(List.of(contract));
 
     approvedByBoardEmailSender.sendBoardApprovedEmails();
 
@@ -55,7 +54,7 @@ class ApprovedByBoardEmailSenderTest {
   @DisplayName("does not send if none found")
   void sendEmailsForApprovedCapitalTransfersNoneFound() {
 
-    when(capitalTransferContractRepository.findAllByState(APPROVED)).thenReturn(List.of());
+    when(capitalTransferContractRepository.findAllByState(EXECUTED)).thenReturn(List.of());
 
     approvedByBoardEmailSender.sendBoardApprovedEmails();
 

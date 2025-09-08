@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.capital.transfer;
 
-import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.APPROVED;
-import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.APPROVED_AND_NOTIFIED;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.CAPITAL_TRANSFER_APPROVED_BY_BOARD;
 
 import lombok.RequiredArgsConstructor;
@@ -23,10 +22,10 @@ public class ApprovedByBoardEmailSender {
   @Scheduled(cron = "0 0 9-17 * * MON-FRI", zone = "Europe/Tallinn")
   public void sendBoardApprovedEmails() {
     var approvedByBoardCapitalTransfers =
-        capitalTransferContractRepository.findAllByState(APPROVED);
+        capitalTransferContractRepository.findAllByState(EXECUTED);
 
     if (approvedByBoardCapitalTransfers.isEmpty()) {
-      log.info("No APPROVED capital transfer contracts found");
+      log.info("No EXECUTED capital transfer contracts found");
       return;
     }
     log.info(

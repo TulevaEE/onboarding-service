@@ -8,7 +8,6 @@ import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractRepository;
-import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -47,7 +46,7 @@ public class CapitalTransferExecutor {
       executeTransferAmount(contract, transferAmount, currentUnitPrice, accountingDate);
     }
 
-    contract.setState(CapitalTransferContractState.EXECUTED);
+    contract.executed();
     contractRepository.save(contract);
 
     log.info(

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static lombok.AccessLevel.PRIVATE;
 import static org.hibernate.type.SqlTypes.JSON;
 
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
@@ -45,6 +46,7 @@ public class CapitalTransferContract {
 
   @NotNull
   @Enumerated(EnumType.STRING)
+  @Setter(PRIVATE)
   private CapitalTransferContractState state;
 
   @NotNull private byte[] originalContent;
@@ -102,6 +104,12 @@ public class CapitalTransferContract {
   public CapitalTransferContract confirmPaymentBySeller() {
     requireState(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_BUYER);
     this.setState(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_SELLER);
+    return this;
+  }
+
+  public CapitalTransferContract executed() {
+    requireState(CapitalTransferContractState.APPROVED);
+    this.setState(CapitalTransferContractState.EXECUTED);
     return this;
   }
 

@@ -108,7 +108,7 @@ public class CapitalTransferExecutorTest {
     assertThat(buyerEvent.getEffectiveDate()).isEqualTo(LocalDate.now(ZoneId.of("Europe/Tallinn")));
 
     // Verify contract state updated to EXECUTED
-    verify(contract).setState(EXECUTED);
+    verify(contract).executed();
     verify(contractRepository).save(contract);
   }
 
@@ -200,7 +200,7 @@ public class CapitalTransferExecutorTest {
         .hasMessage("Contract not in APPROVED state");
 
     verify(memberCapitalEventRepository, never()).save(any());
-    verify(contract, never()).setState(any());
+    verify(contract, never()).executed();
     verify(contractRepository, never()).save(any());
   }
 
@@ -219,7 +219,7 @@ public class CapitalTransferExecutorTest {
         .hasMessage("Seller has insufficient CAPITAL_PAYMENT capital");
 
     verify(memberCapitalEventRepository, never()).save(any());
-    verify(contract, never()).setState(any());
+    verify(contract, never()).executed();
     verify(contractRepository, never()).save(any());
   }
 
@@ -236,7 +236,7 @@ public class CapitalTransferExecutorTest {
         .hasMessage("Could not determine current ownership unit price");
 
     verify(memberCapitalEventRepository, never()).save(any());
-    verify(contract, never()).setState(any());
+    verify(contract, never()).executed();
     verify(contractRepository, never()).save(any());
   }
 
@@ -254,7 +254,7 @@ public class CapitalTransferExecutorTest {
         .hasMessage("Could not determine current ownership unit price");
 
     verify(memberCapitalEventRepository, never()).save(any());
-    verify(contract, never()).setState(any());
+    verify(contract, never()).executed();
     verify(contractRepository, never()).save(any());
   }
 }

@@ -313,7 +313,7 @@ public class CapitalTransferContractService {
     Map<String, Object> mergeVars =
         Map.of(
             "fname", recipient.getFirstName(),
-            "lname", recipient.getFirstName(),
+            "lname", recipient.getLastName(),
             "sellerFirstName", contract.getSeller().getUser().getFirstName(),
             "sellerLastName", contract.getSeller().getUser().getLastName(),
             "buyerFirstName", contract.getBuyer().getUser().getFirstName(),

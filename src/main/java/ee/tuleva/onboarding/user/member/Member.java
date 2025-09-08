@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.user.member;
 
 import static ee.tuleva.onboarding.time.ClockHolder.clock;
+import static jakarta.persistence.FetchType.LAZY;
+import static jakarta.persistence.GenerationType.IDENTITY;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.user.User;
@@ -22,11 +24,11 @@ import org.hibernate.annotations.Where;
 public class Member implements Serializable {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = IDENTITY)
   private Long id;
 
   @JsonIgnore
-  @OneToOne(fetch = FetchType.LAZY, optional = false)
+  @OneToOne(fetch = LAZY, optional = false)
   @JoinColumn(name = "user_id", nullable = false)
   private User user;
 
@@ -39,5 +41,17 @@ public class Member implements Serializable {
   @PrePersist
   protected void onCreate() {
     createdDate = clock().instant();
+  }
+
+  public String getFirstName() {
+    return user.getFirstName();
+  }
+
+  public String getLastName() {
+    return user.getLastName();
+  }
+
+  public String getFullName() {
+    return user.getFullName();
   }
 }

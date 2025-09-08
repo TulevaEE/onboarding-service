@@ -1,5 +1,15 @@
 package ee.tuleva.onboarding.capital.transfer;
 
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.BUYER_SIGNED;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.CREATED;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.PAYMENT_CONFIRMED_BY_BUYER;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.PAYMENT_CONFIRMED_BY_SELLER;
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.SELLER_SIGNED;
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.FetchType.LAZY;
+import static jakarta.persistence.GenerationType.IDENTITY;
+import static java.math.BigDecimal.ZERO;
 import static lombok.AccessLevel.PRIVATE;
 import static org.hibernate.type.SqlTypes.JSON;
 
@@ -25,16 +35,16 @@ import org.hibernate.annotations.JdbcTypeCode;
 public class CapitalTransferContract {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = IDENTITY)
   private Long id;
 
   @NotNull
-  @ManyToOne(fetch = FetchType.EAGER)
+  @ManyToOne(fetch = LAZY)
   @JoinColumn(name = "seller_id")
   private Member seller;
 
   @NotNull
-  @ManyToOne(fetch = FetchType.EAGER)
+  @ManyToOne(fetch = LAZY)
   @JoinColumn(name = "buyer_id")
   private Member buyer;
 
@@ -45,7 +55,7 @@ public class CapitalTransferContract {
   private List<CapitalTransferAmount> transferAmounts;
 
   @NotNull
-  @Enumerated(EnumType.STRING)
+  @Enumerated(STRING)
   @Setter(PRIVATE)
   private CapitalTransferContractState state;
 
@@ -70,63 +80,61 @@ public class CapitalTransferContract {
   }
 
   private void requireState(CapitalTransferContractState requiredStatus) {
-    if (this.state != requiredStatus) {
+    if (state != requiredStatus) {
       throw new IllegalStateException(
-          "Action requires state " + requiredStatus + ", but current state is " + this.state + ".");
+          "Action requires state " + requiredStatus + ", but current state is " + state + ".");
     }
   }
 
   public CapitalTransferContract assignBuyer(Member buyer) {
-    this.setBuyer(buyer);
+    setBuyer(buyer);
     return this;
   }
 
   public CapitalTransferContract signBySeller(byte[] container) {
-    requireState(CapitalTransferContractState.CREATED);
-    this.setDigiDocContainer(container);
-    this.setState(CapitalTransferContractState.SELLER_SIGNED);
+    requireState(CREATED);
+    setDigiDocContainer(container);
+    setState(SELLER_SIGNED);
     return this;
   }
 
   public CapitalTransferContract signByBuyer(byte[] updatedContainer) {
-    requireState(CapitalTransferContractState.SELLER_SIGNED);
-    this.setDigiDocContainer(updatedContainer);
-    this.setState(CapitalTransferContractState.BUYER_SIGNED);
+    requireState(SELLER_SIGNED);
+    setDigiDocContainer(updatedContainer);
+    setState(BUYER_SIGNED);
     return this;
   }
 
   public CapitalTransferContract confirmPaymentByBuyer() {
-    requireState(CapitalTransferContractState.BUYER_SIGNED);
-    this.setState(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_BUYER);
+    requireState(BUYER_SIGNED);
+    setState(PAYMENT_CONFIRMED_BY_BUYER);
     return this;
   }
 
   public CapitalTransferContract confirmPaymentBySeller() {
-    requireState(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_BUYER);
-    this.setState(CapitalTransferContractState.PAYMENT_CONFIRMED_BY_SELLER);
+    requireState(PAYMENT_CONFIRMED_BY_BUYER);
+    setState(PAYMENT_CONFIRMED_BY_SELLER);
     return this;
   }
 
   public CapitalTransferContract executed() {
-    requireState(CapitalTransferContractState.APPROVED);
-    this.setState(CapitalTransferContractState.EXECUTED);
+    requireState(APPROVED);
+    setState(EXECUTED);
     return this;
   }
 
   public CapitalTransferContract approvedAndNotified() {
-    requireState(CapitalTransferContractState.APPROVED);
-    this.setState(CapitalTransferContractState.APPROVED_AND_NOTIFIED);
+    requireState(APPROVED);
+    setState(APPROVED_AND_NOTIFIED);
     return this;
   }
 
   public CapitalTransferContract cancel() {
-    if (this.state == CapitalTransferContractState.APPROVED
-        || this.state == CapitalTransferContractState.APPROVED_AND_NOTIFIED
-        || this.state == CapitalTransferContractState.EXECUTED) {
+    if (state == APPROVED || state == APPROVED_AND_NOTIFIED || state == EXECUTED) {
       throw new IllegalStateException(
           "Cannot cancel a contract that is already approved or executed.");
     }
-    this.setState(CapitalTransferContractState.CANCELLED);
+    setState(CapitalTransferContractState.CANCELLED);
     return this;
   }
 
@@ -138,9 +146,31 @@ public class CapitalTransferContract {
   }
 
   public BigDecimal getTotalPrice() {
-    return transferAmounts.stream()
-        .map(CapitalTransferAmount::price)
-        .reduce(BigDecimal.ZERO, BigDecimal::add);
+    return transferAmounts.stream().map(CapitalTransferAmount::price).reduce(ZERO, BigDecimal::add);
+  }
+
+  public String getSellerFirstName() {
+    return seller.getFirstName();
+  }
+
+  public String getSellerLastName() {
+    return seller.getLastName();
+  }
+
+  public String getSellerFullName() {
+    return seller.getFullName();
+  }
+
+  public String getBuyerFirstName() {
+    return buyer.getFirstName();
+  }
+
+  public String getBuyerLastName() {
+    return buyer.getLastName();
+  }
+
+  public String getBuyerFullName() {
+    return buyer.getFullName();
   }
 
   public record CapitalTransferAmount(

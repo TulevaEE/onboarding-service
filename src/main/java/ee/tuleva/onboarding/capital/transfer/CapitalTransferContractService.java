@@ -314,10 +314,12 @@ public class CapitalTransferContractService {
         Map.of(
             "fname", recipient.getFirstName(),
             "lname", recipient.getLastName(),
-            "sellerFirstName", contract.getSeller().getUser().getFirstName(),
-            "sellerLastName", contract.getSeller().getUser().getLastName(),
-            "buyerFirstName", contract.getBuyer().getUser().getFirstName(),
-            "buyerLastName", contract.getBuyer().getUser().getLastName(),
+            "sellerFirstName", contract.getSellerFirstName(),
+            "sellerLastName", contract.getSellerLastName(),
+            "buyerFirstName", contract.getBuyerFirstName(),
+            "buyerLastName", contract.getBuyerLastName(),
+            "sellerFullName", contract.getSellerFullName(),
+            "buyerFullName", contract.getBuyerFullName(),
             "contractId", contract.getId());
 
     var templateName = emailType.getTemplateName("et");

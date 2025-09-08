@@ -42,10 +42,7 @@ public class ApprovedByBoardEmailSender {
 
         capitalTransferContractService.updateStateBySystem(transfer.getId(), APPROVED_AND_NOTIFIED);
       } catch (Exception e) {
-        log.error(
-            "Failed to send email for capital transfer (id={}) with exception: {}",
-            transfer.getId(),
-            e.toString());
+        log.error("Failed to send email for capital transfer (id={})", transfer.getId(), e);
       }
     }
   }

@@ -34,7 +34,8 @@ public class ExchangeTransactionLeaversRepository
             fund.name_estonian AS "fundNameEstonian",
             mcmp.email AS "email",
             mcmp.keel AS "language",
-            MAX(em.created_date) AS "lastEmailSentDate"
+            MAX(em.created_date) AS "lastEmailSentDate",
+            em.type
         FROM
             public.exchange_transaction et
         LEFT JOIN
@@ -43,23 +44,29 @@ public class ExchangeTransactionLeaversRepository
             analytics.mv_crm_mailchimp mcmp ON et.code = mcmp.isikukood
         LEFT JOIN
             public.email em ON et.code = em.personal_code
+            AND em.type = '%s'
         WHERE
             et.date_created >= :startDate AND
             et.date_created < :endDate AND
-            et.reporting_date = (SELECT MAX(reporting_date) FROM public.exchange_transaction) AND
+            et.reporting_date IN (
+              SELECT DISTINCT reporting_date
+              FROM public.exchange_transaction
+              ORDER BY reporting_date DESC
+              LIMIT 2
+            ) AND
             (et.security_from = 'EE3600109435' OR et.security_from = 'EE3600109443') AND
             et.security_to <> 'EE3600109435' AND
             et.security_to <> 'EE3600109443' AND
             fund.ongoing_charges_figure >= 0.005 AND
             mcmp.email IS NOT NULL AND TRIM(mcmp.email) <> '' AND
             (mcmp.keel = 'ENG' OR mcmp.keel = 'EST') AND
-            et.percentage >= 10 AND
-            (em.type = '%s' OR em.type IS NULL) -- type is null = no email sent yet
+            et.percentage >= 10
         GROUP BY
             et.security_from, et.security_to, et.code, et.first_name, et.name,
             et.unit_amount, et.percentage, et.date_created,
             fund.ongoing_charges_figure, fund.name_estonian,
-            mcmp.email, mcmp.keel;
+            mcmp.email, mcmp.keel, em.type
+        ORDER BY et.code;
         """
             .formatted(getEmailType());
 

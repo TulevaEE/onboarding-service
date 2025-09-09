@@ -10,6 +10,7 @@ import java.time.LocalDate
 
 import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.leaverFixture
 import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.leaverFixture2
+import static ee.tuleva.onboarding.analytics.leavers.ExchangeTransactionLeaverFixture.leaverFixture3
 
 
 @DataJdbcTest
@@ -57,21 +58,25 @@ class ExchangeTransactionLeaversRepositorySpec extends Specification {
     given:
     def aLeaver = leaverFixture(null)
     def aLeaver2 = leaverFixture2(null)
+    def aLeaver3 = leaverFixture3(null)
 
     def oldReportingDate = LocalDate.parse("2016-01-01")
+    def previousReportingDate = LocalDate.parse("2021-01-01")
+    def currentReportingDate = LocalDate.parse("2021-02-01")
     insertIntoExchangeTransaction(aLeaver, oldReportingDate)
-    insertIntoExchangeTransaction(aLeaver2)
+    insertIntoExchangeTransaction(aLeaver2, previousReportingDate)
+    insertIntoExchangeTransaction(aLeaver3, currentReportingDate)
 
     insertIntoMvCrmMailchimp(aLeaver)
     insertIntoMvCrmMailchimp(aLeaver2)
+    insertIntoMvCrmMailchimp(aLeaver3)
 
     when:
     List<ExchangeTransactionLeaver> leavers =
         leaversRepository.fetch(LocalDate.parse("2021-01-01"), LocalDate.parse("2021-02-01"))
 
-
     then:
-    leavers == [aLeaver2]
+    leavers == [aLeaver2, aLeaver3]
   }
 
   private def insertIntoExchangeTransaction(ExchangeTransactionLeaver leaver,

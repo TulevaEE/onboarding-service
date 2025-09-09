@@ -33,13 +33,13 @@ public class AnalyticsEarlyWithdrawalsRepository
             FROM unit_owner
                      LEFT JOIN unit_owner_balance ON unit_owner.id = unit_owner_balance.unit_owner_id
                      LEFT JOIN email ON unit_owner.personal_id = email.personal_code
+                     AND email.type = '%s'
             WHERE (unit_owner.p2_choice IN ('TUK00', 'TUK75')
                 OR unit_owner_balance.security_short_name IN ('TUK00', 'TUK75'))
               AND unit_owner.snapshot_date = (SELECT MAX(snapshot_date) FROM unit_owner)
               AND unit_owner.p2_rava_status = 'A'
               AND unit_owner.email IS NOT NULL
               AND TRIM(unit_owner.email) <> ''
-              AND (email.type = '%s' OR email.type IS NULL)
               AND unit_owner.p2_rava_date > :startDate
               AND unit_owner.p2_rava_date <= :endDate
             GROUP BY unit_owner.personal_id,
@@ -48,17 +48,15 @@ public class AnalyticsEarlyWithdrawalsRepository
                      unit_owner.email,
                      unit_owner.language_preference,
                      unit_owner.p2_rava_date,
-                     unit_owner.p2_rava_status;
+                     unit_owner.p2_rava_status
+            ORDER BY unit_owner.personal_id;
             """,
             getEmailType());
 
-    LocalDate adjustedStartDate = startDate.minusMonths(1);
-    LocalDate adjustedEndDate = endDate.minusMonths(1);
-
     return jdbcClient
         .sql(sql)
-        .param("startDate", adjustedStartDate)
-        .param("endDate", adjustedEndDate)
+        .param("startDate", startDate)
+        .param("endDate", endDate)
         .query(AnalyticsEarlyWithdrawal.class)
         .list();
   }

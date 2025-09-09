@@ -42,4 +42,22 @@ class ExchangeTransactionLeaverFixture {
     )
   }
 
+  static ExchangeTransactionLeaver leaverFixture3(LocalDateTime lastEmailSent = LocalDateTime.parse("2019-04-30T00:00:00")) {
+    new ExchangeTransactionLeaver(
+        "EE3600109443",
+        "EE3600019774",
+        "50012319513",
+        "Jack",
+        "Doe",
+        1000,
+        100,
+        LocalDate.parse("2021-01-01"),
+        0.0108,
+        "LHV Pensionifond M",
+        "jack@doe.com",
+        "ENG",
+        lastEmailSent,
+    )
+  }
+
 }

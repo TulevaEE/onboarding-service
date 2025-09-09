@@ -28,7 +28,7 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
     insertEmail(withdrawal)
 
     when:
-    def result = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+    def result = repository.fetch(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
 
     then:
     result == [withdrawal]
@@ -42,7 +42,7 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
     insertEmail(withdrawal)
 
     when:
-    def result = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+    def result = repository.fetch(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
 
     then:
     result == [withdrawal]
@@ -51,7 +51,7 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
   def "returns only rows from the latest snapshot"() {
     given:
     def newest = anEarlyWithdrawal(3, "A")
-    def older  = anEarlyWithdrawal(4, "A")
+    def older = anEarlyWithdrawal(4, "A")
 
     insertUnitOwner(1003L, newest, "TUK75", LocalDate.of(2023, 3, 31))
     insertEmail(newest)
@@ -60,7 +60,7 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
     insertEmail(older)
 
     when:
-    def results = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+    def results = repository.fetch(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
 
     then:
     results == [newest]
@@ -72,7 +72,7 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
     insertUnitOwner(1005L, withdrawal, "TUK00", LocalDate.of(2023, 3, 31))
 
     when:
-    def results = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+    def results = repository.fetch(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
 
     then:
     results == [withdrawal]
@@ -85,23 +85,24 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
     insertUnitOwner(1006L, withdrawal, "TUK00", LocalDate.of(2023, 3, 31))
 
     when:
-    def results = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+    def results = repository.fetch(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
 
     then:
     results == []
   }
 
-  def "ignores unit owners whose previous e‑mail was of a different type"() {
+  def "does not ignore owners whose previous e‑mail was of a different type"() {
     given:
-    def withdrawal = anEarlyWithdrawal(7, "A")
-    insertUnitOwner(1007L, withdrawal, "TUK75", LocalDate.of(2023, 3, 31))
-    insertEmail(withdrawal, "SOME_OTHER_TYPE")
+    def withdrawalWithEmailOfDifferentType = anEarlyWithdrawal(7, "A")
+    def expectedWithdrawal = anEarlyWithdrawal(7, "A", null)
+    insertUnitOwner(1007L, withdrawalWithEmailOfDifferentType, "TUK75", LocalDate.of(2023, 3, 31))
+    insertEmail(withdrawalWithEmailOfDifferentType, "SOME_OTHER_TYPE")
 
     when:
-    def result = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+    def result = repository.fetch(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
 
     then:
-    result == []
+    result == [expectedWithdrawal]
   }
 
   def "ignores unit owners with p2_rava_status not equal to 'A'"() {
@@ -110,7 +111,7 @@ class AnalyticsEarlyWithdrawalsRepositorySpec extends Specification {
     insertUnitOwner(1008L, withdrawal, "TUK75", LocalDate.of(2023, 3, 31))
 
     when:
-    def result = repository.fetch(LocalDate.parse("2023-02-01"), LocalDate.parse("2023-03-01"))
+    def result = repository.fetch(LocalDate.parse("2023-01-01"), LocalDate.parse("2023-02-01"))
 
     then:
     result == []

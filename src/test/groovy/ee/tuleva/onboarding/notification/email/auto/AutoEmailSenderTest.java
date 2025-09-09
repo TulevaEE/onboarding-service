@@ -73,9 +73,12 @@ class AutoEmailSenderTest {
   void sendsLeaverEmails() {
     // Given
     var leaver = leaverFixture();
-    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    LocalDate expectedStartDate = LocalDate.of(2019, 12, 1);
+    LocalDate expectedEndDate = LocalDate.of(2020, 1, 1);
+
+    when(leaversRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of(leaver));
-    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    when(withdrawalsRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of());
     when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.empty());
@@ -99,7 +102,8 @@ class AutoEmailSenderTest {
 
     var leavers = Stream.concat(alreadyReceivedLeavers.stream(), recentLeavers.stream()).toList();
 
-    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class))).thenReturn(leavers);
+    when(leaversRepository.fetch(eq(LocalDate.of(2019, 12, 1)), eq(LocalDate.of(2020, 1, 1))))
+        .thenReturn(leavers);
     when(emailPersistenceService.getLastEmailSendDate(
             eq(leaverFixture()), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.empty());
@@ -124,8 +128,10 @@ class AutoEmailSenderTest {
         Stream.generate(ExchangeTransactionLeaverFixture::leaverFixture2).limit(200).toList();
 
     var leavers = Stream.concat(alreadyReceivedLeavers.stream(), recentLeavers.stream()).toList();
+    LocalDate expectedStartDate = LocalDate.of(2019, 12, 1);
+    LocalDate expectedEndDate = LocalDate.of(2020, 1, 1);
 
-    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class))).thenReturn(leavers);
+    when(leaversRepository.fetch(eq(expectedStartDate), eq(expectedEndDate))).thenReturn(leavers);
     when(emailPersistenceService.getLastEmailSendDate(
             eq(leaverFixture()), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.empty());
@@ -145,9 +151,12 @@ class AutoEmailSenderTest {
   void doesNotSendDuplicates() {
     // Given
     var leaver = leaverFixture();
-    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    LocalDate expectedStartDate = LocalDate.of(2019, 12, 1);
+    LocalDate expectedEndDate = LocalDate.of(2020, 1, 1);
+
+    when(leaversRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of(leaver));
-    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    when(withdrawalsRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of());
 
     Instant recentEmailDate = ZonedDateTime.now(clock).minusMonths(2).toInstant();
@@ -167,9 +176,12 @@ class AutoEmailSenderTest {
   void sendsEmailIfLastEmailOlderThanFourMonths() {
     // Given
     var leaver = leaverFixture();
-    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    LocalDate expectedStartDate = LocalDate.of(2019, 12, 1);
+    LocalDate expectedEndDate = LocalDate.of(2020, 1, 1);
+
+    when(leaversRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of(leaver));
-    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    when(withdrawalsRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of());
 
     Instant oldEmailDate = ZonedDateTime.now(clock).minusMonths(5).toInstant();
@@ -189,9 +201,12 @@ class AutoEmailSenderTest {
   void sendsWithdrawalEmails() {
     // Given
     var earlyWithdrawal = anEarlyWithdrawal();
-    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    LocalDate expectedStartDate = LocalDate.of(2019, 12, 1);
+    LocalDate expectedEndDate = LocalDate.of(2020, 1, 1);
+
+    when(withdrawalsRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of(earlyWithdrawal));
-    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class))).thenReturn(List.of());
+    when(leaversRepository.fetch(eq(expectedStartDate), eq(expectedEndDate))).thenReturn(List.of());
     when(emailPersistenceService.getLastEmailSendDate(
             eq(earlyWithdrawal), eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
         .thenReturn(Optional.empty());
@@ -210,9 +225,12 @@ class AutoEmailSenderTest {
   void handlesEmailNotFoundException() {
     // Given
     var leaver = leaverFixture();
-    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    LocalDate expectedStartDate = LocalDate.of(2019, 12, 1);
+    LocalDate expectedEndDate = LocalDate.of(2020, 1, 1);
+
+    when(leaversRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of(leaver));
-    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    when(withdrawalsRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of());
     when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.empty());
@@ -235,10 +253,12 @@ class AutoEmailSenderTest {
     // Given
     var leaver = leaverFixture();
     var earlyWithdrawal = anEarlyWithdrawal();
+    LocalDate expectedStartDate = LocalDate.of(2019, 12, 1);
+    LocalDate expectedEndDate = LocalDate.of(2020, 1, 1);
 
-    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    when(leaversRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of(leaver));
-    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    when(withdrawalsRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of(earlyWithdrawal));
 
     when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
@@ -264,10 +284,12 @@ class AutoEmailSenderTest {
     // Given
     var leaver1 = leaverFixture();
     var leaver2 = leaverFixture();
+    LocalDate expectedStartDate = LocalDate.of(2019, 12, 1);
+    LocalDate expectedEndDate = LocalDate.of(2020, 1, 1);
 
-    when(leaversRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    when(leaversRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of(leaver1, leaver2));
-    when(withdrawalsRepository.fetch(any(LocalDate.class), any(LocalDate.class)))
+    when(withdrawalsRepository.fetch(eq(expectedStartDate), eq(expectedEndDate)))
         .thenReturn(List.of());
 
     when(emailPersistenceService.getLastEmailSendDate(

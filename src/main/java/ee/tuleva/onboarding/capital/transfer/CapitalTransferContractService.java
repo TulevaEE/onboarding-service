@@ -276,10 +276,10 @@ public class CapitalTransferContractService {
     broadcastStateChangeEvent(contract::confirmPaymentBySeller, contract, user);
     log.info("Payment confirmed by seller for contract {}.", id);
     sendContractEmail(
-        contract.getSeller().getUser(), CAPITAL_TRANSFER_CONFIRMED_BY_SELLER, contract);
+        contract.getBuyer().getUser(), CAPITAL_TRANSFER_CONFIRMED_BY_SELLER, contract);
 
     try {
-      this.slackService.sendMessage(
+      slackService.sendMessage(
           "Capital transfer id=" + contract.getId() + " awaiting board confirmation",
           CAPITAL_TRANSFER);
     } catch (Exception e) {

@@ -251,7 +251,7 @@ class CapitalTransferContractServiceTest {
         when(emailPersistenceService.save(any(), any(), any(), any()))
             .thenReturn(Email.builder().id(1L).build());
         when(emailService.send(
-                eq(contract.getSeller().getUser()),
+                eq(contract.getBuyer().getUser()),
                 any(),
                 eq("capital_transfer_confirmed_by_seller_et")))
             .thenReturn(Optional.of(new MandrillMessageStatus()));
@@ -259,6 +259,16 @@ class CapitalTransferContractServiceTest {
         var result = contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_SELLER, user);
         assertEquals(contract, result);
         verify(slackService).sendMessage(anyString(), eq(CAPITAL_TRANSFER));
+
+        // Verify that email is sent to the buyer (not the seller)
+        verify(emailService)
+            .send(
+                eq(contract.getBuyer().getUser()),
+                any(),
+                eq("capital_transfer_confirmed_by_seller_et"));
+        // Verify that email is NOT sent to the seller
+        verify(emailService, never()).send(eq(contract.getSeller().getUser()), any(), anyString());
+
         verify(eventPublisher)
             .publishEvent(
                 argThat(getStateChangeEventMatcher(user, state, PAYMENT_CONFIRMED_BY_SELLER)));

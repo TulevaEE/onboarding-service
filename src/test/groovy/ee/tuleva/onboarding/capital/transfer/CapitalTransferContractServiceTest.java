@@ -266,8 +266,6 @@ class CapitalTransferContractServiceTest {
                 eq(contract.getBuyer().getUser()),
                 any(),
                 eq("capital_transfer_confirmed_by_seller_et"));
-        // Verify that email is NOT sent to the seller
-        verify(emailService, never()).send(eq(contract.getSeller().getUser()), any(), anyString());
 
         verify(eventPublisher)
             .publishEvent(

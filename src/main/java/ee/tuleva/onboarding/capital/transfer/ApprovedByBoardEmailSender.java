@@ -19,7 +19,7 @@ public class ApprovedByBoardEmailSender {
   private final CapitalTransferContractService capitalTransferContractService;
 
   // every working hour every workday
-  @Scheduled(cron = "0 0 9-17 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 0 7-20 * * MON-FRI", zone = "Europe/Tallinn")
   public void sendBoardApprovedEmails() {
     var approvedByBoardCapitalTransfers =
         capitalTransferContractRepository.findAllByState(EXECUTED);

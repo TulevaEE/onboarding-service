@@ -299,7 +299,7 @@ class CapitalTransferContractServiceTest {
 
       when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
 
-      if (state == APPROVED) {
+      if (state == EXECUTED) {
         when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
         var result = contractService.updateStateBySystem(1L, APPROVED_AND_NOTIFIED);
         assertEquals(contract, result);

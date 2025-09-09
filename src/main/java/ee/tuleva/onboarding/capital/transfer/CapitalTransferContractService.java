@@ -243,7 +243,7 @@ public class CapitalTransferContractService {
       Long id, CapitalTransferContractState desiredState) {
     CapitalTransferContract contract = contractRepository.findById(id).orElseThrow();
 
-    if (contract.getState().equals(APPROVED) && desiredState.equals(APPROVED_AND_NOTIFIED)) {
+    if (contract.getState().equals(EXECUTED) && desiredState.equals(APPROVED_AND_NOTIFIED)) {
       contract.approvedAndNotified();
       return contractRepository.save(contract);
     }

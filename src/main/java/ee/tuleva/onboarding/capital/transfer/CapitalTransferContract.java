@@ -124,8 +124,8 @@ public class CapitalTransferContract {
   }
 
   public CapitalTransferContract approvedAndNotified() {
-    requireState(APPROVED);
-    setState(APPROVED_AND_NOTIFIED);
+    requireState(CapitalTransferContractState.EXECUTED);
+    this.setState(CapitalTransferContractState.APPROVED_AND_NOTIFIED);
     return this;
   }
 

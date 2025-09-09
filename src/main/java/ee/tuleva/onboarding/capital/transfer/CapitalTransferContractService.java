@@ -258,6 +258,7 @@ public class CapitalTransferContractService {
     if (!contract.getBuyer().getId().equals(user.getMemberId())) {
       throw new IllegalStateException("Payment can only be confirmed by buyer");
     }
+
     broadcastStateChangeEvent(contract::confirmPaymentByBuyer, contract, user);
     log.info("Payment confirmed by buyer for contract {}", id);
     sendContractEmail(
@@ -267,19 +268,22 @@ public class CapitalTransferContractService {
 
   private CapitalTransferContract confirmPaymentBySeller(Long id, User user) {
     CapitalTransferContract contract = getContract(id, user);
+
     if (!contract.getSeller().getId().equals(user.getMemberId())) {
       throw new IllegalStateException("Payment can only be confirmed by seller");
     }
-    broadcastStateChangeEvent(contract::confirmPaymentBySeller, contract, user);
 
+    broadcastStateChangeEvent(contract::confirmPaymentBySeller, contract, user);
     log.info("Payment confirmed by seller for contract {}.", id);
+    sendContractEmail(
+        contract.getSeller().getUser(), CAPITAL_TRANSFER_CONFIRMED_BY_SELLER, contract);
 
     try {
       this.slackService.sendMessage(
           "Capital transfer id=" + contract.getId() + " awaiting board confirmation",
           CAPITAL_TRANSFER);
     } catch (Exception e) {
-      log.error("Failed to notify about capital transfer id=" + contract.getId());
+      log.error("Failed to notify about capital transfer id=" + contract.getId(), e);
     }
 
     return contractRepository.save(contract);

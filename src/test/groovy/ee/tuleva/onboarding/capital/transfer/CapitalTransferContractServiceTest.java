@@ -248,6 +248,14 @@ class CapitalTransferContractServiceTest {
 
       if (state == PAYMENT_CONFIRMED_BY_BUYER) {
         when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
+        when(emailPersistenceService.save(any(), any(), any(), any()))
+            .thenReturn(Email.builder().id(1L).build());
+        when(emailService.send(
+                eq(contract.getSeller().getUser()),
+                any(),
+                eq("capital_transfer_confirmed_by_seller_et")))
+            .thenReturn(Optional.of(new MandrillMessageStatus()));
+
         var result = contractService.updateStateByUser(1L, PAYMENT_CONFIRMED_BY_SELLER, user);
         assertEquals(contract, result);
         verify(slackService).sendMessage(anyString(), eq(CAPITAL_TRANSFER));

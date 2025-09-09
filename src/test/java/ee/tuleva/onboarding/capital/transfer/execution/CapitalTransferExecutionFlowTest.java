@@ -32,6 +32,7 @@ class CapitalTransferExecutionFlowTest {
   @Mock private MemberCapitalEventRepository memberCapitalEventRepository;
   @Mock private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
   @Mock private CapitalTransferValidator validator;
+  @Mock private CapitalTransferEventLinkRepository linkRepository;
 
   @Mock private CapitalTransferContract contract;
   @Mock private Member sellerMember;
@@ -51,7 +52,8 @@ class CapitalTransferExecutionFlowTest {
             contractRepository,
             memberCapitalEventRepository,
             aggregatedCapitalEventRepository,
-            validator);
+            validator,
+            linkRepository);
 
     executionJob = new CapitalTransferExecutionJob(contractRepository, executor);
   }
@@ -356,5 +358,9 @@ class CapitalTransferExecutionFlowTest {
     assertThat(buyerEvent.getOwnershipUnitAmount())
         .isEqualByComparingTo(new BigDecimal("160.00000"));
     assertThat(buyerEvent.getFiatValue()).isEqualByComparingTo(new BigDecimal("200.00000"));
+
+    // Verify contract state was updated
+    verify(contract).executed();
+    verify(contractRepository).save(contract);
   }
 }

@@ -34,6 +34,7 @@ public class CapitalTransferExecutorTest {
   @Mock private MemberCapitalEventRepository memberCapitalEventRepository;
   @Mock private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
   @Mock private CapitalTransferValidator validator;
+  @Mock private CapitalTransferEventLinkRepository linkRepository;
 
   @Mock private CapitalTransferContract contract;
   @Mock private Member seller;
@@ -53,7 +54,8 @@ public class CapitalTransferExecutorTest {
             contractRepository,
             memberCapitalEventRepository,
             aggregatedCapitalEventRepository,
-            validator);
+            validator,
+            linkRepository);
   }
 
   @Test
@@ -67,6 +69,14 @@ public class CapitalTransferExecutorTest {
     when(buyer.getId()).thenReturn(102L);
     when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
     when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
+
+    when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
+        .thenAnswer(
+            invocation -> {
+              MemberCapitalEvent event = invocation.getArgument(0);
+              event.setId(System.nanoTime());
+              return event;
+            });
 
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE);
@@ -83,6 +93,9 @@ public class CapitalTransferExecutorTest {
     ArgumentCaptor<MemberCapitalEvent> eventCaptor =
         ArgumentCaptor.forClass(MemberCapitalEvent.class);
     verify(memberCapitalEventRepository, times(2)).save(eventCaptor.capture());
+
+    // Verify links were created
+    verify(linkRepository, times(2)).save(any(CapitalTransferEventLink.class));
 
     List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
 
@@ -124,6 +137,14 @@ public class CapitalTransferExecutorTest {
     when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
     when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
 
+    when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
+        .thenAnswer(
+            invocation -> {
+              MemberCapitalEvent event = invocation.getArgument(0);
+              event.setId(System.nanoTime());
+              return event;
+            });
+
     CapitalTransferAmount payment =
         new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE);
     CapitalTransferAmount bonus =
@@ -139,6 +160,9 @@ public class CapitalTransferExecutorTest {
         ArgumentCaptor.forClass(MemberCapitalEvent.class);
     verify(memberCapitalEventRepository, times(4))
         .save(eventCaptor.capture()); // 2 types × 2 events each
+
+    // Verify links were created
+    verify(linkRepository, times(4)).save(any(CapitalTransferEventLink.class));
 
     List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
 
@@ -163,6 +187,14 @@ public class CapitalTransferExecutorTest {
     when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
     when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
 
+    when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
+        .thenAnswer(
+            invocation -> {
+              MemberCapitalEvent event = invocation.getArgument(0);
+              event.setId(System.nanoTime());
+              return event;
+            });
+
     CapitalTransferAmount zeroAmount =
         new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("100.00"), BigDecimal.ZERO);
     CapitalTransferAmount validAmount =
@@ -179,6 +211,9 @@ public class CapitalTransferExecutorTest {
         ArgumentCaptor.forClass(MemberCapitalEvent.class);
     verify(memberCapitalEventRepository, times(2))
         .save(eventCaptor.capture()); // Only valid amount creates events
+
+    // Verify links were created only for valid transfers
+    verify(linkRepository, times(2)).save(any(CapitalTransferEventLink.class));
 
     List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
     assertThat(savedEvents.stream().anyMatch(e -> e.getType() == CAPITAL_PAYMENT)).isFalse();

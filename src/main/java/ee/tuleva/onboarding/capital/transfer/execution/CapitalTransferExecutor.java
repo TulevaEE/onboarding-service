@@ -26,6 +26,7 @@ public class CapitalTransferExecutor {
   private final MemberCapitalEventRepository memberCapitalEventRepository;
   private final AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
   private final CapitalTransferValidator validator;
+  private final CapitalTransferEventLinkRepository linkRepository;
 
   @Transactional
   public void execute(CapitalTransferContract contract) {
@@ -85,7 +86,15 @@ public class CapitalTransferExecutor {
             .effectiveDate(accountingDate)
             .build();
 
-    memberCapitalEventRepository.save(sellerEvent);
+    MemberCapitalEvent savedEvent = memberCapitalEventRepository.save(sellerEvent);
+
+    CapitalTransferEventLink link =
+        CapitalTransferEventLink.builder()
+            .capitalTransferContract(contract)
+            .memberCapitalEvent(savedEvent)
+            .build();
+
+    linkRepository.save(link);
   }
 
   private void createBuyerAcquisitionEvent(
@@ -104,7 +113,15 @@ public class CapitalTransferExecutor {
             .effectiveDate(accountingDate)
             .build();
 
-    memberCapitalEventRepository.save(buyerEvent);
+    MemberCapitalEvent savedEvent = memberCapitalEventRepository.save(buyerEvent);
+
+    CapitalTransferEventLink link =
+        CapitalTransferEventLink.builder()
+            .capitalTransferContract(contract)
+            .memberCapitalEvent(savedEvent)
+            .build();
+
+    linkRepository.save(link);
   }
 
   private BigDecimal getCurrentOwnershipUnitPrice() {

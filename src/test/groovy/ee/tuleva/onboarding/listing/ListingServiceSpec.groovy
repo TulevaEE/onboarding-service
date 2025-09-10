@@ -238,8 +238,8 @@ class ListingServiceSpec extends Specification {
 
     then:
     sellMessage.contains("soovib osta sinu liikmekapitali")
-    sellMessage.contains("raamatupidamislikus väärtuses €100.00")
-    sellMessage.contains("hinnaga €200.00")
+    sellMessage.contains("raamatupidamislikus väärtuses 100.00 €")
+    sellMessage.contains("hinnaga 200.00 €")
     sellMessage.contains("Siin on sulle ostja andmed:")
     sellMessage.contains(contacter.getFullName())
     sellMessage.contains(contacter.getPersonalCode().toString())
@@ -247,8 +247,8 @@ class ListingServiceSpec extends Specification {
 
 
     buyMessage.contains("soovib sulle sulle müüa oma liikmekapitali")
-    buyMessage.contains("raamatupidamislikus väärtuses €100.00")
-    buyMessage.contains("hinnaga €200.00")
+    buyMessage.contains("raamatupidamislikus väärtuses 100.00 €")
+    buyMessage.contains("hinnaga 200.00 €")
     buyMessage.contains("Siin on sulle müüja andmed:")
     buyMessage.contains(contacter.getFullName())
     !buyMessage.contains(contacter.getPersonalCode().toString())
@@ -281,8 +281,8 @@ class ListingServiceSpec extends Specification {
 
     then:
     sellMessage.contains("wants to buy your membership capital")
-    sellMessage.contains("amount: €100.00")
-    sellMessage.contains("price: €200.00")
+    sellMessage.contains("amount: 100.00 €")
+    sellMessage.contains("price: 200.00 €")
     sellMessage.contains("Here are the buyer's details:")
     sellMessage.contains(contacter.getFullName())
     sellMessage.contains(contacter.getPersonalCode().toString())
@@ -290,8 +290,8 @@ class ListingServiceSpec extends Specification {
 
 
     buyMessage.contains("wants to sell you their membership capital")
-    buyMessage.contains("amount: €100.00")
-    buyMessage.contains("price: €200.00")
+    buyMessage.contains("amount: 100.00 €")
+    buyMessage.contains("price: 200.00 €")
     buyMessage.contains("Here are the seller's details:")
     buyMessage.contains(contacter.getFullName())
     !buyMessage.contains(contacter.getPersonalCode().toString())

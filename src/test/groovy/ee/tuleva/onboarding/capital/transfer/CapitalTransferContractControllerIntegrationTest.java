@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.capital.transfer;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.CAPITAL_PAYMENT;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS;
+import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.time.TestClockHolder.clock;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -24,6 +25,7 @@ import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.capital.ApiCapitalEvent;
 import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
 import ee.tuleva.onboarding.notification.email.EmailService;
@@ -69,6 +71,7 @@ class CapitalTransferContractControllerIntegrationTest {
   @Autowired private EmailService emailService;
   @Autowired private CapitalService capitalService;
   @Autowired private EmailPersistenceService emailPersistenceService;
+  @Autowired private ContactDetailsService contactDetailsService;
 
   private User sellerUser;
   private Member sellerMember;
@@ -108,6 +111,12 @@ class CapitalTransferContractControllerIntegrationTest {
     @Primary
     public EmailPersistenceService emailPersistenceService() {
       return mock(EmailPersistenceService.class);
+    }
+
+    @Bean
+    @Primary
+    public ContactDetailsService contactDetailsService() {
+      return mock(ContactDetailsService.class);
     }
   }
 
@@ -244,6 +253,8 @@ class CapitalTransferContractControllerIntegrationTest {
     // given
     when(signatureService.getSignedFile(sellerSession))
         .thenReturn("signed content by seller".getBytes());
+
+    when(contactDetailsService.getContactDetails(any())).thenReturn(contactDetailsFixture());
 
     when(emailService.send(
             any(User.class), any(MandrillMessage.class), eq("capital_transfer_seller_signed_et")))

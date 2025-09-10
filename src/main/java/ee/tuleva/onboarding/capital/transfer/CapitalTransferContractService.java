@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.capital.transfer;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
+import static ee.tuleva.onboarding.epis.contact.ContactDetails.LanguagePreferenceType.ENG;
 import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.CAPITAL_TRANSFER;
@@ -13,6 +14,7 @@ import ee.tuleva.onboarding.capital.ApiCapitalEvent;
 import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
+import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.event.TrackableEvent;
 import ee.tuleva.onboarding.listing.MessageResponse;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
@@ -51,6 +53,7 @@ public class CapitalTransferContractService {
   private final CapitalTransferContractContentService contractContentService;
   private final CapitalService capitalService;
   private final SlackService slackService;
+  private final ContactDetailsService contactDetailsService;
   private final ApplicationEventPublisher eventPublisher;
 
   public CapitalTransferContract create(
@@ -326,7 +329,7 @@ public class CapitalTransferContractService {
             "buyerFullName", contract.getBuyerFullName(),
             "contractId", contract.getId());
 
-    var templateName = emailType.getTemplateName("et");
+    var templateName = emailType.getTemplateName(getLanguage(recipient));
     MandrillMessage message =
         emailService.newMandrillMessage(
             // TODO language
@@ -342,5 +345,15 @@ public class CapitalTransferContractService {
                           recipient, response.getId(), emailType, response.getStatus());
                   return new MessageResponse(saved.getId(), response.getStatus());
                 });
+  }
+
+  private String getLanguage(User user) {
+    var contactDetails = contactDetailsService.getContactDetails(user);
+
+    if (contactDetails.getLanguagePreference() == ENG) {
+      return "en";
+    }
+
+    return "et";
   }
 }

@@ -184,6 +184,7 @@ class CapitalTransferContractServiceTest {
               .state(state)
               .seller(memberFixture().id(3L).build())
               .buyer(user.getMemberOrThrow())
+              .digiDocContainer(new byte[0])
               .build();
 
       when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
@@ -246,6 +247,7 @@ class CapitalTransferContractServiceTest {
               .state(state)
               .buyer(memberFixture().id(3L).build())
               .seller(user.getMemberOrThrow())
+              .digiDocContainer(new byte[0])
               .build();
 
       when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));

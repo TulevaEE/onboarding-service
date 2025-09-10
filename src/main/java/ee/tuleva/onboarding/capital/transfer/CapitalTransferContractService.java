@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static ee.tuleva.onboarding.epis.contact.ContactDetails.LanguagePreferenceType.ENG;
 import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
+import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.CAPITAL_TRANSFER;
 import static java.util.stream.Stream.concat;
@@ -330,9 +331,19 @@ public class CapitalTransferContractService {
             "contractId", contract.getId());
 
     var templateName = emailType.getTemplateName(getLanguage(recipient));
+    var attachments =
+        Set.of(CAPITAL_TRANSFER_CONFIRMED_BY_BUYER, CAPITAL_TRANSFER_CONFIRMED_BY_SELLER)
+                .contains(emailType)
+            ? getAttachments(contract)
+            : null;
+
     MandrillMessage message =
         emailService.newMandrillMessage(
-            recipient.getEmail(), templateName, mergeVars, List.of("capital-transfer"), null);
+            recipient.getEmail(),
+            templateName,
+            mergeVars,
+            List.of("capital-transfer"),
+            attachments);
 
     var messageResponse =
         emailService
@@ -347,6 +358,7 @@ public class CapitalTransferContractService {
   }
 
   private String getLanguage(User user) {
+    // TODO this is always EST from us...
     var contactDetails = contactDetailsService.getContactDetails(user);
     return contactDetails.getLanguagePreference() == ENG ? "en" : "et";
   }

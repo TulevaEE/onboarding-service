@@ -76,7 +76,7 @@ class ExchangeTransactionLeaversRepositorySpec extends Specification {
         leaversRepository.fetch(LocalDate.parse("2021-01-01"), LocalDate.parse("2021-02-01"))
 
     then:
-    leavers == [aLeaver2, aLeaver3]
+    leavers == [aLeaver3]
   }
 
   private def insertIntoExchangeTransaction(ExchangeTransactionLeaver leaver,

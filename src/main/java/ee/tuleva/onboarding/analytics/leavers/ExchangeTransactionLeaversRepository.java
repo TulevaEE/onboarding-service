@@ -48,12 +48,7 @@ public class ExchangeTransactionLeaversRepository
         WHERE
             et.date_created >= :startDate AND
             et.date_created < :endDate AND
-            et.reporting_date IN (
-              SELECT DISTINCT reporting_date
-              FROM public.exchange_transaction
-              ORDER BY reporting_date DESC
-              LIMIT 2
-            ) AND
+            et.reporting_date = (SELECT MAX(reporting_date) FROM public.exchange_transaction) AND
             (et.security_from = 'EE3600109435' OR et.security_from = 'EE3600109443') AND
             et.security_to <> 'EE3600109435' AND
             et.security_to <> 'EE3600109443' AND

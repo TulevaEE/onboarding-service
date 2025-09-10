@@ -143,9 +143,8 @@ public class ListingService {
 
                 Here are the %s details:,
                 %s
-                %s
-                %s
-                """)
+                %s%s
+                """
           .formatted(
               interestedUserName,
               listing.getType() == BUY
@@ -158,8 +157,8 @@ public class ListingService {
                   ? interestedUserName + " (" + interestedUserPersonalCode + ")"
                   : interestedUserName,
               interestedUserEmail,
-              contactMessageRequest.addPhoneNumber() ? interestedUserPhoneNumber : "")
-          .trim();
+              contactMessageRequest.addPhoneNumber() ? "\n" + interestedUserPhoneNumber : "")
+          ).trim();
     }
 
     return transformMessageNewlines(
@@ -172,9 +171,8 @@ public class ListingService {
 
             Siin on sulle %s andmed:
             %s
-            %s
-            %s
-            """)
+            %s%s
+            """
         .formatted(
             interestedUserName,
             listing.getType() == BUY
@@ -187,8 +185,8 @@ public class ListingService {
                 ? interestedUserName + " (" + interestedUserPersonalCode + ")"
                 : interestedUserName,
             interestedUserEmail,
-            contactMessageRequest.addPhoneNumber() ? interestedUserPhoneNumber : "")
-        .trim();
+            contactMessageRequest.addPhoneNumber() ? "\n" + interestedUserPhoneNumber : "")
+    ).trim();
   }
 
   private boolean hasEnoughMemberCapital(User user, NewListingRequest request) {

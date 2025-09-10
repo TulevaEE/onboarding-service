@@ -145,20 +145,22 @@ public class ListingService {
                 %s
                 %s%s
                 """
-          .formatted(
-              interestedUserName,
-              listing.getType() == BUY
-                  ? "wants to sell you their membership capital"
-                  : "wants to buy your membership capital",
-              bookValue,
-              totalAmount,
-              listing.getType() == BUY ? "seller's" : "buyer's",
-              contactMessageRequest.addPersonalCode()
-                  ? interestedUserName + " (" + interestedUserPersonalCode + ")"
-                  : interestedUserName,
-              interestedUserEmail,
-              contactMessageRequest.addPhoneNumber() ? "\n" + interestedUserPhoneNumber : "")
-          ).trim();
+                  .formatted(
+                      interestedUserName,
+                      listing.getType() == BUY
+                          ? "wants to sell you their membership capital"
+                          : "wants to buy your membership capital",
+                      bookValue,
+                      totalAmount,
+                      listing.getType() == BUY ? "seller's" : "buyer's",
+                      contactMessageRequest.addPersonalCode()
+                          ? interestedUserName + " (" + interestedUserPersonalCode + ")"
+                          : interestedUserName,
+                      interestedUserEmail,
+                      contactMessageRequest.addPhoneNumber()
+                          ? "\n" + interestedUserPhoneNumber
+                          : ""))
+          .trim();
     }
 
     return transformMessageNewlines(
@@ -173,20 +175,20 @@ public class ListingService {
             %s
             %s%s
             """
-        .formatted(
-            interestedUserName,
-            listing.getType() == BUY
-                ? "soovib sulle sulle müüa oma liikmekapitali"
-                : "soovib osta sinu liikmekapitali",
-            bookValue,
-            totalAmount,
-            listing.getType() == BUY ? "müüja" : "ostja",
-            contactMessageRequest.addPersonalCode()
-                ? interestedUserName + " (" + interestedUserPersonalCode + ")"
-                : interestedUserName,
-            interestedUserEmail,
-            contactMessageRequest.addPhoneNumber() ? "\n" + interestedUserPhoneNumber : "")
-    ).trim();
+                .formatted(
+                    interestedUserName,
+                    listing.getType() == BUY
+                        ? "soovib sulle sulle müüa oma liikmekapitali"
+                        : "soovib osta sinu liikmekapitali",
+                    bookValue,
+                    totalAmount,
+                    listing.getType() == BUY ? "müüja" : "ostja",
+                    contactMessageRequest.addPersonalCode()
+                        ? interestedUserName + " (" + interestedUserPersonalCode + ")"
+                        : interestedUserName,
+                    interestedUserEmail,
+                    contactMessageRequest.addPhoneNumber() ? "\n" + interestedUserPhoneNumber : ""))
+        .trim();
   }
 
   private boolean hasEnoughMemberCapital(User user, NewListingRequest request) {

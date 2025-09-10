@@ -135,7 +135,7 @@ public class ListingService {
     if ("en".equalsIgnoreCase(language)) {
       return transformMessageNewlines(
               """
-                %s %s, amount: %s €; price: %s €
+                %s %s, amount: %s €; price: %s €
 
                 If you’d like to proceed, <b>please contact the interested party and agree on the details</b>: price, amount, and where and when you should transfer the money. You can simply reply to this email — that will start a direct email thread between you two. Tuleva won’t see your messages.
 
@@ -165,7 +165,7 @@ public class ListingService {
 
     return transformMessageNewlines(
             """
-            %s %s raamatupidamislikus väärtuses %s € hinnaga %s €.
+            %s %s raamatupidamislikus väärtuses %s € hinnaga %s €.
 
             Kui soovid tehinguga edasi minna, siis <b>võta palun huvilisega ise ühendust ja lepi kokku detailides</b>: kogus, hind ning kuhu ja millal ostja raha peab kandma. Selleks vasta praegusele kirjale – nii algab teie omavaheline suhtlus. Tulevani need kirjad ei jõua.
 

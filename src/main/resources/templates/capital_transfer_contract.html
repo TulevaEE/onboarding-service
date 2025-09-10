@@ -8,8 +8,21 @@
             font-family: Arial, sans-serif;
             font-size: 12px;
             line-height: 1.4;
-            margin: 40px;
+            margin: 0;
+            padding: 40px;
             color: #333;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .document {
+            max-width: 21cm;
+            width: 100%;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 40px;
+            box-sizing: border-box;
         }
         .header {
             text-align: center;
@@ -42,11 +55,18 @@
             margin-bottom: 8px;
         }
         .detail-label {
-            width: 150px;
+            width: 180px;
             font-weight: bold;
         }
         .detail-value {
             flex: 1;
+            text-align: right;
+        }
+        .transfer-amount-row {
+            margin-left: 20px;
+        }
+        .transfer-amount-row .detail-label {
+            width: 160px;
         }
         .signature-section {
             margin-top: 40px;
@@ -75,6 +95,7 @@
     </style>
 </head>
 <body>
+<div class="document">
     <div class="header">
         <div class="contract-title">LIIKMEKAPITALI MÜÜGILEPING</div>
         <div>Koostatud: <span th:text="${formattedCreatedAt}"></span></div>
@@ -87,14 +108,14 @@
             <div class="party-title">MÜÜJA:</div>
             <div th:text="${sellerFirstName} + ' ' + ${sellerLastName}"></div>
             <div>Isikukood: <span th:text="${sellerPersonalCode}"></span></div>
-            <div>Liikmekood: <span th:text="${sellerMemberNumber}"></span></div>
+            <div>Liikmenumber: <span th:text="${sellerMemberNumber}"></span></div>
         </div>
 
         <div class="party-info">
             <div class="party-title">OSTJA:</div>
             <div th:text="${buyerFirstName} + ' ' + ${buyerLastName}"></div>
             <div>Isikukood: <span th:text="${buyerPersonalCode}"></span></div>
-            <div>Liikmekood: <span th:text="${buyerMemberNumber}"></span></div>
+            <div>Liikmenumber: <span th:text="${buyerMemberNumber}"></span></div>
         </div>
     </div>
 
@@ -103,21 +124,20 @@
         
         <div class="contract-details">
             <div class="detail-row">
-                <div class="detail-label">Müügiese liik:</div>
-                <div class="detail-value" th:text="${shareTypeName}"></div>
+                <div class="detail-label">Müüdav liikmekapital:</div>
+                <div class="detail-value"><span th:text="${totalAmount}">0.00</span> EUR</div>
             </div>
+            
+            <div th:each="transferAmount : ${transferAmounts}" class="detail-row transfer-amount-row">
+                <div class="detail-label">– <span th:text="${transferAmount.typeName}">liik</span>:</div>
+                <div class="detail-value"><span th:text="${transferAmount.formattedBookValue}">0.00</span> EUR</div>
+            </div>
+            
             <div class="detail-row">
-                <div class="detail-label">Müüdavate osade arv:</div>
-                <div class="detail-value" th:text="${unitCount}"></div>
+                <div class="detail-label">Hinnaga:</div>
+                <div class="detail-value"><span th:text="${totalPrice}">0.00</span> EUR</div>
             </div>
-            <div class="detail-row">
-                <div class="detail-label">Osa hind:</div>
-                <div class="detail-value" th:text="${unitPrice} + ' EUR'"></div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Kogu summa:</div>
-                <div class="detail-value" th:text="${totalAmount} + ' EUR'"></div>
-            </div>
+            
             <div class="detail-row">
                 <div class="detail-label">Ostja pangakonto:</div>
                 <div class="detail-value" th:text="${iban}"></div>
@@ -153,5 +173,6 @@
             <div th:text="${buyerFirstName} + ' ' + ${buyerLastName}"></div>
         </div>
     </div>
+</div>
 </body>
 </html>

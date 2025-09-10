@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.capital.transfer.content;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -25,7 +27,7 @@ public class CapitalTransferContractContentService {
 
   public byte[] generateContractContent(CapitalTransferContract contract) {
     String html = generateContractHtml(contract);
-    return html.getBytes();
+    return html.getBytes(UTF_8);
   }
 
   private Context buildContext(CapitalTransferContract contract) {
@@ -33,7 +35,7 @@ public class CapitalTransferContractContentService {
         .seller(contract.getSeller())
         .buyer(contract.getBuyer())
         .iban(contract.getIban())
-        .totalAmount(contract.getTotalPrice())
+        .transferAmounts(contract.getTransferAmounts())
         .contractState(contract.getState())
         .createdAt(contract.getCreatedAt())
         .formattedCreatedAt(formatDateTime(contract.getCreatedAt()))

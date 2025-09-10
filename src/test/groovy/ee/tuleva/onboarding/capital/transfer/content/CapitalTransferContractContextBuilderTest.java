@@ -81,7 +81,7 @@ class CapitalTransferContractContextBuilderTest {
         CapitalTransferContractContextBuilder.builder().totalAmount(totalAmount).build();
 
     // then
-    assertThat(context.getVariable("totalAmount")).isEqualTo(totalAmount);
+    assertThat(context.getVariable("totalAmount")).isEqualTo("1 250.00");
   }
 
   @Test
@@ -167,7 +167,7 @@ class CapitalTransferContractContextBuilderTest {
     assertThat(context.getVariable("buyerPersonalCode")).isEqualTo("60001019906");
     assertThat(context.getVariable("buyerMemberNumber")).isEqualTo(1002);
     assertThat(context.getVariable("iban")).isEqualTo(iban);
-    assertThat(context.getVariable("totalAmount")).isEqualTo(totalAmount);
+    assertThat(context.getVariable("totalAmount")).isEqualTo("1 250.00");
     assertThat(context.getVariable("contractState")).isEqualTo(contractState);
     assertThat(context.getVariable("createdAt")).isEqualTo(createdAt);
     assertThat(context.getVariable("formattedCreatedAt")).isEqualTo(formattedCreatedAt);

@@ -9,8 +9,21 @@ capital_transfer_contract_member_bonus=[
             font-family: Arial, sans-serif;
             font-size: 12px;
             line-height: 1.4;
-            margin: 40px;
+            margin: 0;
+            padding: 40px;
             color: #333;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .document {
+            max-width: 21cm;
+            width: 100%;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 40px;
+            box-sizing: border-box;
         }
         .header {
             text-align: center;
@@ -43,11 +56,18 @@ capital_transfer_contract_member_bonus=[
             margin-bottom: 8px;
         }
         .detail-label {
-            width: 150px;
+            width: 180px;
             font-weight: bold;
         }
         .detail-value {
             flex: 1;
+            text-align: right;
+        }
+        .transfer-amount-row {
+            margin-left: 20px;
+        }
+        .transfer-amount-row .detail-label {
+            width: 160px;
         }
         .signature-section {
             margin-top: 40px;
@@ -76,6 +96,7 @@ capital_transfer_contract_member_bonus=[
     </style>
 </head>
 <body>
+<div class="document">
     <div class="header">
         <div class="contract-title">LIIKMEKAPITALI MÜÜGILEPING</div>
         <div>Koostatud: <span>20.01.2024 14:45</span></div>
@@ -88,14 +109,14 @@ capital_transfer_contract_member_bonus=[
             <div class="party-title">MÜÜJA:</div>
             <div>Jane Seller</div>
             <div>Isikukood: <span>48001010001</span></div>
-            <div>Liikmekood: <span>2001</span></div>
+            <div>Liikmenumber: <span>2001</span></div>
         </div>
 
         <div class="party-info">
             <div class="party-title">OSTJA:</div>
             <div>Peeter Buyer</div>
             <div>Isikukood: <span>39001010002</span></div>
-            <div>Liikmekood: <span>2002</span></div>
+            <div>Liikmenumber: <span>2002</span></div>
         </div>
     </div>
 
@@ -104,21 +125,20 @@ capital_transfer_contract_member_bonus=[
         
         <div class="contract-details">
             <div class="detail-row">
-                <div class="detail-label">Müügiese liik:</div>
-                <div class="detail-value"></div>
+                <div class="detail-label">Müüdav liikmekapital:</div>
+                <div class="detail-value"><span>100.00</span> EUR</div>
             </div>
+            
+            <div class="detail-row transfer-amount-row">
+                <div class="detail-label">– <span>Liikmeboonus</span>:</div>
+                <div class="detail-value"><span>100.00</span> EUR</div>
+            </div>
+            
             <div class="detail-row">
-                <div class="detail-label">Müüdavate osade arv:</div>
-                <div class="detail-value"></div>
+                <div class="detail-label">Hinnaga:</div>
+                <div class="detail-value"><span>200.00</span> EUR</div>
             </div>
-            <div class="detail-row">
-                <div class="detail-label">Osa hind:</div>
-                <div class="detail-value">null EUR</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Kogu summa:</div>
-                <div class="detail-value">100.0 EUR</div>
-            </div>
+            
             <div class="detail-row">
                 <div class="detail-label">Ostja pangakonto:</div>
                 <div class="detail-value">EE382200221020145685</div>
@@ -154,6 +174,7 @@ capital_transfer_contract_member_bonus=[
             <div>Peeter Buyer</div>
         </div>
     </div>
+</div>
 </body>
 </html>
 ]
@@ -170,8 +191,21 @@ capital_transfer_contract_member_capital=[
             font-family: Arial, sans-serif;
             font-size: 12px;
             line-height: 1.4;
-            margin: 40px;
+            margin: 0;
+            padding: 40px;
             color: #333;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .document {
+            max-width: 21cm;
+            width: 100%;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 40px;
+            box-sizing: border-box;
         }
         .header {
             text-align: center;
@@ -204,11 +238,18 @@ capital_transfer_contract_member_capital=[
             margin-bottom: 8px;
         }
         .detail-label {
-            width: 150px;
+            width: 180px;
             font-weight: bold;
         }
         .detail-value {
             flex: 1;
+            text-align: right;
+        }
+        .transfer-amount-row {
+            margin-left: 20px;
+        }
+        .transfer-amount-row .detail-label {
+            width: 160px;
         }
         .signature-section {
             margin-top: 40px;
@@ -237,6 +278,7 @@ capital_transfer_contract_member_capital=[
     </style>
 </head>
 <body>
+<div class="document">
     <div class="header">
         <div class="contract-title">LIIKMEKAPITALI MÜÜGILEPING</div>
         <div>Koostatud: <span>15.12.2023 10:30</span></div>
@@ -249,14 +291,14 @@ capital_transfer_contract_member_capital=[
             <div class="party-title">MÜÜJA:</div>
             <div>John Seller</div>
             <div>Isikukood: <span>37605030299</span></div>
-            <div>Liikmekood: <span>1001</span></div>
+            <div>Liikmenumber: <span>1001</span></div>
         </div>
 
         <div class="party-info">
             <div class="party-title">OSTJA:</div>
             <div>Mari Buyer</div>
             <div>Isikukood: <span>60001019906</span></div>
-            <div>Liikmekood: <span>1002</span></div>
+            <div>Liikmenumber: <span>1002</span></div>
         </div>
     </div>
 
@@ -265,21 +307,20 @@ capital_transfer_contract_member_capital=[
         
         <div class="contract-details">
             <div class="detail-row">
-                <div class="detail-label">Müügiese liik:</div>
-                <div class="detail-value"></div>
+                <div class="detail-label">Müüdav liikmekapital:</div>
+                <div class="detail-value"><span>1 250.00</span> EUR</div>
             </div>
+            
+            <div class="detail-row transfer-amount-row">
+                <div class="detail-label">– <span>Rahaline panus</span>:</div>
+                <div class="detail-value"><span>1 250.00</span> EUR</div>
+            </div>
+            
             <div class="detail-row">
-                <div class="detail-label">Müüdavate osade arv:</div>
-                <div class="detail-value"></div>
+                <div class="detail-label">Hinnaga:</div>
+                <div class="detail-value"><span>2 500.00</span> EUR</div>
             </div>
-            <div class="detail-row">
-                <div class="detail-label">Osa hind:</div>
-                <div class="detail-value">null EUR</div>
-            </div>
-            <div class="detail-row">
-                <div class="detail-label">Kogu summa:</div>
-                <div class="detail-value">1250.0 EUR</div>
-            </div>
+            
             <div class="detail-row">
                 <div class="detail-label">Ostja pangakonto:</div>
                 <div class="detail-value">EE471000001020145685</div>
@@ -315,6 +356,194 @@ capital_transfer_contract_member_capital=[
             <div>Mari Buyer</div>
         </div>
     </div>
+</div>
+</body>
+</html>
+]
+
+
+capital_transfer_contract_multiple_amounts=[
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Liikmekapitali müügileping</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 40px;
+            color: #333;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .document {
+            max-width: 21cm;
+            width: 100%;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            padding: 40px;
+            box-sizing: border-box;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .contract-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .party-info {
+            margin-bottom: 15px;
+        }
+        .party-title {
+            font-weight: bold;
+            text-decoration: underline;
+        }
+        .contract-details {
+            margin: 20px 0;
+        }
+        .detail-row {
+            display: flex;
+            margin-bottom: 8px;
+        }
+        .detail-label {
+            width: 180px;
+            font-weight: bold;
+        }
+        .detail-value {
+            flex: 1;
+            text-align: right;
+        }
+        .transfer-amount-row {
+            margin-left: 20px;
+        }
+        .transfer-amount-row .detail-label {
+            width: 160px;
+        }
+        .signature-section {
+            margin-top: 40px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .signature-block {
+            width: 200px;
+            text-align: center;
+        }
+        .signature-line {
+            border-bottom: 1px solid #333;
+            margin-bottom: 5px;
+            height: 30px;
+        }
+        .terms {
+            margin: 20px 0;
+            font-size: 11px;
+        }
+        .terms ol {
+            padding-left: 20px;
+        }
+        .terms li {
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="document">
+    <div class="header">
+        <div class="contract-title">LIIKMEKAPITALI MÜÜGILEPING</div>
+        <div>Koostatud: <span>10.03.2024 16:15</span></div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">LEPINGU POOLED</div>
+        
+        <div class="party-info">
+            <div class="party-title">MÜÜJA:</div>
+            <div>Alice MultiSeller</div>
+            <div>Isikukood: <span>50001010003</span></div>
+            <div>Liikmenumber: <span>3001</span></div>
+        </div>
+
+        <div class="party-info">
+            <div class="party-title">OSTJA:</div>
+            <div>Bob MultiBuyer</div>
+            <div>Isikukood: <span>40001010004</span></div>
+            <div>Liikmenumber: <span>3002</span></div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">MÜÜGIESE ÜKSIKASJAD</div>
+        
+        <div class="contract-details">
+            <div class="detail-row">
+                <div class="detail-label">Müüdav liikmekapital:</div>
+                <div class="detail-value"><span>1 450.00</span> EUR</div>
+            </div>
+            
+            <div class="detail-row transfer-amount-row">
+                <div class="detail-label">– <span>Rahaline panus</span>:</div>
+                <div class="detail-value"><span>1 250.00</span> EUR</div>
+            </div>
+            
+            <div class="detail-row transfer-amount-row">
+                <div class="detail-label">– <span>Liikmeboonus</span>:</div>
+                <div class="detail-value"><span>200.00</span> EUR</div>
+            </div>
+            
+            <div class="detail-row">
+                <div class="detail-label">Hinnaga:</div>
+                <div class="detail-value"><span>2 900.00</span> EUR</div>
+            </div>
+            
+            <div class="detail-row">
+                <div class="detail-label">Ostja pangakonto:</div>
+                <div class="detail-value">EE123456789012345678</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">LEPINGU TINGIMUSED</div>
+        <div class="terms">
+            <ol>
+                <li>Käesoleva lepinguga müüb müüja ja ostab ostja liikmekapitali osad vastavalt käesoleva lepingu punktis "Müügiese üksikasjad" toodud tingimustele.</li>
+                <li>Müüja kinnitab, et tal on õigus müüa käesolevas lepingus nimetatud liikmekapitali osad.</li>
+                <li>Ostja kohustub tasuma müügihinna lepingu allkirjastamisest 5 tööpäeva jooksul müüja poolt märgitud pangakontole.</li>
+                <li>Osade omandiõigus läheb üle ostjale pärast müügihinna täielikku laekumist müüja arvele.</li>
+                <li>Mõlemad pooled kohustuvad täitma kõik seadusest tulenevad nõuded liikmekapitali osade müügi osas.</li>
+                <li>Lepingu muudatused on kehtivad ainult kirjalikus vormis ja mõlema poole allkirjastamisel.</li>
+                <li>Lepingust tulenevad vaidlused lahendatakse läbirääkimiste teel või kohtulikku korda.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="signature-section">
+        <div class="signature-block">
+            <div class="signature-line"></div>
+            <div><strong>MÜÜJA</strong></div>
+            <div>Alice MultiSeller</div>
+        </div>
+        
+        <div class="signature-block">
+            <div class="signature-line"></div>
+            <div><strong>OSTJA</strong></div>
+            <div>Bob MultiBuyer</div>
+        </div>
+    </div>
+</div>
 </body>
 </html>
 ]

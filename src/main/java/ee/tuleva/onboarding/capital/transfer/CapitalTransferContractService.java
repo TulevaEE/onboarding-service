@@ -323,16 +323,15 @@ public class CapitalTransferContractService {
             "lname", recipient.getLastName(),
             "sellerFirstName", contract.getSellerFirstName(),
             "sellerLastName", contract.getSellerLastName(),
+            "sellerFullName", contract.getSellerFullName(),
             "buyerFirstName", contract.getBuyerFirstName(),
             "buyerLastName", contract.getBuyerLastName(),
-            "sellerFullName", contract.getSellerFullName(),
             "buyerFullName", contract.getBuyerFullName(),
             "contractId", contract.getId());
 
     var templateName = emailType.getTemplateName(getLanguage(recipient));
     MandrillMessage message =
         emailService.newMandrillMessage(
-            // TODO language
             recipient.getEmail(), templateName, mergeVars, List.of("capital-transfer"), null);
 
     var messageResponse =
@@ -349,11 +348,6 @@ public class CapitalTransferContractService {
 
   private String getLanguage(User user) {
     var contactDetails = contactDetailsService.getContactDetails(user);
-
-    if (contactDetails.getLanguagePreference() == ENG) {
-      return "en";
-    }
-
-    return "et";
+    return contactDetails.getLanguagePreference() == ENG ? "en" : "et";
   }
 }

@@ -2335,11 +2335,11 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
       </thead>
       <tbody>
         <tr>
-          <td></td>
+          <td>Tuleva maailma aktsiate pensionifond</td>
           <td ><span>10</span><span>%</span></td>
         </tr>
         <tr>
-          <td></td>
+          <td>LHV XL</td>
           <td ><span>5</span><span>%</span></td>
         </tr>
       </tbody>
@@ -2815,11 +2815,11 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
       </thead>
       <tbody>
         <tr>
-          <td></td>
+          <td>Tuleva maailma aktsiate pensionifond</td>
           <td>20</td>
         </tr>
         <tr>
-          <td></td>
+          <td>Tuleva maailma aktsiate pensionifond</td>
           <td>30</td>
         </tr>
       </tbody>

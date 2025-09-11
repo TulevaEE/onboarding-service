@@ -24,27 +24,27 @@ import static ee.tuleva.onboarding.user.address.AddressFixture.addressFixture
 class MandateFixture {
 
   public static PartialWithdrawalMandateDetails aPartialWithdrawalMandateDetails = new PartialWithdrawalMandateDetails(SECOND,
-      new BankAccountDetails(ESTONIAN, "EE3477123123123"),
-      List.of(new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600109435", 10, BigDecimal.valueOf(20)),
-          new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600019766", 5, BigDecimal.valueOf(30))),
+      new BankAccountDetails(ESTONIAN, "EE591254471322749514"),
+      List.of(new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE591254471322749514", 10, BigDecimal.valueOf(20)),
+          new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE591254471322749514", 5, BigDecimal.valueOf(30))),
       "EST"
   )
 
   public static PartialWithdrawalMandateDetails aThirdPillarPartialWithdrawalMandateDetails = new PartialWithdrawalMandateDetails(THIRD,
-      new BankAccountDetails(ESTONIAN, "EE3477123123123"),
-      List.of(new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600109435", 10, BigDecimal.valueOf(20)),
-          new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE3600019766", 5, BigDecimal.valueOf(30))),
+      new BankAccountDetails(ESTONIAN, "EE591254471322749514"),
+      List.of(new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE591254471322749514", 10, BigDecimal.valueOf(20)),
+          new PartialWithdrawalMandateDetails.FundWithdrawalAmount("EE591254471322749514", 5, BigDecimal.valueOf(30))),
       "EST"
   )
 
   public static FundPensionOpeningMandateDetails aFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(SECOND,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, false),
-      new BankAccountDetails(ESTONIAN, "EE3477123123123")
+      new BankAccountDetails(ESTONIAN, "EE591254471322749514")
   )
 
   public static FundPensionOpeningMandateDetails aThirdPillarFundPensionOpeningMandateDetails = new FundPensionOpeningMandateDetails(THIRD,
       new FundPensionOpeningMandateDetails.FundPensionDuration(20, true),
-      new BankAccountDetails(ESTONIAN, "EE3477123123123")
+      new BankAccountDetails(ESTONIAN, "EE591254471322749514")
   )
 
   public static PaymentRateChangeMandateDetails aPaymentRateChangeMandateDetails = new PaymentRateChangeMandateDetails(SIX)

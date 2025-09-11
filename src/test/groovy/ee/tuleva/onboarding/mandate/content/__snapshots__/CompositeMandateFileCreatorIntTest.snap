@@ -725,11 +725,11 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Pangakonto number</div>
-    <div class="form-value">EE3477123123123</div>
+    <div class="form-value">EE591254471322749514</div>
   </div>
   <div class="form-group">
     <div class="form-label">Pank</div>
-    <div class="form-value">AS LHV Pank</div>
+    <div class="form-value">AS Citadele banka Eesti filiaal</div>
   </div>
   <div class="form-group">
     <div class="form-label">Swift/BIC</div>
@@ -2105,11 +2105,11 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Pangakonto number</div>
-    <div class="form-value">EE3477123123123</div>
+    <div class="form-value">EE591254471322749514</div>
   </div>
   <div class="form-group">
     <div class="form-label">Pank</div>
-    <div class="form-value">AS LHV Pank</div>
+    <div class="form-value">AS Citadele banka Eesti filiaal</div>
   </div>
   <div class="form-group">
     <div class="form-label">Swift/BIC</div>
@@ -2335,11 +2335,11 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
       </thead>
       <tbody>
         <tr>
-          <td>Tuleva maailma aktsiate pensionifond</td>
+          <td></td>
           <td ><span>10</span><span>%</span></td>
         </tr>
         <tr>
-          <td>LHV XL</td>
+          <td></td>
           <td ><span>5</span><span>%</span></td>
         </tr>
       </tbody>
@@ -2349,11 +2349,11 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Pangakonto number</div>
-    <div class="form-value">EE3477123123123</div>
+    <div class="form-value">EE591254471322749514</div>
   </div>
   <div class="form-group">
     <div class="form-label">Pank</div>
-    <div class="form-value">AS LHV Pank</div>
+    <div class="form-value">AS Citadele banka Eesti filiaal</div>
   </div>
   <div class="form-group">
     <div class="form-label">Swift/BIC</div>
@@ -2588,11 +2588,11 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Pangakonto number</div>
-    <div class="form-value">EE3477123123123</div>
+    <div class="form-value">EE591254471322749514</div>
   </div>
   <div class="form-group">
     <div class="form-label">Pank</div>
-    <div class="form-value">AS LHV Pank</div>
+    <div class="form-value">AS Citadele banka Eesti filiaal</div>
   </div>
   <div class="form-group">
     <div class="form-label">Swift/BIC</div>
@@ -2815,11 +2815,11 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
       </thead>
       <tbody>
         <tr>
-          <td>Tuleva maailma aktsiate pensionifond</td>
+          <td></td>
           <td>20</td>
         </tr>
         <tr>
-          <td>LHV XL</td>
+          <td></td>
           <td>30</td>
         </tr>
       </tbody>
@@ -2835,11 +2835,11 @@ ee.tuleva.onboarding.mandate.content.CompositeMandateFileCreatorIntTest.testMand
 <div class="form-grouping">
   <div class="form-group">
     <div class="form-label">Pangakonto number</div>
-    <div class="form-value">EE3477123123123</div>
+    <div class="form-value">EE591254471322749514</div>
   </div>
   <div class="form-group">
     <div class="form-label">Pank</div>
-    <div class="form-value">AS LHV Pank</div>
+    <div class="form-value">AS Citadele banka Eesti filiaal</div>
   </div>
   <div class="form-group">
     <div class="form-label">Swift/BIC</div>

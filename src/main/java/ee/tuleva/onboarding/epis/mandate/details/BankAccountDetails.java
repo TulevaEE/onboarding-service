@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.epis.mandate.details;
 
+import static ee.tuleva.onboarding.capital.transfer.iban.IbanValidator.isValid;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.Arrays;
 import lombok.Getter;
@@ -35,7 +37,11 @@ public record BankAccountDetails(BankAccountType type, String accountIban) {
     }
 
     public static Bank fromIban(String iban) {
-      String ibanCheckCode = iban.substring(4, 6);
+      if (!isValid(iban)) {
+        throw new IllegalArgumentException("Invalid IBAN");
+      }
+
+      String ibanCheckCode = iban.replaceAll("\\s+", "").substring(4, 6);
       return Arrays.stream(values())
           .filter(bank -> bank.ibanCheckCode.equals(ibanCheckCode))
           .findFirst()

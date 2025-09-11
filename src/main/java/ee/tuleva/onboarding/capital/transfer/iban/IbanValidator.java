@@ -110,6 +110,10 @@ public class IbanValidator implements ConstraintValidator<ValidIban, String> {
 
   @Override
   public boolean isValid(String iban, ConstraintValidatorContext ctx) {
+    return IbanValidator.isValid(iban);
+  }
+
+  public static boolean isValid(String iban) {
     if (iban == null) return false;
 
     String s = iban.trim().toUpperCase().replaceAll("\\s+", "");

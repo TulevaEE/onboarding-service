@@ -3,7 +3,7 @@ capital_transfer_contract_member_bonus=[
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Liikmekapitali müügileping</title>
+    <title>Liikmekapitali võõrandamise avaldus</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -37,16 +37,11 @@ capital_transfer_contract_member_bonus=[
         .section {
             margin-bottom: 20px;
         }
-        .section-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
         .party-info {
             margin-bottom: 15px;
         }
         .party-title {
             font-weight: bold;
-            text-decoration: underline;
         }
         .contract-details {
             margin: 20px 0;
@@ -83,94 +78,70 @@ capital_transfer_contract_member_bonus=[
             margin-bottom: 5px;
             height: 30px;
         }
-        .terms {
-            margin: 20px 0;
+        .bank-name {
             font-size: 11px;
-        }
-        .terms ol {
-            padding-left: 20px;
-        }
-        .terms li {
-            margin-bottom: 8px;
+            color: #666;
         }
     </style>
 </head>
 <body>
 <div class="document">
     <div class="header">
-        <div class="contract-title">LIIKMEKAPITALI MÜÜGILEPING</div>
+        <div class="contract-title">Liikmekapitali võõrandamise avaldus</div>
         <div>Koostatud: <span>20.01.2024 14:45</span></div>
     </div>
 
-    <div class="section">
-        <div class="section-title">LEPINGU POOLED</div>
-        
+    <div class="section parties-section">
         <div class="party-info">
-            <div class="party-title">MÜÜJA:</div>
+            <div class="party-title">Müüja</div>
             <div>Jane Seller</div>
-            <div>Isikukood: <span>48001010001</span></div>
-            <div>Liikmenumber: <span>2001</span></div>
+            <div>48001010001</div>
         </div>
 
         <div class="party-info">
-            <div class="party-title">OSTJA:</div>
+            <div class="party-title">Ostja</div>
             <div>Peeter Buyer</div>
-            <div>Isikukood: <span>39001010002</span></div>
-            <div>Liikmenumber: <span>2002</span></div>
+            <div>39001010002</div>
         </div>
     </div>
 
     <div class="section">
-        <div class="section-title">MÜÜGIESE ÜKSIKASJAD</div>
-        
         <div class="contract-details">
             <div class="detail-row">
-                <div class="detail-label">Müüdav liikmekapital:</div>
-                <div class="detail-value"><span>100.00</span> EUR</div>
+                <div class="detail-label">Müüdav liikmekapital</div>
+                <div class="detail-value"><span>100.00</span> €</div>
             </div>
             
             <div class="detail-row transfer-amount-row">
-                <div class="detail-label">– <span>Liikmeboonus</span>:</div>
-                <div class="detail-value"><span>100.00</span> EUR</div>
+                <div class="detail-label">– <span>Liikmeboonus</span></div>
+                <div class="detail-value"><span>100.00</span> €</div>
             </div>
             
             <div class="detail-row">
-                <div class="detail-label">Hinnaga:</div>
-                <div class="detail-value"><span>200.00</span> EUR</div>
+                <div class="detail-label">Hinnaga</div>
+                <div class="detail-value"><span>200.00</span> €</div>
             </div>
             
             <div class="detail-row">
-                <div class="detail-label">Ostja pangakonto:</div>
-                <div class="detail-value">EE382200221020145685</div>
+                <div class="detail-label">Müüja pangakonto (IBAN)</div>
+                <div class="detail-value">
+                    <div>EE211722839095030454</div>
+                    <div class="bank-name">Luminor Bank AS</div>
+                </div>
             </div>
-        </div>
-    </div>
-
-    <div class="section">
-        <div class="section-title">LEPINGU TINGIMUSED</div>
-        <div class="terms">
-            <ol>
-                <li>Käesoleva lepinguga müüb müüja ja ostab ostja liikmekapitali osad vastavalt käesoleva lepingu punktis "Müügiese üksikasjad" toodud tingimustele.</li>
-                <li>Müüja kinnitab, et tal on õigus müüa käesolevas lepingus nimetatud liikmekapitali osad.</li>
-                <li>Ostja kohustub tasuma müügihinna lepingu allkirjastamisest 5 tööpäeva jooksul müüja poolt märgitud pangakontole.</li>
-                <li>Osade omandiõigus läheb üle ostjale pärast müügihinna täielikku laekumist müüja arvele.</li>
-                <li>Mõlemad pooled kohustuvad täitma kõik seadusest tulenevad nõuded liikmekapitali osade müügi osas.</li>
-                <li>Lepingu muudatused on kehtivad ainult kirjalikus vormis ja mõlema poole allkirjastamisel.</li>
-                <li>Lepingust tulenevad vaidlused lahendatakse läbirääkimiste teel või kohtulikku korda.</li>
-            </ol>
         </div>
     </div>
 
     <div class="signature-section">
         <div class="signature-block">
             <div class="signature-line"></div>
-            <div><strong>MÜÜJA</strong></div>
+            <div><strong>Müüja</strong></div>
             <div>Jane Seller</div>
         </div>
         
         <div class="signature-block">
             <div class="signature-line"></div>
-            <div><strong>OSTJA</strong></div>
+            <div><strong>Ostja</strong></div>
             <div>Peeter Buyer</div>
         </div>
     </div>
@@ -185,7 +156,7 @@ capital_transfer_contract_member_capital=[
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Liikmekapitali müügileping</title>
+    <title>Liikmekapitali võõrandamise avaldus</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -219,16 +190,11 @@ capital_transfer_contract_member_capital=[
         .section {
             margin-bottom: 20px;
         }
-        .section-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
         .party-info {
             margin-bottom: 15px;
         }
         .party-title {
             font-weight: bold;
-            text-decoration: underline;
         }
         .contract-details {
             margin: 20px 0;
@@ -265,94 +231,70 @@ capital_transfer_contract_member_capital=[
             margin-bottom: 5px;
             height: 30px;
         }
-        .terms {
-            margin: 20px 0;
+        .bank-name {
             font-size: 11px;
-        }
-        .terms ol {
-            padding-left: 20px;
-        }
-        .terms li {
-            margin-bottom: 8px;
+            color: #666;
         }
     </style>
 </head>
 <body>
 <div class="document">
     <div class="header">
-        <div class="contract-title">LIIKMEKAPITALI MÜÜGILEPING</div>
+        <div class="contract-title">Liikmekapitali võõrandamise avaldus</div>
         <div>Koostatud: <span>15.12.2023 10:30</span></div>
     </div>
 
-    <div class="section">
-        <div class="section-title">LEPINGU POOLED</div>
-        
+    <div class="section parties-section">
         <div class="party-info">
-            <div class="party-title">MÜÜJA:</div>
+            <div class="party-title">Müüja</div>
             <div>John Seller</div>
-            <div>Isikukood: <span>37605030299</span></div>
-            <div>Liikmenumber: <span>1001</span></div>
+            <div>37605030299</div>
         </div>
 
         <div class="party-info">
-            <div class="party-title">OSTJA:</div>
+            <div class="party-title">Ostja</div>
             <div>Mari Buyer</div>
-            <div>Isikukood: <span>60001019906</span></div>
-            <div>Liikmenumber: <span>1002</span></div>
+            <div>60001019906</div>
         </div>
     </div>
 
     <div class="section">
-        <div class="section-title">MÜÜGIESE ÜKSIKASJAD</div>
-        
         <div class="contract-details">
             <div class="detail-row">
-                <div class="detail-label">Müüdav liikmekapital:</div>
-                <div class="detail-value"><span>1 250.00</span> EUR</div>
+                <div class="detail-label">Müüdav liikmekapital</div>
+                <div class="detail-value"><span>1 250.00</span> €</div>
             </div>
             
             <div class="detail-row transfer-amount-row">
-                <div class="detail-label">– <span>Rahaline panus</span>:</div>
-                <div class="detail-value"><span>1 250.00</span> EUR</div>
+                <div class="detail-label">– <span>Rahaline panus</span></div>
+                <div class="detail-value"><span>1 250.00</span> €</div>
             </div>
             
             <div class="detail-row">
-                <div class="detail-label">Hinnaga:</div>
-                <div class="detail-value"><span>2 500.00</span> EUR</div>
+                <div class="detail-label">Hinnaga</div>
+                <div class="detail-value"><span>2 500.00</span> €</div>
             </div>
             
             <div class="detail-row">
-                <div class="detail-label">Ostja pangakonto:</div>
-                <div class="detail-value">EE471000001020145685</div>
+                <div class="detail-label">Müüja pangakonto (IBAN)</div>
+                <div class="detail-value">
+                    <div>EE471000001020145685</div>
+                    <div class="bank-name">AS SEB Pank</div>
+                </div>
             </div>
-        </div>
-    </div>
-
-    <div class="section">
-        <div class="section-title">LEPINGU TINGIMUSED</div>
-        <div class="terms">
-            <ol>
-                <li>Käesoleva lepinguga müüb müüja ja ostab ostja liikmekapitali osad vastavalt käesoleva lepingu punktis "Müügiese üksikasjad" toodud tingimustele.</li>
-                <li>Müüja kinnitab, et tal on õigus müüa käesolevas lepingus nimetatud liikmekapitali osad.</li>
-                <li>Ostja kohustub tasuma müügihinna lepingu allkirjastamisest 5 tööpäeva jooksul müüja poolt märgitud pangakontole.</li>
-                <li>Osade omandiõigus läheb üle ostjale pärast müügihinna täielikku laekumist müüja arvele.</li>
-                <li>Mõlemad pooled kohustuvad täitma kõik seadusest tulenevad nõuded liikmekapitali osade müügi osas.</li>
-                <li>Lepingu muudatused on kehtivad ainult kirjalikus vormis ja mõlema poole allkirjastamisel.</li>
-                <li>Lepingust tulenevad vaidlused lahendatakse läbirääkimiste teel või kohtulikku korda.</li>
-            </ol>
         </div>
     </div>
 
     <div class="signature-section">
         <div class="signature-block">
             <div class="signature-line"></div>
-            <div><strong>MÜÜJA</strong></div>
+            <div><strong>Müüja</strong></div>
             <div>John Seller</div>
         </div>
         
         <div class="signature-block">
             <div class="signature-line"></div>
-            <div><strong>OSTJA</strong></div>
+            <div><strong>Ostja</strong></div>
             <div>Mari Buyer</div>
         </div>
     </div>
@@ -367,7 +309,7 @@ capital_transfer_contract_multiple_amounts=[
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Liikmekapitali müügileping</title>
+    <title>Liikmekapitali võõrandamise avaldus</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -401,16 +343,11 @@ capital_transfer_contract_multiple_amounts=[
         .section {
             margin-bottom: 20px;
         }
-        .section-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
         .party-info {
             margin-bottom: 15px;
         }
         .party-title {
             font-weight: bold;
-            text-decoration: underline;
         }
         .contract-details {
             margin: 20px 0;
@@ -447,99 +384,75 @@ capital_transfer_contract_multiple_amounts=[
             margin-bottom: 5px;
             height: 30px;
         }
-        .terms {
-            margin: 20px 0;
+        .bank-name {
             font-size: 11px;
-        }
-        .terms ol {
-            padding-left: 20px;
-        }
-        .terms li {
-            margin-bottom: 8px;
+            color: #666;
         }
     </style>
 </head>
 <body>
 <div class="document">
     <div class="header">
-        <div class="contract-title">LIIKMEKAPITALI MÜÜGILEPING</div>
+        <div class="contract-title">Liikmekapitali võõrandamise avaldus</div>
         <div>Koostatud: <span>10.03.2024 16:15</span></div>
     </div>
 
-    <div class="section">
-        <div class="section-title">LEPINGU POOLED</div>
-        
+    <div class="section parties-section">
         <div class="party-info">
-            <div class="party-title">MÜÜJA:</div>
+            <div class="party-title">Müüja</div>
             <div>Alice MultiSeller</div>
-            <div>Isikukood: <span>50001010003</span></div>
-            <div>Liikmenumber: <span>3001</span></div>
+            <div>50001010003</div>
         </div>
 
         <div class="party-info">
-            <div class="party-title">OSTJA:</div>
+            <div class="party-title">Ostja</div>
             <div>Bob MultiBuyer</div>
-            <div>Isikukood: <span>40001010004</span></div>
-            <div>Liikmenumber: <span>3002</span></div>
+            <div>40001010004</div>
         </div>
     </div>
 
     <div class="section">
-        <div class="section-title">MÜÜGIESE ÜKSIKASJAD</div>
-        
         <div class="contract-details">
             <div class="detail-row">
-                <div class="detail-label">Müüdav liikmekapital:</div>
-                <div class="detail-value"><span>1 450.00</span> EUR</div>
+                <div class="detail-label">Müüdav liikmekapital</div>
+                <div class="detail-value"><span>1 450.00</span> €</div>
             </div>
             
             <div class="detail-row transfer-amount-row">
-                <div class="detail-label">– <span>Rahaline panus</span>:</div>
-                <div class="detail-value"><span>1 250.00</span> EUR</div>
+                <div class="detail-label">– <span>Rahaline panus</span></div>
+                <div class="detail-value"><span>1 250.00</span> €</div>
             </div>
             
             <div class="detail-row transfer-amount-row">
-                <div class="detail-label">– <span>Liikmeboonus</span>:</div>
-                <div class="detail-value"><span>200.00</span> EUR</div>
+                <div class="detail-label">– <span>Liikmeboonus</span></div>
+                <div class="detail-value"><span>200.00</span> €</div>
             </div>
             
             <div class="detail-row">
-                <div class="detail-label">Hinnaga:</div>
-                <div class="detail-value"><span>2 900.00</span> EUR</div>
+                <div class="detail-label">Hinnaga</div>
+                <div class="detail-value"><span>2 900.00</span> €</div>
             </div>
             
             <div class="detail-row">
-                <div class="detail-label">Ostja pangakonto:</div>
-                <div class="detail-value">EE123456789012345678</div>
+                <div class="detail-label">Müüja pangakonto (IBAN)</div>
+                <div class="detail-value">
+                    <div>EE211722839095030454</div>
+                    <div class="bank-name">Luminor Bank AS</div>
+                </div>
             </div>
-        </div>
-    </div>
-
-    <div class="section">
-        <div class="section-title">LEPINGU TINGIMUSED</div>
-        <div class="terms">
-            <ol>
-                <li>Käesoleva lepinguga müüb müüja ja ostab ostja liikmekapitali osad vastavalt käesoleva lepingu punktis "Müügiese üksikasjad" toodud tingimustele.</li>
-                <li>Müüja kinnitab, et tal on õigus müüa käesolevas lepingus nimetatud liikmekapitali osad.</li>
-                <li>Ostja kohustub tasuma müügihinna lepingu allkirjastamisest 5 tööpäeva jooksul müüja poolt märgitud pangakontole.</li>
-                <li>Osade omandiõigus läheb üle ostjale pärast müügihinna täielikku laekumist müüja arvele.</li>
-                <li>Mõlemad pooled kohustuvad täitma kõik seadusest tulenevad nõuded liikmekapitali osade müügi osas.</li>
-                <li>Lepingu muudatused on kehtivad ainult kirjalikus vormis ja mõlema poole allkirjastamisel.</li>
-                <li>Lepingust tulenevad vaidlused lahendatakse läbirääkimiste teel või kohtulikku korda.</li>
-            </ol>
         </div>
     </div>
 
     <div class="signature-section">
         <div class="signature-block">
             <div class="signature-line"></div>
-            <div><strong>MÜÜJA</strong></div>
+            <div><strong>Müüja</strong></div>
             <div>Alice MultiSeller</div>
         </div>
         
         <div class="signature-block">
             <div class="signature-line"></div>
-            <div><strong>OSTJA</strong></div>
+            <div><strong>Ostja</strong></div>
             <div>Bob MultiBuyer</div>
         </div>
     </div>

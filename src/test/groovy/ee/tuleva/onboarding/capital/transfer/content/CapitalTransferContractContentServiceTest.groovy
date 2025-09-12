@@ -89,7 +89,7 @@ class CapitalTransferContractContentServiceTest extends Specification {
     CapitalTransferContract contract = CapitalTransferContract.builder()
         .seller(seller)
         .buyer(buyer)
-        .iban("EE382200221020145685")
+        .iban("EE211722839095030454")
         .transferAmounts(
             List.of(
                 new CapitalTransferContract.CapitalTransferAmount(
@@ -128,7 +128,7 @@ class CapitalTransferContractContentServiceTest extends Specification {
     CapitalTransferContract contract = CapitalTransferContract.builder()
         .seller(seller)
         .buyer(buyer)
-        .iban("EE123456789012345678")
+        .iban("EE211722839095030454")
         .transferAmounts(
             List.of(
                 new CapitalTransferContract.CapitalTransferAmount(
@@ -163,7 +163,7 @@ class CapitalTransferContractContentServiceTest extends Specification {
     CapitalTransferContract contract = CapitalTransferContract.builder()
         .seller(seller)
         .buyer(buyer)
-        .iban("EE471000001020145685")
+        .iban("EE211722839095030454")
         .transferAmounts(
             List.of(
                 new CapitalTransferContract.CapitalTransferAmount(
@@ -177,6 +177,6 @@ class CapitalTransferContractContentServiceTest extends Specification {
 
     then:
     result.length > 0
-    new String(result).contains("liikmekapitali")
+    new String(result).contains("Liikmekapitali võõrandamise avaldus")
   }
 }

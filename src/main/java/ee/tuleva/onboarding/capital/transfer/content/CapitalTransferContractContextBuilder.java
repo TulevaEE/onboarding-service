@@ -5,6 +5,7 @@ import static java.util.stream.Collectors.toList;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState;
+import ee.tuleva.onboarding.epis.mandate.details.BankAccountDetails;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -28,8 +29,7 @@ public class CapitalTransferContractContextBuilder {
 
   public CapitalTransferContractContextBuilder seller(Member seller) {
     ctx.setVariable("seller", seller);
-    ctx.setVariable("sellerFirstName", seller.getUser().getFirstName());
-    ctx.setVariable("sellerLastName", seller.getUser().getLastName());
+    ctx.setVariable("sellerFullName", seller.getFullName());
     ctx.setVariable("sellerPersonalCode", seller.getUser().getPersonalCode());
     ctx.setVariable("sellerMemberNumber", seller.getMemberNumber());
     return this;
@@ -37,8 +37,7 @@ public class CapitalTransferContractContextBuilder {
 
   public CapitalTransferContractContextBuilder buyer(Member buyer) {
     ctx.setVariable("buyer", buyer);
-    ctx.setVariable("buyerFirstName", buyer.getUser().getFirstName());
-    ctx.setVariable("buyerLastName", buyer.getUser().getLastName());
+    ctx.setVariable("buyerFullName", buyer.getFullName());
     ctx.setVariable("buyerPersonalCode", buyer.getUser().getPersonalCode());
     ctx.setVariable("buyerMemberNumber", buyer.getMemberNumber());
     return this;
@@ -46,6 +45,12 @@ public class CapitalTransferContractContextBuilder {
 
   public CapitalTransferContractContextBuilder iban(String iban) {
     ctx.setVariable("iban", iban);
+    try {
+      BankAccountDetails.Bank bank = BankAccountDetails.Bank.fromIban(iban);
+      ctx.setVariable("bankName", bank.getDisplayName());
+    } catch (IllegalArgumentException e) {
+      ctx.setVariable("bankName", "");
+    }
     return this;
   }
 

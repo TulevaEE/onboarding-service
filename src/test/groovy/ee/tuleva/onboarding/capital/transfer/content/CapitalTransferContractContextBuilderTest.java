@@ -35,8 +35,7 @@ class CapitalTransferContractContextBuilderTest {
 
     // then
     assertThat(context.getVariable("seller")).isEqualTo(seller);
-    assertThat(context.getVariable("sellerFirstName")).isEqualTo("John");
-    assertThat(context.getVariable("sellerLastName")).isEqualTo("Seller");
+    assertThat(context.getVariable("sellerFullName")).isEqualTo("John Seller");
     assertThat(context.getVariable("sellerPersonalCode")).isEqualTo("37605030299");
     assertThat(context.getVariable("sellerMemberNumber")).isEqualTo(1001);
   }
@@ -53,8 +52,7 @@ class CapitalTransferContractContextBuilderTest {
 
     // then
     assertThat(context.getVariable("buyer")).isEqualTo(buyer);
-    assertThat(context.getVariable("buyerFirstName")).isEqualTo("Jane");
-    assertThat(context.getVariable("buyerLastName")).isEqualTo("Buyer");
+    assertThat(context.getVariable("buyerFullName")).isEqualTo("Jane Buyer");
     assertThat(context.getVariable("buyerPersonalCode")).isEqualTo("60001019906");
     assertThat(context.getVariable("buyerMemberNumber")).isEqualTo(1002);
   }
@@ -157,13 +155,11 @@ class CapitalTransferContractContextBuilderTest {
 
     // then
     assertThat(context.getVariable("seller")).isEqualTo(seller);
-    assertThat(context.getVariable("sellerFirstName")).isEqualTo("John");
-    assertThat(context.getVariable("sellerLastName")).isEqualTo("Seller");
+    assertThat(context.getVariable("sellerFullName")).isEqualTo("John Seller");
     assertThat(context.getVariable("sellerPersonalCode")).isEqualTo("37605030299");
     assertThat(context.getVariable("sellerMemberNumber")).isEqualTo(1001);
     assertThat(context.getVariable("buyer")).isEqualTo(buyer);
-    assertThat(context.getVariable("buyerFirstName")).isEqualTo("Jane");
-    assertThat(context.getVariable("buyerLastName")).isEqualTo("Buyer");
+    assertThat(context.getVariable("buyerFullName")).isEqualTo("Jane Buyer");
     assertThat(context.getVariable("buyerPersonalCode")).isEqualTo("60001019906");
     assertThat(context.getVariable("buyerMemberNumber")).isEqualTo(1002);
     assertThat(context.getVariable("iban")).isEqualTo(iban);

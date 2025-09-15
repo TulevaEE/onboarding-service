@@ -67,6 +67,8 @@ public class CapitalTransferContract {
 
   private LocalDateTime updatedAt;
 
+  private String approvedBy;
+
   @PrePersist
   protected void onCreate() {
     LocalDateTime now = LocalDateTime.now(ClockHolder.getClock());

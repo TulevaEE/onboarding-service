@@ -5,11 +5,9 @@ import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.currency.Currency;
 import jakarta.validation.constraints.*;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
-
 import lombok.Builder;
 
 @Builder

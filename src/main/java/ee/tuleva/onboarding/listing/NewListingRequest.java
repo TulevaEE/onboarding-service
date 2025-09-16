@@ -5,16 +5,18 @@ import static java.time.temporal.ChronoUnit.DAYS;
 
 import ee.tuleva.onboarding.currency.Currency;
 import jakarta.validation.constraints.*;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Optional;
+
 import lombok.Builder;
 
 @Builder
 public record NewListingRequest(
     @NotNull ListingType type,
-    @Positive @Digits(integer = 12, fraction = 2) BigDecimal bookValue,
-    @DecimalMin("1") @Digits(integer = 4, fraction = 2) BigDecimal totalPrice,
+    @Positive BigDecimal bookValue,
+    @Positive BigDecimal totalPrice,
     @NotNull Currency currency,
     @NotNull Instant expiryTime) {
 

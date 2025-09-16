@@ -57,6 +57,31 @@ class ListingControllerSpec extends Specification {
         .andExpect(jsonPath('$.createdTime').value(listingDto.createdTime().toString()))
   }
 
+  def "can create listing with integer amounts"() {
+    given:
+    var anUser = sampleUser().build()
+    def request = newListingRequest().bookValue(new BigDecimal("5000")).totalPrice(new BigDecimal("20000")).build()
+    def listingDto = ListingDto.from(activeListing().build(), anUser)
+
+    1 * listingService.createListing(request, _) >> listingDto
+
+    expect:
+    mvc.perform(post("/v1/listings")
+        .with(csrf())
+        .with(authentication(mockAuthentication()))
+        .contentType(APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(request))
+    )
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath('$.id').value(listingDto.id()))
+        .andExpect(jsonPath('$.type').value(listingDto.type().name()))
+        .andExpect(jsonPath('$.bookValue').value(listingDto.bookValue().doubleValue()))
+        .andExpect(jsonPath('$.totalPrice').value(listingDto.totalPrice().doubleValue()))
+        .andExpect(jsonPath('$.currency').value(listingDto.currency().name()))
+        .andExpect(jsonPath('$.expiryTime').value(listingDto.expiryTime().toString()))
+        .andExpect(jsonPath('$.createdTime').value(listingDto.createdTime().toString()))
+  }
+
   def "can find listings"() {
     given:
     var anUser = sampleUser().build()

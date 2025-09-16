@@ -4,8 +4,11 @@ import au.com.origin.snapshots.Expect
 import au.com.origin.snapshots.annotations.SnapshotName
 import au.com.origin.snapshots.spock.EnableSnapshots
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract
+import ee.tuleva.onboarding.time.ClockHolder
+import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.member.Member
+import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import spock.lang.Specification
@@ -17,10 +20,16 @@ import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.C
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.MEMBERSHIP_BONUS
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.CREATED
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture
+import static org.mockito.Mockito.doNothing
 
 @SpringBootTest
 @EnableSnapshots
 class CapitalTransferContractContentServiceTest extends Specification {
+
+  @BeforeEach
+  void setup() throws Exception {
+    ClockHolder.setClock(TestClockHolder.clock)
+  }
 
   @Autowired
   CapitalTransferContractContentService contentService
@@ -56,7 +65,6 @@ class CapitalTransferContractContentServiceTest extends Specification {
                 new CapitalTransferContract.CapitalTransferAmount(
                     CAPITAL_PAYMENT, new BigDecimal("2500.0"), new BigDecimal("1250.0"))))
         .state(CREATED)
-        .createdAt(LocalDateTime.of(2023, 12, 15, 10, 30))
         .build()
 
     when:
@@ -95,7 +103,6 @@ class CapitalTransferContractContentServiceTest extends Specification {
                 new CapitalTransferContract.CapitalTransferAmount(
                     MEMBERSHIP_BONUS, new BigDecimal("200.0"), new BigDecimal("100.0"))))
         .state(CREATED)
-        .createdAt(LocalDateTime.of(2024, 1, 20, 14, 45))
         .build()
 
     when:
@@ -169,7 +176,6 @@ class CapitalTransferContractContentServiceTest extends Specification {
                 new CapitalTransferContract.CapitalTransferAmount(
                     CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("1250.0"))))
         .state(CREATED)
-        .createdAt(LocalDateTime.of(2023, 12, 15, 10, 30))
         .build()
 
     when:

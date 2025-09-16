@@ -3,8 +3,10 @@ package ee.tuleva.onboarding.capital.transfer.content;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,14 +33,18 @@ public class CapitalTransferContractContentService {
   }
 
   private Context buildContext(CapitalTransferContract contract) {
+    var createTime =
+        Optional.ofNullable(contract.getCreatedAt())
+            .orElse(LocalDateTime.now(ClockHolder.getClock()));
+
     return CapitalTransferContractContextBuilder.builder()
         .seller(contract.getSeller())
         .buyer(contract.getBuyer())
         .iban(contract.getIban())
         .transferAmounts(contract.getTransferAmounts())
         .contractState(contract.getState())
-        .createdAt(contract.getCreatedAt())
-        .formattedCreatedAt(formatDateTime(contract.getCreatedAt()))
+        .createdAt(createTime)
+        .formattedCreatedAt(formatDateTime(createTime))
         .build();
   }
 

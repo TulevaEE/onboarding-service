@@ -10,7 +10,7 @@ import java.util.Optional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-public record BankStatementEntry(CounterPartyDetails details, BigDecimal balance) {
+public record BankStatementEntry(CounterPartyDetails details, BigDecimal amount) {
 
   @RequiredArgsConstructor
   public static final class CounterPartyDetails {
@@ -48,7 +48,7 @@ public record BankStatementEntry(CounterPartyDetails details, BigDecimal balance
 
       var iban = otherPartyAccount.getId().getIBAN();
 
-      return new CounterPartyDetails(name, personalIdCode.orElse(null), iban);
+      return new CounterPartyDetails(name, iban, personalIdCode.orElse(null));
     }
   }
 

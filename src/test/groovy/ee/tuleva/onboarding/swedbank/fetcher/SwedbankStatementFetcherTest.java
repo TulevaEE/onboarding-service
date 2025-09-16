@@ -1,6 +1,6 @@
-package ee.tuleva.onboarding.swedbank.statement;
+package ee.tuleva.onboarding.swedbank.fetcher;
 
-import static ee.tuleva.onboarding.swedbank.statement.SwedbankStatementFetchJob.JobStatus.*;
+import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetchJob.JobStatus.*;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.*;
@@ -8,9 +8,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import ee.swedbank.gateway.iso.request.Document;
+import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetchJob.JobStatus;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayResponseDto;
-import ee.tuleva.onboarding.swedbank.statement.SwedbankStatementFetchJob.JobStatus;
 import ee.tuleva.onboarding.time.TestClockHolder;
 import jakarta.xml.bind.JAXBElement;
 import java.util.*;

@@ -1,4 +1,4 @@
-package ee.tuleva.onboarding.swedbank.statement;
+package ee.tuleva.onboarding.swedbank.fetcher;
 
 import jakarta.annotation.Nullable;
 import jakarta.persistence.*;

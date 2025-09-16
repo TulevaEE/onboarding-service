@@ -1,6 +1,6 @@
-package ee.tuleva.onboarding.swedbank.statement;
+package ee.tuleva.onboarding.swedbank.fetcher;
 
-import static ee.tuleva.onboarding.swedbank.statement.SwedbankStatementFetchJob.JobStatus.*;
+import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetchJob.JobStatus.*;
 
 import ee.swedbank.gateway.iso.response.Document;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;

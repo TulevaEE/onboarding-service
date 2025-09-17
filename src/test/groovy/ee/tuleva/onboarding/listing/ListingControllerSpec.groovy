@@ -11,11 +11,13 @@ import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthent
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.config.SecurityTestHelper.mockAuthentication
 import static ee.tuleva.onboarding.listing.ListingsFixture.activeListing
+import static ee.tuleva.onboarding.listing.ListingsFixture.expiredListing
 import static ee.tuleva.onboarding.listing.ListingsFixture.newListingRequest
 import static org.springframework.http.MediaType.APPLICATION_JSON
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content
@@ -102,6 +104,24 @@ class ListingControllerSpec extends Specification {
         .andExpect(jsonPath('$[0].expiryTime').value(listingDto.expiryTime().toString()))
         .andExpect(jsonPath('$[0].createdTime').value(listingDto.createdTime().toString()))
   }
+
+
+  def "can get listing count"() {
+    given:
+    var anUser = sampleUser().build()
+
+    var listingDto = ListingDto.from(activeListing().build(), anUser)
+    1 * listingService.getActiveListingCount() >> 3L
+
+    expect:
+    mvc.perform(head("/v1/listings")
+        .with(authentication(mockAuthentication()))
+    )
+        .andExpect(status().isOk())
+        .andExpect(header()
+            .stringValues("x-total-count", "3"))
+  }
+
 
   def "can delete a listing"() {
     given:

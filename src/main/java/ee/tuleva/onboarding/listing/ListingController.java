@@ -1,10 +1,15 @@
 package ee.tuleva.onboarding.listing;
 
+import static org.springframework.web.bind.annotation.RequestMethod.HEAD;
+
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +30,17 @@ public class ListingController {
     ListingDto listing = listingService.createListing(request, authenticatedPerson);
     URI location = uriBuilder.path("/v1/listings/{id}").buildAndExpand(listing.id()).toUri();
     return ResponseEntity.created(location).body(listing);
+  }
+
+  @Operation(summary = "Get total count of listings")
+  @RequestMapping(method = HEAD)
+  public ResponseEntity<Void> head() {
+    long listingCount = listingService.getActiveListingCount();
+
+    HttpHeaders headers = new HttpHeaders();
+    headers.add("x-total-count", String.valueOf(listingCount));
+
+    return new ResponseEntity<>(null, headers, HttpStatus.OK);
   }
 
   @GetMapping

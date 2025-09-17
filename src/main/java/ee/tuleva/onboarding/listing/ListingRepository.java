@@ -12,5 +12,7 @@ public interface ListingRepository extends JpaRepository<Listing, Long> {
   @NotNull
   List<Listing> findByExpiryTimeAfter(Instant expiryTime);
 
+  Long countListingsByExpiryTimeAfterAndStateEquals(Instant expiryTime, Listing.State state);
+
   Optional<Listing> findByIdAndMemberId(@NotNull Long id, @NotNull Long memberId);
 }

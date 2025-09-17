@@ -56,6 +56,10 @@ public class ListingService {
     return ListingDto.from(saved, user);
   }
 
+  public Long getActiveListingCount() {
+    return listingRepository.countListingsByExpiryTimeAfterAndStateEquals(clock.instant(), ACTIVE);
+  }
+
   public List<ListingDto> findActiveListings(AuthenticatedPerson authenticatedPerson) {
     User user = userService.getById(authenticatedPerson.getUserId()).orElseThrow();
 
@@ -135,16 +139,16 @@ public class ListingService {
     if ("en".equalsIgnoreCase(language)) {
       return transformMessageNewlines(
               """
-                %s %s, amount: %s €; price: %s €
+              %s %s, amount: %s €; price: %s €
 
-                If you’d like to proceed, <b>please contact the interested party and agree on the details</b>: price, amount, and where and when you should transfer the money. You can simply reply to this email — that will start a direct email thread between you two. Tuleva won’t see your messages.
+              If you’d like to proceed, <b>please contact the interested party and agree on the details</b>: price, amount, and where and when you should transfer the money. You can simply reply to this email — that will start a direct email thread between you two. Tuleva won’t see your messages.
 
-                Once you’ve agreed on the transfer, the seller must start the application. You can use the <a href="https://pension.tuleva.ee/capital/listings">Initiate the sale</a> button on Tuleva’s membership capital transfer page. In addition to the deal details, the seller will need the buyer's personal identification code.
+              Once you’ve agreed on the transfer, the seller must start the application. You can use the <a href="https://pension.tuleva.ee/capital/listings">Initiate the sale</a> button on Tuleva’s membership capital transfer page. In addition to the deal details, the seller will need the buyer's personal identification code.
 
-                Here are the %s details:,
-                %s
-                %s%s
-                """
+              Here are the %s details:,
+              %s
+              %s%s
+              """
                   .formatted(
                       interestedUserName,
                       listing.getType() == BUY

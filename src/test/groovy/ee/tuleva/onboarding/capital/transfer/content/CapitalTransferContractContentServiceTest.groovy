@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.time.ClockHolder
 import ee.tuleva.onboarding.time.TestClockHolder
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.member.Member
+import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
@@ -29,6 +30,11 @@ class CapitalTransferContractContentServiceTest extends Specification {
   @BeforeEach
   void setup() throws Exception {
     ClockHolder.setClock(TestClockHolder.clock)
+  }
+
+  @AfterEach
+  void cleanup() {
+    ClockHolder.setDefaultClock()
   }
 
   @Autowired

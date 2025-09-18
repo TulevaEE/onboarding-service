@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -54,6 +55,11 @@ class RiskLevelServiceTest {
     when(amlRiskRepositoryService.getHighRiskRows()).thenReturn(Collections.emptyList());
     when(amlRiskRepositoryService.getMediumRiskRowsSample(anyDouble()))
         .thenReturn(Collections.emptyList());
+  }
+
+  @AfterEach
+  void tearDown() {
+    ClockHolder.setDefaultClock();
   }
 
   @Test

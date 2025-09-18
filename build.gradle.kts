@@ -138,7 +138,7 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.33.9")
+    implementation("software.amazon.awssdk:s3:2.33.12")
     implementation("commons-io:commons-io:2.20.0")
     implementation("org.apache.commons:commons-csv:1.14.1")
 

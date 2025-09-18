@@ -25,7 +25,17 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
   @ToString.Include public static final String KEY = "NAV_CHECK_VALUE";
 
   public static final List<String> FUND_TICKERS =
-      List.of("0P000152G5.F", "0P0001N0Z0.F", "SGAS.DE", "SLMC.DE", "SGAJ.DE", "0P0001MGOG.F");
+      List.of(
+          "0P000152G5.F",
+          "0P0001N0Z0.F",
+          "SGAS.DE",
+          "SLMC.DE",
+          "SGAJ.DE",
+          "0P0001MGOG.F",
+          "0P0000YXER.F",
+          "0P00006OK2.F",
+          "0P0001A3RC.F",
+          "0P0000STQT.F");
 
   private final RestClient restClient;
 

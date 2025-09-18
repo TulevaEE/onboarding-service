@@ -25,11 +25,11 @@ val springCloudVersion = "2025.0.0"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.5.4"
+    id("org.springframework.boot") version "3.5.5"
     id("io.spring.dependency-management") version "1.1.7"
-    id("com.gorylenko.gradle-git-properties") version "2.5.2"
+    id("com.gorylenko.gradle-git-properties") version "2.5.3"
     id("com.diffplug.spotless") version "7.2.1"
-    id("io.freefair.lombok") version "8.14"
+    id("io.freefair.lombok") version "8.14.2"
     id("net.ltgt.errorprone") version "4.3.0"
     jacoco
 }
@@ -83,28 +83,28 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-validation")
     compileOnly("org.jspecify:jspecify:1.0.0")
     errorprone("com.google.errorprone:error_prone_core:2.41.0")
-    errorprone("com.uber.nullaway:nullaway:0.12.7")
+    errorprone("com.uber.nullaway:nullaway:0.12.9")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
 
-    implementation("com.nimbusds:nimbus-jose-jwt:10.4")
+    implementation("com.nimbusds:nimbus-jose-jwt:10.5")
 
-    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.9")
-    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.9")
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13")
+    implementation("org.springdoc:springdoc-openapi-starter-common:2.8.13")
     implementation("org.springframework.session:spring-session-jdbc")
 
     runtimeOnly("org.postgresql:postgresql")
 
-    implementation("io.jsonwebtoken:jjwt-api:0.12.6")
-    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.6")
-    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.6")
+    implementation("io.jsonwebtoken:jjwt-api:0.13.0")
+    runtimeOnly("io.jsonwebtoken:jjwt-impl:0.13.0")
+    runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.13.0")
 
     implementation("org.flywaydb:flyway-database-postgresql")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-data-jdbc")
-    implementation("org.jsoup:jsoup:1.21.1")
-    implementation("commons-net:commons-net:3.11.1")
+    implementation("org.jsoup:jsoup:1.21.2")
+    implementation("commons-net:commons-net:3.12.0")
     implementation("org.apache.commons:commons-lang3")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.decampo:xirr:1.2")
@@ -125,10 +125,10 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.18.0")
-    implementation("io.sentry:sentry-logback:8.18.0")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.21.1")
+    implementation("io.sentry:sentry-logback:8.21.1")
 
-    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.10.3")
+    implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.11.0")
 
     // TODO: replace with mailchimp-transactional-api-java
     implementation("com.mandrillapp.wrapper.lutung:lutung:0.0.8")
@@ -138,9 +138,9 @@ dependencies {
 
     implementation("jakarta.xml.bind:jakarta.xml.bind-api")
 
-    implementation("software.amazon.awssdk:s3:2.32.14")
+    implementation("software.amazon.awssdk:s3:2.33.9")
     implementation("commons-io:commons-io:2.20.0")
-    implementation("org.apache.commons:commons-csv:1.14.0")
+    implementation("org.apache.commons:commons-csv:1.14.1")
 
     testImplementation("com.h2database:h2")
     testImplementation("org.springframework.boot:spring-boot-starter-test") {

@@ -11,7 +11,7 @@ import static java.util.stream.Stream.concat;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.capital.ApiCapitalEvent;
+import ee.tuleva.onboarding.capital.CapitalRow;
 import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
@@ -118,9 +118,9 @@ public class CapitalTransferContractService {
     var user = buyer.getUser();
 
     var totalMemberCapital =
-        capitalService.getCapitalEvents(user.getMemberId()).stream()
+        capitalService.getCapitalRows(user.getMemberId()).stream()
             .filter(event -> event.type() != UNVESTED_WORK_COMPENSATION)
-            .map(ApiCapitalEvent::value)
+            .map(CapitalRow::getValue)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
     var memberCapitalBookValueToBeAcquired =
@@ -141,9 +141,9 @@ public class CapitalTransferContractService {
         .allMatch(
             transferAmount -> {
               var totalMemberCapitalOfType =
-                  capitalService.getCapitalEvents(seller.getId()).stream()
+                  capitalService.getCapitalRows(seller.getId()).stream()
                       .filter(event -> event.type() == transferAmount.type())
-                      .map(ApiCapitalEvent::value)
+                      .map(CapitalRow::getValue)
                       .reduce(BigDecimal.ZERO, BigDecimal::add);
 
               return totalMemberCapitalOfType.compareTo(transferAmount.bookValue()) >= 0;

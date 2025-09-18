@@ -6,7 +6,6 @@ import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.CAPITAL_TRANSFER;
-import static ee.tuleva.onboarding.time.TestClockHolder.clock;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -14,7 +13,7 @@ import static org.mockito.Mockito.*;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
-import ee.tuleva.onboarding.capital.ApiCapitalEvent;
+import ee.tuleva.onboarding.capital.CapitalRow;
 import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
@@ -29,7 +28,6 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import ee.tuleva.onboarding.user.member.MemberService;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -85,13 +83,24 @@ class CapitalTransferContractServiceTest {
     when(contractContentService.generateContractContent(any())).thenReturn(new byte[0]);
 
     when(contractRepository.save(any())).thenReturn(mockContract);
-    when(capitalService.getCapitalEvents(sellerUser.getMemberId()))
+    when(capitalService.getCapitalRows(sellerUser.getMemberId()))
         .thenReturn(
             List.of(
-                new ApiCapitalEvent(
-                    LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000), Currency.EUR),
-                new ApiCapitalEvent(
-                    LocalDate.now(clock), MEMBERSHIP_BONUS, BigDecimal.valueOf(50), Currency.EUR)));
+                new CapitalRow(
+                    CAPITAL_PAYMENT,
+                    BigDecimal.valueOf(100),
+                    BigDecimal.valueOf(900),
+                    BigDecimal.valueOf(100),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR),
+                new CapitalRow(
+                    MEMBERSHIP_BONUS,
+                    BigDecimal.valueOf(0.5),
+                    BigDecimal.valueOf(4.5),
+                    BigDecimal.valueOf(0.5),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR)));
+
     when(capitalService.getCapitalConcentrationUnitLimit()).thenReturn(BigDecimal.valueOf(1e8));
     var result = contractService.create(sellerPerson, sampleCommand);
 
@@ -449,13 +458,15 @@ class CapitalTransferContractServiceTest {
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
         .thenReturn(memberFixture().id(3L).user(buyerUser).build());
 
-    when(capitalService.getCapitalEvents(sellerUser.getMemberId()))
+    when(capitalService.getCapitalRows(sellerUser.getMemberId()))
         .thenReturn(
             List.of(
-                new ApiCapitalEvent(
-                    LocalDate.now(clock),
-                    UNVESTED_WORK_COMPENSATION,
-                    BigDecimal.valueOf(1000),
+                new CapitalRow(
+                    CAPITAL_PAYMENT,
+                    BigDecimal.valueOf(0.1),
+                    BigDecimal.valueOf(0.9),
+                    BigDecimal.valueOf(1),
+                    BigDecimal.valueOf(10),
                     Currency.EUR)));
 
     IllegalStateException thrown =
@@ -548,13 +559,23 @@ class CapitalTransferContractServiceTest {
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
         .thenReturn(memberFixture().id(3L).user(buyerUser).build());
 
-    when(capitalService.getCapitalEvents(sellerUser.getMemberId()))
+    when(capitalService.getCapitalRows(sellerUser.getMemberId()))
         .thenReturn(
             List.of(
-                new ApiCapitalEvent(
-                    LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000), Currency.EUR),
-                new ApiCapitalEvent(
-                    LocalDate.now(clock), MEMBERSHIP_BONUS, BigDecimal.valueOf(5), Currency.EUR)));
+                new CapitalRow(
+                    CAPITAL_PAYMENT,
+                    BigDecimal.valueOf(100),
+                    BigDecimal.valueOf(900),
+                    BigDecimal.valueOf(100),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR),
+                new CapitalRow(
+                    MEMBERSHIP_BONUS,
+                    BigDecimal.valueOf(0.5),
+                    BigDecimal.valueOf(4.5),
+                    BigDecimal.valueOf(0.5),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR)));
 
     IllegalStateException thrown =
         assertThrows(
@@ -584,13 +605,23 @@ class CapitalTransferContractServiceTest {
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
         .thenReturn(memberFixture().id(3L).user(buyerUser).build());
 
-    when(capitalService.getCapitalEvents(sellerUser.getMemberId()))
+    when(capitalService.getCapitalRows(sellerUser.getMemberId()))
         .thenReturn(
             List.of(
-                new ApiCapitalEvent(
-                    LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000), Currency.EUR),
-                new ApiCapitalEvent(
-                    LocalDate.now(clock), MEMBERSHIP_BONUS, BigDecimal.valueOf(5), Currency.EUR)));
+                new CapitalRow(
+                    CAPITAL_PAYMENT,
+                    BigDecimal.valueOf(100),
+                    BigDecimal.valueOf(900),
+                    BigDecimal.valueOf(100),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR),
+                new CapitalRow(
+                    MEMBERSHIP_BONUS,
+                    BigDecimal.valueOf(0.5),
+                    BigDecimal.valueOf(4.5),
+                    BigDecimal.valueOf(0.5),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR)));
     when(capitalService.getCapitalConcentrationUnitLimit()).thenReturn(BigDecimal.valueOf(10));
 
     IllegalStateException thrown =

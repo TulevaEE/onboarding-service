@@ -9,7 +9,7 @@ import static org.springframework.web.util.HtmlUtils.htmlEscape;
 
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
-import ee.tuleva.onboarding.capital.ApiCapitalEvent;
+import ee.tuleva.onboarding.capital.CapitalRow;
 import ee.tuleva.onboarding.capital.CapitalService;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
@@ -200,10 +200,11 @@ public class ListingService {
       return true;
     }
 
+    var capitalStatement = capitalService.getCapitalRows(user.getMemberId());
     var totalMemberCapital =
-        capitalService.getCapitalEvents(user.getMemberId()).stream()
+        capitalStatement.stream()
             .filter(event -> event.type() != UNVESTED_WORK_COMPENSATION)
-            .map(ApiCapitalEvent::value)
+            .map(CapitalRow::getValue)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
     return totalMemberCapital.compareTo(request.bookValue()) >= 0;

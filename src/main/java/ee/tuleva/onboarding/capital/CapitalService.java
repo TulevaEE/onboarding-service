@@ -43,7 +43,7 @@ public class CapitalService {
         .toList();
   }
 
-  List<CapitalRow> getCapitalRows(Long memberId) {
+  public List<CapitalRow> getCapitalRows(Long memberId) {
     List<MemberCapitalEvent> events = memberCapitalEventRepository.findAllByMemberId(memberId);
 
     var latestUnitPrice = getLatestOwnershipUnitPrice();

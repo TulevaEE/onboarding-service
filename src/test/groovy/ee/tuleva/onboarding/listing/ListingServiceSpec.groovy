@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.listing
 import com.microtripit.mandrillapp.lutung.view.MandrillMessage
 import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.capital.ApiCapitalEvent
+import ee.tuleva.onboarding.capital.CapitalRow
 import ee.tuleva.onboarding.capital.CapitalService
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.locale.LocaleService
@@ -60,7 +61,7 @@ class ListingServiceSpec extends Specification {
     }
     listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
-    capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000),  Currency.EUR))
+    capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000), Currency.EUR))
 
     when:
     def createdListing = service.createListing(request, person)
@@ -72,7 +73,7 @@ class ListingServiceSpec extends Specification {
   def "createListing does not create listing when not enough member capital"() {
     given:
     def user = sampleUser().build()
-    def request = newListingRequest().type(SELL).bookValue(1000000.00).build()
+    def request = newListingRequest().type(SELL).bookValue(1001.00).build()
     def person = authenticatedPersonFromUser(user).build()
 
     def savedListing = request.toListing(42L, 'et').tap {
@@ -81,7 +82,7 @@ class ListingServiceSpec extends Specification {
     }
     listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
-    capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000),  Currency.EUR))
+    capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
 
     when:
     service.createListing(request, person)
@@ -103,7 +104,7 @@ class ListingServiceSpec extends Specification {
     }
     listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
-    capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), UNVESTED_WORK_COMPENSATION, BigDecimal.valueOf(1000),  Currency.EUR))
+    capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(UNVESTED_WORK_COMPENSATION, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
 
     when:
     service.createListing(request, person)
@@ -194,9 +195,10 @@ class ListingServiceSpec extends Specification {
         listingOwner.email,
         contacter.email,
         LISTING_REPLY_TO_SELLER.getTemplateName(savedListing.language),
-        { Map it -> it.get("fname") == listingOwner.firstName && it.get("lname") == listingOwner.lastName
-            && (it.get("message") as String).contains(contacter.getPersonalCode().toString())
-            && (it.get("message") as String).contains(contacter.getPhoneNumber())
+        { Map it ->
+          it.get("fname") == listingOwner.firstName && it.get("lname") == listingOwner.lastName
+              && (it.get("message") as String).contains(contacter.getPersonalCode().toString())
+              && (it.get("message") as String).contains(contacter.getPhoneNumber())
         },
         _,
         _

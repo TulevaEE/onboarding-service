@@ -63,6 +63,9 @@ swedbank-gateway:
     password: changeit
   url: ''
   client-id: ''
+  accounts:
+    deposit_eur: ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN:~} # TODO remove null fallback
+    withdrawal_eur: ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN:~}
 
 springdoc:
   swagger-ui:
@@ -236,7 +239,6 @@ swedbank-gateway:
     password: ${SWEDBANK_GATEWAY_KEYSTORE_PASSWORD}
   client-id: ${SWEDBANK_GATEWAY_CLIENT_ID}
   url: ''
-
 
 epis:
   service:

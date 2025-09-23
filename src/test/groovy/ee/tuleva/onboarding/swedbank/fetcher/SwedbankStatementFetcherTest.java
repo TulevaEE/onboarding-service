@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.swedbank.fetcher;
 
 import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetchJob.JobStatus.*;
+import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.DEPOSIT_EUR;
 import static java.time.temporal.ChronoUnit.MINUTES;
 import static java.time.temporal.ChronoUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,14 +31,21 @@ class SwedbankStatementFetcherTest {
 
   private SwedbankStatementFetcher fetcher;
 
+  private SwedbankAccountConfiguration configuration;
+
+  private static final String testIban = "EE_TEST_IBAN";
+
   @BeforeEach
   void setup() {
     swedbankGatewayClient = mock(SwedbankGatewayClient.class);
     fetchJobRepository = mock(SwedbankStatementFetchJobRepository.class);
+    configuration = mock(SwedbankAccountConfiguration.class);
 
     fetcher =
         new SwedbankStatementFetcher(
-            TestClockHolder.clock, fetchJobRepository, swedbankGatewayClient);
+            TestClockHolder.clock, fetchJobRepository, swedbankGatewayClient, configuration);
+
+    when(configuration.getAccountIban(DEPOSIT_EUR)).thenReturn(Optional.of(testIban));
   }
 
   @Test
@@ -49,9 +57,13 @@ class SwedbankStatementFetcherTest {
 
     var mockScheduledJob = SwedbankStatementFetchJob.builder().jobStatus(SCHEDULED).id(id).build();
     var mockWaitingForReplyJob =
-        SwedbankStatementFetchJob.builder().jobStatus(WAITING_FOR_REPLY).id(id).build();
+        SwedbankStatementFetchJob.builder()
+            .jobStatus(WAITING_FOR_REPLY)
+            .id(id)
+            .iban(testIban)
+            .build();
 
-    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(any()))
+    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(any(), any()))
         .thenReturn(Optional.empty());
     when(fetchJobRepository.save(any()))
         .thenReturn(mockScheduledJob)
@@ -71,7 +83,7 @@ class SwedbankStatementFetcherTest {
               return job;
             });
 
-    fetcher.sendRequest();
+    fetcher.sendRequest(DEPOSIT_EUR);
 
     verify(swedbankGatewayClient, times(1)).sendStatementRequest(eq(mockDocument), eq(id));
 
@@ -85,6 +97,7 @@ class SwedbankStatementFetcherTest {
   void testSendRequestLastOneMoreThanOneHourAgo() {
     JAXBElement<Document> mockDocument = mock(JAXBElement.class);
 
+    var testIban = "EE_TEST_IBAN";
     var id = UUID.fromString("3e79ad6a-a2fd-4118-a6dc-015de60461a8");
 
     var lastScheduledJob =
@@ -98,7 +111,8 @@ class SwedbankStatementFetcherTest {
     var mockWaitingForReplyJob =
         SwedbankStatementFetchJob.builder().jobStatus(WAITING_FOR_REPLY).id(id).build();
 
-    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(any()))
+    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
+            any(), eq(testIban)))
         .thenReturn(Optional.of(lastScheduledJob));
     when(fetchJobRepository.save(any()))
         .thenReturn(mockScheduledJob)
@@ -107,7 +121,7 @@ class SwedbankStatementFetcherTest {
     when(swedbankGatewayClient.getAccountStatementRequestEntity(anyString(), eq(id)))
         .thenReturn(mockDocument);
 
-    fetcher.sendRequest();
+    fetcher.sendRequest(DEPOSIT_EUR);
 
     verify(fetchJobRepository, times(2))
         .save(
@@ -129,10 +143,10 @@ class SwedbankStatementFetcherTest {
             .id(UUID.randomUUID())
             .build();
 
-    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(any()))
+    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(any(), any()))
         .thenReturn(Optional.of(lastScheduledJob));
 
-    fetcher.sendRequest();
+    fetcher.sendRequest(DEPOSIT_EUR);
 
     verify(fetchJobRepository, times(0)).save(any());
     verify(swedbankGatewayClient, times(0)).sendStatementRequest(any(), any());
@@ -146,7 +160,7 @@ class SwedbankStatementFetcherTest {
     var id = UUID.fromString("3e79ad6a-a2fd-4118-a6dc-015de60461a8");
     var mockErrorResponse = "400 <xml><error>Error</error></xml>";
 
-    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(any()))
+    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(any(), any()))
         .thenReturn(Optional.empty());
 
     when(swedbankGatewayClient.getAccountStatementRequestEntity(any(), any()))
@@ -166,7 +180,7 @@ class SwedbankStatementFetcherTest {
     var exception = new RestClientException(mockErrorResponse);
     doThrow(exception).when(swedbankGatewayClient).sendStatementRequest(any(), any());
 
-    assertThrows(RestClientException.class, () -> fetcher.sendRequest());
+    assertThrows(RestClientException.class, () -> fetcher.sendRequest(DEPOSIT_EUR));
 
     assertEquals(2, statusToRawResponseMap.size());
     assertTrue(statusToRawResponseMap.containsKey(FAILED));
@@ -185,7 +199,8 @@ class SwedbankStatementFetcherTest {
             .id(id)
             .createdAt(TestClockHolder.now.minus(2, MINUTES))
             .build();
-    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(eq(WAITING_FOR_REPLY)))
+    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
+            eq(WAITING_FOR_REPLY), any()))
         .thenReturn(Optional.of(mockWaitingForReplyJob));
 
     var mockSwedbankResponse =
@@ -204,7 +219,7 @@ class SwedbankStatementFetcherTest {
               return job;
             });
 
-    fetcher.getResponse();
+    fetcher.getResponse(DEPOSIT_EUR);
 
     verify(swedbankGatewayClient, times(1)).acknowledgeResponse(eq(mockSwedbankResponse));
 
@@ -228,10 +243,11 @@ class SwedbankStatementFetcherTest {
   @DisplayName("response getter does nothing when job not available")
   void doNothingJobNotAvailable() {
 
-    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(eq(WAITING_FOR_REPLY)))
+    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
+            eq(WAITING_FOR_REPLY), any()))
         .thenReturn(Optional.empty());
 
-    fetcher.getResponse();
+    fetcher.getResponse(DEPOSIT_EUR);
     verify(swedbankGatewayClient, times(0)).getResponse();
   }
 
@@ -246,10 +262,11 @@ class SwedbankStatementFetcherTest {
             .id(id)
             .createdAt(TestClockHolder.now.minus(30, SECONDS))
             .build();
-    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(eq(WAITING_FOR_REPLY)))
+    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
+            eq(WAITING_FOR_REPLY), any()))
         .thenReturn(Optional.of(mockWaitingForReplyJob));
 
-    fetcher.getResponse();
+    fetcher.getResponse(DEPOSIT_EUR);
     verify(swedbankGatewayClient, times(0)).getResponse();
   }
 
@@ -265,12 +282,13 @@ class SwedbankStatementFetcherTest {
             .createdAt(TestClockHolder.now.minus(5, MINUTES))
             .lastCheckAt(TestClockHolder.now.minus(2, MINUTES))
             .build();
-    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(eq(WAITING_FOR_REPLY)))
+    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
+            eq(WAITING_FOR_REPLY), any()))
         .thenReturn(Optional.of(mockWaitingForReplyJob));
 
     when(swedbankGatewayClient.getResponse()).thenReturn(Optional.empty());
 
-    fetcher.getResponse();
+    fetcher.getResponse(DEPOSIT_EUR);
 
     verify(fetchJobRepository, times(1))
         .save(
@@ -293,7 +311,8 @@ class SwedbankStatementFetcherTest {
             .id(id)
             .createdAt(TestClockHolder.now.minus(2, MINUTES))
             .build();
-    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(eq(WAITING_FOR_REPLY)))
+    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
+            eq(WAITING_FOR_REPLY), any()))
         .thenReturn(Optional.of(mockWaitingForReplyJob));
 
     var mockSwedbankResponse =
@@ -301,7 +320,7 @@ class SwedbankStatementFetcherTest {
     when(swedbankGatewayClient.getResponse()).thenReturn(Optional.of(mockSwedbankResponse));
 
     when(fetchJobRepository.findById(eq(swedbankBrokenId))).thenReturn(Optional.empty());
-    assertThrows(IllegalStateException.class, () -> fetcher.getResponse());
+    assertThrows(IllegalStateException.class, () -> fetcher.getResponse(DEPOSIT_EUR));
   }
 
   @Test
@@ -316,7 +335,8 @@ class SwedbankStatementFetcherTest {
             .id(id)
             .createdAt(TestClockHolder.now.minus(2, MINUTES))
             .build();
-    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(eq(WAITING_FOR_REPLY)))
+    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
+            eq(WAITING_FOR_REPLY), any()))
         .thenReturn(Optional.of(mockWaitingForReplyJob));
 
     var mockSwedbankResponse =
@@ -338,7 +358,7 @@ class SwedbankStatementFetcherTest {
     when(swedbankGatewayClient.getParsedStatementResponse(any()))
         .thenThrow(new IllegalStateException("Broken XML"));
 
-    fetcher.getResponse();
+    fetcher.getResponse(DEPOSIT_EUR);
 
     verify(swedbankGatewayClient, times(1)).acknowledgeResponse(eq(mockSwedbankResponse));
 

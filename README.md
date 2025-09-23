@@ -115,9 +115,14 @@ curl --location --request POST 'https://pension.tuleva.ee/api/oauth/token' \
 ```
 and then [update the token values](https://github.com/TulevaEE/wordpress-theme/commit/1796c1ba7c926847ff0edb3b9f8a61e273d40018) in the WordPress Tuleva template.
 
-### Swedbank Gateway certificates
+### Swedbank Gateway
+
+#### Certificates
 Download `swedbank-gateway.p12` from `tuleva-secrets/staging` from `S3` and place it in `test_keys`.
 
+
+#### Account fetcher
+For `swedbank-gateway.accounts` in `application.yml`, use `EE062200221055091966` for test account variables.
 
 ### Testing ID-card Locally
 

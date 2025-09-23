@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
+import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.DEPOSIT_EUR;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher;
@@ -66,13 +67,13 @@ public class LedgerTestController {
   @Operation(summary = "Send statement request")
   @PostMapping("/swedbank/statement")
   public void sendSwedbankRequest() {
-    swedbankStatementFetcher.sendRequest();
+    swedbankStatementFetcher.sendRequest(DEPOSIT_EUR);
   }
 
   @Operation(summary = "Get statement response")
   @GetMapping("/swedbank/statement")
   public void getSwedbankResponse() {
-    swedbankStatementFetcher.getResponse();
+    swedbankStatementFetcher.getResponse(DEPOSIT_EUR);
   }
 
   record DepositDto(BigDecimal amount) {}

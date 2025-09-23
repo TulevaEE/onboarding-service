@@ -25,6 +25,9 @@ public class SwedbankStatementFetchJob {
   @Column(nullable = false)
   private JobStatus jobStatus;
 
+  @Column(nullable = false)
+  private String iban;
+
   @Nullable
   @Column(columnDefinition = "TIMESTAMPTZ")
   private Instant lastCheckAt;

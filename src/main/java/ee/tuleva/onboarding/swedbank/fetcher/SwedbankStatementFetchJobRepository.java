@@ -9,5 +9,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 interface SwedbankStatementFetchJobRepository
     extends CrudRepository<SwedbankStatementFetchJob, UUID> {
-  Optional<SwedbankStatementFetchJob> findFirstByJobStatusOrderByCreatedAtDesc(JobStatus jobStatus);
+  Optional<SwedbankStatementFetchJob> findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
+      JobStatus jobStatus, String iban);
 }

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.capital.transfer;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.mandate.command.FinishIdCardSignCommand;
 import ee.tuleva.onboarding.mandate.command.StartIdCardSignCommand;
+import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.signature.SignatureController;
 import ee.tuleva.onboarding.signature.response.IdCardSignatureResponse;
 import ee.tuleva.onboarding.signature.response.IdCardSignatureStatusResponse;
@@ -39,7 +40,11 @@ public class CapitalTransferContractController implements SignatureController<Lo
   public CapitalTransferContractDto getContract(
       @PathVariable Long id, @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     var user = userService.getByIdOrThrow(authenticatedPerson.getUserId());
-    return CapitalTransferContractDto.from(contractService.getContract(id, user));
+    try {
+      return CapitalTransferContractDto.from(contractService.getContract(id, user));
+    } catch (IllegalArgumentException e) {
+      throw new NotFoundException("Contract not found");
+    }
   }
 
   @Operation(summary = "Get my capital transfer contracts")

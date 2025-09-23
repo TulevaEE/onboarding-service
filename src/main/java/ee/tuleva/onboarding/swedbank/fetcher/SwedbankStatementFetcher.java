@@ -5,11 +5,9 @@ import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetchJob.Jo
 import ee.swedbank.gateway.iso.response.Document;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayResponseDto;
-
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
-
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,8 +33,7 @@ public class SwedbankStatementFetcher {
     DEPOSIT_EUR("deposit_eur");
     // WITHDRAWAL_EUR("withdrawal_eur");
 
-    @Getter
-    private final String configurationKey;
+    @Getter private final String configurationKey;
 
     SwedbankAccount(String configurationKey) {
       this.configurationKey = configurationKey;

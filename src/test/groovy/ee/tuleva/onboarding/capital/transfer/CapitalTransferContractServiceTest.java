@@ -77,6 +77,80 @@ class CapitalTransferContractServiceTest {
 
     var mockContract = mock(CapitalTransferContract.class);
 
+    when(contractRepository.findAllBySellerId(sellerUser.getMemberId())).thenReturn(List.of());
+    when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
+    when(memberService.getById(sampleCommand.getBuyerMemberId()))
+        .thenReturn(memberFixture().id(3L).user(buyerUser).build());
+    when(contractContentService.generateContractContent(any())).thenReturn(new byte[0]);
+
+    when(contractRepository.save(any())).thenReturn(mockContract);
+    when(capitalService.getCapitalRows(sellerUser.getMemberId()))
+        .thenReturn(
+            List.of(
+                new CapitalRow(
+                    CAPITAL_PAYMENT,
+                    BigDecimal.valueOf(100),
+                    BigDecimal.valueOf(900),
+                    BigDecimal.valueOf(100),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR),
+                new CapitalRow(
+                    MEMBERSHIP_BONUS,
+                    BigDecimal.valueOf(0.5),
+                    BigDecimal.valueOf(4.5),
+                    BigDecimal.valueOf(0.5),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR)));
+
+    when(capitalService.getCapitalConcentrationUnitLimit()).thenReturn(BigDecimal.valueOf(1e8));
+    var result = contractService.create(sellerPerson, sampleCommand);
+
+    assertEquals(mockContract, result);
+  }
+
+  @Test
+  @DisplayName("Create capital transfer happy path with active transfers")
+  void createWithOtherTransfers() {
+
+    var buyerUser = sampleUser().firstName("Olev").lastName("Ostja").build();
+    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
+
+    var sampleCommand =
+        CreateCapitalTransferContractCommand.builder()
+            .buyerMemberId(3L)
+            .iban("TEST_IBAN")
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("100.0"))))
+            .build();
+    var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
+
+    var mockContract = mock(CapitalTransferContract.class);
+
+    when(contractRepository.findAllBySellerId(sellerUser.getMemberId()))
+        .thenReturn(
+            List.of(
+                CapitalTransferContract.builder()
+                    .id(1L)
+                    .state(SELLER_SIGNED)
+                    .seller(sellerUser.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("40.0"), new BigDecimal("450.0"))))
+                    .build(),
+                CapitalTransferContract.builder()
+                    .id(2L)
+                    .state(SELLER_SIGNED)
+                    .seller(sellerUser.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("40.0"), new BigDecimal("450.0"))))
+                    .build()));
     when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
         .thenReturn(memberFixture().id(3L).user(buyerUser).build());
@@ -435,8 +509,8 @@ class CapitalTransferContractServiceTest {
   }
 
   @Test
-  @DisplayName("Create capital transfer throws when not enough capital")
-  void createNotEnoughCapital() {
+  @DisplayName("Create capital transfer throws when capital already being sold in other transfers")
+  void createCapitalAlreadyBeingSoldInOtherTransfers() {
 
     var buyerUser = sampleUser().firstName("Olev").lastName("Ostja").build();
     var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
@@ -454,6 +528,69 @@ class CapitalTransferContractServiceTest {
 
     var mockContract = mock(CapitalTransferContract.class);
 
+    when(contractRepository.findAllBySellerId(sellerUser.getMemberId()))
+        .thenReturn(
+            List.of(
+                CapitalTransferContract.builder()
+                    .id(1L)
+                    .state(SELLER_SIGNED)
+                    .seller(sellerUser.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                    .build(),
+                CapitalTransferContract.builder()
+                    .id(2L)
+                    .state(SELLER_SIGNED)
+                    .seller(sellerUser.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                    .build()));
+    when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
+    when(memberService.getById(sampleCommand.getBuyerMemberId()))
+        .thenReturn(memberFixture().id(3L).user(buyerUser).build());
+
+    when(capitalService.getCapitalRows(sellerUser.getMemberId()))
+        .thenReturn(
+            List.of(
+                new CapitalRow(
+                    CAPITAL_PAYMENT,
+                    BigDecimal.valueOf(10),
+                    BigDecimal.valueOf(90),
+                    BigDecimal.valueOf(10),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR)));
+
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class, () -> contractService.create(sellerPerson, sampleCommand));
+    assertEquals("Seller does not have enough member capital", thrown.getMessage());
+  }
+
+  @Test
+  @DisplayName("Create capital transfer throws when not enough capital")
+  void createCapitalNotEnoughCapital() {
+
+    var buyerUser = sampleUser().firstName("Olev").lastName("Ostja").build();
+    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
+
+    var sampleCommand =
+        CreateCapitalTransferContractCommand.builder()
+            .buyerMemberId(3L)
+            .iban("TEST_IBAN")
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0"))))
+            .build();
+    var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
+
+    when(contractRepository.findAllBySellerId(sellerUser.getMemberId())).thenReturn(List.of());
     when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
         .thenReturn(memberFixture().id(3L).user(buyerUser).build());
@@ -466,6 +603,78 @@ class CapitalTransferContractServiceTest {
                     BigDecimal.valueOf(0.1),
                     BigDecimal.valueOf(0.9),
                     BigDecimal.valueOf(1),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR)));
+
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class, () -> contractService.create(sellerPerson, sampleCommand));
+    assertEquals("Seller does not have enough member capital", thrown.getMessage());
+  }
+
+  @Test
+  @DisplayName(
+      "Create capital transfer throws when some capital available but others already being sold in other transfers")
+  void createCapitalSomeAvailableOthersAlreadyBeingSoldIn() {
+
+    var buyerUser = sampleUser().firstName("Olev").lastName("Ostja").build();
+    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
+
+    var sampleCommand =
+        CreateCapitalTransferContractCommand.builder()
+            .buyerMemberId(3L)
+            .iban("TEST_IBAN")
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0")),
+                    new CapitalTransferAmount(
+                        MEMBERSHIP_BONUS, new BigDecimal("100.0"), new BigDecimal("5.0"))))
+            .build();
+    var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
+
+    when(contractRepository.findAllBySellerId(sellerUser.getMemberId()))
+        .thenReturn(
+            List.of(
+                CapitalTransferContract.builder()
+                    .id(1L)
+                    .state(SELLER_SIGNED)
+                    .seller(sellerUser.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                    .build(),
+                CapitalTransferContract.builder()
+                    .id(2L)
+                    .state(SELLER_SIGNED)
+                    .seller(sellerUser.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                MEMBERSHIP_BONUS, new BigDecimal("50.0"), new BigDecimal("5.0"))))
+                    .build()));
+    when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
+    when(memberService.getById(sampleCommand.getBuyerMemberId()))
+        .thenReturn(memberFixture().id(3L).user(buyerUser).build());
+
+    when(capitalService.getCapitalRows(sellerUser.getMemberId()))
+        .thenReturn(
+            List.of(
+                new CapitalRow(
+                    CAPITAL_PAYMENT,
+                    BigDecimal.valueOf(10),
+                    BigDecimal.valueOf(90),
+                    BigDecimal.valueOf(10),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR),
+                new CapitalRow(
+                    MEMBERSHIP_BONUS,
+                    BigDecimal.valueOf(0.5),
+                    BigDecimal.valueOf(4.5),
+                    BigDecimal.valueOf(0.5),
                     BigDecimal.valueOf(10),
                     Currency.EUR)));
 
@@ -555,6 +764,7 @@ class CapitalTransferContractServiceTest {
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
+    when(contractRepository.findAllBySellerId(sellerUser.getMemberId())).thenReturn(List.of());
     when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
         .thenReturn(memberFixture().id(3L).user(buyerUser).build());
@@ -601,6 +811,7 @@ class CapitalTransferContractServiceTest {
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
+    when(contractRepository.findAllBySellerId(sellerUser.getMemberId())).thenReturn(List.of());
     when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
         .thenReturn(memberFixture().id(3L).user(buyerUser).build());

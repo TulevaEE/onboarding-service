@@ -13,6 +13,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.CapitalRow;
 import ee.tuleva.onboarding.capital.CapitalService;
+import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
@@ -134,19 +135,40 @@ public class CapitalTransferContractService {
     return concentrationLimit.compareTo(buyerMemberCapitalAfterPurchase) > 0;
   }
 
+  private Map<MemberCapitalEventType, BigDecimal> getCapitalBeingSoldInOtherTransfers(
+      Member seller) {
+    var activeTransfers =
+        contractRepository.findAllBySellerId(seller.getId()).stream()
+            .filter(contract -> contract.getState().isInProgress());
+    var otherTransferAmounts =
+        activeTransfers.flatMap(contract -> contract.getTransferAmounts().stream()).toList();
+
+    return otherTransferAmounts.stream()
+        .collect(
+            Collectors.toMap(
+                CapitalTransferAmount::type, CapitalTransferAmount::bookValue, BigDecimal::add));
+  }
+
   private boolean hasEnoughMemberCapital(
       Member seller, CreateCapitalTransferContractCommand command) {
+
+    var capitalSoldInOtherTransfers = getCapitalBeingSoldInOtherTransfers(seller);
 
     return command.getTransferAmounts().stream()
         .allMatch(
             transferAmount -> {
-              var totalMemberCapitalOfType =
+              var totalSellerMemberCapitalOfType =
                   capitalService.getCapitalRows(seller.getId()).stream()
                       .filter(event -> event.type() == transferAmount.type())
                       .map(CapitalRow::getValue)
                       .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-              return totalMemberCapitalOfType.compareTo(transferAmount.bookValue()) >= 0;
+              var capitalOfTypeBeingSoldInOtherTransfers =
+                  capitalSoldInOtherTransfers.getOrDefault(transferAmount.type(), BigDecimal.ZERO);
+              var totalCapitalToBeSold =
+                  transferAmount.bookValue().add(capitalOfTypeBeingSoldInOtherTransfers);
+
+              return totalSellerMemberCapitalOfType.compareTo(totalCapitalToBeSold) >= 0;
             });
   }
 

@@ -124,26 +124,47 @@ public class CapitalTransferContractService {
             .map(CapitalRow::getValue)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+    var memberCapitalBookValueBeingAcquired =
+        getCapitalBeingAcquiredInOtherTransfers(buyer).values().stream()
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
     var memberCapitalBookValueToBeAcquired =
         command.getTransferAmounts().stream()
             .map(CapitalTransferAmount::bookValue)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
-    var buyerMemberCapitalAfterPurchase =
-        totalMemberCapital.add(memberCapitalBookValueToBeAcquired);
+
+    var buyerMemberCapitalAfterPurchases =
+        totalMemberCapital
+            .add(memberCapitalBookValueBeingAcquired)
+            .add(memberCapitalBookValueToBeAcquired);
 
     var concentrationLimit = capitalService.getCapitalConcentrationUnitLimit();
-    return concentrationLimit.compareTo(buyerMemberCapitalAfterPurchase) > 0;
+    return concentrationLimit.compareTo(buyerMemberCapitalAfterPurchases) > 0;
   }
 
-  private Map<MemberCapitalEventType, BigDecimal> getCapitalBeingSoldInOtherTransfers(
+  private Map<MemberCapitalEventType, BigDecimal> getCapitalBeingAcquiredInOtherTransfers(
+      Member buyer) {
+    var userPurchaseTransfers = contractRepository.findAllByBuyerId(buyer.getId());
+
+    return getCapitalSumsOfActiveTransfers(userPurchaseTransfers);
+  }
+
+  public Map<MemberCapitalEventType, BigDecimal> getCapitalBeingSoldInOtherTransfers(
       Member seller) {
+    var userSaleTransfers = contractRepository.findAllBySellerId(seller.getId());
+
+    return getCapitalSumsOfActiveTransfers(userSaleTransfers);
+  }
+
+  private Map<MemberCapitalEventType, BigDecimal> getCapitalSumsOfActiveTransfers(
+      List<CapitalTransferContract> userTransfers) {
     var activeTransfers =
-        contractRepository.findAllBySellerId(seller.getId()).stream()
-            .filter(contract -> contract.getState().isInProgress());
-    var otherTransferAmounts =
+        userTransfers.stream().filter(contract -> contract.getState().isInProgress());
+
+    var allTransferAmounts =
         activeTransfers.flatMap(contract -> contract.getTransferAmounts().stream()).toList();
 
-    return otherTransferAmounts.stream()
+    return allTransferAmounts.stream()
         .collect(
             Collectors.toMap(
                 CapitalTransferAmount::type, CapitalTransferAmount::bookValue, BigDecimal::add));

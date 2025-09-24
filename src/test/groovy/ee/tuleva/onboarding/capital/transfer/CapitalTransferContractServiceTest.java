@@ -842,6 +842,76 @@ class CapitalTransferContractServiceTest {
   }
 
   @Test
+  @DisplayName(
+      "Create capital transfer throws when exceeding concentration limit with other transfers")
+  void createExceedConcentrationLimitWithOtherTransfers() {
+
+    var buyerUser =
+        sampleUser()
+            .member(memberFixture().id(3L).build())
+            .firstName("Olev")
+            .lastName("Ostja")
+            .build();
+    var sellerUser = sampleUser().member(memberFixture().id(2L).build()).build();
+
+    var sampleCommand =
+        CreateCapitalTransferContractCommand.builder()
+            .buyerMemberId(3L)
+            .iban("TEST_IBAN")
+            .transferAmounts(
+                List.of(
+                    new CapitalTransferAmount(
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("90.0"))))
+            .build();
+    var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
+
+    when(contractRepository.findAllByBuyerId(buyerUser.getMemberId()))
+        .thenReturn(
+            List.of(
+                CapitalTransferContract.builder()
+                    .id(1L)
+                    .state(SELLER_SIGNED)
+                    .seller(sellerUser.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("40.0"), new BigDecimal("10.0"))))
+                    .build(),
+                CapitalTransferContract.builder()
+                    .id(2L)
+                    .state(SELLER_SIGNED)
+                    .seller(sellerUser.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("40.0"), new BigDecimal("10.0"))))
+                    .build()));
+
+    when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
+    when(memberService.getById(sampleCommand.getBuyerMemberId()))
+        .thenReturn(memberFixture().id(3L).user(buyerUser).build());
+
+    when(capitalService.getCapitalRows(sellerUser.getMemberId()))
+        .thenReturn(
+            List.of(
+                new CapitalRow(
+                    CAPITAL_PAYMENT,
+                    BigDecimal.valueOf(10),
+                    BigDecimal.valueOf(90),
+                    BigDecimal.valueOf(100),
+                    BigDecimal.valueOf(10),
+                    Currency.EUR)));
+    when(capitalService.getCapitalConcentrationUnitLimit()).thenReturn(BigDecimal.valueOf(105));
+
+    IllegalStateException thrown =
+        assertThrows(
+            IllegalStateException.class, () -> contractService.create(sellerPerson, sampleCommand));
+    assertEquals("Buyer would exceed concentration limit after transfer", thrown.getMessage());
+  }
+
+  @Test
   @DisplayName("Create capital transfer throws buyer seller same person")
   void createBuyerSellerSamePerson() {
 

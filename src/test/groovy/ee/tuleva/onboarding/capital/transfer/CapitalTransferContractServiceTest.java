@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.capital.transfer;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
-import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture;
 import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
 import static ee.tuleva.onboarding.notification.slack.SlackService.SlackChannel.CAPITAL_TRANSFER;
 import static ee.tuleva.onboarding.user.MemberFixture.memberFixture;
@@ -274,7 +273,8 @@ class CapitalTransferContractServiceTest {
 
       if (state == BUYER_SIGNED) {
         when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
-        when(contactDetailsService.getContactDetails(user)).thenReturn(contactDetailsFixture());
+        //
+        // when(contactDetailsService.getContactDetails(user)).thenReturn(contactDetailsFixture());
         when(emailPersistenceService.save(any(), any(), any(), any()))
             .thenReturn(Email.builder().id(1L).build());
         when(emailService.send(
@@ -339,7 +339,8 @@ class CapitalTransferContractServiceTest {
         when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
         when(emailPersistenceService.save(any(), any(), any(), any()))
             .thenReturn(Email.builder().id(1L).build());
-        when(contactDetailsService.getContactDetails(user)).thenReturn(contactDetailsFixture());
+        //
+        // when(contactDetailsService.getContactDetails(user)).thenReturn(contactDetailsFixture());
         when(emailService.send(
                 eq(contract.getBuyer().getUser()),
                 any(),
@@ -434,7 +435,7 @@ class CapitalTransferContractServiceTest {
     when(contractRepository.findById(eq(1L))).thenReturn(Optional.of(contract));
 
     when(contractRepository.save(any(CapitalTransferContract.class))).thenReturn(contract);
-    when(contactDetailsService.getContactDetails(user)).thenReturn(contactDetailsFixture());
+    //    when(contactDetailsService.getContactDetails(user)).thenReturn(contactDetailsFixture());
     when(emailPersistenceService.save(any(), any(), any(), any()))
         .thenReturn(Email.builder().id(1L).build());
     when(emailService.send(

@@ -5,6 +5,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus
 import ee.tuleva.onboarding.capital.ApiCapitalEvent
 import ee.tuleva.onboarding.capital.CapitalRow
 import ee.tuleva.onboarding.capital.CapitalService
+import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService
 import ee.tuleva.onboarding.currency.Currency
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.mandate.email.persistence.Email
@@ -39,7 +40,8 @@ class ListingServiceSpec extends Specification {
   CapitalService capitalService = Mock()
   EmailPersistenceService emailPersistenceService = Mock()
   EmailService emailService = Mock()
-  ListingService service = new ListingService(listingRepository, userService, emailPersistenceService, emailService, clock, capitalService, localeService)
+  CapitalTransferContractService capitalTransferContractService = Mock()
+  ListingService service = new ListingService(listingRepository, userService, capitalTransferContractService, emailPersistenceService, emailService, clock, capitalService, localeService)
 
   def setup() {
     ClockHolder.setClock(TestClockHolder.clock)
@@ -62,6 +64,30 @@ class ListingServiceSpec extends Specification {
     listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(1000), Currency.EUR))
+    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
+
+    when:
+    def createdListing = service.createListing(request, person)
+
+    then:
+    createdListing == ListingDto.from(savedListing, user)
+  }
+
+  def "createListing creates listing even with other transfers"() {
+    given:
+    def user = sampleUser().build()
+    def request = newListingRequest().build()
+    def person = authenticatedPersonFromUser(user).build()
+
+    def savedListing = request.toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+    listingRepository.save(_ as Listing) >> savedListing
+    userService.getById(person.userId) >> Optional.of(user)
+    capitalService.getCapitalEvents(user.getMemberId()) >> List.of(new ApiCapitalEvent(LocalDate.now(clock), CAPITAL_PAYMENT, BigDecimal.valueOf(2000), Currency.EUR))
+
+    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of(CAPITAL_PAYMENT, 500)
 
     when:
     def createdListing = service.createListing(request, person)
@@ -83,7 +109,29 @@ class ListingServiceSpec extends Specification {
     listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
+    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
+    when:
+    service.createListing(request, person)
 
+    then:
+    def e = thrown(IllegalArgumentException)
+    e.message == "Not enough member capital to create listing"
+  }
+
+  def "createListing does not create listing when considering capital sales in progress"() {
+    given:
+    def user = sampleUser().build()
+    def request = newListingRequest().type(SELL).bookValue(500.00).build()
+    def person = authenticatedPersonFromUser(user).build()
+
+    def savedListing = request.toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+    listingRepository.save(_ as Listing) >> savedListing
+    userService.getById(person.userId) >> Optional.of(user)
+    capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
+    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of(CAPITAL_PAYMENT, BigDecimal.valueOf(900))
     when:
     service.createListing(request, person)
 
@@ -105,6 +153,7 @@ class ListingServiceSpec extends Specification {
     listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(UNVESTED_WORK_COMPENSATION, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
+    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
 
     when:
     service.createListing(request, person)

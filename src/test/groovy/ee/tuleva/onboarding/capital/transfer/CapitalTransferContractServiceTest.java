@@ -1028,6 +1028,140 @@ class CapitalTransferContractServiceTest {
     assertEquals("Non-liquidatable capital types included in command", thrown.getMessage());
   }
 
+  @Test
+  @DisplayName("Get capital being sold calculates totals")
+  void getCapitalBeingSoldSummarizes() {
+
+    var user =
+        sampleUser()
+            .firstName("Olev")
+            .lastName("Ostja")
+            .member(memberFixture().id(1L).build())
+            .build();
+
+    when(contractRepository.findAllBySellerId(user.getMemberId()))
+        .thenReturn(
+            List.of(
+                CapitalTransferContract.builder()
+                    .id(1L)
+                    .state(SELLER_SIGNED)
+                    .seller(user.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0")),
+                            new CapitalTransferAmount(
+                                WORK_COMPENSATION,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("100.0"))))
+                    .build(),
+                CapitalTransferContract.builder()
+                    .id(2L)
+                    .state(SELLER_SIGNED)
+                    .seller(user.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                    .build(),
+                CapitalTransferContract.builder()
+                    .id(3L)
+                    .state(EXECUTED)
+                    .seller(user.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                    .build(),
+                CapitalTransferContract.builder()
+                    .id(4L)
+                    .state(SELLER_SIGNED)
+                    .seller(user.getMemberOrThrow())
+                    .buyer(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                MEMBERSHIP_BONUS, new BigDecimal("50.0"), new BigDecimal("50.0"))))
+                    .build()));
+
+    var map = contractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow());
+
+    assertEquals(3, map.size());
+    assertEquals(0, map.get(CAPITAL_PAYMENT).compareTo(new BigDecimal("200.00")));
+    assertEquals(0, map.get(MEMBERSHIP_BONUS).compareTo(new BigDecimal("50.00")));
+    assertEquals(0, map.get(WORK_COMPENSATION).compareTo(new BigDecimal("100.00")));
+  }
+
+  @Test
+  @DisplayName("Get capital being bought calculates totals")
+  void getCapitalBeingBoughtSummarizes() {
+
+    var user =
+        sampleUser()
+            .firstName("Olev")
+            .lastName("Ostja")
+            .member(memberFixture().id(1L).build())
+            .build();
+
+    when(contractRepository.findAllBySellerId(user.getMemberId()))
+        .thenReturn(
+            List.of(
+                CapitalTransferContract.builder()
+                    .id(1L)
+                    .state(SELLER_SIGNED)
+                    .buyer(user.getMemberOrThrow())
+                    .seller(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0")),
+                            new CapitalTransferAmount(
+                                WORK_COMPENSATION,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("100.0"))))
+                    .build(),
+                CapitalTransferContract.builder()
+                    .id(2L)
+                    .state(SELLER_SIGNED)
+                    .buyer(user.getMemberOrThrow())
+                    .seller(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                    .build(),
+                CapitalTransferContract.builder()
+                    .id(3L)
+                    .state(EXECUTED)
+                    .buyer(user.getMemberOrThrow())
+                    .seller(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                    .build(),
+                CapitalTransferContract.builder()
+                    .id(4L)
+                    .state(SELLER_SIGNED)
+                    .buyer(user.getMemberOrThrow())
+                    .seller(memberFixture().id(3L).build())
+                    .transferAmounts(
+                        List.of(
+                            new CapitalTransferAmount(
+                                MEMBERSHIP_BONUS, new BigDecimal("50.0"), new BigDecimal("50.0"))))
+                    .build()));
+
+    var map = contractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow());
+
+    assertEquals(3, map.size());
+    assertEquals(0, map.get(CAPITAL_PAYMENT).compareTo(new BigDecimal("200.00")));
+    assertEquals(0, map.get(MEMBERSHIP_BONUS).compareTo(new BigDecimal("50.00")));
+    assertEquals(0, map.get(WORK_COMPENSATION).compareTo(new BigDecimal("100.00")));
+  }
+
   private ArgumentMatcher<ApplicationEvent> getStateChangeEventMatcher(
       User user, CapitalTransferContractState oldState, CapitalTransferContractState newState) {
     return event -> {

@@ -142,7 +142,7 @@ public class CapitalTransferContractService {
     return concentrationLimit.compareTo(buyerMemberCapitalAfterPurchases) > 0;
   }
 
-  private Map<MemberCapitalEventType, BigDecimal> getCapitalBeingAcquiredInOtherTransfers(
+  public Map<MemberCapitalEventType, BigDecimal> getCapitalBeingAcquiredInOtherTransfers(
       Member buyer) {
     var userPurchaseTransfers = contractRepository.findAllByBuyerId(buyer.getId());
 

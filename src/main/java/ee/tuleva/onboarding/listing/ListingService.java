@@ -11,6 +11,7 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.CapitalRow;
 import ee.tuleva.onboarding.capital.CapitalService;
+import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService;
@@ -32,6 +33,7 @@ public class ListingService {
 
   private final ListingRepository listingRepository;
   private final UserService userService;
+  private final CapitalTransferContractService capitalTransferContractService;
   private final EmailPersistenceService emailPersistenceService;
   private final EmailService emailService;
   private final Clock clock;
@@ -207,7 +209,17 @@ public class ListingService {
             .map(CapitalRow::getValue)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-    return totalMemberCapital.compareTo(request.bookValue()) >= 0;
+    var totalMemberCapitalBeingSold =
+        capitalTransferContractService
+            .getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow())
+            .values()
+            .stream()
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    var totalMemberCapitalAvailableForSale =
+        totalMemberCapital.subtract(totalMemberCapitalBeingSold);
+
+    return totalMemberCapitalAvailableForSale.compareTo(request.bookValue()) >= 0;
   }
 
   private String transformMessageNewlines(String message) {

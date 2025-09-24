@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
@@ -15,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class CapitalTransferValidatorTest {
 
   @Mock private MemberCapitalEventRepository memberCapitalEventRepository;
+  @Mock private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
   @Mock private CapitalTransferContract contract;
   @Mock private Member seller;
 
@@ -33,7 +36,9 @@ public class CapitalTransferValidatorTest {
 
   @BeforeEach
   public void setUp() {
-    validator = new CapitalTransferValidator(memberCapitalEventRepository);
+    validator =
+        new CapitalTransferValidator(
+            memberCapitalEventRepository, aggregatedCapitalEventRepository);
   }
 
   @Test
@@ -80,8 +85,13 @@ public class CapitalTransferValidatorTest {
             CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
-    // Mock seller has 150.00 of CAPITAL_PAYMENT
-    MemberCapitalEvent event = createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("150.00"));
+    // Mock ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(new BigDecimal("2.00")));
+
+    // Mock seller has 50.00 of CAPITAL_PAYMENT (which becomes 100.00 after multiplying by unit
+    // price of 2.00)
+    MemberCapitalEvent event = createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("50.00"));
     when(memberCapitalEventRepository.findAllByMemberId(1L)).thenReturn(List.of(event));
 
     // When & Then - Should not throw exception
@@ -99,15 +109,20 @@ public class CapitalTransferValidatorTest {
             CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
-    // Mock seller has only 50.00 of CAPITAL_PAYMENT
+    // Mock ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(new BigDecimal("1.50")));
+
+    // Mock seller has only 50.00 of CAPITAL_PAYMENT (which becomes 75.00 after multiplying by unit
+    // price of 1.50)
     MemberCapitalEvent event = createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("50.00"));
     when(memberCapitalEventRepository.findAllByMemberId(1L)).thenReturn(List.of(event));
 
-    // When & Then
+    // When & Then (50.00 * 1.50 = 75.00000 which is less than 100.00 required)
     assertThatThrownBy(() -> validator.validateSufficientCapital(contract))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage(
-            "Seller has insufficient CAPITAL_PAYMENT capital. Available: 50.00, Required: 100.00");
+            "Seller has insufficient CAPITAL_PAYMENT capital. Available: 75.00000, Required: 100.00");
   }
 
   @Test
@@ -123,6 +138,10 @@ public class CapitalTransferValidatorTest {
         new CapitalTransferAmount(
             MEMBERSHIP_BONUS, new BigDecimal("25.00"), new BigDecimal("20.00"));
     when(contract.getTransferAmounts()).thenReturn(List.of(payment, bonus));
+
+    // Mock ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(BigDecimal.ONE));
 
     // Mock seller has sufficient capital for both types
     MemberCapitalEvent paymentEvent =
@@ -150,6 +169,10 @@ public class CapitalTransferValidatorTest {
             MEMBERSHIP_BONUS, new BigDecimal("25.00"), new BigDecimal("20.00"));
     when(contract.getTransferAmounts()).thenReturn(List.of(payment, bonus));
 
+    // Mock ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(BigDecimal.ONE));
+
     // Mock seller has sufficient CAPITAL_PAYMENT but insufficient MEMBERSHIP_BONUS
     MemberCapitalEvent paymentEvent =
         createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("150.00"));
@@ -162,7 +185,7 @@ public class CapitalTransferValidatorTest {
     assertThatThrownBy(() -> validator.validateSufficientCapital(contract))
         .isInstanceOf(IllegalStateException.class)
         .hasMessage(
-            "Seller has insufficient MEMBERSHIP_BONUS capital. Available: 10.00, Required: 20.00");
+            "Seller has insufficient MEMBERSHIP_BONUS capital. Available: 10.00000, Required: 20.00");
   }
 
   @Test
@@ -175,6 +198,10 @@ public class CapitalTransferValidatorTest {
         new CapitalTransferAmount(
             CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // Mock ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(BigDecimal.ONE));
 
     // Mock seller has multiple events of same type that sum to sufficient amount
     MemberCapitalEvent event1 = createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("60.00"));
@@ -195,6 +222,10 @@ public class CapitalTransferValidatorTest {
         new CapitalTransferAmount(
             CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // Mock ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(BigDecimal.ONE));
 
     // Mock seller has positive and negative events (e.g., from previous transfers)
     MemberCapitalEvent positiveEvent =
@@ -266,12 +297,111 @@ public class CapitalTransferValidatorTest {
             WORK_COMPENSATION, new BigDecimal("100.00"), new BigDecimal("50.00"));
     when(contract.getTransferAmounts()).thenReturn(List.of(zeroAmount, nullAmount, validAmount));
 
+    // Mock ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(BigDecimal.ONE));
+
     // Mock seller has sufficient capital for the valid amount only
     MemberCapitalEvent event =
         createMemberCapitalEvent(WORK_COMPENSATION, new BigDecimal("100.00"));
     when(memberCapitalEventRepository.findAllByMemberId(1L)).thenReturn(List.of(event));
 
     // When & Then - Should not throw exception, zero and null amounts should be skipped
+    validator.validateSufficientCapital(contract);
+  }
+
+  @Test
+  @DisplayName("Should exclude unvested work compensation from available capital")
+  public void whenValidateSufficientCapital_withUnvestedWorkCompensation_thenExcludesIt() {
+    // Given
+    when(contract.getSeller()).thenReturn(seller);
+    when(seller.getId()).thenReturn(1L);
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // Mock ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(BigDecimal.ONE));
+
+    // Mock seller has CAPITAL_PAYMENT and UNVESTED_WORK_COMPENSATION
+    MemberCapitalEvent paymentEvent =
+        createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("100.00"));
+    MemberCapitalEvent unvestedEvent =
+        createMemberCapitalEvent(UNVESTED_WORK_COMPENSATION, new BigDecimal("100.00"));
+    when(memberCapitalEventRepository.findAllByMemberId(1L))
+        .thenReturn(List.of(paymentEvent, unvestedEvent));
+
+    // When & Then - Should not throw exception, only CAPITAL_PAYMENT is counted
+    validator.validateSufficientCapital(contract);
+  }
+
+  @Test
+  @DisplayName("Should exclude investment return from available capital")
+  public void whenValidateSufficientCapital_withInvestmentReturn_thenExcludesIt() {
+    // Given
+    when(contract.getSeller()).thenReturn(seller);
+    when(seller.getId()).thenReturn(1L);
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // Mock ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(BigDecimal.ONE));
+
+    // Mock seller has CAPITAL_PAYMENT and INVESTMENT_RETURN
+    MemberCapitalEvent paymentEvent =
+        createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("100.00"));
+    MemberCapitalEvent investmentReturnEvent =
+        createMemberCapitalEvent(INVESTMENT_RETURN, new BigDecimal("100.00"));
+    when(memberCapitalEventRepository.findAllByMemberId(1L))
+        .thenReturn(List.of(paymentEvent, investmentReturnEvent));
+
+    // When & Then - Should not throw exception, only CAPITAL_PAYMENT is counted
+    validator.validateSufficientCapital(contract);
+  }
+
+  @Test
+  @DisplayName("Should throw exception when no aggregated events exist")
+  public void whenValidateSufficientCapital_withNoAggregatedEvents_thenThrowsException() {
+    // Given
+    when(contract.getSeller()).thenReturn(seller);
+    when(seller.getId()).thenReturn(1L);
+
+    // Mock no ownership unit price available (returns empty Optional)
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.empty());
+
+    // When & Then - Should throw exception when no aggregated events exist
+    assertThatThrownBy(() -> validator.validateSufficientCapital(contract))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessage(
+            "No aggregated capital events found - ownership unit price cannot be determined");
+  }
+
+  @Test
+  @DisplayName("Should correctly multiply fiat value by ownership unit price")
+  public void whenValidateSufficientCapital_withHighOwnershipUnitPrice_thenMultipliesCorrectly() {
+    // Given
+    when(contract.getSeller()).thenReturn(seller);
+    when(seller.getId()).thenReturn(1L);
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(
+            CAPITAL_ACQUIRED, new BigDecimal("125.00"), new BigDecimal("200.00"));
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // Mock high ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(new BigDecimal("2.50")));
+
+    // Mock seller has 80.00 of CAPITAL_ACQUIRED (80 * 2.50 = 200.00)
+    MemberCapitalEvent event = createMemberCapitalEvent(CAPITAL_ACQUIRED, new BigDecimal("80.00"));
+    when(memberCapitalEventRepository.findAllByMemberId(1L)).thenReturn(List.of(event));
+
+    // When & Then - Should not throw exception (80 * 2.50 = 200 required)
     validator.validateSufficientCapital(contract);
   }
 

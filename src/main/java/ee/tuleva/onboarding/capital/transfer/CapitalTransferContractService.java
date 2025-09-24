@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.capital.transfer;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
+import static ee.tuleva.onboarding.epis.contact.ContactDetails.LanguagePreferenceType.ENG;
 import static ee.tuleva.onboarding.event.TrackableEventType.CAPITAL_TRANSFER_STATE_CHANGE;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
@@ -400,10 +401,10 @@ public class CapitalTransferContractService {
   }
 
   private String getLanguage(User user) {
-    // var contactDetails = contactDetailsService.getContactDetails(user);
-    // return contactDetails.getLanguagePreference() == ENG ? "en" : "et";
+    var contactDetails = contactDetailsService.getContactDetails(user);
+    return contactDetails.getLanguagePreference() == ENG ? "en" : "et";
 
     // hotfix: there is no authentication context when sending the email after board approval
-    return "et";
+    //    return "et";
   }
 }

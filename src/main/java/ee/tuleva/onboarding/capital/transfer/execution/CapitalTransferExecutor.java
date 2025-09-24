@@ -76,11 +76,14 @@ public class CapitalTransferExecutor {
       BigDecimal totalUnitsToTransfer,
       LocalDate accountingDate) {
 
+    BigDecimal proportionalFiatValue =
+        calculateProportionalFiatValue(contract, transferAmount, totalUnitsToTransfer);
+
     MemberCapitalEvent sellerEvent =
         MemberCapitalEvent.builder()
             .member(contract.getSeller())
             .type(transferAmount.type())
-            .fiatValue(transferAmount.bookValue().negate())
+            .fiatValue(proportionalFiatValue.negate())
             .ownershipUnitAmount(totalUnitsToTransfer.negate())
             .accountingDate(accountingDate)
             .effectiveDate(accountingDate)
@@ -103,11 +106,14 @@ public class CapitalTransferExecutor {
       BigDecimal totalUnitsToTransfer,
       LocalDate accountingDate) {
 
+    BigDecimal proportionalFiatValue =
+        calculateProportionalFiatValue(contract, transferAmount, totalUnitsToTransfer);
+
     MemberCapitalEvent buyerEvent =
         MemberCapitalEvent.builder()
             .member(contract.getBuyer())
             .type(MemberCapitalEventType.CAPITAL_ACQUIRED)
-            .fiatValue(transferAmount.bookValue())
+            .fiatValue(proportionalFiatValue)
             .ownershipUnitAmount(totalUnitsToTransfer)
             .accountingDate(accountingDate)
             .effectiveDate(accountingDate)
@@ -133,5 +139,30 @@ public class CapitalTransferExecutor {
     }
 
     return latestEvent.getOwnershipUnitPrice();
+  }
+
+  private BigDecimal calculateProportionalFiatValue(
+      CapitalTransferContract contract,
+      CapitalTransferAmount transferAmount,
+      BigDecimal unitsToTransfer) {
+
+    Long sellerId = contract.getSeller().getId();
+    MemberCapitalEventType eventType = transferAmount.type();
+
+    BigDecimal sellerTotalFiatValue =
+        memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(sellerId, eventType);
+    BigDecimal sellerTotalUnits =
+        memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(sellerId, eventType);
+
+    if (sellerTotalFiatValue == null
+        || sellerTotalUnits == null
+        || sellerTotalUnits.compareTo(BigDecimal.ZERO) == 0) {
+      throw new IllegalStateException(
+          String.format("Seller %d has no fiat value or units for type %s", sellerId, eventType));
+    }
+
+    return sellerTotalFiatValue
+        .multiply(unitsToTransfer.abs())
+        .divide(sellerTotalUnits, 5, RoundingMode.HALF_UP);
   }
 }

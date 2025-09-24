@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.capital.transfer.execution;
 
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
-import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,9 +42,10 @@ public class CapitalTransferExecutorTest {
 
   private CapitalTransferExecutor executor;
 
-  private final BigDecimal OWNERSHIP_UNIT_PRICE = new BigDecimal("1.25000");
-  private final BigDecimal BOOK_VALUE = new BigDecimal("100.00000");
-  private final BigDecimal EXPECTED_UNITS = new BigDecimal("80.00000"); // 100 / 1.25
+  private final BigDecimal OWNERSHIP_UNIT_PRICE = new BigDecimal("1.73456");
+  private final BigDecimal BOOK_VALUE = new BigDecimal("123.45000");
+  private final BigDecimal EXPECTED_UNITS =
+      new BigDecimal("71.17079"); // 123.45 / 1.73456 = 71.17079 (rounded to 5 decimal places)
 
   @BeforeEach
   public void setUp() {
@@ -69,6 +69,14 @@ public class CapitalTransferExecutorTest {
     when(buyer.getId()).thenReturn(102L);
     when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
     when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
+
+    BigDecimal sellerTotalFiatValue = new BigDecimal("987.65432");
+    BigDecimal sellerTotalUnits = new BigDecimal("321.98765");
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalFiatValue);
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalUnits);
 
     when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
         .thenAnswer(
@@ -99,11 +107,15 @@ public class CapitalTransferExecutorTest {
 
     List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
 
+    // Calculate expected proportional fiat value: (totalFiatValue * unitsToTransfer) / totalUnits
+    // (987.65432 * 71.17079) / 321.98765 = 218.30694 (rounded to 5 decimal places)
+    BigDecimal expectedProportionalFiatValue = new BigDecimal("218.30694");
+
     // First event should be seller withdrawal
     MemberCapitalEvent sellerEvent = savedEvents.get(0);
     assertThat(sellerEvent.getMember()).isEqualTo(seller);
     assertThat(sellerEvent.getType()).isEqualTo(CAPITAL_PAYMENT);
-    assertThat(sellerEvent.getFiatValue()).isEqualTo(BOOK_VALUE.negate());
+    assertThat(sellerEvent.getFiatValue()).isEqualTo(expectedProportionalFiatValue.negate());
     assertThat(sellerEvent.getOwnershipUnitAmount()).isEqualTo(EXPECTED_UNITS.negate());
     assertThat(sellerEvent.getAccountingDate())
         .isEqualTo(LocalDate.now(ZoneId.of("Europe/Tallinn")));
@@ -114,7 +126,7 @@ public class CapitalTransferExecutorTest {
     MemberCapitalEvent buyerEvent = savedEvents.get(1);
     assertThat(buyerEvent.getMember()).isEqualTo(buyer);
     assertThat(buyerEvent.getType()).isEqualTo(CAPITAL_ACQUIRED);
-    assertThat(buyerEvent.getFiatValue()).isEqualTo(BOOK_VALUE);
+    assertThat(buyerEvent.getFiatValue()).isEqualTo(expectedProportionalFiatValue);
     assertThat(buyerEvent.getOwnershipUnitAmount()).isEqualTo(EXPECTED_UNITS);
     assertThat(buyerEvent.getAccountingDate())
         .isEqualTo(LocalDate.now(ZoneId.of("Europe/Tallinn")));
@@ -136,6 +148,18 @@ public class CapitalTransferExecutorTest {
     when(buyer.getId()).thenReturn(102L);
     when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
     when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
+
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("987.65432"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("321.98765"));
+
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("456.78901"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("123.45678"));
 
     when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
         .thenAnswer(
@@ -166,6 +190,14 @@ public class CapitalTransferExecutorTest {
 
     List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
 
+    // CAPITAL_PAYMENT: (987.65432 * 71.17079) / 321.98765 = 218.30694
+    BigDecimal expectedPaymentFiat = new BigDecimal("218.30694");
+
+    // MEMBERSHIP_BONUS: 50.00 / 1.73456 = 28.82575 units (rounded to 5 decimal places)
+    BigDecimal bonusUnits = new BigDecimal("28.82575");
+    // (456.78901 * 28.82575) / 123.45678 = 106.65502
+    BigDecimal expectedBonusFiat = new BigDecimal("106.65502");
+
     // Verify we have events for both types
     assertThat(savedEvents.stream().filter(e -> e.getType() == CAPITAL_PAYMENT).count())
         .isEqualTo(1);
@@ -173,6 +205,30 @@ public class CapitalTransferExecutorTest {
         .isEqualTo(1);
     assertThat(savedEvents.stream().filter(e -> e.getType() == CAPITAL_ACQUIRED).count())
         .isEqualTo(2);
+
+    // Verify precise calculation results for CAPITAL_PAYMENT
+    MemberCapitalEvent paymentSellerEvent =
+        savedEvents.stream().filter(e -> e.getType() == CAPITAL_PAYMENT).findFirst().orElseThrow();
+    assertThat(paymentSellerEvent.getFiatValue()).isEqualTo(expectedPaymentFiat.negate());
+    assertThat(paymentSellerEvent.getOwnershipUnitAmount()).isEqualTo(EXPECTED_UNITS.negate());
+
+    // Verify precise calculation results for MEMBERSHIP_BONUS
+    MemberCapitalEvent bonusSellerEvent =
+        savedEvents.stream().filter(e -> e.getType() == MEMBERSHIP_BONUS).findFirst().orElseThrow();
+    assertThat(bonusSellerEvent.getFiatValue()).isEqualTo(expectedBonusFiat.negate());
+    assertThat(bonusSellerEvent.getOwnershipUnitAmount()).isEqualTo(bonusUnits.negate());
+
+    // Verify buyer events have matching fiat values to preserve total
+    List<MemberCapitalEvent> buyerEvents =
+        savedEvents.stream().filter(e -> e.getType() == CAPITAL_ACQUIRED).toList();
+    assertThat(buyerEvents).hasSize(2);
+
+    BigDecimal totalBuyerFiat =
+        buyerEvents.stream()
+            .map(MemberCapitalEvent::getFiatValue)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+    BigDecimal totalSellerFiat = expectedPaymentFiat.add(expectedBonusFiat);
+    assertThat(totalBuyerFiat).isEqualTo(totalSellerFiat);
   }
 
   @Test
@@ -186,6 +242,13 @@ public class CapitalTransferExecutorTest {
     when(buyer.getId()).thenReturn(102L);
     when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
     when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
+
+    // Mock seller's total values for MEMBERSHIP_BONUS (only needed for valid amount)
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("200.00000"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("160.00000"));
 
     when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
         .thenAnswer(

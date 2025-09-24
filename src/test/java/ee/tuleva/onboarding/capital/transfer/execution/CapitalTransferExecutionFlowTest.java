@@ -78,6 +78,18 @@ class CapitalTransferExecutionFlowTest {
     when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
     when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
 
+    // Mock repository calls needed for proportional fiat value calculation
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("1000.00"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("800.00"));
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("500.00"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("400.00"));
+
     // Mock job finding approved contracts
     when(contractRepository.findAllByState(APPROVED)).thenReturn(List.of(contract));
 
@@ -111,6 +123,7 @@ class CapitalTransferExecutionFlowTest {
             .filter(event -> event.getType() == CAPITAL_PAYMENT)
             .findFirst()
             .orElseThrow();
+    // Proportional fiat: (1000 * 80) / 800 = 100.00000
     assertThat(paymentWithdrawal.getFiatValue()).isEqualByComparingTo(new BigDecimal("-100.00000"));
     assertThat(paymentWithdrawal.getOwnershipUnitAmount())
         .isEqualByComparingTo(new BigDecimal("-80.00000"));
@@ -121,6 +134,7 @@ class CapitalTransferExecutionFlowTest {
             .filter(event -> event.getType() == MEMBERSHIP_BONUS)
             .findFirst()
             .orElseThrow();
+    // Proportional fiat: (500 * 40) / 400 = 50.00000
     assertThat(bonusWithdrawal.getFiatValue()).isEqualByComparingTo(new BigDecimal("-50.00000"));
     assertThat(bonusWithdrawal.getOwnershipUnitAmount())
         .isEqualByComparingTo(new BigDecimal("-40.00000"));
@@ -155,6 +169,13 @@ class CapitalTransferExecutionFlowTest {
         new CapitalTransferAmount(
             MEMBERSHIP_BONUS, new BigDecimal("25.00"), new BigDecimal("20.00"));
     when(contract.getTransferAmounts()).thenReturn(List.of(zeroAmount, validAmount));
+
+    // Mock repository calls for valid amount only
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("200.00"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("160.00"));
 
     // Mock validator behavior
     when(validator.shouldSkipTransfer(zeroAmount)).thenReturn(true);
@@ -224,6 +245,18 @@ class CapitalTransferExecutionFlowTest {
     when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
     when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
 
+    // Mock repository calls for both transfer types
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("1000.00"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("800.00"));
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("500.00"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("400.00"));
+
     when(contractRepository.findAllByState(APPROVED)).thenReturn(List.of(contract1, contract2));
 
     // When
@@ -271,6 +304,13 @@ class CapitalTransferExecutionFlowTest {
     when(buyerMember.getId()).thenReturn(102L);
     when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
     when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
+
+    // Mock repository calls needed for proportional fiat value calculation
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("1000.00"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("800.00"));
 
     // Make the second contract fail validation
     doNothing().when(validator).validateContract(successContract);
@@ -320,6 +360,13 @@ class CapitalTransferExecutionFlowTest {
     when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
     when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
 
+    // Mock repository calls for proportional fiat value calculation
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("1000.00"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("800.00"));
+
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(
             CAPITAL_PAYMENT,
@@ -347,6 +394,7 @@ class CapitalTransferExecutionFlowTest {
             .orElseThrow();
     assertThat(sellerEvent.getOwnershipUnitAmount())
         .isEqualByComparingTo(new BigDecimal("-160.00000"));
+    // Proportional fiat: (1000 * 160) / 800 = 200.00000
     assertThat(sellerEvent.getFiatValue()).isEqualByComparingTo(new BigDecimal("-200.00000"));
 
     // Buyer acquisition should have +160 units

@@ -64,6 +64,13 @@ class CapitalTransferEventLinkTest {
         new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE);
     when(contract.getTransferAmounts()).thenReturn(List.of(payment));
 
+    // Mock repository calls for CAPITAL_PAYMENT only
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("1000.00"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("800.00"));
+
     when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
         .thenAnswer(
             invocation -> {
@@ -103,6 +110,18 @@ class CapitalTransferEventLinkTest {
         new CapitalTransferAmount(
             MEMBERSHIP_BONUS, new BigDecimal("62.50"), new BigDecimal("50.00"));
     when(contract.getTransferAmounts()).thenReturn(List.of(payment, bonus));
+
+    // Mock repository calls for both types
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("1000.00"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(new BigDecimal("800.00"));
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("500.00"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("400.00"));
 
     when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
         .thenAnswer(
@@ -155,6 +174,13 @@ class CapitalTransferEventLinkTest {
 
     when(validator.shouldSkipTransfer(zeroAmount)).thenReturn(true);
     when(validator.shouldSkipTransfer(validAmount)).thenReturn(false);
+
+    // Mock repository calls for MEMBERSHIP_BONUS only (since CAPITAL_PAYMENT is skipped)
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("500.00"));
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, MEMBERSHIP_BONUS))
+        .thenReturn(new BigDecimal("400.00"));
 
     when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
         .thenAnswer(

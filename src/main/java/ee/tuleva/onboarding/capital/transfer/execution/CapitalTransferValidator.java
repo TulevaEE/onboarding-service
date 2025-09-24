@@ -87,7 +87,7 @@ public class CapitalTransferValidator {
                 Collectors.mapping(
                     event ->
                         event
-                            .getFiatValue()
+                            .getOwnershipUnitAmount()
                             .multiply(ownershipUnitPrice)
                             .setScale(5, RoundingMode.HALF_UP),
                     Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))));

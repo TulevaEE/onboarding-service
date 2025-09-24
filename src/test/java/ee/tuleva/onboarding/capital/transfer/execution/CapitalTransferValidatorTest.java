@@ -383,7 +383,7 @@ public class CapitalTransferValidatorTest {
   }
 
   @Test
-  @DisplayName("Should correctly multiply fiat value by ownership unit price")
+  @DisplayName("Should correctly multiply ownership unit amount by ownership unit price")
   public void whenValidateSufficientCapital_withHighOwnershipUnitPrice_thenMultipliesCorrectly() {
     // Given
     when(contract.getSeller()).thenReturn(seller);
@@ -402,6 +402,33 @@ public class CapitalTransferValidatorTest {
     when(memberCapitalEventRepository.findAllByMemberId(1L)).thenReturn(List.of(event));
 
     // When & Then - Should not throw exception (80 * 2.50 = 200 required)
+    validator.validateSufficientCapital(contract);
+  }
+
+  @Test
+  @DisplayName("Should handle rounding edge cases correctly")
+  public void whenValidateSufficientCapital_withRoundingEdgeCase_thenValidationPasses() {
+    // Given
+    when(contract.getSeller()).thenReturn(seller);
+    when(seller.getId()).thenReturn(1L);
+
+    // Transfer amount: 48.12
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("48.12"));
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // Mock ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(new BigDecimal("1.00001")));
+
+    // Mock seller has ownership units that when multiplied result in slightly less than required
+    // Available: 48.11999 * 1.00001 = 48.12000... (should be >= 48.12 after rounding)
+    MemberCapitalEvent event =
+        createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("48.11999"));
+    when(memberCapitalEventRepository.findAllByMemberId(1L)).thenReturn(List.of(event));
+
+    // When & Then - Should not throw exception due to proper rounding handling
     validator.validateSufficientCapital(contract);
   }
 

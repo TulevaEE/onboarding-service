@@ -10,6 +10,6 @@ public interface AggregatedCapitalEventRepository
   AggregatedCapitalEvent findTopByOrderByDateDesc();
 
   @Query(
-      "SELECT a.ownershipUnitPrice FROM AggregatedCapitalEvent a ORDER BY a.date DESC, a.id DESC")
+      "SELECT a.ownershipUnitPrice FROM AggregatedCapitalEvent a ORDER BY a.date DESC, a.id DESC LIMIT 1")
   Optional<BigDecimal> findLatestOwnershipUnitPrice();
 }

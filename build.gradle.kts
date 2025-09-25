@@ -1,5 +1,3 @@
-import net.ltgt.gradle.errorprone.CheckSeverity.WARN
-import net.ltgt.gradle.errorprone.errorprone
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
 import org.gradle.api.tasks.testing.logging.TestLogEvent.FAILED
 import org.gradle.api.tasks.testing.logging.TestLogEvent.PASSED
@@ -30,7 +28,6 @@ plugins {
     id("com.gorylenko.gradle-git-properties") version "2.5.3"
     id("com.diffplug.spotless") version "7.2.1"
     id("io.freefair.lombok") version "8.14.2"
-    id("net.ltgt.errorprone") version "4.3.0"
     jacoco
 }
 
@@ -82,8 +79,6 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-json")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     compileOnly("org.jspecify:jspecify:1.0.0")
-    errorprone("com.google.errorprone:error_prone_core:2.41.0")
-    errorprone("com.uber.nullaway:nullaway:0.12.9")
 
     developmentOnly("org.springframework.boot:spring-boot-devtools")
     implementation("io.micrometer:micrometer-tracing-bridge-otel")
@@ -377,17 +372,6 @@ tasks.withType<JavaCompile> {
     options.compilerArgs.add("-Xlint:-deprecation")
     options.compilerArgs.add("-Xdiags:verbose")
 //    options.compilerArgs.add("-Werror")
-
-    options.errorprone {
-        check("NullAway", WARN)
-        option("NullAway:AnnotatedPackages", "ee.tuleva.onboarding")
-        disableWarningsInGeneratedCode.set(true)
-        if (name.contains("test", ignoreCase = true)) {
-            options.errorprone {
-                disable("NullAway")
-            }
-        }
-    }
 }
 
 tasks.withType<JavaExec> {

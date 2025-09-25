@@ -354,7 +354,8 @@ public class CapitalTransferContractService {
             Map.of("id", contract.getId(), "oldState", oldState, "newState", newState)));
   }
 
-  void sendContractEmail(User recipient, EmailType emailType, CapitalTransferContract contract) {
+  public void sendContractEmail(
+      User recipient, EmailType emailType, CapitalTransferContract contract) {
     if (recipient.getEmail() == null) {
       log.error("User {} has no email, not sending email {}", recipient.getId(), emailType);
       return;

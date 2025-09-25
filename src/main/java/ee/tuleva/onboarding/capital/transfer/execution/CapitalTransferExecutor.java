@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.capital.transfer.execution;
 
+import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.APPROVED_AND_NOTIFIED;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.CAPITAL_TRANSFER_APPROVED_BY_BOARD;
+
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent;
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
@@ -8,6 +11,7 @@ import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractRepository;
+import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
@@ -26,6 +30,7 @@ public class CapitalTransferExecutor {
   private final MemberCapitalEventRepository memberCapitalEventRepository;
   private final AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
   private final CapitalTransferValidator validator;
+  private final CapitalTransferContractService contractService;
   private final CapitalTransferEventLinkRepository linkRepository;
 
   @Transactional
@@ -55,6 +60,17 @@ public class CapitalTransferExecutor {
         contract.getId(),
         contract.getSeller().getId(),
         contract.getBuyer().getId());
+
+    sendApprovedByBoardEmails(contract);
+  }
+
+  private void sendApprovedByBoardEmails(CapitalTransferContract transfer) {
+    contractService.sendContractEmail(
+        transfer.getBuyer().getUser(), CAPITAL_TRANSFER_APPROVED_BY_BOARD, transfer);
+    contractService.sendContractEmail(
+        transfer.getSeller().getUser(), CAPITAL_TRANSFER_APPROVED_BY_BOARD, transfer);
+
+    contractService.updateStateBySystem(transfer.getId(), APPROVED_AND_NOTIFIED);
   }
 
   private void executeTransferAmount(

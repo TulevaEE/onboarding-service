@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.capital.transfer.execution;
 
+import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.CAPITAL_TRANSFER_APPROVED_BY_BOARD;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -13,6 +15,7 @@ import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractRepository;
+import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.util.List;
@@ -33,6 +36,7 @@ class CapitalTransferExecutionFlowTest {
   @Mock private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
   @Mock private CapitalTransferValidator validator;
   @Mock private CapitalTransferEventLinkRepository linkRepository;
+  @Mock private CapitalTransferContractService capitalTransferContractService;
 
   @Mock private CapitalTransferContract contract;
   @Mock private Member sellerMember;
@@ -53,6 +57,7 @@ class CapitalTransferExecutionFlowTest {
             memberCapitalEventRepository,
             aggregatedCapitalEventRepository,
             validator,
+            capitalTransferContractService,
             linkRepository);
 
     executionJob = new CapitalTransferExecutionJob(contractRepository, executor);
@@ -65,6 +70,8 @@ class CapitalTransferExecutionFlowTest {
     when(contract.getId()).thenReturn(1L);
     when(contract.getSeller()).thenReturn(sellerMember);
     when(contract.getBuyer()).thenReturn(buyerMember);
+    when(sellerMember.getUser()).thenReturn(sampleUser().id(1L).build());
+    when(buyerMember.getUser()).thenReturn(sampleUser().id(2L).build());
     when(sellerMember.getId()).thenReturn(101L);
     when(buyerMember.getId()).thenReturn(102L);
 
@@ -149,6 +156,20 @@ class CapitalTransferExecutionFlowTest {
     // 4. Verify contract state was updated
     verify(contract).executed();
     verify(contractRepository).save(contract);
+
+    verify(capitalTransferContractService, times(1))
+        .sendContractEmail(
+            eq(contract.getSeller().getUser()),
+            eq(CAPITAL_TRANSFER_APPROVED_BY_BOARD),
+            eq(contract));
+    verify(capitalTransferContractService, times(1))
+        .sendContractEmail(
+            eq(contract.getBuyer().getUser()),
+            eq(CAPITAL_TRANSFER_APPROVED_BY_BOARD),
+            eq(contract));
+
+    verify(capitalTransferContractService, times(1))
+        .updateStateBySystem(contract.getId(), APPROVED_AND_NOTIFIED);
   }
 
   @Test

@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -94,8 +95,108 @@ public class CapitalTransferExecutorTest {
               return event;
             });
 
+    when(validator.calculateAvailableCapitalForSeller(contract))
+        .thenReturn(Map.of(CAPITAL_PAYMENT, BOOK_VALUE));
+
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE);
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // When
+    executor.execute(contract);
+
+    // Then
+    verify(validator).validateContract(contract);
+    verify(validator).validateSufficientCapital(contract);
+
+    // Verify seller withdrawal event
+    ArgumentCaptor<MemberCapitalEvent> eventCaptor =
+        ArgumentCaptor.forClass(MemberCapitalEvent.class);
+    verify(memberCapitalEventRepository, times(2)).save(eventCaptor.capture());
+
+    // Verify links were created
+    verify(linkRepository, times(2)).save(any(CapitalTransferEventLink.class));
+
+    List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
+
+    // Calculate expected proportional fiat value: (totalFiatValue * unitsToTransfer) / totalUnits
+    // (987.65432 * 71.17079) / 321.98765 = 218.30694 (rounded to 5 decimal places)
+    BigDecimal expectedProportionalFiatValue = new BigDecimal("218.30694");
+
+    // First event should be seller withdrawal
+    MemberCapitalEvent sellerEvent = savedEvents.get(0);
+    assertThat(sellerEvent.getMember()).isEqualTo(seller);
+    assertThat(sellerEvent.getType()).isEqualTo(CAPITAL_PAYMENT);
+    assertThat(sellerEvent.getFiatValue()).isEqualTo(expectedProportionalFiatValue.negate());
+    assertThat(sellerEvent.getOwnershipUnitAmount()).isEqualTo(EXPECTED_UNITS.negate());
+    assertThat(sellerEvent.getAccountingDate())
+        .isEqualTo(LocalDate.now(ZoneId.of("Europe/Tallinn")));
+    assertThat(sellerEvent.getEffectiveDate())
+        .isEqualTo(LocalDate.now(ZoneId.of("Europe/Tallinn")));
+
+    // Second event should be buyer acquisition
+    MemberCapitalEvent buyerEvent = savedEvents.get(1);
+    assertThat(buyerEvent.getMember()).isEqualTo(buyer);
+    assertThat(buyerEvent.getType()).isEqualTo(CAPITAL_ACQUIRED);
+    assertThat(buyerEvent.getFiatValue()).isEqualTo(expectedProportionalFiatValue);
+    assertThat(buyerEvent.getOwnershipUnitAmount()).isEqualTo(EXPECTED_UNITS);
+    assertThat(buyerEvent.getAccountingDate())
+        .isEqualTo(LocalDate.now(ZoneId.of("Europe/Tallinn")));
+    assertThat(buyerEvent.getEffectiveDate()).isEqualTo(LocalDate.now(ZoneId.of("Europe/Tallinn")));
+
+    // Verify contract state updated to EXECUTED
+    verify(contract).executed();
+    verify(contractRepository).save(contract);
+
+    verify(capitalTransferContractService, times(1))
+        .sendContractEmail(
+            eq(seller.getUser()), eq(CAPITAL_TRANSFER_APPROVED_BY_BOARD), eq(contract));
+    verify(capitalTransferContractService, times(1))
+        .sendContractEmail(
+            eq(buyer.getUser()), eq(CAPITAL_TRANSFER_APPROVED_BY_BOARD), eq(contract));
+
+    verify(capitalTransferContractService, times(1))
+        .updateStateBySystem(contract.getId(), APPROVED_AND_NOTIFIED);
+  }
+
+  @Test
+  @DisplayName("Should execute transfer successfully and clamp when less than 1 cent to total")
+  public void clampTotal() {
+    // Given
+    when(contract.getId()).thenReturn(1L);
+    when(contract.getSeller()).thenReturn(seller);
+    when(contract.getBuyer()).thenReturn(buyer);
+    when(seller.getUser()).thenReturn(sampleUser().id(1L).build());
+    when(buyer.getUser()).thenReturn(sampleUser().id(2L).build());
+    when(seller.getId()).thenReturn(101L);
+    when(buyer.getId()).thenReturn(102L);
+    when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
+    when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
+
+    BigDecimal sellerTotalFiatValue = new BigDecimal("987.65432");
+    BigDecimal sellerTotalUnits = new BigDecimal("321.98765");
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalFiatValue);
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalUnits);
+
+    when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
+        .thenAnswer(
+            invocation -> {
+              MemberCapitalEvent event = invocation.getArgument(0);
+              event.setId(System.nanoTime());
+              return event;
+            });
+
+    when(validator.calculateAvailableCapitalForSeller(contract))
+        .thenReturn(Map.of(CAPITAL_PAYMENT, BOOK_VALUE));
+
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            BOOK_VALUE.subtract(new BigDecimal("0.0001")));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // When
@@ -180,6 +281,8 @@ public class CapitalTransferExecutorTest {
     when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
             101L, MEMBERSHIP_BONUS))
         .thenReturn(new BigDecimal("123.45678"));
+    when(validator.calculateAvailableCapitalForSeller(contract))
+        .thenReturn(Map.of(CAPITAL_PAYMENT, BOOK_VALUE, MEMBERSHIP_BONUS, new BigDecimal("50.00")));
 
     when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
         .thenAnswer(
@@ -271,6 +374,8 @@ public class CapitalTransferExecutorTest {
     when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
             101L, MEMBERSHIP_BONUS))
         .thenReturn(new BigDecimal("160.00000"));
+    when(validator.calculateAvailableCapitalForSeller(contract))
+        .thenReturn(Map.of(MEMBERSHIP_BONUS, BOOK_VALUE));
 
     when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
         .thenAnswer(

@@ -16,6 +16,7 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -74,6 +75,9 @@ class CapitalTransferEventLinkTest {
             101L, CAPITAL_PAYMENT))
         .thenReturn(new BigDecimal("800.00"));
 
+    when(validator.calculateAvailableCapitalForSeller(contract))
+        .thenReturn(Map.of(CAPITAL_PAYMENT, new BigDecimal("1000.00")));
+
     when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
         .thenAnswer(
             invocation -> {
@@ -125,6 +129,14 @@ class CapitalTransferEventLinkTest {
     when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
             101L, MEMBERSHIP_BONUS))
         .thenReturn(new BigDecimal("400.00"));
+
+    when(validator.calculateAvailableCapitalForSeller(contract))
+        .thenReturn(
+            Map.of(
+                CAPITAL_PAYMENT,
+                new BigDecimal("1000.00"),
+                MEMBERSHIP_BONUS,
+                new BigDecimal("500.00")));
 
     when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
         .thenAnswer(
@@ -184,6 +196,8 @@ class CapitalTransferEventLinkTest {
     when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
             101L, MEMBERSHIP_BONUS))
         .thenReturn(new BigDecimal("400.00"));
+    when(validator.calculateAvailableCapitalForSeller(contract))
+        .thenReturn(Map.of(MEMBERSHIP_BONUS, new BigDecimal("500.00")));
 
     when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
         .thenAnswer(

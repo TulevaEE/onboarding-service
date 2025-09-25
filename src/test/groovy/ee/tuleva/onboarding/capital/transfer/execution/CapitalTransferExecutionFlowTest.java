@@ -19,6 +19,7 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
 import ee.tuleva.onboarding.user.member.Member;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -96,6 +97,14 @@ class CapitalTransferExecutionFlowTest {
     when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
             101L, MEMBERSHIP_BONUS))
         .thenReturn(new BigDecimal("400.00"));
+
+    when(validator.calculateAvailableCapitalForSeller(contract))
+        .thenReturn(
+            Map.of(
+                CAPITAL_PAYMENT,
+                new BigDecimal("1000.00"),
+                MEMBERSHIP_BONUS,
+                new BigDecimal("400.00")));
 
     // Mock job finding approved contracts
     when(contractRepository.findAllByState(APPROVED)).thenReturn(List.of(contract));
@@ -197,6 +206,8 @@ class CapitalTransferExecutionFlowTest {
     when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
             101L, MEMBERSHIP_BONUS))
         .thenReturn(new BigDecimal("160.00"));
+    when(validator.calculateAvailableCapitalForSeller(contract))
+        .thenReturn(Map.of(MEMBERSHIP_BONUS, new BigDecimal("200.00")));
 
     // Mock validator behavior
     when(validator.shouldSkipTransfer(zeroAmount)).thenReturn(true);
@@ -280,6 +291,14 @@ class CapitalTransferExecutionFlowTest {
 
     when(contractRepository.findAllByState(APPROVED)).thenReturn(List.of(contract1, contract2));
 
+    when(validator.calculateAvailableCapitalForSeller(any()))
+        .thenReturn(
+            Map.of(
+                CAPITAL_PAYMENT,
+                new BigDecimal("1000.00"),
+                MEMBERSHIP_BONUS,
+                new BigDecimal("400.00")));
+
     // When
     executionJob.executeApprovedContracts();
 
@@ -332,6 +351,9 @@ class CapitalTransferExecutionFlowTest {
     when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
             101L, CAPITAL_PAYMENT))
         .thenReturn(new BigDecimal("800.00"));
+
+    when(validator.calculateAvailableCapitalForSeller(any()))
+        .thenReturn(Map.of(CAPITAL_PAYMENT, new BigDecimal("1000.00")));
 
     // Make the second contract fail validation
     doNothing().when(validator).validateContract(successContract);
@@ -396,6 +418,8 @@ class CapitalTransferExecutionFlowTest {
             );
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
     when(contractRepository.findAllByState(APPROVED)).thenReturn(List.of(contract));
+    when(validator.calculateAvailableCapitalForSeller(contract))
+        .thenReturn(Map.of(CAPITAL_PAYMENT, new BigDecimal("1000.00")));
 
     // When
     executionJob.executeApprovedContracts();

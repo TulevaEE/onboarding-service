@@ -7,14 +7,12 @@ import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -83,7 +81,6 @@ public class CapitalTransferValidator {
 
     return calculateAvailableCapital(sellerEvents, ownershipUnitPrice);
   }
-
 
   private Map<MemberCapitalEventType, BigDecimal> calculateAvailableCapital(
       List<MemberCapitalEvent> events, BigDecimal ownershipUnitPrice) {

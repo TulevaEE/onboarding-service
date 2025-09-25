@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.*
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.when;
 
 import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
@@ -403,6 +404,27 @@ public class CapitalTransferValidatorTest {
 
     // When & Then - Should not throw exception (80 * 2.50 = 200 required)
     validator.validateSufficientCapital(contract);
+  }
+
+  @Test
+  @DisplayName("Should calculate capital totals")
+  public void shouldCalculateCapitalTotals() {
+    // Given
+    when(contract.getSeller()).thenReturn(seller);
+    when(seller.getId()).thenReturn(1L);
+
+    // Mock high ownership unit price
+    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
+        .thenReturn(Optional.of(new BigDecimal("2.50")));
+
+    // Mock seller has 80.00 of CAPITAL_ACQUIRED (80 * 2.50 = 200.00)
+    MemberCapitalEvent event = createMemberCapitalEvent(CAPITAL_ACQUIRED, new BigDecimal("80.00"));
+    when(memberCapitalEventRepository.findAllByMemberId(1L)).thenReturn(List.of(event));
+
+    var availableCapitalMap = validator.calculateAvailableCapitalForSeller(contract);
+
+    assertEquals(1, availableCapitalMap.size());
+    assertEquals(0, availableCapitalMap.get(CAPITAL_ACQUIRED).compareTo(new BigDecimal("200.00")));
   }
 
   @Test

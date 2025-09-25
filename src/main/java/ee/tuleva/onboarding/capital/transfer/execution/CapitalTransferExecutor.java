@@ -12,13 +12,11 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
-
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -54,7 +52,8 @@ public class CapitalTransferExecutor {
         continue;
       }
 
-      executeTransferAmount(contract, sellerAvailableCapital, transferAmount, currentUnitPrice, accountingDate);
+      executeTransferAmount(
+          contract, sellerAvailableCapital, transferAmount, currentUnitPrice, accountingDate);
     }
 
     // TODO use updateStateBySystem here
@@ -173,14 +172,18 @@ public class CapitalTransferExecutor {
     return latestEvent.getOwnershipUnitPrice();
   }
 
-  private BigDecimal calculateUnitsToTransfer(CapitalTransferAmount transferAmount, BigDecimal currentUnitPrice, Map<MemberCapitalEventType, BigDecimal> sellerAvailableAmounts) {
+  private BigDecimal calculateUnitsToTransfer(
+      CapitalTransferAmount transferAmount,
+      BigDecimal currentUnitPrice,
+      Map<MemberCapitalEventType, BigDecimal> sellerAvailableAmounts) {
     var sellerAvailableTotal = sellerAvailableAmounts.get(transferAmount.type());
 
-    var differenceBetweenAmountAndTotal = sellerAvailableTotal.subtract(transferAmount.bookValue()).abs();
+    var differenceBetweenAmountAndTotal =
+        sellerAvailableTotal.subtract(transferAmount.bookValue()).abs();
 
     // if difference is less than one cent, use seller available total of type
     if (differenceBetweenAmountAndTotal.compareTo(new BigDecimal("0.01")) < 0) {
-      return sellerAvailableTotal;
+      return sellerAvailableTotal.divide(currentUnitPrice, 5, RoundingMode.HALF_UP);
     }
 
     // TODO should this be half up?

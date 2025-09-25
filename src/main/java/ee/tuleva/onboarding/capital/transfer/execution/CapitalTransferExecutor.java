@@ -52,6 +52,7 @@ public class CapitalTransferExecutor {
       executeTransferAmount(contract, transferAmount, currentUnitPrice, accountingDate);
     }
 
+    // TODO use updateStateBySystem here
     contract.executed();
     contractRepository.save(contract);
 
@@ -65,10 +66,19 @@ public class CapitalTransferExecutor {
   }
 
   private void sendApprovedByBoardEmails(CapitalTransferContract transfer) {
-    contractService.sendContractEmail(
-        transfer.getBuyer().getUser(), CAPITAL_TRANSFER_APPROVED_BY_BOARD, transfer);
-    contractService.sendContractEmail(
-        transfer.getSeller().getUser(), CAPITAL_TRANSFER_APPROVED_BY_BOARD, transfer);
+    try {
+      contractService.sendContractEmail(
+          transfer.getBuyer().getUser(), CAPITAL_TRANSFER_APPROVED_BY_BOARD, transfer);
+    } catch (Exception e) {
+      log.error("Failed to send approved email to buyer for contract {}", transfer.getId(), e);
+    }
+
+    try {
+      contractService.sendContractEmail(
+          transfer.getSeller().getUser(), CAPITAL_TRANSFER_APPROVED_BY_BOARD, transfer);
+    } catch (Exception e) {
+      log.error("Failed to send approved email to seller for contract {}", transfer.getId(), e);
+    }
 
     contractService.updateStateBySystem(transfer.getId(), APPROVED_AND_NOTIFIED);
   }

@@ -7,12 +7,14 @@ import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -46,13 +48,8 @@ public class CapitalTransferValidator {
   }
 
   public void validateSufficientCapital(CapitalTransferContract contract) {
-    Long sellerId = contract.getSeller().getId();
-    List<MemberCapitalEvent> sellerEvents =
-        memberCapitalEventRepository.findAllByMemberId(sellerId);
-
-    BigDecimal ownershipUnitPrice = getCurrentOwnershipUnitPrice();
     Map<MemberCapitalEventType, BigDecimal> availableCapitalByType =
-        calculateAvailableCapital(sellerEvents, ownershipUnitPrice);
+        calculateAvailableCapitalForSeller(contract);
 
     for (CapitalTransferAmount transferAmount : contract.getTransferAmounts()) {
       if (shouldSkipTransfer(transferAmount)) {
@@ -75,6 +72,18 @@ public class CapitalTransferValidator {
     return transferAmount.bookValue() == null
         || transferAmount.bookValue().compareTo(BigDecimal.ZERO) == 0;
   }
+
+  Map<MemberCapitalEventType, BigDecimal> calculateAvailableCapitalForSeller(
+      CapitalTransferContract contract) {
+    Long sellerId = contract.getSeller().getId();
+    List<MemberCapitalEvent> sellerEvents =
+        memberCapitalEventRepository.findAllByMemberId(sellerId);
+
+    BigDecimal ownershipUnitPrice = getCurrentOwnershipUnitPrice();
+
+    return calculateAvailableCapital(sellerEvents, ownershipUnitPrice);
+  }
+
 
   private Map<MemberCapitalEventType, BigDecimal> calculateAvailableCapital(
       List<MemberCapitalEvent> events, BigDecimal ownershipUnitPrice) {

@@ -12,10 +12,13 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractService;
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Map;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -43,13 +46,15 @@ public class CapitalTransferExecutor {
     BigDecimal currentUnitPrice = getCurrentOwnershipUnitPrice();
     LocalDate accountingDate = LocalDate.now(ZoneId.of("Europe/Tallinn"));
 
+    var sellerAvailableCapital = validator.calculateAvailableCapitalForSeller(contract);
+
     for (CapitalTransferAmount transferAmount : contract.getTransferAmounts()) {
       if (validator.shouldSkipTransfer(transferAmount)) {
         log.debug("Skipping transfer with zero/null book value for type {}", transferAmount.type());
         continue;
       }
 
-      executeTransferAmount(contract, transferAmount, currentUnitPrice, accountingDate);
+      executeTransferAmount(contract, sellerAvailableCapital, transferAmount, currentUnitPrice, accountingDate);
     }
 
     // TODO use updateStateBySystem here
@@ -85,12 +90,13 @@ public class CapitalTransferExecutor {
 
   private void executeTransferAmount(
       CapitalTransferContract contract,
+      Map<MemberCapitalEventType, BigDecimal> sellerAvailableAmounts,
       CapitalTransferAmount transferAmount,
       BigDecimal currentUnitPrice,
       LocalDate accountingDate) {
 
     BigDecimal totalUnitsToTransfer =
-        transferAmount.bookValue().divide(currentUnitPrice, 5, RoundingMode.HALF_UP);
+        calculateUnitsToTransfer(transferAmount, currentUnitPrice, sellerAvailableAmounts);
 
     createSellerWithdrawalEvent(contract, transferAmount, totalUnitsToTransfer, accountingDate);
     createBuyerAcquisitionEvent(contract, transferAmount, totalUnitsToTransfer, accountingDate);
@@ -165,6 +171,20 @@ public class CapitalTransferExecutor {
     }
 
     return latestEvent.getOwnershipUnitPrice();
+  }
+
+  private BigDecimal calculateUnitsToTransfer(CapitalTransferAmount transferAmount, BigDecimal currentUnitPrice, Map<MemberCapitalEventType, BigDecimal> sellerAvailableAmounts) {
+    var sellerAvailableTotal = sellerAvailableAmounts.get(transferAmount.type());
+
+    var differenceBetweenAmountAndTotal = sellerAvailableTotal.subtract(transferAmount.bookValue()).abs();
+
+    // if difference is less than one cent, use seller available total of type
+    if (differenceBetweenAmountAndTotal.compareTo(new BigDecimal("0.01")) < 0) {
+      return sellerAvailableTotal;
+    }
+
+    // TODO should this be half up?
+    return transferAmount.bookValue().divide(currentUnitPrice, 5, RoundingMode.HALF_UP);
   }
 
   private BigDecimal calculateProportionalFiatValue(

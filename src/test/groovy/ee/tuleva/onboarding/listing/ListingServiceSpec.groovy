@@ -106,6 +106,7 @@ class ListingServiceSpec extends Specification {
       id = 1L
       createdTime = Instant.now()
     }
+    listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
     listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
@@ -128,10 +129,34 @@ class ListingServiceSpec extends Specification {
       id = 1L
       createdTime = Instant.now()
     }
+    listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
     listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
     capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of(CAPITAL_PAYMENT, BigDecimal.valueOf(900))
+    when:
+    service.createListing(request, person)
+
+    then:
+    def e = thrown(IllegalArgumentException)
+    e.message == "Not enough member capital to create listing"
+  }
+
+  def "createListing does not create listing when considering sale listings already made"() {
+    given:
+    def user = sampleUser().build()
+    def request = newListingRequest().type(SELL).bookValue(500.00).build()
+    def person = authenticatedPersonFromUser(user).build()
+
+    def savedListing = request.toListing(42L, 'et').tap {
+      id = 1L
+      createdTime = Instant.now()
+    }
+    listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of(activeListing().type(SELL).memberId(user.getMemberId()).bookValue(new BigDecimal("1000")).build())
+    listingRepository.save(_ as Listing) >> savedListing
+    userService.getById(person.userId) >> Optional.of(user)
+    capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(CAPITAL_PAYMENT, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))
+    capitalTransferContractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow()) >> Map.of()
     when:
     service.createListing(request, person)
 
@@ -150,6 +175,8 @@ class ListingServiceSpec extends Specification {
       id = 1L
       createdTime = Instant.now()
     }
+
+    listingRepository.findByExpiryTimeAfterAndMemberIdEquals(_, _) >> List.of()
     listingRepository.save(_ as Listing) >> savedListing
     userService.getById(person.userId) >> Optional.of(user)
     capitalService.getCapitalRows(user.getMemberId()) >> List.of(new CapitalRow(UNVESTED_WORK_COMPENSATION, BigDecimal.valueOf(100), BigDecimal.valueOf(900), BigDecimal.valueOf(100), BigDecimal.valueOf(10), Currency.EUR))

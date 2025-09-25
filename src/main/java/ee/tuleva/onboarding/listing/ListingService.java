@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.listing;
 import static ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType.UNVESTED_WORK_COMPENSATION;
 import static ee.tuleva.onboarding.listing.Listing.State.ACTIVE;
 import static ee.tuleva.onboarding.listing.ListingType.BUY;
+import static ee.tuleva.onboarding.listing.ListingType.SELL;
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getNameMergeVars;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
 import static org.springframework.web.util.HtmlUtils.htmlEscape;
@@ -216,10 +217,24 @@ public class ListingService {
             .stream()
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+    var sellerCapitalAlreadyListed = getSellerListingsBookValueSum(user);
+
     var totalMemberCapitalAvailableForSale =
-        totalMemberCapital.subtract(totalMemberCapitalBeingSold);
+        totalMemberCapital
+            .subtract(totalMemberCapitalBeingSold)
+            .subtract(sellerCapitalAlreadyListed);
 
     return totalMemberCapitalAvailableForSale.compareTo(request.bookValue()) >= 0;
+  }
+
+  private BigDecimal getSellerListingsBookValueSum(User seller) {
+    var myActiveSaleListings =
+        listingRepository
+            .findByExpiryTimeAfterAndMemberIdEquals(clock.instant(), seller.getMemberId())
+            .stream()
+            .filter(listing -> listing.getType().equals(SELL) && listing.getState().equals(ACTIVE));
+
+    return myActiveSaleListings.map(Listing::getBookValue).reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 
   private String transformMessageNewlines(String message) {

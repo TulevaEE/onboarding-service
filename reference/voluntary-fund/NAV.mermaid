@@ -1,0 +1,14 @@
+sequenceDiagram
+  title NAV Ingestion — Gmail to PostgreSQL index_values
+
+  participant NavImportJob as Email NAV Import Job (daily)
+  participant Gmail as Gmail (funds@tuleva.ee)
+  participant CsvParser as CSV Parser
+  participant DB as Database (PostgreSQL)
+  NavImportJob->>Gmail: Search latest email from Swedbank with CSV attachment
+  Gmail-->>NavImportJob: Latest message identifier and attachment metadata
+  NavImportJob->>Gmail: Download CSV attachment
+  NavImportJob->>CsvParser: Parse CSV (ISIN, date, NAV)
+  CsvParser-->>NavImportJob: ISIN, date, NAV
+  NavImportJob->>DB: Upsert into index_values (isin, date, value=NAV)
+  DB-->>NavImportJob: Upsert confirmed

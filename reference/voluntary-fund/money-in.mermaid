@@ -1,0 +1,44 @@
+sequenceDiagram
+    title Money In — User makes a payment via Montonio
+
+    actor User
+    participant OnboardingClient as onboarding-client
+    participant OnboardingService as onboarding-service
+    participant Montonio as Montonio
+    participant Bank as Internet Bank
+
+    %% 1) Start in our web app
+    User->>OnboardingClient: Click "Pay with Montonio"
+    OnboardingClient->>OnboardingService: GET /v1/payments/link
+    OnboardingService-->>OnboardingClient: 200 { montonioUrl }
+
+    %% 2) Redirect to Montonio and onward to bank
+    OnboardingClient-->>User: 302 Redirect to { montonioUrl }
+    User->>Montonio: GET { montonioUrl }
+    Montonio-->>User: 302 Redirect to Internet Bank
+    User->>Bank: GET payment page
+
+    %% 3) Strong auth at the bank
+    User->>Bank: Login (PIN1)
+    User->>Bank: Confirm payment (PIN2)
+
+    %% 4) Return via Montonio to our backend
+    Bank-->>User: 302 Back to Montonio (with result)
+    User->>Montonio: GET /return?status=success&...
+    Montonio->>OnboardingService: GET /v1/payments/voluntary-fund/success?data=...
+
+    activate OnboardingService
+    OnboardingService->>OnboardingService: Save payment in DB
+    OnboardingService->>OnboardingService: Create account transactions & ledger entries
+    OnboardingService-->>User: 302 Redirect to FE /voluntary-fund/payment-success
+    deactivate OnboardingService
+
+    %% 5) Success page
+    User->>OnboardingClient: GET /voluntary-fund/payment-success
+    Note over OnboardingClient,User: Show payment success UI
+
+    %% 6) Async fallback notification from Montonio
+    opt Fallback notification (in case user dropped or redirect failed)
+        Montonio->>OnboardingService: POST /v1/payments/notifications (same payment data)
+        OnboardingService->>OnboardingService: Idempotently persist payment
+    end

@@ -32,8 +32,8 @@ public class PaymentController {
   }
 
   @GetMapping("/success")
-  @Operation(summary = "Redirects user to payment success")
-  public RedirectView getPaymentSuccessRedirect(
+  @Operation(summary = "Redirects user to third pillar payment success")
+  public RedirectView getThirdPillarPaymentSuccessRedirect(
       @RequestParam("order-token") String serializedToken) {
     log.info("Processing payment success redirect");
     Optional<Payment> paymentOptional = paymentService.processToken(serializedToken);
@@ -44,7 +44,7 @@ public class PaymentController {
   }
 
   @GetMapping("/member-success")
-  @Operation(summary = "Redirects user to payment success")
+  @Operation(summary = "Redirects user to member payment success")
   public RedirectView getMemberPaymentSuccessRedirect(
       @RequestParam("order-token") String serializedToken) {
     log.info("Processing payment member success redirect");

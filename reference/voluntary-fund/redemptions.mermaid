@@ -1,0 +1,64 @@
+sequenceDiagram
+  title Redemptions — Collect Requests, Price at NAV, Move Cash, Payout, Reconcile
+
+%% Request capture during the day
+  participant User as Customer
+  participant Frontend as Web Application
+  participant Onboarding as Onboarding Service
+  participant RedemptionJob as Redemption Job (daily at 16:00)
+  participant DB as Database (PostgreSQL)
+  participant Ledger as Ledger
+  participant UnitsUser as User Fund Units Register
+  participant UnitsOut as Fund Units Outstanding (liability)
+  participant RedemptionPayable as Redemption Payable (to customer)
+  participant FundInvestmentCashClearing as Fund Investment Cash (Clearing)
+  participant PayoutsCashClearing as Payouts Cash (Clearing)
+  participant Swedbank as Swedbank Gateway API
+
+%% Customers create requests
+  User->>Frontend: Submit redemption request (units or amount)
+  Frontend->>Onboarding: POST /v1/redemptions (request details, customer IBAN)
+  Onboarding-->>User: Request received
+
+%% 16:00 cutoff processing
+  RedemptionJob->>Onboarding: Fetch all pending redemption requests (today)
+  Onboarding-->>RedemptionJob: List of requests (customer, units, IBAN)
+  RedemptionJob->>DB: Read NAV for today (cutoff NAV)
+  DB-->>RedemptionJob: NAV per unit (EUR)
+
+  loop For each redemption request
+    RedemptionJob->>RedemptionJob: amount = units * NAV (apply precision)
+  %% Units and value postings
+    Ledger->>UnitsUser: Post -units (remove from user)
+    Ledger->>UnitsOut: Post +units (reduce liability magnitude)
+    Ledger->>RedemptionPayable: Post +amount (create payable to customer)
+    Ledger->>FundInvestmentCashClearing: Post -amount (earmark fund cash for redemption)
+  end
+
+%% Internal cash move: fund IBAN to payout IBAN
+  RedemptionJob->>Ledger: Calculate total payout = sum(amount)
+  Ledger-->>RedemptionJob: Total payout amount
+  RedemptionJob->>Swedbank: Transfer fund IBAN -> payout IBAN (total payout)
+  Swedbank-->>RedemptionJob: Transfer confirmed
+
+%% Mirror internal bank transfer in clearing accounts
+  Ledger->>FundInvestmentCashClearing: Post +total payout (reduce fund cash clearing)
+  Ledger->>PayoutsCashClearing: Post -total payout (increase payout cash clearing)
+
+%% Execute customer payouts (SEPA instant)
+  loop For each redemption request
+    RedemptionJob->>Swedbank: Pay out to customer IBAN (amount, reference)
+    Swedbank-->>RedemptionJob: Execution confirmed
+    Ledger->>PayoutsCashClearing: Post +amount (reduce payout cash clearing)
+    Ledger->>RedemptionPayable: Post -amount (settle payable)
+  end
+
+%% Reconciliation checks
+  RedemptionJob->>Swedbank: Get statement balance of fund IBAN and payout IBAN
+  Swedbank-->>RedemptionJob: Fund balance F
+  Swedbank-->>RedemptionJob: Payout balance P
+  RedemptionJob->>Ledger: Read balances of Fund Investment Cash (Clearing) and Payouts Cash (Clearing)
+  Ledger-->>RedemptionJob: FundInvestmentCashClearing mirrors F
+  Ledger-->>RedemptionJob: PayoutsCashClearing mirrors P
+  RedemptionJob->>Ledger: Ensure Redemption Payable is zero after payouts
+  Ledger-->>RedemptionJob: All settled

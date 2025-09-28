@@ -1,0 +1,64 @@
+sequenceDiagram
+  title Hourly Reconciliation with Daily 16:00 Automatic Bounce‑Backs
+
+  participant OnboardingService as Onboarding Service
+  participant Ledger as Ledger
+  participant UserCashAccount as User Cash Account (euro)
+  participant IncomingPayments as Incoming Payments (Clearing)
+  participant Unreconciled as Unreconciled Bank Receipts
+  participant ReconciliationJob as Reconciliation Job (hourly)
+  participant CutoffJob as Cutoff Job (daily at 16:00)
+  participant SwedbankGateway as Swedbank Gateway API
+
+%% Hourly reconciliation: new bank transactions
+  ReconciliationJob->>SwedbankGateway: Fetch new bank transactions since last processed pointer
+  SwedbankGateway-->>ReconciliationJob: Return list of bank transactions
+
+  loop For each bank transaction
+    ReconciliationJob->>Ledger: Look up by external reference, amount, date, payer details
+    alt Found matching registry transaction without bank link
+      Ledger->>Ledger: Attach bank transaction identifier to existing journal entries (no new postings)
+    else No matching registry transaction
+      alt Reliable attribution to a person
+        Ledger->>UserCashAccount: Post entry +amount
+        Ledger->>IncomingPayments: Post entry -amount
+        note right of Ledger: Mark as created from bank reconciliation with bank transaction identifier
+      else Unattributed
+        Ledger->>Unreconciled: Post entry +amount
+        Ledger->>IncomingPayments: Post entry -amount
+        note right of Ledger: Record payer IBAN and bank transaction identifier
+      end
+    end
+  end
+
+%% Daily cutoff at 16:00 — automatic bounce‑backs
+  CutoffJob->>Ledger: List items in Unreconciled Bank Receipts created before 16:00 today and not yet attributed
+  Ledger-->>CutoffJob: Return list of unattributed items
+  loop For each unattributed item
+  %% SEPA Instant: same‑day, same‑IBAN returns are immediately confirmed
+    CutoffJob->>SwedbankGateway: Initiate return to sender (original payer IBAN, amount, reference)
+    SwedbankGateway-->>CutoffJob: Execution confirmed
+    Ledger->>Unreconciled: Post entry -amount (remove unattributed item)
+    Ledger->>IncomingPayments: Post entry +amount (reverse prior clearing credit)
+    note right of Ledger: Bank balance decreases and clearing balance increases by the same amount
+    CutoffJob-->>OnboardingService: Emit event "unattributed_payment_bounced" with identifiers
+  end
+
+%% Late attribution after cutoff
+  OnboardingService->>Ledger: Attempt to attribute a previously unattributed item
+  alt Item already bounced at 16:00
+    note over OnboardingService,Ledger: Do not credit the user. Notify the user to make a new payment.
+  else Item still in Unreconciled Bank Receipts (before cutoff)
+    Ledger->>Unreconciled: Post entry -amount
+    Ledger->>UserCashAccount: Post entry +amount
+    note right of Ledger: Incoming Payments remains unchanged here
+  end
+
+%% Consistency checks after cutoff
+  ReconciliationJob->>Ledger: Sum of all User Cash Account balances
+  Ledger-->>ReconciliationJob: Number
+  ReconciliationJob->>Ledger: Balance of Incoming Payments (Clearing)
+  Ledger-->>ReconciliationJob: Number
+  ReconciliationJob->>SwedbankGateway: Statement balance
+  SwedbankGateway-->>ReconciliationJob: Number
+  note over ReconciliationJob: Verify that sum of all User Cash Accounts plus balance of Unreconciled Bank Receipts equals the bank balance

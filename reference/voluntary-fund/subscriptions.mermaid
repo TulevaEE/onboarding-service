@@ -1,0 +1,53 @@
+sequenceDiagram
+  title Subscriptions — Issue fund units at NAV, Move Cash, Reconcile
+
+  participant InvestmentJob as Unit issuing job (daily, after NAV available)
+  participant DB as Database (PostgreSQL)
+  participant Ledger as Ledger
+  participant UserCash as User Cash Account (EUR)
+  participant Subscriptions as Fund Subscriptions Payable (to fund)
+  participant UnitsUser as User Fund Units Register
+  participant UnitsOut as Fund Units Outstanding (liability)
+  participant IncomingClearing as Incoming Payments (Clearing)
+  participant FundInvestmentCashClearing as Fund Investment Cash (Clearing)
+  participant Swedbank as Swedbank Gateway API
+
+%% 1) Read NAV
+  InvestmentJob->>DB: Read NAV for yesterday from index_values
+  DB-->>InvestmentJob: NAV per unit (EUR)
+
+%% 2) Allocate units and post per user
+  InvestmentJob->>Ledger: List users with positive User Cash balance
+  Ledger-->>InvestmentJob: Users and available amounts
+  loop For each user
+    InvestmentJob->>InvestmentJob: Compute units at NAV (apply precision)
+    Ledger->>UserCash: Post -amount (decrease user cash)
+    Ledger->>Subscriptions: Post +amount (increase payable to fund)
+    UnitsUser->>UnitsUser: Add +units for user
+    UnitsOut->>UnitsOut: Add -units to outstanding
+  end
+
+%% 3) Transfer cash between IBANs
+  InvestmentJob->>Ledger: Calculate total transfer (sum of user amounts)
+  Ledger-->>InvestmentJob: Total amount
+  InvestmentJob->>Swedbank: Transfer money‑in IBAN -> fund IBAN (total)
+  Swedbank-->>InvestmentJob: Transfer confirmed
+
+%% Mirror bank transfer in clearing accounts
+  Ledger->>IncomingClearing: Post +total (reduce money‑in clearing)
+  Ledger->>FundInvestmentCashClearing: Post -total (increase fund cash clearing)
+
+%% 4) Reconciliation checks
+  InvestmentJob->>Ledger: Read balance of Fund Subscriptions Payable
+  Ledger-->>InvestmentJob: Subscriptions Payable = total
+  InvestmentJob->>Ledger: Read value of issued units at NAV
+  Ledger-->>InvestmentJob: Units value = total (rounding tolerance)
+  InvestmentJob->>Swedbank: Get statement balance of money‑in IBAN
+  Swedbank-->>InvestmentJob: Balance A
+  InvestmentJob->>Swedbank: Get statement balance of fund IBAN
+  Swedbank-->>InvestmentJob: Balance B
+  InvestmentJob->>Ledger: Read balances of Incoming Payments (Clearing) and Fund Investment Cash (Clearing)
+  Ledger-->>InvestmentJob: IncomingClearing = A
+  Ledger-->>InvestmentJob: FundInvestmentCashClearing = B
+
+  InvestmentJob->>InvestmentJob: Verification complete

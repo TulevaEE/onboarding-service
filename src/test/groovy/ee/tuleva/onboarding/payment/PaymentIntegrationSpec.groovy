@@ -166,7 +166,7 @@ class PaymentIntegrationSpec extends Specification {
 
   private void expectThatPaymentCallbackRedirectsUser() {
     // TODO use mock mvc to test this instead of directly calling the controller
-    RedirectView result = paymentController.getPaymentSuccessRedirect(aSerializedSinglePaymentFinishedToken)
+    RedirectView result = paymentController.getThirdPillarPaymentSuccessRedirect(aSerializedSinglePaymentFinishedToken)
     assert result.url == frontendUrl + "/3rd-pillar-success"
   }
 

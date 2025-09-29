@@ -32,8 +32,12 @@ public class SwedbankGatewayMarshallerTest {
     this.swedbankGatewayMarshaller = new SwedbankGatewayMarshaller();
     this.swedbankGatewayClient =
         new SwedbankGatewayClient(
+            "",
+            "",
+            "",
             TestClockHolder.clock,
             swedbankGatewayMarshaller,
+            null,
             new LocalDateToXmlGregorianCalendarConverter(),
             new ZonedDateTimeToXmlGregorianCalendarConverter(),
             mock(RestTemplate.class));

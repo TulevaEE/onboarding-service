@@ -75,10 +75,11 @@ public class SwedbankStatementFetcher {
             SwedbankStatementFetchJob.builder().jobStatus(SCHEDULED).iban(accountIban).build());
 
     try {
-      swedbankGatewayClient.sendStatementRequest(
-          swedbankGatewayClient.getAccountStatementRequestEntity(accountIban, fetchJob.getId()),
-          fetchJob.getId());
+      var requestEntity =
+          swedbankGatewayClient.getAccountStatementRequestEntity(accountIban, fetchJob.getId());
+      swedbankGatewayClient.sendStatementRequest(requestEntity, fetchJob.getId());
       fetchJob.setJobStatus(WAITING_FOR_REPLY);
+      fetchJob.setRawRequest(swedbankGatewayClient.getRequestXml(requestEntity));
 
     } catch (RestClientException e) {
       fetchJob.setJobStatus(FAILED);

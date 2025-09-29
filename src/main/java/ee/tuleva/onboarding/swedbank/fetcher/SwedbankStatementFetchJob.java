@@ -33,6 +33,7 @@ public class SwedbankStatementFetchJob {
   private Instant lastCheckAt;
 
   @Column @Nullable private String rawResponse;
+  @Column @Nullable private String rawRequest;
 
   @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
   private Instant createdAt;

@@ -140,7 +140,7 @@ public class SwedbankGatewayClient {
     DatePeriodDetails1 datePeriodDetails = new DatePeriodDetails1();
 
     datePeriodDetails.setFrDt(dateConverter.convert(LocalDate.now(clock)));
-    datePeriodDetails.setToDt(dateConverter.convert(LocalDate.now(clock).plusDays(1)));
+    datePeriodDetails.setToDt(dateConverter.convert(LocalDate.now(clock)));
 
     period.setFrToDt(datePeriodDetails);
     period.setTp(ALLL);
@@ -152,7 +152,7 @@ public class SwedbankGatewayClient {
         timeConverter.convert(LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn"))));
     timePeriodDetails.setToTm(
         timeConverter.convert(
-            LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn")).plusDays(1)));
+            LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn")).with(LocalTime.MAX)));
 
     period.setFrToTm(timePeriodDetails);
 
@@ -170,6 +170,10 @@ public class SwedbankGatewayClient {
 
   public ee.swedbank.gateway.iso.response.Document getParsedStatementResponse(String rawResponse) {
     return marshaller.unMarshal(rawResponse, ee.swedbank.gateway.iso.response.Document.class);
+  }
+
+  public String getRequestXml(JAXBElement<ee.swedbank.gateway.iso.request.Document> requestEntity) {
+    return marshaller.marshalToString(requestEntity);
   }
 
   private static String serializeRequestId(UUID requestId) {

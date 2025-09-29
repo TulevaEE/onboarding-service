@@ -33,6 +33,9 @@ public class SwedbankGatewayClient {
   @Value("${swedbank-gateway.client-id}")
   private String clientId;
 
+  @Value("${swedbank-gateway.agreement-id}")
+  private String agreementId;
+
   private final Clock clock;
 
   private final SwedbankGatewayMarshaller marshaller;
@@ -92,7 +95,7 @@ public class SwedbankGatewayClient {
   private HttpHeaders getHeaders(UUID requestId) {
     var headers = new HttpHeaders();
     headers.add("X-Request-ID", serializeRequestId(requestId));
-    headers.add("X-Agreement-ID", "1234"); // TODO sandbox hardcode
+    headers.add("X-Agreement-ID", agreementId);
     headers.add(
         "Date",
         DateTimeFormatter.RFC_1123_DATE_TIME

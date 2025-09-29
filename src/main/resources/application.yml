@@ -63,6 +63,7 @@ swedbank-gateway:
     password: changeit
   url: ''
   client-id: ''
+  agreement-id: ''
   accounts:
     deposit_eur: ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN:~} # TODO remove null fallback
     withdrawal_eur: ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN:~}
@@ -184,6 +185,7 @@ swedbank-gateway:
     password: changeit
   url: 'https://psd2.api.swedbank.com/partner/sandbox/v1/sgw/'
   client-id: ${SWEDBANK_GATEWAY_CLIENT_ID:mock_client_id}
+  agreement-id: ${SWEDBANK_GATEWAY_AGREEMENT_ID:1234}
 ---
 spring:
   flyway:
@@ -238,6 +240,7 @@ swedbank-gateway:
     path: "/swedbank-gateway.p12"
     password: ${SWEDBANK_GATEWAY_KEYSTORE_PASSWORD}
   client-id: ${SWEDBANK_GATEWAY_CLIENT_ID}
+  agreement-id: ${SWEDBANK_GATEWAY_AGREEMENT_ID}
   url: ''
 
 epis:

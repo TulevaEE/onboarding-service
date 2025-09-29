@@ -1,18 +1,21 @@
 package ee.tuleva.onboarding.swedbank.http;
 
 import static ee.swedbank.gateway.iso.request.QueryType3Code.ALLL;
-import static org.springframework.http.HttpMethod.*;
+import static org.springframework.http.HttpMethod.DELETE;
+import static org.springframework.http.HttpMethod.GET;
+import static org.springframework.http.HttpMethod.POST;
 
-import ee.swedbank.gateway.iso.request.*;
-import jakarta.xml.bind.JAXBElement;
 import java.net.URI;
-import java.time.*;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
+
 import javax.xml.datatype.XMLGregorianCalendar;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.convert.converter.Converter;
@@ -23,29 +26,50 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import ee.swedbank.gateway.iso.request.AccountIdentification4Choice;
+import ee.swedbank.gateway.iso.request.AccountReportingRequestV03;
+import ee.swedbank.gateway.iso.request.CashAccount24;
+import ee.swedbank.gateway.iso.request.DatePeriodDetails1;
+import ee.swedbank.gateway.iso.request.GroupHeader59;
+import ee.swedbank.gateway.iso.request.ObjectFactory;
+import ee.swedbank.gateway.iso.request.Party12Choice;
+import ee.swedbank.gateway.iso.request.PartyIdentification43;
+import ee.swedbank.gateway.iso.request.ReportingPeriod1;
+import ee.swedbank.gateway.iso.request.ReportingRequest3;
+import ee.swedbank.gateway.iso.request.TimePeriodDetails1;
+import ee.tuleva.onboarding.swedbank.payment.PaymentMessageGenerator;
+import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
+import jakarta.xml.bind.JAXBElement;
+import lombok.RequiredArgsConstructor;
+
 @Service
 @RequiredArgsConstructor
 public class SwedbankGatewayClient {
 
   @Value("${swedbank-gateway.url}")
-  private String baseUrl;
+  private final String baseUrl;
 
   @Value("${swedbank-gateway.client-id}")
-  private String clientId;
+  private final String clientId;
 
   @Value("${swedbank-gateway.agreement-id}")
-  private String agreementId;
+  private final String agreementId;
 
   private final Clock clock;
-
   private final SwedbankGatewayMarshaller marshaller;
+  private final PaymentMessageGenerator paymentMessageGenerator;
 
   private final Converter<LocalDate, XMLGregorianCalendar> dateConverter;
   private final Converter<ZonedDateTime, XMLGregorianCalendar> timeConverter;
 
-  @Autowired
   @Qualifier("swedbankGatewayRestTemplate")
   private final RestTemplate restTemplate;
+
+  public void sendPaymentRequest(PaymentRequest paymentRequest, UUID requestId) {
+    var paymentMessage = paymentMessageGenerator.generatePaymentMessage(paymentRequest);
+    var requestEntity = new HttpEntity<>(paymentMessage, getHeaders(requestId));
+    restTemplate.exchange(getRequestUrl("payment-initiations"), POST, requestEntity, String.class);
+  }
 
   public void sendStatementRequest(
       JAXBElement<ee.swedbank.gateway.iso.request.Document> entity, UUID uuid) {

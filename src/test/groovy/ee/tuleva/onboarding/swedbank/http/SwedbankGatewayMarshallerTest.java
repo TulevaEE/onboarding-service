@@ -73,7 +73,7 @@ public class SwedbankGatewayMarshallerTest {
     var parsed = BankStatement.from(response.getValue().getBkToCstmrStmt().getStmt().getFirst());
 
     // TODO more asserts
-    assertEquals("EE062200221055091966", parsed.getBankStatementAccountType().iban());
+    assertEquals("EE062200221055091966", parsed.getBankStatementAccount().iban());
     assertEquals(2, parsed.getBalances().size());
 
     var firstBalance = parsed.getBalances().getFirst();

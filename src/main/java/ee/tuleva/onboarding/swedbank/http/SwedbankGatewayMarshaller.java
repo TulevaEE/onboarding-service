@@ -6,7 +6,9 @@ import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 
 @Service
-class SwedbankGatewayMarshaller {
+public class SwedbankGatewayMarshaller {
+  // TODO: Consider if this should be moved to a more general package since it's now public and
+  // reusable
 
   @SneakyThrows
   public String marshalToString(Object object) {

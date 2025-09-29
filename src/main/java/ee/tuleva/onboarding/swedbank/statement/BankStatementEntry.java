@@ -4,14 +4,24 @@ import static ee.swedbank.gateway.iso.response.report.CreditDebitCode.CRDT;
 
 import ee.swedbank.gateway.iso.response.report.Party6Choice;
 import ee.swedbank.gateway.iso.response.report.ReportEntry2;
+import ee.swedbank.gateway.iso.response.report.TransactionReferences2;
 import ee.swedbank.gateway.iso.response.statement.CreditDebitCode;
 import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-public record BankStatementEntry(CounterPartyDetails details, BigDecimal amount) {
+public record BankStatementEntry(
+    CounterPartyDetails details,
+    BigDecimal amount,
+    String currencyCode,
+    TransactionType transactionType,
+    List<String> endToEndIds,
+    List<String> remittanceInformation,
+    String externalId) {
 
   @RequiredArgsConstructor
   public static final class CounterPartyDetails {
@@ -96,7 +106,8 @@ public record BankStatementEntry(CounterPartyDetails details, BigDecimal amount)
         creditOrDebit == CreditDebitCode.CRDT ? BigDecimal.ONE : new BigDecimal("-1.0");
     var entryAmount = entry.getAmt().getValue().multiply(creditDebitCoefficient);
 
-    return new BankStatementEntry(counterPartyDetails, entryAmount);
+    return new BankStatementEntry(
+        counterPartyDetails, entryAmount, null, null, List.of(), List.of(), null);
   }
 
   public static BankStatementEntry from(ReportEntry2 entry) {
@@ -105,6 +116,45 @@ public record BankStatementEntry(CounterPartyDetails details, BigDecimal amount)
     var creditDebitCoefficient = creditOrDebit == CRDT ? BigDecimal.ONE : new BigDecimal("-1.0");
     var entryAmount = entry.getAmt().getValue().multiply(creditDebitCoefficient);
 
-    return new BankStatementEntry(counterPartyDetails, entryAmount);
+    var currencyCode = entry.getAmt().getCcy();
+
+    // Determine transaction type
+    var transactionType = creditOrDebit == CRDT ? TransactionType.CREDIT : TransactionType.DEBIT;
+
+    // Collect all EndToEndIds from all transaction details
+    var endToEndIds =
+        entry.getNtryDtls().stream()
+            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
+            .map(
+                txDtl ->
+                    Optional.ofNullable(txDtl.getRefs())
+                        .map(TransactionReferences2::getEndToEndId)
+                        .orElse(null))
+            .filter(endToEndId -> endToEndId != null && !endToEndId.isBlank())
+            .toList();
+
+    // Collect all remittance information from all transaction details
+    var remittanceInformation =
+        entry.getNtryDtls().stream()
+            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
+            .flatMap(
+                txDtl ->
+                    Optional.ofNullable(txDtl.getRmtInf())
+                        .map(rmtInf -> rmtInf.getUstrd().stream())
+                        .orElse(Stream.empty()))
+            .filter(ustrd -> ustrd != null && !ustrd.isBlank())
+            .toList();
+
+    // Extract external ID from entry reference
+    var externalId = entry.getNtryRef();
+
+    return new BankStatementEntry(
+        counterPartyDetails,
+        entryAmount,
+        currencyCode,
+        transactionType,
+        endToEndIds,
+        remittanceInformation,
+        externalId);
   }
 }

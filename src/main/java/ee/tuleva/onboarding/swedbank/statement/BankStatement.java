@@ -20,21 +20,21 @@ public class BankStatement {
   }
 
   private final BankStatementType type;
-  private final BankStatementAccountType bankStatementAccountType;
+  private final BankStatementAccount bankStatementAccount;
   private final List<BankStatementBalance> balances;
   // TODO check entries against TtlCdtNtries and TttlDbtEntries count from balances?
   private final List<BankStatementEntry> entries;
 
   public static BankStatement from(AccountReport11 report) {
-    var accountType = BankStatementAccountType.from(report);
+    var account = BankStatementAccount.from(report);
     var balances = report.getBal().stream().map(BankStatementBalance::from).toList();
     var entries = report.getNtry().stream().map(BankStatementEntry::from).toList();
 
-    return new BankStatement(INTRA_DAY_REPORT, accountType, balances, entries);
+    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries);
   }
 
   public static BankStatement from(AccountStatement2 statement) {
-    var accountType = BankStatementAccountType.from(statement);
+    var accountType = BankStatementAccount.from(statement);
     var balances = statement.getBal().stream().map(BankStatementBalance::from).toList();
     var entries = statement.getNtry().stream().map(BankStatementEntry::from).toList();
 

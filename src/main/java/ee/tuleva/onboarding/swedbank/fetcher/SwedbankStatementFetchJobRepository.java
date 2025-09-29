@@ -7,8 +7,8 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-interface SwedbankStatementFetchJobRepository
-    extends CrudRepository<SwedbankStatementFetchJob, UUID> {
+public interface SwedbankStatementFetchJobRepository // TODO: Add a service layer for fetching Jobs
+extends CrudRepository<SwedbankStatementFetchJob, UUID> {
   Optional<SwedbankStatementFetchJob> findFirstByJobStatusOrderByCreatedAtDesc(JobStatus jobStatus);
 
   Optional<SwedbankStatementFetchJob> findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(

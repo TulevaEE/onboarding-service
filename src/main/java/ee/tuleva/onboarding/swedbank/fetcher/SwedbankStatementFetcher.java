@@ -40,7 +40,7 @@ public class SwedbankStatementFetcher {
     }
   }
 
-  @Scheduled(cron = "0 */15 9-17 * * MON-FRI")
+  @Scheduled(cron = "0 0 9-17 * * MON-FRI")
   public void sendRequests() {
     for (SwedbankAccount account : SwedbankAccount.values()) {
       sendRequest(account);
@@ -109,14 +109,11 @@ public class SwedbankStatementFetcher {
         accountIban);
 
     var optionalLastInProgressFetchJob =
-        swedbankStatementFetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
-            WAITING_FOR_REPLY, accountIban);
+        swedbankStatementFetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(
+            WAITING_FOR_REPLY);
 
     if (optionalLastInProgressFetchJob.isEmpty()) {
-      log.info(
-          "No WAITING_FOR_REPLY Swedbank statement job found for account={} (iban={})...",
-          account,
-          accountIban);
+      log.info("No WAITING_FOR_REPLY Swedbank statement job found");
       return;
     }
 
@@ -152,11 +149,12 @@ public class SwedbankStatementFetcher {
         swedbankStatementFetchJobRepository.findById(response.requestTrackingId());
 
     if (optionalJobForResponseFromSwedbank.isEmpty()) {
-      throw new IllegalStateException(
+      log.error(
           "No corresponding Swedbank statement job found for swedbank response id="
               + response.requestTrackingId()
               + ", account="
               + account);
+      return;
     }
 
     var jobForResponseFromSwedbank = optionalJobForResponseFromSwedbank.get();

@@ -199,8 +199,7 @@ class SwedbankStatementFetcherTest {
             .id(id)
             .createdAt(TestClockHolder.now.minus(2, MINUTES))
             .build();
-    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
-            eq(WAITING_FOR_REPLY), any()))
+    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(eq(WAITING_FOR_REPLY)))
         .thenReturn(Optional.of(mockWaitingForReplyJob));
 
     var mockSwedbankResponse =
@@ -243,8 +242,7 @@ class SwedbankStatementFetcherTest {
   @DisplayName("response getter does nothing when job not available")
   void doNothingJobNotAvailable() {
 
-    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
-            eq(WAITING_FOR_REPLY), any()))
+    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(eq(WAITING_FOR_REPLY)))
         .thenReturn(Optional.empty());
 
     fetcher.getResponse(DEPOSIT_EUR);
@@ -262,8 +260,7 @@ class SwedbankStatementFetcherTest {
             .id(id)
             .createdAt(TestClockHolder.now.minus(30, SECONDS))
             .build();
-    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
-            eq(WAITING_FOR_REPLY), any()))
+    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(eq(WAITING_FOR_REPLY)))
         .thenReturn(Optional.of(mockWaitingForReplyJob));
 
     fetcher.getResponse(DEPOSIT_EUR);
@@ -282,8 +279,7 @@ class SwedbankStatementFetcherTest {
             .createdAt(TestClockHolder.now.minus(5, MINUTES))
             .lastCheckAt(TestClockHolder.now.minus(2, MINUTES))
             .build();
-    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
-            eq(WAITING_FOR_REPLY), any()))
+    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(eq(WAITING_FOR_REPLY)))
         .thenReturn(Optional.of(mockWaitingForReplyJob));
 
     when(swedbankGatewayClient.getResponse()).thenReturn(Optional.empty());
@@ -299,31 +295,6 @@ class SwedbankStatementFetcherTest {
   }
 
   @Test
-  @DisplayName("response getter throws when can't find corresponding job from response")
-  void throwInvalidResponse() {
-    var id = UUID.fromString("3e79ad6a-a2fd-4118-a6dc-015de60461a8");
-    var swedbankBrokenId = UUID.fromString("ffffffff-a2fd-4118-a6dc-015de60461a8");
-    var trackingId = UUID.fromString("11111111-a2fd-4118-a6dc-015de60461a8");
-
-    var mockWaitingForReplyJob =
-        SwedbankStatementFetchJob.builder()
-            .jobStatus(WAITING_FOR_REPLY)
-            .id(id)
-            .createdAt(TestClockHolder.now.minus(2, MINUTES))
-            .build();
-    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
-            eq(WAITING_FOR_REPLY), any()))
-        .thenReturn(Optional.of(mockWaitingForReplyJob));
-
-    var mockSwedbankResponse =
-        new SwedbankGatewayResponseDto("<xml>TEST</xml>", swedbankBrokenId, trackingId.toString());
-    when(swedbankGatewayClient.getResponse()).thenReturn(Optional.of(mockSwedbankResponse));
-
-    when(fetchJobRepository.findById(eq(swedbankBrokenId))).thenReturn(Optional.empty());
-    assertThrows(IllegalStateException.class, () -> fetcher.getResponse(DEPOSIT_EUR));
-  }
-
-  @Test
   @DisplayName("response getter saves response even if marshalling response to class fails")
   void getResponseFailedMarshal() {
     var id = UUID.fromString("3e79ad6a-a2fd-4118-a6dc-015de60461a8");
@@ -335,8 +306,7 @@ class SwedbankStatementFetcherTest {
             .id(id)
             .createdAt(TestClockHolder.now.minus(2, MINUTES))
             .build();
-    when(fetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
-            eq(WAITING_FOR_REPLY), any()))
+    when(fetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(eq(WAITING_FOR_REPLY)))
         .thenReturn(Optional.of(mockWaitingForReplyJob));
 
     var mockSwedbankResponse =

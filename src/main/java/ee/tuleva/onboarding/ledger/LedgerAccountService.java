@@ -1,8 +1,8 @@
 package ee.tuleva.onboarding.ledger;
 
+import ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
-import ee.tuleva.onboarding.ledger.LedgerAccount.ServiceAccountType;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Profile({"dev", "test"})
 @Service
 @RequiredArgsConstructor
-class LedgerAccountService {
+public class LedgerAccountService {
 
   private final LedgerAccountRepository ledgerAccountRepository;
 
@@ -22,6 +22,7 @@ class LedgerAccountService {
         LedgerAccount.builder()
             .name(name)
             .ledgerParty(ledgerParty)
+            .accountPurpose(AccountPurpose.USER_ACCOUNT)
             .assetTypeCode(assetType)
             .type(accountType)
             .build();
@@ -29,7 +30,7 @@ class LedgerAccountService {
     return ledgerAccountRepository.save(ledgerAccount);
   }
 
-  Optional<LedgerAccount> getLedgerAccountForParty(
+  public Optional<LedgerAccount> getLedgerAccountForParty(
       LedgerParty ledgerParty, AccountType accountType, AssetType assetTypeCode) {
     return Optional.of(
         ledgerAccountRepository.findByLedgerPartyAndTypeAndAssetTypeCode(
@@ -40,7 +41,22 @@ class LedgerAccountService {
     return ledgerAccountRepository.findAllByLedgerParty(ledgerParty);
   }
 
-  LedgerAccount getServiceAccount(ServiceAccountType serviceAccountType) {
-    return ledgerAccountRepository.findByServiceAccountType(serviceAccountType);
+  public Optional<LedgerAccount> findSystemAccount(
+      String name, AccountPurpose accountPurpose, AssetType assetType, AccountType accountType) {
+    return ledgerAccountRepository.findByNameAndAccountPurposeAndAssetTypeCodeAndType(
+        name, accountPurpose, assetType, accountType);
+  }
+
+  public LedgerAccount createSystemAccount(
+      String name, AccountPurpose accountPurpose, AssetType assetType, AccountType accountType) {
+    var ledgerAccount =
+        LedgerAccount.builder()
+            .name(name)
+            .accountPurpose(accountPurpose)
+            .assetTypeCode(assetType)
+            .type(accountType)
+            .build();
+
+    return ledgerAccountRepository.save(ledgerAccount);
   }
 }

@@ -24,7 +24,7 @@ import org.hibernate.annotations.Type;
 public class LedgerTransaction {
 
   public enum TransactionType {
-    TEST
+    TRANSFER
   }
 
   @Id

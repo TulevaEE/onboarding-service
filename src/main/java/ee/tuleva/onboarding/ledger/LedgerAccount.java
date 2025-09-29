@@ -29,14 +29,14 @@ public class LedgerAccount {
     EXPENSE
   }
 
-  public enum ServiceAccountType {
-    DEPOSIT_EUR,
-    EMISSION_UNIT
+  public enum AccountPurpose {
+    USER_ACCOUNT,
+    SYSTEM_ACCOUNT
   }
 
   public enum AssetType {
     EUR,
-    UNIT
+    FUND_UNIT
   }
 
   @Id
@@ -47,9 +47,9 @@ public class LedgerAccount {
   private String name;
 
   @Enumerated(EnumType.STRING)
-  @Column(columnDefinition = "ledger.service_account_type")
+  @Column(columnDefinition = "ledger.account_purpose")
   @JdbcType(PostgreSQLEnumJdbcType.class)
-  private ServiceAccountType serviceAccountType;
+  private AccountPurpose accountPurpose;
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, columnDefinition = "ledger.account_type")

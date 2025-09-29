@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Profile({"dev", "test"})
 @Service
 @RequiredArgsConstructor
-class LedgerPartyService {
+public class LedgerPartyService {
 
   private final LedgerPartyRepository ledgerPartyRepository;
 
@@ -28,7 +28,7 @@ class LedgerPartyService {
     return ledgerPartyRepository.save(ledgerParty);
   }
 
-  Optional<LedgerParty> getPartyForUser(User user) {
+  public Optional<LedgerParty> getPartyForUser(User user) {
     return Optional.ofNullable(
         ledgerPartyRepository.findByOwnerId(user.getPersonalCode())); // TODO party representative
   }

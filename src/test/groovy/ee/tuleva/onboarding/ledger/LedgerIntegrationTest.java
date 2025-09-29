@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.INCOME;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.ServiceAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.USER;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
@@ -27,8 +27,8 @@ public class LedgerIntegrationTest {
   void setup() {
     ledgerAccountRepository.save(
         LedgerAccount.builder()
-            .name("Tuleva cash deposit")
-            .serviceAccountType(DEPOSIT_EUR)
+            .name("DEPOSIT_EUR")
+            .accountPurpose(SYSTEM_ACCOUNT)
             .type(INCOME)
             .assetTypeCode(EUR)
             .build());
@@ -69,7 +69,7 @@ public class LedgerIntegrationTest {
             .filter(
                 account ->
                     account.getType() == LedgerAccount.AccountType.ASSET
-                        && account.getAssetTypeCode() == LedgerAccount.AssetType.UNIT)
+                        && account.getAssetTypeCode() == LedgerAccount.AssetType.FUND_UNIT)
             .findFirst()
             .orElseThrow();
 

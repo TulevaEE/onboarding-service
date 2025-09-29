@@ -8,11 +8,11 @@ import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayResponseDto;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 
@@ -40,7 +40,11 @@ public class SwedbankStatementFetcher {
     }
   }
 
-  @Scheduled(cron = "0 0 9-17 * * MON-FRI")
+  public Optional<SwedbankStatementFetchJob> getById(UUID id) {
+    return swedbankStatementFetchJobRepository.findById(id);
+  }
+
+  // @Scheduled(cron = "0 0 9-17 * * MON-FRI")
   public void sendRequests() {
     for (SwedbankAccount account : SwedbankAccount.values()) {
       sendRequest(account);
@@ -90,7 +94,7 @@ public class SwedbankStatementFetcher {
     }
   }
 
-  @Scheduled(cron = "0 */15 9-17 * * MON-FRI")
+  // @Scheduled(cron = "0 */15 9-17 * * MON-FRI")
   public void getResponses() {
     for (SwedbankAccount account : SwedbankAccount.values()) {
       getResponse(account);
@@ -166,7 +170,7 @@ public class SwedbankStatementFetcher {
     swedbankStatementFetchJobRepository.save(jobForResponseFromSwedbank);
 
     try {
-      processStatementResponse(jobForResponseFromSwedbank);
+      getParsedStatementResponse(jobForResponseFromSwedbank);
     } catch (Exception e) {
       log.error("Failed to process Swedbank statement response for account={}", account, e);
     }
@@ -174,10 +178,11 @@ public class SwedbankStatementFetcher {
     acknowledgeResponse(response, jobForResponseFromSwedbank);
   }
 
-  private void processStatementResponse(SwedbankStatementFetchJob job) {
-    Document response = swedbankGatewayClient.getParsedStatementResponse(job.getRawResponse());
-
-    log.info("Swedbank statement response: {}", response);
+  public Document getParsedStatementResponse(SwedbankStatementFetchJob job) {
+    if (job.getRawResponse() == null) {
+      throw new IllegalStateException("Job has no response");
+    }
+    return swedbankGatewayClient.getParsedStatementResponse(job.getRawResponse());
   }
 
   private void acknowledgeResponse(

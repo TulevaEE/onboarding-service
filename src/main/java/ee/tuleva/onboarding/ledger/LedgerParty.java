@@ -19,7 +19,6 @@ import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 @Entity
 @Table(name = "party", schema = "ledger")
 @Getter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString
@@ -50,4 +49,11 @@ public class LedgerParty {
   @Column(nullable = false, updatable = false, insertable = false)
   @Generated(event = INSERT)
   private Instant createdAt;
+
+  @Builder
+  public LedgerParty(PartyType partyType, String ownerId, Map<String, Object> details) {
+    this.partyType = partyType;
+    this.ownerId = ownerId;
+    this.details = details;
+  }
 }

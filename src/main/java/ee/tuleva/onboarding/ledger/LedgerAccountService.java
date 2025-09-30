@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.*;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
-import ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SystemAccount;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

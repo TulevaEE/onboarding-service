@@ -4,11 +4,11 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.MetadataKey.*;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.MetadataKey.OPERATION_TYPE;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SavingsFundTransactionType.*;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SavingsFundTransactionType.REDEMPTION_REQUEST;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SystemAccount.*;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.OPERATION_TYPE;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SavingsFundTransactionType.*;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SavingsFundTransactionType.REDEMPTION_REQUEST;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.*;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Service;
 @Profile({"dev", "test"})
 @Service
 @RequiredArgsConstructor
-public class SavingsFundLedgerService {
+public class SavingsFundLedger {
 
   private final LedgerPartyService ledgerPartyService;
   private final LedgerAccountService ledgerAccountService;
@@ -264,7 +264,8 @@ public class SavingsFundLedgerService {
   private LedgerAccount getUserCashAccount(LedgerParty owner) {
     return ledgerAccountRepository
         .findByOwnerAndAccountTypeAndAssetType(owner, ASSET, EUR)
-        .orElseThrow(() -> new IllegalStateException("User cash account not found"));
+        .orElseThrow(
+            () -> new IllegalStateException("User cash account not found: " + owner.getOwnerId()));
   }
 
   private LedgerAccount getUserUnitsAccount(LedgerParty userParty) {

@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_AC
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.USER;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;

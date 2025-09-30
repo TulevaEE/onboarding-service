@@ -51,7 +51,7 @@ public class LedgerService {
 
     LedgerAccount userCashAccount =
         ledgerAccountService
-            .getLedgerAccount(userParty, ASSET, EUR)
+            .getLedgerAccount(userParty, ASSET, assetType)
             .orElseThrow(() -> new IllegalStateException("User cash account not found"));
 
     if (userCashAccount.getAssetType() != assetType) {

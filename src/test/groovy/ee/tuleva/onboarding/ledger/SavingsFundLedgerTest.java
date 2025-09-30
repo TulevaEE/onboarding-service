@@ -5,7 +5,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_AC
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SystemAccount.*;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -13,7 +13,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
-import ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SystemAccount;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.util.List;
@@ -27,9 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @Transactional
-class SavingsFundLedgerServiceTest {
+class SavingsFundLedgerTest {
 
-  @Autowired SavingsFundLedgerService savingsFundLedgerService;
+  @Autowired SavingsFundLedger savingsFundLedger;
 
   @Autowired LedgerService ledgerService;
 
@@ -67,7 +67,7 @@ class SavingsFundLedgerServiceTest {
     String externalReference = "MONTONIO_123456";
 
     LedgerTransaction transaction =
-        savingsFundLedgerService.recordPaymentReceived(testUser, amount, externalReference);
+        savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
 
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RECEIVED");
@@ -94,7 +94,7 @@ class SavingsFundLedgerServiceTest {
     String externalReference = "UNATTRIBUTED_789";
 
     LedgerTransaction transaction =
-        savingsFundLedgerService.recordUnattributedPayment(amount, payerIban, externalReference);
+        savingsFundLedger.recordUnattributedPayment(amount, payerIban, externalReference);
 
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("UNATTRIBUTED_PAYMENT");
@@ -114,9 +114,9 @@ class SavingsFundLedgerServiceTest {
   void testAttributeLatePayment() {
     BigDecimal amount = new BigDecimal("750.00");
     String payerIban = "EE987654321098765432";
-    savingsFundLedgerService.recordUnattributedPayment(amount, payerIban, "LATE_REF");
+    savingsFundLedger.recordUnattributedPayment(amount, payerIban, "LATE_REF");
 
-    LedgerTransaction transaction = savingsFundLedgerService.attributeLatePayment(testUser, amount);
+    LedgerTransaction transaction = savingsFundLedger.attributeLatePayment(testUser, amount);
 
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("LATE_ATTRIBUTION");
@@ -135,10 +135,10 @@ class SavingsFundLedgerServiceTest {
   void testBounceBackUnattributedPayment() {
     BigDecimal amount = new BigDecimal("300.00");
     String payerIban = "EE555666777888999000";
-    savingsFundLedgerService.recordUnattributedPayment(amount, payerIban, "BOUNCE_REF");
+    savingsFundLedger.recordUnattributedPayment(amount, payerIban, "BOUNCE_REF");
 
     LedgerTransaction transaction =
-        savingsFundLedgerService.bounceBackUnattributedPayment(amount, payerIban);
+        savingsFundLedger.bounceBackUnattributedPayment(amount, payerIban);
 
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_BOUNCE_BACK");
@@ -158,10 +158,10 @@ class SavingsFundLedgerServiceTest {
     BigDecimal cashAmount = new BigDecimal("950.00");
     BigDecimal fundUnits = new BigDecimal("10.0000");
     BigDecimal navPerUnit = new BigDecimal("95.00");
-    savingsFundLedgerService.recordPaymentReceived(testUser, cashAmount, "SETUP_REF");
+    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, "SETUP_REF");
 
     LedgerTransaction transaction =
-        savingsFundLedgerService.issueFundUnits(testUser, cashAmount, fundUnits, navPerUnit);
+        savingsFundLedger.issueFundUnits(testUser, cashAmount, fundUnits, navPerUnit);
 
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_SUBSCRIPTION");
@@ -182,9 +182,9 @@ class SavingsFundLedgerServiceTest {
   @DisplayName("Subscription flow: Should transfer cash to fund investment account")
   void testTransferToFundAccount() {
     BigDecimal amount = new BigDecimal("2000.00");
-    savingsFundLedgerService.recordPaymentReceived(testUser, amount, "FUND_TRANSFER_REF");
+    savingsFundLedger.recordPaymentReceived(testUser, amount, "FUND_TRANSFER_REF");
 
-    LedgerTransaction transaction = savingsFundLedgerService.transferToFundAccount(amount);
+    LedgerTransaction transaction = savingsFundLedger.transferToFundAccount(amount);
 
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_TRANSFER");
@@ -209,7 +209,7 @@ class SavingsFundLedgerServiceTest {
     setupUserWithFundUnits(initialCash, initialUnits, navPerUnit);
 
     LedgerTransaction transaction =
-        savingsFundLedgerService.processRedemption(testUser, redeemUnits, redeemAmount, navPerUnit);
+        savingsFundLedger.processRedemption(testUser, redeemUnits, redeemAmount, navPerUnit);
 
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("REDEMPTION_REQUEST");
@@ -234,7 +234,7 @@ class SavingsFundLedgerServiceTest {
     BigDecimal amount = new BigDecimal("1200.00");
     setupFundWithCash(amount);
 
-    LedgerTransaction transaction = savingsFundLedgerService.transferFundToPayoutCash(amount);
+    LedgerTransaction transaction = savingsFundLedger.transferFundToPayoutCash(amount);
 
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_CASH_TRANSFER");
@@ -255,7 +255,7 @@ class SavingsFundLedgerServiceTest {
     setupRedemptionScenario(amount);
 
     LedgerTransaction transaction =
-        savingsFundLedgerService.processRedemptionPayout(testUser, amount, customerIban);
+        savingsFundLedger.processRedemptionPayout(testUser, amount, customerIban);
 
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("REDEMPTION_PAYOUT");
@@ -278,11 +278,10 @@ class SavingsFundLedgerServiceTest {
     BigDecimal navPerUnit = new BigDecimal("95.00");
 
     LedgerTransaction paymentTx =
-        savingsFundLedgerService.recordPaymentReceived(
-            testUser, paymentAmount, "COMPLETE_FLOW_REF");
+        savingsFundLedger.recordPaymentReceived(testUser, paymentAmount, "COMPLETE_FLOW_REF");
     LedgerTransaction subscriptionTx =
-        savingsFundLedgerService.issueFundUnits(testUser, paymentAmount, fundUnits, navPerUnit);
-    LedgerTransaction transferTx = savingsFundLedgerService.transferToFundAccount(paymentAmount);
+        savingsFundLedger.issueFundUnits(testUser, paymentAmount, fundUnits, navPerUnit);
+    LedgerTransaction transferTx = savingsFundLedger.transferToFundAccount(paymentAmount);
 
     verifyDoubleEntry(paymentTx);
     verifyDoubleEntry(subscriptionTx);
@@ -308,11 +307,10 @@ class SavingsFundLedgerServiceTest {
     setupUserWithFundUnits(initialAmount, initialUnits, navPerUnit);
 
     LedgerTransaction redemptionTx =
-        savingsFundLedgerService.processRedemption(testUser, redeemUnits, redeemAmount, navPerUnit);
-    LedgerTransaction cashTransferTx =
-        savingsFundLedgerService.transferFundToPayoutCash(redeemAmount);
+        savingsFundLedger.processRedemption(testUser, redeemUnits, redeemAmount, navPerUnit);
+    LedgerTransaction cashTransferTx = savingsFundLedger.transferFundToPayoutCash(redeemAmount);
     LedgerTransaction payoutTx =
-        savingsFundLedgerService.processRedemptionPayout(testUser, redeemAmount, customerIban);
+        savingsFundLedger.processRedemptionPayout(testUser, redeemAmount, customerIban);
 
     verifyDoubleEntry(redemptionTx);
     verifyDoubleEntry(cashTransferTx);
@@ -332,9 +330,7 @@ class SavingsFundLedgerServiceTest {
     User unonboardedUser = sampleUser().personalCode("99999999999").build();
 
     assertThatThrownBy(
-            () ->
-                savingsFundLedgerService.recordPaymentReceived(
-                    unonboardedUser, BigDecimal.TEN, "REF"))
+            () -> savingsFundLedger.recordPaymentReceived(unonboardedUser, BigDecimal.TEN, "REF"))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("User not onboarded");
   }
@@ -345,11 +341,11 @@ class SavingsFundLedgerServiceTest {
     BigDecimal amount = new BigDecimal("1000.00");
 
     LedgerTransaction payment =
-        savingsFundLedgerService.recordPaymentReceived(testUser, amount, "BALANCE_TEST");
+        savingsFundLedger.recordPaymentReceived(testUser, amount, "BALANCE_TEST");
     LedgerTransaction subscription =
-        savingsFundLedgerService.issueFundUnits(
+        savingsFundLedger.issueFundUnits(
             testUser, amount, new BigDecimal("10.0"), new BigDecimal("100.00"));
-    LedgerTransaction transfer = savingsFundLedgerService.transferToFundAccount(amount);
+    LedgerTransaction transfer = savingsFundLedger.transferToFundAccount(amount);
 
     verifyDoubleEntry(payment);
     verifyDoubleEntry(subscription);
@@ -383,21 +379,21 @@ class SavingsFundLedgerServiceTest {
 
   private void setupUserWithFundUnits(
       BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit) {
-    savingsFundLedgerService.recordPaymentReceived(testUser, cashAmount, "SETUP_PAYMENT");
-    savingsFundLedgerService.issueFundUnits(testUser, cashAmount, fundUnits, navPerUnit);
-    savingsFundLedgerService.transferToFundAccount(cashAmount);
+    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, "SETUP_PAYMENT");
+    savingsFundLedger.issueFundUnits(testUser, cashAmount, fundUnits, navPerUnit);
+    savingsFundLedger.transferToFundAccount(cashAmount);
   }
 
   private void setupFundWithCash(BigDecimal amount) {
-    savingsFundLedgerService.recordPaymentReceived(testUser, amount, "FUND_SETUP");
-    savingsFundLedgerService.transferToFundAccount(amount);
+    savingsFundLedger.recordPaymentReceived(testUser, amount, "FUND_SETUP");
+    savingsFundLedger.transferToFundAccount(amount);
   }
 
   private void setupRedemptionScenario(BigDecimal amount) {
     setupUserWithFundUnits(amount, new BigDecimal("5.0"), new BigDecimal("100.00"));
-    savingsFundLedgerService.processRedemption(
+    savingsFundLedger.processRedemption(
         testUser, new BigDecimal("5.0"), amount, new BigDecimal("100.00"));
-    savingsFundLedgerService.transferFundToPayoutCash(amount);
+    savingsFundLedger.transferFundToPayoutCash(amount);
   }
 
   private LedgerAccount getUserCashAccount() {

@@ -5,9 +5,11 @@ import static jakarta.persistence.GenerationType.*;
 import static java.math.BigDecimal.ZERO;
 import static org.hibernate.generator.EventType.INSERT;
 
+import ee.tuleva.onboarding.ledger.validation.BalancedTransaction;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
@@ -25,6 +27,7 @@ import org.hibernate.annotations.Type;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = {"entries"})
+@BalancedTransaction
 public class LedgerTransaction {
 
   public enum TransactionType {
@@ -50,6 +53,7 @@ public class LedgerTransaction {
   private Integer eventLogId; // TODO event log map*/
 
   @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL)
+  @Size(min = 2, message = "Transaction must have at least 2 entries for double-entry bookkeeping")
   private List<LedgerEntry> entries = new ArrayList<>();
 
   @Column(nullable = false, updatable = false, insertable = false)

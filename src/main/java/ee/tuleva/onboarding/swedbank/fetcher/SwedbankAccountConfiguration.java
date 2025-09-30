@@ -10,14 +10,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConfigurationProperties(prefix = "swedbank-gateway.accounts")
+@ConfigurationProperties(prefix = "swedbank-gateway")
 @Setter
 @Getter
 public class SwedbankAccountConfiguration {
 
-  private Map<String, String> accountIbans = new HashMap<>();
+  private Map<String, String> accounts = new HashMap<>();
 
   public Optional<String> getAccountIban(SwedbankAccount account) {
-    return Optional.ofNullable(accountIbans.getOrDefault(account.getConfigurationKey(), null));
+    return Optional.ofNullable(accounts.getOrDefault(account.getConfigurationKey(), null));
   }
 }

@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayResponseDto;
 import java.time.Clock;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +17,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 
-@Profile({"dev"})
+@Profile({"!staging"})
 @RequiredArgsConstructor
 @Slf4j
 @Service
@@ -40,7 +41,11 @@ public class SwedbankStatementFetcher {
     }
   }
 
-  @Scheduled(cron = "0 */15 9-17 * * MON-FRI")
+  public Optional<SwedbankStatementFetchJob> getById(UUID id) {
+    return swedbankStatementFetchJobRepository.findById(id);
+  }
+
+  @Scheduled(cron = "0 0 9-17 * * MON-FRI")
   public void sendRequests() {
     for (SwedbankAccount account : SwedbankAccount.values()) {
       sendRequest(account);
@@ -75,10 +80,11 @@ public class SwedbankStatementFetcher {
             SwedbankStatementFetchJob.builder().jobStatus(SCHEDULED).iban(accountIban).build());
 
     try {
-      swedbankGatewayClient.sendStatementRequest(
-          swedbankGatewayClient.getAccountStatementRequestEntity(accountIban, fetchJob.getId()),
-          fetchJob.getId());
+      var requestEntity =
+          swedbankGatewayClient.getAccountStatementRequestEntity(accountIban, fetchJob.getId());
+      swedbankGatewayClient.sendStatementRequest(requestEntity, fetchJob.getId());
       fetchJob.setJobStatus(WAITING_FOR_REPLY);
+      fetchJob.setRawRequest(swedbankGatewayClient.getRequestXml(requestEntity));
 
     } catch (RestClientException e) {
       fetchJob.setJobStatus(FAILED);
@@ -109,14 +115,11 @@ public class SwedbankStatementFetcher {
         accountIban);
 
     var optionalLastInProgressFetchJob =
-        swedbankStatementFetchJobRepository.findFirstByJobStatusAndIbanEqualsOrderByCreatedAtDesc(
-            WAITING_FOR_REPLY, accountIban);
+        swedbankStatementFetchJobRepository.findFirstByJobStatusOrderByCreatedAtDesc(
+            WAITING_FOR_REPLY);
 
     if (optionalLastInProgressFetchJob.isEmpty()) {
-      log.info(
-          "No WAITING_FOR_REPLY Swedbank statement job found for account={} (iban={})...",
-          account,
-          accountIban);
+      log.info("No WAITING_FOR_REPLY Swedbank statement job found");
       return;
     }
 
@@ -152,11 +155,12 @@ public class SwedbankStatementFetcher {
         swedbankStatementFetchJobRepository.findById(response.requestTrackingId());
 
     if (optionalJobForResponseFromSwedbank.isEmpty()) {
-      throw new IllegalStateException(
+      log.error(
           "No corresponding Swedbank statement job found for swedbank response id="
               + response.requestTrackingId()
               + ", account="
               + account);
+      return;
     }
 
     var jobForResponseFromSwedbank = optionalJobForResponseFromSwedbank.get();
@@ -167,7 +171,7 @@ public class SwedbankStatementFetcher {
     swedbankStatementFetchJobRepository.save(jobForResponseFromSwedbank);
 
     try {
-      processStatementResponse(jobForResponseFromSwedbank);
+      getParsedStatementResponse(jobForResponseFromSwedbank);
     } catch (Exception e) {
       log.error("Failed to process Swedbank statement response for account={}", account, e);
     }
@@ -175,10 +179,11 @@ public class SwedbankStatementFetcher {
     acknowledgeResponse(response, jobForResponseFromSwedbank);
   }
 
-  private void processStatementResponse(SwedbankStatementFetchJob job) {
-    Document response = swedbankGatewayClient.getParsedStatementResponse(job.getRawResponse());
-
-    log.info("Swedbank statement response: {}", response);
+  public Document getParsedStatementResponse(SwedbankStatementFetchJob job) {
+    if (job.getRawResponse() == null) {
+      throw new IllegalStateException("Job has no response");
+    }
+    return swedbankGatewayClient.getParsedStatementResponse(job.getRawResponse());
   }
 
   private void acknowledgeResponse(

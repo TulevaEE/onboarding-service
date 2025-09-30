@@ -5,12 +5,14 @@ import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.Swe
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher;
+import ee.tuleva.onboarding.swedbank.statement.BankStatement;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -74,6 +76,14 @@ public class LedgerTestController {
   @GetMapping("/swedbank/statement")
   public void getSwedbankResponse() {
     swedbankStatementFetcher.getResponse(DEPOSIT_EUR);
+  }
+
+  @Operation(summary = "Get statement response")
+  @GetMapping("/swedbank/job/{id}")
+  public BankStatement getSwedbankJobResponse(@PathVariable UUID id) {
+    var job = swedbankStatementFetcher.getById(id).orElseThrow();
+    var parsed = swedbankStatementFetcher.getParsedStatementResponse(job);
+    return BankStatement.from(parsed.getBkToCstmrAcctRpt().getRpt().getFirst());
   }
 
   record DepositDto(BigDecimal amount) {}

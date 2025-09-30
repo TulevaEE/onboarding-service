@@ -92,6 +92,7 @@ public class SwedbankGatewayClient {
     return Optional.of(
         new SwedbankGatewayResponseDto(
             messagesResponse.getBody(),
+            // TODO handle weird statement request-id?
             deSerializeRequestId(messagesResponse.getHeaders().get("X-Request-ID").getFirst()),
             messagesResponse.getHeaders().get("X-Tracking-ID").getFirst()));
   }
@@ -142,7 +143,7 @@ public class SwedbankGatewayClient {
     ReportingRequest3 reportingRequest = new ReportingRequest3();
 
     reportingRequest.setId(serializeRequestId(messageId));
-    reportingRequest.setReqdMsgNmId("camt.053.001.02");
+    reportingRequest.setReqdMsgNmId("camt.052.001.02"); // current day 52, past 53
 
     CashAccount24 cashAccount24 = new CashAccount24();
     AccountIdentification4Choice accountIdentification = new AccountIdentification4Choice();
@@ -154,7 +155,7 @@ public class SwedbankGatewayClient {
 
     var partyChoice = new Party12Choice();
     var party = new PartyIdentification43();
-    party.setNm("Tuleva");
+    // party.setNm("Tuleva");
     partyChoice.setPty(party);
 
     reportingRequest.setAcctOwnr(partyChoice);
@@ -164,7 +165,7 @@ public class SwedbankGatewayClient {
     DatePeriodDetails1 datePeriodDetails = new DatePeriodDetails1();
 
     datePeriodDetails.setFrDt(dateConverter.convert(LocalDate.now(clock)));
-    datePeriodDetails.setToDt(dateConverter.convert(LocalDate.now(clock).plusDays(1)));
+    datePeriodDetails.setToDt(dateConverter.convert(LocalDate.now(clock)));
 
     period.setFrToDt(datePeriodDetails);
     period.setTp(ALLL);
@@ -176,7 +177,7 @@ public class SwedbankGatewayClient {
         timeConverter.convert(LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn"))));
     timePeriodDetails.setToTm(
         timeConverter.convert(
-            LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn")).plusDays(1)));
+            LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn")).with(LocalTime.MAX)));
 
     period.setFrToTm(timePeriodDetails);
 
@@ -193,7 +194,14 @@ public class SwedbankGatewayClient {
   }
 
   public ee.swedbank.gateway.iso.response.Document getParsedStatementResponse(String rawResponse) {
-    return marshaller.unMarshal(rawResponse, ee.swedbank.gateway.iso.response.Document.class);
+    JAXBElement<ee.swedbank.gateway.iso.response.Document> marshalled =
+        marshaller.unMarshal(rawResponse, JAXBElement.class);
+
+    return marshalled.getValue();
+  }
+
+  public String getRequestXml(JAXBElement<ee.swedbank.gateway.iso.request.Document> requestEntity) {
+    return marshaller.marshalToString(requestEntity);
   }
 
   private static String serializeRequestId(UUID requestId) {

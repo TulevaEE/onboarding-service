@@ -34,15 +34,17 @@ public record BankStatementBalance(StatementBalanceType type, LocalDate time, Bi
       return Arrays.stream(StatementBalanceType.values())
           .filter(balanceType -> balanceType.balanceCode.equals(balanceTypeCode))
           .findFirst()
-          .orElseThrow(
-              () -> new IllegalArgumentException("Cannot match balance type " + balanceTypeCode));
+          .orElse(null); // TODO reserved party null balance code?
+      /*.orElseThrow(
+      () -> new IllegalArgumentException("Cannot match balance type " + balanceTypeCode));*/
     }
   }
 
   public static BankStatementBalance from(CashBalance3 balance) {
     var dateConverter = new XmlGregorianCalendarConverterToLocalDate();
     var statementBalanceType =
-        StatementBalanceType.fromBalanceCode(balance.getTp().getCdOrPrtry().getCd());
+        StatementBalanceType.fromBalanceCode(
+            balance.getTp().getCdOrPrtry().getCd()); // TODO reserved party = null?
 
     // handle dateTime here as well?
     var date = dateConverter.convert(balance.getDt().getDt());

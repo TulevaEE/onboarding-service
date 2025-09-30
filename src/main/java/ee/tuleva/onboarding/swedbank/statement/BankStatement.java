@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.swedbank.statement;
 
 import static ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
-import static lombok.AccessLevel.PRIVATE;
 
 import ee.swedbank.gateway.iso.response.report.AccountReport11;
 import ee.swedbank.gateway.iso.response.report.BankToCustomerAccountReportV02;
@@ -13,7 +12,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 @Getter
-@RequiredArgsConstructor(access = PRIVATE)
+@RequiredArgsConstructor
 public class BankStatement {
 
   public enum BankStatementType {
@@ -27,7 +26,7 @@ public class BankStatement {
   // TODO check entries against TtlCdtNtries and TttlDbtEntries count from balances?
   private final List<BankStatementEntry> entries;
 
-  public static BankStatement from(BankToCustomerAccountReportV02 accountReport) {
+  static BankStatement from(BankToCustomerAccountReportV02 accountReport) {
     var report = Require.exactlyOne(accountReport.getRpt(), "report");
     return from(report);
   }

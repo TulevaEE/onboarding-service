@@ -5,4 +5,6 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface SavingFundPaymentRepository extends CrudRepository<SavingFundPayment, UUID> {}
+public interface SavingFundPaymentRepository extends CrudRepository<SavingFundPayment, UUID> {
+  boolean existsByRemitterIdCodeAndDescription(String remitterIdCode, String description);
+}

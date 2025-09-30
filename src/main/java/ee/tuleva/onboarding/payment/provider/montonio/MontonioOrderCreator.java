@@ -60,10 +60,12 @@ public class MontonioOrderCreator {
 
     BigDecimal amount = getPaymentAmount(paymentData);
     Currency currency = paymentData.getCurrency();
+    String description = getPaymentDescription(paymentData);
 
     return MontonioOrder.builder()
         .accessKey(paymentChannelConfiguration.getAccessKey())
-        .merchantReference(paymentInternalReferenceService.getPaymentReference(person, paymentData))
+        .merchantReference(
+            paymentInternalReferenceService.getPaymentReference(person, paymentData, description))
         .returnUrl(getPaymentSuccessReturnUrl(paymentData.getType()))
         .notificationUrl(getNotificationUrl())
         .grandTotal(amount)
@@ -78,7 +80,7 @@ public class MontonioOrderCreator {
                     MontonioPaymentMethodOptions.builder()
                         .preferredProvider(paymentChannelConfiguration.getBic())
                         .preferredLocale(getLanguage())
-                        .paymentDescription(getPaymentDescription(paymentData))
+                        .paymentDescription(description)
                         .build())
                 .build())
         .billingAddress(

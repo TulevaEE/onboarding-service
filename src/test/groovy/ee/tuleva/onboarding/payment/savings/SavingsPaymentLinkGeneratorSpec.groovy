@@ -3,7 +3,6 @@ package ee.tuleva.onboarding.payment.savings
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.PaymentData
 import ee.tuleva.onboarding.payment.PaymentFixture
-import ee.tuleva.onboarding.payment.PaymentLink
 import ee.tuleva.onboarding.payment.provider.PaymentInternalReferenceService
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrder
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrderClient
@@ -17,9 +16,8 @@ import java.time.ZoneOffset
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.LHV
-import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.TULUNDUSUHISTU
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS
-import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
+
 
 class SavingsPaymentLinkGeneratorSpec extends Specification {
 
@@ -53,7 +51,7 @@ class SavingsPaymentLinkGeneratorSpec extends Specification {
         def reference = "REF123456"
 
         paymentChannelConfiguration.getPaymentProviderChannel(LHV) >> channel
-        paymentInternalReferenceService.getPaymentReference(person, paymentData) >> reference
+        paymentInternalReferenceService.getPaymentReference(person, paymentData, _) >> reference
         localeService.getCurrentLocale() >> Locale.ENGLISH
 
         def order
@@ -81,7 +79,7 @@ class SavingsPaymentLinkGeneratorSpec extends Specification {
         order.payment.currency == EUR
         order.payment.methodOptions.preferredProvider == channel.bic
         order.payment.methodOptions.preferredLocale == "en"
-        order.payment.methodOptions.paymentDescription == "38812121215"
+        order.payment.methodOptions.paymentDescription == "38812121215, " + clock.instant().getEpochSecond()
         order.billingAddress.firstName == "Jordan"
         order.billingAddress.lastName == "Valdma"
     }

@@ -7,7 +7,9 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.event.annotation.Trackable;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService;
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentLinkGenerator;
+import ee.tuleva.onboarding.payment.savings.SavingsCallbackService;
 import ee.tuleva.onboarding.payment.savings.SavingsPaymentLinkGenerator;
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
@@ -26,6 +28,7 @@ public class PaymentService {
   private final RecurringPaymentLinkGenerator recurringPaymentLinkGenerator;
   private final SavingsPaymentLinkGenerator savingsPaymentLinkGenerator;
   private final MontonioCallbackService montonioCallbackService;
+  private final SavingsCallbackService savingsCallbackService;
   private final UserService userService;
 
   public List<Payment> getThirdPillarPayments(Person person) {
@@ -66,5 +69,9 @@ public class PaymentService {
     }
 
     userService.registerAsMember(user.getId());
+  }
+
+  Optional<SavingFundPayment> processSavingsPaymentToken(String serializedToken) {
+    return savingsCallbackService.processToken(serializedToken);
   }
 }

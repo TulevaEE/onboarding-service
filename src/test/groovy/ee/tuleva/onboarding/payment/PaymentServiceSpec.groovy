@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment
 
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentLinkGenerator
+import ee.tuleva.onboarding.payment.savings.SavingsCallbackService
 import ee.tuleva.onboarding.payment.savings.SavingsPaymentLinkGenerator
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
@@ -15,6 +16,7 @@ import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPaymentForExistingMember
 import static ee.tuleva.onboarding.payment.PaymentFixture.aPaymentData
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSavingsPaymentToken
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSinglePaymentFinishedToken
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedMemberPaymentFinishedToken
 
@@ -25,10 +27,11 @@ class PaymentServiceSpec extends Specification {
   RecurringPaymentLinkGenerator recurringPaymentLinkGenerator = Mock()
   SavingsPaymentLinkGenerator savingsPaymentLinkGenerator = Mock()
   MontonioCallbackService paymentProviderCallbackService = Mock()
+  SavingsCallbackService savingsCallbackService = Mock()
   UserService userService = Mock()
 
   PaymentService paymentService = new PaymentService(
-      paymentRepository, singlePaymentLinkGenerator, recurringPaymentLinkGenerator, savingsPaymentLinkGenerator, paymentProviderCallbackService, userService)
+      paymentRepository, singlePaymentLinkGenerator, recurringPaymentLinkGenerator, savingsPaymentLinkGenerator, paymentProviderCallbackService, savingsCallbackService, userService)
 
   def "can get payments"() {
     given:
@@ -137,5 +140,14 @@ class PaymentServiceSpec extends Specification {
 
     then:
     returnedLink == link
+  }
+
+  def "can process savings payment"() {
+    given:
+    savingsCallbackService.processToken(_ as String) >> Optional.empty()
+    when:
+    def returnedPayment = paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken)
+    then:
+    returnedPayment.isEmpty()
   }
 }

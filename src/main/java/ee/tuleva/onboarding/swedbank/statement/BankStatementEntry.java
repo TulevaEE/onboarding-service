@@ -8,20 +8,24 @@ import ee.swedbank.gateway.iso.response.report.TransactionReferences2;
 import ee.swedbank.gateway.iso.response.statement.CreditDebitCode;
 import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-public record BankStatementEntry(
-    CounterPartyDetails details,
-    BigDecimal amount,
-    String currencyCode,
-    TransactionType transactionType,
-    List<String> endToEndIds,
-    List<String> remittanceInformation,
-    String externalId) {
+@RequiredArgsConstructor
+public class BankStatementEntry {
+  @Getter private final CounterPartyDetails details;
+  @Getter private final BigDecimal amount;
+  @Getter private final String currencyCode;
+  @Getter private final TransactionType transactionType;
+  @Nullable private final String endToEndId;
+  @Getter private final String remittanceInformation;
+  @Getter private final String externalId;
+
+  public Optional<String> getEndToEndId() {
+    return Optional.ofNullable(endToEndId);
+  }
 
   @RequiredArgsConstructor
   public static final class CounterPartyDetails {
@@ -50,20 +54,18 @@ public record BankStatementEntry(
           Optional.ofNullable(otherParty.getId())
               .map(Party6Choice::getPrvtId)
               .flatMap(val -> val.getOthr().stream().filter(dt -> dt.getId() != null).findFirst())
-              .flatMap(
-                  genericPersonIdentification1 ->
-                      Optional.of(genericPersonIdentification1.getId()));
+              .map(genericPersonIdentification1 -> genericPersonIdentification1.getId())
+              .orElseThrow(() -> new BankStatementParseException("Personal code is required"));
 
       var otherPartyAccount =
           creditOrDebit == CRDT ? relatedParties.getDbtrAcct() : relatedParties.getCdtrAcct();
 
       var iban = otherPartyAccount.getId().getIBAN();
 
-      return new CounterPartyDetails(name, iban, personalIdCode.orElse(null));
+      return new CounterPartyDetails(name, iban, personalIdCode);
     }
 
-    public static CounterPartyDetails from(
-        ee.swedbank.gateway.iso.response.statement.ReportEntry2 entry) {
+    static CounterPartyDetails from(ee.swedbank.gateway.iso.response.statement.ReportEntry2 entry) {
       var creditOrDebit = entry.getCdtDbtInd();
 
       // TODO this can have multiple ones depending on bank logic, test response from Swed only has
@@ -83,9 +85,8 @@ public record BankStatementEntry(
           Optional.ofNullable(otherParty.getId())
               .map(ee.swedbank.gateway.iso.response.statement.Party6Choice::getPrvtId)
               .flatMap(val -> val.getOthr().stream().filter(dt -> dt.getId() != null).findFirst())
-              .flatMap(
-                  genericPersonIdentification1 ->
-                      Optional.of(genericPersonIdentification1.getId()));
+              .map(genericPersonIdentification1 -> genericPersonIdentification1.getId())
+              .orElseThrow(() -> new BankStatementParseException("Personal code is required"));
 
       var otherPartyAccount =
           creditOrDebit == CreditDebitCode.CRDT
@@ -94,23 +95,66 @@ public record BankStatementEntry(
 
       var iban = otherPartyAccount.getId().getIBAN();
 
-      return new CounterPartyDetails(name, iban, personalIdCode.orElse(null));
+      return new CounterPartyDetails(name, iban, personalIdCode);
     }
   }
 
-  public static BankStatementEntry from(
-      ee.swedbank.gateway.iso.response.statement.ReportEntry2 entry) {
+  static BankStatementEntry from(ee.swedbank.gateway.iso.response.statement.ReportEntry2 entry) {
     var counterPartyDetails = CounterPartyDetails.from(entry);
     var creditOrDebit = entry.getCdtDbtInd();
     var creditDebitCoefficient =
         creditOrDebit == CreditDebitCode.CRDT ? BigDecimal.ONE : new BigDecimal("-1.0");
     var entryAmount = entry.getAmt().getValue().multiply(creditDebitCoefficient);
 
+    var currencyCode = entry.getAmt().getCcy();
+
+    // Determine transaction type
+    var transactionType =
+        creditOrDebit == CreditDebitCode.CRDT ? TransactionType.CREDIT : TransactionType.DEBIT;
+
+    // Collect all EndToEndIds from all transaction details and require exactly one
+    var endToEndIdsList =
+        entry.getNtryDtls().stream()
+            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
+            .map(
+                txDtl ->
+                    Optional.ofNullable(txDtl.getRefs())
+                        .map(
+                            ee.swedbank.gateway.iso.response.statement.TransactionReferences2
+                                ::getEndToEndId)
+                        .orElse(null))
+            .filter(endToEndId -> endToEndId != null && !endToEndId.isBlank())
+            .toList();
+    var endToEndId = Require.atMostOne(endToEndIdsList, "end-to-end ID");
+
+    // Collect all remittance information from all transaction details and require exactly one
+    var remittanceInformationList =
+        entry.getNtryDtls().stream()
+            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
+            .flatMap(
+                txDtl ->
+                    Optional.ofNullable(txDtl.getRmtInf())
+                        .map(rmtInf -> rmtInf.getUstrd().stream())
+                        .orElse(Stream.empty()))
+            .filter(ustrd -> ustrd != null && !ustrd.isBlank())
+            .toList();
+    var remittanceInformation =
+        Require.exactlyOne(remittanceInformationList, "remittance information");
+
+    // Extract external ID from entry reference
+    var externalId = entry.getNtryRef();
+
     return new BankStatementEntry(
-        counterPartyDetails, entryAmount, null, null, List.of(), List.of(), null);
+        counterPartyDetails,
+        entryAmount,
+        currencyCode,
+        transactionType,
+        endToEndId,
+        remittanceInformation,
+        externalId);
   }
 
-  public static BankStatementEntry from(ReportEntry2 entry) {
+  static BankStatementEntry from(ReportEntry2 entry) {
     var counterPartyDetails = CounterPartyDetails.from(entry);
     var creditOrDebit = entry.getCdtDbtInd();
     var creditDebitCoefficient = creditOrDebit == CRDT ? BigDecimal.ONE : new BigDecimal("-1.0");
@@ -121,8 +165,8 @@ public record BankStatementEntry(
     // Determine transaction type
     var transactionType = creditOrDebit == CRDT ? TransactionType.CREDIT : TransactionType.DEBIT;
 
-    // Collect all EndToEndIds from all transaction details
-    var endToEndIds =
+    // Collect all EndToEndIds from all transaction details and require exactly one
+    var endToEndIdsList =
         entry.getNtryDtls().stream()
             .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
             .map(
@@ -132,9 +176,10 @@ public record BankStatementEntry(
                         .orElse(null))
             .filter(endToEndId -> endToEndId != null && !endToEndId.isBlank())
             .toList();
+    var endToEndId = Require.atMostOne(endToEndIdsList, "end-to-end ID");
 
-    // Collect all remittance information from all transaction details
-    var remittanceInformation =
+    // Collect all remittance information from all transaction details and require exactly one
+    var remittanceInformationList =
         entry.getNtryDtls().stream()
             .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
             .flatMap(
@@ -144,6 +189,8 @@ public record BankStatementEntry(
                         .orElse(Stream.empty()))
             .filter(ustrd -> ustrd != null && !ustrd.isBlank())
             .toList();
+    var remittanceInformation =
+        Require.exactlyOne(remittanceInformationList, "remittance information");
 
     // Extract external ID from entry reference
     var externalId = entry.getNtryRef();
@@ -153,7 +200,7 @@ public record BankStatementEntry(
         entryAmount,
         currencyCode,
         transactionType,
-        endToEndIds,
+        endToEndId,
         remittanceInformation,
         externalId);
   }

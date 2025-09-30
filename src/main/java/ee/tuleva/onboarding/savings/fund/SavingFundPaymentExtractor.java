@@ -51,34 +51,32 @@ public class SavingFundPaymentExtractor {
 
     // For CREDIT: counterparty is remitter, account holder is beneficiary
     // For DEBIT: account holder is remitter, counterparty is beneficiary
+    var builder =
+        SavingFundPayment.builder()
+            .amount(entry.amount())
+            .currency(currency)
+            .description(entry.remittanceInformation())
+            .externalId(entry.externalId())
+            .receivedAt(receivedAt);
+
     if (entry.transactionType() == TransactionType.CREDIT) {
-      return SavingFundPayment.builder()
-          .amount(entry.amount())
-          .currency(currency)
+      builder
           .remitterIban(counterParty.getIban())
           .remitterIdCode(counterParty.getPersonalCode().orElse(null))
           .remitterName(counterParty.getName())
           .beneficiaryIban(account.iban())
           .beneficiaryIdCode(account.accountHolderIdCode())
-          .beneficiaryName(account.accountHolderName())
-          .description(entry.remittanceInformation())
-          .externalId(entry.externalId())
-          .receivedAt(receivedAt)
-          .build();
+          .beneficiaryName(account.accountHolderName());
     } else { // DEBIT
-      return SavingFundPayment.builder()
-          .amount(entry.amount()) // Already negative for debits
-          .currency(currency)
+      builder
           .remitterIban(account.iban())
           .remitterIdCode(account.accountHolderIdCode())
           .remitterName(account.accountHolderName())
           .beneficiaryIban(counterParty.getIban())
           .beneficiaryIdCode(counterParty.getPersonalCode().orElse(null))
-          .beneficiaryName(counterParty.getName())
-          .description(entry.remittanceInformation())
-          .externalId(entry.externalId())
-          .receivedAt(receivedAt)
-          .build();
+          .beneficiaryName(counterParty.getName());
     }
+
+    return builder.build();
   }
 }

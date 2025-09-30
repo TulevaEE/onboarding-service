@@ -9,9 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
-import ee.tuleva.onboarding.auth.UserFixture;
 import ee.tuleva.onboarding.user.User;
-import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -186,8 +184,7 @@ class SavingsFundLedgerServiceTest {
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_TRANSFER");
 
-    LedgerAccount incomingAccount =
-        getSystemAccount("INCOMING_PAYMENTS_CLEARING", EUR, LIABILITY);
+    LedgerAccount incomingAccount = getSystemAccount("INCOMING_PAYMENTS_CLEARING", EUR, LIABILITY);
     assertThat(incomingAccount.getBalance()).isEqualByComparingTo(ZERO);
 
     LedgerAccount fundAccount = getSystemAccount("FUND_INVESTMENT_CASH_CLEARING", EUR, ASSET);
@@ -276,7 +273,8 @@ class SavingsFundLedgerServiceTest {
     BigDecimal navPerUnit = new BigDecimal("95.00");
 
     LedgerTransaction paymentTx =
-        savingsFundLedgerService.recordPaymentReceived(testUser, paymentAmount, "COMPLETE_FLOW_REF");
+        savingsFundLedgerService.recordPaymentReceived(
+            testUser, paymentAmount, "COMPLETE_FLOW_REF");
     LedgerTransaction subscriptionTx =
         savingsFundLedgerService.issueFundUnits(testUser, paymentAmount, fundUnits, navPerUnit);
     LedgerTransaction transferTx = savingsFundLedgerService.transferToFundAccount(paymentAmount);
@@ -398,20 +396,15 @@ class SavingsFundLedgerServiceTest {
   }
 
   private LedgerAccount getUserCashAccount() {
-    return ledgerAccountRepository
-        .findByOwnerAndAccountTypeAndAssetType(userParty, INCOME, EUR);
+    return ledgerAccountRepository.findByOwnerAndAccountTypeAndAssetType(userParty, INCOME, EUR);
   }
 
   private LedgerAccount getUserUnitsAccount() {
-    return ledgerAccountService
-        .getLedgerAccount(userParty, ASSET, FUND_UNIT)
-        .orElseThrow();
+    return ledgerAccountService.getLedgerAccount(userParty, ASSET, FUND_UNIT).orElseThrow();
   }
 
   private LedgerAccount getSystemAccount(
-      String name,
-      LedgerAccount.AssetType assetType,
-      LedgerAccount.AccountType accountType) {
+      String name, LedgerAccount.AssetType assetType, LedgerAccount.AccountType accountType) {
     return ledgerAccountRepository
         .findByNameAndPurposeAndAssetTypeAndAccountType(
             name, SYSTEM_ACCOUNT, assetType, accountType)

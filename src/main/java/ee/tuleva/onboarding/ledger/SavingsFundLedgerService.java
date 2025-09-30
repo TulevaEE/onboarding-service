@@ -72,8 +72,7 @@ public class SavingsFundLedgerService {
   @Transactional
   public LedgerTransaction recordUnattributedPayment(
       BigDecimal amount, String payerIban, String externalReference) {
-    LedgerAccount unreconciledAccount =
-        getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET);
+    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET);
     LedgerAccount incomingPaymentsAccount =
         getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
 
@@ -121,8 +120,7 @@ public class SavingsFundLedgerService {
   public LedgerTransaction transferToFundAccount(BigDecimal amount) {
     LedgerAccount incomingPaymentsAccount =
         getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
-    LedgerAccount fundCashAccount =
-        getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
+    LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
 
     Map<String, Object> metadata =
         Map.of("operationType", SavingsFundTransactionType.FUND_TRANSFER.name());
@@ -136,8 +134,7 @@ public class SavingsFundLedgerService {
 
   @Transactional
   public LedgerTransaction bounceBackUnattributedPayment(BigDecimal amount, String payerIban) {
-    LedgerAccount unreconciledAccount =
-        getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET);
+    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET);
     LedgerAccount incomingPaymentsAccount =
         getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
 
@@ -159,8 +156,7 @@ public class SavingsFundLedgerService {
   public LedgerTransaction attributeLatePayment(User user, BigDecimal amount) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashAccount = getUserCashAccount(userParty);
-    LedgerAccount unreconciledAccount =
-        getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET);
+    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET);
 
     Map<String, Object> metadata =
         Map.of(
@@ -182,10 +178,8 @@ public class SavingsFundLedgerService {
     LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
     LedgerAccount unitsOutstandingAccount =
         getSystemAccount(FUND_UNITS_OUTSTANDING, FUND_UNIT, LIABILITY);
-    LedgerAccount redemptionPayableAccount =
-        getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY);
-    LedgerAccount fundCashAccount =
-        getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
+    LedgerAccount redemptionPayableAccount = getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY);
+    LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
 
     Map<String, Object> metadata =
         Map.of(
@@ -205,10 +199,8 @@ public class SavingsFundLedgerService {
 
   @Transactional
   public LedgerTransaction transferFundToPayoutCash(BigDecimal amount) {
-    LedgerAccount fundCashAccount =
-        getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
-    LedgerAccount payoutsCashAccount =
-        getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET);
+    LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
+    LedgerAccount payoutsCashAccount = getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET);
 
     Map<String, Object> metadata =
         Map.of("operationType", SavingsFundTransactionType.FUND_CASH_TRANSFER.name());
@@ -223,10 +215,8 @@ public class SavingsFundLedgerService {
   @Transactional
   public LedgerTransaction processRedemptionPayout(
       User user, BigDecimal amount, String customerIban) {
-    LedgerAccount payoutsCashAccount =
-        getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET);
-    LedgerAccount redemptionPayableAccount =
-        getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY);
+    LedgerAccount payoutsCashAccount = getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET);
+    LedgerAccount redemptionPayableAccount = getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY);
 
     Map<String, Object> metadata =
         Map.of(

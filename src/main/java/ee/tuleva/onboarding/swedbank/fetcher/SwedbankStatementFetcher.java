@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.swedbank.fetcher;
 
 import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetchJob.JobStatus.*;
 
-import ee.swedbank.gateway.iso.response.Document;
+import ee.swedbank.gateway.iso.response.report.Document;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayResponseDto;
 import java.time.Clock;
@@ -183,7 +183,7 @@ public class SwedbankStatementFetcher {
     if (job.getRawResponse() == null) {
       throw new IllegalStateException("Job has no response");
     }
-    return swedbankGatewayClient.getParsedStatementResponse(job.getRawResponse());
+    return swedbankGatewayClient.getParsedIntraDayReportResponse(job.getRawResponse());
   }
 
   private void acknowledgeResponse(

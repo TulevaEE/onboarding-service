@@ -325,7 +325,7 @@ class SwedbankStatementFetcherTest {
               return job;
             });
 
-    when(swedbankGatewayClient.getParsedStatementResponse(any()))
+    when(swedbankGatewayClient.getParsedIntraDayReportResponse(any()))
         .thenThrow(new IllegalStateException("Broken XML"));
 
     fetcher.getResponse(DEPOSIT_EUR);

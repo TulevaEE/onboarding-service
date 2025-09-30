@@ -3,12 +3,12 @@ package ee.tuleva.onboarding.swedbank.statement;
 import static ee.tuleva.onboarding.swedbank.statement.BankStatementAccount.BankAccountType.DEPOSIT_EUR;
 
 import ee.swedbank.gateway.iso.response.report.*;
-import ee.swedbank.gateway.iso.response.statement.AccountStatement2;
 import ee.swedbank.gateway.iso.response.report.AccountReport11;
 import ee.swedbank.gateway.iso.response.report.GenericOrganisationIdentification1;
 import ee.swedbank.gateway.iso.response.report.OrganisationIdentification4;
 import ee.swedbank.gateway.iso.response.report.Party6Choice;
 import ee.swedbank.gateway.iso.response.report.PartyIdentification32;
+import ee.swedbank.gateway.iso.response.statement.AccountStatement2;
 import java.util.List;
 import java.util.Optional;
 

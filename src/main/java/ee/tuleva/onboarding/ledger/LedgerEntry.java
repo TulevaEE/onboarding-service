@@ -6,7 +6,10 @@ import static org.hibernate.generator.EventType.INSERT;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
+import ee.tuleva.onboarding.ledger.validation.EntryAccountConsistency;
+import ee.tuleva.onboarding.ledger.validation.ValidAmountPrecision;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -21,6 +24,8 @@ import org.hibernate.annotations.Generated;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = {"account", "transaction"})
+@ValidAmountPrecision
+@EntryAccountConsistency
 public class LedgerEntry {
   @Id
   @GeneratedValue(strategy = IDENTITY)
@@ -38,7 +43,12 @@ public class LedgerEntry {
   @Setter(AccessLevel.PACKAGE)
   private LedgerTransaction transaction;
 
-  @NotNull private BigDecimal amount;
+  @NotNull(message = "Entry amount cannot be null")
+  @Digits(
+      integer = 15,
+      fraction = 5,
+      message = "Amount must have max 15 integer digits and 5 decimal places")
+  private BigDecimal amount;
 
   @NotNull
   @Setter(AccessLevel.PACKAGE)

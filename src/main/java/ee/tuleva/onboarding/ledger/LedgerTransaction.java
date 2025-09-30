@@ -5,6 +5,7 @@ import static jakarta.persistence.GenerationType.*;
 import static java.math.BigDecimal.ZERO;
 import static org.hibernate.generator.EventType.INSERT;
 
+import ee.tuleva.onboarding.ledger.validation.AssetTypeConsistency;
 import ee.tuleva.onboarding.ledger.validation.BalancedTransaction;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
@@ -28,6 +29,7 @@ import org.hibernate.annotations.Type;
 @AllArgsConstructor
 @ToString(exclude = {"entries"})
 @BalancedTransaction
+@AssetTypeConsistency
 public class LedgerTransaction {
 
   public enum TransactionType {
@@ -65,6 +67,13 @@ public class LedgerTransaction {
   }
 
   LedgerEntry addEntry(LedgerAccount account, BigDecimal amount) {
+    if (account == null) {
+      throw new IllegalArgumentException("Account cannot be null");
+    }
+    if (amount == null) {
+      throw new IllegalArgumentException("Amount cannot be null");
+    }
+
     var entry =
         LedgerEntry.builder()
             .amount(amount)

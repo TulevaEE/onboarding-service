@@ -4,8 +4,10 @@ import static jakarta.persistence.EnumType.STRING;
 import static java.math.BigDecimal.ZERO;
 import static org.hibernate.generator.EventType.INSERT;
 
+import ee.tuleva.onboarding.ledger.validation.AccountEntryConsistency;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -23,13 +25,16 @@ import org.jetbrains.annotations.Nullable;
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = {"entries"})
+@AccountEntryConsistency
 public class LedgerAccount {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private UUID id;
 
-  @Nullable private String name;
+  @Nullable
+  @Size(max = 255, message = "Account name cannot exceed 255 characters")
+  private String name;
 
   @Enumerated(STRING)
   @Column(columnDefinition = "ledger.account_purpose")
@@ -81,6 +86,16 @@ public class LedgerAccount {
   }
 
   void addEntry(LedgerEntry entry) {
+    if (entry == null) {
+      throw new IllegalArgumentException("Entry cannot be null");
+    }
+    if (entry.getAssetType() != null && !entry.getAssetType().equals(this.assetType)) {
+      throw new IllegalArgumentException(
+          "Entry asset type "
+              + entry.getAssetType()
+              + " does not match account asset type "
+              + this.assetType);
+    }
     entry.setAccount(this);
     entry.setAssetType(this.assetType);
     entries.add(entry);

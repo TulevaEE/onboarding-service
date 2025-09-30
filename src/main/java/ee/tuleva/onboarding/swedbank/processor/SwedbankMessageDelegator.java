@@ -14,7 +14,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -25,7 +24,6 @@ public class SwedbankMessageDelegator {
   private final SwedbankMessageRepository swedbankMessageRepository;
   private final List<SwedbankMessageProcessor> messageProcessors;
 
-  @Transactional
   @Scheduled(cron = "0 */5 9-17 * * MON-FRI")
   public void processMessages() {
     // TODO failed logic?

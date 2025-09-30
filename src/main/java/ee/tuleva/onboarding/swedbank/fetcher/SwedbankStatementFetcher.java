@@ -13,10 +13,11 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 
-@Profile({"dev"})
+@Profile({"!staging"})
 @RequiredArgsConstructor
 @Slf4j
 @Service
@@ -44,7 +45,7 @@ public class SwedbankStatementFetcher {
     return swedbankStatementFetchJobRepository.findById(id);
   }
 
-  // @Scheduled(cron = "0 0 9-17 * * MON-FRI")
+  @Scheduled(cron = "0 0 9-17 * * MON-FRI")
   public void sendRequests() {
     for (SwedbankAccount account : SwedbankAccount.values()) {
       sendRequest(account);
@@ -94,7 +95,7 @@ public class SwedbankStatementFetcher {
     }
   }
 
-  // @Scheduled(cron = "0 */15 9-17 * * MON-FRI")
+  @Scheduled(cron = "0 */15 9-17 * * MON-FRI")
   public void getResponses() {
     for (SwedbankAccount account : SwedbankAccount.values()) {
       getResponse(account);

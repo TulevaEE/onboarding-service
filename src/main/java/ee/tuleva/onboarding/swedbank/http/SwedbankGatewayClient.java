@@ -68,6 +68,7 @@ public class SwedbankGatewayClient {
     return Optional.of(
         new SwedbankGatewayResponseDto(
             messagesResponse.getBody(),
+            // TODO handle weird statement request-id?
             deSerializeRequestId(messagesResponse.getHeaders().get("X-Request-ID").getFirst()),
             messagesResponse.getHeaders().get("X-Tracking-ID").getFirst()));
   }

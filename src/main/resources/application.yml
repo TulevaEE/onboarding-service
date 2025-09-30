@@ -65,8 +65,7 @@ swedbank-gateway:
   client-id: ''
   agreement-id: ''
   accounts:
-    deposit_eur: ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN:~} # TODO remove null fallback
-    withdrawal_eur: ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN:~}
+    "deposit_eur": ''
 
 springdoc:
   swagger-ui:
@@ -186,6 +185,8 @@ swedbank-gateway:
   url: 'https://psd2.api.swedbank.com/partner/sandbox/v1/sgw/'
   client-id: ${SWEDBANK_GATEWAY_CLIENT_ID:mock_client_id}
   agreement-id: ${SWEDBANK_GATEWAY_AGREEMENT_ID:1234}
+  accounts:
+    "deposit_eur": ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN:EE_TEST_IBAN}
 ---
 spring:
   flyway:
@@ -241,7 +242,9 @@ swedbank-gateway:
     password: ${SWEDBANK_GATEWAY_KEYSTORE_PASSWORD}
   client-id: ${SWEDBANK_GATEWAY_CLIENT_ID}
   agreement-id: ${SWEDBANK_GATEWAY_AGREEMENT_ID}
-  url: ''
+  url: 'https://psd2.api.swedbank.com/partner/v1/sgw/'
+  accounts:
+    "deposit_eur": ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN}
 
 epis:
   service:

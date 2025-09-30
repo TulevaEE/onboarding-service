@@ -41,6 +41,7 @@ public class SecurityConfiguration {
                         "/oauth/refresh-token",
                         "/idLogin",
                         "/notifications/payments",
+                        "/payment-test",
                         "/error")
                     .permitAll()
                     .requestMatchers(

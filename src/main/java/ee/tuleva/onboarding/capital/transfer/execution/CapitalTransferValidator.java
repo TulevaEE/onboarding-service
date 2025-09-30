@@ -46,13 +46,8 @@ public class CapitalTransferValidator {
   }
 
   public void validateSufficientCapital(CapitalTransferContract contract) {
-    Long sellerId = contract.getSeller().getId();
-    List<MemberCapitalEvent> sellerEvents =
-        memberCapitalEventRepository.findAllByMemberId(sellerId);
-
-    BigDecimal ownershipUnitPrice = getCurrentOwnershipUnitPrice();
     Map<MemberCapitalEventType, BigDecimal> availableCapitalByType =
-        calculateAvailableCapital(sellerEvents, ownershipUnitPrice);
+        calculateAvailableCapitalForSeller(contract);
 
     for (CapitalTransferAmount transferAmount : contract.getTransferAmounts()) {
       if (shouldSkipTransfer(transferAmount)) {
@@ -74,6 +69,17 @@ public class CapitalTransferValidator {
   public boolean shouldSkipTransfer(CapitalTransferAmount transferAmount) {
     return transferAmount.bookValue() == null
         || transferAmount.bookValue().compareTo(BigDecimal.ZERO) == 0;
+  }
+
+  Map<MemberCapitalEventType, BigDecimal> calculateAvailableCapitalForSeller(
+      CapitalTransferContract contract) {
+    Long sellerId = contract.getSeller().getId();
+    List<MemberCapitalEvent> sellerEvents =
+        memberCapitalEventRepository.findAllByMemberId(sellerId);
+
+    BigDecimal ownershipUnitPrice = getCurrentOwnershipUnitPrice();
+
+    return calculateAvailableCapital(sellerEvents, ownershipUnitPrice);
   }
 
   private Map<MemberCapitalEventType, BigDecimal> calculateAvailableCapital(

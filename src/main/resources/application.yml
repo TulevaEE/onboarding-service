@@ -137,6 +137,11 @@ async:
 payment-provider:
   url: https://sandbox-stargate.montonio.com/api
   use-fake-notification-url: true
+  savings-channel:
+    access-key: a7dca9bf-1b5a-4252-a4d9-39e9836f0f4e
+    secret-key: ${PAYMENT_SECRET_SAVINGS}
+    return-url: ${api.url}/payments/savings/callback
+    notification-url: https://tuleva.ee/fake-notification-url
   payment-channels:
     luminor:
       access-key: 0be260f2-1966-4d18-bb9d-1f0909a663f7
@@ -161,7 +166,6 @@ payment-provider:
     tulundusuhistu:
       access-key: 912e0403-62ad-4b0c-a91c-129f64f7a3ea
       secret-key: ${PAYMENT_SECRET_TULUNDUSUHISTU}
-
 
 payment:
   member-fee: 125
@@ -265,6 +269,11 @@ morningstar:
 payment-provider:
   url: https://stargate.montonio.com/api
   use-fake-notification-url: false
+  savings-channel:
+    access-key: 38ca14da-8b07-43af-9f43-e052b5d2a8c1
+    secret-key: ${PAYMENT_SECRET_SAVINGS}
+    return-url: ${api.url}/payments/savings/callback
+    notification-url: ${api.url}/payments/savings/notifications
   payment-channels:
     luminor:
       access-key: fb673dc3-d898-4592-844f-83491aa430cc

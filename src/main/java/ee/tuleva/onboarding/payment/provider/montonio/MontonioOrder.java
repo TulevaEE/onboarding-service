@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 
 @Builder
-record MontonioOrder(
+public record MontonioOrder(
     String accessKey,
     String merchantReference,
     String returnUrl,
@@ -20,7 +20,7 @@ record MontonioOrder(
 
   @Data
   @Builder
-  static class MontonioPaymentMethod {
+  public static class MontonioPaymentMethod {
     private final String method = "paymentInitiation";
     private BigDecimal amount;
     private Currency currency;
@@ -28,7 +28,7 @@ record MontonioOrder(
 
     @Data
     @Builder
-    static class MontonioPaymentMethodOptions {
+    public static class MontonioPaymentMethodOptions {
       private final String preferredCountry = "EE";
       private String preferredProvider;
       private String preferredLocale;
@@ -37,5 +37,5 @@ record MontonioOrder(
   }
 
   @Builder
-  record MontonioBillingAddress(String firstName, String lastName) {}
+  public record MontonioBillingAddress(String firstName, String lastName) {}
 }

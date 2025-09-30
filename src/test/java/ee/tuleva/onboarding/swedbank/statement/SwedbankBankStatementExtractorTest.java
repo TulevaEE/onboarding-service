@@ -20,13 +20,12 @@ class SwedbankBankStatementExtractorTest {
   }
 
   @Test
-  void extractBankStatement_shouldExtractFromIntraDayReport() {
+  void extractFromIntraDayReport_shouldExtractBankStatement() {
     // given
     String rawXml = createCamt052Xml();
-    String namespace = "urn:iso:std:iso:20022:tech:xsd:camt.052.001.02";
 
     // when
-    var statement = extractor.extractBankStatement(rawXml, namespace);
+    var statement = extractor.extractFromIntraDayReport(rawXml);
 
     // then
     assertThat(statement).isNotNull();
@@ -47,13 +46,12 @@ class SwedbankBankStatementExtractorTest {
   }
 
   @Test
-  void extractBankStatement_shouldExtractFromHistoricStatement() {
+  void extractFromHistoricStatement_shouldExtractBankStatement() {
     // given
     String rawXml = createCamt053Xml();
-    String namespace = "urn:iso:std:iso:20022:tech:xsd:camt.053.001.02";
 
     // when
-    var statement = extractor.extractBankStatement(rawXml, namespace);
+    var statement = extractor.extractFromHistoricStatement(rawXml);
 
     // then
     assertThat(statement).isNotNull();
@@ -69,65 +67,28 @@ class SwedbankBankStatementExtractorTest {
   }
 
   @Test
-  void extractBankStatement_shouldThrowExceptionForNullXml() {
-    String namespace = "urn:iso:std:iso:20022:tech:xsd:camt.052.001.02";
-    assertThatThrownBy(() -> extractor.extractBankStatement(null, namespace))
+  void extractFromIntraDayReport_shouldThrowExceptionForNullXml() {
+    assertThatThrownBy(() -> extractor.extractFromIntraDayReport(null))
         .isInstanceOf(BankStatementParseException.class)
         .hasMessage("Raw XML is null or empty");
   }
 
   @Test
-  void extractBankStatement_shouldThrowExceptionForEmptyXml() {
-    String namespace = "urn:iso:std:iso:20022:tech:xsd:camt.052.001.02";
-    assertThatThrownBy(() -> extractor.extractBankStatement("", namespace))
+  void extractFromIntraDayReport_shouldThrowExceptionForEmptyXml() {
+    assertThatThrownBy(() -> extractor.extractFromIntraDayReport(""))
         .isInstanceOf(BankStatementParseException.class)
         .hasMessage("Raw XML is null or empty");
   }
 
   @Test
-  void extractBankStatement_shouldThrowExceptionForBlankXml() {
-    String namespace = "urn:iso:std:iso:20022:tech:xsd:camt.052.001.02";
-    assertThatThrownBy(() -> extractor.extractBankStatement("   ", namespace))
+  void extractFromIntraDayReport_shouldThrowExceptionForBlankXml() {
+    assertThatThrownBy(() -> extractor.extractFromIntraDayReport("   "))
         .isInstanceOf(BankStatementParseException.class)
         .hasMessage("Raw XML is null or empty");
   }
 
   @Test
-  void extractBankStatement_shouldThrowExceptionForNullNamespace() {
-    String rawXml = createCamt052Xml();
-    assertThatThrownBy(() -> extractor.extractBankStatement(rawXml, null))
-        .isInstanceOf(BankStatementParseException.class)
-        .hasMessage("Namespace is null or empty");
-  }
-
-  @Test
-  void extractBankStatement_shouldThrowExceptionForEmptyNamespace() {
-    String rawXml = createCamt052Xml();
-    assertThatThrownBy(() -> extractor.extractBankStatement(rawXml, ""))
-        .isInstanceOf(BankStatementParseException.class)
-        .hasMessage("Namespace is null or empty");
-  }
-
-  @Test
-  void extractBankStatement_shouldThrowExceptionForBlankNamespace() {
-    String rawXml = createCamt052Xml();
-    assertThatThrownBy(() -> extractor.extractBankStatement(rawXml, "   "))
-        .isInstanceOf(BankStatementParseException.class)
-        .hasMessage("Namespace is null or empty");
-  }
-
-  @Test
-  void extractBankStatement_shouldThrowExceptionForUnsupportedNamespace() {
-    String rawXml = createCamt052Xml();
-    String unsupportedNamespace = "urn:iso:std:iso:20022:tech:xsd:camt.999.001.02";
-
-    assertThatThrownBy(() -> extractor.extractBankStatement(rawXml, unsupportedNamespace))
-        .isInstanceOf(BankStatementParseException.class)
-        .hasMessageContaining("Unsupported namespace");
-  }
-
-  @Test
-  void extractBankStatement_shouldThrowExceptionForEmptyIntraDayReport() {
+  void extractFromIntraDayReport_shouldThrowExceptionForEmptyReport() {
     String emptyReportXml =
         """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -140,15 +101,14 @@ class SwedbankBankStatementExtractorTest {
           </BkToCstmrAcctRpt>
         </Document>
         """;
-    String namespace = "urn:iso:std:iso:20022:tech:xsd:camt.052.001.02";
 
-    assertThatThrownBy(() -> extractor.extractBankStatement(emptyReportXml, namespace))
+    assertThatThrownBy(() -> extractor.extractFromIntraDayReport(emptyReportXml))
         .isInstanceOf(BankStatementParseException.class)
         .hasMessageContaining("Expected exactly one report");
   }
 
   @Test
-  void extractBankStatement_shouldThrowExceptionForEmptyHistoricStatement() {
+  void extractFromHistoricStatement_shouldThrowExceptionForEmptyStatement() {
     String emptyStatementXml =
         """
         <?xml version="1.0" encoding="UTF-8"?>
@@ -161,9 +121,8 @@ class SwedbankBankStatementExtractorTest {
           </BkToCstmrStmt>
         </Document>
         """;
-    String namespace = "urn:iso:std:iso:20022:tech:xsd:camt.053.001.02";
 
-    assertThatThrownBy(() -> extractor.extractBankStatement(emptyStatementXml, namespace))
+    assertThatThrownBy(() -> extractor.extractFromHistoricStatement(emptyStatementXml))
         .isInstanceOf(BankStatementParseException.class)
         .hasMessageContaining("Expected exactly one statement");
   }

@@ -34,3 +34,6 @@ test_keys/*.p12
 .vscode/
 bin/
 *.log
+
+docker-compose.override.yml
+src/main/resources/application-dev.yml

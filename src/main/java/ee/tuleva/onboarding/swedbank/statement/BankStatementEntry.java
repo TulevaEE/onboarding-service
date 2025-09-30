@@ -54,7 +54,7 @@ public class BankStatementEntry {
       var otherPartyAccount =
           creditOrDebit == CRDT ? relatedParties.getDbtrAcct() : relatedParties.getCdtrAcct();
 
-      var iban = otherPartyAccount.getId().getIBAN();
+      var iban = Require.notNullOrBlank(otherPartyAccount.getId().getIBAN(), "counter-party IBAN");
 
       return new CounterPartyDetails(name, iban, personalIdCode);
     }
@@ -87,7 +87,7 @@ public class BankStatementEntry {
               ? relatedParties.getDbtrAcct()
               : relatedParties.getCdtrAcct();
 
-      var iban = otherPartyAccount.getId().getIBAN();
+      var iban = Require.notNullOrBlank(otherPartyAccount.getId().getIBAN(), "counter-party IBAN");
 
       return new CounterPartyDetails(name, iban, personalIdCode);
     }

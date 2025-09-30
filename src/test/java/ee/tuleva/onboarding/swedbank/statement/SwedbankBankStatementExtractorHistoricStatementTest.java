@@ -7,7 +7,6 @@ import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayMarshaller;
 import ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType;
 import java.math.BigDecimal;
 import java.util.List;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -181,6 +180,49 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Expected exactly one account holder ID code, but found: 2");
     }
+
+    @Test
+    void extractFromHistoricStatement_shouldThrowExceptionWhenAccountIbanIsMissing() {
+      String xmlWithoutAccountIban =
+          """
+          <?xml version="1.0" encoding="UTF-8"?>
+          <Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+            <BkToCstmrStmt>
+              <GrpHdr>
+                <MsgId>test</MsgId>
+                <CreDtTm>2025-09-29T15:37:46</CreDtTm>
+              </GrpHdr>
+              <Stmt>
+                <Id>test</Id>
+                <CreDtTm>2025-09-29T15:37:46</CreDtTm>
+                <Acct>
+                  <Id>
+                    <!-- Using Othr instead of IBAN -->
+                    <Othr>
+                      <Id>123456</Id>
+                    </Othr>
+                  </Id>
+                  <Ccy>EUR</Ccy>
+                  <Ownr>
+                    <Nm>Pööripäeva Päikesekell OÜ</Nm>
+                    <Id>
+                      <OrgId>
+                        <Othr>
+                          <Id>10006901</Id>
+                        </Othr>
+                      </OrgId>
+                    </Id>
+                  </Ownr>
+                </Acct>
+              </Stmt>
+            </BkToCstmrStmt>
+          </Document>
+          """;
+
+      assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithoutAccountIban))
+          .isInstanceOf(BankStatementParseException.class)
+          .hasMessageContaining("account IBAN is required");
+    }
   }
 
   @org.junit.jupiter.api.Nested
@@ -305,6 +347,76 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
       assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithMissingPersonalCode))
           .isInstanceOf(BankStatementParseException.class)
           .hasMessageContaining("Personal code is required");
+    }
+
+    @Test
+    void extractFromHistoricStatement_shouldThrowExceptionForMissingCounterPartyIban() {
+      var entries =
+          List.of(
+              """
+          <Ntry>
+            <NtryRef>test-ref</NtryRef>
+            <Amt Ccy="EUR">100.00</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <Sts>BOOK</Sts>
+            <BookgDt>
+              <Dt>2025-06-05</Dt>
+            </BookgDt>
+            <ValDt>
+              <Dt>2025-06-05</Dt>
+            </ValDt>
+            <NtryDtls>
+              <TxDtls>
+                <Refs>
+                  <AcctSvcrRef>test-ref</AcctSvcrRef>
+                  <InstrId>test-id</InstrId>
+                </Refs>
+                <AmtDtls>
+                  <InstdAmt>
+                    <Amt Ccy="EUR">100.00</Amt>
+                  </InstdAmt>
+                  <TxAmt>
+                    <Amt Ccy="EUR">100.00</Amt>
+                  </TxAmt>
+                </AmtDtls>
+                <RltdPties>
+                  <Dbtr>
+                    <Nm>Test Person</Nm>
+                    <Id>
+                      <PrvtId>
+                        <Othr>
+                          <Id>12345678901</Id>
+                          <SchmeNm>
+                            <Cd>NIDN</Cd>
+                          </SchmeNm>
+                        </Othr>
+                      </PrvtId>
+                    </Id>
+                  </Dbtr>
+                  <DbtrAcct>
+                    <Id>
+                      <!-- Using Othr instead of IBAN -->
+                      <Othr>
+                        <Id>123456</Id>
+                      </Othr>
+                    </Id>
+                  </DbtrAcct>
+                </RltdPties>
+                <RmtInf>
+                  <Ustrd>Test payment</Ustrd>
+                </RmtInf>
+              </TxDtls>
+            </NtryDtls>
+          </Ntry>
+          """
+                  .stripIndent());
+
+      String xmlWithMissingCounterPartyIban = createCamt053Xml(entries);
+
+      assertThatThrownBy(
+              () -> extractor.extractFromHistoricStatement(xmlWithMissingCounterPartyIban))
+          .isInstanceOf(BankStatementParseException.class)
+          .hasMessageContaining("counter-party IBAN is required");
     }
 
     @Test

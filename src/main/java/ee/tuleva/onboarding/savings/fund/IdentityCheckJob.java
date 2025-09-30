@@ -22,14 +22,19 @@ public class IdentityCheckJob {
   private final static PersonalCodeValidator personalCodeValidator = new PersonalCodeValidator();
 
   private final IdentityCheckRepository identityCheckRepository;
+  private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final UserRepository userRepository;
 
   @Scheduled(fixedRateString = "1m")
   public void runJob() {
-    // get all unprocessed payments
-    // for each payment:
-    // - process payment
+    identityCheckRepository.findPaymentsWithoutIdentityCheck().forEach(id -> {
+      try {
+        savingFundPaymentRepository.findById(id).ifPresent(this::process);
+      } catch (Exception e) {
+        log.error("Identity check failed for payment {}", id, e);
+      }
+    });
   }
 
   @Transactional

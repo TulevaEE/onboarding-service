@@ -3,16 +3,19 @@ package ee.tuleva.onboarding.savings.fund;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import ee.tuleva.onboarding.user.User;
@@ -22,9 +25,43 @@ import ee.tuleva.onboarding.user.UserRepository;
 class IdentityCheckJobTest {
 
   @Mock IdentityCheckRepository identityCheckRepository;
+  @Mock SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock UserRepository userRepository;
   @Mock SavingsFundOnboardingService savingsFundOnboardingService;
-  @InjectMocks IdentityCheckJob job;
+  @Spy @InjectMocks IdentityCheckJob job;
+
+  @Test
+  void runProcess() {
+    var payment1 = createPayment(null, "A");
+    var payment2 = createPayment(null, "B");
+    when(identityCheckRepository.findPaymentsWithoutIdentityCheck())
+        .thenReturn(List.of(payment1.getId(), payment2.getId()));
+    //noinspection unchecked
+    when(savingFundPaymentRepository.findById(any())).thenReturn(Optional.of(payment1), Optional.of(payment2));
+
+    job.runJob();
+
+    verify(job).process(payment1);
+    verify(job).process(payment2);
+    verify(savingFundPaymentRepository).findById(payment1.getId());
+    verify(savingFundPaymentRepository).findById(payment2.getId());
+  }
+
+  @Test
+  void runProcess_handleExceptions() {
+    var payment1 = createPayment(null, "A");
+    var payment2 = createPayment(null, "B");
+    when(identityCheckRepository.findPaymentsWithoutIdentityCheck())
+        .thenReturn(List.of(payment1.getId(), payment2.getId()));
+    //noinspection unchecked
+    when(savingFundPaymentRepository.findById(any())).thenReturn(Optional.of(payment1), Optional.of(payment2));
+    doThrow(RuntimeException.class).when(job).process(payment1);
+
+    job.runJob();
+
+    verify(job).process(payment1);
+    verify(job).process(payment2);
+  }
 
   @Test
   void process_noPersonalCodeInDescription() {
@@ -42,7 +79,8 @@ class IdentityCheckJobTest {
 
     job.process(payment);
 
-    verify(identityCheckRepository).identityCheckFailure(payment, "selgituses olev isikukood ei klapi maksja isikukoodiga");
+    verify(identityCheckRepository).identityCheckFailure(payment,
+        "selgituses olev isikukood ei klapi maksja isikukoodiga");
     verifyNoMoreInteractions(identityCheckRepository);
   }
 
@@ -131,15 +169,6 @@ class IdentityCheckJobTest {
     verifyNoMoreInteractions(identityCheckRepository);
   }
 
-  private SavingFundPayment createPayment(String remitterIdCode, String description) {
-    return SavingFundPayment.builder()
-        .id(randomUUID())
-        .remitterName("PÄRT ÕLEKÕRS")
-        .remitterIdCode(remitterIdCode)
-        .description(description)
-        .build();
-  }
-
   @Test
   void isSameName() {
     assertThat(job.isSameName(null, null)).isFalse();
@@ -170,6 +199,15 @@ class IdentityCheckJobTest {
     assertThat(job.extractPersonalCode("some prefix 37508295796")).contains("37508295796");
     assertThat(job.extractPersonalCode("some prefix,37508295796,some suffix")).contains("37508295796");
     assertThat(job.extractPersonalCode("some prefix+37508295796/some suffix,45009144745")).contains("37508295796");
+  }
+
+  private SavingFundPayment createPayment(String remitterIdCode, String description) {
+    return SavingFundPayment.builder()
+        .id(randomUUID())
+        .remitterName("PÄRT ÕLEKÕRS")
+        .remitterIdCode(remitterIdCode)
+        .description(description)
+        .build();
   }
 
 }

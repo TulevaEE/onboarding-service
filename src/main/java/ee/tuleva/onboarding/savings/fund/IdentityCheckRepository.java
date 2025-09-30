@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import java.util.List;
+import java.util.UUID;
+
 import org.springframework.stereotype.Repository;
 
 import ee.tuleva.onboarding.user.User;
@@ -13,5 +16,9 @@ public class IdentityCheckRepository {
   }
 
   void identityCheckFailure(SavingFundPayment payment, String reason) {
+  }
+
+  List<UUID> findPaymentsWithoutIdentityCheck() {
+    return List.of();
   }
 }

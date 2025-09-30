@@ -494,6 +494,129 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
     }
 
     @Test
+    void extractFromHistoricStatement_shouldThrowExceptionForMultipleEntryDetails() {
+      var entries =
+          List.of(
+              """
+          <Ntry>
+            <NtryRef>test-ref</NtryRef>
+            <Amt Ccy="EUR">100.00</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <Sts>BOOK</Sts>
+            <BookgDt>
+              <Dt>2025-06-05</Dt>
+            </BookgDt>
+            <ValDt>
+              <Dt>2025-06-05</Dt>
+            </ValDt>
+            <NtryDtls>
+              <TxDtls>
+                <Refs>
+                  <AcctSvcrRef>test-ref</AcctSvcrRef>
+                </Refs>
+                <RmtInf>
+                  <Ustrd>Test payment</Ustrd>
+                </RmtInf>
+              </TxDtls>
+            </NtryDtls>
+            <NtryDtls>
+              <TxDtls>
+                <Refs>
+                  <AcctSvcrRef>test-ref-2</AcctSvcrRef>
+                </Refs>
+                <RmtInf>
+                  <Ustrd>Another payment</Ustrd>
+                </RmtInf>
+              </TxDtls>
+            </NtryDtls>
+          </Ntry>
+          """
+                  .stripIndent());
+
+      String xmlWithMultipleEntryDetails = createCamt053Xml(entries);
+
+      assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithMultipleEntryDetails))
+          .isInstanceOf(BankStatementParseException.class)
+          .hasMessageContaining("Expected exactly one entry details, but found: 2");
+    }
+
+    @Test
+    void extractFromHistoricStatement_shouldThrowExceptionForMultipleTransactionDetails() {
+      var entries =
+          List.of(
+              """
+          <Ntry>
+            <NtryRef>test-ref</NtryRef>
+            <Amt Ccy="EUR">100.00</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <Sts>BOOK</Sts>
+            <BookgDt>
+              <Dt>2025-06-05</Dt>
+            </BookgDt>
+            <ValDt>
+              <Dt>2025-06-05</Dt>
+            </ValDt>
+            <NtryDtls>
+              <TxDtls>
+                <Refs>
+                  <AcctSvcrRef>test-ref-1</AcctSvcrRef>
+                </Refs>
+                <AmtDtls>
+                  <InstdAmt>
+                    <Amt Ccy="EUR">50.00</Amt>
+                  </InstdAmt>
+                </AmtDtls>
+                <RltdPties>
+                  <Dbtr>
+                    <Nm>First Person</Nm>
+                  </Dbtr>
+                  <DbtrAcct>
+                    <Id>
+                      <IBAN>EE123456789012345678</IBAN>
+                    </Id>
+                  </DbtrAcct>
+                </RltdPties>
+                <RmtInf>
+                  <Ustrd>First payment</Ustrd>
+                </RmtInf>
+              </TxDtls>
+              <TxDtls>
+                <Refs>
+                  <AcctSvcrRef>test-ref-2</AcctSvcrRef>
+                </Refs>
+                <AmtDtls>
+                  <InstdAmt>
+                    <Amt Ccy="EUR">50.00</Amt>
+                  </InstdAmt>
+                </AmtDtls>
+                <RltdPties>
+                  <Dbtr>
+                    <Nm>Second Person</Nm>
+                  </Dbtr>
+                  <DbtrAcct>
+                    <Id>
+                      <IBAN>EE987654321098765432</IBAN>
+                    </Id>
+                  </DbtrAcct>
+                </RltdPties>
+                <RmtInf>
+                  <Ustrd>Second payment</Ustrd>
+                </RmtInf>
+              </TxDtls>
+            </NtryDtls>
+          </Ntry>
+          """
+                  .stripIndent());
+
+      String xmlWithMultipleTransactionDetails = createCamt053Xml(entries);
+
+      assertThatThrownBy(
+              () -> extractor.extractFromHistoricStatement(xmlWithMultipleTransactionDetails))
+          .isInstanceOf(BankStatementParseException.class)
+          .hasMessageContaining("Expected exactly one transaction details, but found: 2");
+    }
+
+    @Test
     void extractFromHistoricStatement_shouldHandleEmptyEntries() {
       var entries = List.<String>of();
       String xmlWithEmptyEntries = createCamt053Xml(entries);

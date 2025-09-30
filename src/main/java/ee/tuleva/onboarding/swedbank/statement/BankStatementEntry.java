@@ -35,9 +35,8 @@ public class BankStatementEntry {
     public static CounterPartyDetails from(ReportEntry2 entry) {
       var creditOrDebit = entry.getCdtDbtInd();
 
-      // TODO this can have multiple ones depending on bank logic, test response from Swed only has
-      // one
-      var transactionDetails = entry.getNtryDtls().getFirst().getTxDtls().getFirst();
+      var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
+      var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
       var relatedParties = transactionDetails.getRltdPties();
 
       // TODO entry group can break this?
@@ -70,9 +69,8 @@ public class BankStatementEntry {
     static CounterPartyDetails from(ee.swedbank.gateway.iso.response.statement.ReportEntry2 entry) {
       var creditOrDebit = entry.getCdtDbtInd();
 
-      // TODO this can have multiple ones depending on bank logic, test response from Swed only has
-      // one
-      var transactionDetails = entry.getNtryDtls().getFirst().getTxDtls().getFirst();
+      var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
+      var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
       var relatedParties = transactionDetails.getRltdPties();
 
       // TODO entry group can break this?

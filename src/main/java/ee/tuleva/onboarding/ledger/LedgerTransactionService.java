@@ -1,9 +1,10 @@
 package ee.tuleva.onboarding.ledger;
 
-import ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType;
+import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.*;
+
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
-import java.time.Clock;
+import java.time.Instant;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
@@ -13,20 +14,17 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 class LedgerTransactionService {
-  private final Clock clock;
 
   private final LedgerTransactionRepository ledgerTransactionRepository;
 
   @Transactional
   public LedgerTransaction createTransaction(
-      TransactionType type, Map<String, Object> metadata, LedgerEntryDto... ledgerEntryDtos) {
+      Instant transactionDate, Map<String, Object> metadata, LedgerEntryDto... ledgerEntryDtos) {
     var transaction =
         LedgerTransaction.builder()
-            .description("") // TODO remove this field
-            .transactionType(type)
-            .transactionDate(clock.instant())
+            .transactionType(TRANSFER)
+            .transactionDate(transactionDate)
             .metadata(metadata)
-            // .eventLogId(1) // TODO event log ID
             .build();
 
     for (LedgerEntryDto ledgerEntryDto : ledgerEntryDtos) {

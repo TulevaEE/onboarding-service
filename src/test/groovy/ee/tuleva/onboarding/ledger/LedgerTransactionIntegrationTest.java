@@ -2,10 +2,10 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.INCOME;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.USER;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
@@ -13,12 +13,16 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
+@Transactional
 public class LedgerTransactionIntegrationTest {
   @Autowired private LedgerService ledgerService;
 
@@ -31,16 +35,18 @@ public class LedgerTransactionIntegrationTest {
 
   @Autowired private LedgerTransactionService ledgerTransactionService;
 
+  @Autowired private Clock clock;
+
   @BeforeEach
   void setup() {
     User user = sampleUser().build();
-    ledgerService.onboardUser(user);
+    ledgerService.onboard(user);
 
     ledgerAccountRepository.save(
         LedgerAccount.builder()
-            .name("DEPOSIT_EUR")
+            .name(INCOMING_PAYMENTS_CLEARING.name())
             .purpose(SYSTEM_ACCOUNT)
-            .accountType(INCOME)
+            .accountType(LIABILITY)
             .assetType(EUR)
             .build());
   }
@@ -53,12 +59,12 @@ public class LedgerTransactionIntegrationTest {
   }
 
   private LedgerAccount getCashAccount(LedgerParty party) {
-    return ledgerAccountService.getLedgerAccount(party, INCOME, EUR).orElseThrow();
+    return ledgerAccountService.getLedgerAccount(party, ASSET, EUR).orElseThrow();
   }
 
   private LedgerAccount getServiceAccount() {
     return ledgerAccountService
-        .findSystemAccount("DEPOSIT_EUR", SYSTEM_ACCOUNT, EUR, INCOME)
+        .findSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY)
         .orElseThrow();
   }
 
@@ -70,13 +76,13 @@ public class LedgerTransactionIntegrationTest {
     var party = ledgerPartyRepository.findByOwnerId(user.getPersonalCode());
 
     assertThat(party.getOwnerId()).isEqualTo(user.getPersonalCode());
-    assertThat(party.getType()).isEqualTo(USER);
+    assertThat(party.getPartyType()).isEqualTo(USER);
 
     var cashAccount = getCashAccount(party);
     var serviceAccount = getServiceAccount();
 
     ledgerTransactionService.createTransaction(
-        TRANSFER,
+        Instant.now(clock),
         Map.of("operationType", "TEST_TRANSACTION"),
         new LedgerEntryDto(cashAccount, new BigDecimal("1000.00")),
         new LedgerEntryDto(serviceAccount, new BigDecimal("-1000.00")));
@@ -88,7 +94,7 @@ public class LedgerTransactionIntegrationTest {
     assertThat(getServiceAccount().getEntries().size()).isEqualTo(1);
 
     ledgerTransactionService.createTransaction(
-        TRANSFER,
+        Instant.now(clock),
         Map.of("operationType", "TEST_TRANSACTION_2"),
         new LedgerEntryDto(cashAccount, new BigDecimal("-1000.00")),
         new LedgerEntryDto(serviceAccount, new BigDecimal("1000.00")));

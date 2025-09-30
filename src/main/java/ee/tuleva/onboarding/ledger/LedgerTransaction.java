@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.GenerationType.*;
 import static java.math.BigDecimal.ZERO;
 import static org.hibernate.generator.EventType.INSERT;
 
@@ -30,13 +32,10 @@ public class LedgerTransaction {
   }
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = IDENTITY)
   private UUID id;
 
-  private String description;
-
-  @Enumerated(EnumType.STRING)
-  @Column(name = "transaction_type_id")
+  @Enumerated(STRING)
   @NotNull
   private TransactionType transactionType;
 
@@ -62,7 +61,13 @@ public class LedgerTransaction {
   }
 
   public LedgerEntry addEntry(LedgerAccount account, BigDecimal amount) {
-    var entry = LedgerEntry.builder().amount(amount).transaction(this).account(account).build();
+    var entry =
+        LedgerEntry.builder()
+            .amount(amount)
+            .assetType(account.getAssetType())
+            .account(account)
+            .transaction(this)
+            .build();
 
     entries.add(entry);
     account.addEntry(entry);
@@ -72,11 +77,7 @@ public class LedgerTransaction {
 
   @Builder
   public LedgerTransaction(
-      String description,
-      TransactionType transactionType,
-      Instant transactionDate,
-      Map<String, Object> metadata) {
-    this.description = description;
+      TransactionType transactionType, Instant transactionDate, Map<String, Object> metadata) {
     this.transactionType = transactionType;
     this.transactionDate = transactionDate;
     this.metadata = metadata;

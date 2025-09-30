@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
+import static jakarta.persistence.EnumType.STRING;
 import static java.math.BigDecimal.ZERO;
 import static org.hibernate.generator.EventType.INSERT;
 
@@ -14,6 +15,7 @@ import lombok.*;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.dialect.PostgreSQLEnumJdbcType;
+import org.jetbrains.annotations.Nullable;
 
 @Entity
 @Table(name = "account", schema = "ledger")
@@ -27,9 +29,9 @@ public class LedgerAccount {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private UUID id;
 
-  private String name;
+  @Nullable private String name;
 
-  @Enumerated(EnumType.STRING)
+  @Enumerated(STRING)
   @Column(columnDefinition = "ledger.account_purpose")
   @JdbcType(PostgreSQLEnumJdbcType.class)
   @NotNull
@@ -40,7 +42,7 @@ public class LedgerAccount {
     SYSTEM_ACCOUNT
   }
 
-  @Enumerated(EnumType.STRING)
+  @Enumerated(STRING)
   @Column(nullable = false, columnDefinition = "ledger.account_type")
   @JdbcType(PostgreSQLEnumJdbcType.class)
   @NotNull
@@ -57,7 +59,7 @@ public class LedgerAccount {
   @JoinColumn(name = "owner_party_id")
   private LedgerParty owner;
 
-  @Enumerated(EnumType.STRING)
+  @Enumerated(STRING)
   @NotNull
   private AssetType assetType;
 
@@ -79,13 +81,14 @@ public class LedgerAccount {
   }
 
   public void addEntry(LedgerEntry entry) {
-    entries.add(entry);
     entry.setAccount(this);
+    entry.setAssetType(this.assetType);
+    entries.add(entry);
   }
 
   @Builder
   private LedgerAccount(
-      String name,
+      @Nullable String name,
       AccountPurpose purpose,
       AccountType accountType,
       LedgerParty owner,

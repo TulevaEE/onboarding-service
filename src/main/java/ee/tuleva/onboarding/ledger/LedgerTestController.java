@@ -1,9 +1,9 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.DEPOSIT_EUR;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageReceiver;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher;
 import ee.tuleva.onboarding.user.User;
@@ -39,7 +39,7 @@ public class LedgerTestController {
 
     LedgerParty ledgerParty =
         ledgerPartyService
-            .getPartyForUser(user)
+            .getParty(user)
             .orElseThrow(() -> new RuntimeException("No ledger party found for user " + userId));
 
     return ledgerAccountService.getAccounts(ledgerParty);
@@ -52,7 +52,7 @@ public class LedgerTestController {
     Long userId = authenticatedPerson.getUserId();
     User user = userService.getById(userId).orElseThrow();
 
-    return ledgerService.onboardUser(user);
+    return ledgerService.onboard(user);
   }
 
   @Operation(summary = "Deposit")
@@ -63,7 +63,7 @@ public class LedgerTestController {
     Long userId = authenticatedPerson.getUserId();
     User user = userService.getById(userId).orElseThrow();
 
-    return ledgerService.deposit(user, depositDto.amount(), EUR);
+    return ledgerService.deposit(user, depositDto.amount(), depositDto.assetType());
   }
 
   @Operation(summary = "Send statement request")
@@ -78,5 +78,5 @@ public class LedgerTestController {
     swedbankMessageReceiver.getResponse();
   }
 
-  record DepositDto(BigDecimal amount) {}
+  record DepositDto(BigDecimal amount, AssetType assetType) {}
 }

@@ -1,9 +1,13 @@
 package ee.tuleva.onboarding.ledger;
 
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.GenerationType.*;
 import static org.hibernate.generator.EventType.INSERT;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
@@ -19,7 +23,7 @@ import org.hibernate.annotations.Generated;
 @ToString(exclude = {"account", "transaction"})
 public class LedgerEntry {
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = IDENTITY)
   private UUID id;
 
   @ManyToOne
@@ -34,8 +38,12 @@ public class LedgerEntry {
   @Setter(AccessLevel.PACKAGE)
   private LedgerTransaction transaction;
 
-  @Column(nullable = false)
-  private BigDecimal amount;
+  @NotNull private BigDecimal amount;
+
+  @NotNull
+  @Setter(AccessLevel.PACKAGE)
+  @Enumerated(STRING)
+  private AssetType assetType;
 
   @Column(nullable = false, updatable = false, insertable = false)
   @Generated(event = INSERT)

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.*;
+
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
@@ -8,8 +10,6 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.*;
 
 @Profile({"dev", "test"})
 @Service
@@ -34,9 +34,8 @@ class LedgerAccountService {
 
   public Optional<LedgerAccount> getLedgerAccount(
       LedgerParty owner, AccountType accountType, AssetType assetTypeCode) {
-    return
-        ledgerAccountRepository.findByOwnerAndAccountTypeAndAssetTypeWithEntries(
-            owner, accountType, assetTypeCode);
+    return ledgerAccountRepository.findByOwnerAndAccountTypeAndAssetTypeWithEntries(
+        owner, accountType, assetTypeCode);
   }
 
   List<LedgerAccount> getAccounts(LedgerParty owner) {

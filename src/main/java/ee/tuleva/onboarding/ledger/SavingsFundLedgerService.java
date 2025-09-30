@@ -4,6 +4,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_AC
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
+
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.user.User;
 import jakarta.transaction.Transactional;
@@ -219,7 +220,8 @@ public class SavingsFundLedgerService {
   }
 
   @Transactional
-  public LedgerTransaction processRedemptionPayout(User user, BigDecimal amount, String customerIban) {
+  public LedgerTransaction processRedemptionPayout(
+      User user, BigDecimal amount, String customerIban) {
     LedgerAccount payoutsCashAccount =
         getSystemAccount(SystemAccount.PAYOUTS_CASH_CLEARING, EUR, ASSET);
     LedgerAccount redemptionPayableAccount =
@@ -251,9 +253,8 @@ public class SavingsFundLedgerService {
   }
 
   private LedgerAccount getUserCashAccount(LedgerParty userParty) {
-    return ledgerAccountRepository.findByOwnerAndAccountTypeAndAssetTypeWithEntries(
-            userParty, INCOME, EUR
-        )
+    return ledgerAccountRepository
+        .findByOwnerAndAccountTypeAndAssetTypeWithEntries(userParty, INCOME, EUR)
         .orElseThrow(() -> new IllegalStateException("User cash account not found"));
   }
 
@@ -263,12 +264,16 @@ public class SavingsFundLedgerService {
         .orElseThrow(() -> new IllegalStateException("User units account not found"));
   }
 
-  private LedgerAccount getSystemAccount(SystemAccount systemAccount, LedgerAccount.AssetType assetType, LedgerAccount.AccountType accountType) {
-    return ledgerAccountRepository.findByNameAndPurposeAndAssetTypeAndAccountTypeWithEntries(
-        systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType
-    ).orElseGet(
-        () ->
-            ledgerAccountService.createSystemAccount(
-                systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType));
+  private LedgerAccount getSystemAccount(
+      SystemAccount systemAccount,
+      LedgerAccount.AssetType assetType,
+      LedgerAccount.AccountType accountType) {
+    return ledgerAccountRepository
+        .findByNameAndPurposeAndAssetTypeAndAccountTypeWithEntries(
+            systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType)
+        .orElseGet(
+            () ->
+                ledgerAccountService.createSystemAccount(
+                    systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType));
   }
 }

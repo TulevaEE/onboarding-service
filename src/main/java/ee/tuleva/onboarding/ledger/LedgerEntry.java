@@ -1,16 +1,14 @@
 package ee.tuleva.onboarding.ledger;
 
+import static org.hibernate.generator.EventType.INSERT;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import lombok.*;
-import org.hibernate.annotations.Generated;
-import org.hibernate.generator.EventType;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
-
-import static org.hibernate.generator.EventType.INSERT;
+import lombok.*;
+import org.hibernate.annotations.Generated;
 
 @Entity
 @Table(name = "entry", schema = "ledger")
@@ -42,5 +40,4 @@ public class LedgerEntry {
   @Column(nullable = false, updatable = false, insertable = false)
   @Generated(event = INSERT)
   private Instant createdAt;
-
 }

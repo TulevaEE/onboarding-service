@@ -21,11 +21,13 @@ interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
   Optional<LedgerAccount> findByNameAndPurposeAndAssetTypeAndAccountType(
       String name, AccountPurpose purpose, AssetType assetType, AccountType accountType);
 
-  @Query("SELECT a FROM LedgerAccount a LEFT JOIN FETCH a.entries WHERE a.name = :name AND a.purpose = :purpose AND a.assetType = :assetType AND a.accountType = :accountType")
+  @Query(
+      "SELECT a FROM LedgerAccount a LEFT JOIN FETCH a.entries WHERE a.name = :name AND a.purpose = :purpose AND a.assetType = :assetType AND a.accountType = :accountType")
   Optional<LedgerAccount> findByNameAndPurposeAndAssetTypeAndAccountTypeWithEntries(
       String name, AccountPurpose purpose, AssetType assetType, AccountType accountType);
 
-  @Query("SELECT a FROM LedgerAccount a LEFT JOIN FETCH a.entries WHERE a.owner = :owner AND a.accountType = :accountType AND a.assetType = :assetType")
+  @Query(
+      "SELECT a FROM LedgerAccount a LEFT JOIN FETCH a.entries WHERE a.owner = :owner AND a.accountType = :accountType AND a.assetType = :assetType")
   Optional<LedgerAccount> findByOwnerAndAccountTypeAndAssetTypeWithEntries(
       LedgerParty owner, AccountType accountType, AssetType assetType);
 

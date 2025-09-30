@@ -60,18 +60,13 @@ public class LedgerIntegrationTest {
 
     var cashAccount =
         accounts.stream()
-            .filter(
-                account ->
-                    account.getAccountType() == INCOME
-                        && account.getAssetType() == EUR)
+            .filter(account -> account.getAccountType() == INCOME && account.getAssetType() == EUR)
             .findFirst()
             .orElseThrow();
     var stockAccount =
         accounts.stream()
             .filter(
-                account ->
-                    account.getAccountType() == ASSET
-                        && account.getAssetType() == FUND_UNIT)
+                account -> account.getAccountType() == ASSET && account.getAssetType() == FUND_UNIT)
             .findFirst()
             .orElseThrow();
 

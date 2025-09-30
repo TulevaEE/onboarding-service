@@ -7,42 +7,29 @@ import java.util.UUID;
 import lombok.*;
 
 @Entity
-@Table(name = "swedbank_statement_fetch_job")
+@Table(name = "swedbank_message")
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SwedbankStatementFetchJob {
+public class SwedbankMessage {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   @Column(nullable = false)
   private UUID id;
 
+  @Column @Nullable private String requestId;
   @Column @Nullable private String trackingId;
 
-  @Enumerated(EnumType.STRING)
-  @Column(nullable = false)
-  private JobStatus jobStatus;
-
-  @Column(nullable = false)
-  private String iban;
-
-  @Nullable
-  @Column(columnDefinition = "TIMESTAMPTZ")
-  private Instant lastCheckAt;
-
   @Column @Nullable private String rawResponse;
-  @Column @Nullable private String rawRequest;
+
+  @Column(columnDefinition = "TIMESTAMPTZ")
+  private Instant failedAt;
+
+  @Column(columnDefinition = "TIMESTAMPTZ")
+  private Instant processedAt;
 
   @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
-  private Instant createdAt;
-
-  public enum JobStatus {
-    SCHEDULED,
-    WAITING_FOR_REPLY,
-    RESPONSE_RECEIVED,
-    DONE,
-    FAILED
-  }
+  private Instant receivedAt;
 }

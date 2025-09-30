@@ -80,7 +80,7 @@ public class LedgerAccount {
     return entries.stream().map(LedgerEntry::getAmount).reduce(ZERO, BigDecimal::add);
   }
 
-  public void addEntry(LedgerEntry entry) {
+  void addEntry(LedgerEntry entry) {
     entry.setAccount(this);
     entry.setAssetType(this.assetType);
     entries.add(entry);

@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.swedbank.http;
 
-import ee.swedbank.gateway.iso.response.ObjectFactory;
 import jakarta.xml.bind.JAXBContext;
 import java.io.*;
 import lombok.SneakyThrows;
@@ -20,8 +19,8 @@ class SwedbankGatewayMarshaller {
   }
 
   @SneakyThrows
-  public <T> T unMarshal(String response, Class<T> responseClass) {
-    JAXBContext unMarshalContext = JAXBContext.newInstance(ObjectFactory.class);
+  public <T> T unMarshal(String response, Class<T> responseClass, Class objectFactoryClass) {
+    JAXBContext unMarshalContext = JAXBContext.newInstance(objectFactoryClass);
     var unmarshaller = unMarshalContext.createUnmarshaller();
     return responseClass.cast(unmarshaller.unmarshal(new StringReader(response)));
   }

@@ -52,7 +52,8 @@ public class SwedbankMessageDelegator {
 
       swedbankMessageRepository.save(message);
     } catch (Exception e) {
-      log.error("Failed to process message id:" + message.getId(), e);
+      // TODO to error when processors finished
+      log.info("Failed to process message id:" + message.getId(), e);
     }
   }
 

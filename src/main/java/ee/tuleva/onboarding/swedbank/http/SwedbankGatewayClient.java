@@ -8,6 +8,7 @@ import static org.springframework.http.HttpMethod.POST;
 import java.net.URI;
 import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;

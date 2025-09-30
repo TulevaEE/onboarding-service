@@ -37,8 +37,8 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
 
     // Verify first entry
     var firstEntry = statement.getEntries().getFirst();
-    assertThat(firstEntry.getAmount()).isEqualByComparingTo(new BigDecimal("772.88"));
-    assertThat(firstEntry.getDetails().getName()).isEqualTo("Toomas Raudsepp");
+    assertThat(firstEntry.amount()).isEqualByComparingTo(new BigDecimal("772.88"));
+    assertThat(firstEntry.details().getName()).isEqualTo("Toomas Raudsepp");
   }
 
   @Test
@@ -348,7 +348,7 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
 
       assertThat(statement).isNotNull();
       assertThat(statement.getEntries()).hasSize(1);
-      assertThat(statement.getEntries().getFirst().getDetails().getPersonalCode()).isEmpty();
+      assertThat(statement.getEntries().getFirst().details().getPersonalCode()).isEmpty();
     }
 
     @Test

@@ -40,20 +40,20 @@ public class SavingFundPaymentExtractor {
   private SavingFundPayment convertToSavingFundPayment(
       BankStatementEntry entry, BankStatementAccount account, Instant receivedAt) {
 
-    if (!Objects.equals(entry.getCurrencyCode(), "EUR")) {
+    if (!Objects.equals(entry.currencyCode(), "EUR")) {
       throw new PaymentProcessingException(
-          "Bank transfer currency not supported: " + entry.getCurrencyCode());
+          "Bank transfer currency not supported: " + entry.currencyCode());
     }
 
     var currency = Currency.EUR;
 
-    var counterParty = entry.getDetails();
+    var counterParty = entry.details();
 
     // For CREDIT: counterparty is remitter, account holder is beneficiary
     // For DEBIT: account holder is remitter, counterparty is beneficiary
-    if (entry.getTransactionType() == TransactionType.CREDIT) {
+    if (entry.transactionType() == TransactionType.CREDIT) {
       return SavingFundPayment.builder()
-          .amount(entry.getAmount())
+          .amount(entry.amount())
           .currency(currency)
           .remitterIban(counterParty.getIban())
           .remitterIdCode(counterParty.getPersonalCode().orElse(null))
@@ -61,13 +61,13 @@ public class SavingFundPaymentExtractor {
           .beneficiaryIban(account.iban())
           .beneficiaryIdCode(account.accountHolderIdCode())
           .beneficiaryName(account.accountHolderName())
-          .description(entry.getRemittanceInformation())
-          .externalId(entry.getExternalId())
+          .description(entry.remittanceInformation())
+          .externalId(entry.externalId())
           .receivedAt(receivedAt)
           .build();
     } else { // DEBIT
       return SavingFundPayment.builder()
-          .amount(entry.getAmount()) // Already negative for debits
+          .amount(entry.amount()) // Already negative for debits
           .currency(currency)
           .remitterIban(account.iban())
           .remitterIdCode(account.accountHolderIdCode())
@@ -75,8 +75,8 @@ public class SavingFundPaymentExtractor {
           .beneficiaryIban(counterParty.getIban())
           .beneficiaryIdCode(counterParty.getPersonalCode().orElse(null))
           .beneficiaryName(counterParty.getName())
-          .description(entry.getRemittanceInformation())
-          .externalId(entry.getExternalId())
+          .description(entry.remittanceInformation())
+          .externalId(entry.externalId())
           .receivedAt(receivedAt)
           .build();
     }

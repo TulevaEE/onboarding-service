@@ -39,10 +39,10 @@ class SwedbankBankStatementExtractorIntraDayTest {
 
     // Verify the entry
     var entry = statement.getEntries().getFirst();
-    assertThat(entry.getAmount()).isEqualByComparingTo(new BigDecimal("0.10"));
-    assertThat(entry.getDetails().getName()).isEqualTo("Jüri Tamm");
-    assertThat(entry.getDetails().getIban()).isEqualTo("EE157700771001802057");
-    assertThat(entry.getDetails().getPersonalCode()).hasValue("39910273027");
+    assertThat(entry.amount()).isEqualByComparingTo(new BigDecimal("0.10"));
+    assertThat(entry.details().getName()).isEqualTo("Jüri Tamm");
+    assertThat(entry.details().getIban()).isEqualTo("EE157700771001802057");
+    assertThat(entry.details().getPersonalCode()).hasValue("39910273027");
   }
 
   @Test

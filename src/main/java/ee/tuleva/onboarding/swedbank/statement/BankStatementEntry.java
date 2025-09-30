@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.swedbank.statement;
 
 import static ee.swedbank.gateway.iso.response.report.CreditDebitCode.CRDT;
 
+import ee.swedbank.gateway.iso.response.report.GenericPersonIdentification1;
 import ee.swedbank.gateway.iso.response.report.Party6Choice;
 import ee.swedbank.gateway.iso.response.report.ReportEntry2;
 import ee.swedbank.gateway.iso.response.statement.CreditDebitCode;
@@ -13,17 +14,17 @@ import java.util.stream.Stream;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-@RequiredArgsConstructor
-public class BankStatementEntry {
-  @Getter private final CounterPartyDetails details;
-  @Getter private final BigDecimal amount;
-  @Getter private final String currencyCode;
-  @Getter private final TransactionType transactionType;
-  @Getter private final String remittanceInformation;
-  @Getter private final String externalId;
+public record BankStatementEntry(
+    CounterPartyDetails details,
+    BigDecimal amount,
+    String currencyCode,
+    TransactionType transactionType,
+    String remittanceInformation,
+    String externalId) {
 
   @RequiredArgsConstructor
   public static final class CounterPartyDetails {
+
     @Getter private final String name;
     @Getter private final String iban;
     @Nullable private final String personalCode;
@@ -50,9 +51,7 @@ public class BankStatementEntry {
               .map(
                   prvtId ->
                       prvtId.getOthr().stream()
-                          .map(
-                              ee.swedbank.gateway.iso.response.report.GenericPersonIdentification1
-                                  ::getId)
+                          .map(GenericPersonIdentification1::getId)
                           .filter(id -> id != null && !id.isBlank())
                           .toList())
               .orElseGet(List::of);

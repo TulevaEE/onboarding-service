@@ -18,18 +18,6 @@ class Require {
         list, (lst) -> "Expected exactly one " + entityName + ", but found: " + lst.size());
   }
 
-  static <T> T atMostOne(List<T> list, Function<List<T>, String> exceptionMessageGenerator) {
-    if (list != null && list.size() > 1) {
-      throw new BankStatementParseException(exceptionMessageGenerator.apply(list));
-    }
-    return (list == null || list.isEmpty()) ? null : list.getFirst();
-  }
-
-  static <T> T atMostOne(List<T> list, String entityName) {
-    return atMostOne(
-        list, (lst) -> "Expected at most one " + entityName + ", but found: " + lst.size());
-  }
-
   static <T> T notNull(T value, String entityName) {
     if (value == null) {
       throw new BankStatementParseException(entityName + " is required");

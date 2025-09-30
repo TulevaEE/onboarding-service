@@ -26,7 +26,7 @@ public record BankStatementAccount(
   }
 
   static BankStatementAccount from(AccountReport11 report) {
-    var iban = report.getAcct().getId().getIBAN();
+    var iban = Require.notNullOrBlank(report.getAcct().getId().getIBAN(), "account IBAN");
 
     // Extract account holder information from Ownr section
     var owner = Require.notNull(report.getAcct().getOwnr(), "account owner");
@@ -52,7 +52,7 @@ public record BankStatementAccount(
   }
 
   static BankStatementAccount from(AccountStatement2 statement) {
-    var iban = statement.getAcct().getId().getIBAN();
+    var iban = Require.notNullOrBlank(statement.getAcct().getId().getIBAN(), "account IBAN");
 
     // Extract account holder information from Ownr section
     var owner = Require.notNull(statement.getAcct().getOwnr(), "account owner");

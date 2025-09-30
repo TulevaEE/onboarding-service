@@ -60,7 +60,7 @@ public class LedgerTransaction {
     return entries.stream().map(LedgerEntry::getAmount).reduce(ZERO, BigDecimal::add);
   }
 
-  public LedgerEntry addEntry(LedgerAccount account, BigDecimal amount) {
+  LedgerEntry addEntry(LedgerAccount account, BigDecimal amount) {
     var entry =
         LedgerEntry.builder()
             .amount(amount)

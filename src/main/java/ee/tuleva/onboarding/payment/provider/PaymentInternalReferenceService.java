@@ -18,14 +18,15 @@ public class PaymentInternalReferenceService {
   private final LocaleService localeService;
 
   @SneakyThrows
-  public String getPaymentReference(Person person, PaymentData paymentData) {
+  public String getPaymentReference(Person person, PaymentData paymentData, String description) {
     PaymentReference paymentReference =
         new PaymentReference(
             person.getPersonalCode(),
             paymentData.getRecipientPersonalCode(),
             UUID.randomUUID(),
             paymentData.getType(),
-            localeService.getCurrentLocale());
+            localeService.getCurrentLocale(),
+            description);
     return mapper.writeValueAsString(paymentReference);
   }
 }

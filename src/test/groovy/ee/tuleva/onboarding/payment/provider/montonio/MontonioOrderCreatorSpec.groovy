@@ -51,7 +51,7 @@ class MontonioOrderCreatorSpec extends Specification {
     String aReference = "aReference"
     Locale aLocale = Locale.ENGLISH
     montonioPaymentChannelConfiguration.getPaymentProviderChannel(aPaymentData.getPaymentChannel()) >> aPaymentChannel
-    paymentInternalReferenceService.getPaymentReference(aPerson, aPaymentData) >> aReference
+    paymentInternalReferenceService.getPaymentReference(aPerson, aPaymentData, _) >> aReference
     localeService.getCurrentLocale() >> aLocale
 
     when:
@@ -82,7 +82,7 @@ class MontonioOrderCreatorSpec extends Specification {
     String aReference = "aReference"
     Locale aLocale = Locale.ENGLISH
     montonioPaymentChannelConfiguration.getPaymentProviderChannel(aPaymentData.getPaymentChannel()) >> aPaymentChannel
-    paymentInternalReferenceService.getPaymentReference(aPerson, aPaymentData) >> aReference
+    paymentInternalReferenceService.getPaymentReference(aPerson, aPaymentData, _) >> aReference
     localeService.getCurrentLocale() >> aLocale
 
     when:
@@ -117,7 +117,7 @@ class MontonioOrderCreatorSpec extends Specification {
       it.bic = "bic"
     }
     montonioPaymentChannelConfiguration.getPaymentProviderChannel(paymentData.getPaymentChannel()) >> paymentChannel
-    paymentInternalReferenceService.getPaymentReference(aPerson, paymentData) >> "reference"
+    paymentInternalReferenceService.getPaymentReference(aPerson, paymentData, _) >> "reference"
     localeService.getCurrentLocale() >> Locale.ENGLISH
 
     when:
@@ -152,7 +152,7 @@ class MontonioOrderCreatorSpec extends Specification {
       it.bic = "bic"
     }
     montonioPaymentChannelConfiguration.getPaymentProviderChannel(paymentData.getPaymentChannel()) >> paymentChannel
-    paymentInternalReferenceService.getPaymentReference(aPerson, paymentData) >> "reference"
+    paymentInternalReferenceService.getPaymentReference(aPerson, paymentData, _) >> "reference"
     localeService.getCurrentLocale() >> Locale.ENGLISH
 
     when:

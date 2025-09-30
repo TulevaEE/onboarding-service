@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.payment
 import com.fasterxml.jackson.databind.ObjectMapper
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment
 import ee.tuleva.onboarding.user.User
 import org.springframework.http.MediaType
 
@@ -13,6 +14,7 @@ import static ee.tuleva.onboarding.payment.PaymentData.PaymentChannel.PARTNER
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.*
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
+import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSavingsPaymentToken
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aSerializedSinglePaymentFinishedToken
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.montonioNotification
 import static org.hamcrest.Matchers.is
@@ -152,6 +154,40 @@ class PaymentControllerSpec extends BaseControllerSpec {
     1 * paymentService.processToken(aSerializedSinglePaymentFinishedToken)
     expect:
     mvc.perform(post("/v1/payments/notifications")
+        .content(objectMapper.writeValueAsString(montonioNotification))
+        .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+  }
+
+  def "GET /savings/callback redirects to success"() {
+    given:
+    def mvc = mockMvc(paymentController)
+
+    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> Optional.of(new SavingFundPayment())
+    expect:
+    mvc.perform(get("/v1/payments/savings/callback")
+        .param("order-token", aSerializedSavingsPaymentToken))
+        .andExpect(redirectedUrl(frontendUrl + "/savings-fund/payment/success"))
+  }
+
+  def "GET /savings/callback redirects back to payment on error"() {
+    given:
+    def mvc = mockMvc(paymentController)
+
+    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> Optional.empty()
+    expect:
+    mvc.perform(get("/v1/payments/savings/callback")
+        .param("order-token", aSerializedSavingsPaymentToken))
+        .andExpect(redirectedUrl(frontendUrl + "/savings-fund/payment"))
+  }
+
+  def "POST /savings/notifications"() {
+    given:
+    def mvc = mockMvc(paymentController)
+
+    1 * paymentService.processSavingsPaymentToken(aSerializedSinglePaymentFinishedToken)
+    expect:
+    mvc.perform(post("/v1/payments/savings/notifications")
         .content(objectMapper.writeValueAsString(montonioNotification))
         .contentType(MediaType.APPLICATION_JSON))
         .andExpect(status().isOk())

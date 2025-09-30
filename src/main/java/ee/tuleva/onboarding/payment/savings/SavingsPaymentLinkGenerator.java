@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.payment.savings;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.payment.PaymentLink;
@@ -39,8 +40,8 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
     if (paymentData.getAmount() == null || paymentData.getAmount().compareTo(MIN_AMOUNT) < 0) {
       throw new IllegalArgumentException("Amount must be at least " + MIN_AMOUNT);
     }
-    if (paymentData.getCurrency() == null) {
-      throw new IllegalArgumentException("Currency must not be null");
+    if (paymentData.getCurrency() == null || !paymentData.getCurrency().equals(Currency.EUR)) {
+      throw new IllegalArgumentException("Invalid currency: " + paymentData.getCurrency());
     }
     var order = buildOrder(paymentData, person, bic);
     var url = orderClient.getPaymentUrl(order, savingsChannelConfiguration);
@@ -48,14 +49,19 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
   }
 
   private MontonioOrder buildOrder(PaymentData paymentData, Person person, String bic) {
+    var now = clock.instant();
+    var description =
+        String.format("%s, %d", paymentData.getRecipientPersonalCode(), now.getEpochSecond());
+
     return MontonioOrder.builder()
         .accessKey(savingsChannelConfiguration.getAccessKey())
-        .merchantReference(paymentInternalReferenceService.getPaymentReference(person, paymentData))
+        .merchantReference(
+            paymentInternalReferenceService.getPaymentReference(person, paymentData, description))
         .returnUrl(savingsChannelConfiguration.getReturnUrl())
         .notificationUrl(savingsChannelConfiguration.getNotificationUrl())
         .grandTotal(paymentData.getAmount())
         .currency(paymentData.getCurrency())
-        .exp(clock.instant().getEpochSecond() + 600)
+        .exp(now.getEpochSecond() + 600)
         .locale(getLanguage())
         .payment(
             MontonioOrder.MontonioPaymentMethod.builder()
@@ -65,7 +71,7 @@ public class SavingsPaymentLinkGenerator implements PaymentLinkGenerator {
                     MontonioOrder.MontonioPaymentMethod.MontonioPaymentMethodOptions.builder()
                         .preferredProvider(bic)
                         .preferredLocale(getLanguage())
-                        .paymentDescription(paymentData.getRecipientPersonalCode())
+                        .paymentDescription(description)
                         .build())
                 .build())
         .billingAddress(

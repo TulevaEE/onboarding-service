@@ -1,13 +1,12 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalTime;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
 
 @Service
 @Slf4j

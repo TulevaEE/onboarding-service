@@ -7,6 +7,7 @@ import ee.swedbank.gateway.iso.response.report.ReportEntry2;
 import ee.swedbank.gateway.iso.response.statement.CreditDebitCode;
 import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.Getter;
@@ -44,12 +45,19 @@ public class BankStatementEntry {
       var otherParty = creditOrDebit == CRDT ? relatedParties.getDbtr() : relatedParties.getCdtr();
 
       var name = otherParty.getNm();
-      var personalIdCode =
+      var personalIdCodes =
           Optional.ofNullable(otherParty.getId())
               .map(Party6Choice::getPrvtId)
-              .flatMap(val -> val.getOthr().stream().filter(dt -> dt.getId() != null).findFirst())
-              .map(genericPersonIdentification1 -> genericPersonIdentification1.getId())
-              .orElseThrow(() -> new BankStatementParseException("Personal code is required"));
+              .map(
+                  prvtId ->
+                      prvtId.getOthr().stream()
+                          .map(
+                              ee.swedbank.gateway.iso.response.report.GenericPersonIdentification1
+                                  ::getId)
+                          .filter(id -> id != null && !id.isBlank())
+                          .toList())
+              .orElseGet(List::of);
+      var personalIdCode = Require.atMostOne(personalIdCodes, "personal ID code");
 
       var otherPartyAccount =
           creditOrDebit == CRDT ? relatedParties.getDbtrAcct() : relatedParties.getCdtrAcct();
@@ -75,12 +83,20 @@ public class BankStatementEntry {
               : relatedParties.getCdtr();
 
       var name = otherParty.getNm();
-      var personalIdCode =
+      var personalIdCodes =
           Optional.ofNullable(otherParty.getId())
               .map(ee.swedbank.gateway.iso.response.statement.Party6Choice::getPrvtId)
-              .flatMap(val -> val.getOthr().stream().filter(dt -> dt.getId() != null).findFirst())
-              .map(genericPersonIdentification1 -> genericPersonIdentification1.getId())
-              .orElseThrow(() -> new BankStatementParseException("Personal code is required"));
+              .map(
+                  prvtId ->
+                      prvtId.getOthr().stream()
+                          .map(
+                              ee.swedbank.gateway.iso.response.statement
+                                      .GenericPersonIdentification1
+                                  ::getId)
+                          .filter(id -> id != null && !id.isBlank())
+                          .toList())
+              .orElseGet(List::of);
+      var personalIdCode = Require.atMostOne(personalIdCodes, "personal ID code");
 
       var otherPartyAccount =
           creditOrDebit == CreditDebitCode.CRDT

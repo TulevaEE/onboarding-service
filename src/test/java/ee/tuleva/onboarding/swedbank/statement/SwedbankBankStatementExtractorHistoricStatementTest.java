@@ -293,7 +293,7 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
     }
 
     @Test
-    void extractFromHistoricStatement_shouldThrowExceptionForMissingPersonalCode() {
+    void extractFromHistoricStatement_shouldAllowMissingPersonalCode() {
       var entries =
           List.of(
               """
@@ -344,9 +344,83 @@ class SwedbankBankStatementExtractorHistoricStatementTest {
 
       String xmlWithMissingPersonalCode = createCamt053Xml(entries);
 
-      assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithMissingPersonalCode))
+      var statement = extractor.extractFromHistoricStatement(xmlWithMissingPersonalCode);
+
+      assertThat(statement).isNotNull();
+      assertThat(statement.getEntries()).hasSize(1);
+      assertThat(statement.getEntries().getFirst().getDetails().getPersonalCode()).isEmpty();
+    }
+
+    @Test
+    void extractFromHistoricStatement_shouldThrowExceptionForMultiplePersonalCodes() {
+      var entries =
+          List.of(
+              """
+          <Ntry>
+            <NtryRef>test-ref</NtryRef>
+            <Amt Ccy="EUR">100.00</Amt>
+            <CdtDbtInd>CRDT</CdtDbtInd>
+            <Sts>BOOK</Sts>
+            <BookgDt>
+              <Dt>2025-06-05</Dt>
+            </BookgDt>
+            <ValDt>
+              <Dt>2025-06-05</Dt>
+            </ValDt>
+            <NtryDtls>
+              <TxDtls>
+                <Refs>
+                  <AcctSvcrRef>test-ref</AcctSvcrRef>
+                  <InstrId>test-id</InstrId>
+                </Refs>
+                <AmtDtls>
+                  <InstdAmt>
+                    <Amt Ccy="EUR">100.00</Amt>
+                  </InstdAmt>
+                  <TxAmt>
+                    <Amt Ccy="EUR">100.00</Amt>
+                  </TxAmt>
+                </AmtDtls>
+                <RltdPties>
+                  <Dbtr>
+                    <Nm>Test Person</Nm>
+                    <Id>
+                      <PrvtId>
+                        <Othr>
+                          <Id>12345678901</Id>
+                          <SchmeNm>
+                            <Cd>NIDN</Cd>
+                          </SchmeNm>
+                        </Othr>
+                        <Othr>
+                          <Id>98765432109</Id>
+                          <SchmeNm>
+                            <Cd>NIDN</Cd>
+                          </SchmeNm>
+                        </Othr>
+                      </PrvtId>
+                    </Id>
+                  </Dbtr>
+                  <DbtrAcct>
+                    <Id>
+                      <IBAN>EE123456789012345678</IBAN>
+                    </Id>
+                  </DbtrAcct>
+                </RltdPties>
+                <RmtInf>
+                  <Ustrd>Test payment</Ustrd>
+                </RmtInf>
+              </TxDtls>
+            </NtryDtls>
+          </Ntry>
+          """
+                  .stripIndent());
+
+      String xmlWithMultiplePersonalCodes = createCamt053Xml(entries);
+
+      assertThatThrownBy(() -> extractor.extractFromHistoricStatement(xmlWithMultiplePersonalCodes))
           .isInstanceOf(BankStatementParseException.class)
-          .hasMessageContaining("Personal code is required");
+          .hasMessageContaining("Expected at most one personal ID code, but found: 2");
     }
 
     @Test

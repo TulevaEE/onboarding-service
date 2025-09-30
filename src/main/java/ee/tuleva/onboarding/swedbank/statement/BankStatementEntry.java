@@ -4,7 +4,6 @@ import static ee.swedbank.gateway.iso.response.report.CreditDebitCode.CRDT;
 
 import ee.swedbank.gateway.iso.response.report.Party6Choice;
 import ee.swedbank.gateway.iso.response.report.ReportEntry2;
-import ee.swedbank.gateway.iso.response.report.TransactionReferences2;
 import ee.swedbank.gateway.iso.response.statement.CreditDebitCode;
 import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
@@ -19,13 +18,8 @@ public class BankStatementEntry {
   @Getter private final BigDecimal amount;
   @Getter private final String currencyCode;
   @Getter private final TransactionType transactionType;
-  @Nullable private final String endToEndId;
   @Getter private final String remittanceInformation;
   @Getter private final String externalId;
-
-  public Optional<String> getEndToEndId() {
-    return Optional.ofNullable(endToEndId);
-  }
 
   @RequiredArgsConstructor
   public static final class CounterPartyDetails {
@@ -112,21 +106,6 @@ public class BankStatementEntry {
     var transactionType =
         creditOrDebit == CreditDebitCode.CRDT ? TransactionType.CREDIT : TransactionType.DEBIT;
 
-    // Collect all EndToEndIds from all transaction details and require exactly one
-    var endToEndIdsList =
-        entry.getNtryDtls().stream()
-            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
-            .map(
-                txDtl ->
-                    Optional.ofNullable(txDtl.getRefs())
-                        .map(
-                            ee.swedbank.gateway.iso.response.statement.TransactionReferences2
-                                ::getEndToEndId)
-                        .orElse(null))
-            .filter(endToEndId -> endToEndId != null && !endToEndId.isBlank())
-            .toList();
-    var endToEndId = Require.atMostOne(endToEndIdsList, "end-to-end ID");
-
     // Collect all remittance information from all transaction details and require exactly one
     var remittanceInformationList =
         entry.getNtryDtls().stream()
@@ -149,7 +128,6 @@ public class BankStatementEntry {
         entryAmount,
         currencyCode,
         transactionType,
-        endToEndId,
         remittanceInformation,
         externalId);
   }
@@ -165,19 +143,6 @@ public class BankStatementEntry {
     // Determine transaction type
     var transactionType = creditOrDebit == CRDT ? TransactionType.CREDIT : TransactionType.DEBIT;
 
-    // Collect all EndToEndIds from all transaction details and require exactly one
-    var endToEndIdsList =
-        entry.getNtryDtls().stream()
-            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
-            .map(
-                txDtl ->
-                    Optional.ofNullable(txDtl.getRefs())
-                        .map(TransactionReferences2::getEndToEndId)
-                        .orElse(null))
-            .filter(endToEndId -> endToEndId != null && !endToEndId.isBlank())
-            .toList();
-    var endToEndId = Require.atMostOne(endToEndIdsList, "end-to-end ID");
-
     // Collect all remittance information from all transaction details and require exactly one
     var remittanceInformationList =
         entry.getNtryDtls().stream()
@@ -200,7 +165,6 @@ public class BankStatementEntry {
         entryAmount,
         currencyCode,
         transactionType,
-        endToEndId,
         remittanceInformation,
         externalId);
   }

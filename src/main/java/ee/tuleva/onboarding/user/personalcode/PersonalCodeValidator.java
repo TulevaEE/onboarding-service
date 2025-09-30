@@ -10,6 +10,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PersonalCodeValidator implements ConstraintValidator<ValidPersonalCode, String> {
 
+  public boolean isValid(String personalCode) {
+    return isValid(personalCode, null);
+  }
+
   @Override
   public boolean isValid(String personalCode, ConstraintValidatorContext context) {
 

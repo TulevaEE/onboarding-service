@@ -148,7 +148,7 @@ dependencies {
     testImplementation("org.spockframework:spock-spring:2.4-M6-groovy-4.0") {
         exclude(group = "org.apache.groovy")
     }
-    testImplementation("org.apache.groovy:groovy-all:4.0.28")
+    testImplementation("org.apache.groovy:groovy-all:5.0.1")
 
     // TODO: migrate to WireMock
     testImplementation("org.mock-server:mockserver-netty:5.15.0")

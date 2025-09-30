@@ -26,8 +26,6 @@ public class LedgerTransactionIntegrationTest {
 
   @Autowired private LedgerPartyRepository ledgerPartyRepository;
 
-  @Autowired private LedgerEntryRepository ledgerEntryRepository;
-
   @Autowired private LedgerTransactionRepository ledgerTransactionRepository;
 
   @Autowired private LedgerTransactionService ledgerTransactionService;
@@ -40,22 +38,21 @@ public class LedgerTransactionIntegrationTest {
     ledgerAccountRepository.save(
         LedgerAccount.builder()
             .name("DEPOSIT_EUR")
-            .accountPurpose(SYSTEM_ACCOUNT)
-            .type(INCOME)
-            .assetTypeCode(EUR)
+            .purpose(SYSTEM_ACCOUNT)
+            .accountType(INCOME)
+            .assetType(EUR)
             .build());
   }
 
   @AfterEach
   void cleanup() {
-    ledgerEntryRepository.deleteAll();
     ledgerTransactionRepository.deleteAll();
     ledgerAccountRepository.deleteAll();
     ledgerPartyRepository.deleteAll();
   }
 
   private LedgerAccount getCashAccount(LedgerParty party) {
-    return ledgerAccountService.getLedgerAccountForParty(party, INCOME, EUR).orElseThrow();
+    return ledgerAccountService.getLedgerAccount(party, INCOME, EUR).orElseThrow();
   }
 
   private LedgerAccount getServiceAccount() {

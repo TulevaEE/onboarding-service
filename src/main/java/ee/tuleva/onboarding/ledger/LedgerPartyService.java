@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Profile({"dev", "test"})
 @Service
 @RequiredArgsConstructor
-public class LedgerPartyService {
+class LedgerPartyService {
 
   private final LedgerPartyRepository ledgerPartyRepository;
 

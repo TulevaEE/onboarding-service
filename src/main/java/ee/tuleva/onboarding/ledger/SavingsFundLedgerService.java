@@ -1,11 +1,9 @@
-package ee.tuleva.onboarding.savingsfund;
+package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
-
-import ee.tuleva.onboarding.ledger.*;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.user.User;
 import jakarta.transaction.Transactional;
@@ -23,13 +21,16 @@ public class SavingsFundLedgerService {
   private final LedgerPartyService ledgerPartyService;
   private final LedgerAccountService ledgerAccountService;
   private final LedgerTransactionService ledgerTransactionService;
+  private final LedgerAccountRepository ledgerAccountRepository;
 
   public enum SystemAccount {
     INCOMING_PAYMENTS_CLEARING,
     UNRECONCILED_BANK_RECEIPTS,
     FUND_SUBSCRIPTIONS_PAYABLE,
     FUND_INVESTMENT_CASH_CLEARING,
-    FUND_UNITS_OUTSTANDING
+    FUND_UNITS_OUTSTANDING,
+    REDEMPTION_PAYABLE,
+    PAYOUTS_CASH_CLEARING
   }
 
   public enum SavingsFundTransactionType {
@@ -38,7 +39,10 @@ public class SavingsFundLedgerService {
     PAYMENT_BOUNCE_BACK,
     FUND_SUBSCRIPTION,
     FUND_TRANSFER,
-    LATE_ATTRIBUTION
+    LATE_ATTRIBUTION,
+    REDEMPTION_REQUEST,
+    FUND_CASH_TRANSFER,
+    REDEMPTION_PAYOUT
   }
 
   @Transactional
@@ -169,6 +173,72 @@ public class SavingsFundLedgerService {
         entry(userCashAccount, amount));
   }
 
+  @Transactional
+  public LedgerTransaction processRedemption(
+      User user, BigDecimal fundUnits, BigDecimal cashAmount, BigDecimal navPerUnit) {
+    LedgerParty userParty = getUserParty(user);
+    LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
+    LedgerAccount unitsOutstandingAccount =
+        getSystemAccount(SystemAccount.FUND_UNITS_OUTSTANDING, FUND_UNIT, LIABILITY);
+    LedgerAccount redemptionPayableAccount =
+        getSystemAccount(SystemAccount.REDEMPTION_PAYABLE, EUR, LIABILITY);
+    LedgerAccount fundCashAccount =
+        getSystemAccount(SystemAccount.FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
+
+    Map<String, Object> metadata =
+        Map.of(
+            "operationType", SavingsFundTransactionType.REDEMPTION_REQUEST.name(),
+            "userId", user.getId(),
+            "personalCode", user.getPersonalCode(),
+            "navPerUnit", navPerUnit);
+
+    return ledgerTransactionService.createTransaction(
+        TRANSFER,
+        metadata,
+        entry(userUnitsAccount, fundUnits.negate()),
+        entry(unitsOutstandingAccount, fundUnits),
+        entry(redemptionPayableAccount, cashAmount),
+        entry(fundCashAccount, cashAmount.negate()));
+  }
+
+  @Transactional
+  public LedgerTransaction transferFundToPayoutCash(BigDecimal amount) {
+    LedgerAccount fundCashAccount =
+        getSystemAccount(SystemAccount.FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
+    LedgerAccount payoutsCashAccount =
+        getSystemAccount(SystemAccount.PAYOUTS_CASH_CLEARING, EUR, ASSET);
+
+    Map<String, Object> metadata =
+        Map.of("operationType", SavingsFundTransactionType.FUND_CASH_TRANSFER.name());
+
+    return ledgerTransactionService.createTransaction(
+        TRANSFER,
+        metadata,
+        entry(fundCashAccount, amount),
+        entry(payoutsCashAccount, amount.negate()));
+  }
+
+  @Transactional
+  public LedgerTransaction processRedemptionPayout(User user, BigDecimal amount, String customerIban) {
+    LedgerAccount payoutsCashAccount =
+        getSystemAccount(SystemAccount.PAYOUTS_CASH_CLEARING, EUR, ASSET);
+    LedgerAccount redemptionPayableAccount =
+        getSystemAccount(SystemAccount.REDEMPTION_PAYABLE, EUR, LIABILITY);
+
+    Map<String, Object> metadata =
+        Map.of(
+            "operationType", SavingsFundTransactionType.REDEMPTION_PAYOUT.name(),
+            "userId", user.getId(),
+            "personalCode", user.getPersonalCode(),
+            "customerIban", customerIban);
+
+    return ledgerTransactionService.createTransaction(
+        TRANSFER,
+        metadata,
+        entry(payoutsCashAccount, amount),
+        entry(redemptionPayableAccount, amount.negate()));
+  }
+
   private LedgerEntryDto entry(LedgerAccount account, BigDecimal amount) {
     return new LedgerEntryDto(account, amount);
   }
@@ -181,26 +251,24 @@ public class SavingsFundLedgerService {
   }
 
   private LedgerAccount getUserCashAccount(LedgerParty userParty) {
-    return ledgerAccountService
-        .getLedgerAccountForParty(userParty, INCOME, EUR)
+    return ledgerAccountRepository.findByOwnerAndAccountTypeAndAssetTypeWithEntries(
+            userParty, INCOME, EUR
+        )
         .orElseThrow(() -> new IllegalStateException("User cash account not found"));
   }
 
   private LedgerAccount getUserUnitsAccount(LedgerParty userParty) {
     return ledgerAccountService
-        .getLedgerAccountForParty(userParty, ASSET, FUND_UNIT)
+        .getLedgerAccount(userParty, ASSET, FUND_UNIT)
         .orElseThrow(() -> new IllegalStateException("User units account not found"));
   }
 
-  private LedgerAccount getSystemAccount(
-      SystemAccount systemAccount,
-      LedgerAccount.AssetType assetType,
-      LedgerAccount.AccountType accountType) {
-    return ledgerAccountService
-        .findSystemAccount(systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType)
-        .orElseGet(
-            () ->
-                ledgerAccountService.createSystemAccount(
-                    systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType));
+  private LedgerAccount getSystemAccount(SystemAccount systemAccount, LedgerAccount.AssetType assetType, LedgerAccount.AccountType accountType) {
+    return ledgerAccountRepository.findByNameAndPurposeAndAssetTypeAndAccountTypeWithEntries(
+        systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType
+    ).orElseGet(
+        () ->
+            ledgerAccountService.createSystemAccount(
+                systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType));
   }
 }

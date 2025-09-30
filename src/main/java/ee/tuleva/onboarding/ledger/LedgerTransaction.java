@@ -1,26 +1,29 @@
 package ee.tuleva.onboarding.ledger;
 
 import static java.math.BigDecimal.ZERO;
+import static org.hibernate.generator.EventType.INSERT;
 
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.Type;
 
 @Entity
 @Table(name = "transaction", schema = "ledger")
 @Getter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"entries"})
 public class LedgerTransaction {
 
   public enum TransactionType {
@@ -29,33 +32,58 @@ public class LedgerTransaction {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(nullable = false)
   private UUID id;
 
-  @Column(nullable = false)
   private String description;
 
   @Enumerated(EnumType.STRING)
-  @Column(name = "transaction_type_id", nullable = false)
-  private TransactionType transactionTypeId;
+  @Column(name = "transaction_type_id")
+  @NotNull
+  private TransactionType transactionType;
 
-  @Column(name = "transaction_date", nullable = false, columnDefinition = "TIMESTAMPTZ")
+  @NotNull
   private Instant transactionDate;
 
   @Type(JsonType.class)
-  @Column(columnDefinition = "JSONB", nullable = false)
-  private Map<String, Object> metadata;
+  @Column(columnDefinition = "JSONB")
+  @NotNull
+  private Map<String, Object> metadata = new HashMap<>();
 
   /*@Column(name = "event_log_id", nullable = false)
   private Integer eventLogId; // TODO event log map*/
 
-  @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
-  private Instant createdAt;
+  @OneToMany(
+      mappedBy = "transaction",
+      cascade = CascadeType.ALL
+  )
+  private List<LedgerEntry> entries = new ArrayList<>();
 
-  @OneToMany(mappedBy = "transaction")
-  private List<LedgerEntry> entries;
+  @Column(nullable = false, updatable = false, insertable = false)
+  @Generated(event = INSERT)
+  private Instant createdAt;
 
   public BigDecimal sum() {
     return entries.stream().map(LedgerEntry::getAmount).reduce(ZERO, BigDecimal::add);
+  }
+
+  public LedgerEntry addEntry(LedgerAccount account, BigDecimal amount) {
+    var entry = LedgerEntry.builder()
+        .amount(amount)
+        .transaction(this)
+        .account(account)
+        .build();
+
+    entries.add(entry);
+    account.addEntry(entry);
+
+    return entry;
+  }
+
+  @Builder
+  public LedgerTransaction(String description, TransactionType transactionType, Instant transactionDate, Map<String, Object> metadata) {
+    this.description = description;
+    this.transactionType = transactionType;
+    this.transactionDate = transactionDate;
+    this.metadata = metadata;
   }
 }

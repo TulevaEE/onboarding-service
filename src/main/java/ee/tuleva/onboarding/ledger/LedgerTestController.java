@@ -42,7 +42,7 @@ public class LedgerTestController {
             .getPartyForUser(user)
             .orElseThrow(() -> new RuntimeException("No ledger party found for user " + userId));
 
-    return ledgerAccountService.getAccountsByLedgerParty(ledgerParty);
+    return ledgerAccountService.getAccounts(ledgerParty);
   }
 
   @Operation(summary = "Onboard user")

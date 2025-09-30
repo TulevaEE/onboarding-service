@@ -2,7 +2,6 @@
   This temporary migration is to be able to run integration tests on H2, while ledger schema is still under development
    and not in a production migration.
   TODO After schema is in production, remove this migration.
-  Changes: TIMESTAMPTZ -> TIMESTAMP
  */
 
 
@@ -41,7 +40,7 @@ CREATE TABLE ledger.party
   name       TEXT              NOT NULL,
   owner_id   TEXT              NOT NULL,
   details    JSONB             NOT NULL,
-  created_at TIMESTAMP         NOT NULL DEFAULT current_timestamp
+  created_at TIMESTAMP         NOT NULL DEFAULT NOW()
 );
 
 
@@ -49,16 +48,16 @@ CREATE TABLE ledger.account
 (
   id                   UUID                            DEFAULT gen_random_uuid() PRIMARY KEY,
   name                 TEXT                   NOT NULL,
-  account_purpose      ledger.account_purpose NOT NULL,
+  purpose              ledger.account_purpose NOT NULL,
   service_account_type ledger.service_account_type,
-  type                 ledger.account_type    NOT NULL,
+  account_type         ledger.account_type    NOT NULL,
   owner_party_id       UUID REFERENCES ledger.party,
-  asset_type_code      VARCHAR(255)           NOT NULL references ledger.asset_type,
-  created_at           TIMESTAMP              NOT NULL DEFAULT current_timestamp,
+  asset_type           VARCHAR(255)           NOT NULL references ledger.asset_type,
+  created_at           TIMESTAMP              NOT NULL DEFAULT NOW(),
   CONSTRAINT account_ownership_check CHECK (
-    (account_purpose = 'USER_ACCOUNT' AND owner_party_id IS NOT NULL)
+    (purpose = 'USER_ACCOUNT' AND owner_party_id IS NOT NULL)
       OR
-    (account_purpose = 'SYSTEM_ACCOUNT' AND owner_party_id IS NULL)
+    (purpose = 'SYSTEM_ACCOUNT' AND owner_party_id IS NULL)
     )
   /*UNIQUE (service_account, type) TODO can only have 1 service account of type*/
 );
@@ -72,7 +71,7 @@ CREATE TABLE ledger.transaction
   transaction_date    TIMESTAMP    NOT NULL,
   metadata            JSONB        NOT NULL, /* TODO lock this down – or keep this a JSONB here with very heavy validations in application layer */
   /*event_log_id INTEGER NOT NULL references public.event_log, TODO add this back*/
-  created_at          TIMESTAMP    NOT NULL DEFAULT current_timestamp
+  created_at          TIMESTAMP    NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE ledger.entry
@@ -81,7 +80,7 @@ CREATE TABLE ledger.entry
   account_id     UUID      NOT NULL references ledger.account,
   transaction_id UUID      NOT NULL references ledger.transaction,
   amount         NUMERIC   NOT NULL,
-  created_at     TIMESTAMP NOT NULL DEFAULT current_timestamp
+  created_at     TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 
@@ -94,7 +93,7 @@ INSERT INTO ledger.transaction_type (code, description)
 VALUES ('TRANSFER', 'Generic transfer transaction');
 
 /* TODO mock service accounts */
-INSERT INTO ledger.account (name, account_purpose, service_account_type, type, asset_type_code)
+INSERT INTO ledger.account (name, purpose, service_account_type, account_type, asset_type)
 VALUES ('DEPOSIT_EUR', 'SYSTEM_ACCOUNT', 'DEPOSIT_EUR', 'INCOME', 'EUR'),
        ('EMISSION_UNIT', 'SYSTEM_ACCOUNT', 'EMISSION_UNIT', 'ASSET', 'FUND_UNIT');
 

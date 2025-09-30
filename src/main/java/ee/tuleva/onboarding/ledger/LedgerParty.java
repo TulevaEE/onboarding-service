@@ -8,15 +8,20 @@ import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.ToString;
+import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.Type;
 import org.hibernate.dialect.PostgreSQLEnumJdbcType;
+
+import static org.hibernate.generator.EventType.INSERT;
 
 @Entity
 @Table(name = "party", schema = "ledger")
 @Getter
 @Builder
 @AllArgsConstructor
+@ToString
 public class LedgerParty {
 
   public LedgerParty() {}
@@ -40,15 +45,13 @@ public class LedgerParty {
   private String name;
 
   @Column(nullable = false)
-  private String
-      ownerId; // TODO currently personal ID, can add party representative logic later for children
-
-  // and companies
+  private String ownerId; // TODO currently personal ID, can add party representative logic later for children and companies
 
   @Type(JsonType.class)
   @Column(columnDefinition = "JSONB", nullable = false)
   private Map<String, Object> details;
 
-  @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
+  @Column(nullable = false, updatable = false, insertable = false)
+  @Generated(event = INSERT)
   private Instant createdAt;
 }

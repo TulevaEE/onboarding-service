@@ -12,11 +12,10 @@ import org.springframework.stereotype.Service;
 @Profile({"dev", "test"})
 @Service
 @RequiredArgsConstructor
-public class LedgerTransactionService {
+class LedgerTransactionService {
   private final Clock clock;
 
   private final LedgerTransactionRepository ledgerTransactionRepository;
-  private final LedgerEntryService ledgerEntryService;
 
   @Transactional
   public LedgerTransaction createTransaction(
@@ -24,19 +23,17 @@ public class LedgerTransactionService {
     var transaction =
         LedgerTransaction.builder()
             .description("") // TODO remove this field
-            .transactionTypeId(type)
+            .transactionType(type)
             .transactionDate(clock.instant())
             .metadata(metadata)
             // .eventLogId(1) // TODO event log ID
             .build();
 
-    ledgerTransactionRepository.save(transaction);
-
     for (LedgerEntryDto ledgerEntryDto : ledgerEntryDtos) {
-      ledgerEntryService.createEntry(ledgerEntryDto.account, transaction, ledgerEntryDto.amount);
+      transaction.addEntry(ledgerEntryDto.account, ledgerEntryDto.amount); // TODO CLAMP ACCORDING TO ledger.asset_type PRECISION
     }
 
-    return transaction;
+    return ledgerTransactionRepository.save(transaction);
   }
 
   public record LedgerEntryDto(LedgerAccount account, BigDecimal amount) {}

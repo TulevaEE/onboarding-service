@@ -23,7 +23,8 @@ public class PaymentData {
     SINGLE,
     RECURRING,
     GIFT,
-    MEMBER_FEE
+    MEMBER_FEE,
+    SAVINGS,
   }
 
   public enum PaymentChannel {

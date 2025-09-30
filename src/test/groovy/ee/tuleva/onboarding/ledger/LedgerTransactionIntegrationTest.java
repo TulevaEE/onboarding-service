@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.INCOME;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.USER;
 import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
+import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
@@ -80,10 +81,10 @@ public class LedgerTransactionIntegrationTest {
         new LedgerEntryDto(cashAccount, new BigDecimal("1000.00")),
         new LedgerEntryDto(serviceAccount, new BigDecimal("-1000.00")));
 
-    assertThat(getCashAccount(party).getBalance()).isEqualByComparingTo(new BigDecimal("1000.00"));
+    assertThat(getCashAccount(party).getBalance()).isEqualByComparingTo("1000.00");
     assertThat(getCashAccount(party).getEntries().size()).isEqualTo(1);
 
-    assertThat(getServiceAccount().getBalance()).isEqualByComparingTo(new BigDecimal("-1000.00"));
+    assertThat(getServiceAccount().getBalance()).isEqualByComparingTo("-1000.00");
     assertThat(getServiceAccount().getEntries().size()).isEqualTo(1);
 
     ledgerTransactionService.createTransaction(
@@ -92,10 +93,10 @@ public class LedgerTransactionIntegrationTest {
         new LedgerEntryDto(cashAccount, new BigDecimal("-1000.00")),
         new LedgerEntryDto(serviceAccount, new BigDecimal("1000.00")));
 
-    assertThat(getCashAccount(party).getBalance()).isEqualByComparingTo(new BigDecimal("0"));
+    assertThat(getCashAccount(party).getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getCashAccount(party).getEntries().size()).isEqualTo(2);
 
-    assertThat(getServiceAccount().getBalance()).isEqualByComparingTo(new BigDecimal("0"));
+    assertThat(getServiceAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getServiceAccount().getEntries().size()).isEqualTo(2);
   }
 }

@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
+import static org.hibernate.generator.EventType.INSERT;
+
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import java.time.Instant;
@@ -13,8 +15,6 @@ import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.Type;
 import org.hibernate.dialect.PostgreSQLEnumJdbcType;
-
-import static org.hibernate.generator.EventType.INSERT;
 
 @Entity
 @Table(name = "party", schema = "ledger")
@@ -45,7 +45,10 @@ public class LedgerParty {
   private String name;
 
   @Column(nullable = false)
-  private String ownerId; // TODO currently personal ID, can add party representative logic later for children and companies
+  private String
+      ownerId; // TODO currently personal ID, can add party representative logic later for children
+
+  // and companies
 
   @Type(JsonType.class)
   @Column(columnDefinition = "JSONB", nullable = false)

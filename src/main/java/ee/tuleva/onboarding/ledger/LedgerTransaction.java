@@ -5,11 +5,10 @@ import static org.hibernate.generator.EventType.INSERT;
 
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
-
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -41,8 +40,7 @@ public class LedgerTransaction {
   @NotNull
   private TransactionType transactionType;
 
-  @NotNull
-  private Instant transactionDate;
+  @NotNull private Instant transactionDate;
 
   @Type(JsonType.class)
   @Column(columnDefinition = "JSONB")
@@ -52,10 +50,7 @@ public class LedgerTransaction {
   /*@Column(name = "event_log_id", nullable = false)
   private Integer eventLogId; // TODO event log map*/
 
-  @OneToMany(
-      mappedBy = "transaction",
-      cascade = CascadeType.ALL
-  )
+  @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL)
   private List<LedgerEntry> entries = new ArrayList<>();
 
   @Column(nullable = false, updatable = false, insertable = false)
@@ -67,11 +62,7 @@ public class LedgerTransaction {
   }
 
   public LedgerEntry addEntry(LedgerAccount account, BigDecimal amount) {
-    var entry = LedgerEntry.builder()
-        .amount(amount)
-        .transaction(this)
-        .account(account)
-        .build();
+    var entry = LedgerEntry.builder().amount(amount).transaction(this).account(account).build();
 
     entries.add(entry);
     account.addEntry(entry);
@@ -80,7 +71,11 @@ public class LedgerTransaction {
   }
 
   @Builder
-  public LedgerTransaction(String description, TransactionType transactionType, Instant transactionDate, Map<String, Object> metadata) {
+  public LedgerTransaction(
+      String description,
+      TransactionType transactionType,
+      Instant transactionDate,
+      Map<String, Object> metadata) {
     this.description = description;
     this.transactionType = transactionType;
     this.transactionDate = transactionDate;

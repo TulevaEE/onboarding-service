@@ -4,13 +4,12 @@ import static java.math.BigDecimal.ZERO;
 import static org.hibernate.generator.EventType.INSERT;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.JdbcType;
@@ -29,6 +28,7 @@ public class LedgerAccount {
   private UUID id;
 
   private String name;
+
   @Enumerated(EnumType.STRING)
   @Column(columnDefinition = "ledger.account_purpose")
   @JdbcType(PostgreSQLEnumJdbcType.class)
@@ -38,8 +38,8 @@ public class LedgerAccount {
   public enum AccountPurpose {
     USER_ACCOUNT,
     SYSTEM_ACCOUNT
-
   }
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false, columnDefinition = "ledger.account_type")
   @JdbcType(PostgreSQLEnumJdbcType.class)
@@ -84,7 +84,12 @@ public class LedgerAccount {
   }
 
   @Builder
-  private LedgerAccount(String name, AccountPurpose purpose, AccountType accountType, LedgerParty owner, AssetType assetType) {
+  private LedgerAccount(
+      String name,
+      AccountPurpose purpose,
+      AccountType accountType,
+      LedgerParty owner,
+      AssetType assetType) {
     this.name = name;
     this.purpose = purpose;
     this.accountType = accountType;

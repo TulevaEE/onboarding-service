@@ -30,7 +30,9 @@ class LedgerTransactionService {
             .build();
 
     for (LedgerEntryDto ledgerEntryDto : ledgerEntryDtos) {
-      transaction.addEntry(ledgerEntryDto.account, ledgerEntryDto.amount); // TODO CLAMP ACCORDING TO ledger.asset_type PRECISION
+      transaction.addEntry(
+          ledgerEntryDto.account,
+          ledgerEntryDto.amount); // TODO CLAMP ACCORDING TO ledger.asset_type PRECISION
     }
 
     return ledgerTransactionRepository.save(transaction);

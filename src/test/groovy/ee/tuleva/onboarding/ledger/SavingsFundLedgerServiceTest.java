@@ -3,12 +3,17 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SystemAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
+import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
+import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
+import ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SystemAccount;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.util.List;
@@ -44,8 +49,8 @@ class SavingsFundLedgerServiceTest {
   @BeforeEach
   void setUp() {
     testUser = sampleUser().personalCode("38001010001").build();
-    ledgerService.onboardUser(testUser);
-    userParty = ledgerPartyService.getPartyForUser(testUser).orElseThrow();
+    ledgerService.onboard(testUser);
+    userParty = ledgerPartyService.getParty(testUser).orElseThrow();
   }
 
   @AfterEach
@@ -74,7 +79,7 @@ class SavingsFundLedgerServiceTest {
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount);
 
     // Verify incoming payments clearing liability increased
-    assertThat(getSystemAccount("INCOMING_PAYMENTS_CLEARING", EUR, LIABILITY).getBalance())
+    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY).getBalance())
         .isEqualByComparingTo(amount.negate());
 
     // Verify double-entry accounting is maintained
@@ -96,9 +101,9 @@ class SavingsFundLedgerServiceTest {
     assertThat(transaction.getMetadata().get("payerIban")).isEqualTo(payerIban);
     assertThat(transaction.getMetadata().get("externalReference")).isEqualTo(externalReference);
 
-    assertThat(getSystemAccount("UNRECONCILED_BANK_RECEIPTS", EUR, ASSET).getBalance())
+    assertThat(getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET).getBalance())
         .isEqualByComparingTo(amount);
-    assertThat(getSystemAccount("INCOMING_PAYMENTS_CLEARING", EUR, LIABILITY).getBalance())
+    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY).getBalance())
         .isEqualByComparingTo(amount.negate());
 
     verifyDoubleEntry(transaction);
@@ -118,7 +123,7 @@ class SavingsFundLedgerServiceTest {
     assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
     assertThat(transaction.getMetadata().get("personalCode")).isEqualTo(testUser.getPersonalCode());
 
-    assertThat(getSystemAccount("UNRECONCILED_BANK_RECEIPTS", EUR, ASSET).getBalance())
+    assertThat(getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET).getBalance())
         .isEqualByComparingTo(ZERO);
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount);
 
@@ -139,9 +144,9 @@ class SavingsFundLedgerServiceTest {
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_BOUNCE_BACK");
     assertThat(transaction.getMetadata().get("payerIban")).isEqualTo(payerIban);
 
-    assertThat(getSystemAccount("UNRECONCILED_BANK_RECEIPTS", EUR, ASSET).getBalance())
+    assertThat(getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET).getBalance())
         .isEqualByComparingTo(ZERO);
-    assertThat(getSystemAccount("INCOMING_PAYMENTS_CLEARING", EUR, LIABILITY).getBalance())
+    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY).getBalance())
         .isEqualByComparingTo(ZERO);
 
     verifyDoubleEntry(transaction);
@@ -165,9 +170,9 @@ class SavingsFundLedgerServiceTest {
 
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits);
-    assertThat(getSystemAccount("FUND_SUBSCRIPTIONS_PAYABLE", EUR, LIABILITY).getBalance())
+    assertThat(getSystemAccount(FUND_SUBSCRIPTIONS_PAYABLE, EUR, LIABILITY).getBalance())
         .isEqualByComparingTo(cashAmount);
-    assertThat(getSystemAccount("FUND_UNITS_OUTSTANDING", FUND_UNIT, LIABILITY).getBalance())
+    assertThat(getSystemAccount(FUND_UNITS_OUTSTANDING, FUND_UNIT, LIABILITY).getBalance())
         .isEqualByComparingTo(fundUnits.negate());
 
     verifyDoubleEntry(transaction);
@@ -184,10 +189,10 @@ class SavingsFundLedgerServiceTest {
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_TRANSFER");
 
-    LedgerAccount incomingAccount = getSystemAccount("INCOMING_PAYMENTS_CLEARING", EUR, LIABILITY);
+    LedgerAccount incomingAccount = getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
     assertThat(incomingAccount.getBalance()).isEqualByComparingTo(ZERO);
 
-    LedgerAccount fundAccount = getSystemAccount("FUND_INVESTMENT_CASH_CLEARING", EUR, ASSET);
+    LedgerAccount fundAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
     assertThat(fundAccount.getBalance()).isEqualByComparingTo(amount.negate());
 
     verifyDoubleEntry(transaction);
@@ -213,11 +218,11 @@ class SavingsFundLedgerServiceTest {
 
     assertThat(getUserUnitsAccount().getBalance())
         .isEqualByComparingTo(initialUnits.subtract(redeemUnits));
-    assertThat(getSystemAccount("FUND_UNITS_OUTSTANDING", FUND_UNIT, LIABILITY).getBalance())
+    assertThat(getSystemAccount(FUND_UNITS_OUTSTANDING, FUND_UNIT, LIABILITY).getBalance())
         .isEqualByComparingTo(initialUnits.negate().add(redeemUnits));
-    assertThat(getSystemAccount("REDEMPTION_PAYABLE", EUR, LIABILITY).getBalance())
+    assertThat(getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY).getBalance())
         .isEqualByComparingTo(redeemAmount);
-    assertThat(getSystemAccount("FUND_INVESTMENT_CASH_CLEARING", EUR, ASSET).getBalance())
+    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(initialCash.negate().subtract(redeemAmount));
 
     verifyDoubleEntry(transaction);
@@ -234,9 +239,9 @@ class SavingsFundLedgerServiceTest {
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_CASH_TRANSFER");
 
-    assertThat(getSystemAccount("FUND_INVESTMENT_CASH_CLEARING", EUR, ASSET).getBalance())
+    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(ZERO);
-    assertThat(getSystemAccount("PAYOUTS_CASH_CLEARING", EUR, ASSET).getBalance())
+    assertThat(getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(amount.negate());
 
     verifyDoubleEntry(transaction);
@@ -257,9 +262,9 @@ class SavingsFundLedgerServiceTest {
     assertThat(transaction.getMetadata().get("customerIban")).isEqualTo(customerIban);
     assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
 
-    assertThat(getSystemAccount("PAYOUTS_CASH_CLEARING", EUR, ASSET).getBalance())
+    assertThat(getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(ZERO);
-    assertThat(getSystemAccount("REDEMPTION_PAYABLE", EUR, LIABILITY).getBalance())
+    assertThat(getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY).getBalance())
         .isEqualByComparingTo(ZERO);
 
     verifyDoubleEntry(transaction);
@@ -285,9 +290,9 @@ class SavingsFundLedgerServiceTest {
 
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits);
-    assertThat(getSystemAccount("FUND_INVESTMENT_CASH_CLEARING", EUR, ASSET).getBalance())
+    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(paymentAmount.negate());
-    assertThat(getSystemAccount("INCOMING_PAYMENTS_CLEARING", EUR, LIABILITY).getBalance())
+    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY).getBalance())
         .isEqualByComparingTo(ZERO);
   }
 
@@ -315,9 +320,9 @@ class SavingsFundLedgerServiceTest {
 
     assertThat(getUserUnitsAccount().getBalance())
         .isEqualByComparingTo(initialUnits.subtract(redeemUnits));
-    assertThat(getSystemAccount("REDEMPTION_PAYABLE", EUR, LIABILITY).getBalance())
+    assertThat(getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY).getBalance())
         .isEqualByComparingTo(ZERO);
-    assertThat(getSystemAccount("PAYOUTS_CASH_CLEARING", EUR, ASSET).getBalance())
+    assertThat(getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(ZERO);
   }
 
@@ -359,17 +364,17 @@ class SavingsFundLedgerServiceTest {
     assertThat(userUnitsAccount.getBalance()).isEqualByComparingTo(new BigDecimal("10.0"));
 
     LedgerAccount fundSubscriptionsAccount =
-        getSystemAccount("FUND_SUBSCRIPTIONS_PAYABLE", EUR, LIABILITY);
+        getSystemAccount(FUND_SUBSCRIPTIONS_PAYABLE, EUR, LIABILITY);
     assertThat(fundSubscriptionsAccount.getEntries()).isNotNull();
     assertThat(fundSubscriptionsAccount.getBalance()).isEqualByComparingTo(amount);
 
     LedgerAccount fundInvestmentAccount =
-        getSystemAccount("FUND_INVESTMENT_CASH_CLEARING", EUR, ASSET);
+        getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
     assertThat(fundInvestmentAccount.getEntries()).isNotNull();
     assertThat(fundInvestmentAccount.getBalance()).isEqualByComparingTo(amount.negate());
 
     LedgerAccount incomingPaymentsAccount =
-        getSystemAccount("INCOMING_PAYMENTS_CLEARING", EUR, LIABILITY);
+        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
     assertThat(incomingPaymentsAccount.getEntries()).isNotNull();
     assertThat(incomingPaymentsAccount.getBalance()).isEqualByComparingTo(ZERO);
   }
@@ -396,7 +401,9 @@ class SavingsFundLedgerServiceTest {
   }
 
   private LedgerAccount getUserCashAccount() {
-    return ledgerAccountRepository.findByOwnerAndAccountTypeAndAssetType(userParty, INCOME, EUR);
+    return ledgerAccountRepository
+        .findByOwnerAndAccountTypeAndAssetType(userParty, ASSET, EUR)
+        .orElseThrow();
   }
 
   private LedgerAccount getUserUnitsAccount() {
@@ -404,11 +411,11 @@ class SavingsFundLedgerServiceTest {
   }
 
   private LedgerAccount getSystemAccount(
-      String name, LedgerAccount.AssetType assetType, LedgerAccount.AccountType accountType) {
+      SystemAccount systemAccount, AssetType assetType, AccountType accountType) {
     return ledgerAccountRepository
         .findByNameAndPurposeAndAssetTypeAndAccountType(
-            name, SYSTEM_ACCOUNT, assetType, accountType)
-        .orElseThrow(() -> new RuntimeException("System account not found: " + name));
+            systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType)
+        .orElseThrow(() -> new RuntimeException("System account not found: " + systemAccount));
   }
 
   private static void verifyDoubleEntry(LedgerTransaction transaction) {

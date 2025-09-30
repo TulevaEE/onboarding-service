@@ -1,16 +1,25 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerAccount.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
-import static ee.tuleva.onboarding.ledger.LedgerTransaction.TransactionType.TRANSFER;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.MetadataKey.*;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.MetadataKey.OPERATION_TYPE;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SavingsFundTransactionType.*;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SavingsFundTransactionType.REDEMPTION_REQUEST;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedgerService.SystemAccount.*;
 
+import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.user.User;
 import jakarta.transaction.Transactional;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Map;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
@@ -24,6 +33,7 @@ public class SavingsFundLedgerService {
   private final LedgerAccountService ledgerAccountService;
   private final LedgerTransactionService ledgerTransactionService;
   private final LedgerAccountRepository ledgerAccountRepository;
+  private final Clock clock;
 
   public enum SystemAccount {
     INCOMING_PAYMENTS_CLEARING,
@@ -47,6 +57,20 @@ public class SavingsFundLedgerService {
     REDEMPTION_PAYOUT
   }
 
+  @Getter
+  @AllArgsConstructor
+  public enum MetadataKey {
+    OPERATION_TYPE("operationType"),
+    USER_ID("userId"),
+    PERSONAL_CODE("personalCode"),
+    EXTERNAL_REFERENCE("externalReference"),
+    PAYER_IBAN("payerIban"),
+    CUSTOMER_IBAN("customerIban"),
+    NAV_PER_UNIT("navPerUnit");
+
+    private final String key;
+  }
+
   @Transactional
   public LedgerTransaction recordPaymentReceived(
       User user, BigDecimal amount, String externalReference) {
@@ -57,13 +81,13 @@ public class SavingsFundLedgerService {
 
     Map<String, Object> metadata =
         Map.of(
-            "operationType", SavingsFundTransactionType.PAYMENT_RECEIVED.name(),
-            "userId", user.getId(),
-            "personalCode", user.getPersonalCode(),
-            "externalReference", externalReference);
+            OPERATION_TYPE.key, PAYMENT_RECEIVED.name(),
+            USER_ID.key, user.getId(),
+            PERSONAL_CODE.key, user.getPersonalCode(),
+            EXTERNAL_REFERENCE.key, externalReference);
 
     return ledgerTransactionService.createTransaction(
-        TRANSFER,
+        Instant.now(clock),
         metadata,
         entry(userCashAccount, amount),
         entry(incomingPaymentsAccount, amount.negate()));
@@ -78,12 +102,12 @@ public class SavingsFundLedgerService {
 
     Map<String, Object> metadata =
         Map.of(
-            "operationType", SavingsFundTransactionType.UNATTRIBUTED_PAYMENT.name(),
-            "payerIban", payerIban,
-            "externalReference", externalReference);
+            OPERATION_TYPE.key, UNATTRIBUTED_PAYMENT.name(),
+            PAYER_IBAN.key, payerIban,
+            EXTERNAL_REFERENCE.key, externalReference);
 
     return ledgerTransactionService.createTransaction(
-        TRANSFER,
+        Instant.now(clock),
         metadata,
         entry(unreconciledAccount, amount),
         entry(incomingPaymentsAccount, amount.negate()));
@@ -102,13 +126,13 @@ public class SavingsFundLedgerService {
 
     Map<String, Object> metadata =
         Map.of(
-            "operationType", SavingsFundTransactionType.FUND_SUBSCRIPTION.name(),
-            "userId", user.getId(),
-            "personalCode", user.getPersonalCode(),
-            "navPerUnit", navPerUnit);
+            OPERATION_TYPE.key, FUND_SUBSCRIPTION.name(),
+            USER_ID.key, user.getId(),
+            PERSONAL_CODE.key, user.getPersonalCode(),
+            NAV_PER_UNIT.key, navPerUnit);
 
     return ledgerTransactionService.createTransaction(
-        TRANSFER,
+        Instant.now(clock),
         metadata,
         entry(userCashAccount, cashAmount.negate()),
         entry(subscriptionsPayableAccount, cashAmount),
@@ -122,11 +146,10 @@ public class SavingsFundLedgerService {
         getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
     LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
 
-    Map<String, Object> metadata =
-        Map.of("operationType", SavingsFundTransactionType.FUND_TRANSFER.name());
+    Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, FUND_TRANSFER.name());
 
     return ledgerTransactionService.createTransaction(
-        TRANSFER,
+        Instant.now(clock),
         metadata,
         entry(incomingPaymentsAccount, amount),
         entry(fundCashAccount, amount.negate()));
@@ -139,14 +162,10 @@ public class SavingsFundLedgerService {
         getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
 
     Map<String, Object> metadata =
-        Map.of(
-            "operationType",
-            SavingsFundTransactionType.PAYMENT_BOUNCE_BACK.name(),
-            "payerIban",
-            payerIban);
+        Map.of(OPERATION_TYPE.key, PAYMENT_BOUNCE_BACK.name(), PAYER_IBAN.key, payerIban);
 
     return ledgerTransactionService.createTransaction(
-        TRANSFER,
+        Instant.now(clock),
         metadata,
         entry(unreconciledAccount, amount.negate()),
         entry(incomingPaymentsAccount, amount));
@@ -160,12 +179,12 @@ public class SavingsFundLedgerService {
 
     Map<String, Object> metadata =
         Map.of(
-            "operationType", SavingsFundTransactionType.LATE_ATTRIBUTION.name(),
-            "userId", user.getId(),
-            "personalCode", user.getPersonalCode());
+            OPERATION_TYPE.key, LATE_ATTRIBUTION.name(),
+            USER_ID.key, user.getId(),
+            PERSONAL_CODE.key, user.getPersonalCode());
 
     return ledgerTransactionService.createTransaction(
-        TRANSFER,
+        Instant.now(clock),
         metadata,
         entry(unreconciledAccount, amount.negate()),
         entry(userCashAccount, amount));
@@ -183,13 +202,13 @@ public class SavingsFundLedgerService {
 
     Map<String, Object> metadata =
         Map.of(
-            "operationType", SavingsFundTransactionType.REDEMPTION_REQUEST.name(),
-            "userId", user.getId(),
-            "personalCode", user.getPersonalCode(),
-            "navPerUnit", navPerUnit);
+            OPERATION_TYPE.key, REDEMPTION_REQUEST.name(),
+            USER_ID.key, user.getId(),
+            PERSONAL_CODE.key, user.getPersonalCode(),
+            NAV_PER_UNIT.key, navPerUnit);
 
     return ledgerTransactionService.createTransaction(
-        TRANSFER,
+        Instant.now(clock),
         metadata,
         entry(userUnitsAccount, fundUnits.negate()),
         entry(unitsOutstandingAccount, fundUnits),
@@ -202,11 +221,10 @@ public class SavingsFundLedgerService {
     LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
     LedgerAccount payoutsCashAccount = getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET);
 
-    Map<String, Object> metadata =
-        Map.of("operationType", SavingsFundTransactionType.FUND_CASH_TRANSFER.name());
+    Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, FUND_CASH_TRANSFER.name());
 
     return ledgerTransactionService.createTransaction(
-        TRANSFER,
+        Instant.now(clock),
         metadata,
         entry(fundCashAccount, amount),
         entry(payoutsCashAccount, amount.negate()));
@@ -220,13 +238,13 @@ public class SavingsFundLedgerService {
 
     Map<String, Object> metadata =
         Map.of(
-            "operationType", SavingsFundTransactionType.REDEMPTION_PAYOUT.name(),
-            "userId", user.getId(),
-            "personalCode", user.getPersonalCode(),
-            "customerIban", customerIban);
+            OPERATION_TYPE.key, REDEMPTION_PAYOUT.name(),
+            USER_ID.key, user.getId(),
+            PERSONAL_CODE.key, user.getPersonalCode(),
+            CUSTOMER_IBAN.key, customerIban);
 
     return ledgerTransactionService.createTransaction(
-        TRANSFER,
+        Instant.now(clock),
         metadata,
         entry(payoutsCashAccount, amount),
         entry(redemptionPayableAccount, amount.negate()));
@@ -238,33 +256,34 @@ public class SavingsFundLedgerService {
 
   private LedgerParty getUserParty(User user) {
     return ledgerPartyService
-        .getPartyForUser(user)
+        .getParty(user)
         .orElseThrow(
             () -> new IllegalStateException("User not onboarded: " + user.getPersonalCode()));
   }
 
-  private LedgerAccount getUserCashAccount(LedgerParty userParty) {
+  private LedgerAccount getUserCashAccount(LedgerParty owner) {
     return ledgerAccountRepository
-        .findByOwnerAndAccountTypeAndAssetTypeWithEntries(userParty, INCOME, EUR)
+        .findByOwnerAndAccountTypeAndAssetType(owner, ASSET, EUR)
         .orElseThrow(() -> new IllegalStateException("User cash account not found"));
   }
 
   private LedgerAccount getUserUnitsAccount(LedgerParty userParty) {
     return ledgerAccountService
         .getLedgerAccount(userParty, ASSET, FUND_UNIT)
-        .orElseThrow(() -> new IllegalStateException("User units account not found"));
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "User units account not found: " + userParty.getOwnerId()));
   }
 
   private LedgerAccount getSystemAccount(
-      SystemAccount systemAccount,
-      LedgerAccount.AssetType assetType,
-      LedgerAccount.AccountType accountType) {
+      SystemAccount systemAccount, AssetType assetType, AccountType accountType) {
     return ledgerAccountRepository
-        .findByNameAndPurposeAndAssetTypeAndAccountTypeWithEntries(
+        .findByNameAndPurposeAndAssetTypeAndAccountType(
             systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType)
         .orElseGet(
             () ->
                 ledgerAccountService.createSystemAccount(
-                    systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType));
+                    systemAccount.name(), assetType, accountType));
   }
 }

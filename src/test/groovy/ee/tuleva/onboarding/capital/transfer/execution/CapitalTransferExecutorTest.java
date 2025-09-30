@@ -377,4 +377,72 @@ public class CapitalTransferExecutorTest {
     verify(contract, never()).executed();
     verify(contractRepository, never()).save(any());
   }
+
+  @Test
+  @DisplayName("Should ensure fiatValue matches exactly between seller and buyer events")
+  public void whenExecuteTransfer_thenFiatValueMatchesExactly() {
+    // Given
+    when(contract.getId()).thenReturn(1L);
+    when(contract.getSeller()).thenReturn(seller);
+    when(contract.getBuyer()).thenReturn(buyer);
+    when(seller.getUser()).thenReturn(sampleUser().id(1L).build());
+    when(buyer.getUser()).thenReturn(sampleUser().id(2L).build());
+    when(seller.getId()).thenReturn(101L);
+    when(buyer.getId()).thenReturn(102L);
+
+    // Use values that would potentially cause rounding issues
+    BigDecimal unitPrice = new BigDecimal("1.33333");
+    BigDecimal bookValue = new BigDecimal("100.00000");
+
+    when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(unitPrice);
+    when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
+
+    // Seller's existing capital (values that could cause rounding issues)
+    BigDecimal sellerTotalFiatValue = new BigDecimal("1000.12345");
+    BigDecimal sellerTotalUnits = new BigDecimal("333.33333");
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalFiatValue);
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalUnits);
+
+    when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
+        .thenAnswer(
+            invocation -> {
+              MemberCapitalEvent event = invocation.getArgument(0);
+              event.setId(System.nanoTime());
+              return event;
+            });
+
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("100.00"), bookValue);
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // When
+    executor.execute(contract);
+
+    // Then
+    ArgumentCaptor<MemberCapitalEvent> eventCaptor =
+        ArgumentCaptor.forClass(MemberCapitalEvent.class);
+    verify(memberCapitalEventRepository, times(2)).save(eventCaptor.capture());
+
+    List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
+
+    MemberCapitalEvent sellerEvent = savedEvents.get(0);
+    MemberCapitalEvent buyerEvent = savedEvents.get(1);
+
+    // The key assertion: seller's negative fiatValue should be exactly the negative of buyer's
+    // positive fiatValue
+    assertThat(sellerEvent.getFiatValue().negate()).isEqualTo(buyerEvent.getFiatValue());
+
+    // Also verify ownership units match
+    assertThat(sellerEvent.getOwnershipUnitAmount().negate())
+        .isEqualTo(buyerEvent.getOwnershipUnitAmount());
+
+    // Verify the events are for the correct members
+    assertThat(sellerEvent.getMember()).isEqualTo(seller);
+    assertThat(buyerEvent.getMember()).isEqualTo(buyer);
+    assertThat(sellerEvent.getType()).isEqualTo(CAPITAL_PAYMENT);
+    assertThat(buyerEvent.getType()).isEqualTo(CAPITAL_ACQUIRED);
+  }
 }

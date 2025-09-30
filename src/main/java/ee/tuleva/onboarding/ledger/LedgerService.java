@@ -36,13 +36,13 @@ public class LedgerService {
         ledgerPartyService.createPartyForUser(user, "Party of " + user.getPersonalCode());
 
     LedgerAccount cashAccount =
-        ledgerAccountService.createAccountForParty(
+        ledgerAccountService.createAccount(
             party, "Cash account for " + user.getPersonalCode(), EUR, INCOME);
     LedgerAccount stockAccount =
-        ledgerAccountService.createAccountForParty(
+        ledgerAccountService.createAccount(
             party, "Stock account for " + user.getPersonalCode(), FUND_UNIT, ASSET);
 
-    return ledgerAccountService.getAccountsByLedgerParty(party);
+    return ledgerAccountService.getAccounts(party);
   }
 
   @Transactional
@@ -54,10 +54,10 @@ public class LedgerService {
 
     LedgerAccount userCashAccount =
         ledgerAccountService
-            .getLedgerAccountForParty(userParty, INCOME, EUR)
+            .getLedgerAccount(userParty, INCOME, EUR)
             .orElseThrow(() -> new IllegalStateException("User cash account not found"));
 
-    if (userCashAccount.getAssetTypeCode() != assetType) {
+    if (userCashAccount.getAssetType() != assetType) {
       throw new IllegalArgumentException("Invalid asset type provided for given account");
     }
 

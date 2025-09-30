@@ -2,7 +2,9 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.INCOME;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.USER;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -28,9 +30,9 @@ public class LedgerIntegrationTest {
     ledgerAccountRepository.save(
         LedgerAccount.builder()
             .name("DEPOSIT_EUR")
-            .accountPurpose(SYSTEM_ACCOUNT)
-            .type(INCOME)
-            .assetTypeCode(EUR)
+            .purpose(SYSTEM_ACCOUNT)
+            .accountType(INCOME)
+            .assetType(EUR)
             .build());
   }
 
@@ -52,7 +54,7 @@ public class LedgerIntegrationTest {
     assertThat(party.getOwnerId()).isEqualTo(user.getPersonalCode());
     assertThat(party.getType()).isEqualTo(USER);
 
-    var accounts = ledgerAccountRepository.findAllByLedgerParty(party);
+    var accounts = ledgerAccountRepository.findAllByOwner(party);
 
     assertThat(accounts.size()).isEqualTo(2);
 
@@ -60,16 +62,16 @@ public class LedgerIntegrationTest {
         accounts.stream()
             .filter(
                 account ->
-                    account.getType() == LedgerAccount.AccountType.INCOME
-                        && account.getAssetTypeCode() == LedgerAccount.AssetType.EUR)
+                    account.getAccountType() == INCOME
+                        && account.getAssetType() == EUR)
             .findFirst()
             .orElseThrow();
     var stockAccount =
         accounts.stream()
             .filter(
                 account ->
-                    account.getType() == LedgerAccount.AccountType.ASSET
-                        && account.getAssetTypeCode() == LedgerAccount.AssetType.FUND_UNIT)
+                    account.getAccountType() == ASSET
+                        && account.getAssetType() == FUND_UNIT)
             .findFirst()
             .orElseThrow();
 

@@ -72,8 +72,9 @@ class SwedbankGatewayClientTest {
     String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><test></test>";
     String expectedUrl = baseUrl + "messages?client_id=" + clientId;
 
+    var serializedUuid = requestUuid.toString().replace("-", "");
     HttpHeaders headers = new HttpHeaders();
-    headers.add("X-Request-ID", requestUuid.toString().replace("-", ""));
+    headers.add("X-Request-ID", serializedUuid);
     headers.add("X-Tracking-ID", trackingId);
 
     ResponseEntity<String> responseEntity = new ResponseEntity<>(xml, headers, HttpStatus.OK);
@@ -86,7 +87,7 @@ class SwedbankGatewayClientTest {
 
     assertThat(response).isPresent();
     assertThat(response.get().rawResponse()).isEqualTo(xml);
-    assertThat(response.get().requestTrackingId()).isEqualTo(requestUuid);
+    assertThat(response.get().requestTrackingId()).isEqualTo(serializedUuid);
     assertThat(response.get().responseTrackingId()).isEqualTo(trackingId);
   }
 
@@ -110,7 +111,7 @@ class SwedbankGatewayClientTest {
   void acknowledgePong_shouldCallDeleteEndpoint() {
 
     SwedbankGatewayResponseDto response =
-        new SwedbankGatewayResponseDto("req-abc", requestUuid, trackingId);
+        new SwedbankGatewayResponseDto("req-abc", requestUuid.toString(), trackingId);
 
     URI expectedUri =
         URI.create(baseUrl + "messages?client_id=" + clientId + "&trackingId=" + trackingId);

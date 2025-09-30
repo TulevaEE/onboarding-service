@@ -69,7 +69,7 @@ public class SwedbankGatewayClient {
         new SwedbankGatewayResponseDto(
             messagesResponse.getBody(),
             // TODO handle weird statement request-id?
-            deSerializeRequestId(messagesResponse.getHeaders().get("X-Request-ID").getFirst()),
+            messagesResponse.getHeaders().get("X-Request-ID").getFirst(),
             messagesResponse.getHeaders().get("X-Tracking-ID").getFirst()));
   }
 
@@ -195,12 +195,5 @@ public class SwedbankGatewayClient {
 
   private static String serializeRequestId(UUID requestId) {
     return requestId.toString().replace("-", "");
-  }
-
-  private static UUID deSerializeRequestId(String requestId) {
-    return UUID.fromString(
-        requestId.replaceFirst(
-            "(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}+)",
-            "$1-$2-$3-$4-$5"));
   }
 }

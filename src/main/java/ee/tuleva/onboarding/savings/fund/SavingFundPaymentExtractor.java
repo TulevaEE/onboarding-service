@@ -62,7 +62,6 @@ public class SavingFundPaymentExtractor {
           .beneficiaryIdCode(account.accountHolderIdCode())
           .beneficiaryName(account.accountHolderName())
           .description(entry.getRemittanceInformation())
-          .endToEndId(entry.getEndToEndId().orElse(null))
           .externalId(entry.getExternalId())
           .receivedAt(receivedAt)
           .build();
@@ -77,7 +76,6 @@ public class SavingFundPaymentExtractor {
           .beneficiaryIdCode(counterParty.getPersonalCode().orElse(null))
           .beneficiaryName(counterParty.getName())
           .description(entry.getRemittanceInformation())
-          .endToEndId(entry.getEndToEndId().orElse(null))
           .externalId(entry.getExternalId())
           .receivedAt(receivedAt)
           .build();

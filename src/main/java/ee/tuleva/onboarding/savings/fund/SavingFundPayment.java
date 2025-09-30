@@ -48,11 +48,7 @@ public class SavingFundPayment {
   @Nullable @Column private String beneficiaryName;
 
   @Nullable
-  @Column(name = "end_to_end_id")
-  private String endToEndId;
-
-  @NotNull
-  @Column(name = "external_id", nullable = false)
+  @Column(name = "external_id")
   private String externalId;
 
   @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)

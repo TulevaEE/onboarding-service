@@ -169,30 +169,6 @@ public class SwedbankGatewayClient {
     return objectFactory.createDocument(document);
   }
 
-  public ee.swedbank.gateway.iso.response.report.Document getParsedIntraDayReportResponse(
-      String rawResponse) {
-    JAXBElement<ee.swedbank.gateway.iso.response.report.Document> marshalled =
-        marshaller.unMarshal(
-            rawResponse, JAXBElement.class, ee.swedbank.gateway.iso.response.report.Document.class);
-
-    return marshalled.getValue();
-  }
-
-  public ee.swedbank.gateway.iso.response.statement.Document getParsedHistoricStatementResponse(
-      String rawResponse) {
-    JAXBElement<ee.swedbank.gateway.iso.response.statement.Document> marshalled =
-        marshaller.unMarshal(
-            rawResponse,
-            JAXBElement.class,
-            ee.swedbank.gateway.iso.response.statement.Document.class);
-
-    return marshalled.getValue();
-  }
-
-  public String getRequestXml(JAXBElement<ee.swedbank.gateway.iso.request.Document> requestEntity) {
-    return marshaller.marshalToString(requestEntity);
-  }
-
   private static String serializeRequestId(UUID requestId) {
     return requestId.toString().replace("-", "");
   }

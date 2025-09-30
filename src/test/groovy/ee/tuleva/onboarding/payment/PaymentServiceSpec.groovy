@@ -2,12 +2,14 @@ package ee.tuleva.onboarding.payment
 
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioCallbackService
 import ee.tuleva.onboarding.payment.recurring.RecurringPaymentLinkGenerator
+import ee.tuleva.onboarding.payment.savings.SavingsPaymentLinkGenerator
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.MEMBER_FEE
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.RECURRING
+import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SAVINGS
 import static ee.tuleva.onboarding.payment.PaymentData.PaymentType.SINGLE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewMemberPayment
@@ -21,11 +23,12 @@ class PaymentServiceSpec extends Specification {
   PaymentRepository paymentRepository = Mock()
   SinglePaymentLinkGenerator singlePaymentLinkGenerator = Mock()
   RecurringPaymentLinkGenerator recurringPaymentLinkGenerator = Mock()
+  SavingsPaymentLinkGenerator savingsPaymentLinkGenerator = Mock()
   MontonioCallbackService paymentProviderCallbackService = Mock()
   UserService userService = Mock()
 
   PaymentService paymentService = new PaymentService(
-      paymentRepository, singlePaymentLinkGenerator, recurringPaymentLinkGenerator, paymentProviderCallbackService, userService)
+      paymentRepository, singlePaymentLinkGenerator, recurringPaymentLinkGenerator, savingsPaymentLinkGenerator, paymentProviderCallbackService, userService)
 
   def "can get payments"() {
     given:
@@ -122,5 +125,17 @@ class PaymentServiceSpec extends Specification {
     returnedPayment == paymentOptional
   }
 
+  def "can get a savings payment link"() {
+    given:
+    def person = samplePerson
+    def paymentData = aPaymentData().tap { type = SAVINGS }
+    def link = new PaymentLink("https://savings.payment.url")
+    savingsPaymentLinkGenerator.getPaymentLink(paymentData, person) >> link
 
+    when:
+    def returnedLink = paymentService.getLink(paymentData, person)
+
+    then:
+    returnedLink == link
+  }
 }

@@ -20,19 +20,21 @@ public class MontonioOrderClient {
   private final MontonioPaymentChannelConfiguration montonioPaymentChannelConfiguration;
 
   String getPaymentUrl(MontonioOrder order, PaymentData paymentData) {
-    var payload = getSignedOrderPayload(order, paymentData);
+    MontonioPaymentChannel paymentChannel =
+        montonioPaymentChannelConfiguration.getPaymentProviderChannel(
+            paymentData.getPaymentChannel());
+    return getPaymentUrl(order, paymentChannel);
+  }
+
+  public String getPaymentUrl(MontonioOrder order, MontonioPaymentChannel paymentChannel) {
+    var payload = getSignedOrderPayload(order, paymentChannel);
     return montonioApiClient.getPaymentUrl(payload);
   }
 
   @SneakyThrows
-  private Map<String, Object> getSignedOrderPayload(MontonioOrder order, PaymentData paymentData) {
-    MontonioPaymentChannel paymentChannelConfiguration =
-        montonioPaymentChannelConfiguration.getPaymentProviderChannel(
-            paymentData.getPaymentChannel());
-
-    JWSObject jwsObject =
-        getSignedJws(objectMapper.writeValueAsString(order), paymentChannelConfiguration);
-
+  private Map<String, Object> getSignedOrderPayload(
+      MontonioOrder order, MontonioPaymentChannel paymentChannel) {
+    JWSObject jwsObject = getSignedJws(objectMapper.writeValueAsString(order), paymentChannel);
     return Map.of("data", jwsObject.serialize());
   }
 

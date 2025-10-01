@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.analytics.transaction.unitowner.UnitOwnerFixt
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
+import ee.tuleva.onboarding.epis.EnableEpisServiceHolder;
+import ee.tuleva.onboarding.epis.EnableEpisServiceHolder.EpisServiceHolder;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import ee.tuleva.onboarding.epis.transaction.FundTransactionDto;
@@ -23,25 +25,24 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootTest
 @Transactional
+@EnableEpisServiceHolder
 class UnitOwnerSynchronizerIntegrationTest {
 
   @Autowired private UnitOwnerSynchronizer synchronizer;
   @Autowired private UnitOwnerRepository repository;
-  @Autowired private MockEpisService mockEpisService;
+  @Autowired private EpisServiceHolder episServiceHolder;
+  private MockEpisService mockEpisService;
 
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(TestClockHolder.clock);
     repository.deleteAll();
-    mockEpisService.reset();
+    mockEpisService = episServiceHolder.createDelegate(MockEpisService::new);
   }
 
   @AfterEach
@@ -124,15 +125,6 @@ class UnitOwnerSynchronizerIntegrationTest {
     assertThat(foundDate1).isEmpty();
   }
 
-  @TestConfiguration
-  static class Config {
-    @Bean
-    @Primary
-    public MockEpisService mockEpisService(RestTemplate restTemplate, JwtTokenUtil jwtTokenUtil) {
-      return new MockEpisService(restTemplate, jwtTokenUtil);
-    }
-  }
-
   static class MockEpisService extends EpisService {
     private List<UnitOwnerDto> unitOwners = new ArrayList<>();
 
@@ -173,10 +165,6 @@ class UnitOwnerSynchronizerIntegrationTest {
 
     public void setUnitOwners(List<UnitOwnerDto> owners) {
       this.unitOwners = new ArrayList<>(owners);
-    }
-
-    public void reset() {
-      this.unitOwners.clear();
     }
   }
 }

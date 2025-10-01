@@ -9,16 +9,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
+import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -30,6 +35,7 @@ class SavingFundPaymentRepositoryTest {
 
   @Autowired SavingFundPaymentRepository repository;
   @Autowired NamedParameterJdbcTemplate jdbcTemplate;
+  @Autowired UserRepository userRepository;
 
   @Test
   void savePaymentData() {
@@ -122,8 +128,7 @@ class SavingFundPaymentRepositoryTest {
             ? List.of()
             : Arrays.stream(permittedNextStatusesString.split("\\|")).map(Status::valueOf).toList();
     for (Status status : Status.values()) {
-      jdbcTemplate.update(
-          "update saving_fund_payment set status=:status", Map.of("status", initialStatus.name()));
+      updatePaymentStatus(id, initialStatus);
       if (permittedNextStatuses.contains(status))
         assertThatCode(() -> repository.changeStatus(id, status))
             .withFailMessage(initialStatus + " -> " + status + " should be allowed")
@@ -169,6 +174,123 @@ class SavingFundPaymentRepositoryTest {
     assertThat(recentPayments).extracting("id").containsExactly(id2);
   }
 
+  @ParameterizedTest
+  @EnumSource(
+      value = Status.class,
+      names = {"CREATED", "RECEIVED", "VERIFIED"})
+  void cancel(Status status) {
+    var id = repository.savePaymentData(createPayment().build());
+    updatePaymentStatus(id, status);
+
+    repository.cancel(id);
+
+    var payments = repository.findPaymentsWithStatus(status);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getCancelledAt()).isCloseTo(Instant.now(), within(10, SECONDS));
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = Status.class,
+      names = {"CREATED", "RECEIVED", "VERIFIED"},
+      mode = EXCLUDE)
+  void cancel_notAllowed(Status status) {
+    var id = repository.savePaymentData(createPayment().build());
+    updatePaymentStatus(id, status);
+
+    assertThatThrownBy(() -> repository.cancel(id)).isInstanceOf(RuntimeException.class);
+
+    var payments = repository.findPaymentsWithStatus(status);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getCancelledAt()).isNull();
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = Status.class,
+      names = {"CREATED", "RECEIVED"})
+  void attachUser(Status status) {
+    var userId = createUser();
+
+    var id = repository.savePaymentData(createPayment().build());
+    updatePaymentStatus(id, status);
+
+    repository.attachUser(id, userId);
+
+    var payments = repository.findPaymentsWithStatus(status);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getUserId()).isEqualTo(userId);
+  }
+
+  @ParameterizedTest
+  @EnumSource(
+      value = Status.class,
+      names = {"CREATED", "RECEIVED"},
+      mode = EXCLUDE)
+  void attachUser_notAllowed(Status status) {
+    var userId = createUser();
+
+    var id = repository.savePaymentData(createPayment().build());
+    updatePaymentStatus(id, status);
+
+    assertThatThrownBy(() -> repository.attachUser(id, userId))
+        .isInstanceOf(RuntimeException.class);
+
+    var payments = repository.findPaymentsWithStatus(status);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getUserId()).isNull();
+  }
+
+  @Test
+  void attachUser_unknownUser() {
+    var id = repository.savePaymentData(createPayment().build());
+
+    assertThatThrownBy(() -> repository.attachUser(id, 123L)).isInstanceOf(RuntimeException.class);
+
+    var payments = repository.findPaymentsWithStatus(CREATED);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getUserId()).isNull();
+  }
+
+  @Test
+  void findUserPayments() {
+    var id1 = repository.savePaymentData(createPayment().externalId("1").build());
+    var id2 = repository.savePaymentData(createPayment().externalId("2").build());
+    var id3 = repository.savePaymentData(createPayment().externalId("3").build());
+    var ignoredId = repository.savePaymentData(createPayment().externalId("4").build());
+
+    var user1 = createUser("37706154772");
+    var user2 = createUser("36407145233");
+
+    repository.attachUser(id1, user1);
+    repository.attachUser(id2, user1);
+    repository.attachUser(id3, user2);
+
+    repository.changeStatus(id1, RECEIVED);
+
+    assertThat(repository.findUserPayments(user1)).hasSize(2);
+    assertThat(repository.findUserPayments(user1)).extracting("id").containsExactly(id1, id2);
+    assertThat(repository.findUserPayments(user2)).hasSize(1);
+    assertThat(repository.findUserPayments(user2)).extracting("id").containsExactly(id3);
+  }
+
+  @Test
+  void returnReason() {
+    var id = repository.savePaymentData(createPayment().build());
+
+    repository.addReturnReason(id, "not ok");
+
+    var payments = repository.findPaymentsWithStatus(CREATED);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getReturnReason()).isEqualTo("not ok");
+  }
+
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {
     return SavingFundPayment.builder()
         .remitterName("John Doe")
@@ -180,5 +302,21 @@ class SavingFundPaymentRepositoryTest {
         .amount(new BigDecimal("100.70"))
         .description("my money")
         .externalId("abc123");
+  }
+
+  private int updatePaymentStatus(UUID paymentId, Status initialStatus) {
+    return jdbcTemplate.update(
+        "update saving_fund_payment set status=:status where id=:id",
+        Map.of("status", initialStatus.name(), "id", paymentId));
+  }
+
+  private Long createUser() {
+    return createUser("48806046007");
+  }
+
+  private Long createUser(String personalCode) {
+    return userRepository
+        .save(User.builder().firstName("John").lastName("Smith").personalCode(personalCode).build())
+        .getId();
   }
 }

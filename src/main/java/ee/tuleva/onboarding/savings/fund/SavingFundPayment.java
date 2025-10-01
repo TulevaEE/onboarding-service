@@ -14,8 +14,9 @@ import lombok.Value;
 @Builder
 public class SavingFundPayment {
   UUID id;
-  BigDecimal amount;
+  Long userId;
 
+  BigDecimal amount;
   @Builder.Default Currency currency = EUR;
 
   String description;
@@ -33,6 +34,9 @@ public class SavingFundPayment {
   @Builder.Default Status status = Status.CREATED;
 
   Instant statusChangedAt;
+  Instant cancelledAt;
+
+  @Nullable String returnReason;
 
   public enum Status {
     CREATED,

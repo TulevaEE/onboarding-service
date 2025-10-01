@@ -8,7 +8,7 @@ import lombok.Data;
 
 @Data
 @Builder
-class ApiFundBalanceResponse {
+public class ApiFundBalanceResponse {
   private ApiFundResponse fund;
   private BigDecimal value;
   private BigDecimal unavailableValue;

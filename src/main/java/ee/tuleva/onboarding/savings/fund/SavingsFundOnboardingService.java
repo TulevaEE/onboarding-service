@@ -1,9 +1,8 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import org.springframework.stereotype.Service;
-
 import ee.tuleva.onboarding.user.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor

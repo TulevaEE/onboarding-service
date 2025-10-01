@@ -131,4 +131,9 @@ public class SavingFundPaymentRepository {
   public void addReturnReason(UUID paymentId, String reason) {
 
   }
+
+  // todo
+  // Montonio should use findRecentPayments(), savePaymentData() and attachUser()
+  // Swedbank should use findRecentPayments(), savePaymentData() OR updatePaymentData() and changeStatus(RECEIVED)
+  // sanctions check & identity check should be in a single job which always ends with changeStatus(...)
 }

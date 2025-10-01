@@ -1,15 +1,4 @@
-/*
-  This temporary migration is to be able to run integration tests on H2, while ledger schema is still under development
-   and not in a production migration.
-  TODO After schema is in production, remove this migration.
- */
-
-
-/* TODO remove*/
-DROP SCHEMA IF EXISTS ledger CASCADE;
-
 CREATE SCHEMA ledger;
-/* TODO permissions */
 
 CREATE TYPE ledger.account_type AS ENUM ('ASSET', 'LIABILITY', 'INCOME', 'EXPENSE');
 CREATE TYPE ledger.account_purpose AS ENUM ('USER_ACCOUNT', 'SYSTEM_ACCOUNT');
@@ -42,7 +31,6 @@ CREATE TABLE ledger.account
       OR
     (purpose = 'SYSTEM_ACCOUNT' AND owner_party_id IS NULL)
     )
-  /*UNIQUE (service_account, type) TODO can only have 1 service account of type*/
 );
 
 
@@ -51,8 +39,7 @@ CREATE TABLE ledger.transaction
   id               UUID                             DEFAULT gen_random_uuid() PRIMARY KEY,
   transaction_type ledger.transaction_type NOT NULL,
   transaction_date TIMESTAMP               NOT NULL,
-  metadata         JSONB                   NOT NULL, /* TODO lock this down – or keep this a JSONB here with very heavy validations in application layer */
-  /*event_log_id INTEGER NOT NULL references public.event_log, TODO add this back*/
+  metadata         JSONB                   NOT NULL,
   created_at       TIMESTAMP               NOT NULL DEFAULT NOW()
 );
 
@@ -66,5 +53,19 @@ CREATE TABLE ledger.entry
   created_at     TIMESTAMP         NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX idx_account_owner_party_id
+  ON ledger.account (owner_party_id);
+CREATE UNIQUE INDEX ux_account_system_name
+  ON ledger.account (name, purpose, asset_type, account_type);
+CREATE INDEX idx_transaction_date
+  ON ledger.transaction (transaction_date);
+CREATE INDEX idx_entry_account_id
+  ON ledger.entry (account_id);
+CREATE INDEX idx_entry_transaction_id
+  ON ledger.entry (transaction_id);
+CREATE INDEX idx_entry_txn_acct
+  ON ledger.entry (transaction_id, account_id);
+CREATE UNIQUE INDEX ux_party_type_owner
+  ON ledger.party (party_type, owner_id);
 
 

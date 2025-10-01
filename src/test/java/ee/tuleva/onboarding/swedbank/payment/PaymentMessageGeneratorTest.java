@@ -8,11 +8,9 @@ import java.io.StringReader;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
-
 import javax.xml.XMLConstants;
 import javax.xml.transform.stream.StreamSource;
 import javax.xml.validation.SchemaFactory;
-
 import org.junit.jupiter.api.Test;
 import org.xml.sax.SAXException;
 
@@ -23,31 +21,35 @@ class PaymentMessageGeneratorTest {
 
   @Test
   void generate() throws IOException, SAXException {
-    var paymentRequest = PaymentRequest.builder()
-        .remitterName("Tuleva AS")
-        .remitterId("14118923")
-        .remitterIban("EE121283519985595614")
-        .remitterBic("HABAEE2X")
-        .beneficiaryName("John Doe")
-        .beneficiaryIban("EE461277288334943840")
-        .amount(new BigDecimal("111.03"))
-        .description("money for nothing")
-        .ourId("111")
-        .endToEndId("123ABC")
-        .build();
+    var paymentRequest =
+        PaymentRequest.builder()
+            .remitterName("Tuleva AS")
+            .remitterId("14118923")
+            .remitterIban("EE121283519985595614")
+            .remitterBic("HABAEE2X")
+            .beneficiaryName("John Doe")
+            .beneficiaryIban("EE461277288334943840")
+            .amount(new BigDecimal("111.03"))
+            .description("money for nothing")
+            .ourId("111")
+            .endToEndId("123ABC")
+            .build();
 
     var result = generator.generatePaymentMessage(paymentRequest);
 
     assertThat(result).isEqualToIgnoringWhitespace(xml);
 
-    var schema = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI)
-        .newSchema(new StreamSource(getClass().getResourceAsStream("/swedbank/pain.001.001.09.xsd")));
+    var schema =
+        SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI)
+            .newSchema(
+                new StreamSource(getClass().getResourceAsStream("/swedbank/pain.001.001.09.xsd")));
     var validator = schema.newValidator();
     validator.validate(new StreamSource(new StringReader(result)));
   }
 
-  //language=xml
-  private static final String xml = """
+  // language=xml
+  private static final String xml =
+      """
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <Document xmlns="urn:iso:std:iso:20022:tech:xsd:pain.001.001.09" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <CstmrCdtTrfInitn>
@@ -117,5 +119,4 @@ class PaymentMessageGeneratorTest {
   </CstmrCdtTrfInitn>
 </Document>
 """;
-
 }

@@ -5,28 +5,6 @@ import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
 
-import java.net.URI;
-import java.time.Clock;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.Optional;
-import java.util.UUID;
-
-import javax.xml.datatype.XMLGregorianCalendar;
-
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.convert.converter.Converter;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatusCode;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
-
 import ee.swedbank.gateway.iso.request.AccountIdentification4Choice;
 import ee.swedbank.gateway.iso.request.AccountReportingRequestV03;
 import ee.swedbank.gateway.iso.request.CashAccount24;
@@ -41,7 +19,26 @@ import ee.swedbank.gateway.iso.request.TimePeriodDetails1;
 import ee.tuleva.onboarding.swedbank.payment.PaymentMessageGenerator;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import jakarta.xml.bind.JAXBElement;
+import java.net.URI;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
+import java.util.UUID;
+import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 @RequiredArgsConstructor

@@ -6,7 +6,6 @@ import java.io.StringWriter;
 import java.math.BigDecimal;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -14,12 +13,10 @@ import javax.xml.transform.OutputKeys;
 import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
-
+import lombok.SneakyThrows;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
-
-import lombok.SneakyThrows;
 
 public class XmlHelper {
 
@@ -31,8 +28,7 @@ public class XmlHelper {
       factory.setXIncludeAware(false);
       factory.setExpandEntityReferences(false);
       return factory.newDocumentBuilder().newDocument();
-    }
-    catch (ParserConfigurationException e) {
+    } catch (ParserConfigurationException e) {
       throw new RuntimeException(e);
     }
   }
@@ -52,7 +48,9 @@ public class XmlHelper {
   }
 
   public static Element add(Node parent, String name) {
-    Element element = (parent instanceof Document ? (Document)parent : parent.getOwnerDocument()).createElement(name);
+    Element element =
+        (parent instanceof Document ? (Document) parent : parent.getOwnerDocument())
+            .createElement(name);
     parent.appendChild(element);
     return element;
   }
@@ -84,13 +82,11 @@ public class XmlHelper {
     TransformerFactory factory = TransformerFactory.newInstance();
     try {
       factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-    }
-    catch (Exception ignored) {
+    } catch (Exception ignored) {
     }
     try {
       factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
-    }
-    catch (Exception ignored) {
+    } catch (Exception ignored) {
     }
     return factory;
   }

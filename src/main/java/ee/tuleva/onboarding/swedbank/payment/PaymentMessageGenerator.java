@@ -6,10 +6,8 @@ import static ee.tuleva.onboarding.swedbank.payment.XmlHelper.createDocument;
 
 import java.time.Clock;
 import java.time.LocalDate;
-
-import org.springframework.stereotype.Component;
-
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor

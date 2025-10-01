@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
+import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -20,6 +21,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -116,7 +118,7 @@ class SavingFundPaymentRepositoryTest {
     var permittedNextStatuses = permittedNextStatusesString.equals("-") ? List.of() :
         Arrays.stream(permittedNextStatusesString.split("\\|")).map(Status::valueOf).toList();
     for (Status status : Status.values()) {
-      jdbcTemplate.update("update saving_fund_payment set status=:status", Map.of("status", initialStatus.name()));
+      updatePaymentStatus(id, initialStatus);
       if (permittedNextStatuses.contains(status))
         assertThatCode(() -> repository.changeStatus(id, status))
             .withFailMessage(initialStatus + " -> " + status + " should be allowed")
@@ -155,16 +157,32 @@ class SavingFundPaymentRepositoryTest {
     assertThat(recentPayments).extracting("id").containsExactly(id2);
   }
 
-  @Test
-  void cancel() {
+  @ParameterizedTest
+  @EnumSource(value = Status.class, names = {"CREATED", "RECEIVED", "VERIFIED"})
+  void cancel(Status status) {
     var id = repository.savePaymentData(createPayment().build());
+    updatePaymentStatus(id, status);
 
     repository.cancel(id);
 
-    var payments = repository.findPaymentsWithStatus(CREATED);
+    var payments = repository.findPaymentsWithStatus(status);
 
     assertThat(payments).hasSize(1);
     assertThat(payments.getFirst().getCancelledAt()).isCloseTo(Instant.now(), within(10, SECONDS));
+  }
+
+  @ParameterizedTest
+  @EnumSource(value = Status.class, names = {"CREATED", "RECEIVED", "VERIFIED"}, mode = EXCLUDE)
+  void cancel_notAllowed(Status status) {
+    var id = repository.savePaymentData(createPayment().build());
+    updatePaymentStatus(id, status);
+
+    assertThatThrownBy(() -> repository.cancel(id)).isInstanceOf(RuntimeException.class);
+
+    var payments = repository.findPaymentsWithStatus(status);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getCancelledAt()).isNull();
   }
 
   @Test
@@ -191,5 +209,10 @@ class SavingFundPaymentRepositoryTest {
         .description("my money")
         .externalId("abc123")
         ;
+  }
+
+  private int updatePaymentStatus(UUID paymentId, Status initialStatus) {
+    return jdbcTemplate.update("update saving_fund_payment set status=:status where id=:id",
+        Map.of("status", initialStatus.name(), "id", paymentId));
   }
 }

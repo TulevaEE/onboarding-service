@@ -8,5 +8,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SwedbankMessageRepository extends CrudRepository<SwedbankMessage, UUID> {
 
-  List<SwedbankMessage> findAllByProcessedAtIsNullOrderByReceivedAtDesc();
+  List<SwedbankMessage> findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc();
 }

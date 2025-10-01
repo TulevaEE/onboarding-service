@@ -58,7 +58,8 @@ class SwedbankMessageDelegatorTest {
     when(firstProcessor.supports(messageType)).thenReturn(false);
     when(secondProcessor.supports(messageType)).thenReturn(true);
 
-    when(swedbankMessageRepository.findAllByProcessedAtIsNullOrderByReceivedAtDesc())
+    when(swedbankMessageRepository
+            .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
         .thenReturn(List.of(message));
 
     delegator.processMessages();
@@ -89,7 +90,8 @@ class SwedbankMessageDelegatorTest {
     when(firstProcessor.supports(messageType)).thenReturn(false);
     when(secondProcessor.supports(messageType)).thenReturn(true);
 
-    when(swedbankMessageRepository.findAllByProcessedAtIsNullOrderByReceivedAtDesc())
+    when(swedbankMessageRepository
+            .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
         .thenReturn(List.of(message));
 
     delegator.processMessages();
@@ -121,7 +123,8 @@ class SwedbankMessageDelegatorTest {
     when(firstProcessor.supports(messageType)).thenReturn(false);
     when(secondProcessor.supports(messageType)).thenReturn(true);
 
-    when(swedbankMessageRepository.findAllByProcessedAtIsNullOrderByReceivedAtDesc())
+    when(swedbankMessageRepository
+            .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
         .thenReturn(List.of(message));
 
     delegator.processMessages();
@@ -150,7 +153,8 @@ class SwedbankMessageDelegatorTest {
     when(firstProcessor.supports(PAYMENT_ORDER_CONFIRMATION)).thenReturn(false);
     when(secondProcessor.supports(PAYMENT_ORDER_CONFIRMATION)).thenReturn(false);
 
-    when(swedbankMessageRepository.findAllByProcessedAtIsNullOrderByReceivedAtDesc())
+    when(swedbankMessageRepository
+            .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
         .thenReturn(List.of(message));
 
     delegator.processMessages();
@@ -161,5 +165,40 @@ class SwedbankMessageDelegatorTest {
     assertEquals(message.getProcessedAt(), null);
 
     verify(swedbankMessageRepository, never()).save(any());
+  }
+
+  @Test
+  @DisplayName("marks message as failed when processing throws exception")
+  void processMessagesMarksAsFailed() {
+    var message =
+        SwedbankMessage.builder()
+            .id(UUID.randomUUID())
+            .requestId("test")
+            .trackingId("test")
+            .rawResponse(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?> <Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:pain.002.001.10\"></Document>")
+            .receivedAt(clock.instant())
+            .build();
+
+    var messageType = PAYMENT_ORDER_CONFIRMATION;
+
+    when(firstProcessor.supports(messageType)).thenReturn(false);
+    when(secondProcessor.supports(messageType)).thenReturn(true);
+    doThrow(new RuntimeException("Processing failed"))
+        .when(secondProcessor)
+        .processMessage(message.getRawResponse(), messageType);
+
+    when(swedbankMessageRepository
+            .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc())
+        .thenReturn(List.of(message));
+
+    delegator.processMessages();
+
+    verify(secondProcessor, times(1)).processMessage(message.getRawResponse(), messageType);
+
+    assertEquals(message.getFailedAt(), clock.instant());
+    assertEquals(message.getProcessedAt(), null);
+
+    verify(swedbankMessageRepository, times(1)).save(message);
   }
 }

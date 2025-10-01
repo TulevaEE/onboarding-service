@@ -39,15 +39,15 @@ public class SavingFundPayment {
 
   public enum Status {
 
-    CREATED, // montonio
-    RECEIVED, // swed
-    VERIFIED, // sanctions check + identity check
+    CREATED,
+    RECEIVED,
+    VERIFIED,
     RESERVED,
     PROCESSED,
-    CANCELLED, // sanctions check
-    FROZEN, // maybe manually changeable to VERIFIED
+    FROZEN,
     TO_BE_RETURNED,
     RETURNED,
 
   }
+
 }

@@ -4,11 +4,13 @@ import static ee.tuleva.onboarding.swedbank.processor.SwedbankMessageType.HISTOR
 import static ee.tuleva.onboarding.swedbank.processor.SwedbankMessageType.INTRA_DAY_REPORT;
 
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentService;
 import ee.tuleva.onboarding.swedbank.statement.SwedbankBankStatementExtractor;
 import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -17,9 +19,11 @@ class SwedbankBankStatementMessageProcessor implements SwedbankMessageProcessor 
 
   private final SwedbankBankStatementExtractor swedbankBankStatementExtractor;
   private final SavingFundPaymentExtractor paymentExtractor;
+  private final SavingFundPaymentService paymentService;
   private final Clock clock;
 
   @Override
+  @Transactional
   public void processMessage(String rawResponse, SwedbankMessageType messageType) {
     log.info("Processing bank statement message of type {}", messageType);
 
@@ -36,10 +40,13 @@ class SwedbankBankStatementMessageProcessor implements SwedbankMessageProcessor 
         "Successfully extracted bank statement message with {} entries",
         bankStatement.getEntries().size());
 
-    var receivedAt = clock.instant(); // TODO: get it from the message itself
-    var payments = paymentExtractor.extractPayments(bankStatement, receivedAt);
+    var payments = paymentExtractor.extractPayments(bankStatement);
 
-    log.info("Successfully extracted {} payments from a bank statement ", payments.size());
+    log.info("Successfully extracted {} payments from a bank statement", payments.size());
+
+    payments.forEach(paymentService::upsert);
+
+    log.info("Successfully upserted {} payments", payments.size());
   }
 
   @Override

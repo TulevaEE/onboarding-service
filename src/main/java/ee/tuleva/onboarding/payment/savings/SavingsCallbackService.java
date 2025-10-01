@@ -37,9 +37,9 @@ public class SavingsCallbackService {
       return Optional.empty();
     }
 
-    if (savingFundPaymentRepository.existsByRemitterIdCodeAndDescription(
-        token.getMerchantReference().getRecipientPersonalCode(),
-        token.getMerchantReference().getDescription())) {
+    if (!savingFundPaymentRepository
+        .findRecentPayments(token.getMerchantReference().getDescription())
+        .isEmpty()) {
       log.info("Saving fund payment already exists for {}", token.getMerchantReference());
       return Optional.empty();
     }
@@ -48,12 +48,11 @@ public class SavingsCallbackService {
         SavingFundPayment.builder()
             .remitterName(token.getSenderName())
             .remitterIban(token.getSenderIban())
-            .remitterIdCode(token.getMerchantReference().getRecipientPersonalCode())
             .description(token.getMerchantReference().getDescription())
             .amount(token.getGrandTotal())
             .currency(token.getCurrency())
             .build();
-    savingFundPaymentRepository.save(payment);
+    savingFundPaymentRepository.savePaymentData(payment);
     return Optional.of(payment);
   }
 }

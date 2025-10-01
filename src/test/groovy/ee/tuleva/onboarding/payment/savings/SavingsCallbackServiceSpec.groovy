@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.payment.savings
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.nimbusds.jose.JWSObject
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository
 import spock.lang.Specification
 
@@ -36,14 +37,14 @@ class SavingsCallbackServiceSpec extends Specification {
   def "if token is paid and no other payment exists in the database, create one"() {
     given:
     def serializedToken = aSerializedSavingsPaymentToken
-    1 * savingFundPaymentRepository.existsByRemitterIdCodeAndDescription(
-        anInternalReference.recipientPersonalCode, anInternalReference.description
-    ) >> false
+    1 * savingFundPaymentRepository.findRecentPayments(
+        anInternalReference.description
+    ) >> []
     def token = tokenParser.parse(JWSObject.parse(serializedToken))
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    1 * savingFundPaymentRepository.save(_)
+    1 * savingFundPaymentRepository.savePaymentData(_)
     def payment = returnedPayment.get()
     payment.amount == token.grandTotal
     payment.currency == token.currency
@@ -57,13 +58,16 @@ class SavingsCallbackServiceSpec extends Specification {
   def "if payment already exists then no payment is saved"() {
     given:
     def serializedToken = aSerializedSavingsPaymentToken
-    1 * savingFundPaymentRepository.existsByRemitterIdCodeAndDescription(
-        anInternalReference.recipientPersonalCode, anInternalReference.description
-    ) >> true
+    def existingPayment = SavingFundPayment.builder()
+        .description(anInternalReference.description)
+        .build()
+    1 * savingFundPaymentRepository.findRecentPayments(
+        anInternalReference.description
+    ) >> [existingPayment]
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    0 * savingFundPaymentRepository.save(_)
+    0 * savingFundPaymentRepository.savePaymentData(_)
     returnedPayment.isEmpty()
   }
 
@@ -72,7 +76,7 @@ class SavingsCallbackServiceSpec extends Specification {
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    0 * savingFundPaymentRepository.save(_)
+    0 * savingFundPaymentRepository.savePaymentData(_)
     returnedPayment.isEmpty()
   }
 
@@ -81,7 +85,7 @@ class SavingsCallbackServiceSpec extends Specification {
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    0 * savingFundPaymentRepository.save(_)
+    0 * savingFundPaymentRepository.savePaymentData(_)
     returnedPayment.isEmpty()
   }
 

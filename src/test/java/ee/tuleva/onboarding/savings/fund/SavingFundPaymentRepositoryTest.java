@@ -291,6 +291,37 @@ class SavingFundPaymentRepositoryTest {
     assertThat(payments.getFirst().getReturnReason()).isEqualTo("not ok");
   }
 
+  @Test
+  void findByExternalId() {
+    var id1 = repository.savePaymentData(createPayment().externalId("ext-123").build());
+    var id2 = repository.savePaymentData(createPayment().externalId("ext-456").build());
+
+    var result1 = repository.findByExternalId("ext-123");
+    assertThat(result1).isPresent();
+    assertThat(result1.get().getId()).isEqualTo(id1);
+    assertThat(result1.get().getExternalId()).isEqualTo("ext-123");
+
+    var result2 = repository.findByExternalId("ext-456");
+    assertThat(result2).isPresent();
+    assertThat(result2.get().getId()).isEqualTo(id2);
+
+    var result3 = repository.findByExternalId("non-existent");
+    assertThat(result3).isEmpty();
+  }
+
+  @Test
+  void findAll() {
+    assertThat(repository.findAll()).isEmpty();
+
+    var id1 = repository.savePaymentData(createPayment().externalId("1").build());
+    var id2 = repository.savePaymentData(createPayment().externalId("2").build());
+    var id3 = repository.savePaymentData(createPayment().externalId("3").build());
+
+    var allPayments = repository.findAll();
+    assertThat(allPayments).hasSize(3);
+    assertThat(allPayments).extracting("id").containsExactlyInAnyOrder(id1, id2, id3);
+  }
+
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {
     return SavingFundPayment.builder()
         .remitterName("John Doe")

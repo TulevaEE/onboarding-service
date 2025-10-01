@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.swedbank.statement.BankStatementAccount;
 import ee.tuleva.onboarding.swedbank.statement.BankStatementEntry;
 import ee.tuleva.onboarding.swedbank.statement.TransactionType;
 import java.math.BigDecimal;
-import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -42,10 +41,9 @@ class SavingFundPaymentExtractorTest {
             "2025092900673437-1");
 
     var statement = createBankStatement(account, List.of(creditEntry, debitEntry));
-    Instant receivedAt = Instant.parse("2025-09-29T15:37:46Z");
 
     // when
-    List<SavingFundPayment> payments = extractor.extractPayments(statement, receivedAt);
+    List<SavingFundPayment> payments = extractor.extractPayments(statement);
 
     // then
     assertThat(payments).hasSize(2);
@@ -82,10 +80,9 @@ class SavingFundPaymentExtractorTest {
     var account =
         createBankStatementAccount("EE442200221092874625", "TULEVA FONDID AS", "14118923");
     var statement = createBankStatement(account, List.of());
-    Instant receivedAt = Instant.parse("2025-09-29T15:37:46Z");
 
     // when
-    List<SavingFundPayment> payments = extractor.extractPayments(statement, receivedAt);
+    List<SavingFundPayment> payments = extractor.extractPayments(statement);
 
     // then
     assertThat(payments).isEmpty();
@@ -109,10 +106,9 @@ class SavingFundPaymentExtractorTest {
             "test-ref");
 
     var statement = createBankStatement(account, List.of(usdEntry));
-    Instant receivedAt = Instant.parse("2025-09-29T15:37:46Z");
 
     // when & then
-    assertThatThrownBy(() -> extractor.extractPayments(statement, receivedAt))
+    assertThatThrownBy(() -> extractor.extractPayments(statement))
         .isInstanceOf(PaymentProcessingException.class)
         .hasMessage("Bank transfer currency not supported: USD");
   }

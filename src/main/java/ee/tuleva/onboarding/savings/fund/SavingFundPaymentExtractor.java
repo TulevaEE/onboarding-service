@@ -5,7 +5,6 @@ import ee.tuleva.onboarding.swedbank.statement.BankStatement;
 import ee.tuleva.onboarding.swedbank.statement.BankStatementAccount;
 import ee.tuleva.onboarding.swedbank.statement.BankStatementEntry;
 import ee.tuleva.onboarding.swedbank.statement.TransactionType;
-import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
@@ -15,11 +14,11 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class SavingFundPaymentExtractor {
 
-  public List<SavingFundPayment> extractPayments(BankStatement statement, Instant receivedAt) {
+  public List<SavingFundPayment> extractPayments(BankStatement statement) {
     log.debug("Extracting payments from bank statement");
 
     try {
-      return extractPaymentsFromStatement(statement, receivedAt);
+      return extractPaymentsFromStatement(statement);
     } catch (PaymentProcessingException e) {
       throw e;
     } catch (Exception e) {
@@ -28,8 +27,7 @@ public class SavingFundPaymentExtractor {
     }
   }
 
-  private List<SavingFundPayment> extractPaymentsFromStatement(
-      BankStatement statement, Instant receivedAt) {
+  private List<SavingFundPayment> extractPaymentsFromStatement(BankStatement statement) {
     var account = statement.getBankStatementAccount();
 
     return statement.getEntries().stream()

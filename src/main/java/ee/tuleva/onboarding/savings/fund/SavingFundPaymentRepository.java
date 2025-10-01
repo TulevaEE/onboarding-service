@@ -16,6 +16,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -29,14 +30,6 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class SavingFundPaymentRepository {
   private final NamedParameterJdbcTemplate jdbcTemplate;
-
-  public boolean existsByRemitterIdCodeAndDescription(String remitterIdCode, String description) {
-    throw new UnsupportedOperationException("Change me!");
-  }
-
-  public void save(SavingFundPayment payment) {
-    throw new UnsupportedOperationException("Change me!");
-  }
 
   public UUID savePaymentData(SavingFundPayment payment) {
     var id = UUID.randomUUID();
@@ -92,6 +85,24 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
+  public Optional<SavingFundPayment> findByExternalId(String externalId) {
+    var result =
+        jdbcTemplate.query(
+            """
+        select * from saving_fund_payment where external_id=:external_id
+        """,
+            Map.of("external_id", externalId),
+            this::rowMapper);
+    return result.isEmpty()
+        ? Optional.empty()
+        : Optional.of(
+            result.getFirst()); // Guaranteed at most 1 by UNIQUE constraint on external_id
+  }
+
+  public List<SavingFundPayment> findAll() {
+    return jdbcTemplate.query("select * from saving_fund_payment", this::rowMapper);
+  }
+
   private SavingFundPayment rowMapper(ResultSet rs, int ignored) throws SQLException {
     return SavingFundPayment.builder()
         .id(UUID.fromString(rs.getString("id")))
@@ -106,6 +117,7 @@ public class SavingFundPaymentRepository {
         .beneficiaryIban(rs.getString("beneficiary_iban"))
         .beneficiaryIdCode(rs.getString("beneficiary_id_code"))
         .beneficiaryName(rs.getString("beneficiary_name"))
+        .status(SavingFundPayment.Status.valueOf(rs.getString("status")))
         .createdAt(instant(rs, "created_at"))
         .statusChangedAt(instant(rs, "status_changed_at"))
         .cancelledAt(instant(rs, "cancelled_at"))

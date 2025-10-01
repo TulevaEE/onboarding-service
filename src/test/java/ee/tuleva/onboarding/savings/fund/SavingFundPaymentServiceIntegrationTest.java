@@ -1,0 +1,271 @@
+package ee.tuleva.onboarding.savings.fund;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessage;
+import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageRepository;
+import ee.tuleva.onboarding.swedbank.processor.SwedbankMessageDelegator;
+import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.util.UUID;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.transaction.annotation.Transactional;
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Transactional
+class SavingFundPaymentServiceIntegrationTest {
+
+  @Autowired private SavingFundPaymentRepository repository;
+  @Autowired private SwedbankMessageRepository swedbankMessageRepository;
+  @Autowired private SwedbankMessageDelegator delegator;
+
+  private static final Instant NOW = Instant.parse("2025-10-01T12:00:00Z");
+
+  // XML template with a single CREDIT transaction
+  private static final String XML_TEMPLATE =
+      "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+          + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
+          + "<BkToCstmrAcctRpt> "
+          + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
+          + "<Rpt> "
+          + "<Acct> "
+          + "<Id> <IBAN>EE442200221092874625</IBAN> </Id> "
+          + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
+          + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> "
+          + "</Ownr> "
+          + "</Acct> "
+          + "<Ntry> "
+          + "<NtryRef>2025100112345-1</NtryRef>"
+          + "<Amt Ccy=\"EUR\">100.50</Amt> "
+          + "<CdtDbtInd>CRDT</CdtDbtInd> "
+          + "<Sts>BOOK</Sts> "
+          + "<BookgDt> <Dt>2025-10-01</Dt> </BookgDt> "
+          + "<NtryDtls> <TxDtls> "
+          + "<Refs> <AcctSvcrRef>2025100112345-1</AcctSvcrRef> </Refs> "
+          + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">100.50</Amt> </TxAmt> </AmtDtls> "
+          + "<RltdPties> "
+          + "<Dbtr> <Nm>Jüri Tamm</Nm> "
+          + "<Id> <PrvtId> <Othr> <Id>39910273027</Id> </Othr> </PrvtId> </Id> "
+          + "</Dbtr> "
+          + "<DbtrAcct> <Id> <IBAN>EE157700771001802057</IBAN> </Id> </DbtrAcct> "
+          + "</RltdPties> "
+          + "<RmtInf> <Ustrd>Test payment</Ustrd> </RmtInf> "
+          + "</TxDtls> </NtryDtls> "
+          + "</Ntry> "
+          + "</Rpt> "
+          + "</BkToCstmrAcctRpt> "
+          + "</Document>";
+
+  @TestConfiguration
+  static class TestClockConfiguration {
+    @Bean
+    @Primary
+    public Clock testClock() {
+      return Clock.fixed(NOW, ZoneId.of("UTC"));
+    }
+  }
+
+  @Test
+  void endToEnd_processesXmlAndStoresPaymentsInDatabase() {
+    // when
+    processXmlMessage(XML_TEMPLATE);
+
+    // then
+    assertThat(repository.findAll()).hasSize(1);
+    var savedPayment = repository.findAll().iterator().next();
+    assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("100.50"));
+    assertThat(savedPayment.getCurrency()).isEqualTo(Currency.EUR);
+    assertThat(savedPayment.getDescription()).isEqualTo("Test payment");
+    assertThat(savedPayment.getRemitterIban()).isEqualTo("EE157700771001802057");
+    assertThat(savedPayment.getRemitterIdCode()).isEqualTo("39910273027");
+    assertThat(savedPayment.getRemitterName()).isEqualTo("Jüri Tamm");
+    assertThat(savedPayment.getBeneficiaryIban()).isEqualTo("EE442200221092874625");
+    assertThat(savedPayment.getBeneficiaryIdCode()).isEqualTo("14118923");
+    assertThat(savedPayment.getBeneficiaryName()).isEqualTo("TULEVA FONDID AS");
+    assertThat(savedPayment.getExternalId()).isEqualTo("2025100112345-1");
+    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
+  }
+
+  @Nested
+  @Transactional
+  class PaymentMatchingTests {
+
+    @Autowired private SavingFundPaymentRepository repository;
+    @Autowired private SwedbankMessageRepository swedbankMessageRepository;
+    @Autowired private SwedbankMessageDelegator delegator;
+
+    @Test
+    void findsExistingPaymentByExternalId_updatesExistingPayment() {
+      // given - existing payment from Montonio (no externalId yet)
+      var existingPayment =
+          paymentMatchingXmlTemplate()
+              .externalId(null) // Montonio payment doesn't have externalId
+              .build();
+      var existingId = repository.savePaymentData(existingPayment);
+
+      // when - XML with same IBAN+description but with externalId
+      processXmlMessage(XML_TEMPLATE);
+
+      // then - existing payment is updated with externalId, not a new one created
+      assertThat(repository.findAll()).hasSize(1);
+      var updated = repository.findAll().iterator().next();
+      assertThat(updated.getId()).isEqualTo(existingId);
+      assertThat(updated.getExternalId()).isEqualTo("2025100112345-1");
+      assertThat(updated.getDescription()).isEqualTo("Test payment");
+      assertThat(updated.getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
+    }
+
+    @Test
+    void findsExistingPaymentByExternalId_doesNotCreateDuplicate() {
+      // given - payment already exists with externalId from previous bank statement
+      var existingPayment = paymentMatchingXmlTemplate().description("Initial payment").build();
+      var existingId = repository.savePaymentData(existingPayment);
+      repository.changeStatus(existingId, SavingFundPayment.Status.RECEIVED);
+
+      // when - same XML arrives again (duplicate bank statement)
+      processXmlMessage(XML_TEMPLATE);
+
+      // then - no new payment is created, no update is performed (aborts early)
+      assertThat(repository.findAll()).hasSize(1);
+      var payment = repository.findByExternalId("2025100112345-1");
+      assertThat(payment).isPresent();
+      assertThat(payment.get().getId()).isEqualTo(existingId);
+      assertThat(payment.get().getDescription()).isEqualTo("Initial payment");
+      assertThat(payment.get().getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
+    }
+
+    @Test
+    void doesNotMarkMessageAsProcessedWhenIbanDiffers() {
+      // given - existing payment with different IBAN but same description
+      var existingPayment =
+          paymentMatchingXmlTemplate().externalId(null).remitterIban("EE999DIFFERENT").build();
+      repository.savePaymentData(existingPayment);
+
+      // when - XML arrives with EE157700771001802057
+      var messageId = processXmlMessage(XML_TEMPLATE);
+
+      // then - message should not be marked as processed due to IBAN mismatch
+      var message = swedbankMessageRepository.findById(messageId).orElseThrow();
+      assertThat(message.getProcessedAt()).isNull();
+    }
+
+    @Test
+    void doesNotMatchWhenDescriptionDiffers() {
+      // given - existing payment with different description
+      var existingPayment =
+          paymentMatchingXmlTemplate()
+              .externalId(null)
+              .description("Different description")
+              .build();
+      repository.savePaymentData(existingPayment);
+
+      // when - XML arrives with "Test payment"
+      processXmlMessage(XML_TEMPLATE);
+
+      // then - new payment is created
+      assertThat(repository.findAll().size()).isEqualTo(2);
+    }
+
+    @Test
+    void doesNotMatchWhenPaymentIsTooOld() {
+      // TODO: add test here where we make sure that an old entry does not get picked up.
+      // Not trivial as created_at is set on database layer
+    }
+
+    @Test
+    void doesNotMatchWhenExistingHasExternalId() {
+      // given - existing payment with externalId already set
+      var existingPayment = paymentMatchingXmlTemplate().externalId("existing-ext-id").build();
+      repository.savePaymentData(existingPayment);
+
+      // when - XML arrives
+      processXmlMessage(XML_TEMPLATE);
+
+      // then - new payment is created (existing one cannot be matched)
+      assertThat(repository.findAll().size()).isEqualTo(2);
+    }
+
+    @Test
+    void doesNotMarkMessageAsProcessedWhenAmountDiffers() {
+      // given - existing payment with different amount but same description
+      var existingPayment =
+          paymentMatchingXmlTemplate().externalId(null).amount(new BigDecimal("50.00")).build();
+      repository.savePaymentData(existingPayment);
+
+      // when - XML arrives with 100.50
+      var messageId = processXmlMessage(XML_TEMPLATE);
+
+      // then - message should not be marked as processed due to amount mismatch
+      var message = swedbankMessageRepository.findById(messageId).orElseThrow();
+      assertThat(message.getProcessedAt()).isNull();
+    }
+
+    @Test
+    void doesNotMarkMessageAsProcessedWhenNonNullFieldDiffers() {
+      // given - existing payment with conflicting remitterName
+      var existingPayment =
+          paymentMatchingXmlTemplate().externalId(null).remitterName("Different Name").build();
+      repository.savePaymentData(existingPayment);
+
+      // when - XML arrives with different remitterName
+      var messageId = processXmlMessage(XML_TEMPLATE);
+
+      // then - message should not be marked as processed due to field mismatch
+      var message = swedbankMessageRepository.findById(messageId).orElseThrow();
+      assertThat(message.getProcessedAt()).isNull();
+    }
+
+    private UUID processXmlMessage(String xml) {
+      var message =
+          SwedbankMessage.builder()
+              .requestId("test")
+              .trackingId("test")
+              .rawResponse(xml)
+              .receivedAt(NOW)
+              .build();
+      var saved = swedbankMessageRepository.save(message);
+      // This is the delegator from the nested class context, not from the outer class context.
+      delegator.processMessages();
+      return saved.getId();
+    }
+  }
+
+  // Returns a builder with all fields matching XML_TEMPLATE
+  private SavingFundPayment.SavingFundPaymentBuilder paymentMatchingXmlTemplate() {
+    return SavingFundPayment.builder()
+        .amount(new BigDecimal("100.50"))
+        .currency(Currency.EUR)
+        .description("Test payment")
+        .remitterIban("EE157700771001802057")
+        .remitterIdCode("39910273027")
+        .remitterName("Jüri Tamm")
+        .beneficiaryIban("EE442200221092874625")
+        .beneficiaryIdCode("14118923")
+        .beneficiaryName("TULEVA FONDID AS")
+        .externalId("2025100112345-1")
+        .createdAt(NOW.minus(Duration.ofDays(1)));
+  }
+
+  private UUID processXmlMessage(String xml) {
+    var message =
+        SwedbankMessage.builder()
+            .requestId("test")
+            .trackingId("test")
+            .rawResponse(xml)
+            .receivedAt(NOW)
+            .build();
+    var saved = swedbankMessageRepository.save(message);
+    delegator.processMessages();
+    return saved.getId();
+  }
+}

@@ -28,6 +28,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserRepository;
 
 @SpringBootTest
 @Transactional
@@ -35,6 +37,7 @@ class SavingFundPaymentRepositoryTest {
 
   @Autowired SavingFundPaymentRepository repository;
   @Autowired NamedParameterJdbcTemplate jdbcTemplate;
+  @Autowired UserRepository userRepository;
 
   @Test
   void savePaymentData() {
@@ -183,6 +186,58 @@ class SavingFundPaymentRepositoryTest {
 
     assertThat(payments).hasSize(1);
     assertThat(payments.getFirst().getCancelledAt()).isNull();
+  }
+
+  @ParameterizedTest
+  @EnumSource(value = Status.class, names = {"CREATED", "RECEIVED"})
+  void attachUser(Status status) {
+    var userId = userRepository.save(User.builder()
+        .firstName("John")
+        .lastName("Smith")
+        .personalCode("48806046007")
+        .build()).getId();
+
+    var id = repository.savePaymentData(createPayment().build());
+    updatePaymentStatus(id, status);
+
+    repository.attachUser(id, userId);
+
+    var payments = repository.findPaymentsWithStatus(status);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getUserId()).isEqualTo(userId);
+  }
+
+  @ParameterizedTest
+  @EnumSource(value = Status.class, names = {"CREATED", "RECEIVED"}, mode = EXCLUDE)
+  void attachUser_notAllowed(Status status) {
+    var userId = userRepository.save(User.builder()
+        .firstName("John")
+        .lastName("Smith")
+        .personalCode("48806046007")
+        .build()).getId();
+
+    var id = repository.savePaymentData(createPayment().build());
+    updatePaymentStatus(id, status);
+
+    assertThatThrownBy(() -> repository.attachUser(id, userId)).isInstanceOf(RuntimeException.class);
+
+    var payments = repository.findPaymentsWithStatus(status);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getUserId()).isNull();
+  }
+
+  @Test
+  void attachUser_unknownUser() {
+    var id = repository.savePaymentData(createPayment().build());
+
+    assertThatThrownBy(() -> repository.attachUser(id, 123L)).isInstanceOf(RuntimeException.class);
+
+    var payments = repository.findPaymentsWithStatus(CREATED);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getUserId()).isNull();
   }
 
   @Test

@@ -77,6 +77,7 @@ public class SavingFundPaymentRepository {
   private SavingFundPayment rowMapper(ResultSet rs, int ignored) throws SQLException {
     return SavingFundPayment.builder()
         .id(UUID.fromString(rs.getString("id")))
+        .userId(rs.getObject("user_id", Long.class))
         .externalId(rs.getString("external_id"))
         .amount(rs.getBigDecimal("amount"))
         .currency(Currency.valueOf(rs.getString("currency")))
@@ -131,7 +132,11 @@ public class SavingFundPaymentRepository {
   }
 
   public void attachUser(UUID paymentId, Long userId) {
-
+    var currentStatus = getAndLockCurrentStatus(paymentId);
+    if (!Set.of(CREATED, RECEIVED).contains(currentStatus))
+      throw new IllegalStateException("Attaching of user ID is not allowed when payment is " + currentStatus);
+    jdbcTemplate.update("UPDATE saving_fund_payment SET user_id=:user_id WHERE id=:id",
+        Map.of("id", paymentId, "user_id", userId));
   }
 
   public void addReturnReason(UUID paymentId, String reason) {

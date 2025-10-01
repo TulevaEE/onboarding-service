@@ -15,8 +15,9 @@ import lombok.Value;
 @Builder
 public class SavingFundPayment {
   UUID id;
-  BigDecimal amount;
+  Long userId;
 
+  BigDecimal amount;
   @Builder.Default
   Currency currency = EUR;
 

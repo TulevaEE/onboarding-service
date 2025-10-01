@@ -1,8 +1,15 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
-import ee.tuleva.onboarding.user.User;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
+
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -15,22 +22,28 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class IssuingJob {
 
+  private final Clock clock;
   private final IssuerService issuerService;
-
-  record MockPayment(User remitter, BigDecimal amount) {}
+  private final SavingFundPaymentRepository savingFundPaymentRepository;
 
   @Scheduled(cron = "0 0 16 * * MON-FRI", zone = "Europe/Tallinn")
   public void runJob() {
-    var payments = getPayments();
+    var payments = getReservedPaymentsFromBeforeToday();
     var nav = getNAV();
 
-    for (MockPayment payment : payments) {
+    for (SavingFundPayment payment : payments) {
       issuerService.processPayment(payment, nav);
     }
   }
 
-  private List<MockPayment> getPayments() {
-    return List.of();
+  public List<SavingFundPayment> getReservedPaymentsFromBeforeToday() {
+    var payments = savingFundPaymentRepository.findPaymentsWithStatus(RESERVED);
+
+    var startOfToday = LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+
+    return payments.stream()
+        .filter(payment -> payment.getStatusChangedAt().isBefore(startOfToday))
+        .collect(Collectors.toList());
   }
 
   private BigDecimal getNAV() {

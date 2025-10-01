@@ -38,17 +38,19 @@ public class SavingsFundLedger {
   public enum SystemAccount {
     INCOMING_PAYMENTS_CLEARING,
     UNRECONCILED_BANK_RECEIPTS,
-    FUND_SUBSCRIPTIONS_PAYABLE,
+    SUBSCRIPTIONS,
     FUND_INVESTMENT_CASH_CLEARING,
     FUND_UNITS_OUTSTANDING,
-    REDEMPTION_PAYABLE,
+    REDEMPTIONS,
     PAYOUTS_CASH_CLEARING
   }
 
   public enum UserAccount {
     CASH,
     CASH_RESERVED,
-    FUND_UNITS
+    CASH_REDEMPTION,
+    FUND_UNITS,
+    FUND_UNITS_RESERVED
   }
 
   public enum SavingsFundTransactionType {
@@ -59,6 +61,7 @@ public class SavingsFundLedger {
     FUND_SUBSCRIPTION,
     FUND_TRANSFER,
     LATE_ATTRIBUTION,
+    REDEMPTION_RESERVED,
     REDEMPTION_REQUEST,
     FUND_CASH_TRANSFER,
     REDEMPTION_PAYOUT
@@ -84,7 +87,7 @@ public class SavingsFundLedger {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashAccount = getUserCashAccount(userParty);
     LedgerAccount incomingPaymentsAccount =
-        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
+        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET);
 
     Map<String, Object> metadata =
         Map.of(
@@ -96,8 +99,8 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
         metadata,
-        entry(userCashAccount, amount),
-        entry(incomingPaymentsAccount, amount.negate()));
+        entry(incomingPaymentsAccount, amount),
+        entry(userCashAccount, amount.negate()));
   }
 
   @Transactional
@@ -105,7 +108,7 @@ public class SavingsFundLedger {
       BigDecimal amount, String payerIban, String externalReference) {
     LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET);
     LedgerAccount incomingPaymentsAccount =
-        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
+        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET);
 
     Map<String, Object> metadata =
         Map.of(
@@ -116,8 +119,8 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
         metadata,
-        entry(unreconciledAccount, amount),
-        entry(incomingPaymentsAccount, amount.negate()));
+        entry(incomingPaymentsAccount, amount),
+        entry(unreconciledAccount, amount.negate()));
   }
 
   @Transactional
@@ -135,8 +138,8 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
         metadata,
-        entry(userCashAccount, amount.negate()),
-        entry(userCashReservedAccount, amount));
+        entry(userCashAccount, amount),
+        entry(userCashReservedAccount, amount.negate()));
   }
 
   @Transactional
@@ -145,8 +148,7 @@ public class SavingsFundLedger {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
     LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
-    LedgerAccount subscriptionsPayableAccount =
-        getSystemAccount(FUND_SUBSCRIPTIONS_PAYABLE, EUR, LIABILITY);
+    LedgerAccount subscriptionsIncomeAccount = getSystemAccount(SUBSCRIPTIONS, EUR, INCOME);
     LedgerAccount unitsOutstandingAccount =
         getSystemAccount(FUND_UNITS_OUTSTANDING, FUND_UNIT, LIABILITY);
 
@@ -160,16 +162,16 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
         metadata,
-        entry(userCashReservedAccount, cashAmount.negate()),
-        entry(subscriptionsPayableAccount, cashAmount),
-        entry(userUnitsAccount, fundUnits),
-        entry(unitsOutstandingAccount, fundUnits.negate()));
+        entry(userCashReservedAccount, cashAmount),
+        entry(subscriptionsIncomeAccount, cashAmount.negate()),
+        entry(userUnitsAccount, fundUnits.negate()),
+        entry(unitsOutstandingAccount, fundUnits));
   }
 
   @Transactional
   public LedgerTransaction transferToFundAccount(BigDecimal amount) {
     LedgerAccount incomingPaymentsAccount =
-        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
+        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET);
     LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
 
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, FUND_TRANSFER.name());
@@ -177,15 +179,15 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
         metadata,
-        entry(incomingPaymentsAccount, amount),
-        entry(fundCashAccount, amount.negate()));
+        entry(incomingPaymentsAccount, amount.negate()),
+        entry(fundCashAccount, amount));
   }
 
   @Transactional
   public LedgerTransaction bounceBackUnattributedPayment(BigDecimal amount, String payerIban) {
     LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET);
     LedgerAccount incomingPaymentsAccount =
-        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
+        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET);
 
     Map<String, Object> metadata =
         Map.of(OPERATION_TYPE.key, PAYMENT_BOUNCE_BACK.name(), PAYER_IBAN.key, payerIban);
@@ -193,8 +195,8 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
         metadata,
-        entry(unreconciledAccount, amount.negate()),
-        entry(incomingPaymentsAccount, amount));
+        entry(unreconciledAccount, amount),
+        entry(incomingPaymentsAccount, amount.negate()));
   }
 
   @Transactional
@@ -212,19 +214,38 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
         metadata,
-        entry(unreconciledAccount, amount.negate()),
-        entry(userCashAccount, amount));
+        entry(unreconciledAccount, amount),
+        entry(userCashAccount, amount.negate()));
   }
 
   @Transactional
-  public LedgerTransaction processRedemption(
-      User user, BigDecimal fundUnits, BigDecimal cashAmount, BigDecimal navPerUnit) {
+  public LedgerTransaction reserveFundUnitsForRedemption(User user, BigDecimal fundUnits) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
+    LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
+
+    Map<String, Object> metadata =
+        Map.of(
+            OPERATION_TYPE.key, REDEMPTION_RESERVED.name(),
+            USER_ID.key, user.getId(),
+            PERSONAL_CODE.key, user.getPersonalCode());
+
+    return ledgerTransactionService.createTransaction(
+        Instant.now(clock),
+        metadata,
+        entry(userUnitsAccount, fundUnits),
+        entry(userUnitsReservedAccount, fundUnits.negate()));
+  }
+
+  @Transactional
+  public LedgerTransaction processRedemptionFromReserved(
+      User user, BigDecimal fundUnits, BigDecimal cashAmount, BigDecimal navPerUnit) {
+    LedgerParty userParty = getUserParty(user);
+    LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
+    LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
     LedgerAccount unitsOutstandingAccount =
         getSystemAccount(FUND_UNITS_OUTSTANDING, FUND_UNIT, LIABILITY);
-    LedgerAccount redemptionPayableAccount = getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY);
-    LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
+    LedgerAccount redemptionExpenseAccount = getSystemAccount(REDEMPTIONS, EUR, EXPENSE);
 
     Map<String, Object> metadata =
         Map.of(
@@ -236,10 +257,10 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
         metadata,
-        entry(userUnitsAccount, fundUnits.negate()),
-        entry(unitsOutstandingAccount, fundUnits),
-        entry(redemptionPayableAccount, cashAmount),
-        entry(fundCashAccount, cashAmount.negate()));
+        entry(userUnitsReservedAccount, fundUnits),
+        entry(unitsOutstandingAccount, fundUnits.negate()),
+        entry(userCashRedemptionAccount, cashAmount.negate()),
+        entry(redemptionExpenseAccount, cashAmount));
   }
 
   @Transactional
@@ -252,15 +273,16 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
         metadata,
-        entry(fundCashAccount, amount),
-        entry(payoutsCashAccount, amount.negate()));
+        entry(fundCashAccount, amount.negate()),
+        entry(payoutsCashAccount, amount));
   }
 
   @Transactional
-  public LedgerTransaction processRedemptionPayout(
+  public LedgerTransaction processRedemptionPayoutFromCashRedemption(
       User user, BigDecimal amount, String customerIban) {
+    LedgerParty userParty = getUserParty(user);
+    LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
     LedgerAccount payoutsCashAccount = getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET);
-    LedgerAccount redemptionPayableAccount = getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY);
 
     Map<String, Object> metadata =
         Map.of(
@@ -272,8 +294,8 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
         metadata,
-        entry(payoutsCashAccount, amount),
-        entry(redemptionPayableAccount, amount.negate()));
+        entry(payoutsCashAccount, amount.negate()),
+        entry(userCashRedemptionAccount, amount));
   }
 
   private LedgerEntryDto entry(LedgerAccount account, BigDecimal amount) {
@@ -290,23 +312,44 @@ public class SavingsFundLedger {
   private LedgerAccount getUserCashAccount(LedgerParty owner) {
     return ledgerAccountRepository
         .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            owner, CASH.name(), USER_ACCOUNT, EUR, ASSET)
-        .orElseGet(() -> ledgerAccountService.createUserAccount(owner, CASH, ASSET, EUR));
+            owner, CASH.name(), USER_ACCOUNT, EUR, LIABILITY)
+        .orElseGet(() -> ledgerAccountService.createUserAccount(owner, CASH, LIABILITY, EUR));
   }
 
   private LedgerAccount getUserCashReservedAccount(LedgerParty owner) {
     return ledgerAccountRepository
         .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            owner, CASH_RESERVED.name(), USER_ACCOUNT, EUR, ASSET)
-        .orElseGet(() -> ledgerAccountService.createUserAccount(owner, CASH_RESERVED, ASSET, EUR));
+            owner, CASH_RESERVED.name(), USER_ACCOUNT, EUR, LIABILITY)
+        .orElseGet(
+            () -> ledgerAccountService.createUserAccount(owner, CASH_RESERVED, LIABILITY, EUR));
+  }
+
+  private LedgerAccount getUserCashRedemptionAccount(LedgerParty owner) {
+    return ledgerAccountRepository
+        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+            owner, CASH_REDEMPTION.name(), USER_ACCOUNT, EUR, LIABILITY)
+        .orElseGet(
+            () -> ledgerAccountService.createUserAccount(owner, CASH_REDEMPTION, LIABILITY, EUR));
   }
 
   private LedgerAccount getUserUnitsAccount(LedgerParty userParty) {
     return ledgerAccountRepository
         .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            userParty, FUND_UNITS.name(), USER_ACCOUNT, FUND_UNIT, ASSET)
+            userParty, FUND_UNITS.name(), USER_ACCOUNT, FUND_UNIT, LIABILITY)
         .orElseGet(
-            () -> ledgerAccountService.createUserAccount(userParty, FUND_UNITS, ASSET, FUND_UNIT));
+            () ->
+                ledgerAccountService.createUserAccount(
+                    userParty, FUND_UNITS, LIABILITY, FUND_UNIT));
+  }
+
+  private LedgerAccount getUserUnitsReservedAccount(LedgerParty userParty) {
+    return ledgerAccountRepository
+        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+            userParty, FUND_UNITS_RESERVED.name(), USER_ACCOUNT, FUND_UNIT, LIABILITY)
+        .orElseGet(
+            () ->
+                ledgerAccountService.createUserAccount(
+                    userParty, FUND_UNITS_RESERVED, LIABILITY, FUND_UNIT));
   }
 
   private LedgerAccount getSystemAccount(

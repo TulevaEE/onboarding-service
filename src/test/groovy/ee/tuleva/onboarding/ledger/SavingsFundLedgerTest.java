@@ -70,12 +70,12 @@ class SavingsFundLedgerTest {
     assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
     assertThat(transaction.getMetadata().get("personalCode")).isEqualTo(testUser.getPersonalCode());
 
-    // Verify user cash account balance increased
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount);
+    // Verify user cash account balance liability increased
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
 
-    // Verify incoming payments clearing liability increased
-    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY).getBalance())
-        .isEqualByComparingTo(amount.negate());
+    // Verify incoming payments clearing asset increased
+    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET).getBalance())
+        .isEqualByComparingTo(amount);
 
     // Verify double-entry accounting is maintained
     verifyDoubleEntry(transaction);
@@ -97,9 +97,9 @@ class SavingsFundLedgerTest {
     assertThat(transaction.getMetadata().get("externalReference")).isEqualTo(externalReference);
 
     assertThat(getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET).getBalance())
-        .isEqualByComparingTo(amount);
-    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY).getBalance())
         .isEqualByComparingTo(amount.negate());
+    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET).getBalance())
+        .isEqualByComparingTo(amount);
 
     verifyDoubleEntry(transaction);
   }
@@ -120,7 +120,7 @@ class SavingsFundLedgerTest {
 
     assertThat(getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET).getBalance())
         .isEqualByComparingTo(ZERO);
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(amount.negate());
 
     verifyDoubleEntry(transaction);
   }
@@ -141,7 +141,7 @@ class SavingsFundLedgerTest {
 
     assertThat(getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET).getBalance())
         .isEqualByComparingTo(ZERO);
-    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY).getBalance())
+    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(ZERO);
 
     verifyDoubleEntry(transaction);
@@ -156,7 +156,7 @@ class SavingsFundLedgerTest {
 
     // Step 1: Payment received
     savingsFundLedger.recordPaymentReceived(testUser, cashAmount, "SETUP_REF");
-    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(cashAmount);
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(cashAmount.negate());
 
     // Step 2: Reserve payment for subscription (cash -> cash_reserved)
     LedgerTransaction reserveTransaction =
@@ -164,7 +164,7 @@ class SavingsFundLedgerTest {
     assertThat(reserveTransaction).isNotNull();
     assertThat(reserveTransaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RESERVED");
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(cashAmount);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(cashAmount.negate());
 
     // Step 3: Issue fund units from reserved account
     LedgerTransaction subscriptionTransaction =
@@ -178,11 +178,13 @@ class SavingsFundLedgerTest {
 
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits);
-    assertThat(getSystemAccount(FUND_SUBSCRIPTIONS_PAYABLE, EUR, LIABILITY).getBalance())
+    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
+    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(cashAmount);
     assertThat(getSystemAccount(FUND_UNITS_OUTSTANDING, FUND_UNIT, LIABILITY).getBalance())
-        .isEqualByComparingTo(fundUnits.negate());
+        .isEqualByComparingTo(fundUnits);
+    assertThat(getSystemAccount(SUBSCRIPTIONS, EUR, INCOME).getBalance())
+        .isEqualByComparingTo(cashAmount.negate());
 
     verifyDoubleEntry(reserveTransaction);
     verifyDoubleEntry(subscriptionTransaction);
@@ -199,41 +201,11 @@ class SavingsFundLedgerTest {
     assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_TRANSFER");
 
-    LedgerAccount incomingAccount = getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
+    LedgerAccount incomingAccount = getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET);
     assertThat(incomingAccount.getBalance()).isEqualByComparingTo(ZERO);
 
     LedgerAccount fundAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
-    assertThat(fundAccount.getBalance()).isEqualByComparingTo(amount.negate());
-
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  @DisplayName("Redemption flow: Should process redemption request correctly")
-  void testProcessRedemption() {
-    BigDecimal initialCash = new BigDecimal("1000.00");
-    BigDecimal initialUnits = new BigDecimal("10.0000");
-    BigDecimal redeemUnits = new BigDecimal("4.0000");
-    BigDecimal redeemAmount = new BigDecimal("400.00");
-    BigDecimal navPerUnit = new BigDecimal("100.00");
-    setupUserWithFundUnits(initialCash, initialUnits, navPerUnit);
-
-    LedgerTransaction transaction =
-        savingsFundLedger.processRedemption(testUser, redeemUnits, redeemAmount, navPerUnit);
-
-    assertThat(transaction).isNotNull();
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("REDEMPTION_REQUEST");
-    assertThat(transaction.getMetadata().get("navPerUnit")).isEqualTo(navPerUnit);
-    assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
-
-    assertThat(getUserUnitsAccount().getBalance())
-        .isEqualByComparingTo(initialUnits.subtract(redeemUnits));
-    assertThat(getSystemAccount(FUND_UNITS_OUTSTANDING, FUND_UNIT, LIABILITY).getBalance())
-        .isEqualByComparingTo(initialUnits.negate().add(redeemUnits));
-    assertThat(getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY).getBalance())
-        .isEqualByComparingTo(redeemAmount);
-    assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET).getBalance())
-        .isEqualByComparingTo(initialCash.negate().subtract(redeemAmount));
+    assertThat(fundAccount.getBalance()).isEqualByComparingTo(amount);
 
     verifyDoubleEntry(transaction);
   }
@@ -252,30 +224,7 @@ class SavingsFundLedgerTest {
     assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(ZERO);
     assertThat(getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET).getBalance())
-        .isEqualByComparingTo(amount.negate());
-
-    verifyDoubleEntry(transaction);
-  }
-
-  @Test
-  @DisplayName("Redemption flow: Should process final payout to customer")
-  void testProcessRedemptionPayout() {
-    BigDecimal amount = new BigDecimal("500.00");
-    String customerIban = "EE111222333444555666";
-    setupRedemptionScenario(amount);
-
-    LedgerTransaction transaction =
-        savingsFundLedger.processRedemptionPayout(testUser, amount, customerIban);
-
-    assertThat(transaction).isNotNull();
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("REDEMPTION_PAYOUT");
-    assertThat(transaction.getMetadata().get("customerIban")).isEqualTo(customerIban);
-    assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
-
-    assertThat(getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET).getBalance())
-        .isEqualByComparingTo(ZERO);
-    assertThat(getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY).getBalance())
-        .isEqualByComparingTo(ZERO);
+        .isEqualByComparingTo(amount);
 
     verifyDoubleEntry(transaction);
   }
@@ -303,11 +252,13 @@ class SavingsFundLedgerTest {
 
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
-    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits);
+    assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits.negate());
     assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET).getBalance())
-        .isEqualByComparingTo(paymentAmount.negate());
-    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY).getBalance())
+        .isEqualByComparingTo(paymentAmount);
+    assertThat(getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(ZERO);
+    assertThat(getSystemAccount(SUBSCRIPTIONS, EUR, INCOME).getBalance())
+        .isEqualByComparingTo(paymentAmount.negate());
   }
 
   @Test
@@ -321,22 +272,58 @@ class SavingsFundLedgerTest {
     String customerIban = "EE777888999000111222";
     setupUserWithFundUnits(initialAmount, initialUnits, navPerUnit);
 
+    LedgerTransaction reserveTx =
+        savingsFundLedger.reserveFundUnitsForRedemption(testUser, redeemUnits);
     LedgerTransaction redemptionTx =
-        savingsFundLedger.processRedemption(testUser, redeemUnits, redeemAmount, navPerUnit);
+        savingsFundLedger.processRedemptionFromReserved(
+            testUser, redeemUnits, redeemAmount, navPerUnit);
     LedgerTransaction cashTransferTx = savingsFundLedger.transferFundToPayoutCash(redeemAmount);
     LedgerTransaction payoutTx =
-        savingsFundLedger.processRedemptionPayout(testUser, redeemAmount, customerIban);
+        savingsFundLedger.processRedemptionPayoutFromCashRedemption(
+            testUser, redeemAmount, customerIban);
 
+    verifyDoubleEntry(reserveTx);
     verifyDoubleEntry(redemptionTx);
     verifyDoubleEntry(cashTransferTx);
     verifyDoubleEntry(payoutTx);
 
     assertThat(getUserUnitsAccount().getBalance())
-        .isEqualByComparingTo(initialUnits.subtract(redeemUnits));
-    assertThat(getSystemAccount(REDEMPTION_PAYABLE, EUR, LIABILITY).getBalance())
-        .isEqualByComparingTo(ZERO);
+        .isEqualByComparingTo(initialUnits.negate().add(redeemUnits));
+    assertThat(getUserReservedUnitsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getSystemAccount(REDEMPTIONS, EUR, EXPENSE).getBalance())
+        .isEqualByComparingTo(redeemAmount);
     assertThat(getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  @DisplayName("Redemption flow: Should process final payout to customer")
+  void testProcessRedemptionPayoutFromCashRedemption() {
+    BigDecimal amount = new BigDecimal("500.00");
+    String customerIban = "EE111222333444555666";
+    setupRedemptionScenario(amount);
+
+    LedgerTransaction transaction =
+        savingsFundLedger.processRedemptionPayoutFromCashRedemption(testUser, amount, customerIban);
+
+    assertThat(transaction).isNotNull();
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("REDEMPTION_PAYOUT");
+    assertThat(transaction.getMetadata().get("customerIban")).isEqualTo(customerIban);
+    assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
+
+    // After payout, user's cash redemption account should be empty
+    LedgerAccount userCashRedemptionAccount =
+        ledgerAccountRepository
+            .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+                userParty, CASH_REDEMPTION.name(), USER_ACCOUNT, EUR, LIABILITY)
+            .orElseThrow();
+    assertThat(userCashRedemptionAccount.getBalance()).isEqualByComparingTo(ZERO);
+
+    // Payouts cash clearing should also be zero (money sent out)
+    assertThat(getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET).getBalance())
+        .isEqualByComparingTo(ZERO);
+
+    verifyDoubleEntry(transaction);
   }
 
   @Test
@@ -378,20 +365,19 @@ class SavingsFundLedgerTest {
 
     LedgerAccount userUnitsAccount = getUserUnitsAccount();
     assertThat(userUnitsAccount.getEntries()).isNotNull();
-    assertThat(userUnitsAccount.getBalance()).isEqualByComparingTo(new BigDecimal("10.0"));
+    assertThat(userUnitsAccount.getBalance()).isEqualByComparingTo(new BigDecimal("-10.0"));
 
-    LedgerAccount fundSubscriptionsAccount =
-        getSystemAccount(FUND_SUBSCRIPTIONS_PAYABLE, EUR, LIABILITY);
+    LedgerAccount fundSubscriptionsAccount = getSystemAccount(SUBSCRIPTIONS, EUR, INCOME);
     assertThat(fundSubscriptionsAccount.getEntries()).isNotNull();
-    assertThat(fundSubscriptionsAccount.getBalance()).isEqualByComparingTo(amount);
+    assertThat(fundSubscriptionsAccount.getBalance()).isEqualByComparingTo(amount.negate());
 
     LedgerAccount fundInvestmentAccount =
         getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
     assertThat(fundInvestmentAccount.getEntries()).isNotNull();
-    assertThat(fundInvestmentAccount.getBalance()).isEqualByComparingTo(amount.negate());
+    assertThat(fundInvestmentAccount.getBalance()).isEqualByComparingTo(amount);
 
     LedgerAccount incomingPaymentsAccount =
-        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY);
+        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET);
     assertThat(incomingPaymentsAccount.getEntries()).isNotNull();
     assertThat(incomingPaymentsAccount.getBalance()).isEqualByComparingTo(ZERO);
   }
@@ -413,7 +399,8 @@ class SavingsFundLedgerTest {
 
   private void setupRedemptionScenario(BigDecimal amount) {
     setupUserWithFundUnits(amount, new BigDecimal("5.0"), new BigDecimal("100.00"));
-    savingsFundLedger.processRedemption(
+    savingsFundLedger.reserveFundUnitsForRedemption(testUser, new BigDecimal("5.0"));
+    savingsFundLedger.processRedemptionFromReserved(
         testUser, new BigDecimal("5.0"), amount, new BigDecimal("100.00"));
     savingsFundLedger.transferFundToPayoutCash(amount);
   }
@@ -421,21 +408,28 @@ class SavingsFundLedgerTest {
   private LedgerAccount getUserCashAccount() {
     return ledgerAccountRepository
         .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            userParty, CASH.name(), USER_ACCOUNT, EUR, ASSET)
+            userParty, CASH.name(), USER_ACCOUNT, EUR, LIABILITY)
         .orElseThrow();
   }
 
   private LedgerAccount getUserCashReservedAccount() {
     return ledgerAccountRepository
         .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            userParty, CASH_RESERVED.name(), USER_ACCOUNT, EUR, ASSET)
+            userParty, CASH_RESERVED.name(), USER_ACCOUNT, EUR, LIABILITY)
         .orElseThrow();
   }
 
   private LedgerAccount getUserUnitsAccount() {
     return ledgerAccountRepository
         .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            userParty, FUND_UNITS.name(), USER_ACCOUNT, FUND_UNIT, ASSET)
+            userParty, FUND_UNITS.name(), USER_ACCOUNT, FUND_UNIT, LIABILITY)
+        .orElseThrow();
+  }
+
+  private LedgerAccount getUserReservedUnitsAccount() {
+    return ledgerAccountRepository
+        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+            userParty, FUND_UNITS_RESERVED.name(), USER_ACCOUNT, FUND_UNIT, LIABILITY)
         .orElseThrow();
   }
 

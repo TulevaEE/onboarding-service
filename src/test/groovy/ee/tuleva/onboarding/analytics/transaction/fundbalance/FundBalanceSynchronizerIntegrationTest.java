@@ -4,6 +4,8 @@ import static ee.tuleva.onboarding.analytics.transaction.fundbalance.FundBalance
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
+import ee.tuleva.onboarding.epis.EnableEpisServiceHolder;
+import ee.tuleva.onboarding.epis.EnableEpisServiceHolder.EpisServiceHolder;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.*;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -19,14 +21,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootTest
 @Transactional
+@EnableEpisServiceHolder
 class FundBalanceSynchronizerIntegrationTest {
 
   private static final LocalDate SYNC_DATE = LocalDate.of(2025, 4, 21);
@@ -34,13 +34,14 @@ class FundBalanceSynchronizerIntegrationTest {
 
   @Autowired private FundBalanceSynchronizer synchronizer;
   @Autowired private FundBalanceRepository repository;
-  @Autowired private MockEpisService mockEpisService;
+  @Autowired private EpisServiceHolder episServiceHolder;
+  private MockEpisService mockEpisService;
 
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(TestClockHolder.clock);
     repository.deleteAll();
-    mockEpisService.reset();
+    mockEpisService = episServiceHolder.createDelegate(MockEpisService::new);
   }
 
   @AfterEach
@@ -113,15 +114,6 @@ class FundBalanceSynchronizerIntegrationTest {
     assertThat(all.get(0).getIsin()).isEqualTo("EXISTING_ISIN");
   }
 
-  @TestConfiguration
-  static class Config {
-    @Bean
-    @Primary
-    public MockEpisService mockEpisService(RestTemplate restTemplate, JwtTokenUtil jwtTokenUtil) {
-      return new MockEpisService(restTemplate, jwtTokenUtil);
-    }
-  }
-
   static class MockEpisService extends EpisService {
     private List<TransactionFundBalanceDto> fundBalances = new ArrayList<>();
 
@@ -164,10 +156,6 @@ class FundBalanceSynchronizerIntegrationTest {
 
     public void setFundBalances(List<TransactionFundBalanceDto> balances) {
       this.fundBalances = new ArrayList<>(balances);
-    }
-
-    public void reset() {
-      this.fundBalances.clear();
     }
   }
 }

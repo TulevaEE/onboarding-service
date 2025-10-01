@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.analytics.transaction.fund;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
+import ee.tuleva.onboarding.epis.EnableEpisServiceHolder;
+import ee.tuleva.onboarding.epis.EnableEpisServiceHolder.EpisServiceHolder;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.FundTransactionDto;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -18,14 +20,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootTest
 @Transactional
+@EnableEpisServiceHolder
 class FundTransactionSynchronizerIntegrationTest {
 
   private static final String SYNC_ISIN = "EE_SYNC_ISIN";
@@ -44,13 +44,14 @@ class FundTransactionSynchronizerIntegrationTest {
 
   @Autowired private FundTransactionSynchronizer synchronizer;
   @Autowired private FundTransactionRepository repository;
-  @Autowired private MockEpisService mockEpisService;
+  @Autowired private EpisServiceHolder episServiceHolder;
+  private MockEpisService mockEpisService;
 
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(TestClockHolder.clock);
     repository.deleteAll();
-    mockEpisService.reset();
+    mockEpisService = episServiceHolder.createDelegate(MockEpisService::new);
   }
 
   @AfterEach
@@ -178,15 +179,6 @@ class FundTransactionSynchronizerIntegrationTest {
     assertThat(all.get(0).getPersonalId()).isEqualTo("ID_EXISTING");
   }
 
-  @TestConfiguration
-  static class Config {
-    @Bean
-    @Primary
-    public MockEpisService mockEpisService() {
-      return new MockEpisService(null, null);
-    }
-  }
-
   static class MockEpisService extends EpisService {
     private List<FundTransactionDto> fundTransactions = new ArrayList<>();
 
@@ -202,10 +194,6 @@ class FundTransactionSynchronizerIntegrationTest {
 
     public void setFundTransactions(List<FundTransactionDto> transactions) {
       this.fundTransactions = new ArrayList<>(transactions);
-    }
-
-    public void reset() {
-      this.fundTransactions.clear();
     }
   }
 }

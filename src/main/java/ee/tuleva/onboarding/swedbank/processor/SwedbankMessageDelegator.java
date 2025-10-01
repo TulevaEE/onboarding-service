@@ -26,8 +26,9 @@ public class SwedbankMessageDelegator {
 
   @Scheduled(cron = "0 */5 9-17 * * MON-FRI", zone = "Europe/Tallinn")
   public void processMessages() {
-    // TODO failed logic?
-    var messages = swedbankMessageRepository.findAllByProcessedAtIsNullOrderByReceivedAtDesc();
+    var messages =
+        swedbankMessageRepository
+            .findAllByProcessedAtIsNullAndFailedAtIsNullOrderByReceivedAtDesc();
 
     for (SwedbankMessage message : messages) {
       processMessage(message);
@@ -43,17 +44,26 @@ public class SwedbankMessageDelegator {
       var supportedProcessor =
           messageProcessors.stream()
               .filter(processor -> processor.supports(messageType))
-              .findFirst()
-              .orElseThrow();
+              .findFirst();
 
-      supportedProcessor.processMessage(message.getRawResponse(), messageType);
+      if (supportedProcessor.isEmpty()) {
+        log.info(
+            "No processor found for message type: {} (message id: {})",
+            messageType,
+            message.getId());
+        return;
+      }
+
+      supportedProcessor.get().processMessage(message.getRawResponse(), messageType);
 
       message.setProcessedAt(clock.instant());
 
       swedbankMessageRepository.save(message);
     } catch (Exception e) {
-      // TODO to error when processors finished
-      log.info("Failed to process message id:" + message.getId(), e);
+      log.error("Failed to process message id: {}", message.getId(), e);
+      message.setFailedAt(clock.instant());
+      // TODO: send Slack message ?
+      swedbankMessageRepository.save(message);
     }
   }
 

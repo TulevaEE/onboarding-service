@@ -38,6 +38,8 @@ public class SavingFundPayment {
   Instant statusChangedAt;
   Instant cancelledAt;
 
+  @Nullable String returnReason;
+
   public enum Status {
 
     CREATED,

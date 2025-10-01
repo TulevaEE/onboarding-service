@@ -167,6 +167,18 @@ class SavingFundPaymentRepositoryTest {
     assertThat(payments.getFirst().getCancelledAt()).isCloseTo(Instant.now(), within(10, SECONDS));
   }
 
+  @Test
+  void returnReason() {
+    var id = repository.savePaymentData(createPayment().build());
+
+    repository.addReturnReason(id, "not ok");
+
+    var payments = repository.findPaymentsWithStatus(CREATED);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getReturnReason()).isEqualTo("not ok");
+  }
+
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {
     return SavingFundPayment.builder()
         .remitterName("John Doe")

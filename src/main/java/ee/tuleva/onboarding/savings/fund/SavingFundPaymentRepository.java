@@ -90,6 +90,7 @@ public class SavingFundPaymentRepository {
         .createdAt(instant(rs, "created_at"))
         .statusChangedAt(instant(rs, "status_changed_at"))
         .cancelledAt(instant(rs, "cancelled_at"))
+        .returnReason(rs.getString("return_reason"))
         .build();
   }
 
@@ -134,7 +135,8 @@ public class SavingFundPaymentRepository {
   }
 
   public void addReturnReason(UUID paymentId, String reason) {
-
+    jdbcTemplate.update("UPDATE saving_fund_payment SET return_reason=:reason WHERE id=:id",
+        Map.of("id", paymentId, "reason", reason));
   }
 
   public void cancel(UUID paymentId) {

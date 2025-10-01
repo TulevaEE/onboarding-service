@@ -1,62 +1,41 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static jakarta.persistence.EnumType.STRING;
 
-import ee.tuleva.onboarding.currency.Currency;
-import jakarta.annotation.Nullable;
-import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
-import lombok.*;
 
-@Entity
-@Table(name = "saving_fund_payment")
-@Getter
-@Setter
+import ee.tuleva.onboarding.currency.Currency;
+import jakarta.annotation.Nullable;
+import lombok.Builder;
+import lombok.Value;
+
+@Value
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class SavingFundPayment {
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(nullable = false)
-  private UUID id;
+  UUID id;
+  BigDecimal amount;
 
-  @Column(nullable = false)
-  private BigDecimal amount;
-
-  @NotNull
-  @Enumerated(STRING)
   @Builder.Default
-  private Currency currency = EUR;
+  Currency currency = EUR;
 
-  @Nullable @Column private String description;
+  String description;
+  String remitterIban;
+  String remitterName;
+  @Nullable String remitterIdCode;
+  String beneficiaryIban;
+  String beneficiaryName;
+  @Nullable String beneficiaryIdCode;
 
-  @Nullable @Column private String remitterIban;
+  @Nullable String externalId;
 
-  @Nullable @Column private String remitterIdCode;
+  Instant createdAt;
 
-  @Nullable @Column private String remitterName;
+  @Builder.Default
+  Status status = Status.CREATED;
 
-  @Nullable @Column private String beneficiaryIban;
-
-  @Nullable @Column private String beneficiaryIdCode;
-
-  @Nullable @Column private String beneficiaryName;
-
-  @Nullable
-  @Column(name = "external_id")
-  private String externalId;
-
-  @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
-  private Instant createdAt;
-
-  @Nullable
-  @Column(name = "received_at", columnDefinition = "TIMESTAMPTZ")
-  private Instant receivedAt;
+  Instant statusChangedAt;
 
   public enum Status {
 
@@ -65,10 +44,10 @@ public class SavingFundPayment {
     VERIFIED, // sanctions check + identity check
     RESERVED,
     PROCESSED,
-
     CANCELLED, // sanctions check
     FROZEN, // maybe manually changeable to VERIFIED
-    TO_BE_RETURNED, RETURNED,
+    TO_BE_RETURNED,
+    RETURNED,
 
   }
 }

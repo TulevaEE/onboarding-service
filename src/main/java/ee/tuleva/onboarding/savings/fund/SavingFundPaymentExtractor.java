@@ -33,12 +33,12 @@ public class SavingFundPaymentExtractor {
     var account = statement.getBankStatementAccount();
 
     return statement.getEntries().stream()
-        .map(entry -> convertToSavingFundPayment(entry, account, receivedAt))
+        .map(entry -> convertToSavingFundPayment(entry, account))
         .toList();
   }
 
   private SavingFundPayment convertToSavingFundPayment(
-      BankStatementEntry entry, BankStatementAccount account, Instant receivedAt) {
+      BankStatementEntry entry, BankStatementAccount account) {
 
     if (!Objects.equals(entry.currencyCode(), "EUR")) {
       throw new PaymentProcessingException(
@@ -56,8 +56,7 @@ public class SavingFundPaymentExtractor {
             .amount(entry.amount())
             .currency(currency)
             .description(entry.remittanceInformation())
-            .externalId(entry.externalId())
-            .receivedAt(receivedAt);
+            .externalId(entry.externalId());
 
     if (entry.transactionType() == TransactionType.CREDIT) {
       builder

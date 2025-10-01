@@ -163,7 +163,7 @@ class PaymentControllerSpec extends BaseControllerSpec {
     given:
     def mvc = mockMvc(paymentController)
 
-    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> Optional.of(new SavingFundPayment())
+    1 * paymentService.processSavingsPaymentToken(aSerializedSavingsPaymentToken) >> Optional.of(SavingFundPayment.builder().build())
     expect:
     mvc.perform(get("/v1/payments/savings/callback")
         .param("order-token", aSerializedSavingsPaymentToken))

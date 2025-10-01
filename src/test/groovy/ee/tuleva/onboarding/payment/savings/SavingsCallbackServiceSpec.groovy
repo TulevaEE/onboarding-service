@@ -52,7 +52,6 @@ class SavingsCallbackServiceSpec extends Specification {
     payment.remitterName == token.senderName
     payment.beneficiaryIban == null
     payment.beneficiaryName == null
-    payment.receivedAt == null
   }
 
   def "if payment already exists then no payment is saved"() {

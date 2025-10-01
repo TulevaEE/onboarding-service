@@ -24,7 +24,7 @@ public class SwedbankMessageDelegator {
   private final SwedbankMessageRepository swedbankMessageRepository;
   private final List<SwedbankMessageProcessor> messageProcessors;
 
-  @Scheduled(cron = "0 */5 9-17 * * MON-FRI")
+  @Scheduled(cron = "0 */5 9-17 * * MON-FRI", zone = "Europe/Tallinn")
   public void processMessages() {
     // TODO failed logic?
     var messages = swedbankMessageRepository.findAllByProcessedAtIsNullOrderByReceivedAtDesc();

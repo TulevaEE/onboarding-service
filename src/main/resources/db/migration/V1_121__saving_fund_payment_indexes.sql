@@ -1,0 +1,3 @@
+CREATE INDEX idx_saving_fund_payment_status ON saving_fund_payment(status);
+CREATE INDEX idx_saving_fund_payment_description_created_at ON saving_fund_payment(description, created_at);
+CREATE INDEX idx_saving_fund_payment_user_id ON saving_fund_payment(user_id);

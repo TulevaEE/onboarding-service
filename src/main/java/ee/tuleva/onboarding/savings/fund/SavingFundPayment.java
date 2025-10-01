@@ -2,12 +2,11 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
 
+import ee.tuleva.onboarding.currency.Currency;
+import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
-
-import ee.tuleva.onboarding.currency.Currency;
-import jakarta.annotation.Nullable;
 import lombok.Builder;
 import lombok.Value;
 
@@ -18,8 +17,7 @@ public class SavingFundPayment {
   Long userId;
 
   BigDecimal amount;
-  @Builder.Default
-  Currency currency = EUR;
+  @Builder.Default Currency currency = EUR;
 
   String description;
   String remitterIban;
@@ -33,8 +31,7 @@ public class SavingFundPayment {
 
   Instant createdAt;
 
-  @Builder.Default
-  Status status = Status.CREATED;
+  @Builder.Default Status status = Status.CREATED;
 
   Instant statusChangedAt;
   Instant cancelledAt;
@@ -42,7 +39,6 @@ public class SavingFundPayment {
   @Nullable String returnReason;
 
   public enum Status {
-
     CREATED,
     RECEIVED,
     VERIFIED,
@@ -51,7 +47,5 @@ public class SavingFundPayment {
     FROZEN,
     TO_BE_RETURNED,
     RETURNED,
-
   }
-
 }

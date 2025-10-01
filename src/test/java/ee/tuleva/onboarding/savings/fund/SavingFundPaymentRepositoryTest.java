@@ -11,13 +11,15 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
 
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -26,10 +28,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
-
-import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
-import ee.tuleva.onboarding.user.User;
-import ee.tuleva.onboarding.user.UserRepository;
 
 @SpringBootTest
 @Transactional
@@ -49,7 +47,10 @@ class SavingFundPaymentRepositoryTest {
     assertThat(payments).hasSize(1);
 
     var savedPayment = payments.getFirst();
-    assertThat(savedPayment).usingRecursiveComparison().ignoringFields("id", "createdAt", "statusChangedAt").isEqualTo(payment);
+    assertThat(savedPayment)
+        .usingRecursiveComparison()
+        .ignoringFields("id", "createdAt", "statusChangedAt")
+        .isEqualTo(payment);
     assertThat(savedPayment.getId()).isEqualTo(id);
     assertThat(savedPayment.getCreatedAt()).isCloseTo(Instant.now(), within(10, SECONDS));
     assertThat(savedPayment.getStatusChangedAt()).isEqualTo(savedPayment.getCreatedAt());
@@ -57,14 +58,15 @@ class SavingFundPaymentRepositoryTest {
 
   @Test
   void updatePaymentData() {
-    var originalPayment = SavingFundPayment.builder()
-        .remitterName("John")
-        .remitterIban("IBAN-1")
-        .beneficiaryName("Jane")
-        .beneficiaryIban("IBAN-2")
-        .amount(new BigDecimal("100.70"))
-        .description("my money")
-        .build();
+    var originalPayment =
+        SavingFundPayment.builder()
+            .remitterName("John")
+            .remitterIban("IBAN-1")
+            .beneficiaryName("Jane")
+            .beneficiaryIban("IBAN-2")
+            .amount(new BigDecimal("100.70"))
+            .description("my money")
+            .build();
     var id = repository.savePaymentData(originalPayment);
 
     var payments1 = repository.findPaymentsWithStatus(CREATED);
@@ -76,7 +78,10 @@ class SavingFundPaymentRepositoryTest {
     assertThat(payments2).hasSize(1);
 
     var savedPayment = payments2.getFirst();
-    assertThat(savedPayment).usingRecursiveComparison().ignoringFields("id", "createdAt", "statusChangedAt").isEqualTo(updatedPayment);
+    assertThat(savedPayment)
+        .usingRecursiveComparison()
+        .ignoringFields("id", "createdAt", "statusChangedAt")
+        .isEqualTo(updatedPayment);
     assertThat(savedPayment.getId()).isEqualTo(id);
     assertThat(savedPayment.getCreatedAt()).isCloseTo(Instant.now(), within(10, SECONDS));
     assertThat(savedPayment.getCreatedAt()).isEqualTo(payments1.getFirst().getCreatedAt());
@@ -107,19 +112,21 @@ class SavingFundPaymentRepositoryTest {
 
   @ParameterizedTest
   @CsvSource({
-      "CREATED, RECEIVED",
-      "RECEIVED, VERIFIED|FROZEN|TO_BE_RETURNED",
-      "VERIFIED, RESERVED|TO_BE_RETURNED",
-      "RESERVED, PROCESSED",
-      "PROCESSED, -",
-      "FROZEN, -",
-      "TO_BE_RETURNED, RETURNED",
-      "RETURNED, -",
+    "CREATED, RECEIVED",
+    "RECEIVED, VERIFIED|FROZEN|TO_BE_RETURNED",
+    "VERIFIED, RESERVED|TO_BE_RETURNED",
+    "RESERVED, PROCESSED",
+    "PROCESSED, -",
+    "FROZEN, -",
+    "TO_BE_RETURNED, RETURNED",
+    "RETURNED, -",
   })
   void permittedStatusChanges(Status initialStatus, String permittedNextStatusesString) {
     var id = repository.savePaymentData(createPayment().build());
-    var permittedNextStatuses = permittedNextStatusesString.equals("-") ? List.of() :
-        Arrays.stream(permittedNextStatusesString.split("\\|")).map(Status::valueOf).toList();
+    var permittedNextStatuses =
+        permittedNextStatusesString.equals("-")
+            ? List.of()
+            : Arrays.stream(permittedNextStatusesString.split("\\|")).map(Status::valueOf).toList();
     for (Status status : Status.values()) {
       updatePaymentStatus(id, initialStatus);
       if (permittedNextStatuses.contains(status))
@@ -127,8 +134,9 @@ class SavingFundPaymentRepositoryTest {
             .withFailMessage(initialStatus + " -> " + status + " should be allowed")
             .doesNotThrowAnyException();
       else
-        assertThatThrownBy(() -> repository.changeStatus(id, status),
-            initialStatus + " -> " + status + " should not be allowed")
+        assertThatThrownBy(
+                () -> repository.changeStatus(id, status),
+                initialStatus + " -> " + status + " should not be allowed")
             .isInstanceOf(RuntimeException.class);
     }
   }
@@ -136,22 +144,28 @@ class SavingFundPaymentRepositoryTest {
   @Test
   void statusChangedAt() {
     var id = repository.savePaymentData(createPayment().build());
-    jdbcTemplate.update("update saving_fund_payment set status_changed_at='2020-01-01'::date", Map.of());
+    jdbcTemplate.update(
+        "update saving_fund_payment set status_changed_at='2020-01-01'::date", Map.of());
 
     repository.changeStatus(id, RECEIVED);
 
     var payments = repository.findPaymentsWithStatus(RECEIVED);
 
-    assertThat(payments.getFirst().getStatusChangedAt()).isCloseTo(Instant.now(), within(10, SECONDS));
+    assertThat(payments.getFirst().getStatusChangedAt())
+        .isCloseTo(Instant.now(), within(10, SECONDS));
   }
 
   @Test
   void findRecentPayments() {
-    var id1 = repository.savePaymentData(createPayment().externalId("1").description("abc").build());
-    var id2 = repository.savePaymentData(createPayment().externalId("2").description("abc").build());
-    var ignored = repository.savePaymentData(createPayment().externalId("3").description("def").build());
+    var id1 =
+        repository.savePaymentData(createPayment().externalId("1").description("abc").build());
+    var id2 =
+        repository.savePaymentData(createPayment().externalId("2").description("abc").build());
+    var ignored =
+        repository.savePaymentData(createPayment().externalId("3").description("def").build());
 
-    jdbcTemplate.update("update saving_fund_payment set created_at='2025-08-10'::date where id=:id",
+    jdbcTemplate.update(
+        "update saving_fund_payment set created_at='2025-08-10'::date where id=:id",
         Map.of("id", id1));
 
     var recentPayments = repository.findRecentPayments("abc");
@@ -161,7 +175,9 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @ParameterizedTest
-  @EnumSource(value = Status.class, names = {"CREATED", "RECEIVED", "VERIFIED"})
+  @EnumSource(
+      value = Status.class,
+      names = {"CREATED", "RECEIVED", "VERIFIED"})
   void cancel(Status status) {
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
@@ -175,7 +191,10 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @ParameterizedTest
-  @EnumSource(value = Status.class, names = {"CREATED", "RECEIVED", "VERIFIED"}, mode = EXCLUDE)
+  @EnumSource(
+      value = Status.class,
+      names = {"CREATED", "RECEIVED", "VERIFIED"},
+      mode = EXCLUDE)
   void cancel_notAllowed(Status status) {
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
@@ -189,13 +208,19 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @ParameterizedTest
-  @EnumSource(value = Status.class, names = {"CREATED", "RECEIVED"})
+  @EnumSource(
+      value = Status.class,
+      names = {"CREATED", "RECEIVED"})
   void attachUser(Status status) {
-    var userId = userRepository.save(User.builder()
-        .firstName("John")
-        .lastName("Smith")
-        .personalCode("48806046007")
-        .build()).getId();
+    var userId =
+        userRepository
+            .save(
+                User.builder()
+                    .firstName("John")
+                    .lastName("Smith")
+                    .personalCode("48806046007")
+                    .build())
+            .getId();
 
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
@@ -209,18 +234,26 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @ParameterizedTest
-  @EnumSource(value = Status.class, names = {"CREATED", "RECEIVED"}, mode = EXCLUDE)
+  @EnumSource(
+      value = Status.class,
+      names = {"CREATED", "RECEIVED"},
+      mode = EXCLUDE)
   void attachUser_notAllowed(Status status) {
-    var userId = userRepository.save(User.builder()
-        .firstName("John")
-        .lastName("Smith")
-        .personalCode("48806046007")
-        .build()).getId();
+    var userId =
+        userRepository
+            .save(
+                User.builder()
+                    .firstName("John")
+                    .lastName("Smith")
+                    .personalCode("48806046007")
+                    .build())
+            .getId();
 
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
 
-    assertThatThrownBy(() -> repository.attachUser(id, userId)).isInstanceOf(RuntimeException.class);
+    assertThatThrownBy(() -> repository.attachUser(id, userId))
+        .isInstanceOf(RuntimeException.class);
 
     var payments = repository.findPaymentsWithStatus(status);
 
@@ -262,12 +295,12 @@ class SavingFundPaymentRepositoryTest {
         .beneficiaryIban("IBAN-2")
         .amount(new BigDecimal("100.70"))
         .description("my money")
-        .externalId("abc123")
-        ;
+        .externalId("abc123");
   }
 
   private int updatePaymentStatus(UUID paymentId, Status initialStatus) {
-    return jdbcTemplate.update("update saving_fund_payment set status=:status where id=:id",
+    return jdbcTemplate.update(
+        "update saving_fund_payment set status=:status where id=:id",
         Map.of("status", initialStatus.name(), "id", paymentId));
   }
 }

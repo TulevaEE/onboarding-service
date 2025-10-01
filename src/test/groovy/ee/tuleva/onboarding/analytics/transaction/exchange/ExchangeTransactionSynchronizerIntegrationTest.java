@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.analytics.transaction.exchange;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.auth.jwt.JwtTokenUtil;
+import ee.tuleva.onboarding.epis.EnableEpisServiceHolder;
+import ee.tuleva.onboarding.epis.EnableEpisServiceHolder.EpisServiceHolder;
 import ee.tuleva.onboarding.epis.EpisService;
 import ee.tuleva.onboarding.epis.transaction.ExchangeTransactionDto;
 import ee.tuleva.onboarding.time.ClockHolder;
@@ -19,27 +21,26 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootTest
 @Transactional
+@EnableEpisServiceHolder
 class ExchangeTransactionSynchronizerIntegrationTest {
 
   private static final LocalDate SYNC_REPORTING_DATE = LocalDate.of(2025, 1, 15);
 
   @Autowired private ExchangeTransactionSynchronizer synchronizer;
   @Autowired private ExchangeTransactionRepository repository;
-  @Autowired private MockEpisService mockEpisService;
+  @Autowired private EpisServiceHolder episServiceHolder;
+  private MockEpisService mockEpisService;
 
   @BeforeEach
   void setUp() {
     ClockHolder.setClock(TestClockHolder.clock);
     repository.deleteAll();
-    mockEpisService.reset();
+    mockEpisService = episServiceHolder.createDelegate(MockEpisService::new);
   }
 
   @AfterEach
@@ -118,15 +119,6 @@ class ExchangeTransactionSynchronizerIntegrationTest {
     assertThat(all.get(0).getCode()).isEqualTo("OTHER_CODE");
   }
 
-  @TestConfiguration
-  static class Config {
-    @Bean
-    @Primary
-    public MockEpisService mockEpisService() {
-      return new MockEpisService(null, null);
-    }
-  }
-
   static class MockEpisService extends EpisService {
     private List<ExchangeTransactionDto> exchangeTransactions = new ArrayList<>();
 
@@ -145,10 +137,6 @@ class ExchangeTransactionSynchronizerIntegrationTest {
 
     public void setExchangeTransactions(List<ExchangeTransactionDto> transactions) {
       this.exchangeTransactions = new ArrayList<>(transactions);
-    }
-
-    public void reset() {
-      this.exchangeTransactions.clear();
     }
   }
 }

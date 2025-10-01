@@ -3,6 +3,8 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.CASH;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
@@ -34,8 +36,9 @@ public class LedgerService {
 
     LedgerParty party = ledgerPartyService.createParty(user);
 
-    LedgerAccount cashAccount = ledgerAccountService.createAccount(party, EUR, ASSET);
-    LedgerAccount fundUnitsAccount = ledgerAccountService.createAccount(party, FUND_UNIT, ASSET);
+    LedgerAccount cashAccount = ledgerAccountService.createUserAccount(party, CASH, ASSET, EUR);
+    LedgerAccount fundUnitsAccount =
+        ledgerAccountService.createUserAccount(party, FUND_UNITS, ASSET, FUND_UNIT);
 
     return ledgerAccountService.getAccounts(party);
   }
@@ -49,7 +52,7 @@ public class LedgerService {
 
     LedgerAccount userCashAccount =
         ledgerAccountService
-            .getLedgerAccount(userParty, ASSET, assetType)
+            .getLedgerAccount(userParty, CASH, ASSET, assetType)
             .orElseThrow(() -> new IllegalStateException("User cash account not found"));
 
     if (userCashAccount.getAssetType() != assetType) {

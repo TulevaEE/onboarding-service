@@ -24,8 +24,7 @@ class IssuerService {
     var unitsAmount = payment.amount().divide(nav, 5, HALF_DOWN); // TODO rounding mode, scale?
     var cashAmount = payment.amount();
 
-    // TODO from reserved cash account
-    savingsFundLedger.issueFundUnits(remitter, cashAmount, unitsAmount, nav);
+    savingsFundLedger.issueFundUnitsFromReserved(remitter, cashAmount, unitsAmount, nav);
 
     // TODO payment status to ...
   }

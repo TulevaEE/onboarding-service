@@ -12,11 +12,12 @@ import org.springframework.stereotype.Repository;
 @Repository
 interface LedgerAccountRepository extends CrudRepository<LedgerAccount, UUID> {
 
-  Optional<LedgerAccount> findByOwnerAndAccountTypeAndAssetType(
-      LedgerParty owner, AccountType accountType, AssetType assetType);
-
-  Optional<LedgerAccount> findByNameAndPurposeAndAssetTypeAndAccountType(
-      String name, AccountPurpose purpose, AssetType assetType, AccountType accountType);
+  Optional<LedgerAccount> findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+      LedgerParty owner,
+      String name,
+      AccountPurpose purpose,
+      AssetType assetType,
+      AccountType accountType);
 
   List<LedgerAccount> findAllByOwner(LedgerParty owner);
 }

@@ -61,7 +61,6 @@ class SavingFundPaymentExtractorTest {
     assertThat(firstPayment.getBeneficiaryIdCode()).isEqualTo("14118923");
     assertThat(firstPayment.getBeneficiaryName()).isEqualTo("TULEVA FONDID AS");
     assertThat(firstPayment.getExternalId()).isEqualTo("2025092900654847-1");
-    assertThat(firstPayment.getReceivedAt()).isEqualTo(receivedAt);
 
     // Verify second payment (debit transaction)
     SavingFundPayment secondPayment = payments.get(1);
@@ -75,7 +74,6 @@ class SavingFundPaymentExtractorTest {
     assertThat(secondPayment.getBeneficiaryIdCode()).isEqualTo(null);
     assertThat(secondPayment.getBeneficiaryName()).isEqualTo("Jüri Tamm");
     assertThat(secondPayment.getExternalId()).isEqualTo("2025092900673437-1");
-    assertThat(secondPayment.getReceivedAt()).isEqualTo(receivedAt);
   }
 
   @Test

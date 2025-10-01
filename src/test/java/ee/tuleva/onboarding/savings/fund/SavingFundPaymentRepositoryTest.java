@@ -212,15 +212,7 @@ class SavingFundPaymentRepositoryTest {
       value = Status.class,
       names = {"CREATED", "RECEIVED"})
   void attachUser(Status status) {
-    var userId =
-        userRepository
-            .save(
-                User.builder()
-                    .firstName("John")
-                    .lastName("Smith")
-                    .personalCode("48806046007")
-                    .build())
-            .getId();
+    var userId = createUser();
 
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
@@ -239,15 +231,7 @@ class SavingFundPaymentRepositoryTest {
       names = {"CREATED", "RECEIVED"},
       mode = EXCLUDE)
   void attachUser_notAllowed(Status status) {
-    var userId =
-        userRepository
-            .save(
-                User.builder()
-                    .firstName("John")
-                    .lastName("Smith")
-                    .personalCode("48806046007")
-                    .build())
-            .getId();
+    var userId = createUser();
 
     var id = repository.savePaymentData(createPayment().build());
     updatePaymentStatus(id, status);
@@ -271,6 +255,28 @@ class SavingFundPaymentRepositoryTest {
 
     assertThat(payments).hasSize(1);
     assertThat(payments.getFirst().getUserId()).isNull();
+  }
+
+  @Test
+  void findUserPayments() {
+    var id1 = repository.savePaymentData(createPayment().externalId("1").build());
+    var id2 = repository.savePaymentData(createPayment().externalId("2").build());
+    var id3 = repository.savePaymentData(createPayment().externalId("3").build());
+    var ignoredId = repository.savePaymentData(createPayment().externalId("4").build());
+
+    var user1 = createUser("37706154772");
+    var user2 = createUser("36407145233");
+
+    repository.attachUser(id1, user1);
+    repository.attachUser(id2, user1);
+    repository.attachUser(id3, user2);
+
+    repository.changeStatus(id1, RECEIVED);
+
+    assertThat(repository.findUserPayments(user1)).hasSize(2);
+    assertThat(repository.findUserPayments(user1)).extracting("id").containsExactly(id1, id2);
+    assertThat(repository.findUserPayments(user2)).hasSize(1);
+    assertThat(repository.findUserPayments(user2)).extracting("id").containsExactly(id3);
   }
 
   @Test
@@ -302,5 +308,15 @@ class SavingFundPaymentRepositoryTest {
     return jdbcTemplate.update(
         "update saving_fund_payment set status=:status where id=:id",
         Map.of("status", initialStatus.name(), "id", paymentId));
+  }
+
+  private Long createUser() {
+    return createUser("48806046007");
+  }
+
+  private Long createUser(String personalCode) {
+    return userRepository
+        .save(User.builder().firstName("John").lastName("Smith").personalCode(personalCode).build())
+        .getId();
   }
 }

@@ -83,6 +83,15 @@ public class SavingFundPaymentRepository {
         this::rowMapper);
   }
 
+  public List<SavingFundPayment> findUserPayments(Long userId) {
+    return jdbcTemplate.query(
+        """
+        select * from saving_fund_payment where user_id=:user_id order by created_at desc
+        """,
+        Map.of("user_id", userId),
+        this::rowMapper);
+  }
+
   private SavingFundPayment rowMapper(ResultSet rs, int ignored) throws SQLException {
     return SavingFundPayment.builder()
         .id(UUID.fromString(rs.getString("id")))

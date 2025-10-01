@@ -36,6 +36,7 @@ public class SavingFundPayment {
   Status status = Status.CREATED;
 
   Instant statusChangedAt;
+  Instant cancelledAt;
 
   public enum Status {
 

@@ -155,6 +155,18 @@ class SavingFundPaymentRepositoryTest {
     assertThat(recentPayments).extracting("id").containsExactly(id2);
   }
 
+  @Test
+  void cancel() {
+    var id = repository.savePaymentData(createPayment().build());
+
+    repository.cancel(id);
+
+    var payments = repository.findPaymentsWithStatus(CREATED);
+
+    assertThat(payments).hasSize(1);
+    assertThat(payments.getFirst().getCancelledAt()).isCloseTo(Instant.now(), within(10, SECONDS));
+  }
+
   private SavingFundPayment.SavingFundPaymentBuilder createPayment() {
     return SavingFundPayment.builder()
         .remitterName("John Doe")

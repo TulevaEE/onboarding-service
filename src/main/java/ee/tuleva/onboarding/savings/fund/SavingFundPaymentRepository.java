@@ -87,9 +87,15 @@ public class SavingFundPaymentRepository {
         .beneficiaryIban(rs.getString("beneficiary_iban"))
         .beneficiaryIdCode(rs.getString("beneficiary_id_code"))
         .beneficiaryName(rs.getString("beneficiary_name"))
-        .createdAt(rs.getTimestamp("created_at").toInstant())
-        .statusChangedAt(rs.getTimestamp("status_changed_at").toInstant())
+        .createdAt(instant(rs, "created_at"))
+        .statusChangedAt(instant(rs, "status_changed_at"))
+        .cancelledAt(instant(rs, "cancelled_at"))
         .build();
+  }
+
+  private Instant instant(ResultSet rs, String column) throws SQLException {
+    var timestamp = rs.getTimestamp(column);
+    return timestamp != null ? timestamp.toInstant() : null;
   }
 
   private MapSqlParameterSource createParameters(SavingFundPayment payment) {
@@ -107,8 +113,7 @@ public class SavingFundPaymentRepository {
   }
 
   public void changeStatus(UUID paymentId, SavingFundPayment.Status newStatus) {
-    var currentStatus = jdbcTemplate.queryForObject("select status from saving_fund_payment where id=:id for update",
-        Map.of("id", paymentId), SavingFundPayment.Status.class);
+    var currentStatus = getAndLockCurrentStatus(paymentId);
     var allowedTransitions = Map.of(
         CREATED, Set.of(RECEIVED),
         RECEIVED, Set.of(VERIFIED, FROZEN, TO_BE_RETURNED),
@@ -132,8 +137,21 @@ public class SavingFundPaymentRepository {
 
   }
 
+  public void cancel(UUID paymentId) {
+    var currentStatus = getAndLockCurrentStatus(paymentId);
+    if (!Set.of(CREATED, RECEIVED, VERIFIED).contains(currentStatus))
+      throw new IllegalStateException("Cancellation not allowed when payment is " + currentStatus);
+    jdbcTemplate.update("UPDATE saving_fund_payment SET cancelled_at=NOW() WHERE id=:id", Map.of("id", paymentId));
+  }
+
+  private SavingFundPayment.Status getAndLockCurrentStatus(UUID paymentId) {
+    return jdbcTemplate.queryForObject("select status from saving_fund_payment where id=:id for update",
+        Map.of("id", paymentId), SavingFundPayment.Status.class);
+  }
+
   // todo
   // Montonio should use findRecentPayments(), savePaymentData() and attachUser()
   // Swedbank should use findRecentPayments(), savePaymentData() OR updatePaymentData() and changeStatus(RECEIVED)
   // sanctions check & identity check should be in a single job which always ends with changeStatus(...)
+  // reservation job should check the cancelledAt timestamp and if set must call changeStatus(TO_BE_RETURNED)
 }

@@ -2,34 +2,31 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.USER;
 
-import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.auth.principal.Person;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-@Profile({"dev", "test"})
 @Service
 @RequiredArgsConstructor
 class LedgerPartyService {
 
   private final LedgerPartyRepository ledgerPartyRepository;
 
-  LedgerParty createPartyForUser(User user, String name) {
+  LedgerParty createParty(Person person) {
     var ledgerParty =
         LedgerParty.builder()
-            .type(USER)
-            .ownerId(user.getPersonalCode())
-            .name(name)
+            .partyType(USER)
+            .ownerId(person.getPersonalCode())
             .details(Map.of())
             .build();
 
     return ledgerPartyRepository.save(ledgerParty);
   }
 
-  Optional<LedgerParty> getPartyForUser(User user) {
+  public Optional<LedgerParty> getParty(Person person) {
     return Optional.ofNullable(
-        ledgerPartyRepository.findByOwnerId(user.getPersonalCode())); // TODO party representative
+        ledgerPartyRepository.findByOwnerId(person.getPersonalCode())); // TODO party representative
   }
 }

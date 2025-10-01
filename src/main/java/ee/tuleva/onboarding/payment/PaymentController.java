@@ -67,7 +67,10 @@ public class PaymentController {
   public RedirectView getSavingsPaymentReturnRedirect(
       @RequestParam("order-token") String serializedToken) {
     log.info("Processing savings payment return redirect");
-    return new RedirectView(frontendUrl + "/savings-fund/payment/success");
+    return paymentService
+        .processSavingsPaymentToken(serializedToken)
+        .map(_ -> new RedirectView(frontendUrl + "/savings-fund/payment/success"))
+        .orElseGet(() -> new RedirectView(frontendUrl + "/savings-fund/payment"));
   }
 
   @PostMapping("/savings/notifications")
@@ -75,5 +78,6 @@ public class PaymentController {
   public void savingsPaymentCallback(
       @RequestBody MontonioNotificationBody montonioNotificationBody) {
     log.info("Processing savings payment notification token");
+    paymentService.processSavingsPaymentToken(montonioNotificationBody.orderToken());
   }
 }

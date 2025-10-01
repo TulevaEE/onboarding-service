@@ -18,7 +18,13 @@ import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.mandate.exception.NotFoundException;
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService;
 import ee.tuleva.onboarding.pillar.Pillar;
-import java.util.*;
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentDeadlinesService;
+import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map.Entry;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -38,6 +44,7 @@ public class ApplicationService {
   private final FundRepository fundRepository;
   private final MandateDeadlinesService mandateDeadlinesService;
   private final PaymentLinkingService paymentLinkingService;
+  private final SavingFundPaymentDeadlinesService savingFundPaymentDeadlinesService;
 
   public Application<?> getApplication(Long id, AuthenticatedPerson authenticatedPerson) {
     return getAllApplications(authenticatedPerson).stream()
@@ -57,6 +64,7 @@ public class ApplicationService {
     applications.addAll(paymentLinkingService.getPaymentApplications(person));
     applications.addAll(getPaymentRateApplications(person));
     applications.addAll(getFundPensionOpeningApplications(person));
+    applications.addAll(getSavingsFundPaymentApplications(person));
     Collections.sort(applications);
     return applications;
   }
@@ -125,6 +133,15 @@ public class ApplicationService {
   @NotNull
   private Predicate<Application<?>> byStatus(ApplicationStatus status) {
     return application -> application.hasStatus(status);
+  }
+
+  private List<Application<SavingFundPaymentApplicationDetails>> getSavingsFundPaymentApplications(
+      Person person) {
+
+    // TODO: Replace with real implementation when available
+    var payments = Collections.<SavingFundPayment>emptyList();
+
+    return payments.stream().map(this::convertSavingFundPayment).sorted().toList();
   }
 
   private List<Application<TransferApplicationDetails>> groupTransfers(
@@ -232,6 +249,25 @@ public class ApplicationService {
             deadlines.getFulfillmentDate(applicationDTO.getType()),
             applicationDTO.getType(),
             applicationDTO.getFundPensionDetails()));
+    return applicationBuilder.build();
+  }
+
+  private Application<SavingFundPaymentApplicationDetails> convertSavingFundPayment(
+      SavingFundPayment payment) {
+    final var applicationBuilder =
+        Application.<SavingFundPaymentApplicationDetails>builder()
+            .creationTime(payment.getCreatedAt())
+            .status(PENDING) // TODO: Map real status when available
+            .id(0L); // TODO: Map real ID when available
+
+    applicationBuilder.details(
+        SavingFundPaymentApplicationDetails.builder()
+            .amount(payment.getAmount())
+            .currency(payment.getCurrency())
+            .cancellationDeadline(
+                savingFundPaymentDeadlinesService.getCancellationDeadline(payment))
+            .fulfillmentDeadline(savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment))
+            .build());
     return applicationBuilder.build();
   }
 }

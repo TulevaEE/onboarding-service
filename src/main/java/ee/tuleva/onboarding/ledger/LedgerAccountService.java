@@ -1,46 +1,74 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.*;
+
 import ee.tuleva.onboarding.ledger.LedgerAccount.AccountType;
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
-import ee.tuleva.onboarding.ledger.LedgerAccount.ServiceAccountType;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-@Profile({"dev", "test"})
 @Service
 @RequiredArgsConstructor
 class LedgerAccountService {
 
   private final LedgerAccountRepository ledgerAccountRepository;
 
-  LedgerAccount createAccountForParty(
-      LedgerParty ledgerParty, String name, AssetType assetType, AccountType accountType) {
+  LedgerAccount createAccount(LedgerParty owner, AssetType assetType, AccountType accountType) {
     var ledgerAccount =
         LedgerAccount.builder()
-            .name(name)
-            .ledgerParty(ledgerParty)
-            .assetTypeCode(assetType)
-            .type(accountType)
+            .owner(owner)
+            .purpose(USER_ACCOUNT)
+            .assetType(assetType)
+            .accountType(accountType)
             .build();
 
     return ledgerAccountRepository.save(ledgerAccount);
   }
 
-  Optional<LedgerAccount> getLedgerAccountForParty(
-      LedgerParty ledgerParty, AccountType accountType, AssetType assetTypeCode) {
-    return Optional.of(
-        ledgerAccountRepository.findByLedgerPartyAndTypeAndAssetTypeCode(
-            ledgerParty, accountType, assetTypeCode));
+  LedgerAccount createUserAccount(
+      LedgerParty owner, UserAccount name, AccountType accountType, AssetType assetType) {
+    var ledgerAccount =
+        LedgerAccount.builder()
+            .owner(owner)
+            .name(name.name())
+            .purpose(USER_ACCOUNT)
+            .assetType(assetType)
+            .accountType(accountType)
+            .build();
+
+    return ledgerAccountRepository.save(ledgerAccount);
   }
 
-  List<LedgerAccount> getAccountsByLedgerParty(LedgerParty ledgerParty) {
-    return ledgerAccountRepository.findAllByLedgerParty(ledgerParty);
+  public Optional<LedgerAccount> getLedgerAccount(
+      LedgerParty owner, UserAccount name, AccountType accountType, AssetType assetTypeCode) {
+    return ledgerAccountRepository.findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+        owner, name.name(), USER_ACCOUNT, assetTypeCode, accountType);
   }
 
-  LedgerAccount getServiceAccount(ServiceAccountType serviceAccountType) {
-    return ledgerAccountRepository.findByServiceAccountType(serviceAccountType);
+  List<LedgerAccount> getAccounts(LedgerParty owner) {
+    return ledgerAccountRepository.findAllByOwner(owner);
+  }
+
+  public Optional<LedgerAccount> findSystemAccount(
+      SystemAccount systemAccount, AssetType assetType, AccountType accountType) {
+    return ledgerAccountRepository.findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+        null, systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType);
+  }
+
+  public LedgerAccount createSystemAccount(
+      String name, AssetType assetType, AccountType accountType) {
+    var ledgerAccount =
+        LedgerAccount.builder()
+            .name(name)
+            .purpose(SYSTEM_ACCOUNT)
+            .assetType(assetType)
+            .accountType(accountType)
+            .build();
+
+    return ledgerAccountRepository.save(ledgerAccount);
   }
 }

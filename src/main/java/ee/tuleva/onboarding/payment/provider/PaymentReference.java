@@ -22,4 +22,6 @@ public class PaymentReference {
   private PaymentType paymentType;
 
   private Locale locale;
+
+  private String description;
 }

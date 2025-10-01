@@ -1,64 +1,51 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.currency.Currency.EUR;
-import static jakarta.persistence.EnumType.STRING;
 
 import ee.tuleva.onboarding.currency.Currency;
 import jakarta.annotation.Nullable;
-import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
-import lombok.*;
+import lombok.Builder;
+import lombok.Value;
 
-@Entity
-@Table(name = "saving_fund_payment")
-@Getter
-@Setter
+@Value
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class SavingFundPayment {
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(nullable = false)
-  private UUID id;
+  UUID id;
+  Long userId;
 
-  @Column(nullable = false)
-  private BigDecimal amount;
+  BigDecimal amount;
+  @Builder.Default Currency currency = EUR;
 
-  @NotNull
-  @Enumerated(STRING)
-  @Builder.Default
-  private Currency currency = EUR;
+  String description;
+  String remitterIban;
+  String remitterName;
+  @Nullable String remitterIdCode;
+  String beneficiaryIban;
+  String beneficiaryName;
+  @Nullable String beneficiaryIdCode;
 
-  @Nullable @Column private String description;
+  @Nullable String externalId;
 
-  @Nullable @Column private String remitterIban;
+  Instant createdAt;
 
-  @Nullable @Column private String remitterIdCode;
+  @Builder.Default Status status = Status.CREATED;
 
-  @Nullable @Column private String remitterName;
+  Instant statusChangedAt;
+  Instant cancelledAt;
 
-  @Nullable @Column private String beneficiaryIban;
+  @Nullable String returnReason;
 
-  @Nullable @Column private String beneficiaryIdCode;
-
-  @Nullable @Column private String beneficiaryName;
-
-  @Nullable
-  @Column(name = "end_to_end_id")
-  private String endToEndId;
-
-  @NotNull
-  @Column(name = "external_id", nullable = false)
-  private String externalId;
-
-  @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
-  private Instant createdAt;
-
-  @Nullable
-  @Column(name = "received_at", columnDefinition = "TIMESTAMPTZ")
-  private Instant receivedAt;
+  public enum Status {
+    CREATED,
+    RECEIVED,
+    VERIFIED,
+    RESERVED,
+    PROCESSED,
+    FROZEN,
+    TO_BE_RETURNED,
+    RETURNED,
+  }
 }

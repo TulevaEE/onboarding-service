@@ -1,61 +1,98 @@
 package ee.tuleva.onboarding.ledger;
 
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.GenerationType.*;
 import static java.math.BigDecimal.ZERO;
+import static org.hibernate.generator.EventType.INSERT;
 
+import ee.tuleva.onboarding.ledger.validation.AssetTypeConsistency;
+import ee.tuleva.onboarding.ledger.validation.BalancedTransaction;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
+import org.hibernate.annotations.Generated;
 import org.hibernate.annotations.Type;
 
 @Entity
 @Table(name = "transaction", schema = "ledger")
 @Getter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"entries"})
+@BalancedTransaction
+@AssetTypeConsistency
 public class LedgerTransaction {
 
   public enum TransactionType {
-    TEST
+    TRANSFER
   }
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(nullable = false)
+  @GeneratedValue(strategy = IDENTITY)
   private UUID id;
 
-  @Column(nullable = false)
-  private String description;
+  @Enumerated(STRING)
+  @NotNull
+  private TransactionType transactionType;
 
-  @Enumerated(EnumType.STRING)
-  @Column(name = "transaction_type_id", nullable = false)
-  private TransactionType transactionTypeId;
-
-  @Column(name = "transaction_date", nullable = false, columnDefinition = "TIMESTAMPTZ")
-  private Instant transactionDate;
+  @NotNull private Instant transactionDate;
 
   @Type(JsonType.class)
-  @Column(columnDefinition = "JSONB", nullable = false)
-  private Map<String, Object> metadata;
+  @Column(columnDefinition = "JSONB")
+  @NotNull
+  private Map<String, Object> metadata = new HashMap<>();
 
   /*@Column(name = "event_log_id", nullable = false)
   private Integer eventLogId; // TODO event log map*/
 
-  @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
-  private Instant createdAt;
+  @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL)
+  @Size(min = 2, message = "Transaction must have at least 2 entries for double-entry bookkeeping")
+  private List<LedgerEntry> entries = new ArrayList<>();
 
-  @OneToMany(mappedBy = "transaction")
-  private List<LedgerEntry> entries;
+  @Column(nullable = false, updatable = false, insertable = false)
+  @Generated(event = INSERT)
+  private Instant createdAt;
 
   public BigDecimal sum() {
     return entries.stream().map(LedgerEntry::getAmount).reduce(ZERO, BigDecimal::add);
+  }
+
+  LedgerEntry addEntry(LedgerAccount account, BigDecimal amount) {
+    if (account == null) {
+      throw new IllegalArgumentException("Account cannot be null");
+    }
+    if (amount == null) {
+      throw new IllegalArgumentException("Amount cannot be null");
+    }
+
+    var entry =
+        LedgerEntry.builder()
+            .amount(amount)
+            .assetType(account.getAssetType())
+            .account(account)
+            .transaction(this)
+            .build();
+
+    entries.add(entry);
+    account.addEntry(entry);
+
+    return entry;
+  }
+
+  @Builder
+  public LedgerTransaction(
+      TransactionType transactionType, Instant transactionDate, Map<String, Object> metadata) {
+    this.transactionType = transactionType;
+    this.transactionDate = transactionDate;
+    this.metadata = metadata;
   }
 }

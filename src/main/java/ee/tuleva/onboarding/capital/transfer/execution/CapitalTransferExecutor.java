@@ -92,18 +92,21 @@ public class CapitalTransferExecutor {
     BigDecimal totalUnitsToTransfer =
         transferAmount.bookValue().divide(currentUnitPrice, 5, RoundingMode.HALF_UP);
 
-    createSellerWithdrawalEvent(contract, transferAmount, totalUnitsToTransfer, accountingDate);
-    createBuyerAcquisitionEvent(contract, transferAmount, totalUnitsToTransfer, accountingDate);
+    BigDecimal proportionalFiatValue =
+        calculateProportionalFiatValue(contract, transferAmount, totalUnitsToTransfer);
+
+    createSellerWithdrawalEvent(
+        contract, transferAmount, totalUnitsToTransfer, proportionalFiatValue, accountingDate);
+    createBuyerAcquisitionEvent(
+        contract, transferAmount, totalUnitsToTransfer, proportionalFiatValue, accountingDate);
   }
 
   private void createSellerWithdrawalEvent(
       CapitalTransferContract contract,
       CapitalTransferAmount transferAmount,
       BigDecimal totalUnitsToTransfer,
+      BigDecimal proportionalFiatValue,
       LocalDate accountingDate) {
-
-    BigDecimal proportionalFiatValue =
-        calculateProportionalFiatValue(contract, transferAmount, totalUnitsToTransfer);
 
     MemberCapitalEvent sellerEvent =
         MemberCapitalEvent.builder()
@@ -130,10 +133,8 @@ public class CapitalTransferExecutor {
       CapitalTransferContract contract,
       CapitalTransferAmount transferAmount,
       BigDecimal totalUnitsToTransfer,
+      BigDecimal proportionalFiatValue,
       LocalDate accountingDate) {
-
-    BigDecimal proportionalFiatValue =
-        calculateProportionalFiatValue(contract, transferAmount, totalUnitsToTransfer);
 
     MemberCapitalEvent buyerEvent =
         MemberCapitalEvent.builder()

@@ -1,14 +1,21 @@
 package ee.tuleva.onboarding.ledger;
 
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.GenerationType.*;
+import static org.hibernate.generator.EventType.INSERT;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
+import ee.tuleva.onboarding.ledger.validation.EntryAccountConsistency;
+import ee.tuleva.onboarding.ledger.validation.ValidAmountPrecision;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
+import org.hibernate.annotations.Generated;
 
 @Entity
 @Table(name = "entry", schema = "ledger")
@@ -16,26 +23,39 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"account", "transaction"})
+@ValidAmountPrecision
+@EntryAccountConsistency
 public class LedgerEntry {
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  @Column(nullable = false)
+  @GeneratedValue(strategy = IDENTITY)
   private UUID id;
 
-  @ManyToOne()
+  @ManyToOne
   @JoinColumn(name = "account_id", nullable = false)
   @JsonIgnore
+  @Setter(AccessLevel.PACKAGE)
   private LedgerAccount account;
 
-  @ManyToOne()
+  @ManyToOne
   @JoinColumn(name = "transaction_id", nullable = false)
   @JsonIgnore
+  @Setter(AccessLevel.PACKAGE)
   private LedgerTransaction transaction;
 
-  @Column(nullable = false)
+  @NotNull(message = "Entry amount cannot be null")
+  @Digits(
+      integer = 15,
+      fraction = 5,
+      message = "Amount must have max 15 integer digits and 5 decimal places")
   private BigDecimal amount;
 
-  // TODO revisit TZ, RDS by default is UTC
-  @Column(columnDefinition = "TIMESTAMPTZ", nullable = false, updatable = false, insertable = false)
+  @NotNull
+  @Setter(AccessLevel.PACKAGE)
+  @Enumerated(STRING)
+  private AssetType assetType;
+
+  @Column(nullable = false, updatable = false, insertable = false)
+  @Generated(event = INSERT)
   private Instant createdAt;
 }

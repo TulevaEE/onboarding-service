@@ -2,9 +2,9 @@ package ee.tuleva.onboarding.swedbank.statement;
 
 import static ee.swedbank.gateway.iso.response.report.CreditDebitCode.CRDT;
 
+import ee.swedbank.gateway.iso.response.report.GenericPersonIdentification1;
 import ee.swedbank.gateway.iso.response.report.Party6Choice;
 import ee.swedbank.gateway.iso.response.report.ReportEntry2;
-import ee.swedbank.gateway.iso.response.report.TransactionReferences2;
 import ee.swedbank.gateway.iso.response.statement.CreditDebitCode;
 import jakarta.annotation.Nullable;
 import java.math.BigDecimal;
@@ -19,12 +19,12 @@ public record BankStatementEntry(
     BigDecimal amount,
     String currencyCode,
     TransactionType transactionType,
-    List<String> endToEndIds,
-    List<String> remittanceInformation,
+    String remittanceInformation,
     String externalId) {
 
   @RequiredArgsConstructor
   public static final class CounterPartyDetails {
+
     @Getter private final String name;
     @Getter private final String iban;
     @Nullable private final String personalCode;
@@ -36,9 +36,8 @@ public record BankStatementEntry(
     public static CounterPartyDetails from(ReportEntry2 entry) {
       var creditOrDebit = entry.getCdtDbtInd();
 
-      // TODO this can have multiple ones depending on bank logic, test response from Swed only has
-      // one
-      var transactionDetails = entry.getNtryDtls().getFirst().getTxDtls().getFirst();
+      var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
+      var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
       var relatedParties = transactionDetails.getRltdPties();
 
       // TODO entry group can break this?
@@ -46,29 +45,31 @@ public record BankStatementEntry(
       var otherParty = creditOrDebit == CRDT ? relatedParties.getDbtr() : relatedParties.getCdtr();
 
       var name = otherParty.getNm();
-      var personalIdCode =
+      var personalIdCodes =
           Optional.ofNullable(otherParty.getId())
               .map(Party6Choice::getPrvtId)
-              .flatMap(val -> val.getOthr().stream().filter(dt -> dt.getId() != null).findFirst())
-              .flatMap(
-                  genericPersonIdentification1 ->
-                      Optional.of(genericPersonIdentification1.getId()));
+              .map(
+                  prvtId ->
+                      prvtId.getOthr().stream()
+                          .map(GenericPersonIdentification1::getId)
+                          .filter(id -> id != null && !id.isBlank())
+                          .toList())
+              .orElseGet(List::of);
+      var personalIdCode = Require.atMostOne(personalIdCodes, "personal ID code");
 
       var otherPartyAccount =
           creditOrDebit == CRDT ? relatedParties.getDbtrAcct() : relatedParties.getCdtrAcct();
 
-      var iban = otherPartyAccount.getId().getIBAN();
+      var iban = Require.notNullOrBlank(otherPartyAccount.getId().getIBAN(), "counter-party IBAN");
 
-      return new CounterPartyDetails(name, iban, personalIdCode.orElse(null));
+      return new CounterPartyDetails(name, iban, personalIdCode);
     }
 
-    public static CounterPartyDetails from(
-        ee.swedbank.gateway.iso.response.statement.ReportEntry2 entry) {
+    static CounterPartyDetails from(ee.swedbank.gateway.iso.response.statement.ReportEntry2 entry) {
       var creditOrDebit = entry.getCdtDbtInd();
 
-      // TODO this can have multiple ones depending on bank logic, test response from Swed only has
-      // one
-      var transactionDetails = entry.getNtryDtls().getFirst().getTxDtls().getFirst();
+      var entryDetails = Require.exactlyOne(entry.getNtryDtls(), "entry details");
+      var transactionDetails = Require.exactlyOne(entryDetails.getTxDtls(), "transaction details");
       var relatedParties = transactionDetails.getRltdPties();
 
       // TODO entry group can break this?
@@ -79,38 +80,72 @@ public record BankStatementEntry(
               : relatedParties.getCdtr();
 
       var name = otherParty.getNm();
-      var personalIdCode =
+      var personalIdCodes =
           Optional.ofNullable(otherParty.getId())
               .map(ee.swedbank.gateway.iso.response.statement.Party6Choice::getPrvtId)
-              .flatMap(val -> val.getOthr().stream().filter(dt -> dt.getId() != null).findFirst())
-              .flatMap(
-                  genericPersonIdentification1 ->
-                      Optional.of(genericPersonIdentification1.getId()));
+              .map(
+                  prvtId ->
+                      prvtId.getOthr().stream()
+                          .map(
+                              ee.swedbank.gateway.iso.response.statement
+                                      .GenericPersonIdentification1
+                                  ::getId)
+                          .filter(id -> id != null && !id.isBlank())
+                          .toList())
+              .orElseGet(List::of);
+      var personalIdCode = Require.atMostOne(personalIdCodes, "personal ID code");
 
       var otherPartyAccount =
           creditOrDebit == CreditDebitCode.CRDT
               ? relatedParties.getDbtrAcct()
               : relatedParties.getCdtrAcct();
 
-      var iban = otherPartyAccount.getId().getIBAN();
+      var iban = Require.notNullOrBlank(otherPartyAccount.getId().getIBAN(), "counter-party IBAN");
 
-      return new CounterPartyDetails(name, iban, personalIdCode.orElse(null));
+      return new CounterPartyDetails(name, iban, personalIdCode);
     }
   }
 
-  public static BankStatementEntry from(
-      ee.swedbank.gateway.iso.response.statement.ReportEntry2 entry) {
+  static BankStatementEntry from(ee.swedbank.gateway.iso.response.statement.ReportEntry2 entry) {
     var counterPartyDetails = CounterPartyDetails.from(entry);
     var creditOrDebit = entry.getCdtDbtInd();
     var creditDebitCoefficient =
         creditOrDebit == CreditDebitCode.CRDT ? BigDecimal.ONE : new BigDecimal("-1.0");
     var entryAmount = entry.getAmt().getValue().multiply(creditDebitCoefficient);
 
+    var currencyCode = entry.getAmt().getCcy();
+
+    // Determine transaction type
+    var transactionType =
+        creditOrDebit == CreditDebitCode.CRDT ? TransactionType.CREDIT : TransactionType.DEBIT;
+
+    // Collect all remittance information from all transaction details and require exactly one
+    var remittanceInformationList =
+        entry.getNtryDtls().stream()
+            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
+            .flatMap(
+                txDtl ->
+                    Optional.ofNullable(txDtl.getRmtInf())
+                        .map(rmtInf -> rmtInf.getUstrd().stream())
+                        .orElse(Stream.empty()))
+            .filter(ustrd -> ustrd != null && !ustrd.isBlank())
+            .toList();
+    var remittanceInformation =
+        Require.exactlyOne(remittanceInformationList, "remittance information");
+
+    // Extract external ID from entry reference
+    var externalId = entry.getNtryRef();
+
     return new BankStatementEntry(
-        counterPartyDetails, entryAmount, null, null, List.of(), List.of(), null);
+        counterPartyDetails,
+        entryAmount,
+        currencyCode,
+        transactionType,
+        remittanceInformation,
+        externalId);
   }
 
-  public static BankStatementEntry from(ReportEntry2 entry) {
+  static BankStatementEntry from(ReportEntry2 entry) {
     var counterPartyDetails = CounterPartyDetails.from(entry);
     var creditOrDebit = entry.getCdtDbtInd();
     var creditDebitCoefficient = creditOrDebit == CRDT ? BigDecimal.ONE : new BigDecimal("-1.0");
@@ -121,20 +156,8 @@ public record BankStatementEntry(
     // Determine transaction type
     var transactionType = creditOrDebit == CRDT ? TransactionType.CREDIT : TransactionType.DEBIT;
 
-    // Collect all EndToEndIds from all transaction details
-    var endToEndIds =
-        entry.getNtryDtls().stream()
-            .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
-            .map(
-                txDtl ->
-                    Optional.ofNullable(txDtl.getRefs())
-                        .map(TransactionReferences2::getEndToEndId)
-                        .orElse(null))
-            .filter(endToEndId -> endToEndId != null && !endToEndId.isBlank())
-            .toList();
-
-    // Collect all remittance information from all transaction details
-    var remittanceInformation =
+    // Collect all remittance information from all transaction details and require exactly one
+    var remittanceInformationList =
         entry.getNtryDtls().stream()
             .flatMap(ntryDtl -> ntryDtl.getTxDtls().stream())
             .flatMap(
@@ -144,6 +167,8 @@ public record BankStatementEntry(
                         .orElse(Stream.empty()))
             .filter(ustrd -> ustrd != null && !ustrd.isBlank())
             .toList();
+    var remittanceInformation =
+        Require.exactlyOne(remittanceInformationList, "remittance information");
 
     // Extract external ID from entry reference
     var externalId = entry.getNtryRef();
@@ -153,7 +178,6 @@ public record BankStatementEntry(
         entryAmount,
         currencyCode,
         transactionType,
-        endToEndIds,
         remittanceInformation,
         externalId);
   }

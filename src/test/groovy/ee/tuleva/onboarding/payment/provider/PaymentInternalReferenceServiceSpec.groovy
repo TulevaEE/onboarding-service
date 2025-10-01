@@ -22,7 +22,7 @@ class PaymentInternalReferenceServiceSpec extends Specification {
   def "Creates a correct payment reference"() {
     when:
     1 * localeService.currentLocale >> Locale.ENGLISH
-    String referenceString = paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, aPaymentData)
+    String referenceString = paymentInternalReferenceService.getPaymentReference(sampleAuthenticatedPerson, aPaymentData, "description")
     def slurper = new JsonSlurper()
     def reference = slurper.parseText(referenceString)
     then:
@@ -30,6 +30,7 @@ class PaymentInternalReferenceServiceSpec extends Specification {
     reference.locale == "en"
     reference.uuid.size() == 36
     reference.paymentType == aPaymentData.getType().toString()
+    reference.description == "description"
   }
 
   AuthenticatedPerson sampleAuthenticatedPerson = AuthenticatedPerson.builder()

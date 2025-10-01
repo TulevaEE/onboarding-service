@@ -83,7 +83,7 @@ public record BankStatementBalance(StatementBalanceType type, LocalDate time, Bi
     }
   }
 
-  public static BankStatementBalance from(CashBalance3 balance) {
+  static BankStatementBalance from(CashBalance3 balance) {
     var dateConverter = new XmlGregorianCalendarConverterToLocalDate();
     var statementBalanceType =
         StatementBalanceType.fromBalanceCode(
@@ -99,7 +99,7 @@ public record BankStatementBalance(StatementBalanceType type, LocalDate time, Bi
     return new BankStatementBalance(statementBalanceType, date, balanceAmount);
   }
 
-  public static BankStatementBalance from(
+  static BankStatementBalance from(
       ee.swedbank.gateway.iso.response.statement.CashBalance3 balance) {
     var dateConverter = new XmlGregorianCalendarConverterToLocalDate();
     var statementBalanceType =

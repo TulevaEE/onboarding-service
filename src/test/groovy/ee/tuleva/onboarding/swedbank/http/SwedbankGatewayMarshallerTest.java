@@ -70,7 +70,7 @@ public class SwedbankGatewayMarshallerTest {
 
     assertEquals(4, entries.size());
 
-    var parsed = BankStatement.from(response.getValue().getBkToCstmrStmt().getStmt().getFirst());
+    var parsed = BankStatement.from(response.getValue().getBkToCstmrStmt());
 
     // TODO more asserts
     assertEquals("EE062200221055091966", parsed.getBankStatementAccount().iban());

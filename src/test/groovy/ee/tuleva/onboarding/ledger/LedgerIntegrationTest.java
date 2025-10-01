@@ -1,10 +1,12 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.INCOME;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.ServiceAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.USER;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 
 import ee.tuleva.onboarding.user.User;
@@ -14,8 +16,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@Transactional
 public class LedgerIntegrationTest {
   @Autowired private LedgerService ledgerService;
 
@@ -27,10 +31,10 @@ public class LedgerIntegrationTest {
   void setup() {
     ledgerAccountRepository.save(
         LedgerAccount.builder()
-            .name("Tuleva cash deposit")
-            .serviceAccountType(DEPOSIT_EUR)
-            .type(INCOME)
-            .assetTypeCode(EUR)
+            .name(INCOMING_PAYMENTS_CLEARING.name())
+            .purpose(SYSTEM_ACCOUNT)
+            .accountType(LIABILITY)
+            .assetType(EUR)
             .build());
   }
 
@@ -45,31 +49,26 @@ public class LedgerIntegrationTest {
   public void shouldOnboardUser() {
     User user = sampleUser().build();
 
-    ledgerService.onboardUser(user);
+    ledgerService.onboard(user);
 
     var party = ledgerPartyRepository.findByOwnerId(user.getPersonalCode());
 
     assertThat(party.getOwnerId()).isEqualTo(user.getPersonalCode());
-    assertThat(party.getType()).isEqualTo(USER);
+    assertThat(party.getPartyType()).isEqualTo(USER);
 
-    var accounts = ledgerAccountRepository.findAllByLedgerParty(party);
+    var accounts = ledgerAccountRepository.findAllByOwner(party);
 
     assertThat(accounts.size()).isEqualTo(2);
 
     var cashAccount =
         accounts.stream()
-            .filter(
-                account ->
-                    account.getType() == LedgerAccount.AccountType.INCOME
-                        && account.getAssetTypeCode() == LedgerAccount.AssetType.EUR)
+            .filter(account -> account.getAccountType() == ASSET && account.getAssetType() == EUR)
             .findFirst()
             .orElseThrow();
     var stockAccount =
         accounts.stream()
             .filter(
-                account ->
-                    account.getType() == LedgerAccount.AccountType.ASSET
-                        && account.getAssetTypeCode() == LedgerAccount.AssetType.UNIT)
+                account -> account.getAccountType() == ASSET && account.getAssetType() == FUND_UNIT)
             .findFirst()
             .orElseThrow();
 

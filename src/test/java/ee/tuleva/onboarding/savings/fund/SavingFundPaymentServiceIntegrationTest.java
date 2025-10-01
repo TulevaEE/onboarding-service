@@ -6,19 +6,19 @@ import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessage;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageRepository;
 import ee.tuleva.onboarding.swedbank.processor.SwedbankMessageDelegator;
+import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.UUID;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -30,6 +30,16 @@ class SavingFundPaymentServiceIntegrationTest {
   @Autowired private SwedbankMessageDelegator delegator;
 
   private static final Instant NOW = Instant.parse("2025-10-01T12:00:00Z");
+
+  @BeforeEach
+  void setUp() {
+    ClockHolder.setClock(Clock.fixed(NOW, ZoneId.of("UTC")));
+  }
+
+  @AfterEach
+  void tearDown() {
+    ClockHolder.setDefaultClock();
+  }
 
   // XML template with a single CREDIT transaction
   private static final String XML_TEMPLATE =
@@ -65,15 +75,6 @@ class SavingFundPaymentServiceIntegrationTest {
           + "</Rpt> "
           + "</BkToCstmrAcctRpt> "
           + "</Document>";
-
-  @TestConfiguration
-  static class TestClockConfiguration {
-    @Bean
-    @Primary
-    public Clock testClock() {
-      return Clock.fixed(NOW, ZoneId.of("UTC"));
-    }
-  }
 
   @Test
   void endToEnd_processesXmlAndStoresPaymentsInDatabase() {

@@ -1,9 +1,8 @@
 package ee.tuleva.onboarding.savings.fund;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.LocalTime;
+import java.time.*;
+import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -11,17 +10,17 @@ import org.springframework.stereotype.Service;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class SavingFundPaymentCancellationService {
+public class SavingFundPaymentDeadlinesService {
   private final PublicHolidays publicHolidays;
-  private final Clock clock;
+  private final Clock estonianClock;
 
   private static final LocalTime CANCELLATION_DEADLINE_TIME = LocalTime.of(15, 59);
 
-  Instant getCancellationDeadline(SavingFundPayment payment) {
-    var paymentCreatedAt = payment.getCreatedAt();
-    var timeZone = clock.getZone();
-    var paymentCreatedDateTime = paymentCreatedAt.atZone(timeZone);
-    var paymentCreatedDate = paymentCreatedDateTime.toLocalDate();
+  public Instant getCancellationDeadline(SavingFundPayment payment) {
+    ZoneId timeZone = estonianClock.getZone();
+    Instant paymentCreatedAt = payment.getCreatedAt();
+    ZonedDateTime paymentCreatedDateTime = paymentCreatedAt.atZone(timeZone);
+    LocalDate paymentCreatedDate = paymentCreatedDateTime.toLocalDate();
 
     // Check if payment was created on a working day before 15:59
     var nextWorkingDay = publicHolidays.nextWorkingDay(paymentCreatedDate.minusDays(1));
@@ -37,5 +36,8 @@ public class SavingFundPaymentCancellationService {
     return nextWorkingDay.atTime(CANCELLATION_DEADLINE_TIME).atZone(timeZone).toInstant();
   }
 
-  // TODO: Implement payment cancellation
+  public Instant getFulfillmentDeadline(SavingFundPayment payment) {
+    // TODO: Implement
+    return payment.getCreatedAt().plus(1, ChronoUnit.DAYS);
+  }
 }

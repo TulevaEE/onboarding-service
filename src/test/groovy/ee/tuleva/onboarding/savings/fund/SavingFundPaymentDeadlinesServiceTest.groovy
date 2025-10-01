@@ -6,13 +6,13 @@ import spock.lang.Unroll
 
 import java.time.*
 
-class SavingFundPaymentCancellationServiceTest extends Specification {
+class SavingFundPaymentDeadlinesServiceTest extends Specification {
 
   def publicHolidays = Mock(PublicHolidays)
   def timeZone = ZoneId.of("Europe/Tallinn")
   def clock = Mock(Clock)
 
-  def service = new SavingFundPaymentCancellationService(publicHolidays, clock)
+  def service = new SavingFundPaymentDeadlinesService(publicHolidays, clock)
 
   def setup() {
     clock.getZone() >> timeZone
@@ -120,7 +120,7 @@ class SavingFundPaymentCancellationServiceTest extends Specification {
     def utcZone = ZoneId.of("UTC")
     def utcClock = Mock(Clock)
     utcClock.getZone() >> utcZone
-    def utcService = new SavingFundPaymentCancellationService(publicHolidays, utcClock)
+    def utcService = new SavingFundPaymentDeadlinesService(publicHolidays, utcClock)
 
     def paymentDate = LocalDate.of(2025, 9, 30)
     def paymentCreatedAt = ZonedDateTime.of(paymentDate, LocalTime.of(10, 0), utcZone).toInstant()

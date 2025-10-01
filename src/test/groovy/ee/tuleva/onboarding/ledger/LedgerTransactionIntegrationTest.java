@@ -6,6 +6,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.USER;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.CASH;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
@@ -24,17 +25,13 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @Transactional
 public class LedgerTransactionIntegrationTest {
-  @Autowired private LedgerService ledgerService;
 
+  @Autowired private LedgerService ledgerService;
   @Autowired private LedgerAccountRepository ledgerAccountRepository;
   @Autowired private LedgerAccountService ledgerAccountService;
-
   @Autowired private LedgerPartyRepository ledgerPartyRepository;
-
   @Autowired private LedgerTransactionRepository ledgerTransactionRepository;
-
   @Autowired private LedgerTransactionService ledgerTransactionService;
-
   @Autowired private Clock clock;
 
   @BeforeEach
@@ -59,7 +56,7 @@ public class LedgerTransactionIntegrationTest {
   }
 
   private LedgerAccount getCashAccount(LedgerParty party) {
-    return ledgerAccountService.getLedgerAccount(party, ASSET, EUR).orElseThrow();
+    return ledgerAccountService.getLedgerAccount(party, CASH, ASSET, EUR).orElseThrow();
   }
 
   private LedgerAccount getServiceAccount() {

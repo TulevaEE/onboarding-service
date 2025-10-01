@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
@@ -9,6 +10,7 @@ import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.OPERATIO
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SavingsFundTransactionType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SavingsFundTransactionType.REDEMPTION_REQUEST;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.*;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
@@ -21,10 +23,8 @@ import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-@Profile({"dev", "test"})
 @Service
 @RequiredArgsConstructor
 public class SavingsFundLedger {
@@ -45,10 +45,17 @@ public class SavingsFundLedger {
     PAYOUTS_CASH_CLEARING
   }
 
+  public enum UserAccount {
+    CASH,
+    CASH_RESERVED,
+    FUND_UNITS
+  }
+
   public enum SavingsFundTransactionType {
     PAYMENT_RECEIVED,
     UNATTRIBUTED_PAYMENT,
     PAYMENT_BOUNCE_BACK,
+    PAYMENT_RESERVED,
     FUND_SUBSCRIPTION,
     FUND_TRANSFER,
     LATE_ATTRIBUTION,
@@ -114,10 +121,29 @@ public class SavingsFundLedger {
   }
 
   @Transactional
-  public LedgerTransaction issueFundUnits(
-      User user, BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit) {
+  public LedgerTransaction reservePaymentForSubscription(User user, BigDecimal amount) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashAccount = getUserCashAccount(userParty);
+    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
+
+    Map<String, Object> metadata =
+        Map.of(
+            OPERATION_TYPE.key, PAYMENT_RESERVED.name(),
+            USER_ID.key, user.getId(),
+            PERSONAL_CODE.key, user.getPersonalCode());
+
+    return ledgerTransactionService.createTransaction(
+        Instant.now(clock),
+        metadata,
+        entry(userCashAccount, amount.negate()),
+        entry(userCashReservedAccount, amount));
+  }
+
+  @Transactional
+  public LedgerTransaction issueFundUnitsFromReserved(
+      User user, BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit) {
+    LedgerParty userParty = getUserParty(user);
+    LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
     LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
     LedgerAccount subscriptionsPayableAccount =
         getSystemAccount(FUND_SUBSCRIPTIONS_PAYABLE, EUR, LIABILITY);
@@ -134,7 +160,7 @@ public class SavingsFundLedger {
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
         metadata,
-        entry(userCashAccount, cashAmount.negate()),
+        entry(userCashReservedAccount, cashAmount.negate()),
         entry(subscriptionsPayableAccount, cashAmount),
         entry(userUnitsAccount, fundUnits),
         entry(unitsOutstandingAccount, fundUnits.negate()));
@@ -263,25 +289,31 @@ public class SavingsFundLedger {
 
   private LedgerAccount getUserCashAccount(LedgerParty owner) {
     return ledgerAccountRepository
-        .findByOwnerAndAccountTypeAndAssetType(owner, ASSET, EUR)
-        .orElseThrow(
-            () -> new IllegalStateException("User cash account not found: " + owner.getOwnerId()));
+        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+            owner, CASH.name(), USER_ACCOUNT, EUR, ASSET)
+        .orElseGet(() -> ledgerAccountService.createUserAccount(owner, CASH, ASSET, EUR));
+  }
+
+  private LedgerAccount getUserCashReservedAccount(LedgerParty owner) {
+    return ledgerAccountRepository
+        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+            owner, CASH_RESERVED.name(), USER_ACCOUNT, EUR, ASSET)
+        .orElseGet(() -> ledgerAccountService.createUserAccount(owner, CASH_RESERVED, ASSET, EUR));
   }
 
   private LedgerAccount getUserUnitsAccount(LedgerParty userParty) {
-    return ledgerAccountService
-        .getLedgerAccount(userParty, ASSET, FUND_UNIT)
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "User units account not found: " + userParty.getOwnerId()));
+    return ledgerAccountRepository
+        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+            userParty, FUND_UNITS.name(), USER_ACCOUNT, FUND_UNIT, ASSET)
+        .orElseGet(
+            () -> ledgerAccountService.createUserAccount(userParty, FUND_UNITS, ASSET, FUND_UNIT));
   }
 
   private LedgerAccount getSystemAccount(
       SystemAccount systemAccount, AssetType assetType, AccountType accountType) {
     return ledgerAccountRepository
-        .findByNameAndPurposeAndAssetTypeAndAccountType(
-            systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType)
+        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+            null, systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType)
         .orElseGet(
             () ->
                 ledgerAccountService.createSystemAccount(

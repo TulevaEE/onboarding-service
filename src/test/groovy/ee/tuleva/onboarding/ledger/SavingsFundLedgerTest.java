@@ -2,10 +2,12 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.*;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -30,17 +32,10 @@ import org.springframework.transaction.annotation.Transactional;
 class SavingsFundLedgerTest {
 
   @Autowired SavingsFundLedger savingsFundLedger;
-
   @Autowired LedgerService ledgerService;
-
-  @Autowired LedgerAccountService ledgerAccountService;
-
   @Autowired LedgerPartyService ledgerPartyService;
-
   @Autowired LedgerAccountRepository ledgerAccountRepository;
-
   @Autowired LedgerPartyRepository ledgerPartyRepository;
-
   @Autowired LedgerTransactionRepository ledgerTransactionRepository;
 
   User testUser;
@@ -153,29 +148,44 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  @DisplayName("Subscription flow: Should issue fund units for user cash")
-  void testIssueFundUnits() {
+  @DisplayName("Subscription flow: Should reserve payment before issuing fund units")
+  void testReservePaymentAndIssueFundUnits() {
     BigDecimal cashAmount = new BigDecimal("950.00");
     BigDecimal fundUnits = new BigDecimal("10.0000");
     BigDecimal navPerUnit = new BigDecimal("95.00");
+
+    // Step 1: Payment received
     savingsFundLedger.recordPaymentReceived(testUser, cashAmount, "SETUP_REF");
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(cashAmount);
 
-    LedgerTransaction transaction =
-        savingsFundLedger.issueFundUnits(testUser, cashAmount, fundUnits, navPerUnit);
+    // Step 2: Reserve payment for subscription (cash -> cash_reserved)
+    LedgerTransaction reserveTransaction =
+        savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
+    assertThat(reserveTransaction).isNotNull();
+    assertThat(reserveTransaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RESERVED");
+    assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(cashAmount);
 
-    assertThat(transaction).isNotNull();
-    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_SUBSCRIPTION");
-    assertThat(transaction.getMetadata().get("navPerUnit")).isEqualTo(navPerUnit);
-    assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
+    // Step 3: Issue fund units from reserved account
+    LedgerTransaction subscriptionTransaction =
+        savingsFundLedger.issueFundUnitsFromReserved(testUser, cashAmount, fundUnits, navPerUnit);
+
+    assertThat(subscriptionTransaction).isNotNull();
+    assertThat(subscriptionTransaction.getMetadata().get("operationType"))
+        .isEqualTo("FUND_SUBSCRIPTION");
+    assertThat(subscriptionTransaction.getMetadata().get("navPerUnit")).isEqualTo(navPerUnit);
+    assertThat(subscriptionTransaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
 
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits);
     assertThat(getSystemAccount(FUND_SUBSCRIPTIONS_PAYABLE, EUR, LIABILITY).getBalance())
         .isEqualByComparingTo(cashAmount);
     assertThat(getSystemAccount(FUND_UNITS_OUTSTANDING, FUND_UNIT, LIABILITY).getBalance())
         .isEqualByComparingTo(fundUnits.negate());
 
-    verifyDoubleEntry(transaction);
+    verifyDoubleEntry(reserveTransaction);
+    verifyDoubleEntry(subscriptionTransaction);
   }
 
   @Test
@@ -271,7 +281,7 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  @DisplayName("Complete subscription flow: Payment → Units → Fund transfer")
+  @DisplayName("Complete subscription flow: Payment → Reserve → Units → Fund transfer")
   void testCompleteSubscriptionFlow() {
     BigDecimal paymentAmount = new BigDecimal("1000.00");
     BigDecimal fundUnits = new BigDecimal("10.5263");
@@ -279,15 +289,20 @@ class SavingsFundLedgerTest {
 
     LedgerTransaction paymentTx =
         savingsFundLedger.recordPaymentReceived(testUser, paymentAmount, "COMPLETE_FLOW_REF");
+    LedgerTransaction reserveTx =
+        savingsFundLedger.reservePaymentForSubscription(testUser, paymentAmount);
     LedgerTransaction subscriptionTx =
-        savingsFundLedger.issueFundUnits(testUser, paymentAmount, fundUnits, navPerUnit);
+        savingsFundLedger.issueFundUnitsFromReserved(
+            testUser, paymentAmount, fundUnits, navPerUnit);
     LedgerTransaction transferTx = savingsFundLedger.transferToFundAccount(paymentAmount);
 
     verifyDoubleEntry(paymentTx);
+    verifyDoubleEntry(reserveTx);
     verifyDoubleEntry(subscriptionTx);
     verifyDoubleEntry(transferTx);
 
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserUnitsAccount().getBalance()).isEqualByComparingTo(fundUnits);
     assertThat(getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET).getBalance())
         .isEqualByComparingTo(paymentAmount.negate());
@@ -342,18 +357,24 @@ class SavingsFundLedgerTest {
 
     LedgerTransaction payment =
         savingsFundLedger.recordPaymentReceived(testUser, amount, "BALANCE_TEST");
+    LedgerTransaction reserve = savingsFundLedger.reservePaymentForSubscription(testUser, amount);
     LedgerTransaction subscription =
-        savingsFundLedger.issueFundUnits(
+        savingsFundLedger.issueFundUnitsFromReserved(
             testUser, amount, new BigDecimal("10.0"), new BigDecimal("100.00"));
     LedgerTransaction transfer = savingsFundLedger.transferToFundAccount(amount);
 
     verifyDoubleEntry(payment);
+    verifyDoubleEntry(reserve);
     verifyDoubleEntry(subscription);
     verifyDoubleEntry(transfer);
 
     LedgerAccount userCashAccount = getUserCashAccount();
     assertThat(userCashAccount.getEntries()).isNotNull();
     assertThat(userCashAccount.getBalance()).isEqualByComparingTo(ZERO);
+
+    LedgerAccount userCashReservedAccount = getUserCashReservedAccount();
+    assertThat(userCashReservedAccount.getEntries()).isNotNull();
+    assertThat(userCashReservedAccount.getBalance()).isEqualByComparingTo(ZERO);
 
     LedgerAccount userUnitsAccount = getUserUnitsAccount();
     assertThat(userUnitsAccount.getEntries()).isNotNull();
@@ -380,7 +401,8 @@ class SavingsFundLedgerTest {
   private void setupUserWithFundUnits(
       BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit) {
     savingsFundLedger.recordPaymentReceived(testUser, cashAmount, "SETUP_PAYMENT");
-    savingsFundLedger.issueFundUnits(testUser, cashAmount, fundUnits, navPerUnit);
+    savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
+    savingsFundLedger.issueFundUnitsFromReserved(testUser, cashAmount, fundUnits, navPerUnit);
     savingsFundLedger.transferToFundAccount(cashAmount);
   }
 
@@ -398,20 +420,31 @@ class SavingsFundLedgerTest {
 
   private LedgerAccount getUserCashAccount() {
     return ledgerAccountRepository
-        .findByOwnerAndAccountTypeAndAssetType(userParty, ASSET, EUR)
+        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+            userParty, CASH.name(), USER_ACCOUNT, EUR, ASSET)
+        .orElseThrow();
+  }
+
+  private LedgerAccount getUserCashReservedAccount() {
+    return ledgerAccountRepository
+        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+            userParty, CASH_RESERVED.name(), USER_ACCOUNT, EUR, ASSET)
         .orElseThrow();
   }
 
   private LedgerAccount getUserUnitsAccount() {
-    return ledgerAccountService.getLedgerAccount(userParty, ASSET, FUND_UNIT).orElseThrow();
+    return ledgerAccountRepository
+        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+            userParty, FUND_UNITS.name(), USER_ACCOUNT, FUND_UNIT, ASSET)
+        .orElseThrow();
   }
 
   private LedgerAccount getSystemAccount(
       SystemAccount systemAccount, AssetType assetType, AccountType accountType) {
     return ledgerAccountRepository
-        .findByNameAndPurposeAndAssetTypeAndAccountType(
-            systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType)
-        .orElseThrow(() -> new RuntimeException("System account not found: " + systemAccount));
+        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
+            null, systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType)
+        .orElseThrow();
   }
 
   private static void verifyDoubleEntry(LedgerTransaction transaction) {

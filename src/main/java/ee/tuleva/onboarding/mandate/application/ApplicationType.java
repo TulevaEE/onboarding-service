@@ -16,6 +16,7 @@ public enum ApplicationType {
   FUND_PENSION_OPENING_THIRD_PILLAR("Täiendava fondipensioni avamise avaldus"),
   PARTIAL_WITHDRAWAL("Osalise väljamakse avaldus II sambast"),
   WITHDRAWAL_THIRD_PILLAR("Väljamakse avaldus vabatahtlikust pensionifondist"),
+  SAVING_FUND_PAYMENT("Täiendava kogumisfondi sissemakse"),
   ;
 
   public final String nameEstonian;

@@ -6,7 +6,7 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService
-import ee.tuleva.onboarding.pillar.Pillar
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentDeadlinesService
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
@@ -23,7 +23,8 @@ import static ee.tuleva.onboarding.mandate.MandateFixture.sampleFunds
 import static ee.tuleva.onboarding.mandate.application.ApplicationDtoFixture.*
 import static ee.tuleva.onboarding.mandate.application.ApplicationFixture.paymentApplication
 import static ee.tuleva.onboarding.mandate.application.ApplicationType.*
-import static ee.tuleva.onboarding.pillar.Pillar.*
+import static ee.tuleva.onboarding.pillar.Pillar.SECOND
+import static ee.tuleva.onboarding.pillar.Pillar.THIRD
 
 class ApplicationServiceSpec extends Specification {
 
@@ -31,10 +32,11 @@ class ApplicationServiceSpec extends Specification {
   LocaleService localeService = Mock()
   FundRepository fundRepository = Mock()
   MandateDeadlinesService mandateDeadlinesService = Mock()
-    PaymentLinkingService paymentApplicationService = Mock()
+  PaymentLinkingService paymentApplicationService = Mock()
+  SavingFundPaymentDeadlinesService savingFundPaymentDeadlinesService = Mock()
 
   ApplicationService applicationService =
-      new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService)
+      new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingFundPaymentDeadlinesService)
 
   def "gets applications"() {
     given:
@@ -336,4 +338,6 @@ class ApplicationServiceSpec extends Specification {
     hasPendingSecondPillarWithdrawals
     hasPendingThirdPillarWithdrawals
   }
+
+  // TODO: Add test for SavingFundPaymentApplications once we can fetch payments
 }

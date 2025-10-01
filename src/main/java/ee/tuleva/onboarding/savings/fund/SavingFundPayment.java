@@ -57,4 +57,18 @@ public class SavingFundPayment {
   @Nullable
   @Column(name = "received_at", columnDefinition = "TIMESTAMPTZ")
   private Instant receivedAt;
+
+  public enum Status {
+
+    CREATED, // montonio
+    RECEIVED, // swed
+    VERIFIED, // sanctions check + identity check
+    RESERVED,
+    PROCESSED,
+
+    CANCELLED, // sanctions check
+    FROZEN, // maybe manually changeable to VERIFIED
+    TO_BE_RETURNED, RETURNED,
+
+  }
 }

@@ -85,6 +85,29 @@ public class LedgerAccount {
     return entries.stream().map(LedgerEntry::getAmount).reduce(ZERO, BigDecimal::add);
   }
 
+  public BigDecimal getBalanceAt(Instant date) {
+    if (entries == null || entries.isEmpty()) return ZERO;
+    return entries.stream()
+        .filter(entry -> !entry.getTransaction().getTransactionDate().isAfter(date))
+        .map(LedgerEntry::getAmount)
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  public BigDecimal getBalanceBetween(Instant startDate, Instant endDate) {
+    if (entries == null || entries.isEmpty()) return ZERO;
+    if (startDate.isAfter(endDate)) {
+      throw new IllegalArgumentException("Start date must be before or equal to end date");
+    }
+    return entries.stream()
+        .filter(
+            entry -> {
+              Instant txDate = entry.getTransaction().getTransactionDate();
+              return !txDate.isBefore(startDate) && !txDate.isAfter(endDate);
+            })
+        .map(LedgerEntry::getAmount)
+        .reduce(ZERO, BigDecimal::add);
+  }
+
   void addEntry(LedgerEntry entry) {
     if (entry == null) {
       throw new IllegalArgumentException("Entry cannot be null");

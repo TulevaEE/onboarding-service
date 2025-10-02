@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.account;
 
 import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*;
+import static ee.tuleva.onboarding.ledger.UserAccount.*;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.currency.Currency;

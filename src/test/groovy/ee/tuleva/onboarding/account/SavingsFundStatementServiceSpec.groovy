@@ -7,7 +7,7 @@ import spock.lang.Specification
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser
 import static ee.tuleva.onboarding.fund.FundFixture.additionalSavingsFund
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.*
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*
+import static ee.tuleva.onboarding.ledger.UserAccount.*
 
 class SavingsFundStatementServiceSpec extends Specification {
 

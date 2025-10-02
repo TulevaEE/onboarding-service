@@ -5,14 +5,13 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_AC
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.*;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*;
+import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
-import ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount;
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.util.List;
@@ -388,7 +387,7 @@ class SavingsFundLedgerTest {
   }
 
   // Low-level core helper methods
-  private LedgerAccount getUserAccount(SavingsFundLedger.UserAccount userAccount) {
+  private LedgerAccount getUserAccount(UserAccount userAccount) {
     return ledgerAccountRepository
         .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
             userParty,

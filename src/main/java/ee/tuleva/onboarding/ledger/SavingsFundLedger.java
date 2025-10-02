@@ -1,18 +1,14 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.LedgerAccount.*;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.OPERATION_TYPE;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SavingsFundTransactionType.*;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SavingsFundTransactionType.REDEMPTION_REQUEST;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.*;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.REDEMPTIONS;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.SUBSCRIPTIONS;
+import static ee.tuleva.onboarding.ledger.SavingsFundTransactionType.*;
+import static ee.tuleva.onboarding.ledger.SavingsFundTransactionType.REDEMPTION_REQUEST;
+import static ee.tuleva.onboarding.ledger.SystemAccount.*;
+import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static ee.tuleva.onboarding.ledger.UserAccount.REDEMPTIONS;
+import static ee.tuleva.onboarding.ledger.UserAccount.SUBSCRIPTIONS;
 
-import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
 import ee.tuleva.onboarding.user.User;
 import jakarta.transaction.Transactional;
@@ -32,50 +28,7 @@ public class SavingsFundLedger {
   private final LedgerPartyService ledgerPartyService;
   private final LedgerAccountService ledgerAccountService;
   private final LedgerTransactionService ledgerTransactionService;
-  private final LedgerAccountRepository ledgerAccountRepository;
   private final Clock clock;
-
-  @Getter
-  @AllArgsConstructor
-  public enum SystemAccount {
-    INCOMING_PAYMENTS_CLEARING(ASSET, EUR),
-    UNRECONCILED_BANK_RECEIPTS(ASSET, EUR),
-    FUND_INVESTMENT_CASH_CLEARING(ASSET, EUR),
-    FUND_UNITS_OUTSTANDING(LIABILITY, FUND_UNIT),
-    PAYOUTS_CASH_CLEARING(ASSET, EUR);
-
-    private final AccountType accountType;
-    private final AssetType assetType;
-  }
-
-  @Getter
-  @AllArgsConstructor
-  public enum UserAccount {
-    CASH(LIABILITY, EUR),
-    CASH_RESERVED(LIABILITY, EUR),
-    CASH_REDEMPTION(LIABILITY, EUR),
-    FUND_UNITS(LIABILITY, FUND_UNIT),
-    FUND_UNITS_RESERVED(LIABILITY, FUND_UNIT),
-    SUBSCRIPTIONS(INCOME, EUR),
-    REDEMPTIONS(EXPENSE, EUR);
-
-    private final AccountType accountType;
-    private final AssetType assetType;
-  }
-
-  public enum SavingsFundTransactionType {
-    PAYMENT_RECEIVED,
-    UNATTRIBUTED_PAYMENT,
-    PAYMENT_BOUNCE_BACK,
-    PAYMENT_RESERVED,
-    FUND_SUBSCRIPTION,
-    FUND_TRANSFER,
-    LATE_ATTRIBUTION,
-    REDEMPTION_RESERVED,
-    REDEMPTION_REQUEST,
-    FUND_CASH_TRANSFER,
-    REDEMPTION_PAYOUT
-  }
 
   @Getter
   @AllArgsConstructor

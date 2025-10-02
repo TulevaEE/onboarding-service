@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.ledger;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
 
-import ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount;
-import ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;

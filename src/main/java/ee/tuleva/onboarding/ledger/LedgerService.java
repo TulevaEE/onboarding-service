@@ -1,9 +1,7 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*;
+import static ee.tuleva.onboarding.ledger.UserAccount.*;
 
-import ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount;
-import ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount;
 import ee.tuleva.onboarding.user.User;
 import java.time.Clock;
 import java.util.List;

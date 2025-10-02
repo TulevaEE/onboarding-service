@@ -4,7 +4,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCO
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*;
+import static ee.tuleva.onboarding.ledger.UserAccount.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;

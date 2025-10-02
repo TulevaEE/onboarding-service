@@ -1,13 +1,9 @@
 package ee.tuleva.onboarding.swedbank.reconcillation;
 
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
-import static ee.tuleva.onboarding.swedbank.statement.BankStatementAccount.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 
 import ee.tuleva.onboarding.ledger.LedgerService;
-import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.swedbank.statement.BankStatement;
-import ee.tuleva.onboarding.swedbank.statement.BankStatementAccount;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +34,7 @@ public class Reconciliator {
 
     var bankStatementAccount = bankStatement.getBankStatementAccount().getBankAccountType();
 
-    var ledgerSystemAccount = getCorrespondingLedgerAccountType(bankStatementAccount);
+    var ledgerSystemAccount = bankStatementAccount.getLedgerAccount();
     var ledgerAccountBalance =
         ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(bankBalanceTime);
 
@@ -55,14 +51,5 @@ public class Reconciliator {
 
       // TODO process entries here
     }
-  }
-
-  private SavingsFundLedger.SystemAccount getCorrespondingLedgerAccountType(
-      BankStatementAccount.BankAccountType bankAccountType) {
-    if (bankAccountType.equals(DEPOSIT_EUR)) {
-      return INCOMING_PAYMENTS_CLEARING;
-    }
-
-    throw new IllegalArgumentException("Unsupported bank account type: " + bankAccountType);
   }
 }

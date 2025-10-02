@@ -122,7 +122,7 @@ public class SwedbankGatewayClient {
     headers.add(
         "Date",
         DateTimeFormatter.RFC_1123_DATE_TIME
-            .withZone(ZoneId.systemDefault())
+            .withZone(ZoneId.of("UTC"))
             .format(clock.instant()));
     headers.add("Content-Type", "application/xml; charset=utf-8");
 

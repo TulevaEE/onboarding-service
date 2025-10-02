@@ -71,7 +71,7 @@ class SwedbankGatewayClientTest {
     var expectedHeaders = new HttpHeaders();
     expectedHeaders.add("X-Request-ID", requestUuid.toString().replace("-", ""));
     expectedHeaders.add("X-Agreement-ID", agreementId);
-    expectedHeaders.add("Date", "Wed, 1 Jan 2020 16:13:15 +0200");
+    expectedHeaders.add("Date", "Wed, 1 Jan 2020 14:13:15 GMT");
     expectedHeaders.add("Content-Type", "application/xml; charset=utf-8");
     verify(restTemplate)
         .exchange(

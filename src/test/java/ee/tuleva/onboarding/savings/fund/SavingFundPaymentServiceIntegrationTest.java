@@ -141,6 +141,98 @@ class SavingFundPaymentServiceIntegrationTest {
     assertThat(savedPayment.getExternalId()).isEqualTo("2025100112345-1");
   }
 
+  @Test
+  void outgoingPaymentsAreMovedToProcessedRightAway() {
+    // given - XML with DEBIT transaction (outgoing payment, negative amount)
+    var debitXml =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+            + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
+            + "<BkToCstmrAcctRpt> "
+            + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
+            + "<Rpt> "
+            + "<Acct> "
+            + "<Id> <IBAN>EE442200221092874625</IBAN> </Id> "
+            + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
+            + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> "
+            + "</Ownr> "
+            + "</Acct> "
+            + "<Ntry> "
+            + "<NtryRef>2025100112346-1</NtryRef>"
+            + "<Amt Ccy=\"EUR\">50.00</Amt> "
+            + "<CdtDbtInd>DBIT</CdtDbtInd> "
+            + "<Sts>BOOK</Sts> "
+            + "<BookgDt> <Dt>2025-10-01</Dt> </BookgDt> "
+            + "<NtryDtls> <TxDtls> "
+            + "<Refs> <AcctSvcrRef>2025100112346-1</AcctSvcrRef> </Refs> "
+            + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">50.00</Amt> </TxAmt> </AmtDtls> "
+            + "<RltdPties> "
+            + "<Cdtr> <Nm>External Party</Nm> </Cdtr> "
+            + "<CdtrAcct> <Id> <IBAN>EE999999999999999999</IBAN> </Id> </CdtrAcct> "
+            + "</RltdPties> "
+            + "<RmtInf> <Ustrd>Outgoing payment</Ustrd> </RmtInf> "
+            + "</TxDtls> </NtryDtls> "
+            + "</Ntry> "
+            + "</Rpt> "
+            + "</BkToCstmrAcctRpt> "
+            + "</Document>";
+
+    // when
+    processXmlMessage(debitXml);
+
+    // then
+    assertThat(repository.findAll()).hasSize(1);
+    var savedPayment = repository.findAll().iterator().next();
+    assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("-50.00"));
+    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.PROCESSED);
+    assertThat(savedPayment.getDescription()).isEqualTo("Outgoing payment");
+  }
+
+  @Test
+  void zeroAmountPaymentsAreMovedToProcessedRightAway() {
+    // given - XML with zero amount
+    var zeroAmountXml =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+            + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
+            + "<BkToCstmrAcctRpt> "
+            + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
+            + "<Rpt> "
+            + "<Acct> "
+            + "<Id> <IBAN>EE442200221092874625</IBAN> </Id> "
+            + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
+            + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> "
+            + "</Ownr> "
+            + "</Acct> "
+            + "<Ntry> "
+            + "<NtryRef>2025100112347-1</NtryRef>"
+            + "<Amt Ccy=\"EUR\">0.00</Amt> "
+            + "<CdtDbtInd>CRDT</CdtDbtInd> "
+            + "<Sts>BOOK</Sts> "
+            + "<BookgDt> <Dt>2025-10-01</Dt> </BookgDt> "
+            + "<NtryDtls> <TxDtls> "
+            + "<Refs> <AcctSvcrRef>2025100112347-1</AcctSvcrRef> </Refs> "
+            + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">0.00</Amt> </TxAmt> </AmtDtls> "
+            + "<RltdPties> "
+            + "<Dbtr> <Nm>Some Person</Nm> </Dbtr> "
+            + "<DbtrAcct> <Id> <IBAN>EE888888888888888888</IBAN> </Id> </DbtrAcct> "
+            + "</RltdPties> "
+            + "<RmtInf> <Ustrd>Zero payment</Ustrd> </RmtInf> "
+            + "</TxDtls> </NtryDtls> "
+            + "</Ntry> "
+            + "</Rpt> "
+            + "</BkToCstmrAcctRpt> "
+            + "</Document>";
+
+    // when
+    processXmlMessage(zeroAmountXml);
+
+    // then
+    assertThat(repository.findAll()).hasSize(1);
+    var savedPayment = repository.findAll().iterator().next();
+    assertThat(savedPayment.getAmount()).isEqualByComparingTo(BigDecimal.ZERO);
+    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.PROCESSED);
+    assertThat(savedPayment.getDescription()).isEqualTo("Zero payment");
+  }
+
   @Nested
   @Transactional
   class PaymentMatchingTests {

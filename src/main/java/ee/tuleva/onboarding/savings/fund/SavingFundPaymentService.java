@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,7 +31,10 @@ public class SavingFundPaymentService {
     }
 
     UUID paymentId = upsertPayment(payment);
-    repository.changeStatus(paymentId, RECEIVED);
+
+    // Outgoing payments (amount <= 0) go directly to PROCESSED, no need to process further
+    var status = payment.getAmount().compareTo(BigDecimal.ZERO) > 0 ? RECEIVED : PROCESSED;
+    repository.changeStatus(paymentId, status);
   }
 
   public List<SavingFundPayment> getPendingPaymentsForUser(

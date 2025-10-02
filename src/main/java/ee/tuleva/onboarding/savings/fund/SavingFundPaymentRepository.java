@@ -148,7 +148,7 @@ public class SavingFundPaymentRepository {
     var currentStatus = getAndLockCurrentStatus(paymentId);
     var allowedTransitions =
         Map.of(
-            CREATED, Set.of(RECEIVED),
+            CREATED, Set.of(RECEIVED, PROCESSED),
             RECEIVED, Set.of(VERIFIED, FROZEN, TO_BE_RETURNED),
             VERIFIED, Set.of(RESERVED, TO_BE_RETURNED),
             RESERVED, Set.of(PROCESSED),

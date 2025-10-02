@@ -39,6 +39,10 @@ public class SavingsFundStatementService {
   public FundBalance getAccountStatement(Person person) {
     User user = userService.findByPersonalCode(person.getPersonalCode()).orElseThrow();
 
+    if (!ledgerService.isUserOnboarded(user)) {
+      throw new IllegalStateException("User is not onboarded");
+    }
+
     BigDecimal units = getUserFundUnits(user);
     BigDecimal value = getNAV().multiply(units);
 

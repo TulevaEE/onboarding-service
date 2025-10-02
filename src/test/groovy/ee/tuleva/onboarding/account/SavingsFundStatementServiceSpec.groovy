@@ -26,6 +26,7 @@ class SavingsFundStatementServiceSpec extends Specification {
     def redemptions = redemptionsAccountWithBalance(0.0)
 
     userService.findByPersonalCode(_ as String) >> Optional.of(user)
+    ledgerService.isUserOnboarded(user) >> true
     ledgerService.getUserAccount(user, FUND_UNITS) >> fundUnits
     ledgerService.getUserAccount(user, FUND_UNITS_RESERVED) >> fundUnitsReserved
     ledgerService.getUserAccount(user, SUBSCRIPTIONS) >> subscriptions
@@ -39,5 +40,20 @@ class SavingsFundStatementServiceSpec extends Specification {
     savingsAccountStatement.fund == additionalSavingsFund()
     savingsAccountStatement.value == 3
     savingsAccountStatement.contributions == 3
+  }
+
+  def "throws error if user is not onboarded"() {
+    given:
+    def user = sampleUser().build()
+
+    userService.findByPersonalCode(_ as String) >> Optional.of(user)
+    ledgerService.isUserOnboarded(user) >> false
+
+
+    when:
+    service.getAccountStatement(user)
+
+    then:
+    thrown(IllegalStateException)
   }
 }

@@ -9,7 +9,6 @@ import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.validation.Valid;
 import java.math.BigDecimal;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -53,17 +52,6 @@ public class LedgerTestController {
     User user = userService.getById(userId).orElseThrow();
 
     return ledgerService.onboard(user);
-  }
-
-  @Operation(summary = "Deposit")
-  @PostMapping("/deposit")
-  public LedgerTransaction onboardUser(
-      @Valid @RequestBody DepositDto depositDto,
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    Long userId = authenticatedPerson.getUserId();
-    User user = userService.getById(userId).orElseThrow();
-
-    return ledgerService.deposit(user, depositDto.amount(), depositDto.assetType());
   }
 
   @Operation(summary = "Send statement request")

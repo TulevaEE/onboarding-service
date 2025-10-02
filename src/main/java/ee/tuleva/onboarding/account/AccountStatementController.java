@@ -9,7 +9,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -43,7 +42,8 @@ public class AccountStatementController {
   @GetMapping("/savings-account-statement")
   public ApiFundBalanceResponse getMySavingsAccountStatement(
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    Optional<FundBalance> fundBalance = savingsFundStatementService.getAccountStatement(authenticatedPerson);
+    Optional<FundBalance> fundBalance =
+        savingsFundStatementService.getAccountStatement(authenticatedPerson);
     if (fundBalance.isEmpty()) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No additional savings fund opened");
     }

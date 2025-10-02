@@ -121,9 +121,7 @@ public class SwedbankGatewayClient {
     headers.add("X-Agreement-ID", agreementId);
     headers.add(
         "Date",
-        DateTimeFormatter.RFC_1123_DATE_TIME
-            .withZone(ZoneId.of("UTC"))
-            .format(clock.instant()));
+        DateTimeFormatter.RFC_1123_DATE_TIME.withZone(ZoneId.of("UTC")).format(clock.instant()));
     headers.add("Content-Type", "application/xml; charset=utf-8");
 
     return headers;

@@ -16,6 +16,8 @@ import java.time.Instant;
 import java.util.UUID;
 import lombok.*;
 import org.hibernate.annotations.Generated;
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 @Entity
 @Table(name = "entry", schema = "ledger")
@@ -53,6 +55,8 @@ public class LedgerEntry {
   @NotNull
   @Setter(AccessLevel.PACKAGE)
   @Enumerated(STRING)
+  @Column(columnDefinition = "ledger.asset_type")
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   private AssetType assetType;
 
   @Column(nullable = false, updatable = false, insertable = false)

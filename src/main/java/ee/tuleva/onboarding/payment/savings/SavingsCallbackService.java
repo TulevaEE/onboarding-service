@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrderToken;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
+import ee.tuleva.onboarding.user.UserService;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SavingsCallbackService {
 
+  private final UserService userService;
   private final MontonioTokenParser tokenParser;
   private final SavingsChannelConfiguration savingsChannelConfiguration;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
@@ -52,7 +54,13 @@ public class SavingsCallbackService {
             .amount(token.getGrandTotal())
             .currency(token.getCurrency())
             .build();
-    savingFundPaymentRepository.savePaymentData(payment);
+
+    var paymentId = savingFundPaymentRepository.savePaymentData(payment);
+
+    userService
+        .findByPersonalCode(token.getMerchantReference().getPersonalCode())
+        .ifPresent(user -> savingFundPaymentRepository.attachUser(paymentId, user.getId()));
+
     return Optional.of(payment);
   }
 }

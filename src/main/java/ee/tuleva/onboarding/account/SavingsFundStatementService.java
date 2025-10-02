@@ -1,10 +1,10 @@
 package ee.tuleva.onboarding.account;
 
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.FUND_UNITS;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.FUND_UNITS_RESERVED;
+import static ee.tuleva.onboarding.fund.Fund.FundStatus.ACTIVE;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*;
 
 import ee.tuleva.onboarding.auth.principal.Person;
+import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import ee.tuleva.onboarding.ledger.LedgerService;
@@ -22,7 +22,6 @@ public class SavingsFundStatementService {
   private final UserService userService;
   private final LedgerService ledgerService;
 
-  private static final String EUR = "EUR";
   private static final BigDecimal FEE_RATE = new BigDecimal("0.0049");
   private static final Fund SAVINGS_FUND =
       Fund.builder()
@@ -34,40 +33,38 @@ public class SavingsFundStatementService {
           .nameEstonian("Tuleva täiendav kogumisfond")
           .managementFeeRate(FEE_RATE)
           .ongoingChargesFigure(FEE_RATE)
-          .status(Fund.FundStatus.ACTIVE)
+          .status(ACTIVE)
           .build();
 
   public FundBalance getAccountStatement(Person person) {
     User user = userService.findByPersonalCode(person.getPersonalCode()).orElseThrow();
 
-    BigDecimal units = getUserUnits(user);
+    BigDecimal units = getUserFundUnits(user);
     BigDecimal value = getNAV().multiply(units);
 
     return FundBalance.builder()
         .fund(SAVINGS_FUND)
-        .currency(EUR)
+        .currency(Currency.EUR.name())
         .units(units)
         .value(value)
-        .contributions(value)
-        .subtractions(getUserWithdrawals(user))
+        .contributions(getUserSubscriptions(user))
+        .subtractions(getUserRedemptions(user))
         .build();
   }
 
-  private BigDecimal getUserUnits(User user) {
-    BigDecimal balance = ledgerService.getUserAccount(user, FUND_UNITS, FUND_UNIT).getBalance();
+  private BigDecimal getUserFundUnits(User user) {
+    BigDecimal balance = ledgerService.getUserAccount(user, FUND_UNITS).getBalance().negate();
     BigDecimal reservedBalance =
-        ledgerService.getUserAccount(user, FUND_UNITS_RESERVED, FUND_UNIT).getBalance();
+        ledgerService.getUserAccount(user, FUND_UNITS_RESERVED).getBalance().negate();
     return balance.add(reservedBalance);
   }
 
-  private BigDecimal getUserDeposits(User user) {
-    // TODO get deposits from ledger
-    return BigDecimal.ZERO;
+  private BigDecimal getUserSubscriptions(User user) {
+    return ledgerService.getUserAccount(user, SUBSCRIPTIONS).getBalance().negate();
   }
 
-  private BigDecimal getUserWithdrawals(User user) {
-    // TODO get withdrawals from ledger
-    return BigDecimal.ZERO;
+  private BigDecimal getUserRedemptions(User user) {
+    return ledgerService.getUserAccount(user, REDEMPTIONS).getBalance();
   }
 
   private BigDecimal getNAV() {

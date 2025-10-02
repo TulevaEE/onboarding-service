@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.swedbank.statement.BankStatement;
 import ee.tuleva.onboarding.swedbank.statement.BankStatementAccount;
 import ee.tuleva.onboarding.swedbank.statement.BankStatementEntry;
 import ee.tuleva.onboarding.swedbank.statement.TransactionType;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
@@ -29,14 +30,15 @@ public class SavingFundPaymentExtractor {
 
   private List<SavingFundPayment> extractPaymentsFromStatement(BankStatement statement) {
     var account = statement.getBankStatementAccount();
+    var receivedBefore = statement.getReceivedBefore();
 
     return statement.getEntries().stream()
-        .map(entry -> convertToSavingFundPayment(entry, account))
+        .map(entry -> convertToSavingFundPayment(entry, account, receivedBefore))
         .toList();
   }
 
   private SavingFundPayment convertToSavingFundPayment(
-      BankStatementEntry entry, BankStatementAccount account) {
+      BankStatementEntry entry, BankStatementAccount account, Instant receivedBefore) {
 
     if (!Objects.equals(entry.currencyCode(), "EUR")) {
       throw new PaymentProcessingException(
@@ -54,7 +56,8 @@ public class SavingFundPaymentExtractor {
             .amount(entry.amount())
             .currency(currency)
             .description(entry.remittanceInformation())
-            .externalId(entry.externalId());
+            .externalId(entry.externalId())
+            .receivedBefore(receivedBefore);
 
     if (entry.transactionType() == TransactionType.CREDIT) {
       builder

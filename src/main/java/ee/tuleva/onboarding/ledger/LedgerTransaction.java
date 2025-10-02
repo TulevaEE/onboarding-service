@@ -20,7 +20,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import org.hibernate.annotations.Generated;
+import org.hibernate.annotations.JdbcType;
 import org.hibernate.annotations.Type;
+import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 
 @Entity
 @Table(name = "transaction", schema = "ledger")
@@ -41,6 +43,8 @@ public class LedgerTransaction {
   private UUID id;
 
   @Enumerated(STRING)
+  @Column(columnDefinition = "ledger.transaction_type")
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @NotNull
   private TransactionType transactionType;
 

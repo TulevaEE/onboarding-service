@@ -48,7 +48,7 @@ public class LedgerAccount {
   }
 
   @Enumerated(STRING)
-  @Column(nullable = false, columnDefinition = "ledger.account_type")
+  @Column(columnDefinition = "ledger.account_type")
   @JdbcType(PostgreSQLEnumJdbcType.class)
   @NotNull
   private AccountType accountType;
@@ -65,6 +65,8 @@ public class LedgerAccount {
   private LedgerParty owner;
 
   @Enumerated(STRING)
+  @Column(columnDefinition = "ledger.asset_type")
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @NotNull
   private AssetType assetType;
 
@@ -83,6 +85,29 @@ public class LedgerAccount {
   public BigDecimal getBalance() {
     if (entries == null || entries.isEmpty()) return ZERO;
     return entries.stream().map(LedgerEntry::getAmount).reduce(ZERO, BigDecimal::add);
+  }
+
+  public BigDecimal getBalanceAt(Instant date) {
+    if (entries == null || entries.isEmpty()) return ZERO;
+    return entries.stream()
+        .filter(entry -> !entry.getTransaction().getTransactionDate().isAfter(date))
+        .map(LedgerEntry::getAmount)
+        .reduce(ZERO, BigDecimal::add);
+  }
+
+  public BigDecimal getBalanceBetween(Instant startDate, Instant endDate) {
+    if (entries == null || entries.isEmpty()) return ZERO;
+    if (startDate.isAfter(endDate)) {
+      throw new IllegalArgumentException("Start date must be before or equal to end date");
+    }
+    return entries.stream()
+        .filter(
+            entry -> {
+              Instant txDate = entry.getTransaction().getTransactionDate();
+              return !txDate.isBefore(startDate) && !txDate.isAfter(endDate);
+            })
+        .map(LedgerEntry::getAmount)
+        .reduce(ZERO, BigDecimal::add);
   }
 
   void addEntry(LedgerEntry entry) {

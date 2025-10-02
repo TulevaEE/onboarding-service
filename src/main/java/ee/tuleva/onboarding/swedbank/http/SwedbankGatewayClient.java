@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.swedbank.http;
 
 import static ee.swedbank.gateway.iso.request.QueryType3Code.ALLL;
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static java.time.temporal.ChronoUnit.DAYS;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
@@ -171,10 +172,10 @@ public class SwedbankGatewayClient {
 
     // TODO revisit this, maybe run for last hour to better deal with limits
     timePeriodDetails.setFrTm(
-        timeConverter.convert(LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn"))));
+        timeConverter.convert(LocalDate.now(clock).atStartOfDay(SWEDBANK_GATEWAY_TIME_ZONE)));
     timePeriodDetails.setToTm(
         timeConverter.convert(
-            LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn")).with(LocalTime.MAX)));
+            LocalDate.now(clock).atStartOfDay(SWEDBANK_GATEWAY_TIME_ZONE).with(LocalTime.MAX)));
 
     period.setFrToTm(timePeriodDetails);
 
@@ -234,10 +235,9 @@ public class SwedbankGatewayClient {
     TimePeriodDetails1 timePeriodDetails = new TimePeriodDetails1();
 
     timePeriodDetails.setFrTm(
-        timeConverter.convert(fromDate.atStartOfDay(ZoneId.of("Europe/Tallinn"))));
+        timeConverter.convert(fromDate.atStartOfDay(SWEDBANK_GATEWAY_TIME_ZONE)));
     timePeriodDetails.setToTm(
-        timeConverter.convert(
-            toDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).with(LocalTime.MAX)));
+        timeConverter.convert(toDate.atStartOfDay(SWEDBANK_GATEWAY_TIME_ZONE).with(LocalTime.MAX)));
 
     period.setFrToTm(timePeriodDetails);
 

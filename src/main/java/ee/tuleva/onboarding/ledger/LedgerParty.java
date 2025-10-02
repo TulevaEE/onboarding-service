@@ -34,8 +34,9 @@ public class LedgerParty {
   private UUID id;
 
   @Enumerated(STRING)
-  @Column(nullable = false, columnDefinition = "ledger.party_type")
+  @Column(columnDefinition = "ledger.party_type")
   @JdbcType(PostgreSQLEnumJdbcType.class)
+  @NotNull
   private PartyType partyType;
 
   @NotNull
@@ -44,6 +45,7 @@ public class LedgerParty {
 
   @Type(JsonType.class)
   @Column(columnDefinition = "JSONB", nullable = false)
+  @NotNull
   private Map<String, Object> details;
 
   @Column(nullable = false, updatable = false, insertable = false)

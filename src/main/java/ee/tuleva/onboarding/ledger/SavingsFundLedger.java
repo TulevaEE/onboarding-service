@@ -1,8 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.*;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.MetadataKey.*;
@@ -11,6 +9,8 @@ import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SavingsFundTransacti
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SavingsFundTransactionType.REDEMPTION_REQUEST;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.REDEMPTIONS;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.SUBSCRIPTIONS;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
 import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
@@ -35,22 +35,32 @@ public class SavingsFundLedger {
   private final LedgerAccountRepository ledgerAccountRepository;
   private final Clock clock;
 
+  @Getter
+  @AllArgsConstructor
   public enum SystemAccount {
-    INCOMING_PAYMENTS_CLEARING,
-    UNRECONCILED_BANK_RECEIPTS,
-    SUBSCRIPTIONS,
-    FUND_INVESTMENT_CASH_CLEARING,
-    FUND_UNITS_OUTSTANDING,
-    REDEMPTIONS,
-    PAYOUTS_CASH_CLEARING
+    INCOMING_PAYMENTS_CLEARING(ASSET, EUR),
+    UNRECONCILED_BANK_RECEIPTS(ASSET, EUR),
+    FUND_INVESTMENT_CASH_CLEARING(ASSET, EUR),
+    FUND_UNITS_OUTSTANDING(LIABILITY, FUND_UNIT),
+    PAYOUTS_CASH_CLEARING(ASSET, EUR);
+
+    private final AccountType accountType;
+    private final AssetType assetType;
   }
 
+  @Getter
+  @AllArgsConstructor
   public enum UserAccount {
-    CASH,
-    CASH_RESERVED,
-    CASH_REDEMPTION,
-    FUND_UNITS,
-    FUND_UNITS_RESERVED
+    CASH(LIABILITY, EUR),
+    CASH_RESERVED(LIABILITY, EUR),
+    CASH_REDEMPTION(LIABILITY, EUR),
+    FUND_UNITS(LIABILITY, FUND_UNIT),
+    FUND_UNITS_RESERVED(LIABILITY, FUND_UNIT),
+    SUBSCRIPTIONS(INCOME, EUR),
+    REDEMPTIONS(EXPENSE, EUR);
+
+    private final AccountType accountType;
+    private final AssetType assetType;
   }
 
   public enum SavingsFundTransactionType {
@@ -86,8 +96,7 @@ public class SavingsFundLedger {
       User user, BigDecimal amount, String externalReference) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashAccount = getUserCashAccount(userParty);
-    LedgerAccount incomingPaymentsAccount =
-        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET);
+    LedgerAccount incomingPaymentsAccount = getSystemAccount(INCOMING_PAYMENTS_CLEARING);
 
     Map<String, Object> metadata =
         Map.of(
@@ -106,9 +115,8 @@ public class SavingsFundLedger {
   @Transactional
   public LedgerTransaction recordUnattributedPayment(
       BigDecimal amount, String payerIban, String externalReference) {
-    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET);
-    LedgerAccount incomingPaymentsAccount =
-        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET);
+    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS);
+    LedgerAccount incomingPaymentsAccount = getSystemAccount(INCOMING_PAYMENTS_CLEARING);
 
     Map<String, Object> metadata =
         Map.of(
@@ -148,9 +156,8 @@ public class SavingsFundLedger {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
     LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
-    LedgerAccount subscriptionsIncomeAccount = getSystemAccount(SUBSCRIPTIONS, EUR, INCOME);
-    LedgerAccount unitsOutstandingAccount =
-        getSystemAccount(FUND_UNITS_OUTSTANDING, FUND_UNIT, LIABILITY);
+    LedgerAccount userSubscriptionsAccount = getUserSubscriptionsAccount(userParty);
+    LedgerAccount unitsOutstandingAccount = getSystemAccount(FUND_UNITS_OUTSTANDING);
 
     Map<String, Object> metadata =
         Map.of(
@@ -163,16 +170,15 @@ public class SavingsFundLedger {
         Instant.now(clock),
         metadata,
         entry(userCashReservedAccount, cashAmount),
-        entry(subscriptionsIncomeAccount, cashAmount.negate()),
+        entry(userSubscriptionsAccount, cashAmount.negate()),
         entry(userUnitsAccount, fundUnits.negate()),
         entry(unitsOutstandingAccount, fundUnits));
   }
 
   @Transactional
   public LedgerTransaction transferToFundAccount(BigDecimal amount) {
-    LedgerAccount incomingPaymentsAccount =
-        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET);
-    LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
+    LedgerAccount incomingPaymentsAccount = getSystemAccount(INCOMING_PAYMENTS_CLEARING);
+    LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING);
 
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, FUND_TRANSFER.name());
 
@@ -185,9 +191,8 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction bounceBackUnattributedPayment(BigDecimal amount, String payerIban) {
-    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET);
-    LedgerAccount incomingPaymentsAccount =
-        getSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, ASSET);
+    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS);
+    LedgerAccount incomingPaymentsAccount = getSystemAccount(INCOMING_PAYMENTS_CLEARING);
 
     Map<String, Object> metadata =
         Map.of(OPERATION_TYPE.key, PAYMENT_BOUNCE_BACK.name(), PAYER_IBAN.key, payerIban);
@@ -203,7 +208,7 @@ public class SavingsFundLedger {
   public LedgerTransaction attributeLatePayment(User user, BigDecimal amount) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashAccount = getUserCashAccount(userParty);
-    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS, EUR, ASSET);
+    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS);
 
     Map<String, Object> metadata =
         Map.of(
@@ -243,9 +248,8 @@ public class SavingsFundLedger {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
     LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
-    LedgerAccount unitsOutstandingAccount =
-        getSystemAccount(FUND_UNITS_OUTSTANDING, FUND_UNIT, LIABILITY);
-    LedgerAccount redemptionExpenseAccount = getSystemAccount(REDEMPTIONS, EUR, EXPENSE);
+    LedgerAccount unitsOutstandingAccount = getSystemAccount(FUND_UNITS_OUTSTANDING);
+    LedgerAccount userRedemptionsAccount = getUserRedemptionsAccount(userParty);
 
     Map<String, Object> metadata =
         Map.of(
@@ -260,13 +264,13 @@ public class SavingsFundLedger {
         entry(userUnitsReservedAccount, fundUnits),
         entry(unitsOutstandingAccount, fundUnits.negate()),
         entry(userCashRedemptionAccount, cashAmount.negate()),
-        entry(redemptionExpenseAccount, cashAmount));
+        entry(userRedemptionsAccount, cashAmount));
   }
 
   @Transactional
   public LedgerTransaction transferFundToPayoutCash(BigDecimal amount) {
-    LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING, EUR, ASSET);
-    LedgerAccount payoutsCashAccount = getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET);
+    LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING);
+    LedgerAccount payoutsCashAccount = getSystemAccount(PAYOUTS_CASH_CLEARING);
 
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, FUND_CASH_TRANSFER.name());
 
@@ -282,7 +286,7 @@ public class SavingsFundLedger {
       User user, BigDecimal amount, String customerIban) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
-    LedgerAccount payoutsCashAccount = getSystemAccount(PAYOUTS_CASH_CLEARING, EUR, ASSET);
+    LedgerAccount payoutsCashAccount = getSystemAccount(PAYOUTS_CASH_CLEARING);
 
     Map<String, Object> metadata =
         Map.of(
@@ -309,57 +313,63 @@ public class SavingsFundLedger {
             () -> new IllegalStateException("User not onboarded: " + user.getPersonalCode()));
   }
 
+  private LedgerAccount getUserAccount(LedgerParty owner, UserAccount userAccount) {
+    return ledgerAccountService
+        .findUserAccount(owner, userAccount)
+        .orElseGet(() -> ledgerAccountService.createUserAccount(owner, userAccount));
+  }
+
+  private LedgerAccount getSystemAccount(SystemAccount systemAccount) {
+    return ledgerAccountService
+        .findSystemAccount(systemAccount)
+        .orElseGet(() -> ledgerAccountService.createSystemAccount(systemAccount));
+  }
+
   private LedgerAccount getUserCashAccount(LedgerParty owner) {
-    return ledgerAccountRepository
-        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            owner, CASH.name(), USER_ACCOUNT, EUR, LIABILITY)
-        .orElseGet(() -> ledgerAccountService.createUserAccount(owner, CASH, LIABILITY, EUR));
+    return getUserAccount(owner, CASH);
   }
 
   private LedgerAccount getUserCashReservedAccount(LedgerParty owner) {
-    return ledgerAccountRepository
-        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            owner, CASH_RESERVED.name(), USER_ACCOUNT, EUR, LIABILITY)
-        .orElseGet(
-            () -> ledgerAccountService.createUserAccount(owner, CASH_RESERVED, LIABILITY, EUR));
+    return getUserAccount(owner, CASH_RESERVED);
   }
 
   private LedgerAccount getUserCashRedemptionAccount(LedgerParty owner) {
-    return ledgerAccountRepository
-        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            owner, CASH_REDEMPTION.name(), USER_ACCOUNT, EUR, LIABILITY)
-        .orElseGet(
-            () -> ledgerAccountService.createUserAccount(owner, CASH_REDEMPTION, LIABILITY, EUR));
+    return getUserAccount(owner, CASH_REDEMPTION);
   }
 
-  private LedgerAccount getUserUnitsAccount(LedgerParty userParty) {
-    return ledgerAccountRepository
-        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            userParty, FUND_UNITS.name(), USER_ACCOUNT, FUND_UNIT, LIABILITY)
-        .orElseGet(
-            () ->
-                ledgerAccountService.createUserAccount(
-                    userParty, FUND_UNITS, LIABILITY, FUND_UNIT));
+  private LedgerAccount getUserUnitsAccount(LedgerParty owner) {
+    return getUserAccount(owner, FUND_UNITS);
   }
 
-  private LedgerAccount getUserUnitsReservedAccount(LedgerParty userParty) {
-    return ledgerAccountRepository
-        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            userParty, FUND_UNITS_RESERVED.name(), USER_ACCOUNT, FUND_UNIT, LIABILITY)
-        .orElseGet(
-            () ->
-                ledgerAccountService.createUserAccount(
-                    userParty, FUND_UNITS_RESERVED, LIABILITY, FUND_UNIT));
+  private LedgerAccount getUserUnitsReservedAccount(LedgerParty owner) {
+    return getUserAccount(owner, FUND_UNITS_RESERVED);
   }
 
-  private LedgerAccount getSystemAccount(
-      SystemAccount systemAccount, AssetType assetType, AccountType accountType) {
-    return ledgerAccountRepository
-        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            null, systemAccount.name(), SYSTEM_ACCOUNT, assetType, accountType)
-        .orElseGet(
-            () ->
-                ledgerAccountService.createSystemAccount(
-                    systemAccount.name(), assetType, accountType));
+  private LedgerAccount getUserSubscriptionsAccount(LedgerParty owner) {
+    return getUserAccount(owner, SUBSCRIPTIONS);
+  }
+
+  private LedgerAccount getUserRedemptionsAccount(LedgerParty owner) {
+    return getUserAccount(owner, REDEMPTIONS);
+  }
+
+  private LedgerAccount getIncomingPaymentsClearingAccount() {
+    return getSystemAccount(INCOMING_PAYMENTS_CLEARING);
+  }
+
+  private LedgerAccount getUnreconciledBankReceiptsAccount() {
+    return getSystemAccount(UNRECONCILED_BANK_RECEIPTS);
+  }
+
+  private LedgerAccount getFundInvestmentCashClearingAccount() {
+    return getSystemAccount(FUND_INVESTMENT_CASH_CLEARING);
+  }
+
+  private LedgerAccount getFundUnitsOutstandingAccount() {
+    return getSystemAccount(FUND_UNITS_OUTSTANDING);
+  }
+
+  private LedgerAccount getPayoutsCashClearingAccount() {
+    return getSystemAccount(PAYOUTS_CASH_CLEARING);
   }
 }

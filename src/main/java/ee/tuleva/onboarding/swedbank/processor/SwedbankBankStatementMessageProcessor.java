@@ -15,14 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-class SwedbankBankStatementMessageProcessor implements SwedbankMessageProcessor {
+class SwedbankBankStatementMessageProcessor {
 
   private final SwedbankBankStatementExtractor swedbankBankStatementExtractor;
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentService paymentService;
   private final Clock clock;
 
-  @Override
   @Transactional
   public void processMessage(String rawResponse, SwedbankMessageType messageType) {
     log.info("Processing bank statement message of type {}", messageType);
@@ -47,10 +46,5 @@ class SwedbankBankStatementMessageProcessor implements SwedbankMessageProcessor 
     payments.forEach(paymentService::upsert);
 
     log.info("Successfully upserted {} payments", payments.size());
-  }
-
-  @Override
-  public boolean supports(SwedbankMessageType messageType) {
-    return messageType == INTRA_DAY_REPORT || messageType == HISTORIC_STATEMENT;
   }
 }

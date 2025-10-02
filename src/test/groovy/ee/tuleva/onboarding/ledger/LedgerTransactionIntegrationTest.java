@@ -2,8 +2,6 @@ package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerParty.PartyType.USER;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.CASH;
@@ -43,8 +41,8 @@ public class LedgerTransactionIntegrationTest {
         LedgerAccount.builder()
             .name(INCOMING_PAYMENTS_CLEARING.name())
             .purpose(SYSTEM_ACCOUNT)
-            .accountType(LIABILITY)
-            .assetType(EUR)
+            .accountType(INCOMING_PAYMENTS_CLEARING.getAccountType())
+            .assetType(INCOMING_PAYMENTS_CLEARING.getAssetType())
             .build());
   }
 
@@ -56,13 +54,11 @@ public class LedgerTransactionIntegrationTest {
   }
 
   private LedgerAccount getCashAccount(LedgerParty party) {
-    return ledgerAccountService.getLedgerAccount(party, CASH, ASSET, EUR).orElseThrow();
+    return ledgerAccountService.findUserAccount(party, CASH).orElseThrow();
   }
 
   private LedgerAccount getServiceAccount() {
-    return ledgerAccountService
-        .findSystemAccount(INCOMING_PAYMENTS_CLEARING, EUR, LIABILITY)
-        .orElseThrow();
+    return ledgerAccountService.findSystemAccount(INCOMING_PAYMENTS_CLEARING).orElseThrow();
   }
 
   @Test

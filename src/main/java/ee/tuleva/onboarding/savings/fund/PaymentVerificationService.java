@@ -57,8 +57,11 @@ public class PaymentVerificationService {
       return;
     }
 
-    log.info("Verification completed for payment {}", payment.getId());
+    var userId = user.get().getId();
+    log.info(
+        "Verification completed for payment {}, attaching to user {}", payment.getId(), userId);
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
+    savingFundPaymentRepository.attachUser(payment.getId(), userId);
   }
 
   private void identityCheckFailure(SavingFundPayment payment, String reason) {

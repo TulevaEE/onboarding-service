@@ -99,7 +99,7 @@ class PaymentVerificationServiceTest {
   @Test
   void process_success() {
     var payment = createPayment("37508295796", "to user 37508295796");
-    var user = User.builder().firstName("PÄRT").lastName("ÕLEKÕRS").build();
+    var user = User.builder().id(123L).firstName("PÄRT").lastName("ÕLEKÕRS").build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
     when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
 
@@ -108,13 +108,14 @@ class PaymentVerificationServiceTest {
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verify(savingFundPaymentRepository).attachUser(payment.getId(), 123L);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
   @Test
   void process_success_noRemitterIdCode() {
     var payment = createPayment(null, "to user 37508295796");
-    var user = User.builder().firstName("PÄRT").lastName("ÕLEKÕRS").build();
+    var user = User.builder().id(444L).firstName("PÄRT").lastName("ÕLEKÕRS").build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
     when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
 
@@ -123,13 +124,14 @@ class PaymentVerificationServiceTest {
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verify(savingFundPaymentRepository).attachUser(payment.getId(), 444L);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
   @Test
   void process_success_allowNameMismatchIfRemitterIdCodeMatches() {
     var payment = createPayment("37508295796", "to user 37508295796");
-    var user = User.builder().firstName("KEEGI").lastName("TEINE").build();
+    var user = User.builder().id(123L).firstName("KEEGI").lastName("TEINE").build();
     when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
     when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
 
@@ -138,6 +140,7 @@ class PaymentVerificationServiceTest {
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verify(savingFundPaymentRepository).attachUser(payment.getId(), 123L);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 

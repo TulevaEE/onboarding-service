@@ -229,4 +229,50 @@ public class LedgerIntegrationTest {
     assertThat(account.getBalanceAt(now)).isEqualTo(ZERO);
     assertThat(account.getBalanceBetween(yesterday, now)).isEqualTo(ZERO);
   }
+
+  @Test
+  @DisplayName("should allow multiple users to have same account types")
+  public void shouldAllowMultipleUsersToHaveSameAccountTypes() {
+    // This test would have caught the production issue where the unique constraint
+    // prevented multiple users from having the same account types (e.g., FUND_UNITS)
+
+    // Given: Two different users
+    User user1 = sampleUser().personalCode("11111111111").build();
+    User user2 = sampleUser().personalCode("22222222222").build();
+
+    // When: Both users are onboarded (which creates their accounts)
+    ledgerService.onboard(user1);
+    ledgerService.onboard(user2);
+
+    // Then: Both users should have their own accounts successfully created
+    var party1 = ledgerPartyRepository.findByOwnerId(user1.getPersonalCode());
+    var party2 = ledgerPartyRepository.findByOwnerId(user2.getPersonalCode());
+
+    var accounts1 = ledgerAccountRepository.findAllByOwner(party1);
+    var accounts2 = ledgerAccountRepository.findAllByOwner(party2);
+
+    // Each user should have 7 accounts
+    assertThat(accounts1.size()).isEqualTo(7);
+    assertThat(accounts2.size()).isEqualTo(7);
+
+    // Verify both users have FUND_UNITS accounts
+    var fundUnitsAccount1 =
+        accounts1.stream().filter(a -> a.getName().equals("FUND_UNITS")).findFirst().orElseThrow();
+    var fundUnitsAccount2 =
+        accounts2.stream().filter(a -> a.getName().equals("FUND_UNITS")).findFirst().orElseThrow();
+
+    assertThat(fundUnitsAccount1).isNotNull();
+    assertThat(fundUnitsAccount2).isNotNull();
+    assertThat(fundUnitsAccount1.getId()).isNotEqualTo(fundUnitsAccount2.getId());
+
+    // Verify both users have CASH accounts
+    var cashAccount1 =
+        accounts1.stream().filter(a -> a.getName().equals("CASH")).findFirst().orElseThrow();
+    var cashAccount2 =
+        accounts2.stream().filter(a -> a.getName().equals("CASH")).findFirst().orElseThrow();
+
+    assertThat(cashAccount1).isNotNull();
+    assertThat(cashAccount2).isNotNull();
+    assertThat(cashAccount1.getId()).isNotEqualTo(cashAccount2.getId());
+  }
 }

@@ -97,6 +97,50 @@ class SavingFundPaymentServiceIntegrationTest {
     assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
   }
 
+  @Test
+  void doesNotProcessFailedMessages() {
+    // given - a failed message with malformed XML
+    var failedMessage =
+        SwedbankMessage.builder()
+            .requestId("test-failed")
+            .trackingId("test-failed")
+            .rawResponse("<malformed xml")
+            .receivedAt(NOW.minus(Duration.ofHours(2)))
+            .failedAt(NOW.minus(Duration.ofHours(1)))
+            .build();
+    var savedFailedMessage = swedbankMessageRepository.save(failedMessage);
+
+    // and a successful message with valid XML
+    var successMessage =
+        SwedbankMessage.builder()
+            .requestId("test-success")
+            .trackingId("test-success")
+            .rawResponse(XML_TEMPLATE)
+            .receivedAt(NOW)
+            .build();
+    var savedSuccessMessage = swedbankMessageRepository.save(successMessage);
+
+    // when
+    delegator.processMessages();
+
+    // then - failed message should not be processed
+    var failedMessageAfter =
+        swedbankMessageRepository.findById(savedFailedMessage.getId()).orElseThrow();
+    assertThat(failedMessageAfter.getProcessedAt()).isNull();
+    assertThat(failedMessageAfter.getFailedAt()).isEqualTo(NOW.minus(Duration.ofHours(1)));
+
+    // and successful message should be processed
+    var successMessageAfter =
+        swedbankMessageRepository.findById(savedSuccessMessage.getId()).orElseThrow();
+    assertThat(successMessageAfter.getProcessedAt()).isNotNull();
+    assertThat(successMessageAfter.getFailedAt()).isNull();
+
+    // and only one payment should be created from the successful message
+    assertThat(repository.findAll()).hasSize(1);
+    var savedPayment = repository.findAll().iterator().next();
+    assertThat(savedPayment.getExternalId()).isEqualTo("2025100112345-1");
+  }
+
   @Nested
   @Transactional
   class PaymentMatchingTests {

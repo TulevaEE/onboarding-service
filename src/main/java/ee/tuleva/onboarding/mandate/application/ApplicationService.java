@@ -55,11 +55,12 @@ public class ApplicationService {
         .orElseThrow(() -> new NotFoundException("Application not found: id=" + id));
   }
 
-  public List<Application<?>> getApplications(ApplicationStatus status, Person person) {
+  public List<Application<?>> getApplications(
+      ApplicationStatus status, AuthenticatedPerson person) {
     return getAllApplications(person).stream().filter(byStatus(status)).collect(toList());
   }
 
-  List<Application<?>> getAllApplications(Person person) {
+  List<Application<?>> getAllApplications(AuthenticatedPerson person) {
     List<Application<?>> applications = new ArrayList<>();
     applications.addAll(getTransferApplications(person));
     applications.addAll(getWithdrawalApplications(person));
@@ -138,14 +139,8 @@ public class ApplicationService {
   }
 
   private List<Application<SavingFundPaymentApplicationDetails>> getSavingsFundPaymentApplications(
-      Person person) {
-
-    // Savings fund payments are only available for authenticated users
-    if (!(person instanceof AuthenticatedPerson authenticatedPerson)) {
-      return List.of();
-    }
-
-    var payments = savingFundPaymentService.getPendingPaymentsForUser(authenticatedPerson);
+      AuthenticatedPerson person) {
+    var payments = savingFundPaymentService.getPendingPaymentsForUser(person.getUserId());
     return payments.stream().map(this::convertSavingFundPayment).sorted().toList();
   }
 
@@ -262,7 +257,7 @@ public class ApplicationService {
     final var applicationBuilder =
         Application.<SavingFundPaymentApplicationDetails>builder()
             .creationTime(payment.getCreatedAt())
-            .status(PENDING) // TODO: Map real status when available
+            .status(PENDING)
             // Only used for front-end uniqueness, otherwise meaningless
             .id(payment.getId().getMostSignificantBits());
 
@@ -271,6 +266,7 @@ public class ApplicationService {
             .amount(payment.getAmount())
             .currency(payment.getCurrency())
             .paymentId(payment.getId())
+            .cancelledAt(payment.getCancelledAt())
             .cancellationDeadline(
                 savingFundPaymentDeadlinesService.getCancellationDeadline(payment))
             .fulfillmentDeadline(savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment))

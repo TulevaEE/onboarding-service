@@ -16,6 +16,7 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
   private final BigDecimal amount;
   private final Currency currency;
   private final UUID paymentId;
+  private final Instant cancelledAt;
   private final Instant cancellationDeadline;
   private final Instant fulfillmentDeadline;
 
@@ -25,6 +26,7 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
       BigDecimal amount,
       Currency currency,
       UUID paymentId,
+      Instant cancelledAt,
       Instant cancellationDeadline,
       Instant fulfillmentDeadline,
       ApplicationType type) {
@@ -32,6 +34,7 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
     this.amount = amount;
     this.currency = currency;
     this.paymentId = paymentId;
+    this.cancelledAt = cancelledAt;
     this.cancellationDeadline = cancellationDeadline;
     this.fulfillmentDeadline = fulfillmentDeadline;
     this.type = type;

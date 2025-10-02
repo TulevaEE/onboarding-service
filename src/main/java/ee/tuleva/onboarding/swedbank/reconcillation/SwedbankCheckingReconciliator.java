@@ -1,28 +1,24 @@
 package ee.tuleva.onboarding.swedbank.reconcillation;
 
-import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.CLOSE;
-
-import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.swedbank.statement.SwedbankBankStatementExtractor;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class SwedbankCheckingReconciliator {
   private final SwedbankBankStatementExtractor swedbankBankStatementExtractor;
-  private final SavingsFundLedger savingsFundLedger;
+  private final Reconciliator reconciliator;
 
   public void processMessage(String rawResponse) {
-    var response = this.swedbankBankStatementExtractor.extractFromHistoricStatement(rawResponse);
+    var statement = this.swedbankBankStatementExtractor.extractFromHistoricStatement(rawResponse);
 
-    var closingBalance =
-        response.getBalances().stream()
-            .filter(balance -> balance.type().equals(CLOSE))
-            .findFirst()
-            .orElseThrow();
-
-    // var ledger = this.savingsFundLedger.getCashReconciliation(closingBalance.time())
-    // TODO reconciliation and throw if no match
+    try {
+      reconciliator.reconcile(statement);
+    } catch (Exception e) {
+      log.error("Failed reconciliation", e);
+    }
   }
 }

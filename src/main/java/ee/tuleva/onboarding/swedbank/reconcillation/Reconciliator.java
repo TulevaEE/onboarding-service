@@ -1,0 +1,68 @@
+package ee.tuleva.onboarding.swedbank.reconcillation;
+
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static ee.tuleva.onboarding.swedbank.statement.BankStatementAccount.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.CLOSE;
+
+import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.swedbank.statement.BankStatement;
+import ee.tuleva.onboarding.swedbank.statement.BankStatementAccount;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class Reconciliator {
+
+  private LedgerService ledgerService;
+
+  public void reconcile(BankStatement bankStatement) {
+
+    var closingBankBalance =
+        bankStatement.getBalances().stream()
+            .filter(balance -> balance.type().equals(CLOSE))
+            .findFirst()
+            .orElseThrow();
+
+    var bankBalanceTime =
+        closingBankBalance
+            .time()
+            .atStartOfDay(ZoneId.of("Estonia/Tallinn"))
+            .with(LocalTime.MAX)
+            .toInstant();
+
+    var bankStatementAccount = bankStatement.getBankStatementAccount().getBankAccountType();
+
+    var ledgerSystemAccount = getCorrespondingLedgerAccountType(bankStatementAccount);
+    var ledgerAccountBalance =
+        ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(bankBalanceTime);
+
+    if (ledgerAccountBalance.compareTo(closingBankBalance.balance()) != 0) {
+      throw new IllegalStateException(
+          "Bank account("
+              + bankStatementAccount
+              + ") closing balance="
+              + closingBankBalance.balance()
+              + "does not match ledger account("
+              + ledgerSystemAccount
+              + ") balance="
+              + ledgerAccountBalance);
+
+      // TODO process entries here
+    }
+  }
+
+  private SavingsFundLedger.SystemAccount getCorrespondingLedgerAccountType(
+      BankStatementAccount.BankAccountType bankAccountType) {
+    if (bankAccountType.equals(DEPOSIT_EUR)) {
+      return INCOMING_PAYMENTS_CLEARING;
+    }
+
+    throw new IllegalArgumentException("Unsupported bank account type: " + bankAccountType);
+  }
+}

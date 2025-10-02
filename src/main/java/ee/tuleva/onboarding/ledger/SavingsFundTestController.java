@@ -9,23 +9,23 @@ import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+
 import java.math.BigDecimal;
 import java.util.List;
+
 import lombok.AllArgsConstructor;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-@Profile({"dev"})
 @RestController
-@RequestMapping("/v1/test-ledger")
+@RequestMapping("/v1/savings-fund-test")
 @AllArgsConstructor
-public class LedgerTestController {
+public class SavingsFundTestController {
 
   private final UserService userService;
   private final LedgerPartyService ledgerPartyService;
   private final LedgerAccountService ledgerAccountService;
-  private final LedgerService ledgerService;
   private final SwedbankStatementFetcher swedbankStatementFetcher;
   private final SwedbankMessageReceiver swedbankMessageReceiver;
 
@@ -44,27 +44,15 @@ public class LedgerTestController {
     return ledgerAccountService.getAccounts(ledgerParty);
   }
 
-  @Operation(summary = "Onboard user")
-  @PostMapping("/onboard")
-  public List<LedgerAccount> onboardUser(
-      @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
-    Long userId = authenticatedPerson.getUserId();
-    User user = userService.getById(userId).orElseThrow();
-
-    return ledgerService.onboard(user);
-  }
-
-  @Operation(summary = "Send statement request")
+  @Operation(summary = "Trigger statement request")
   @PostMapping("/swedbank/statement")
   public void sendSwedbankRequest() {
     swedbankStatementFetcher.sendRequest(DEPOSIT_EUR);
   }
 
-  @Operation(summary = "Get statement response")
+  @Operation(summary = "Trigger message getter")
   @GetMapping("/swedbank/statement")
   public void getSwedbankResponse() {
     swedbankMessageReceiver.getResponse();
   }
-
-  record DepositDto(BigDecimal amount, AssetType assetType) {}
 }

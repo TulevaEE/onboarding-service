@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.account
 
 import ee.tuleva.onboarding.BaseControllerSpec
 import ee.tuleva.onboarding.auth.principal.Person
+import ee.tuleva.onboarding.fund.FundFixture
 import ee.tuleva.onboarding.locale.LocaleConfiguration
 import ee.tuleva.onboarding.locale.LocaleService
 import org.springframework.test.web.servlet.MockMvc
@@ -22,8 +23,9 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
   }
 
   AccountStatementService accountStatementService = Mock(AccountStatementService)
+  SavingsFundStatementService savingsFundStatementService = Mock(SavingsFundStatementService)
   LocaleService localeService = Mock(LocaleService)
-  AccountStatementController controller = new AccountStatementController(accountStatementService, localeService)
+  AccountStatementController controller = new AccountStatementController(accountStatementService, savingsFundStatementService, localeService)
 
   def "/pension-account-statement endpoint works"() {
     given:
@@ -78,5 +80,34 @@ class AccountStatementControllerSpec extends BaseControllerSpec {
     "et"     | "Tuleva maailma aktsiate pensionifond"
     "en"     | "Tuleva world stock pensionfund"
 
+  }
+
+  def "/savings-account-statement endpoint returns savings account balance if onboarded"() {
+    given:
+    FundBalance fundBalance = FundBalance.builder()
+        .fund(FundFixture.additionalSavingsFund())
+        .currency("EUR")
+        .units(10)
+        .value(12)
+        .contributions(10)
+        .subtractions(0)
+        .build()
+    1 * savingsFundStatementService.getAccountStatement(_ as Person) >> fundBalance
+    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+
+    expect:
+    mockMvc.perform(get("/v1/savings-account-statement"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath('fund.name', is(fundBalance.fund.nameEstonian)))
+  }
+
+  def "/savings-account-statement endpoint returns no content if not onboarded"() {
+    given:
+    1 * savingsFundStatementService.getAccountStatement(_ as Person) >> { throw new IllegalStateException("not onboarded") }
+    localeService.getCurrentLocale() >> LocaleConfiguration.DEFAULT_LOCALE
+
+    expect:
+    mockMvc.perform(get("/v1/savings-account-statement"))
+        .andExpect(status().isNoContent())
   }
 }

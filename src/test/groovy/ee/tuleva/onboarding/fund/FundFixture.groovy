@@ -129,4 +129,17 @@ class FundFixture {
         ).build()
   }
 
+  static Fund additionalSavingsFund() {
+    return Fund.builder()
+        .fundManager(new FundManager("Tuleva", 1L))
+        .inceptionDate(LocalDate.of(2025, 10, 1))
+        .isin("EE0000000000")
+        .pillar(null)
+        .nameEnglish("Tuleva Additional Savings Fund")
+        .nameEstonian("Tuleva täiendav kogumisfond")
+        .managementFeeRate(0.0049)
+        .ongoingChargesFigure(0.0049)
+        .status(ACTIVE)
+        .build()
+  }
 }

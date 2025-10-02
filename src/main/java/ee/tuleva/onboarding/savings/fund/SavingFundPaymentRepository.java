@@ -162,7 +162,11 @@ public class SavingFundPaymentRepository {
         .addValue("beneficiary_iban", payment.getBeneficiaryIban())
         .addValue("beneficiary_id_code", payment.getBeneficiaryIdCode())
         .addValue("beneficiary_name", payment.getBeneficiaryName())
-        .addValue("received_before", payment.getReceivedBefore());
+        .addValue(
+            "received_before",
+            payment.getReceivedBefore() != null
+                ? Timestamp.from(payment.getReceivedBefore())
+                : null);
   }
 
   public void changeStatus(UUID paymentId, SavingFundPayment.Status newStatus) {

@@ -15,13 +15,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
-class SavingFundPaymentServiceTest {
+class SavingFundPaymentUpsertionServiceTest {
 
   @Mock private SavingFundPaymentRepository repository;
 
   @Mock private SavingFundPaymentDeadlinesService deadlinesService;
 
-  @InjectMocks private SavingFundPaymentService service;
+  @InjectMocks private SavingFundPaymentUpsertionService service;
 
   @Test
   void cancelUserPayment_successful() {

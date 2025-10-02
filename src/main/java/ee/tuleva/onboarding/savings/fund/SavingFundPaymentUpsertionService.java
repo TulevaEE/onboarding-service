@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class SavingFundPaymentService {
+public class SavingFundPaymentUpsertionService {
 
   private final SavingFundPaymentRepository repository;
   private final SavingFundPaymentDeadlinesService savingFundPaymentDeadlinesService;

@@ -29,7 +29,7 @@ class SavingFundPaymentControllerTest {
 
   @Autowired private MockMvc mvc;
 
-  @MockitoBean private SavingFundPaymentService savingFundPaymentService;
+  @MockitoBean private SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
 
   @Test
   void cancelSavingsFundPayment_shouldReturnNoContent() throws Exception {
@@ -41,7 +41,9 @@ class SavingFundPaymentControllerTest {
             null,
             List.of(new SimpleGrantedAuthority(USER)));
 
-    Mockito.doNothing().when(savingFundPaymentService).cancelUserPayment(any(), eq(paymentId));
+    Mockito.doNothing()
+        .when(savingFundPaymentUpsertionService)
+        .cancelUserPayment(any(), eq(paymentId));
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
         .andExpect(status().isNoContent());

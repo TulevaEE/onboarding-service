@@ -1,10 +1,7 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
-import static ee.tuleva.onboarding.swedbank.processor.SwedbankMessageType.HISTORIC_STATEMENT;
-import static ee.tuleva.onboarding.swedbank.processor.SwedbankMessageType.INTRA_DAY_REPORT;
-
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentService;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.swedbank.statement.SwedbankBankStatementExtractor;
 import java.time.Clock;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +16,7 @@ class SwedbankBankStatementMessageProcessor {
 
   private final SwedbankBankStatementExtractor swedbankBankStatementExtractor;
   private final SavingFundPaymentExtractor paymentExtractor;
-  private final SavingFundPaymentService paymentService;
+  private final SavingFundPaymentUpsertionService paymentService;
   private final Clock clock;
 
   @Transactional

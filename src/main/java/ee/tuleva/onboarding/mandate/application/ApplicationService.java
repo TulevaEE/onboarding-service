@@ -20,7 +20,7 @@ import ee.tuleva.onboarding.payment.application.PaymentLinkingService;
 import ee.tuleva.onboarding.pillar.Pillar;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentDeadlinesService;
-import ee.tuleva.onboarding.savings.fund.SavingFundPaymentService;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -46,7 +46,7 @@ public class ApplicationService {
   private final MandateDeadlinesService mandateDeadlinesService;
   private final PaymentLinkingService paymentLinkingService;
   private final SavingFundPaymentDeadlinesService savingFundPaymentDeadlinesService;
-  private final SavingFundPaymentService savingFundPaymentService;
+  private final SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
 
   public Application<?> getApplication(Long id, AuthenticatedPerson authenticatedPerson) {
     return getAllApplications(authenticatedPerson).stream()
@@ -140,7 +140,7 @@ public class ApplicationService {
 
   private List<Application<SavingFundPaymentApplicationDetails>> getSavingsFundPaymentApplications(
       AuthenticatedPerson person) {
-    var payments = savingFundPaymentService.getPendingPaymentsForUser(person.getUserId());
+    var payments = savingFundPaymentUpsertionService.getPendingPaymentsForUser(person.getUserId());
     return payments.stream().map(this::convertSavingFundPayment).sorted().toList();
   }
 

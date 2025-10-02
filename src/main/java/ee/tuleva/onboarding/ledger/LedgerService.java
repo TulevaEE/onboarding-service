@@ -1,20 +1,18 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.ASSET;
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.LIABILITY;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
-import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.*;
 import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.CASH;
+import static ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount.FUND_UNITS;
 
 import ee.tuleva.onboarding.ledger.LedgerAccount.AssetType;
-import ee.tuleva.onboarding.ledger.LedgerTransactionService.LedgerEntryDto;
+import ee.tuleva.onboarding.ledger.SavingsFundLedger.UserAccount;
 import ee.tuleva.onboarding.user.User;
 import jakarta.transaction.Transactional;
-import java.math.BigDecimal;
 import java.time.Clock;
-import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -44,33 +42,14 @@ public class LedgerService {
   }
 
   @Transactional
-  public LedgerTransaction deposit(User user, BigDecimal amount, AssetType assetType) {
+  public LedgerAccount getUserAccount(User user, UserAccount accountName, AssetType assetType) {
     LedgerParty userParty =
         ledgerPartyService
             .getParty(user)
             .orElseThrow(() -> new IllegalStateException("User not onboarded"));
 
-    LedgerAccount userCashAccount =
-        ledgerAccountService
-            .getLedgerAccount(userParty, CASH, ASSET, assetType)
-            .orElseThrow(() -> new IllegalStateException("User cash account not found"));
-
-    if (userCashAccount.getAssetType() != assetType) {
-      throw new IllegalArgumentException("Invalid asset type provided for given account");
-    }
-
-    // This is just a test method - in real usage, use SavingsFundLedgerService
-    Map<String, Object> metadata =
-        Map.of(
-            "operationType", "TEST_DEPOSIT",
-            "userId", user.getId(),
-            "personalCode", user.getPersonalCode());
-
-    return ledgerTransactionService.createTransaction(
-        Instant.now(clock),
-        metadata,
-        new LedgerEntryDto(userCashAccount, amount),
-        new LedgerEntryDto(userCashAccount, amount.negate()) // Simplified for test
-        );
+    return ledgerAccountService
+        .getLedgerAccount(userParty, accountName, LIABILITY, assetType)
+        .orElseThrow(() -> new IllegalStateException("User cash account not found"));
   }
 }

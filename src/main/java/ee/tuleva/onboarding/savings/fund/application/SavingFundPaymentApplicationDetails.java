@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.mandate.application.ApplicationDetails;
 import ee.tuleva.onboarding.mandate.application.ApplicationType;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.UUID;
 import lombok.Builder;
 import lombok.Data;
 
@@ -14,6 +15,7 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
 
   private final BigDecimal amount;
   private final Currency currency;
+  private final UUID paymentId;
   private final Instant cancellationDeadline;
   private final Instant fulfillmentDeadline;
 
@@ -22,12 +24,14 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
   public SavingFundPaymentApplicationDetails(
       BigDecimal amount,
       Currency currency,
+      UUID paymentId,
       Instant cancellationDeadline,
       Instant fulfillmentDeadline,
       ApplicationType type) {
     validate(type);
     this.amount = amount;
     this.currency = currency;
+    this.paymentId = paymentId;
     this.cancellationDeadline = cancellationDeadline;
     this.fulfillmentDeadline = fulfillmentDeadline;
     this.type = type;
@@ -36,7 +40,7 @@ public class SavingFundPaymentApplicationDetails implements ApplicationDetails {
   @Override
   public Integer getPillar() {
     // TODO: Decide what we want to return here
-    return 0;
+    return null;
   }
 
   private void validate(ApplicationType type) {

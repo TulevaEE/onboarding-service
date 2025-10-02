@@ -1,7 +1,9 @@
 package ee.tuleva.onboarding.savings.fund;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RECEIVED;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 
+import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,15 @@ public class SavingFundPaymentService {
 
     UUID paymentId = upsertPayment(payment);
     repository.changeStatus(paymentId, RECEIVED);
+  }
+
+  public List<SavingFundPayment> getPendingPaymentsForUser(
+      AuthenticatedPerson authenticatedPerson) {
+    var pendingStatuses = List.of(CREATED, RECEIVED, VERIFIED);
+
+    return repository.findUserPayments(authenticatedPerson.getUserId()).stream()
+        .filter(p -> pendingStatuses.contains(p.getStatus()))
+        .toList();
   }
 
   private UUID upsertPayment(SavingFundPayment payment) {

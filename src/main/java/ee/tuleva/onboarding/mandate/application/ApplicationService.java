@@ -20,6 +20,7 @@ import ee.tuleva.onboarding.payment.application.PaymentLinkingService;
 import ee.tuleva.onboarding.pillar.Pillar;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentDeadlinesService;
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentService;
 import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,6 +46,7 @@ public class ApplicationService {
   private final MandateDeadlinesService mandateDeadlinesService;
   private final PaymentLinkingService paymentLinkingService;
   private final SavingFundPaymentDeadlinesService savingFundPaymentDeadlinesService;
+  private final SavingFundPaymentService savingFundPaymentService;
 
   public Application<?> getApplication(Long id, AuthenticatedPerson authenticatedPerson) {
     return getAllApplications(authenticatedPerson).stream()
@@ -138,9 +140,12 @@ public class ApplicationService {
   private List<Application<SavingFundPaymentApplicationDetails>> getSavingsFundPaymentApplications(
       Person person) {
 
-    // TODO: Replace with real implementation when available
-    var payments = Collections.<SavingFundPayment>emptyList();
+    // Savings fund payments are only available for authenticated users
+    if (!(person instanceof AuthenticatedPerson authenticatedPerson)) {
+      return List.of();
+    }
 
+    var payments = savingFundPaymentService.getPendingPaymentsForUser(authenticatedPerson);
     return payments.stream().map(this::convertSavingFundPayment).sorted().toList();
   }
 
@@ -258,12 +263,14 @@ public class ApplicationService {
         Application.<SavingFundPaymentApplicationDetails>builder()
             .creationTime(payment.getCreatedAt())
             .status(PENDING) // TODO: Map real status when available
-            .id(0L); // TODO: Map real ID when available
+            // Only used for front-end uniqueness, otherwise meaningless
+            .id(payment.getId().getMostSignificantBits());
 
     applicationBuilder.details(
         SavingFundPaymentApplicationDetails.builder()
             .amount(payment.getAmount())
             .currency(payment.getCurrency())
+            .paymentId(payment.getId())
             .cancellationDeadline(
                 savingFundPaymentDeadlinesService.getCancellationDeadline(payment))
             .fulfillmentDeadline(savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment))

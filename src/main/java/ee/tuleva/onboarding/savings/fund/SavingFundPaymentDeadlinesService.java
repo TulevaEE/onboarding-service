@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.savings.fund;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.*;
-import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,6 +14,7 @@ public class SavingFundPaymentDeadlinesService {
   private final Clock estonianClock;
 
   private static final LocalTime CANCELLATION_DEADLINE_TIME = LocalTime.of(15, 59);
+  private static final LocalTime FUlKFILLMENT_DEADLINE_TIME = LocalTime.of(16, 0);
 
   public Instant getCancellationDeadline(SavingFundPayment payment) {
     ZoneId timeZone = estonianClock.getZone();
@@ -38,6 +38,15 @@ public class SavingFundPaymentDeadlinesService {
 
   public Instant getFulfillmentDeadline(SavingFundPayment payment) {
     // TODO: Implement
-    return payment.getCreatedAt().plus(1, ChronoUnit.DAYS);
+    ZoneId timeZone = estonianClock.getZone();
+    Instant paymentCreatedAt = payment.getCreatedAt();
+    ZonedDateTime paymentCreatedDateTime = paymentCreatedAt.atZone(timeZone);
+    LocalDate paymentCreatedDate = paymentCreatedDateTime.toLocalDate();
+
+    return publicHolidays
+        .nextWorkingDay(paymentCreatedDate)
+        .atTime(FUlKFILLMENT_DEADLINE_TIME)
+        .atZone(timeZone)
+        .toInstant();
   }
 }

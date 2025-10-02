@@ -6,13 +6,17 @@ import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.locale.LocaleService
 import ee.tuleva.onboarding.payment.application.PaymentApplicationDetails
 import ee.tuleva.onboarding.payment.application.PaymentLinkingService
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentDeadlinesService
+import ee.tuleva.onboarding.savings.fund.SavingFundPaymentService
+import ee.tuleva.onboarding.savings.fund.application.SavingFundPaymentApplicationDetails
 import ee.tuleva.onboarding.time.TestClockHolder
 import spock.lang.Specification
 
 import java.time.Instant
 import java.time.LocalDate
 
+import static ee.tuleva.onboarding.auth.AuthenticatedPersonFixture.sampleAuthenticatedPersonAndMember
 import static ee.tuleva.onboarding.auth.PersonFixture.samplePerson
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.deadline.MandateDeadlinesFixture.sampleDeadlines
@@ -34,9 +38,10 @@ class ApplicationServiceSpec extends Specification {
   MandateDeadlinesService mandateDeadlinesService = Mock()
   PaymentLinkingService paymentApplicationService = Mock()
   SavingFundPaymentDeadlinesService savingFundPaymentDeadlinesService = Mock()
+  SavingFundPaymentService savingFundPaymentService = Mock()
 
   ApplicationService applicationService =
-      new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingFundPaymentDeadlinesService)
+      new ApplicationService(episService, localeService, fundRepository, mandateDeadlinesService, paymentApplicationService, savingFundPaymentDeadlinesService, savingFundPaymentService)
 
   def "gets applications"() {
     given:
@@ -339,5 +344,72 @@ class ApplicationServiceSpec extends Specification {
     hasPendingThirdPillarWithdrawals
   }
 
-  // TODO: Add test for SavingFundPaymentApplications once we can fetch payments
+  def "gets saving fund payment applications for authenticated person"() {
+    given:
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+
+    // Create sample UUIDs for the payments
+    def payment1Id = UUID.fromString("12345678-1234-1234-1234-123456789abc")
+    def payment2Id = UUID.fromString("87654321-4321-4321-4321-cba987654321")
+
+    // Create sample saving fund payments
+    def payment1 = Mock(SavingFundPayment) {
+      getId() >> payment1Id
+      getAmount() >> 100.0
+      getCurrency() >> EUR
+      getCreatedAt() >> TestClockHolder.now
+      getStatus() >> SavingFundPayment.Status.CREATED
+    }
+
+    def payment2 = Mock(SavingFundPayment) {
+      getId() >> payment2Id
+      getAmount() >> 250.0
+      getCurrency() >> EUR
+      getCreatedAt() >> TestClockHolder.now.minusSeconds(3600)
+      getStatus() >> SavingFundPayment.Status.VERIFIED
+    }
+
+    episService.getApplications(authenticatedPerson) >> []
+    localeService.getCurrentLocale() >> Locale.ENGLISH
+    paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
+    savingFundPaymentService.getPendingPaymentsForUser(authenticatedPerson) >> [payment1, payment2]
+
+    // Mock deadlines service
+    savingFundPaymentDeadlinesService.getCancellationDeadline(payment1) >> Instant.parse("2021-03-31T20:59:59.999999999Z")
+    savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment1) >> Instant.parse("2021-04-20T10:00:00Z")
+    savingFundPaymentDeadlinesService.getCancellationDeadline(payment2) >> Instant.parse("2021-03-31T20:59:59.999999999Z")
+    savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment2) >> Instant.parse("2021-04-20T10:00:00Z")
+
+    when:
+    def applications = applicationService.getAllApplications(authenticatedPerson)
+
+    then:
+    applications.size() == 2
+
+    with(applications[0] as Application<SavingFundPaymentApplicationDetails>) {
+      id == payment2Id.getMostSignificantBits() // Converted from UUID
+      status == PENDING // TODO: Map real status when available
+      creationTime == TestClockHolder.now.minusSeconds(3600)
+      with(details) {
+        amount == 250.0
+        currency == EUR
+        paymentId == payment2Id
+        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
+        fulfillmentDeadline == Instant.parse("2021-04-20T10:00:00Z")
+      }
+    }
+
+    with(applications[1] as Application<SavingFundPaymentApplicationDetails>) {
+      id == payment1Id.getMostSignificantBits() // Converted from UUID
+      status == PENDING // TODO: Map real status when available
+      creationTime == TestClockHolder.now
+      with(details) {
+        amount == 100.0
+        currency == EUR
+        paymentId == payment1Id
+        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
+        fulfillmentDeadline == Instant.parse("2021-04-20T10:00:00Z")
+      }
+    }
+  }
 }

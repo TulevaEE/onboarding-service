@@ -35,7 +35,7 @@ public class PublicHolidays {
     return date;
   }
 
-  boolean isWorkingDay(LocalDate date) {
+  public boolean isWorkingDay(LocalDate date) {
     return !(date.getDayOfWeek() == SATURDAY
         || date.getDayOfWeek() == SUNDAY
         || isPublicHoliday(date));

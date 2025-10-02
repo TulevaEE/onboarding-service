@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
 
+import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
@@ -37,12 +38,16 @@ public class IssuingJob {
   }
 
   public List<SavingFundPayment> getReservedPaymentsFromBeforeToday() {
-    var payments = savingFundPaymentRepository.findPaymentsWithStatus(RESERVED);
+    // TODO trust previous services or check 16:00 cutoff also here?
+    var reservedPayments = savingFundPaymentRepository.findPaymentsWithStatus(RESERVED);
 
-    var startOfToday = LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+    var lastWorkingDay = new PublicHolidays().previousWorkingDay(LocalDate.now(clock));
+    var dayAfterLastWorkingDay = lastWorkingDay.plusDays(1);
+    var reservedTransactionCutoff =
+        dayAfterLastWorkingDay.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
 
-    return payments.stream()
-        .filter(payment -> payment.getStatusChangedAt().isBefore(startOfToday))
+    return reservedPayments.stream()
+        .filter(payment -> payment.getStatusChangedAt().isBefore(reservedTransactionCutoff))
         .collect(Collectors.toList());
   }
 

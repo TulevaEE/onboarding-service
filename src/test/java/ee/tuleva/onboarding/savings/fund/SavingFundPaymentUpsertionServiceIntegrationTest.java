@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Transactional
-class SavingFundPaymentServiceIntegrationTest {
+class SavingFundPaymentUpsertionServiceIntegrationTest {
 
   @Autowired private SavingFundPaymentRepository repository;
   @Autowired private SwedbankMessageRepository swedbankMessageRepository;

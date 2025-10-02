@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class SavingFundPaymentController {
 
-  private final SavingFundPaymentService savingFundPaymentService;
+  private final SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
 
   @Operation(summary = "Cancel savings fund payment")
   @DeleteMapping("/payments/{id}")
@@ -23,7 +23,7 @@ public class SavingFundPaymentController {
       @PathVariable("id") UUID paymentId,
       @AuthenticationPrincipal AuthenticatedPerson authenticatedPerson) {
     log.info("Cancelling savings fund payment {}", paymentId);
-    savingFundPaymentService.cancelUserPayment(authenticatedPerson.getUserId(), paymentId);
+    savingFundPaymentUpsertionService.cancelUserPayment(authenticatedPerson.getUserId(), paymentId);
     return ResponseEntity.noContent().build();
   }
 }

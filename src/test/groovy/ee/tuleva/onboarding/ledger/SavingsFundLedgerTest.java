@@ -144,7 +144,7 @@ class SavingsFundLedgerTest {
   @DisplayName("Subscription flow: Should reserve payment before issuing fund units")
   void testReservePaymentAndIssueFundUnits() {
     BigDecimal cashAmount = new BigDecimal("950.00");
-    BigDecimal fundUnits = new BigDecimal("10.0000");
+    BigDecimal fundUnits = new BigDecimal("10.00000");
     BigDecimal navPerUnit = new BigDecimal("95.00");
 
     // Step 1: Payment received
@@ -222,7 +222,7 @@ class SavingsFundLedgerTest {
   @DisplayName("Complete subscription flow: Payment → Reserve → Units → Fund transfer")
   void testCompleteSubscriptionFlow() {
     BigDecimal paymentAmount = new BigDecimal("1000.00");
-    BigDecimal fundUnits = new BigDecimal("10.5263");
+    BigDecimal fundUnits = new BigDecimal("10.52630");
     BigDecimal navPerUnit = new BigDecimal("95.00");
 
     LedgerTransaction paymentTx =
@@ -253,8 +253,8 @@ class SavingsFundLedgerTest {
   @DisplayName("Complete redemption flow: Request → Cash transfer → Payout")
   void testCompleteRedemptionFlow() {
     BigDecimal initialAmount = new BigDecimal("1000.00");
-    BigDecimal initialUnits = new BigDecimal("10.0000");
-    BigDecimal redeemUnits = new BigDecimal("3.0000");
+    BigDecimal initialUnits = new BigDecimal("10.00000");
+    BigDecimal redeemUnits = new BigDecimal("3.00000");
     BigDecimal redeemAmount = new BigDecimal("300.00");
     BigDecimal navPerUnit = new BigDecimal("100.00");
     String customerIban = "EE777888999000111222";
@@ -334,7 +334,7 @@ class SavingsFundLedgerTest {
     LedgerTransaction reserve = savingsFundLedger.reservePaymentForSubscription(testUser, amount);
     LedgerTransaction subscription =
         savingsFundLedger.issueFundUnitsFromReserved(
-            testUser, amount, new BigDecimal("10.0"), new BigDecimal("100.00"));
+            testUser, amount, new BigDecimal("10.00000"), new BigDecimal("100.00"));
     LedgerTransaction transfer = savingsFundLedger.transferToFundAccount(amount);
 
     verifyDoubleEntry(payment);
@@ -352,7 +352,7 @@ class SavingsFundLedgerTest {
 
     LedgerAccount userUnitsAccount = getUserUnitsAccount();
     assertThat(userUnitsAccount.getEntries()).isNotNull();
-    assertThat(userUnitsAccount.getBalance()).isEqualByComparingTo(new BigDecimal("-10.0"));
+    assertThat(userUnitsAccount.getBalance()).isEqualByComparingTo(new BigDecimal("-10.00000"));
 
     LedgerAccount fundSubscriptionsAccount = getUserSubscriptionsAccount();
     assertThat(fundSubscriptionsAccount.getEntries()).isNotNull();
@@ -383,10 +383,10 @@ class SavingsFundLedgerTest {
   }
 
   private void setupRedemptionScenario(BigDecimal amount) {
-    setupUserWithFundUnits(amount, new BigDecimal("5.0"), new BigDecimal("100.00"));
-    savingsFundLedger.reserveFundUnitsForRedemption(testUser, new BigDecimal("5.0"));
+    setupUserWithFundUnits(amount, new BigDecimal("5.00000"), new BigDecimal("100.00"));
+    savingsFundLedger.reserveFundUnitsForRedemption(testUser, new BigDecimal("5.00000"));
     savingsFundLedger.processRedemptionFromReserved(
-        testUser, new BigDecimal("5.0"), amount, new BigDecimal("100.00"));
+        testUser, new BigDecimal("5.00000"), amount, new BigDecimal("100.00"));
     savingsFundLedger.transferFundToPayoutCash(amount);
   }
 

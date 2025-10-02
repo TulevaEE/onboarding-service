@@ -22,35 +22,26 @@ public class AmountPrecisionValidator
 
     BigDecimal amount = entry.getAmount();
     LedgerAccount.AssetType assetType = entry.getAssetType();
-
-    // Get the scale (number of decimal places)
     int scale = amount.scale();
 
-    // Check based on asset type
-    boolean isValid;
-    int maxScale;
-
-    switch (assetType) {
-      case EUR:
-        maxScale = 2;
-        isValid = scale <= 2;
-        break;
-      case FUND_UNIT:
-        maxScale = 5;
-        isValid = scale <= 5;
-        break;
-      default:
-        return true; // Unknown asset type, let it pass
-    }
+    boolean isValid = scale >= assetType.getMinPrecision() && scale <= assetType.getMaxPrecision();
 
     if (!isValid) {
       context.disableDefaultConstraintViolation();
-      context
-          .buildConstraintViolationWithTemplate(
-              String.format(
-                  "Amount %s has %d decimal places, but %s allows maximum %d decimal places",
-                  amount.toPlainString(), scale, assetType, maxScale))
-          .addConstraintViolation();
+      String message =
+          assetType.requiresExactPrecision()
+              ? String.format(
+                  "Amount %s has %d decimal places, but %s requires exactly %d decimal places",
+                  amount.toPlainString(), scale, assetType, assetType.getMinPrecision())
+              : String.format(
+                  "Amount %s has %d decimal places, but %s requires between %d and %d decimal places",
+                  amount.toPlainString(),
+                  scale,
+                  assetType,
+                  assetType.getMinPrecision(),
+                  assetType.getMaxPrecision());
+
+      context.buildConstraintViolationWithTemplate(message).addConstraintViolation();
       return false;
     }
 

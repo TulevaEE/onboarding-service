@@ -70,9 +70,18 @@ public class LedgerAccount {
   @NotNull
   private AssetType assetType;
 
+  @Getter
+  @RequiredArgsConstructor
   public enum AssetType {
-    EUR,
-    FUND_UNIT
+    EUR(0, 2), // Allows 0, 1, or 2 decimal places
+    FUND_UNIT(5, 5); // Requires exactly 5 decimal places
+
+    private final int minPrecision;
+    private final int maxPrecision;
+
+    public boolean requiresExactPrecision() {
+      return minPrecision == maxPrecision;
+    }
   }
 
   @OneToMany(mappedBy = "account")

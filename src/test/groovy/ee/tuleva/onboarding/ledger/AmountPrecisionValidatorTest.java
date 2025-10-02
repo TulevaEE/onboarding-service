@@ -44,12 +44,10 @@ class AmountPrecisionValidatorTest {
         LedgerEntry.builder().amount(new BigDecimal("100.50")).assetType(EUR).build();
 
     // When
-    Set<ConstraintViolation<LedgerEntry>> violations = validator.validate(entry);
+    boolean isValid = customValidator.isValid(entry, context);
 
-    // Then - Should have no precision violations
-    boolean hasPrecisionViolation =
-        violations.stream().anyMatch(v -> v.getMessage().contains("decimal places"));
-    assertThat(hasPrecisionViolation).isFalse();
+    // Then
+    assertThat(isValid).isTrue();
   }
 
   @Test
@@ -70,7 +68,8 @@ class AmountPrecisionValidatorTest {
     assertThat(isValid).isFalse();
     verify(context)
         .buildConstraintViolationWithTemplate(
-            contains("100.555 has 3 decimal places, but EUR allows maximum 2 decimal places"));
+            contains(
+                "100.555 has 3 decimal places, but EUR requires between 0 and 2 decimal places"));
   }
 
   @Test
@@ -121,21 +120,29 @@ class AmountPrecisionValidatorTest {
     verify(context)
         .buildConstraintViolationWithTemplate(
             contains(
-                "10.123456 has 6 decimal places, but FUND_UNIT allows maximum 5 decimal places"));
+                "10.123456 has 6 decimal places, but FUND_UNIT requires exactly 5 decimal places"));
   }
 
   @Test
-  @DisplayName("Should validate FUND_UNIT amount with fewer than 5 decimal places")
-  void shouldValidateFundUnitWithFewerDecimals() {
+  @DisplayName("Should fail validation for FUND_UNIT amount with fewer than 5 decimal places")
+  void shouldFailFundUnitWithFewerDecimals() {
     // Given
     LedgerEntry entry =
         LedgerEntry.builder().amount(new BigDecimal("10.123")).assetType(FUND_UNIT).build();
+
+    // Setup mocks
+    when(context.buildConstraintViolationWithTemplate(anyString())).thenReturn(violationBuilder);
+    when(violationBuilder.addConstraintViolation()).thenReturn(context);
 
     // When
     boolean isValid = customValidator.isValid(entry, context);
 
     // Then
-    assertThat(isValid).isTrue();
+    assertThat(isValid).isFalse();
+    verify(context)
+        .buildConstraintViolationWithTemplate(
+            contains(
+                "10.123 has 3 decimal places, but FUND_UNIT requires exactly 5 decimal places"));
   }
 
   @Test
@@ -208,7 +215,8 @@ class AmountPrecisionValidatorTest {
     assertThat(isValid).isFalse();
     verify(context)
         .buildConstraintViolationWithTemplate(
-            contains("-100.555 has 3 decimal places, but EUR allows maximum 2 decimal places"));
+            contains(
+                "-100.555 has 3 decimal places, but EUR requires between 0 and 2 decimal places"));
   }
 
   @Test

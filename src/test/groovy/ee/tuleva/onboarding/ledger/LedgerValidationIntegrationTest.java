@@ -110,8 +110,8 @@ class LedgerValidationIntegrationTest {
     transaction.addEntry(eurLiabilityAccount, new BigDecimal("-50.00"));
 
     // FUND_UNIT: 10 - 60 = -50 (compensates EUR but wrong!)
-    transaction.addEntry(fundAssetAccount, new BigDecimal("10.0000"));
-    transaction.addEntry(fundLiabilityAccount, new BigDecimal("-60.0000"));
+    transaction.addEntry(fundAssetAccount, new BigDecimal("10.00000"));
+    transaction.addEntry(fundLiabilityAccount, new BigDecimal("-60.00000"));
 
     // When/Then - should fail when trying to persist
     assertThatThrownBy(() -> transactionRepository.save(transaction))
@@ -288,7 +288,8 @@ class LedgerValidationIntegrationTest {
     transaction.addEntry(eurLiabilityAccount, new BigDecimal("-100.00"));
 
     // FUND_UNIT entries balance: 10 - 10 = 0
-    transaction.addEntry(fundAssetAccount, new BigDecimal("10.12345")); // Valid 5 decimals
+    transaction.addEntry(
+        fundAssetAccount, new BigDecimal("10.12345")); // Exactly 5 decimals required
     transaction.addEntry(fundLiabilityAccount, new BigDecimal("-10.12345"));
 
     // When
@@ -298,6 +299,44 @@ class LedgerValidationIntegrationTest {
     assertThat(persisted.getId()).isNotNull();
     assertThat(persisted.getEntries()).hasSize(4);
     assertThat(persisted.sum()).isEqualByComparingTo(ZERO);
+  }
+
+  @Test
+  @DisplayName(
+      "Should fail to persist transaction with FUND_UNIT amount having less than 5 decimals")
+  void shouldFailToPersistFundUnitWithTooFewDecimals() {
+    // Given - Transaction with FUND_UNIT amounts with too few decimal places
+    LedgerTransaction transaction =
+        LedgerTransaction.builder()
+            .transactionType(TRANSFER)
+            .transactionDate(Instant.now())
+            .metadata(new HashMap<>())
+            .build();
+
+    // Manually create entries with wrong precision
+    LedgerEntry entry1 =
+        LedgerEntry.builder()
+            .account(fundAssetAccount)
+            .amount(new BigDecimal("10.123")) // Only 3 decimal places for FUND_UNIT!
+            .assetType(FUND_UNIT)
+            .transaction(transaction)
+            .build();
+
+    LedgerEntry entry2 =
+        LedgerEntry.builder()
+            .account(fundLiabilityAccount)
+            .amount(new BigDecimal("-10.123"))
+            .assetType(FUND_UNIT)
+            .transaction(transaction)
+            .build();
+
+    transaction.getEntries().add(entry1);
+    transaction.getEntries().add(entry2);
+
+    // When/Then - should fail validation
+    assertThatThrownBy(() -> transactionRepository.save(transaction))
+        .isInstanceOf(ConstraintViolationException.class)
+        .hasMessageContaining("decimal places");
   }
 
   @Test

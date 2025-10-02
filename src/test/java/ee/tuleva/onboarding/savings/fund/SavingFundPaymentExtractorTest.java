@@ -89,6 +89,36 @@ class SavingFundPaymentExtractorTest {
   }
 
   @Test
+  void extractPayments_shouldExtractReceiveBefore() {
+    // given
+    var account =
+        createBankStatementAccount("EE442200221092874625", "TULEVA FONDID AS", "14118923");
+    var creditEntry =
+        createCreditEntry(
+            new BigDecimal("0.10"),
+            "EE157700771001802057",
+            "Jüri Tamm",
+            "39910273027",
+            "39910273027",
+            "2025092900654847-1");
+    var receiveBefore = java.time.Instant.parse("2025-09-29T15:37:46Z");
+    var statement =
+        new BankStatement(
+            BankStatement.BankStatementType.INTRA_DAY_REPORT,
+            account,
+            List.of(),
+            List.of(creditEntry),
+            receiveBefore);
+
+    // when
+    List<SavingFundPayment> payments = extractor.extractPayments(statement);
+
+    // then
+    assertThat(payments).hasSize(1);
+    assertThat(payments.get(0).getReceivedBefore()).isEqualTo(receiveBefore);
+  }
+
+  @Test
   void extractPayments_shouldThrowExceptionForUnsupportedCurrency() {
     // given
     var account =
@@ -118,7 +148,7 @@ class SavingFundPaymentExtractorTest {
   private BankStatement createBankStatement(
       BankStatementAccount account, List<BankStatementEntry> entries) {
     return new BankStatement(
-        BankStatement.BankStatementType.INTRA_DAY_REPORT, account, List.of(), entries);
+        BankStatement.BankStatementType.INTRA_DAY_REPORT, account, List.of(), entries, null);
   }
 
   private BankStatementAccount createBankStatementAccount(String iban, String name, String idCode) {

@@ -110,6 +110,7 @@ public class SavingFundPaymentService {
         .externalId(
             mergeAndValidateField("externalId", existing.getExternalId(), payment.getExternalId()))
         .createdAt(existing.getCreatedAt())
+        .receivedBefore(payment.getReceivedBefore())
         .status(existing.getStatus())
         .statusChangedAt(existing.getStatusChangedAt())
         .build();

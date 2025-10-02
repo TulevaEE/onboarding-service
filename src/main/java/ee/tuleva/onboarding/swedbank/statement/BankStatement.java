@@ -1,13 +1,17 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
+import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
 import static ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType.INTRA_DAY_REPORT;
 
 import ee.swedbank.gateway.iso.response.report.AccountReport11;
 import ee.swedbank.gateway.iso.response.report.BankToCustomerAccountReportV02;
+import ee.swedbank.gateway.iso.response.report.DateTimePeriodDetails;
 import ee.swedbank.gateway.iso.response.statement.AccountStatement2;
 import ee.swedbank.gateway.iso.response.statement.BankToCustomerStatementV02;
+import java.time.Instant;
 import java.util.List;
+import javax.xml.datatype.XMLGregorianCalendar;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -25,6 +29,7 @@ public class BankStatement {
   private final List<BankStatementBalance> balances;
   // TODO check entries against TtlCdtNtries and TttlDbtEntries count from balances?
   private final List<BankStatementEntry> entries;
+  private final Instant receivedBefore;
 
   static BankStatement from(BankToCustomerAccountReportV02 accountReport) {
     var report = Require.exactlyOne(accountReport.getRpt(), "report");
@@ -41,14 +46,35 @@ public class BankStatement {
     var balances = report.getBal().stream().map(BankStatementBalance::from).toList();
     var entries = report.getNtry().stream().map(BankStatementEntry::from).toList();
 
-    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries);
+    DateTimePeriodDetails fromAndToDateTime =
+        Require.notNull(report.getFrToDt(), "fromAndToDateTime");
+    XMLGregorianCalendar toDateTime = Require.notNull(fromAndToDateTime.getToDtTm(), "toDateTime");
+
+    var receivedBefore =
+        toDateTime
+            .toGregorianCalendar()
+            .toZonedDateTime()
+            .withZoneSameLocal(SWEDBANK_GATEWAY_TIME_ZONE)
+            .toInstant();
+
+    return new BankStatement(INTRA_DAY_REPORT, account, balances, entries, receivedBefore);
   }
 
   static BankStatement from(AccountStatement2 statement) {
     var accountType = BankStatementAccount.from(statement);
     var balances = statement.getBal().stream().map(BankStatementBalance::from).toList();
     var entries = statement.getNtry().stream().map(BankStatementEntry::from).toList();
+    var receivedBefore =
+        statement.getFrToDt() != null && statement.getFrToDt().getToDtTm() != null
+            ? statement
+                .getFrToDt()
+                .getToDtTm()
+                .toGregorianCalendar()
+                .toZonedDateTime()
+                .withZoneSameLocal(SWEDBANK_GATEWAY_TIME_ZONE)
+                .toInstant()
+            : null;
 
-    return new BankStatement(HISTORIC_STATEMENT, accountType, balances, entries);
+    return new BankStatement(HISTORIC_STATEMENT, accountType, balances, entries, receivedBefore);
   }
 }

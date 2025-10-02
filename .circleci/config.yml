@@ -11,6 +11,7 @@ jobs:
       TERM: dumb
     docker:
       - image: cimg/openjdk:21.0
+    resource_class: large
     steps:
       - checkout
       - restore_cache:

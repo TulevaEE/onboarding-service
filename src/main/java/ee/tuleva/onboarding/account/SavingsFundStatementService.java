@@ -12,7 +12,6 @@ import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -30,29 +29,28 @@ public class SavingsFundStatementService {
           .fundManager(new FundManager("Tuleva", 1L))
           .inceptionDate(LocalDate.of(2025, 10, 1))
           .isin("EE0000000000")
-          .pillar(-1)
-          .nameEnglish("Additional Savings Fund")
-          .nameEstonian("Täiendav kogumisfond")
+          .pillar(null)
+          .nameEnglish("Tuleva Additional Savings Fund")
+          .nameEstonian("Tuleva täiendav kogumisfond")
           .managementFeeRate(FEE_RATE)
           .ongoingChargesFigure(FEE_RATE)
           .status(Fund.FundStatus.ACTIVE)
           .build();
 
-  public Optional<FundBalance> getAccountStatement(Person person) {
+  public FundBalance getAccountStatement(Person person) {
     User user = userService.findByPersonalCode(person.getPersonalCode()).orElseThrow();
 
     BigDecimal units = getUserUnits(user);
     BigDecimal value = getNAV().multiply(units);
 
-    return Optional.of(
-        FundBalance.builder()
-            .fund(SAVINGS_FUND)
-            .currency(EUR)
-            .units(units)
-            .value(value)
-            .contributions(getUserDeposits(user))
-            .subtractions(getUserWithdrawals(user))
-            .build());
+    return FundBalance.builder()
+        .fund(SAVINGS_FUND)
+        .currency(EUR)
+        .units(units)
+        .value(value)
+        .contributions(value)
+        .subtractions(getUserWithdrawals(user))
+        .build();
   }
 
   private BigDecimal getUserUnits(User user) {
@@ -63,15 +61,17 @@ public class SavingsFundStatementService {
   }
 
   private BigDecimal getUserDeposits(User user) {
-    // ledgerService.getUserAccount(user
-    return BigDecimal.TEN;
+    // TODO get deposits from ledger
+    return BigDecimal.ZERO;
   }
 
   private BigDecimal getUserWithdrawals(User user) {
+    // TODO get withdrawals from ledger
     return BigDecimal.ZERO;
   }
 
   private BigDecimal getNAV() {
+    // TODO fetch NAV
     return BigDecimal.ONE;
   }
 }

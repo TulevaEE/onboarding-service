@@ -3,7 +3,9 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -94,6 +96,12 @@ class SavingsFundReservationJobIntegrationTest {
   @DisplayName("continues processing other payments when ledger fails for one payment")
   void continuesProcessingWhenOnePaymentFails() {
     var beforeCutoff = Instant.parse("2025-01-06T13:00:00Z");
+
+    // Configure mock to throw an exception for amounts of 999.00
+    doThrow(new RuntimeException("Ledger error"))
+        .when(ledger)
+        .reservePaymentForSubscription(
+            any(), argThat(amount -> amount.compareTo(new BigDecimal("999.00")) == 0));
 
     // Payment that will cause ledger to throw an exception
     var invalidPaymentId =

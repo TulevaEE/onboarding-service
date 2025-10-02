@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
 
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
 import java.text.Normalizer;
@@ -24,6 +25,7 @@ public class PaymentVerificationService {
   private final SavingFundPaymentRepository savingFundPaymentRepository;
   private final UserRepository userRepository;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
+  private final SavingsFundLedger savingsFundLedger;
 
   @Transactional
   public void process(SavingFundPayment payment) {
@@ -62,6 +64,7 @@ public class PaymentVerificationService {
         "Verification completed for payment {}, attaching to user {}", payment.getId(), userId);
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
     savingFundPaymentRepository.attachUser(payment.getId(), userId);
+    savingsFundLedger.recordPaymentReceived(user.get(), payment.getAmount(), payment.getId());
   }
 
   private void identityCheckFailure(SavingFundPayment payment, String reason) {

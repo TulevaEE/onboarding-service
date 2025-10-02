@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -46,10 +47,10 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction recordPaymentReceived(
-      User user, BigDecimal amount, String externalReference) {
+      User user, BigDecimal amount, UUID externalReference) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashAccount = getUserCashAccount(userParty);
-    LedgerAccount incomingPaymentsAccount = getSystemAccount(INCOMING_PAYMENTS_CLEARING);
+    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
 
     Map<String, Object> metadata =
         Map.of(
@@ -67,9 +68,9 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction recordUnattributedPayment(
-      BigDecimal amount, String payerIban, String externalReference) {
-    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS);
-    LedgerAccount incomingPaymentsAccount = getSystemAccount(INCOMING_PAYMENTS_CLEARING);
+      BigDecimal amount, String payerIban, UUID externalReference) {
+    LedgerAccount unreconciledAccount = getUnreconciledBankReceiptsAccount();
+    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
 
     Map<String, Object> metadata =
         Map.of(
@@ -110,7 +111,7 @@ public class SavingsFundLedger {
     LedgerAccount userCashReservedAccount = getUserCashReservedAccount(userParty);
     LedgerAccount userUnitsAccount = getUserUnitsAccount(userParty);
     LedgerAccount userSubscriptionsAccount = getUserSubscriptionsAccount(userParty);
-    LedgerAccount unitsOutstandingAccount = getSystemAccount(FUND_UNITS_OUTSTANDING);
+    LedgerAccount unitsOutstandingAccount = getFundUnitsOutstandingAccount();
 
     Map<String, Object> metadata =
         Map.of(
@@ -130,8 +131,8 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction transferToFundAccount(BigDecimal amount) {
-    LedgerAccount incomingPaymentsAccount = getSystemAccount(INCOMING_PAYMENTS_CLEARING);
-    LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING);
+    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
+    LedgerAccount fundCashAccount = getFundInvestmentCashClearingAccount();
 
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, FUND_TRANSFER.name());
 
@@ -144,8 +145,8 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction bounceBackUnattributedPayment(BigDecimal amount, String payerIban) {
-    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS);
-    LedgerAccount incomingPaymentsAccount = getSystemAccount(INCOMING_PAYMENTS_CLEARING);
+    LedgerAccount unreconciledAccount = getUnreconciledBankReceiptsAccount();
+    LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
 
     Map<String, Object> metadata =
         Map.of(OPERATION_TYPE.key, PAYMENT_BOUNCE_BACK.name(), PAYER_IBAN.key, payerIban);
@@ -161,7 +162,7 @@ public class SavingsFundLedger {
   public LedgerTransaction attributeLatePayment(User user, BigDecimal amount) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashAccount = getUserCashAccount(userParty);
-    LedgerAccount unreconciledAccount = getSystemAccount(UNRECONCILED_BANK_RECEIPTS);
+    LedgerAccount unreconciledAccount = getUnreconciledBankReceiptsAccount();
 
     Map<String, Object> metadata =
         Map.of(
@@ -201,7 +202,7 @@ public class SavingsFundLedger {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userUnitsReservedAccount = getUserUnitsReservedAccount(userParty);
     LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
-    LedgerAccount unitsOutstandingAccount = getSystemAccount(FUND_UNITS_OUTSTANDING);
+    LedgerAccount unitsOutstandingAccount = getFundUnitsOutstandingAccount();
     LedgerAccount userRedemptionsAccount = getUserRedemptionsAccount(userParty);
 
     Map<String, Object> metadata =
@@ -222,8 +223,8 @@ public class SavingsFundLedger {
 
   @Transactional
   public LedgerTransaction transferFundToPayoutCash(BigDecimal amount) {
-    LedgerAccount fundCashAccount = getSystemAccount(FUND_INVESTMENT_CASH_CLEARING);
-    LedgerAccount payoutsCashAccount = getSystemAccount(PAYOUTS_CASH_CLEARING);
+    LedgerAccount fundCashAccount = getFundInvestmentCashClearingAccount();
+    LedgerAccount payoutsCashAccount = getPayoutsCashClearingAccount();
 
     Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, FUND_CASH_TRANSFER.name());
 
@@ -239,7 +240,7 @@ public class SavingsFundLedger {
       User user, BigDecimal amount, String customerIban) {
     LedgerParty userParty = getUserParty(user);
     LedgerAccount userCashRedemptionAccount = getUserCashRedemptionAccount(userParty);
-    LedgerAccount payoutsCashAccount = getSystemAccount(PAYOUTS_CASH_CLEARING);
+    LedgerAccount payoutsCashAccount = getPayoutsCashClearingAccount();
 
     Map<String, Object> metadata =
         Map.of(

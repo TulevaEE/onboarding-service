@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RECEIVED;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,7 +18,7 @@ public class PaymentVerificationJob {
   @Scheduled(fixedRateString = "1m")
   public void runJob() {
     savingFundPaymentRepository
-        .findPaymentsWithStatus(SavingFundPayment.Status.RECEIVED)
+        .findPaymentsWithStatus(RECEIVED)
         .forEach(
             payment -> {
               try {

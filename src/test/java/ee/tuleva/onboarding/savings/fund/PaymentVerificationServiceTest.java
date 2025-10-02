@@ -9,8 +9,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserRepository;
+import java.math.BigDecimal;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +26,7 @@ class PaymentVerificationServiceTest {
   @Mock SavingFundPaymentRepository savingFundPaymentRepository;
   @Mock UserRepository userRepository;
   @Mock SavingsFundOnboardingService savingsFundOnboardingService;
+  @Mock SavingsFundLedger savingsFundLedger;
   @InjectMocks PaymentVerificationService service;
 
   @Test
@@ -107,6 +110,7 @@ class PaymentVerificationServiceTest {
 
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
+    verify(savingsFundLedger).recordPaymentReceived(user, payment.getAmount(), payment.getId());
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository).attachUser(payment.getId(), 123L);
     verifyNoMoreInteractions(savingFundPaymentRepository);
@@ -123,6 +127,7 @@ class PaymentVerificationServiceTest {
 
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
+    verify(savingsFundLedger).recordPaymentReceived(user, payment.getAmount(), payment.getId());
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository).attachUser(payment.getId(), 444L);
     verifyNoMoreInteractions(savingFundPaymentRepository);
@@ -139,6 +144,7 @@ class PaymentVerificationServiceTest {
 
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
+    verify(savingsFundLedger).recordPaymentReceived(user, payment.getAmount(), payment.getId());
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verify(savingFundPaymentRepository).attachUser(payment.getId(), 123L);
     verifyNoMoreInteractions(savingFundPaymentRepository);
@@ -187,6 +193,7 @@ class PaymentVerificationServiceTest {
   private SavingFundPayment createPayment(String remitterIdCode, String description) {
     return SavingFundPayment.builder()
         .id(randomUUID())
+        .amount(new BigDecimal("100.00"))
         .remitterName("PÄRT ÕLEKÕRS")
         .remitterIdCode(remitterIdCode)
         .description(description)

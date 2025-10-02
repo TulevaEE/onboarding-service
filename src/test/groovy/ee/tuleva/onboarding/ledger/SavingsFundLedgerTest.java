@@ -8,6 +8,7 @@ import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
+import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
@@ -15,6 +16,7 @@ import static org.springframework.boot.test.context.SpringBootTest.WebEnvironmen
 import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -55,7 +57,7 @@ class SavingsFundLedgerTest {
   @DisplayName("Money-in flow: Payment received should create correct ledger entries")
   void shouldRecordPaymentReceived() {
     BigDecimal amount = new BigDecimal("1000.00");
-    String externalReference = "MONTONIO_123456";
+    UUID externalReference = randomUUID();
 
     LedgerTransaction transaction =
         savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
@@ -81,7 +83,7 @@ class SavingsFundLedgerTest {
   void testRecordUnattributedPayment() {
     BigDecimal amount = new BigDecimal("500.00");
     String payerIban = "EE123456789012345678";
-    String externalReference = "UNATTRIBUTED_789";
+    UUID externalReference = randomUUID();
 
     LedgerTransaction transaction =
         savingsFundLedger.recordUnattributedPayment(amount, payerIban, externalReference);
@@ -103,7 +105,7 @@ class SavingsFundLedgerTest {
   void testAttributeLatePayment() {
     BigDecimal amount = new BigDecimal("750.00");
     String payerIban = "EE987654321098765432";
-    savingsFundLedger.recordUnattributedPayment(amount, payerIban, "LATE_REF");
+    savingsFundLedger.recordUnattributedPayment(amount, payerIban, randomUUID());
 
     LedgerTransaction transaction = savingsFundLedger.attributeLatePayment(testUser, amount);
 
@@ -123,7 +125,7 @@ class SavingsFundLedgerTest {
   void testBounceBackUnattributedPayment() {
     BigDecimal amount = new BigDecimal("300.00");
     String payerIban = "EE555666777888999000";
-    savingsFundLedger.recordUnattributedPayment(amount, payerIban, "BOUNCE_REF");
+    savingsFundLedger.recordUnattributedPayment(amount, payerIban, randomUUID());
 
     LedgerTransaction transaction =
         savingsFundLedger.bounceBackUnattributedPayment(amount, payerIban);
@@ -146,7 +148,7 @@ class SavingsFundLedgerTest {
     BigDecimal navPerUnit = new BigDecimal("95.00");
 
     // Step 1: Payment received
-    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, "SETUP_REF");
+    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, randomUUID());
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(cashAmount.negate());
 
     // Step 2: Reserve payment for subscription (cash -> cash_reserved)
@@ -183,7 +185,7 @@ class SavingsFundLedgerTest {
   @DisplayName("Subscription flow: Should transfer cash to fund investment account")
   void testTransferToFundAccount() {
     BigDecimal amount = new BigDecimal("2000.00");
-    savingsFundLedger.recordPaymentReceived(testUser, amount, "FUND_TRANSFER_REF");
+    savingsFundLedger.recordPaymentReceived(testUser, amount, randomUUID());
 
     LedgerTransaction transaction = savingsFundLedger.transferToFundAccount(amount);
 
@@ -224,7 +226,7 @@ class SavingsFundLedgerTest {
     BigDecimal navPerUnit = new BigDecimal("95.00");
 
     LedgerTransaction paymentTx =
-        savingsFundLedger.recordPaymentReceived(testUser, paymentAmount, "COMPLETE_FLOW_REF");
+        savingsFundLedger.recordPaymentReceived(testUser, paymentAmount, randomUUID());
     LedgerTransaction reserveTx =
         savingsFundLedger.reservePaymentForSubscription(testUser, paymentAmount);
     LedgerTransaction subscriptionTx =
@@ -315,7 +317,9 @@ class SavingsFundLedgerTest {
     User unonboardedUser = sampleUser().personalCode("99999999999").build();
 
     assertThatThrownBy(
-            () -> savingsFundLedger.recordPaymentReceived(unonboardedUser, BigDecimal.TEN, "REF"))
+            () ->
+                savingsFundLedger.recordPaymentReceived(
+                    unonboardedUser, BigDecimal.TEN, randomUUID()))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("User not onboarded");
   }
@@ -326,7 +330,7 @@ class SavingsFundLedgerTest {
     BigDecimal amount = new BigDecimal("1000.00");
 
     LedgerTransaction payment =
-        savingsFundLedger.recordPaymentReceived(testUser, amount, "BALANCE_TEST");
+        savingsFundLedger.recordPaymentReceived(testUser, amount, randomUUID());
     LedgerTransaction reserve = savingsFundLedger.reservePaymentForSubscription(testUser, amount);
     LedgerTransaction subscription =
         savingsFundLedger.issueFundUnitsFromReserved(
@@ -367,14 +371,14 @@ class SavingsFundLedgerTest {
 
   private void setupUserWithFundUnits(
       BigDecimal cashAmount, BigDecimal fundUnits, BigDecimal navPerUnit) {
-    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, "SETUP_PAYMENT");
+    savingsFundLedger.recordPaymentReceived(testUser, cashAmount, randomUUID());
     savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
     savingsFundLedger.issueFundUnitsFromReserved(testUser, cashAmount, fundUnits, navPerUnit);
     savingsFundLedger.transferToFundAccount(cashAmount);
   }
 
   private void setupFundWithCash(BigDecimal amount) {
-    savingsFundLedger.recordPaymentReceived(testUser, amount, "FUND_SETUP");
+    savingsFundLedger.recordPaymentReceived(testUser, amount, randomUUID());
     savingsFundLedger.transferToFundAccount(amount);
   }
 
@@ -438,7 +442,6 @@ class SavingsFundLedgerTest {
     return getUserAccount(REDEMPTIONS);
   }
 
-  // High-level system account helpers
   private LedgerAccount getIncomingPaymentsClearingAccount() {
     return getSystemAccount(INCOMING_PAYMENTS_CLEARING);
   }

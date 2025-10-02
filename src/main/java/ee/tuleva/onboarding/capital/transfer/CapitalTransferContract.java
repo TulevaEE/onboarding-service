@@ -176,5 +176,8 @@ public class CapitalTransferContract {
   }
 
   public record CapitalTransferAmount(
-      MemberCapitalEventType type, BigDecimal price, BigDecimal bookValue) {}
+      MemberCapitalEventType type,
+      BigDecimal price,
+      BigDecimal bookValue,
+      BigDecimal ownershipUnitPrice) {}
 }

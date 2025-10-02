@@ -3,8 +3,6 @@ package ee.tuleva.onboarding.capital.transfer.execution;
 import static ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState.APPROVED_AND_NOTIFIED;
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.CAPITAL_TRANSFER_APPROVED_BY_BOARD;
 
-import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent;
-import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
@@ -28,7 +26,6 @@ public class CapitalTransferExecutor {
 
   private final CapitalTransferContractRepository contractRepository;
   private final MemberCapitalEventRepository memberCapitalEventRepository;
-  private final AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
   private final CapitalTransferValidator validator;
   private final CapitalTransferContractService contractService;
   private final CapitalTransferEventLinkRepository linkRepository;
@@ -40,7 +37,6 @@ public class CapitalTransferExecutor {
     validator.validateContract(contract);
     validator.validateSufficientCapital(contract);
 
-    BigDecimal currentUnitPrice = getCurrentOwnershipUnitPrice();
     LocalDate accountingDate = LocalDate.now(ZoneId.of("Europe/Tallinn"));
 
     for (CapitalTransferAmount transferAmount : contract.getTransferAmounts()) {
@@ -49,7 +45,7 @@ public class CapitalTransferExecutor {
         continue;
       }
 
-      executeTransferAmount(contract, transferAmount, currentUnitPrice, accountingDate);
+      executeTransferAmount(contract, transferAmount, accountingDate);
     }
 
     // TODO use updateStateBySystem here
@@ -86,11 +82,12 @@ public class CapitalTransferExecutor {
   private void executeTransferAmount(
       CapitalTransferContract contract,
       CapitalTransferAmount transferAmount,
-      BigDecimal currentUnitPrice,
       LocalDate accountingDate) {
 
     BigDecimal totalUnitsToTransfer =
-        transferAmount.bookValue().divide(currentUnitPrice, 5, RoundingMode.HALF_UP);
+        transferAmount
+            .bookValue()
+            .divide(transferAmount.ownershipUnitPrice(), 5, RoundingMode.HALF_UP);
 
     BigDecimal proportionalFiatValue =
         calculateProportionalFiatValue(contract, transferAmount, totalUnitsToTransfer);
@@ -155,17 +152,6 @@ public class CapitalTransferExecutor {
             .build();
 
     linkRepository.save(link);
-  }
-
-  private BigDecimal getCurrentOwnershipUnitPrice() {
-    AggregatedCapitalEvent latestEvent =
-        aggregatedCapitalEventRepository.findTopByOrderByDateDesc();
-
-    if (latestEvent == null || latestEvent.getOwnershipUnitPrice() == null) {
-      throw new IllegalStateException("Could not determine current ownership unit price");
-    }
-
-    return latestEvent.getOwnershipUnitPrice();
   }
 
   private BigDecimal calculateProportionalFiatValue(

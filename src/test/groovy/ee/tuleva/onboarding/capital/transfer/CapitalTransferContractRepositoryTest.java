@@ -82,7 +82,7 @@ class CapitalTransferContractRepositoryTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferContract.CapitalTransferAmount(
-                        CAPITAL_PAYMENT, BigDecimal.ONE, BigDecimal.ONE)))
+                        CAPITAL_PAYMENT, BigDecimal.ONE, BigDecimal.ONE, new BigDecimal("1.0"))))
             .originalContent(new byte[] {})
             .digiDocContainer(new byte[] {})
             .build();
@@ -103,7 +103,10 @@ class CapitalTransferContractRepositoryTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferContract.CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("200"), new BigDecimal("50"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("200"),
+                        new BigDecimal("50"),
+                        new BigDecimal("1.0"))))
             .originalContent(new byte[] {1, 2})
             .digiDocContainer(new byte[] {3, 4})
             .build();

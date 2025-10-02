@@ -69,7 +69,7 @@ class CapitalTransferContractContentServiceTest extends Specification {
         .transferAmounts(
             List.of(
                 new CapitalTransferContract.CapitalTransferAmount(
-                    CAPITAL_PAYMENT, new BigDecimal("2500.0"), new BigDecimal("1250.0"))))
+                    CAPITAL_PAYMENT, new BigDecimal("2500.0"), new BigDecimal("1250.0"), new BigDecimal("1.0"))))
         .state(CREATED)
         .build()
 
@@ -107,7 +107,7 @@ class CapitalTransferContractContentServiceTest extends Specification {
         .transferAmounts(
             List.of(
                 new CapitalTransferContract.CapitalTransferAmount(
-                    MEMBERSHIP_BONUS, new BigDecimal("200.0"), new BigDecimal("100.0"))))
+                    MEMBERSHIP_BONUS, new BigDecimal("200.0"), new BigDecimal("100.0"), new BigDecimal("1.0"))))
         .state(CREATED)
         .build()
 
@@ -145,9 +145,9 @@ class CapitalTransferContractContentServiceTest extends Specification {
         .transferAmounts(
             List.of(
                 new CapitalTransferContract.CapitalTransferAmount(
-                    CAPITAL_PAYMENT, new BigDecimal("2500"), new BigDecimal("1250.0")),
+                    CAPITAL_PAYMENT, new BigDecimal("2500"), new BigDecimal("1250.0"), new BigDecimal("1.0")),
                 new CapitalTransferContract.CapitalTransferAmount(
-                    MEMBERSHIP_BONUS, new BigDecimal("400"), new BigDecimal("200.0"))))
+                    MEMBERSHIP_BONUS, new BigDecimal("400"), new BigDecimal("200.0"), new BigDecimal("1.0"))))
         .state(CREATED)
         .createdAt(LocalDateTime.of(2024, 3, 10, 16, 15))
         .build()
@@ -180,7 +180,7 @@ class CapitalTransferContractContentServiceTest extends Specification {
         .transferAmounts(
             List.of(
                 new CapitalTransferContract.CapitalTransferAmount(
-                    CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("1250.0"))))
+                    CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("1250.0"), new BigDecimal("1.0"))))
         .state(CREATED)
         .build()
 

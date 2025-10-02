@@ -94,7 +94,10 @@ class CapitalTransferContractControllerTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("1250.0"), new BigDecimal("100.0"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("1250.0"),
+                        new BigDecimal("100.0"),
+                        new BigDecimal("1.0"))))
             .build();
 
     User sellerUser = sampleUser().id(1L).personalCode("37605030299").build();

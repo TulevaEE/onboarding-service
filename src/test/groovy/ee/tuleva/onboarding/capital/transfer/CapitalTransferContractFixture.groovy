@@ -18,7 +18,7 @@ class CapitalTransferContractFixture {
             .transferAmounts(
                 List.of(
                     new CapitalTransferContract.CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0"))))
+                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0"), new BigDecimal("1.0"))))
             .state(CapitalTransferContractState.CREATED)
             .originalContent("original content".getBytes())
             .createdAt(LocalDateTime.now())

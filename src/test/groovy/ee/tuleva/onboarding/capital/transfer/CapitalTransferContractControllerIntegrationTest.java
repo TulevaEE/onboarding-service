@@ -23,6 +23,8 @@ import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.auth.session.GenericSessionStore;
 import ee.tuleva.onboarding.capital.CapitalRow;
 import ee.tuleva.onboarding.capital.CapitalService;
+import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent;
+import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService;
 import ee.tuleva.onboarding.mandate.email.persistence.Email;
@@ -36,6 +38,7 @@ import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.member.Member;
 import ee.tuleva.onboarding.user.member.MemberRepository;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -45,6 +48,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
@@ -70,6 +74,7 @@ class CapitalTransferContractControllerIntegrationTest {
   @Autowired private CapitalService capitalService;
   @Autowired private EmailPersistenceService emailPersistenceService;
   @Autowired private ContactDetailsService contactDetailsService;
+  @MockBean private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
 
   private User sellerUser;
   private Member sellerMember;
@@ -197,6 +202,17 @@ class CapitalTransferContractControllerIntegrationTest {
                     BigDecimal.valueOf(10),
                     Currency.EUR)));
 
+    when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc())
+        .thenReturn(
+            AggregatedCapitalEvent.builder()
+                .id(1L)
+                .ownershipUnitPrice(new BigDecimal("1.0"))
+                .date(LocalDate.now())
+                .fiatValue(BigDecimal.ZERO)
+                .totalFiatValue(BigDecimal.ZERO)
+                .totalOwnershipUnitAmount(BigDecimal.ZERO)
+                .build());
+
     when(capitalService.getCapitalConcentrationUnitLimit()).thenReturn(BigDecimal.valueOf(1e7));
   }
 
@@ -210,7 +226,10 @@ class CapitalTransferContractControllerIntegrationTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferContract.CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("1250.0"), new BigDecimal("100.0"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("1250.0"),
+                        new BigDecimal("100.0"),
+                        new BigDecimal("1.0"))))
             .build();
 
     var sellerMemberId = sellerMember.getId();

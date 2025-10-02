@@ -56,7 +56,10 @@ class CapitalTransferContractTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferContract.CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("100.0"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("100.0"),
+                        new BigDecimal("1.0"))))
             .originalContent("original".getBytes())
             .digiDocContainer(null)
             .state(CapitalTransferContractState.CREATED);

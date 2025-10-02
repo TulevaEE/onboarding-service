@@ -82,7 +82,10 @@ public class CapitalTransferValidatorTest {
     when(seller.getId()).thenReturn(1L);
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(
-            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            new BigDecimal("100.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // Mock ownership unit price
@@ -106,7 +109,10 @@ public class CapitalTransferValidatorTest {
     when(seller.getId()).thenReturn(1L);
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(
-            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            new BigDecimal("100.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // Mock ownership unit price
@@ -133,10 +139,16 @@ public class CapitalTransferValidatorTest {
     when(seller.getId()).thenReturn(1L);
     CapitalTransferAmount payment =
         new CapitalTransferAmount(
-            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            new BigDecimal("100.00"),
+            new BigDecimal("1.0"));
     CapitalTransferAmount bonus =
         new CapitalTransferAmount(
-            MEMBERSHIP_BONUS, new BigDecimal("25.00"), new BigDecimal("20.00"));
+            MEMBERSHIP_BONUS,
+            new BigDecimal("25.00"),
+            new BigDecimal("20.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(payment, bonus));
 
     // Mock ownership unit price
@@ -163,10 +175,16 @@ public class CapitalTransferValidatorTest {
     when(seller.getId()).thenReturn(1L);
     CapitalTransferAmount payment =
         new CapitalTransferAmount(
-            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            new BigDecimal("100.00"),
+            new BigDecimal("1.0"));
     CapitalTransferAmount bonus =
         new CapitalTransferAmount(
-            MEMBERSHIP_BONUS, new BigDecimal("25.00"), new BigDecimal("20.00"));
+            MEMBERSHIP_BONUS,
+            new BigDecimal("25.00"),
+            new BigDecimal("20.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(payment, bonus));
 
     // Mock ownership unit price
@@ -196,7 +214,10 @@ public class CapitalTransferValidatorTest {
     when(seller.getId()).thenReturn(1L);
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(
-            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            new BigDecimal("100.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // Mock ownership unit price
@@ -220,7 +241,10 @@ public class CapitalTransferValidatorTest {
     when(seller.getId()).thenReturn(1L);
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(
-            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            new BigDecimal("100.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // Mock ownership unit price
@@ -244,7 +268,8 @@ public class CapitalTransferValidatorTest {
   public void whenShouldSkipTransfer_withZeroBookValue_thenReturnsTrue() {
     // Given
     CapitalTransferAmount transferAmount =
-        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("100.00"), BigDecimal.ZERO);
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("100.00"), BigDecimal.ZERO, new BigDecimal("1.0"));
 
     // When
     boolean result = validator.shouldSkipTransfer(transferAmount);
@@ -258,7 +283,8 @@ public class CapitalTransferValidatorTest {
   public void whenShouldSkipTransfer_withNullBookValue_thenReturnsTrue() {
     // Given
     CapitalTransferAmount transferAmount =
-        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("100.00"), null);
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("100.00"), null, new BigDecimal("1.0"));
 
     // When
     boolean result = validator.shouldSkipTransfer(transferAmount);
@@ -273,7 +299,10 @@ public class CapitalTransferValidatorTest {
     // Given
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(
-            CAPITAL_PAYMENT, new BigDecimal("100.00"), new BigDecimal("50.00"));
+            CAPITAL_PAYMENT,
+            new BigDecimal("100.00"),
+            new BigDecimal("50.00"),
+            new BigDecimal("1.0"));
 
     // When
     boolean result = validator.shouldSkipTransfer(transferAmount);
@@ -289,12 +318,17 @@ public class CapitalTransferValidatorTest {
     when(contract.getSeller()).thenReturn(seller);
     when(seller.getId()).thenReturn(1L);
     CapitalTransferAmount zeroAmount =
-        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("100.00"), BigDecimal.ZERO);
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("100.00"), BigDecimal.ZERO, new BigDecimal("1.0"));
     CapitalTransferAmount nullAmount =
-        new CapitalTransferAmount(MEMBERSHIP_BONUS, new BigDecimal("100.00"), null);
+        new CapitalTransferAmount(
+            MEMBERSHIP_BONUS, new BigDecimal("100.00"), null, new BigDecimal("1.0"));
     CapitalTransferAmount validAmount =
         new CapitalTransferAmount(
-            WORK_COMPENSATION, new BigDecimal("100.00"), new BigDecimal("50.00"));
+            WORK_COMPENSATION,
+            new BigDecimal("100.00"),
+            new BigDecimal("50.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(zeroAmount, nullAmount, validAmount));
 
     // Mock ownership unit price
@@ -318,7 +352,10 @@ public class CapitalTransferValidatorTest {
     when(seller.getId()).thenReturn(1L);
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(
-            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            new BigDecimal("100.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // Mock ownership unit price
@@ -345,7 +382,10 @@ public class CapitalTransferValidatorTest {
     when(seller.getId()).thenReturn(1L);
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(
-            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("100.00"));
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            new BigDecimal("100.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // Mock ownership unit price
@@ -390,7 +430,10 @@ public class CapitalTransferValidatorTest {
     when(seller.getId()).thenReturn(1L);
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(
-            CAPITAL_ACQUIRED, new BigDecimal("125.00"), new BigDecimal("200.00"));
+            CAPITAL_ACQUIRED,
+            new BigDecimal("125.00"),
+            new BigDecimal("200.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // Mock high ownership unit price
@@ -415,7 +458,10 @@ public class CapitalTransferValidatorTest {
     // Transfer amount: 48.12
     CapitalTransferAmount transferAmount =
         new CapitalTransferAmount(
-            CAPITAL_PAYMENT, new BigDecimal("125.00"), new BigDecimal("48.12"));
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            new BigDecimal("48.12"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // Mock ownership unit price

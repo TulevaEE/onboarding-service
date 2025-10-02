@@ -12,6 +12,8 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessage;
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.capital.CapitalRow;
 import ee.tuleva.onboarding.capital.CapitalService;
+import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent;
+import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
@@ -56,6 +58,7 @@ public class CapitalTransferContractService {
   private final SlackService slackService;
   private final ContactDetailsService contactDetailsService;
   private final ApplicationEventPublisher eventPublisher;
+  private final AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
 
   public CapitalTransferContract create(
       AuthenticatedPerson sellerPerson, CreateCapitalTransferContractCommand command) {
@@ -65,12 +68,24 @@ public class CapitalTransferContractService {
 
     validate(seller, buyer, command);
 
+    BigDecimal currentOwnershipUnitPrice = getCurrentOwnershipUnitPrice();
+    List<CapitalTransferAmount> transferAmountsWithUnitPrice =
+        command.getTransferAmounts().stream()
+            .map(
+                amount ->
+                    new CapitalTransferAmount(
+                        amount.type(),
+                        amount.price(),
+                        amount.bookValue(),
+                        currentOwnershipUnitPrice))
+            .toList();
+
     CapitalTransferContract contract =
         CapitalTransferContract.builder()
             .seller(seller)
             .buyer(buyer)
             .iban(command.getIban())
-            .transferAmounts(command.getTransferAmounts())
+            .transferAmounts(transferAmountsWithUnitPrice)
             .state(CapitalTransferContractState.CREATED)
             .build();
 
@@ -406,5 +421,16 @@ public class CapitalTransferContractService {
 
     // hotfix: there is no authentication context when sending the email after board approval
     return "et";
+  }
+
+  private BigDecimal getCurrentOwnershipUnitPrice() {
+    AggregatedCapitalEvent latestEvent =
+        aggregatedCapitalEventRepository.findTopByOrderByDateDesc();
+
+    if (latestEvent == null || latestEvent.getOwnershipUnitPrice() == null) {
+      throw new IllegalStateException("Could not determine current ownership unit price");
+    }
+
+    return latestEvent.getOwnershipUnitPrice();
   }
 }

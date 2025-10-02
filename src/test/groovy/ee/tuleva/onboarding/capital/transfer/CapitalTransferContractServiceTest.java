@@ -14,6 +14,8 @@ import com.microtripit.mandrillapp.lutung.view.MandrillMessageStatus;
 import ee.tuleva.onboarding.auth.AuthenticatedPersonFixture;
 import ee.tuleva.onboarding.capital.CapitalRow;
 import ee.tuleva.onboarding.capital.CapitalService;
+import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent;
+import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.content.CapitalTransferContractContentService;
 import ee.tuleva.onboarding.currency.Currency;
@@ -29,6 +31,7 @@ import ee.tuleva.onboarding.user.member.MemberService;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,8 +56,17 @@ class CapitalTransferContractServiceTest {
   @Mock private ContactDetailsService contactDetailsService;
   @Mock private SlackService slackService;
   @Mock private ApplicationEventPublisher eventPublisher;
+  @Mock private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
 
   @InjectMocks private CapitalTransferContractService contractService;
+
+  @BeforeEach
+  void setUp() {
+    lenient()
+        .when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc())
+        .thenReturn(
+            AggregatedCapitalEvent.builder().ownershipUnitPrice(new BigDecimal("1.0")).build());
+  }
 
   @Test
   @DisplayName("Create capital transfer happy path")
@@ -70,7 +82,10 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("10.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -121,7 +136,10 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("100.0"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("100.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -138,7 +156,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("40.0"), new BigDecimal("450.0"))))
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("40.0"),
+                                new BigDecimal("450.0"),
+                                new BigDecimal("1.0"))))
                     .build(),
                 CapitalTransferContract.builder()
                     .id(2L)
@@ -148,7 +169,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("40.0"), new BigDecimal("450.0"))))
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("40.0"),
+                                new BigDecimal("450.0"),
+                                new BigDecimal("1.0"))))
                     .build()));
     when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
@@ -523,7 +547,10 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("10.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -540,7 +567,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("100.0"),
+                                new BigDecimal("1.0"))))
                     .build(),
                 CapitalTransferContract.builder()
                     .id(2L)
@@ -550,7 +580,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("100.0"),
+                                new BigDecimal("1.0"))))
                     .build()));
     when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
@@ -587,7 +620,10 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("10.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -628,9 +664,15 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0")),
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("10.0"),
+                        new BigDecimal("1.0")),
                     new CapitalTransferAmount(
-                        MEMBERSHIP_BONUS, new BigDecimal("100.0"), new BigDecimal("5.0"))))
+                        MEMBERSHIP_BONUS,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("5.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -645,7 +687,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("100.0"),
+                                new BigDecimal("1.0"))))
                     .build(),
                 CapitalTransferContract.builder()
                     .id(2L)
@@ -655,7 +700,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                MEMBERSHIP_BONUS, new BigDecimal("50.0"), new BigDecimal("5.0"))))
+                                MEMBERSHIP_BONUS,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("5.0"),
+                                new BigDecimal("1.0"))))
                     .build()));
     when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
     when(memberService.getById(sampleCommand.getBuyerMemberId()))
@@ -699,9 +747,15 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("200.0")),
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("200.0"),
+                        new BigDecimal("1.0")),
                     new CapitalTransferAmount(
-                        MEMBERSHIP_BONUS, new BigDecimal("0.0"), new BigDecimal("0.0"))))
+                        MEMBERSHIP_BONUS,
+                        new BigDecimal("0.0"),
+                        new BigDecimal("0.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -730,9 +784,15 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("200.0")),
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("200.0"),
+                        new BigDecimal("1.0")),
                     new CapitalTransferAmount(
-                        MEMBERSHIP_BONUS, new BigDecimal("-30.0"), new BigDecimal("-20.0"))))
+                        MEMBERSHIP_BONUS,
+                        new BigDecimal("-30.0"),
+                        new BigDecimal("-20.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -761,7 +821,10 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        MEMBERSHIP_BONUS, new BigDecimal("100.0"), new BigDecimal("10.0"))))
+                        MEMBERSHIP_BONUS,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("10.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -808,7 +871,10 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("10.0"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("10.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -862,7 +928,10 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("100.0"), new BigDecimal("90.0"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("100.0"),
+                        new BigDecimal("90.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -877,7 +946,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("40.0"), new BigDecimal("10.0"))))
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("40.0"),
+                                new BigDecimal("10.0"),
+                                new BigDecimal("1.0"))))
                     .build(),
                 CapitalTransferContract.builder()
                     .id(2L)
@@ -887,7 +959,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("40.0"), new BigDecimal("10.0"))))
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("40.0"),
+                                new BigDecimal("10.0"),
+                                new BigDecimal("1.0"))))
                     .build()));
 
     when(userService.getById(sellerPerson.getUserId())).thenReturn(Optional.of(sellerUser));
@@ -926,7 +1001,10 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("10.0"), new BigDecimal("5.0"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("10.0"),
+                        new BigDecimal("5.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -981,9 +1059,15 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("10.0"), new BigDecimal("5.0")),
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("10.0"),
+                        new BigDecimal("5.0"),
+                        new BigDecimal("1.0")),
                     new CapitalTransferAmount(
-                        CAPITAL_PAYMENT, new BigDecimal("10.0"), new BigDecimal("5.0"))))
+                        CAPITAL_PAYMENT,
+                        new BigDecimal("10.0"),
+                        new BigDecimal("5.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -1012,9 +1096,15 @@ class CapitalTransferContractServiceTest {
             .transferAmounts(
                 List.of(
                     new CapitalTransferAmount(
-                        INVESTMENT_RETURN, new BigDecimal("10.0"), new BigDecimal("5.0")),
+                        INVESTMENT_RETURN,
+                        new BigDecimal("10.0"),
+                        new BigDecimal("5.0"),
+                        new BigDecimal("1.0")),
                     new CapitalTransferAmount(
-                        UNVESTED_WORK_COMPENSATION, new BigDecimal("10.0"), new BigDecimal("5.0"))))
+                        UNVESTED_WORK_COMPENSATION,
+                        new BigDecimal("10.0"),
+                        new BigDecimal("5.0"),
+                        new BigDecimal("1.0"))))
             .build();
     var sellerPerson = AuthenticatedPersonFixture.authenticatedPersonFromUser(sellerUser).build();
 
@@ -1051,11 +1141,15 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0")),
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("100.0"),
+                                new BigDecimal("1.0")),
                             new CapitalTransferAmount(
                                 WORK_COMPENSATION,
                                 new BigDecimal("50.0"),
-                                new BigDecimal("100.0"))))
+                                new BigDecimal("100.0"),
+                                new BigDecimal("1.0"))))
                     .build(),
                 CapitalTransferContract.builder()
                     .id(2L)
@@ -1065,7 +1159,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("100.0"),
+                                new BigDecimal("1.0"))))
                     .build(),
                 CapitalTransferContract.builder()
                     .id(3L)
@@ -1075,7 +1172,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("100.0"),
+                                new BigDecimal("1.0"))))
                     .build(),
                 CapitalTransferContract.builder()
                     .id(4L)
@@ -1085,7 +1185,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                MEMBERSHIP_BONUS, new BigDecimal("50.0"), new BigDecimal("50.0"))))
+                                MEMBERSHIP_BONUS,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("50.0"),
+                                new BigDecimal("1.0"))))
                     .build()));
 
     var map = contractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow());
@@ -1118,11 +1221,15 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0")),
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("100.0"),
+                                new BigDecimal("1.0")),
                             new CapitalTransferAmount(
                                 WORK_COMPENSATION,
                                 new BigDecimal("50.0"),
-                                new BigDecimal("100.0"))))
+                                new BigDecimal("100.0"),
+                                new BigDecimal("1.0"))))
                     .build(),
                 CapitalTransferContract.builder()
                     .id(2L)
@@ -1132,7 +1239,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("100.0"),
+                                new BigDecimal("1.0"))))
                     .build(),
                 CapitalTransferContract.builder()
                     .id(3L)
@@ -1142,7 +1252,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                CAPITAL_PAYMENT, new BigDecimal("50.0"), new BigDecimal("100.0"))))
+                                CAPITAL_PAYMENT,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("100.0"),
+                                new BigDecimal("1.0"))))
                     .build(),
                 CapitalTransferContract.builder()
                     .id(4L)
@@ -1152,7 +1265,10 @@ class CapitalTransferContractServiceTest {
                     .transferAmounts(
                         List.of(
                             new CapitalTransferAmount(
-                                MEMBERSHIP_BONUS, new BigDecimal("50.0"), new BigDecimal("50.0"))))
+                                MEMBERSHIP_BONUS,
+                                new BigDecimal("50.0"),
+                                new BigDecimal("50.0"),
+                                new BigDecimal("1.0"))))
                     .build()));
 
     var map = contractService.getCapitalBeingSoldInOtherTransfers(user.getMemberOrThrow());

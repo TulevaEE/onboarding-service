@@ -9,8 +9,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent;
-import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
@@ -35,7 +33,6 @@ public class CapitalTransferExecutorTest {
 
   @Mock private CapitalTransferContractRepository contractRepository;
   @Mock private MemberCapitalEventRepository memberCapitalEventRepository;
-  @Mock private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
   @Mock private CapitalTransferValidator validator;
   @Mock private CapitalTransferEventLinkRepository linkRepository;
   @Mock private CapitalTransferContractService capitalTransferContractService;
@@ -43,14 +40,13 @@ public class CapitalTransferExecutorTest {
   @Mock private CapitalTransferContract contract;
   @Mock private Member seller;
   @Mock private Member buyer;
-  @Mock private AggregatedCapitalEvent aggregatedEvent;
 
   private CapitalTransferExecutor executor;
 
   private final BigDecimal OWNERSHIP_UNIT_PRICE = new BigDecimal("1.73456");
   private final BigDecimal BOOK_VALUE = new BigDecimal("123.45000");
   private final BigDecimal EXPECTED_UNITS =
-      new BigDecimal("71.17079"); // 123.45 / 1.73456 = 71.17079 (rounded to 5 decimal places)
+      new BigDecimal("123.45000"); // 123.45 / 1.0 = 123.45 (uses stored ownership unit price)
 
   @BeforeEach
   public void setUp() {
@@ -58,7 +54,6 @@ public class CapitalTransferExecutorTest {
         new CapitalTransferExecutor(
             contractRepository,
             memberCapitalEventRepository,
-            aggregatedCapitalEventRepository,
             validator,
             capitalTransferContractService,
             linkRepository);
@@ -75,8 +70,6 @@ public class CapitalTransferExecutorTest {
     when(buyer.getUser()).thenReturn(sampleUser().id(2L).build());
     when(seller.getId()).thenReturn(101L);
     when(buyer.getId()).thenReturn(102L);
-    when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
-    when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
 
     BigDecimal sellerTotalFiatValue = new BigDecimal("987.65432");
     BigDecimal sellerTotalUnits = new BigDecimal("321.98765");
@@ -95,7 +88,8 @@ public class CapitalTransferExecutorTest {
             });
 
     CapitalTransferAmount transferAmount =
-        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE);
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE, new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // When
@@ -116,8 +110,8 @@ public class CapitalTransferExecutorTest {
     List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
 
     // Calculate expected proportional fiat value: (totalFiatValue * unitsToTransfer) / totalUnits
-    // (987.65432 * 71.17079) / 321.98765 = 218.30694 (rounded to 5 decimal places)
-    BigDecimal expectedProportionalFiatValue = new BigDecimal("218.30694");
+    // (987.65432 * 123.45) / 321.98765 = 378.66647 (using stored ownership unit price)
+    BigDecimal expectedProportionalFiatValue = new BigDecimal("378.66647");
 
     // First event should be seller withdrawal
     MemberCapitalEvent sellerEvent = savedEvents.get(0);
@@ -166,8 +160,6 @@ public class CapitalTransferExecutorTest {
     when(buyer.getUser()).thenReturn(sampleUser().id(2L).build());
     when(seller.getId()).thenReturn(101L);
     when(buyer.getId()).thenReturn(102L);
-    when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
-    when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
 
     when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
         .thenReturn(new BigDecimal("987.65432"));
@@ -190,10 +182,14 @@ public class CapitalTransferExecutorTest {
             });
 
     CapitalTransferAmount payment =
-        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE);
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE, new BigDecimal("1.0"));
     CapitalTransferAmount bonus =
         new CapitalTransferAmount(
-            MEMBERSHIP_BONUS, new BigDecimal("62.50"), new BigDecimal("50.00"));
+            MEMBERSHIP_BONUS,
+            new BigDecimal("62.50"),
+            new BigDecimal("50.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(payment, bonus));
 
     // When
@@ -210,13 +206,14 @@ public class CapitalTransferExecutorTest {
 
     List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
 
-    // CAPITAL_PAYMENT: (987.65432 * 71.17079) / 321.98765 = 218.30694
-    BigDecimal expectedPaymentFiat = new BigDecimal("218.30694");
+    // CAPITAL_PAYMENT: 123.45 / 1.0 = 123.45 units
+    // (987.65432 * 123.45) / 321.98765 = 378.66647
+    BigDecimal expectedPaymentFiat = new BigDecimal("378.66647");
 
-    // MEMBERSHIP_BONUS: 50.00 / 1.73456 = 28.82575 units (rounded to 5 decimal places)
-    BigDecimal bonusUnits = new BigDecimal("28.82575");
-    // (456.78901 * 28.82575) / 123.45678 = 106.65502
-    BigDecimal expectedBonusFiat = new BigDecimal("106.65502");
+    // MEMBERSHIP_BONUS: 50.00 / 1.0 = 50.00 units (using stored ownership unit price)
+    BigDecimal bonusUnits = new BigDecimal("50.00000");
+    // (456.78901 * 50.00) / 123.45678 = 184.99956
+    BigDecimal expectedBonusFiat = new BigDecimal("184.99956");
 
     // Verify we have events for both types
     assertThat(savedEvents.stream().filter(e -> e.getType() == CAPITAL_PAYMENT).count())
@@ -262,8 +259,6 @@ public class CapitalTransferExecutorTest {
     when(buyer.getId()).thenReturn(102L);
     when(seller.getUser()).thenReturn(sampleUser().id(1L).build());
     when(buyer.getUser()).thenReturn(sampleUser().id(2L).build());
-    when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
-    when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
 
     // Mock seller's total values for MEMBERSHIP_BONUS (only needed for valid amount)
     when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, MEMBERSHIP_BONUS))
@@ -281,9 +276,11 @@ public class CapitalTransferExecutorTest {
             });
 
     CapitalTransferAmount zeroAmount =
-        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("100.00"), BigDecimal.ZERO);
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("100.00"), BigDecimal.ZERO, new BigDecimal("1.0"));
     CapitalTransferAmount validAmount =
-        new CapitalTransferAmount(MEMBERSHIP_BONUS, new BigDecimal("125.00"), BOOK_VALUE);
+        new CapitalTransferAmount(
+            MEMBERSHIP_BONUS, new BigDecimal("125.00"), BOOK_VALUE, new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(zeroAmount, validAmount));
     when(validator.shouldSkipTransfer(zeroAmount)).thenReturn(true);
     when(validator.shouldSkipTransfer(validAmount)).thenReturn(false);
@@ -344,41 +341,6 @@ public class CapitalTransferExecutorTest {
   }
 
   @Test
-  @DisplayName("Should throw exception when ownership unit price not available")
-  public void whenExecuteTransfer_withNoOwnershipUnitPrice_thenThrowsException() {
-    // Given
-    when(contract.getId()).thenReturn(1L);
-    when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(null);
-
-    // When & Then
-    assertThatThrownBy(() -> executor.execute(contract))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("Could not determine current ownership unit price");
-
-    verify(memberCapitalEventRepository, never()).save(any());
-    verify(contract, never()).executed();
-    verify(contractRepository, never()).save(any());
-  }
-
-  @Test
-  @DisplayName("Should throw exception when ownership unit price is null")
-  public void whenExecuteTransfer_withNullOwnershipUnitPrice_thenThrowsException() {
-    // Given
-    when(contract.getId()).thenReturn(1L);
-    when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(null);
-    when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
-
-    // When & Then
-    assertThatThrownBy(() -> executor.execute(contract))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage("Could not determine current ownership unit price");
-
-    verify(memberCapitalEventRepository, never()).save(any());
-    verify(contract, never()).executed();
-    verify(contractRepository, never()).save(any());
-  }
-
-  @Test
   @DisplayName("Should ensure fiatValue matches exactly between seller and buyer events")
   public void whenExecuteTransfer_thenFiatValueMatchesExactly() {
     // Given
@@ -393,9 +355,6 @@ public class CapitalTransferExecutorTest {
     // Use values that would potentially cause rounding issues
     BigDecimal unitPrice = new BigDecimal("1.33333");
     BigDecimal bookValue = new BigDecimal("100.00000");
-
-    when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(unitPrice);
-    when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
 
     // Seller's existing capital (values that could cause rounding issues)
     BigDecimal sellerTotalFiatValue = new BigDecimal("1000.12345");
@@ -415,7 +374,8 @@ public class CapitalTransferExecutorTest {
             });
 
     CapitalTransferAmount transferAmount =
-        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("100.00"), bookValue);
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("100.00"), bookValue, new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // When

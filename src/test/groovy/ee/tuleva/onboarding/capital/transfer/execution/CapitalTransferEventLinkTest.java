@@ -5,8 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-import ee.tuleva.onboarding.capital.event.AggregatedCapitalEvent;
-import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
@@ -30,7 +28,6 @@ class CapitalTransferEventLinkTest {
 
   @Mock private CapitalTransferContractRepository contractRepository;
   @Mock private MemberCapitalEventRepository memberCapitalEventRepository;
-  @Mock private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
   @Mock private CapitalTransferValidator validator;
   @Mock private CapitalTransferContractService capitalTransferContractService;
   @Mock private CapitalTransferEventLinkRepository linkRepository;
@@ -38,7 +35,6 @@ class CapitalTransferEventLinkTest {
   @Mock private CapitalTransferContract contract;
   @Mock private Member sellerMember;
   @Mock private Member buyerMember;
-  @Mock private AggregatedCapitalEvent aggregatedEvent;
 
   private CapitalTransferExecutor executor;
 
@@ -51,7 +47,6 @@ class CapitalTransferEventLinkTest {
         new CapitalTransferExecutor(
             contractRepository,
             memberCapitalEventRepository,
-            aggregatedCapitalEventRepository,
             validator,
             capitalTransferContractService,
             linkRepository);
@@ -64,7 +59,8 @@ class CapitalTransferEventLinkTest {
     setupBasicMocks();
 
     CapitalTransferAmount payment =
-        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE);
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE, new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(payment));
 
     // Mock repository calls for CAPITAL_PAYMENT only
@@ -108,10 +104,14 @@ class CapitalTransferEventLinkTest {
     setupBasicMocks();
 
     CapitalTransferAmount payment =
-        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE);
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("125.00"), BOOK_VALUE, new BigDecimal("1.0"));
     CapitalTransferAmount bonus =
         new CapitalTransferAmount(
-            MEMBERSHIP_BONUS, new BigDecimal("62.50"), new BigDecimal("50.00"));
+            MEMBERSHIP_BONUS,
+            new BigDecimal("62.50"),
+            new BigDecimal("50.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(payment, bonus));
 
     // Mock repository calls for both types
@@ -150,7 +150,8 @@ class CapitalTransferEventLinkTest {
     setupBasicMocks();
 
     CapitalTransferAmount zeroAmount =
-        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("100.00"), BigDecimal.ZERO);
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("100.00"), BigDecimal.ZERO, new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(zeroAmount));
     when(validator.shouldSkipTransfer(zeroAmount)).thenReturn(true);
 
@@ -169,10 +170,14 @@ class CapitalTransferEventLinkTest {
     setupBasicMocks();
 
     CapitalTransferAmount zeroAmount =
-        new CapitalTransferAmount(CAPITAL_PAYMENT, new BigDecimal("100.00"), BigDecimal.ZERO);
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT, new BigDecimal("100.00"), BigDecimal.ZERO, new BigDecimal("1.0"));
     CapitalTransferAmount validAmount =
         new CapitalTransferAmount(
-            MEMBERSHIP_BONUS, new BigDecimal("62.50"), new BigDecimal("50.00"));
+            MEMBERSHIP_BONUS,
+            new BigDecimal("62.50"),
+            new BigDecimal("50.00"),
+            new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(zeroAmount, validAmount));
 
     when(validator.shouldSkipTransfer(zeroAmount)).thenReturn(true);
@@ -207,8 +212,5 @@ class CapitalTransferEventLinkTest {
     when(contract.getBuyer()).thenReturn(buyerMember);
     when(sellerMember.getId()).thenReturn(101L);
     when(buyerMember.getId()).thenReturn(102L);
-
-    when(aggregatedEvent.getOwnershipUnitPrice()).thenReturn(OWNERSHIP_UNIT_PRICE);
-    when(aggregatedCapitalEventRepository.findTopByOrderByDateDesc()).thenReturn(aggregatedEvent);
   }
 }

@@ -103,7 +103,7 @@ dependencies {
     implementation("org.apache.commons:commons-lang3")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.7")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.8")
     implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
 
     xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")

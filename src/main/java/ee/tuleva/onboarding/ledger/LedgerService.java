@@ -42,6 +42,10 @@ public class LedgerService {
     return ledgerAccountService.getAccounts(party);
   }
 
+  public boolean isUserOnboarded(User user) {
+    return ledgerPartyService.getParty(user).isPresent();
+  }
+
   public LedgerAccount getUserAccount(User user, UserAccount userAccount) {
     LedgerParty userParty =
         ledgerPartyService.getParty(user).orElseGet(() -> ledgerPartyService.createParty(user));

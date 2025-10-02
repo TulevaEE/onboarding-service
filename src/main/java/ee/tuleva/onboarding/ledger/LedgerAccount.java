@@ -48,7 +48,7 @@ public class LedgerAccount {
   }
 
   @Enumerated(STRING)
-  @Column(nullable = false, columnDefinition = "ledger.account_type")
+  @Column(columnDefinition = "ledger.account_type")
   @JdbcType(PostgreSQLEnumJdbcType.class)
   @NotNull
   private AccountType accountType;
@@ -65,6 +65,8 @@ public class LedgerAccount {
   private LedgerParty owner;
 
   @Enumerated(STRING)
+  @Column(columnDefinition = "ledger.asset_type")
+  @JdbcType(PostgreSQLEnumJdbcType.class)
   @NotNull
   private AssetType assetType;
 

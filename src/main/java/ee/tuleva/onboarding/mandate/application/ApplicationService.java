@@ -261,14 +261,15 @@ public class ApplicationService {
             // Only used for front-end uniqueness, otherwise meaningless
             .id(payment.getId().getMostSignificantBits());
 
+    var cancellationDeadline = savingFundPaymentDeadlinesService.getCancellationDeadline(payment);
+
     applicationBuilder.details(
         SavingFundPaymentApplicationDetails.builder()
             .amount(payment.getAmount())
             .currency(payment.getCurrency())
             .paymentId(payment.getId())
             .cancelledAt(payment.getCancelledAt())
-            .cancellationDeadline(
-                savingFundPaymentDeadlinesService.getCancellationDeadline(payment))
+            .cancellationDeadline(payment.getCancelledAt() != null ? null : cancellationDeadline)
             .fulfillmentDeadline(savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment))
             .build());
     return applicationBuilder.build();

@@ -46,7 +46,7 @@ public class SavingFundPaymentService {
 
   public void cancelUserPayment(Long userId, UUID paymentId) {
     var payment = repository.findById(paymentId).orElseThrow();
-    if (!userId.equals(payment.getUserId())) {
+    if (!userId.equals(payment.getUserId()) || payment.getCancelledAt() != null) {
       throw new NoSuchElementException();
     }
     var deadline = savingFundPaymentDeadlinesService.getCancellationDeadline(payment);

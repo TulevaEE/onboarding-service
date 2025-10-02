@@ -13,40 +13,60 @@ public class SavingFundPaymentDeadlinesService {
   private final PublicHolidays publicHolidays;
   private final Clock estonianClock;
 
-  private static final LocalTime CANCELLATION_DEADLINE_TIME = LocalTime.of(15, 59);
-  private static final LocalTime FUlKFILLMENT_DEADLINE_TIME = LocalTime.of(16, 0);
+  private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0);
+
+  private LocalDate firstWorkingDayOnOrAfter(LocalDate date) {
+    return publicHolidays.nextWorkingDay(date.minusDays(1));
+  }
 
   public Instant getCancellationDeadline(SavingFundPayment payment) {
     ZoneId timeZone = estonianClock.getZone();
-    Instant paymentCreatedAt = payment.getCreatedAt();
-    ZonedDateTime paymentCreatedDateTime = paymentCreatedAt.atZone(timeZone);
-    LocalDate paymentCreatedDate = paymentCreatedDateTime.toLocalDate();
+    Instant now = Instant.now(estonianClock);
+    LocalDate today = now.atZone(timeZone).toLocalDate();
 
-    // Check if payment was created on a working day before 15:59
-    var nextWorkingDay = publicHolidays.nextWorkingDay(paymentCreatedDate.minusDays(1));
+    Instant receivedAt = payment.getReceivedBefore(); // may be null
 
-    if (nextWorkingDay.equals(paymentCreatedDate)
-        && paymentCreatedDateTime.toLocalTime().isBefore(CANCELLATION_DEADLINE_TIME)) {
-      // Payment created on working day before 15:59 - deadline is same day at 15:59
-      return paymentCreatedDate.atTime(CANCELLATION_DEADLINE_TIME).atZone(timeZone).toInstant();
+    if (receivedAt != null) {
+      ZonedDateTime receivedZdt = receivedAt.atZone(timeZone);
+      LocalDate receivedDate = receivedZdt.toLocalDate();
+      LocalTime receivedTime = receivedZdt.toLocalTime();
+
+      if (receivedTime.isBefore(CUTOFF_TIME)) {
+        // Received before cutoff → same working day 16:00
+        LocalDate workDay = firstWorkingDayOnOrAfter(receivedDate);
+        return workDay.atTime(CUTOFF_TIME).atZone(timeZone).toInstant();
+      } else {
+        // Received at/after cutoff → next working day 16:00
+        LocalDate nextWork = publicHolidays.nextWorkingDay(receivedDate);
+        return nextWork.atTime(CUTOFF_TIME).atZone(timeZone).toInstant();
+      }
+    } else {
+      // Not received yet → assume cancellable until today 16:00
+      LocalDate workDay = firstWorkingDayOnOrAfter(today);
+      return workDay.atTime(CUTOFF_TIME).atZone(timeZone).toInstant();
     }
-
-    // Otherwise, deadline is next working day after payment creation at 15:59
-    nextWorkingDay = publicHolidays.nextWorkingDay(paymentCreatedDate);
-    return nextWorkingDay.atTime(CANCELLATION_DEADLINE_TIME).atZone(timeZone).toInstant();
   }
 
   public Instant getFulfillmentDeadline(SavingFundPayment payment) {
-    // TODO: Implement
     ZoneId timeZone = estonianClock.getZone();
-    Instant paymentCreatedAt = payment.getCreatedAt();
-    ZonedDateTime paymentCreatedDateTime = paymentCreatedAt.atZone(timeZone);
-    LocalDate paymentCreatedDate = paymentCreatedDateTime.toLocalDate();
+    Instant now = Instant.now(estonianClock);
+    LocalDate today = now.atZone(timeZone).toLocalDate();
 
-    return publicHolidays
-        .nextWorkingDay(paymentCreatedDate)
-        .atTime(FUlKFILLMENT_DEADLINE_TIME)
-        .atZone(timeZone)
-        .toInstant();
+    Instant receivedAt = payment.getReceivedBefore();
+    LocalDate baseDate;
+
+    if (receivedAt != null) {
+      baseDate = receivedAt.atZone(timeZone).toLocalDate();
+    } else {
+      // Not received yet → assume it will arrive today after cutoff
+      baseDate = today;
+    }
+
+    // First working day after received date
+    LocalDate nextWork = publicHolidays.nextWorkingDay(baseDate);
+    // Second working day after received date
+    LocalDate fulfillmentDay = publicHolidays.nextWorkingDay(nextWork);
+
+    return fulfillmentDay.atTime(CUTOFF_TIME).atZone(timeZone).toInstant();
   }
 }

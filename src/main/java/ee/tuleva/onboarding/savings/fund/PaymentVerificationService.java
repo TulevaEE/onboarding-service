@@ -11,10 +11,13 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class PaymentVerificationService {
   private static final PersonalCodeValidator personalCodeValidator = new PersonalCodeValidator();
@@ -25,6 +28,8 @@ public class PaymentVerificationService {
 
   @Transactional
   public void process(SavingFundPayment payment) {
+    log.info("Processing payment {}", payment.getId());
+
     var remitterPersonalCodeProvided = payment.getRemitterIdCode() != null;
 
     var personalCodeFromDescription = extractPersonalCode(payment.getDescription());
@@ -53,10 +58,12 @@ public class PaymentVerificationService {
       return;
     }
 
+    log.info("Verification completed for payment {}", payment.getId());
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
   }
 
   private void identityCheckFailure(SavingFundPayment payment, String reason) {
+    log.info("Identity check failed for payment {}: {}", payment.getId(), reason);
     savingFundPaymentRepository.changeStatus(payment.getId(), TO_BE_RETURNED);
     savingFundPaymentRepository.addReturnReason(payment.getId(), reason);
   }

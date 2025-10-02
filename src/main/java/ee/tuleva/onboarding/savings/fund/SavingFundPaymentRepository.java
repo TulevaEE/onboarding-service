@@ -107,7 +107,7 @@ public class SavingFundPaymentRepository {
   private SavingFundPayment rowMapper(ResultSet rs, int ignored) throws SQLException {
     return SavingFundPayment.builder()
         .id(UUID.fromString(rs.getString("id")))
-        .userId(rs.getObject("user_id", Long.class))
+        .userId(getLong(rs, "user_id"))
         .externalId(rs.getString("external_id"))
         .amount(rs.getBigDecimal("amount"))
         .currency(Currency.valueOf(rs.getString("currency")))
@@ -129,6 +129,11 @@ public class SavingFundPaymentRepository {
   private Instant instant(ResultSet rs, String column) throws SQLException {
     var timestamp = rs.getTimestamp(column);
     return timestamp != null ? timestamp.toInstant() : null;
+  }
+
+  private Long getLong(ResultSet rs, String column) throws SQLException {
+    var value = rs.getString(column);
+    return value != null ? Long.valueOf(value) : null;
   }
 
   private MapSqlParameterSource createParameters(SavingFundPayment payment) {

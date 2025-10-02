@@ -39,8 +39,8 @@ public class SavingFundPaymentRepository {
 
     jdbcTemplate.update(
         """
-      insert into saving_fund_payment (id, external_id, amount, currency, description, remitter_iban, remitter_id_code, remitter_name, beneficiary_iban, beneficiary_id_code, beneficiary_name, status)
-      values (:id, :external_id, :amount, :currency, :description, :remitter_iban, :remitter_id_code, :remitter_name, :beneficiary_iban, :beneficiary_id_code, :beneficiary_name, :status)
+      insert into saving_fund_payment (id, external_id, amount, currency, description, remitter_iban, remitter_id_code, remitter_name, beneficiary_iban, beneficiary_id_code, beneficiary_name, received_before, status)
+      values (:id, :external_id, :amount, :currency, :description, :remitter_iban, :remitter_id_code, :remitter_name, :beneficiary_iban, :beneficiary_id_code, :beneficiary_name, :received_before, :status)
       """,
         parameters);
 
@@ -53,7 +53,7 @@ public class SavingFundPaymentRepository {
         """
         update saving_fund_payment
         set external_id=:external_id, amount=:amount, currency=:currency, description=:description, remitter_iban=:remitter_iban, remitter_id_code=:remitter_id_code,
-            remitter_name=:remitter_name, beneficiary_iban=:beneficiary_iban, beneficiary_id_code=:beneficiary_id_code, beneficiary_name=:beneficiary_name
+            remitter_name=:remitter_name, beneficiary_iban=:beneficiary_iban, beneficiary_id_code=:beneficiary_id_code, beneficiary_name=:beneficiary_name, received_before=:received_before
         where id=:id
         """,
         parameters);
@@ -120,6 +120,7 @@ public class SavingFundPaymentRepository {
         .beneficiaryName(rs.getString("beneficiary_name"))
         .status(SavingFundPayment.Status.valueOf(rs.getString("status")))
         .createdAt(instant(rs, "created_at"))
+        .receivedBefore(instant(rs, "received_before"))
         .statusChangedAt(instant(rs, "status_changed_at"))
         .cancelledAt(instant(rs, "cancelled_at"))
         .returnReason(rs.getString("return_reason"))
@@ -147,7 +148,8 @@ public class SavingFundPaymentRepository {
         .addValue("remitter_name", payment.getRemitterName())
         .addValue("beneficiary_iban", payment.getBeneficiaryIban())
         .addValue("beneficiary_id_code", payment.getBeneficiaryIdCode())
-        .addValue("beneficiary_name", payment.getBeneficiaryName());
+        .addValue("beneficiary_name", payment.getBeneficiaryName())
+        .addValue("received_before", payment.getReceivedBefore());
   }
 
   public void changeStatus(UUID paymentId, SavingFundPayment.Status newStatus) {

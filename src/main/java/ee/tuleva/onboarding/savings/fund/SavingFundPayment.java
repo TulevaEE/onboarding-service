@@ -30,6 +30,7 @@ public class SavingFundPayment {
   @Nullable String externalId;
 
   Instant createdAt;
+  @Nullable Instant receivedBefore;
 
   @Builder.Default Status status = Status.CREATED;
 

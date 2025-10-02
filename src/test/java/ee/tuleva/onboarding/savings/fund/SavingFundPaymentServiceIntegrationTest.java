@@ -48,6 +48,12 @@ class SavingFundPaymentServiceIntegrationTest {
           + "<BkToCstmrAcctRpt> "
           + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
           + "<Rpt> "
+          + "<Id>test-1</Id> "
+          + "<CreDtTm>2025-10-01T12:00:00</CreDtTm> "
+          + "<FrToDt> "
+          + "<FrDtTm>2025-10-01T00:00:00</FrDtTm> "
+          + "<ToDtTm>2025-10-01T12:00:00</ToDtTm> "
+          + "</FrToDt> "
           + "<Acct> "
           + "<Id> <IBAN>EE442200221092874625</IBAN> </Id> "
           + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
@@ -95,6 +101,7 @@ class SavingFundPaymentServiceIntegrationTest {
     assertThat(savedPayment.getBeneficiaryName()).isEqualTo("TULEVA FONDID AS");
     assertThat(savedPayment.getExternalId()).isEqualTo("2025100112345-1");
     assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
+    assertThat(savedPayment.getReceivedBefore()).isEqualTo(Instant.parse("2025-10-01T09:00:00Z"));
   }
 
   @Test
@@ -150,6 +157,12 @@ class SavingFundPaymentServiceIntegrationTest {
             + "<BkToCstmrAcctRpt> "
             + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
             + "<Rpt> "
+            + "<Id>test-2</Id> "
+            + "<CreDtTm>2025-10-01T12:00:00</CreDtTm> "
+            + "<FrToDt> "
+            + "<FrDtTm>2025-10-01T00:00:00</FrDtTm> "
+            + "<ToDtTm>2025-10-01T12:00:00</ToDtTm> "
+            + "</FrToDt> "
             + "<Acct> "
             + "<Id> <IBAN>EE442200221092874625</IBAN> </Id> "
             + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
@@ -196,6 +209,12 @@ class SavingFundPaymentServiceIntegrationTest {
             + "<BkToCstmrAcctRpt> "
             + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
             + "<Rpt> "
+            + "<Id>test-3</Id> "
+            + "<CreDtTm>2025-10-01T12:00:00</CreDtTm> "
+            + "<FrToDt> "
+            + "<FrDtTm>2025-10-01T00:00:00</FrDtTm> "
+            + "<ToDtTm>2025-10-01T12:00:00</ToDtTm> "
+            + "</FrToDt> "
             + "<Acct> "
             + "<Id> <IBAN>EE442200221092874625</IBAN> </Id> "
             + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
@@ -260,12 +279,19 @@ class SavingFundPaymentServiceIntegrationTest {
       assertThat(updated.getExternalId()).isEqualTo("2025100112345-1");
       assertThat(updated.getDescription()).isEqualTo("Test payment");
       assertThat(updated.getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
+      // Montonio payment didn't have receivedBefore, but Swedbank report adds it
+      assertThat(updated.getReceivedBefore()).isEqualTo(Instant.parse("2025-10-01T09:00:00Z"));
     }
 
     @Test
     void findsExistingPaymentByExternalId_doesNotCreateDuplicate() {
       // given - payment already exists with externalId from previous bank statement
-      var existingPayment = paymentMatchingXmlTemplate().description("Initial payment").build();
+      var existingReceivedBefore = Instant.parse("2025-09-30T10:00:00Z");
+      var existingPayment =
+          paymentMatchingXmlTemplate()
+              .description("Initial payment")
+              .receivedBefore(existingReceivedBefore)
+              .build();
       var existingId = repository.savePaymentData(existingPayment);
       repository.changeStatus(existingId, SavingFundPayment.Status.RECEIVED);
 
@@ -279,6 +305,7 @@ class SavingFundPaymentServiceIntegrationTest {
       assertThat(payment.get().getId()).isEqualTo(existingId);
       assertThat(payment.get().getDescription()).isEqualTo("Initial payment");
       assertThat(payment.get().getStatus()).isEqualTo(SavingFundPayment.Status.RECEIVED);
+      assertThat(payment.get().getReceivedBefore()).isEqualTo(existingReceivedBefore);
     }
 
     @Test
@@ -321,8 +348,12 @@ class SavingFundPaymentServiceIntegrationTest {
 
     @Test
     void doesNotMatchWhenExistingHasExternalId() {
-      // given - existing payment with externalId already set
-      var existingPayment = paymentMatchingXmlTemplate().externalId("existing-ext-id").build();
+      // given - existing payment with externalId already set (from previous bank statement)
+      var existingPayment =
+          paymentMatchingXmlTemplate()
+              .externalId("existing-ext-id")
+              .receivedBefore(Instant.parse("2025-09-30T10:00:00Z"))
+              .build();
       repository.savePaymentData(existingPayment);
 
       // when - XML arrives
@@ -390,6 +421,7 @@ class SavingFundPaymentServiceIntegrationTest {
         .beneficiaryIdCode("14118923")
         .beneficiaryName("TULEVA FONDID AS")
         .externalId("2025100112345-1")
+        .receivedBefore(Instant.parse("2025-10-01T09:00:00Z"))
         .createdAt(NOW.minus(Duration.ofDays(1)));
   }
 

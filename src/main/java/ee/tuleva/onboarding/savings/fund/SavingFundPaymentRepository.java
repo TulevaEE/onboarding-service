@@ -205,7 +205,7 @@ public class SavingFundPaymentRepository {
   }
 
   // todo
-  // Montonio should use findRecentPayments(), savePaymentData() and attachUser()
+  // Montonio should use findRecentPayments(), savePaymentData() and attachUser() —— DONE
 
   // Swedbank should use findRecentPayments(), savePaymentData() OR updatePaymentData() and
   // changeStatus(RECEIVED)

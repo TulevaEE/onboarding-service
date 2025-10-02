@@ -49,7 +49,8 @@ class SavingsCallbackServiceSpec extends Specification {
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    1 * savingFundPaymentRepository.savePaymentData(_)
+    1 * savingFundPaymentRepository.savePaymentData(_) >> UUID.randomUUID()
+    0 * savingFundPaymentRepository.attachUser(_, _) // No user to attach
     def payment = returnedPayment.get()
     payment.amount == token.grandTotal
     payment.currency == token.currency
@@ -58,15 +59,16 @@ class SavingsCallbackServiceSpec extends Specification {
     payment.remitterName == token.senderName
     payment.beneficiaryIban == null
     payment.beneficiaryName == null
-    payment.userId == null
+    payment.userId == null // userId not set during creation
   }
 
-  def "if token is paid and user exists, create payment with userId"() {
+  def "if token is paid and user exists, create payment and attach user"() {
     given:
     def serializedToken = aSerializedSavingsPaymentToken
     def mockUser = Mock(User) {
       getId() >> 123L
     }
+    def paymentId = UUID.randomUUID()
     1 * savingFundPaymentRepository.findRecentPayments(
         anInternalReference.description
     ) >> []
@@ -75,7 +77,8 @@ class SavingsCallbackServiceSpec extends Specification {
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
     then:
-    1 * savingFundPaymentRepository.savePaymentData(_)
+    1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
+    1 * savingFundPaymentRepository.attachUser(paymentId, 123L) // User attached separately
     def payment = returnedPayment.get()
     payment.amount == token.grandTotal
     payment.currency == token.currency
@@ -84,7 +87,7 @@ class SavingsCallbackServiceSpec extends Specification {
     payment.remitterName == token.senderName
     payment.beneficiaryIban == null
     payment.beneficiaryName == null
-    payment.userId == 123L
+    payment.userId == null // userId not set on the returned object, but attached via repository call
   }
 
   def "if payment already exists then no payment is saved"() {

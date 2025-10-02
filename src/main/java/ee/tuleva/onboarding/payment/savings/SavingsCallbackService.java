@@ -46,20 +46,21 @@ public class SavingsCallbackService {
       return Optional.empty();
     }
 
-    var paymentBuilder =
+    var payment =
         SavingFundPayment.builder()
             .remitterName(token.getSenderName())
             .remitterIban(token.getSenderIban())
             .description(token.getMerchantReference().getDescription())
             .amount(token.getGrandTotal())
-            .currency(token.getCurrency());
+            .currency(token.getCurrency())
+            .build();
+
+    var paymentId = savingFundPaymentRepository.savePaymentData(payment);
 
     userService
         .findByPersonalCode(token.getMerchantReference().getPersonalCode())
-        .ifPresent(user -> paymentBuilder.userId(user.getId()));
+        .ifPresent(user -> savingFundPaymentRepository.attachUser(paymentId, user.getId()));
 
-    var payment = paymentBuilder.build();
-    savingFundPaymentRepository.savePaymentData(payment);
     return Optional.of(payment);
   }
 }

@@ -5,6 +5,8 @@ import com.nimbusds.jose.JWSObject
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository
+import ee.tuleva.onboarding.user.User
+import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aPaymentProviderConfiguration
@@ -18,6 +20,7 @@ class SavingsCallbackServiceSpec extends Specification {
   MontonioTokenParser tokenParser = new MontonioTokenParser(new ObjectMapper(), aPaymentProviderConfiguration())
   SavingsCallbackService savingsCallbackService
   SavingFundPaymentRepository savingFundPaymentRepository = Mock()
+  UserService userService = Mock()
 
   def savingsChannelConfiguration = new SavingsChannelConfiguration(
       returnUrl: "http://success.url",
@@ -28,6 +31,7 @@ class SavingsCallbackServiceSpec extends Specification {
 
   void setup() {
     savingsCallbackService = new SavingsCallbackService(
+        userService,
         tokenParser,
         savingsChannelConfiguration,
         savingFundPaymentRepository
@@ -40,6 +44,7 @@ class SavingsCallbackServiceSpec extends Specification {
     1 * savingFundPaymentRepository.findRecentPayments(
         anInternalReference.description
     ) >> []
+    1 * userService.findByPersonalCode(anInternalReference.personalCode) >> Optional.empty()
     def token = tokenParser.parse(JWSObject.parse(serializedToken))
     when:
     def returnedPayment = savingsCallbackService.processToken(serializedToken)
@@ -53,6 +58,33 @@ class SavingsCallbackServiceSpec extends Specification {
     payment.remitterName == token.senderName
     payment.beneficiaryIban == null
     payment.beneficiaryName == null
+    payment.userId == null
+  }
+
+  def "if token is paid and user exists, create payment with userId"() {
+    given:
+    def serializedToken = aSerializedSavingsPaymentToken
+    def mockUser = Mock(User) {
+      getId() >> 123L
+    }
+    1 * savingFundPaymentRepository.findRecentPayments(
+        anInternalReference.description
+    ) >> []
+    1 * userService.findByPersonalCode(anInternalReference.personalCode) >> Optional.of(mockUser)
+    def token = tokenParser.parse(JWSObject.parse(serializedToken))
+    when:
+    def returnedPayment = savingsCallbackService.processToken(serializedToken)
+    then:
+    1 * savingFundPaymentRepository.savePaymentData(_)
+    def payment = returnedPayment.get()
+    payment.amount == token.grandTotal
+    payment.currency == token.currency
+    payment.description == token.merchantReference.description
+    payment.remitterIban == token.senderIban
+    payment.remitterName == token.senderName
+    payment.beneficiaryIban == null
+    payment.beneficiaryName == null
+    payment.userId == 123L
   }
 
   def "if payment already exists then no payment is saved"() {

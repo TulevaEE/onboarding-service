@@ -15,11 +15,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -31,6 +27,13 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class SavingFundPaymentRepository {
   private final NamedParameterJdbcTemplate jdbcTemplate;
+
+  public Optional<SavingFundPayment> findById(UUID id) {
+    var result =
+        jdbcTemplate.query(
+            "select * from saving_fund_payment where id=:id", Map.of("id", id), this::rowMapper);
+    return result.isEmpty() ? Optional.empty() : Optional.of(result.getFirst());
+  }
 
   public UUID savePaymentData(SavingFundPayment payment) {
     var id = UUID.randomUUID();
@@ -83,6 +86,16 @@ public class SavingFundPaymentRepository {
         select * from saving_fund_payment where user_id=:user_id order by created_at desc
         """,
         Map.of("user_id", userId),
+        this::rowMapper);
+  }
+
+  public List<SavingFundPayment> findUserPaymentsWithStatus(
+      Long userId, SavingFundPayment.Status... statuses) {
+    return jdbcTemplate.query(
+        """
+        select * from saving_fund_payment where user_id=:user_id and status in (:statuses) order by created_at desc
+        """,
+        Map.of("user_id", userId, "statuses", Arrays.stream(statuses).map(Enum::name).toList()),
         this::rowMapper);
   }
 

@@ -2,11 +2,9 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 
-import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.Instant;
+import java.util.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,6 +15,7 @@ import org.springframework.stereotype.Service;
 public class SavingFundPaymentService {
 
   private final SavingFundPaymentRepository repository;
+  private final SavingFundPaymentDeadlinesService savingFundPaymentDeadlinesService;
 
   public void upsert(SavingFundPayment payment) {
     // Check if payment with this external ID already exists
@@ -37,13 +36,24 @@ public class SavingFundPaymentService {
     repository.changeStatus(paymentId, status);
   }
 
-  public List<SavingFundPayment> getPendingPaymentsForUser(
-      AuthenticatedPerson authenticatedPerson) {
-    var pendingStatuses = List.of(CREATED, RECEIVED, VERIFIED);
-
-    return repository.findUserPayments(authenticatedPerson.getUserId()).stream()
-        .filter(p -> pendingStatuses.contains(p.getStatus()))
+  public List<SavingFundPayment> getPendingPaymentsForUser(Long userId) {
+    return repository
+        .findUserPaymentsWithStatus(
+            userId, CREATED, RECEIVED, VERIFIED, RESERVED, FROZEN, TO_BE_RETURNED)
+        .stream()
         .toList();
+  }
+
+  public void cancelUserPayment(Long userId, UUID paymentId) {
+    var payment = repository.findById(paymentId).orElseThrow();
+    if (!userId.equals(payment.getUserId())) {
+      throw new NoSuchElementException();
+    }
+    var deadline = savingFundPaymentDeadlinesService.getCancellationDeadline(payment);
+    if (deadline.isBefore(Instant.now())) {
+      throw new IllegalStateException("Payment cancellation deadline has passed");
+    }
+    repository.cancel(paymentId);
   }
 
   private UUID upsertPayment(SavingFundPayment payment) {

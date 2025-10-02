@@ -45,7 +45,7 @@ class ApplicationServiceSpec extends Specification {
 
   def "gets applications"() {
     given:
-    def person = samplePerson()
+    def person = sampleAuthenticatedPersonAndMember().build()
     def transferApplication1 = sampleTransferApplicationDto()
     def completedTransferApplication = sampleTransferApplicationDto()
     completedTransferApplication.status = COMPLETE
@@ -67,6 +67,7 @@ class ApplicationServiceSpec extends Specification {
 
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> [paymentApplication().build()]
+    savingFundPaymentService.getPendingPaymentsForUser(_) >> []
 
     when:
     def applications = applicationService.getAllApplications(person)
@@ -234,7 +235,7 @@ class ApplicationServiceSpec extends Specification {
 
   def "gets withdrawals applications"() {
     given:
-    def person = samplePerson()
+    def person = sampleAuthenticatedPersonAndMember().build()
 
 
     def fundPensionOpening = sampleFundPensionOpeningApplicationDto()
@@ -249,6 +250,7 @@ class ApplicationServiceSpec extends Specification {
 
     mandateDeadlinesService.getDeadlines(_ as Instant) >> sampleDeadlines()
     paymentApplicationService.getPaymentApplications(person) >> []
+    savingFundPaymentService.getPendingPaymentsForUser(_) >> []
 
     when:
     def applications = applicationService.getAllApplications(person)
@@ -372,7 +374,7 @@ class ApplicationServiceSpec extends Specification {
     episService.getApplications(authenticatedPerson) >> []
     localeService.getCurrentLocale() >> Locale.ENGLISH
     paymentApplicationService.getPaymentApplications(authenticatedPerson) >> []
-    savingFundPaymentService.getPendingPaymentsForUser(authenticatedPerson) >> [payment1, payment2]
+    savingFundPaymentService.getPendingPaymentsForUser(authenticatedPerson.getUserId()) >> [payment1, payment2]
 
     // Mock deadlines service
     savingFundPaymentDeadlinesService.getCancellationDeadline(payment1) >> Instant.parse("2021-03-31T20:59:59.999999999Z")

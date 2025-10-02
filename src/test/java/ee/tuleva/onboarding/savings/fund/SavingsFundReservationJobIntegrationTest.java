@@ -9,28 +9,24 @@ import static org.mockito.Mockito.verify;
 
 import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Import({
-  MockSavingsFundLedgerConfiguration.class,
-  SavingsFundReservationJobIntegrationTest.ClockConfiguration.class
-})
+@Import({MockSavingsFundLedgerConfiguration.class})
 @Transactional
 class SavingsFundReservationJobIntegrationTest {
 
@@ -45,16 +41,13 @@ class SavingsFundReservationJobIntegrationTest {
 
   @BeforeEach
   void setUp() {
+    ClockHolder.setClock(Clock.fixed(NOW, ZoneId.of("UTC")));
     user = userService.createNewUser(createSampleUser());
   }
 
-  @TestConfiguration
-  static class ClockConfiguration {
-    @Bean
-    @Primary
-    public Clock testclock() {
-      return Clock.fixed(NOW, ZoneId.of("UTC"));
-    }
+  @AfterEach
+  void tearDown() {
+    ClockHolder.setDefaultClock();
   }
 
   @Test

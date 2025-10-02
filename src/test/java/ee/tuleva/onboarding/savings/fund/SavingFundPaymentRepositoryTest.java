@@ -112,7 +112,7 @@ class SavingFundPaymentRepositoryTest {
 
   @ParameterizedTest
   @CsvSource({
-    "CREATED, RECEIVED",
+    "CREATED, RECEIVED|PROCESSED",
     "RECEIVED, VERIFIED|FROZEN|TO_BE_RETURNED",
     "VERIFIED, RESERVED|TO_BE_RETURNED",
     "RESERVED, PROCESSED",

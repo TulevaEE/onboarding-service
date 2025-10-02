@@ -13,6 +13,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
 import ee.tuleva.onboarding.currency.Currency;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -72,7 +73,7 @@ public class SavingFundPaymentRepository {
         """
         select * from saving_fund_payment where description=:description and created_at > :recent
         """,
-        Map.of("description", description, "recent", Instant.now().minus(5, DAYS)),
+        Map.of("description", description, "recent", Timestamp.from(Instant.now().minus(5, DAYS))),
         this::rowMapper);
   }
 

@@ -55,7 +55,7 @@ public class SwedbankStatementFetcher {
         accountIban,
         id);
 
-    var requestEntity = swedbankGatewayClient.getAccountStatementRequestEntity(accountIban, id);
+    var requestEntity = swedbankGatewayClient.getIntraDayReportRequestEntity(accountIban, id);
     swedbankGatewayClient.sendStatementRequest(requestEntity, id);
   }
 }

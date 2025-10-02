@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.swedbank.http;
 
 import static ee.swedbank.gateway.iso.request.QueryType3Code.ALLL;
+import static java.time.temporal.ChronoUnit.DAYS;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
@@ -127,7 +128,7 @@ public class SwedbankGatewayClient {
     return headers;
   }
 
-  public JAXBElement<ee.swedbank.gateway.iso.request.Document> getAccountStatementRequestEntity(
+  public JAXBElement<ee.swedbank.gateway.iso.request.Document> getIntraDayReportRequestEntity(
       String accountIban, UUID messageId) {
     AccountReportingRequestV03 accountReportingRequest = new AccountReportingRequestV03();
 
@@ -174,6 +175,69 @@ public class SwedbankGatewayClient {
     timePeriodDetails.setToTm(
         timeConverter.convert(
             LocalDate.now(clock).atStartOfDay(ZoneId.of("Europe/Tallinn")).with(LocalTime.MAX)));
+
+    period.setFrToTm(timePeriodDetails);
+
+    reportingRequest.setRptgPrd(period);
+
+    accountReportingRequest.getRptgReq().add(reportingRequest);
+
+    ee.swedbank.gateway.iso.request.Document document =
+        new ee.swedbank.gateway.iso.request.Document();
+    document.setAcctRptgReq(accountReportingRequest);
+    var objectFactory = new ObjectFactory();
+
+    return objectFactory.createDocument(document);
+  }
+
+  public JAXBElement<ee.swedbank.gateway.iso.request.Document>
+      getYesterdaysHistoricReportRequestEntity(String accountIban, UUID messageId) {
+    AccountReportingRequestV03 accountReportingRequest = new AccountReportingRequestV03();
+
+    GroupHeader59 groupHeader = new GroupHeader59();
+    groupHeader.setMsgId(serializeRequestId(messageId));
+    groupHeader.setCreDtTm(timeConverter.convert(ZonedDateTime.now(clock)));
+    accountReportingRequest.setGrpHdr(groupHeader);
+
+    ReportingRequest3 reportingRequest = new ReportingRequest3();
+
+    reportingRequest.setId(serializeRequestId(messageId));
+    reportingRequest.setReqdMsgNmId("camt.053.001.02");
+
+    CashAccount24 cashAccount24 = new CashAccount24();
+    AccountIdentification4Choice accountIdentification = new AccountIdentification4Choice();
+
+    accountIdentification.setIBAN(accountIban);
+
+    cashAccount24.setId(accountIdentification);
+    reportingRequest.setAcct(cashAccount24);
+
+    var partyChoice = new Party12Choice();
+    var party = new PartyIdentification43();
+    // party.setNm("Tuleva");
+    partyChoice.setPty(party);
+
+    reportingRequest.setAcctOwnr(partyChoice);
+
+    ReportingPeriod1 period = new ReportingPeriod1();
+
+    DatePeriodDetails1 datePeriodDetails = new DatePeriodDetails1();
+
+    var fromDate = LocalDate.now(clock).minus(1, DAYS);
+    var toDate = LocalDate.now(clock);
+    datePeriodDetails.setFrDt(dateConverter.convert(fromDate));
+    datePeriodDetails.setToDt(dateConverter.convert(toDate));
+
+    period.setFrToDt(datePeriodDetails);
+    period.setTp(ALLL);
+
+    TimePeriodDetails1 timePeriodDetails = new TimePeriodDetails1();
+
+    timePeriodDetails.setFrTm(
+        timeConverter.convert(fromDate.atStartOfDay(ZoneId.of("Europe/Tallinn"))));
+    timePeriodDetails.setToTm(
+        timeConverter.convert(
+            toDate.atStartOfDay(ZoneId.of("Europe/Tallinn")).with(LocalTime.MAX)));
 
     period.setFrToTm(timePeriodDetails);
 

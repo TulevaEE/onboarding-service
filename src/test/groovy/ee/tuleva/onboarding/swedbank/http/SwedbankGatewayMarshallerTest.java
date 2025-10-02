@@ -47,7 +47,7 @@ public class SwedbankGatewayMarshallerTest {
   @DisplayName("marshals request class")
   public void marshalRequestClass() {
     var request =
-        swedbankGatewayClient.getAccountStatementRequestEntity(
+        swedbankGatewayClient.getIntraDayReportRequestEntity(
             "EE_TEST_IBAN", UUID.fromString("cdb18c2e-ad18-4f08-93a6-1f91492fb9f5"));
 
     var requestXml = swedbankGatewayMarshaller.marshalToString(request);

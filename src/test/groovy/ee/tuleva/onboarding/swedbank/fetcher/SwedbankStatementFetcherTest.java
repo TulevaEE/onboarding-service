@@ -46,7 +46,7 @@ class SwedbankStatementFetcherTest {
   void testSendRequest() {
     JAXBElement<Document> mockDocument = mock(JAXBElement.class);
 
-    when(swedbankGatewayClient.getAccountStatementRequestEntity(any(), any()))
+    when(swedbankGatewayClient.getIntraDayReportRequestEntity(any(), any()))
         .thenReturn(mockDocument);
 
     fetcher.sendRequest(DEPOSIT_EUR);

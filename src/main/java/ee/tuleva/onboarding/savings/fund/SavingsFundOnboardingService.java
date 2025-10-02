@@ -7,9 +7,9 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class SavingsFundOnboardingService {
+  private final SavingsFundOnboardingRepository savingsFundOnboardingRepository;
 
   public boolean isOnboardingCompleted(User user) {
-    // todo
-    return false;
+    return savingsFundOnboardingRepository.isOnboardingCompleted(user.getId());
   }
 }

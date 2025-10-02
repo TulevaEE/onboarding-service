@@ -58,17 +58,19 @@ public class LedgerIntegrationTest {
 
     var accounts = ledgerAccountRepository.findAllByOwner(party);
 
-    assertThat(accounts.size()).isEqualTo(2);
+    assertThat(accounts.size()).isEqualTo(7);
 
     var cashAccount =
         accounts.stream()
-            .filter(account -> account.getAccountType() == ASSET && account.getAssetType() == EUR)
+            .filter(
+                account -> account.getAccountType() == LIABILITY && account.getAssetType() == EUR)
             .findFirst()
             .orElseThrow();
     var stockAccount =
         accounts.stream()
             .filter(
-                account -> account.getAccountType() == ASSET && account.getAssetType() == FUND_UNIT)
+                account ->
+                    account.getAccountType() == LIABILITY && account.getAssetType() == FUND_UNIT)
             .findFirst()
             .orElseThrow();
 

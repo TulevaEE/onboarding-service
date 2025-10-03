@@ -1,6 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
+import static java.util.stream.Collectors.toList;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -8,7 +9,6 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -58,7 +58,7 @@ public class IssuingJob {
 
     return reservedPayments.stream()
         .filter(payment -> payment.getReceivedBefore().isBefore(reservedTransactionCutoff))
-        .collect(Collectors.toList());
+        .collect(toList());
   }
 
   private List<SavingFundPayment> getReservedPaymentsFromBeforeLastWorkingDay() {
@@ -70,7 +70,7 @@ public class IssuingJob {
 
     return reservedPayments.stream()
         .filter(payment -> payment.getReceivedBefore().isBefore(reservedTransactionCutoff))
-        .collect(Collectors.toList());
+        .collect(toList());
   }
 
   private Instant getCutoff(LocalDate date) {

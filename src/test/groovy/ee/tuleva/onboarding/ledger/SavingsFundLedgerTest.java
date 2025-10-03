@@ -1,10 +1,6 @@
 package ee.tuleva.onboarding.ledger;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
-import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
@@ -16,8 +12,6 @@ import ee.tuleva.onboarding.user.User;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,29 +22,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class SavingsFundLedgerTest {
 
-  @Autowired SavingsFundLedger savingsFundLedger;
   @Autowired LedgerService ledgerService;
-  @Autowired LedgerPartyService ledgerPartyService;
-  @Autowired LedgerAccountRepository ledgerAccountRepository;
-  @Autowired LedgerPartyRepository ledgerPartyRepository;
-  @Autowired LedgerTransactionRepository ledgerTransactionRepository;
+  @Autowired SavingsFundLedger savingsFundLedger;
 
-  User testUser;
-  LedgerParty userParty;
-
-  @BeforeEach
-  void setUp() {
-    testUser = sampleUser().personalCode("38001010001").build();
-    ledgerService.onboard(testUser);
-    userParty = ledgerPartyService.getParty(testUser).orElseThrow();
-  }
-
-  @AfterEach
-  void cleanup() {
-    ledgerTransactionRepository.deleteAll();
-    ledgerAccountRepository.deleteAll();
-    ledgerPartyRepository.deleteAll();
-  }
+  User testUser = sampleUser().personalCode("38001010001").build();
 
   @Test
   @DisplayName("Money-in flow: Payment received should create correct ledger entries")
@@ -297,12 +272,7 @@ class SavingsFundLedgerTest {
     assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
 
     // After payout, user's cash redemption account should be empty
-    LedgerAccount userCashRedemptionAccount =
-        ledgerAccountRepository
-            .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-                userParty, CASH_REDEMPTION.name(), USER_ACCOUNT, EUR, LIABILITY)
-            .orElseThrow();
-    assertThat(userCashRedemptionAccount.getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getUserCashRedemptionAccount().getBalance()).isEqualByComparingTo(ZERO);
 
     // Payouts cash clearing should also be zero (money sent out)
     assertThat(getPayoutsCashClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
@@ -400,25 +370,11 @@ class SavingsFundLedgerTest {
 
   // Low-level core helper methods
   private LedgerAccount getUserAccount(UserAccount userAccount) {
-    return ledgerAccountRepository
-        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            userParty,
-            userAccount.name(),
-            USER_ACCOUNT,
-            userAccount.getAssetType(),
-            userAccount.getAccountType())
-        .orElseThrow();
+    return ledgerService.getUserAccount(testUser, userAccount);
   }
 
   private LedgerAccount getSystemAccount(SystemAccount systemAccount) {
-    return ledgerAccountRepository
-        .findByOwnerAndNameAndPurposeAndAssetTypeAndAccountType(
-            null,
-            systemAccount.name(),
-            SYSTEM_ACCOUNT,
-            systemAccount.getAssetType(),
-            systemAccount.getAccountType())
-        .orElseThrow();
+    return ledgerService.getSystemAccount(systemAccount);
   }
 
   // High-level user account helpers

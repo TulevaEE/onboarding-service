@@ -21,13 +21,15 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class IssuingJob {
 
+  private static final LocalTime CUTOFF_TIME = LocalTime.of(16, 0, 0);
+  private static final ZoneId CUTOFF_TIMEZONE = ZoneId.of("Europe/Tallinn");
   private final Clock clock;
   private final IssuerService issuerService;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
 
-  @Scheduled(cron = "0 0 16 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(fixedRateString = "5m")
   public void runJob() {
-    var payments = getReservedPaymentsFromBeforeToday();
+    var payments = getReservedPaymentsDependingOnCurrentTime();
     var nav = getNAV();
 
     for (SavingFundPayment payment : payments) {
@@ -35,18 +37,46 @@ public class IssuingJob {
     }
   }
 
-  public List<SavingFundPayment> getReservedPaymentsFromBeforeToday() {
+  private List<SavingFundPayment> getReservedPaymentsDependingOnCurrentTime() {
+    var todaysCutoff = getCutoff(LocalDate.now(clock));
+    var currentTime = clock.instant();
+    var isTodayWorkingDay =
+        new PublicHolidays().isWorkingDay(currentTime.atZone(CUTOFF_TIMEZONE).toLocalDate());
+    if (currentTime.isBefore(todaysCutoff) || !isTodayWorkingDay) {
+      return getReservedPaymentsFromBeforeSecondToLastWorkingDay();
+    }
+
+    return getReservedPaymentsFromBeforeLastWorkingDay();
+  }
+
+  private List<SavingFundPayment> getReservedPaymentsFromBeforeSecondToLastWorkingDay() {
     var reservedPayments = savingFundPaymentRepository.findPaymentsWithStatus(RESERVED);
 
-    var lastWorkingDay = new PublicHolidays().previousWorkingDay(LocalDate.now(clock));
+    var publicHolidays = new PublicHolidays();
+    var secondToLastWorkingDay =
+        publicHolidays.previousWorkingDay(publicHolidays.previousWorkingDay(LocalDate.now(clock)));
 
-    var reservedTransactionCutoff =
-        ZonedDateTime.of(lastWorkingDay, LocalTime.of(16, 0, 0), ZoneId.of("Europe/Tallinn"))
-            .toInstant();
+    var reservedTransactionCutoff = getCutoff(secondToLastWorkingDay);
 
     return reservedPayments.stream()
         .filter(payment -> payment.getReceivedBefore().isBefore(reservedTransactionCutoff))
         .collect(Collectors.toList());
+  }
+
+  private List<SavingFundPayment> getReservedPaymentsFromBeforeLastWorkingDay() {
+    var reservedPayments = savingFundPaymentRepository.findPaymentsWithStatus(RESERVED);
+
+    var lastWorkingDay = new PublicHolidays().previousWorkingDay(LocalDate.now(clock));
+
+    var reservedTransactionCutoff = getCutoff(lastWorkingDay);
+
+    return reservedPayments.stream()
+        .filter(payment -> payment.getReceivedBefore().isBefore(reservedTransactionCutoff))
+        .collect(Collectors.toList());
+  }
+
+  private Instant getCutoff(LocalDate date) {
+    return ZonedDateTime.of(date, CUTOFF_TIME, CUTOFF_TIMEZONE).toInstant();
   }
 
   private BigDecimal getNAV() {

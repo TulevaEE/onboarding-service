@@ -18,7 +18,10 @@ public class Reconciliator {
   private LedgerService ledgerService;
 
   public void reconcile(BankStatement bankStatement) {
+    checkBalanceMatch(bankStatement);
+  }
 
+  private void checkBalanceMatch(BankStatement bankStatement) {
     var closingBankBalance =
         bankStatement.getBalances().stream()
             .filter(balance -> balance.type().equals(CLOSE))
@@ -48,8 +51,6 @@ public class Reconciliator {
               + ledgerSystemAccount
               + ") balance="
               + ledgerAccountBalance);
-
-      // TODO process entries here
     }
   }
 }

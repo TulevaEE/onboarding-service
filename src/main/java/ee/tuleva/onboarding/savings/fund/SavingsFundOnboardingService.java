@@ -12,4 +12,11 @@ public class SavingsFundOnboardingService {
   public boolean isOnboardingCompleted(User user) {
     return savingsFundOnboardingRepository.isOnboardingCompleted(user.getId());
   }
+
+  public SavingsFundOnboardingStatus getOnboardingStatus(User user) {
+    if (isOnboardingCompleted(user)) {
+      return SavingsFundOnboardingStatus.COMPLETED;
+    }
+    return SavingsFundOnboardingStatus.NOT_STARTED;
+  }
 }

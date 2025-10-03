@@ -6,9 +6,12 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.user.User;
+import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -29,7 +32,9 @@ class SavingFundPaymentControllerTest {
 
   @Autowired private MockMvc mvc;
 
+  @MockitoBean private UserService userService;
   @MockitoBean private SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
+  @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
 
   @Test
   void cancelSavingsFundPayment_shouldReturnNoContent() throws Exception {
@@ -47,5 +52,25 @@ class SavingFundPaymentControllerTest {
 
     mvc.perform(delete("/v1/savings/payments/" + paymentId).with(csrf()).with(authentication(auth)))
         .andExpect(status().isNoContent());
+  }
+
+  @Test
+  void getSavingsFundOnboardingStatus_shouldReturnCompleted() throws Exception {
+    var auth =
+        new UsernamePasswordAuthenticationToken(
+            AuthenticatedPerson.builder().userId(1L).build(),
+            null,
+            List.of(new SimpleGrantedAuthority(USER)));
+
+    var user = Mockito.mock(User.class);
+    Mockito.when(userService.getByIdOrThrow(1L)).thenReturn(user);
+    Mockito.when(savingsFundOnboardingService.getOnboardingStatus(user))
+        .thenReturn(SavingsFundOnboardingStatus.COMPLETED);
+
+    mvc.perform(get("/v1/savings/onboarding/status").with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(
+            result ->
+                result.getResponse().getContentAsString().equals("{\"status\":\"COMPLETED\"}"));
   }
 }

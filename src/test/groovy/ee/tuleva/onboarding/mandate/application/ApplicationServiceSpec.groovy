@@ -377,9 +377,9 @@ class ApplicationServiceSpec extends Specification {
     savingFundPaymentService.getPendingPaymentsForUser(authenticatedPerson.getUserId()) >> [payment1, payment2]
 
     // Mock deadlines service
-    savingFundPaymentDeadlinesService.getCancellationDeadline(payment1) >> Instant.parse("2021-03-31T20:59:59.999999999Z")
+    savingFundPaymentDeadlinesService.getCancellationDeadline(payment1) >> Instant.parse("2021-03-31T21:00:00.000000000Z")
     savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment1) >> Instant.parse("2021-04-20T10:00:00Z")
-    savingFundPaymentDeadlinesService.getCancellationDeadline(payment2) >> Instant.parse("2021-03-31T20:59:59.999999999Z")
+    savingFundPaymentDeadlinesService.getCancellationDeadline(payment2) >> Instant.parse("2021-03-31T21:00:00.000000000Z")
     savingFundPaymentDeadlinesService.getFulfillmentDeadline(payment2) >> Instant.parse("2021-04-20T10:00:00Z")
 
     when:
@@ -396,7 +396,7 @@ class ApplicationServiceSpec extends Specification {
         amount == 250.0
         currency == EUR
         paymentId == payment2Id
-        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
+        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.000000000Z")
         fulfillmentDeadline == Instant.parse("2021-04-20T10:00:00Z")
       }
     }
@@ -409,7 +409,7 @@ class ApplicationServiceSpec extends Specification {
         amount == 100.0
         currency == EUR
         paymentId == payment1Id
-        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.999999999Z")
+        cancellationDeadline == Instant.parse("2021-03-31T20:59:59.000000000Z")
         fulfillmentDeadline == Instant.parse("2021-04-20T10:00:00Z")
       }
     }

@@ -60,10 +60,11 @@ public class PaymentVerificationService {
     }
 
     var userId = user.get().getId();
+    savingFundPaymentRepository.attachUser(payment.getId(), userId);
+
     log.info(
         "Verification completed for payment {}, attaching to user {}", payment.getId(), userId);
     savingFundPaymentRepository.changeStatus(payment.getId(), VERIFIED);
-    savingFundPaymentRepository.attachUser(payment.getId(), userId);
     savingsFundLedger.recordPaymentReceived(user.get(), payment.getAmount(), payment.getId());
   }
 

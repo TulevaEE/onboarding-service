@@ -22,8 +22,9 @@ public class SwedbankStatementFetcher {
 
   // mapped from swedbank-gateway.accounts.___ in application properties
   public enum SwedbankAccount {
-    DEPOSIT_EUR("deposit_eur");
-    // WITHDRAWAL_EUR("withdrawal_eur");
+    DEPOSIT_EUR("deposit_eur"),
+    WITHDRAWAL_EUR("withdrawal_eur"),
+    INVESTMENT_EUR("investment_eur");
 
     @Getter private final String configurationKey;
 

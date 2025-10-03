@@ -66,6 +66,8 @@ swedbank-gateway:
   agreement-id: ''
   accounts:
     "deposit_eur": ''
+    "withdrawal_eur": ''
+    "investment_eur": ''
 
 springdoc:
   swagger-ui:
@@ -191,6 +193,8 @@ swedbank-gateway:
   agreement-id: ${SWEDBANK_GATEWAY_AGREEMENT_ID:1234}
   accounts:
     "deposit_eur": ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN:EE_TEST_IBAN}
+    "withdrawal_eur": ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN:EE_TEST_IBAN_2}
+    "investment_eur": ${SWEDBANK_GATEWAY_INVESTMENT_EUR_ACCOUNT_IBAN:EE_TEST_IBAN_3}
 ---
 spring:
   flyway:
@@ -249,7 +253,8 @@ swedbank-gateway:
   url: 'https://psd2.api.swedbank.com/partner/v1/sgw/'
   accounts:
     "deposit_eur": ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN}
-
+    "withdrawal_eur": ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN}
+    "investment_eur": ${SWEDBANK_GATEWAY_INVESTMENT_EUR_ACCOUNT_IBAN}
 epis:
   service:
     url: https://epis-service.tuleva.ee/v1

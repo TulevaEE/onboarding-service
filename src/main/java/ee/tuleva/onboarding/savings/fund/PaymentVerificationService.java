@@ -77,13 +77,10 @@ public class PaymentVerificationService {
     savingFundPaymentRepository.changeStatus(payment.getId(), TO_BE_RETURNED);
     savingFundPaymentRepository.addReturnReason(payment.getId(), reason);
 
-    userRepository
-        .findById(payment.getUserId())
-        .ifPresent(
-            user -> {
-              applicationEventPublisher.publishEvent(
-                  new SavingsPaymentFailedEvent(this, user, Locale.of("et")));
-            });
+    Optional.ofNullable(payment.getUserId())
+        .flatMap(userRepository::findById)
+        .ifPresent(user -> applicationEventPublisher.publishEvent(
+                new SavingsPaymentFailedEvent(this, user, Locale.of("et"))));
   }
 
   Optional<String> extractPersonalCode(String description) {

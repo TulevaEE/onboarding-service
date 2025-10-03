@@ -1,7 +1,10 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
+
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
+import ee.tuleva.onboarding.swedbank.statement.SavingsFundAccountIdentifier;
 import ee.tuleva.onboarding.swedbank.statement.SwedbankBankStatementExtractor;
 import java.time.Clock;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +20,7 @@ class SwedbankBankStatementMessageProcessor {
   private final SwedbankBankStatementExtractor swedbankBankStatementExtractor;
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentUpsertionService paymentService;
+  private final SavingsFundAccountIdentifier savingsFundAccountIdentifier;
   private final Clock clock;
 
   @Transactional
@@ -35,6 +39,14 @@ class SwedbankBankStatementMessageProcessor {
     log.info(
         "Successfully extracted bank statement message with {} entries",
         bankStatement.getEntries().size());
+
+    var accountIban = bankStatement.getBankStatementAccount().iban();
+    if (!savingsFundAccountIdentifier.isAccountType(accountIban, DEPOSIT_EUR)) {
+      log.info(
+          "Skipping payment processing for account {} as it is not a DEPOSIT_EUR account",
+          accountIban);
+      return;
+    }
 
     var payments = paymentExtractor.extractPayments(bankStatement);
 

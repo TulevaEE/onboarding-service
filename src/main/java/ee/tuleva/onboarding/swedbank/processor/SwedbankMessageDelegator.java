@@ -24,7 +24,7 @@ public class SwedbankMessageDelegator {
   private final SwedbankMessageRepository swedbankMessageRepository;
   private final List<SwedbankMessageProcessor> messageProcessors;
 
-  @Scheduled(cron = "0 */5 9-17 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(fixedRateString = "1m")
   public void processMessages() {
     var messages =
         swedbankMessageRepository

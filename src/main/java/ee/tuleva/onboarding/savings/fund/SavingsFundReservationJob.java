@@ -16,7 +16,7 @@ public class SavingsFundReservationJob {
   private final PaymentReservationService paymentReservationService;
   private final PaymentReservationFilterService paymentReservationFilterService;
 
-  @Scheduled(fixedRateString = "5m")
+  @Scheduled(fixedRateString = "1m")
   public void runJob() {
     var verifiedPayments = savingFundPaymentRepository.findPaymentsWithStatus(VERIFIED);
     var paymentsToReserve =

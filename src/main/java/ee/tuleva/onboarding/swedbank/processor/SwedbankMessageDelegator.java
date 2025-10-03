@@ -51,13 +51,11 @@ public class SwedbankMessageDelegator {
             "No processor found for message type: {} (message id: {})",
             messageType,
             message.getId());
-        return;
+      } else {
+        supportedProcessor.get().processMessage(message.getRawResponse(), messageType);
       }
 
-      supportedProcessor.get().processMessage(message.getRawResponse(), messageType);
-
       message.setProcessedAt(clock.instant());
-
       swedbankMessageRepository.save(message);
     } catch (Exception e) {
       log.error("Failed to process message id: {}", message.getId(), e);

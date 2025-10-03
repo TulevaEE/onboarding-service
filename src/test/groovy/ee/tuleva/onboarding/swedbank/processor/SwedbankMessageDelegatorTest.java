@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
 import static ee.tuleva.onboarding.swedbank.processor.SwedbankMessageType.*;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessage;
@@ -21,7 +21,6 @@ class SwedbankMessageDelegatorTest {
 
   private Clock clock;
   private SwedbankMessageRepository swedbankMessageRepository;
-  private List<SwedbankMessageProcessor> messageProcessors;
 
   private SwedbankMessageProcessor firstProcessor;
   private SwedbankMessageProcessor secondProcessor;
@@ -34,10 +33,11 @@ class SwedbankMessageDelegatorTest {
 
     firstProcessor = mock(SwedbankMessageProcessor.class);
     secondProcessor = mock(SwedbankMessageProcessor.class);
-    messageProcessors = List.of(firstProcessor, secondProcessor);
     swedbankMessageRepository = mock(SwedbankMessageRepository.class);
 
-    delegator = new SwedbankMessageDelegator(clock, swedbankMessageRepository, messageProcessors);
+    delegator =
+        new SwedbankMessageDelegator(
+            clock, swedbankMessageRepository, List.of(firstProcessor, secondProcessor));
   }
 
   @Test
@@ -67,7 +67,7 @@ class SwedbankMessageDelegatorTest {
     verify(firstProcessor, never()).processMessage(any(), any());
     verify(secondProcessor, times(1)).processMessage(message.getRawResponse(), messageType);
 
-    assertEquals(message.getProcessedAt(), clock.instant());
+    assertThat(message.getProcessedAt()).isEqualTo(clock.instant());
 
     verify(swedbankMessageRepository, times(1)).save(message);
   }
@@ -99,7 +99,7 @@ class SwedbankMessageDelegatorTest {
     verify(firstProcessor, never()).processMessage(any(), any());
     verify(secondProcessor, times(1)).processMessage(message.getRawResponse(), messageType);
 
-    assertEquals(message.getProcessedAt(), clock.instant());
+    assertThat(message.getProcessedAt()).isEqualTo(clock.instant());
 
     verify(swedbankMessageRepository, times(1)).save(message);
   }
@@ -132,7 +132,7 @@ class SwedbankMessageDelegatorTest {
     verify(firstProcessor, never()).processMessage(any(), any());
     verify(secondProcessor, times(1)).processMessage(message.getRawResponse(), messageType);
 
-    assertEquals(message.getProcessedAt(), clock.instant());
+    assertThat(message.getProcessedAt()).isEqualTo(clock.instant());
 
     verify(swedbankMessageRepository, times(1)).save(message);
   }
@@ -162,9 +162,8 @@ class SwedbankMessageDelegatorTest {
     verify(firstProcessor, never()).processMessage(any(), any());
     verify(secondProcessor, never()).processMessage(any(), any());
 
-    assertEquals(message.getProcessedAt(), null);
-
-    verify(swedbankMessageRepository, never()).save(any());
+    assertThat(message.getProcessedAt()).isEqualTo(clock.instant());
+    verify(swedbankMessageRepository).save(message);
   }
 
   @Test
@@ -196,8 +195,8 @@ class SwedbankMessageDelegatorTest {
 
     verify(secondProcessor, times(1)).processMessage(message.getRawResponse(), messageType);
 
-    assertEquals(message.getFailedAt(), clock.instant());
-    assertEquals(message.getProcessedAt(), null);
+    assertThat(message.getFailedAt()).isEqualTo(clock.instant());
+    assertThat(message.getProcessedAt()).isNull();
 
     verify(swedbankMessageRepository, times(1)).save(message);
   }

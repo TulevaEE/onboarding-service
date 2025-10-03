@@ -262,7 +262,7 @@ public class ApplicationService {
             .id(payment.getId().getMostSignificantBits());
 
     var cancellationDeadline =
-        savingFundPaymentDeadlinesService.getCancellationDeadline(payment).minusMillis(1);
+        savingFundPaymentDeadlinesService.getCancellationDeadline(payment).minusSeconds(1);
 
     applicationBuilder.details(
         SavingFundPaymentApplicationDetails.builder()

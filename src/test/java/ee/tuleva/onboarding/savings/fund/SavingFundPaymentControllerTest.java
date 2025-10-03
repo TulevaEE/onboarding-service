@@ -10,15 +10,18 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
+import ee.tuleva.onboarding.locale.LocaleService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -35,6 +38,8 @@ class SavingFundPaymentControllerTest {
   @MockitoBean private UserService userService;
   @MockitoBean private SavingFundPaymentUpsertionService savingFundPaymentUpsertionService;
   @MockitoBean private SavingsFundOnboardingService savingsFundOnboardingService;
+  @MockitoBean private LocaleService localeService;
+  @MockitoBean private ApplicationEventPublisher applicationEventPublisher;
 
   @Test
   void cancelSavingsFundPayment_shouldReturnNoContent() throws Exception {
@@ -46,6 +51,9 @@ class SavingFundPaymentControllerTest {
             null,
             List.of(new SimpleGrantedAuthority(USER)));
 
+    var user = Mockito.mock(User.class);
+    Mockito.when(userService.getByIdOrThrow(1L)).thenReturn(user);
+    Mockito.when(localeService.getCurrentLocale()).thenReturn(Locale.ENGLISH);
     Mockito.doNothing()
         .when(savingFundPaymentUpsertionService)
         .cancelUserPayment(any(), eq(paymentId));

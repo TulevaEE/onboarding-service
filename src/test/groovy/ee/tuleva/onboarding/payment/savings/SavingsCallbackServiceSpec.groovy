@@ -2,11 +2,13 @@ package ee.tuleva.onboarding.payment.savings
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.nimbusds.jose.JWSObject
+import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository
 import ee.tuleva.onboarding.user.User
 import ee.tuleva.onboarding.user.UserService
+import org.springframework.context.ApplicationEventPublisher
 import spock.lang.Specification
 
 import static ee.tuleva.onboarding.payment.provider.PaymentProviderFixture.aPaymentProviderConfiguration
@@ -21,6 +23,7 @@ class SavingsCallbackServiceSpec extends Specification {
   SavingsCallbackService savingsCallbackService
   SavingFundPaymentRepository savingFundPaymentRepository = Mock()
   UserService userService = Mock()
+  ApplicationEventPublisher eventPublisher = Mock()
 
   def savingsChannelConfiguration = new SavingsChannelConfiguration(
       returnUrl: "http://success.url",
@@ -34,7 +37,8 @@ class SavingsCallbackServiceSpec extends Specification {
         userService,
         tokenParser,
         savingsChannelConfiguration,
-        savingFundPaymentRepository
+        savingFundPaymentRepository,
+        eventPublisher,
     )
   }
 
@@ -79,6 +83,7 @@ class SavingsCallbackServiceSpec extends Specification {
     then:
     1 * savingFundPaymentRepository.savePaymentData(_) >> paymentId
     1 * savingFundPaymentRepository.attachUser(paymentId, 123L) // User attached separately
+    1 * eventPublisher.publishEvent(_)
     def payment = returnedPayment.get()
     payment.amount == token.grandTotal
     payment.currency == token.currency

@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.mandate.MandateType;
 import ee.tuleva.onboarding.mandate.batch.MandateBatch;
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion;
 import ee.tuleva.onboarding.payment.Payment;
+import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.user.member.Member;
 import java.util.Locale;
 
@@ -31,7 +32,11 @@ public enum EmailType {
   CAPITAL_TRANSFER_BUYER_TO_SIGN("capital_transfer_buyer_to_sign"),
   CAPITAL_TRANSFER_CONFIRMED_BY_BUYER("capital_transfer_confirmed_by_buyer"),
   CAPITAL_TRANSFER_CONFIRMED_BY_SELLER("capital_transfer_confirmed_by_seller"),
-  CAPITAL_TRANSFER_APPROVED_BY_BOARD("capital_transfer_approved_by_board");
+  CAPITAL_TRANSFER_APPROVED_BY_BOARD("capital_transfer_approved_by_board"),
+
+  SAVINGS_FUND_PAYMENT_SUCCESS("savings_fund_payment_success"),
+  SAVINGS_FUND_PAYMENT_CANCEL("savings_fund_payment_cancelled"),
+  SAVINGS_FUND_PAYMENT_FAIL("savings_fund_payment_failed");
 
   private final String templateName;
 
@@ -78,6 +83,9 @@ public enum EmailType {
   }
 
   public static EmailType from(Payment payment) {
+    if (PaymentData.PaymentType.SAVINGS.equals(payment.getPaymentType())) {
+      return SAVINGS_FUND_PAYMENT_SUCCESS;
+    }
     return THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE;
   }
 

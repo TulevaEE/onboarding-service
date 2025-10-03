@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.payment.savings;
 
 import com.nimbusds.jose.JWSObject;
 import ee.tuleva.onboarding.payment.PaymentData;
+import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioOrderToken;
 import ee.tuleva.onboarding.payment.provider.montonio.MontonioTokenParser;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -11,6 +12,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -22,6 +24,7 @@ public class SavingsCallbackService {
   private final MontonioTokenParser tokenParser;
   private final SavingsChannelConfiguration savingsChannelConfiguration;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
+  private final ApplicationEventPublisher eventPublisher;
 
   @SneakyThrows
   public Optional<SavingFundPayment> processToken(String serializedToken) {
@@ -59,7 +62,13 @@ public class SavingsCallbackService {
 
     userService
         .findByPersonalCode(token.getMerchantReference().getPersonalCode())
-        .ifPresent(user -> savingFundPaymentRepository.attachUser(paymentId, user.getId()));
+        .ifPresent(
+            user -> {
+              savingFundPaymentRepository.attachUser(paymentId, user.getId());
+              eventPublisher.publishEvent(
+                  new SavingsPaymentCreatedEvent(
+                      this, user, token.getMerchantReference().getLocale()));
+            });
 
     return Optional.of(payment);
   }

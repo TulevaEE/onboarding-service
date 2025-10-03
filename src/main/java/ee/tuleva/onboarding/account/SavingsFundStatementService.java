@@ -8,6 +8,7 @@ import ee.tuleva.onboarding.currency.Currency;
 import ee.tuleva.onboarding.fund.Fund;
 import ee.tuleva.onboarding.fund.manager.FundManager;
 import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import java.math.BigDecimal;
@@ -21,6 +22,7 @@ public class SavingsFundStatementService {
 
   private final UserService userService;
   private final LedgerService ledgerService;
+  private final SavingsFundOnboardingService savingsFundOnboardingService;
 
   private static final BigDecimal FEE_RATE = new BigDecimal("0.0049");
   private static final Fund SAVINGS_FUND =
@@ -39,8 +41,9 @@ public class SavingsFundStatementService {
   public FundBalance getAccountStatement(Person person) {
     User user = userService.findByPersonalCode(person.getPersonalCode()).orElseThrow();
 
-    if (!ledgerService.isUserOnboarded(user)) {
-      throw new IllegalStateException("User is not onboarded");
+    if (!savingsFundOnboardingService.isOnboardingCompleted(user)) {
+      throw new IllegalStateException(
+          "User is not onboarded: personalCode=" + user.getPersonalCode());
     }
 
     BigDecimal units = getUserFundUnits(user);

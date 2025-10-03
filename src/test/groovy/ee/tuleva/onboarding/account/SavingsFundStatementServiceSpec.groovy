@@ -1,6 +1,8 @@
 package ee.tuleva.onboarding.account
 
+import ee.tuleva.onboarding.auth.principal.Person
 import ee.tuleva.onboarding.ledger.LedgerService
+import ee.tuleva.onboarding.savings.fund.SavingsFundOnboardingService
 import ee.tuleva.onboarding.user.UserService
 import spock.lang.Specification
 
@@ -13,8 +15,9 @@ class SavingsFundStatementServiceSpec extends Specification {
 
   UserService userService = Mock()
   LedgerService ledgerService = Mock()
+  SavingsFundOnboardingService savingsFundOnboardingService = Mock()
 
-  SavingsFundStatementService service = new SavingsFundStatementService(userService, ledgerService)
+  SavingsFundStatementService service = new SavingsFundStatementService(userService, ledgerService, savingsFundOnboardingService)
 
   def "returns savings account statement"() {
     given:
@@ -25,8 +28,8 @@ class SavingsFundStatementServiceSpec extends Specification {
     def subscriptions = subscriptionsAccountWithBalance(3.0)
     def redemptions = redemptionsAccountWithBalance(0.0)
 
-    userService.findByPersonalCode(_ as String) >> Optional.of(user)
-    ledgerService.isUserOnboarded(user) >> true
+    userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
+    savingsFundOnboardingService.isOnboardingCompleted(user) >> true
     ledgerService.getUserAccount(user, FUND_UNITS) >> fundUnits
     ledgerService.getUserAccount(user, FUND_UNITS_RESERVED) >> fundUnitsReserved
     ledgerService.getUserAccount(user, SUBSCRIPTIONS) >> subscriptions
@@ -39,16 +42,17 @@ class SavingsFundStatementServiceSpec extends Specification {
     then:
     savingsAccountStatement.fund == additionalSavingsFund()
     savingsAccountStatement.value == 3
+    savingsAccountStatement.units == 3
     savingsAccountStatement.contributions == 3
+    savingsAccountStatement.subtractions == 0
   }
 
-  def "throws error if user is not onboarded"() {
+  def "throws exception if user is not onboarded"() {
     given:
     def user = sampleUser().build()
 
-    userService.findByPersonalCode(_ as String) >> Optional.of(user)
-    ledgerService.isUserOnboarded(user) >> false
-
+    userService.findByPersonalCode(user.personalCode) >> Optional.of(user)
+    savingsFundOnboardingService.isOnboardingCompleted(user) >> false
 
     when:
     service.getAccountStatement(user)

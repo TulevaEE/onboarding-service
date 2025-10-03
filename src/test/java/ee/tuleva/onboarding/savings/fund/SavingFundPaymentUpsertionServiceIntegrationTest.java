@@ -201,6 +201,56 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   }
 
   @Test
+  void paymentsFromNonDepositAccountsAreNotProcessed() {
+    // given - XML with WITHDRAWAL_EUR account IBAN
+    var withdrawalAccountXml =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+            + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
+            + "<BkToCstmrAcctRpt> "
+            + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
+            + "<Rpt> "
+            + "<Id>test-withdrawal</Id> "
+            + "<CreDtTm>2025-10-01T12:00:00</CreDtTm> "
+            + "<FrToDt> "
+            + "<FrDtTm>2025-10-01T00:00:00</FrDtTm> "
+            + "<ToDtTm>2025-10-01T12:00:00</ToDtTm> "
+            + "</FrToDt> "
+            + "<Acct> "
+            + "<Id> <IBAN>EE987700771001802057</IBAN> </Id> "
+            + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
+            + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> "
+            + "</Ownr> "
+            + "</Acct> "
+            + "<Ntry> "
+            + "<NtryRef>2025100112348-1</NtryRef>"
+            + "<Amt Ccy=\"EUR\">200.00</Amt> "
+            + "<CdtDbtInd>CRDT</CdtDbtInd> "
+            + "<Sts>BOOK</Sts> "
+            + "<BookgDt> <Dt>2025-10-01</Dt> </BookgDt> "
+            + "<NtryDtls> <TxDtls> "
+            + "<Refs> <AcctSvcrRef>2025100112348-1</AcctSvcrRef> </Refs> "
+            + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">200.00</Amt> </TxAmt> </AmtDtls> "
+            + "<RltdPties> "
+            + "<Dbtr> <Nm>Mari Mets</Nm> "
+            + "<Id> <PrvtId> <Othr> <Id>48001010123</Id> </Othr> </PrvtId> </Id> "
+            + "</Dbtr> "
+            + "<DbtrAcct> <Id> <IBAN>EE111222333444555666</IBAN> </Id> </DbtrAcct> "
+            + "</RltdPties> "
+            + "<RmtInf> <Ustrd>Payment to withdrawal account</Ustrd> </RmtInf> "
+            + "</TxDtls> </NtryDtls> "
+            + "</Ntry> "
+            + "</Rpt> "
+            + "</BkToCstmrAcctRpt> "
+            + "</Document>";
+
+    // when
+    processXmlMessage(withdrawalAccountXml);
+
+    // then - no payment should be created from withdrawal account
+    assertThat(repository.findAll()).isEmpty();
+  }
+
+  @Test
   void zeroAmountPaymentsAreMovedToProcessedRightAway() {
     // given - XML with zero amount
     var zeroAmountXml =

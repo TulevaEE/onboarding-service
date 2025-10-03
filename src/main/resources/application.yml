@@ -255,6 +255,7 @@ swedbank-gateway:
     "deposit_eur": ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN}
     "withdrawal_eur": ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN}
     "investment_eur": ${SWEDBANK_GATEWAY_INVESTMENT_EUR_ACCOUNT_IBAN}
+
 epis:
   service:
     url: https://epis-service.tuleva.ee/v1

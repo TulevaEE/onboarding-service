@@ -36,20 +36,20 @@ class IssuingJobTest {
 
   boolean isReservedDateWorkingDay(SavingFundPayment payment) {
     var paymentReservedDate =
-        LocalDate.ofInstant(payment.getStatusChangedAt(), ZoneId.of("Europe/Tallinn"));
+        LocalDate.ofInstant(payment.getReceivedBefore(), ZoneId.of("Europe/Tallinn"));
     return new PublicHolidays().isWorkingDay(paymentReservedDate);
   }
 
   DayOfWeek getDayOfWeekOfReservedDay(SavingFundPayment payment) {
     var paymentReservedDate =
-        LocalDate.ofInstant(payment.getStatusChangedAt(), ZoneId.of("Europe/Tallinn"));
+        LocalDate.ofInstant(payment.getReceivedBefore(), ZoneId.of("Europe/Tallinn"));
     return paymentReservedDate.getDayOfWeek();
   }
 
   @Test
-  @DisplayName("processes RESERVED payments from yesterday, ignores those from today")
+  @DisplayName("processes RESERVED payments from yesterday before cutoff, ignores those from today")
   void processMessages() {
-    var now = Instant.parse("2025-01-03T15:00:00Z"); // friday 3rd january 2025
+    var now = Instant.parse("2025-01-03T14:00:00Z"); // friday 3rd january 2025
     var clock = Clock.fixed(now, UTC);
     var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
 
@@ -68,9 +68,8 @@ class IssuingJobTest {
             .beneficiaryName("Tuleva Savings Account")
             .beneficiaryIdCode("87654321")
             .externalId("EXT-12345")
-            .createdAt(clock.instant().minus(2, DAYS))
+            .receivedBefore(clock.instant().minus(2, DAYS).minus(4, HOURS))
             .status(RESERVED)
-            .statusChangedAt(clock.instant().minus(1, DAYS))
             .build();
 
     var reservedPaymentToday =
@@ -86,9 +85,8 @@ class IssuingJobTest {
             .beneficiaryName("Tuleva Savings Account")
             .beneficiaryIdCode("87654321")
             .externalId("EXT-12345")
-            .createdAt(clock.instant().minus(2, HOURS))
+            .receivedBefore(clock.instant().minus(2, HOURS))
             .status(RESERVED)
-            .statusChangedAt(clock.instant().minus(1, HOURS))
             .build();
 
     when(paymentRepository.findPaymentsWithStatus(RESERVED))
@@ -101,9 +99,62 @@ class IssuingJobTest {
   }
 
   @Test
+  @DisplayName(
+      "processes RESERVED payments from yesterday before cutoff, ignores those from yesterday made after cutoff")
+  void processMessagesPostCutoff() {
+    var now = Instant.parse("2025-01-03T14:00:00Z"); // friday 3rd january 2025
+    var clock = Clock.fixed(now, UTC);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
+
+    var nav = BigDecimal.ONE;
+
+    var reservedPaymentFromYesterday =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("500.00"))
+            .currency(Currency.EUR)
+            .description("Monthly contribution")
+            .remitterIban("EE34370400440532013000")
+            .remitterName("John Doe")
+            .remitterIdCode("49002010976")
+            .beneficiaryIban("EE987654321098765432")
+            .beneficiaryName("Tuleva Savings Account")
+            .beneficiaryIdCode("87654321")
+            .externalId("EXT-12345")
+            .receivedBefore(clock.instant().minus(1, DAYS).minus(4, HOURS))
+            .status(RESERVED)
+            .build();
+
+    var reservedPaymentAfterCutoff =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("500.00"))
+            .currency(Currency.EUR)
+            .description("Monthly contribution")
+            .remitterIban("EE34370400440532013000")
+            .remitterName("John Doe")
+            .remitterIdCode("49002010976")
+            .beneficiaryIban("EE987654321098765432")
+            .beneficiaryName("Tuleva Savings Account")
+            .beneficiaryIdCode("87654321")
+            .externalId("EXT-12345")
+            .receivedBefore(clock.instant().minus(1, DAYS).plus(2, HOURS))
+            .status(RESERVED)
+            .build();
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED))
+        .thenReturn(List.of(reservedPaymentAfterCutoff, reservedPaymentFromYesterday));
+
+    issuingJob.runJob();
+
+    verify(issuerService, times(1)).processPayment(reservedPaymentFromYesterday, nav);
+    verify(issuerService, never()).processPayment(reservedPaymentAfterCutoff, nav);
+  }
+
+  @Test
   @DisplayName("when running on monday, does not process reserved payment from weekend")
   void doesNotProcessWeekendReserved() {
-    var now = Instant.parse("2025-01-06T15:00:00Z"); // monday 5th january 2025
+    var now = Instant.parse("2025-01-06T14:00:00Z"); // monday 5th january 2025
     var clock = Clock.fixed(now, UTC);
     var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
 
@@ -122,9 +173,8 @@ class IssuingJobTest {
             .beneficiaryName("Tuleva Savings Account")
             .beneficiaryIdCode("87654321")
             .externalId("EXT-12345")
-            .createdAt(clock.instant().minus(1, DAYS))
+            .receivedBefore(clock.instant().minus(1, DAYS).minus(4, HOURS))
             .status(RESERVED)
-            .statusChangedAt(clock.instant().minus(1, DAYS))
             .build();
 
     var reservedPaymentMadeOnFriday =
@@ -140,9 +190,8 @@ class IssuingJobTest {
             .beneficiaryName("Tuleva Savings Account")
             .beneficiaryIdCode("87654321")
             .externalId("EXT-12345")
-            .createdAt(clock.instant().minus(3, DAYS))
+            .receivedBefore(clock.instant().minus(3, DAYS).minus(2, HOURS))
             .status(RESERVED)
-            .statusChangedAt(clock.instant().minus(3, DAYS))
             .build();
 
     assertThat(getDayOfWeekOfReservedDay(reservedPaymentMadeOnFriday)).isEqualTo(FRIDAY);
@@ -166,7 +215,7 @@ class IssuingJobTest {
   void doesNotProcessPublicHoliday() {
     var now =
         Instant.parse(
-            "2024-12-27T15:00:00Z"); // friday 27th december 2024, with 3 public holidays before it
+            "2024-12-27T14:00:00Z"); // friday 27th december 2024, with 3 public holidays before it
     var clock = Clock.fixed(now, UTC);
     var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
 
@@ -185,9 +234,8 @@ class IssuingJobTest {
             .beneficiaryName("Tuleva Savings Account")
             .beneficiaryIdCode("87654321")
             .externalId("EXT-12345")
-            .createdAt(clock.instant().minus(4, DAYS))
+            .receivedBefore(clock.instant().minus(4, DAYS).minus(2, HOURS))
             .status(RESERVED)
-            .statusChangedAt(clock.instant().minus(4, DAYS))
             .build();
 
     var reservedPaymentMadeOnPublicHoliday =
@@ -203,9 +251,8 @@ class IssuingJobTest {
             .beneficiaryName("Tuleva Savings Account")
             .beneficiaryIdCode("87654321")
             .externalId("EXT-12345")
-            .createdAt(clock.instant().minus(2, DAYS))
+            .receivedBefore(clock.instant().minus(2, DAYS).minus(5, HOURS))
             .status(RESERVED)
-            .statusChangedAt(clock.instant().minus(2, DAYS))
             .build();
 
     assertThat(getDayOfWeekOfReservedDay(reservedPaymentFromMondayBeforeChristmas))

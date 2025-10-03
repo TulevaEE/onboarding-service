@@ -6,9 +6,7 @@ import ee.tuleva.onboarding.deadline.PublicHolidays;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import java.math.BigDecimal;
-import java.time.Clock;
-import java.time.LocalDate;
-import java.time.ZoneId;
+import java.time.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -38,16 +36,16 @@ public class IssuingJob {
   }
 
   public List<SavingFundPayment> getReservedPaymentsFromBeforeToday() {
-    // TODO trust previous services or check 16:00 cutoff also here?
     var reservedPayments = savingFundPaymentRepository.findPaymentsWithStatus(RESERVED);
 
     var lastWorkingDay = new PublicHolidays().previousWorkingDay(LocalDate.now(clock));
-    var dayAfterLastWorkingDay = lastWorkingDay.plusDays(1);
+
     var reservedTransactionCutoff =
-        dayAfterLastWorkingDay.atStartOfDay(ZoneId.of("Europe/Tallinn")).toInstant();
+        ZonedDateTime.of(lastWorkingDay, LocalTime.of(16, 0, 0), ZoneId.of("Europe/Tallinn"))
+            .toInstant();
 
     return reservedPayments.stream()
-        .filter(payment -> payment.getStatusChangedAt().isBefore(reservedTransactionCutoff))
+        .filter(payment -> payment.getReceivedBefore().isBefore(reservedTransactionCutoff))
         .collect(Collectors.toList());
   }
 

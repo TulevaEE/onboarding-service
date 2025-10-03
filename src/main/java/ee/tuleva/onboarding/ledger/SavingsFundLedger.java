@@ -261,10 +261,7 @@ public class SavingsFundLedger {
   }
 
   private LedgerParty getUserParty(User user) {
-    return ledgerPartyService
-        .getParty(user)
-        .orElseThrow(
-            () -> new IllegalStateException("User not onboarded: " + user.getPersonalCode()));
+    return ledgerPartyService.getParty(user).orElseGet(() -> ledgerPartyService.createParty(user));
   }
 
   private LedgerAccount getUserAccount(LedgerParty owner, UserAccount userAccount) {

@@ -10,7 +10,6 @@ import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static java.math.BigDecimal.ZERO;
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 import ee.tuleva.onboarding.user.User;
@@ -312,16 +311,25 @@ class SavingsFundLedgerTest {
   }
 
   @Test
-  @DisplayName("Should throw exception for user not onboarded")
-  void testThrowExceptionForUnonboardedUser() {
+  @DisplayName("Should auto-create party and accounts for non-onboarded user")
+  void testAutoCreatePartyForUnonboardedUser() {
     User unonboardedUser = sampleUser().personalCode("99999999999").build();
+    BigDecimal amount = new BigDecimal("100.00");
+    UUID externalReference = randomUUID();
 
-    assertThatThrownBy(
-            () ->
-                savingsFundLedger.recordPaymentReceived(
-                    unonboardedUser, BigDecimal.TEN, randomUUID()))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessageContaining("User not onboarded");
+    // Should not throw exception, should create party and accounts automatically
+    LedgerTransaction transaction =
+        savingsFundLedger.recordPaymentReceived(unonboardedUser, amount, externalReference);
+
+    assertThat(transaction).isNotNull();
+    assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RECEIVED");
+    assertThat(transaction.getMetadata().get("userId")).isEqualTo(unonboardedUser.getId());
+    assertThat(transaction.getMetadata().get("personalCode"))
+        .isEqualTo(unonboardedUser.getPersonalCode());
+    assertThat(transaction.getMetadata().get("externalReference")).isEqualTo(externalReference);
+
+    // Verify double-entry accounting is maintained
+    verifyDoubleEntry(transaction);
   }
 
   @Test

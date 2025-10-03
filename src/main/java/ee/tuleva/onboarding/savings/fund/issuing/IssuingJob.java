@@ -31,7 +31,7 @@ public class IssuingJob {
   public void runJob() {
     var payments = getReservedPaymentsDependingOnCurrentTime();
     var nav = getNAV();
-
+    log.info("Running issuing job for {} payments with nav {}", payments.size(), nav);
     for (SavingFundPayment payment : payments) {
       issuerService.processPayment(payment, nav);
     }

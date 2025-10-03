@@ -32,7 +32,6 @@ class IssuerService {
     var user = userService.getByIdOrThrow(payment.getUserId());
     savingsFundLedger.issueFundUnitsFromReserved(user, cashAmount, unitsAmount, nav);
 
-    // TODO payment status to ...
     savingFundPaymentRepository.changeStatus(payment.getId(), ISSUED);
   }
 }

@@ -261,7 +261,8 @@ public class ApplicationService {
             // Only used for front-end uniqueness, otherwise meaningless
             .id(payment.getId().getMostSignificantBits());
 
-    var cancellationDeadline = savingFundPaymentDeadlinesService.getCancellationDeadline(payment);
+    var cancellationDeadline =
+        savingFundPaymentDeadlinesService.getCancellationDeadline(payment).minusMillis(1);
 
     applicationBuilder.details(
         SavingFundPaymentApplicationDetails.builder()

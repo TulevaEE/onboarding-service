@@ -4,15 +4,18 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_R
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent;
 import ee.tuleva.onboarding.user.UserRepository;
 import ee.tuleva.onboarding.user.personalcode.PersonalCodeValidator;
 import java.text.Normalizer;
 import java.util.Arrays;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +29,7 @@ public class PaymentVerificationService {
   private final UserRepository userRepository;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
   private final SavingsFundLedger savingsFundLedger;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Transactional
   public void process(SavingFundPayment payment) {
@@ -72,6 +76,14 @@ public class PaymentVerificationService {
     log.info("Identity check failed for payment {}: {}", payment.getId(), reason);
     savingFundPaymentRepository.changeStatus(payment.getId(), TO_BE_RETURNED);
     savingFundPaymentRepository.addReturnReason(payment.getId(), reason);
+
+    userRepository
+        .findById(payment.getUserId())
+        .ifPresent(
+            user -> {
+              applicationEventPublisher.publishEvent(
+                  new SavingsPaymentFailedEvent(this, user, Locale.of("et")));
+            });
   }
 
   Optional<String> extractPersonalCode(String description) {

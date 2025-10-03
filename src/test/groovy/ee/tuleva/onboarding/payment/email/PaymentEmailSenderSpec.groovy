@@ -7,7 +7,11 @@ import ee.tuleva.onboarding.conversion.UserConversionService
 import ee.tuleva.onboarding.epis.contact.ContactDetails
 import ee.tuleva.onboarding.epis.contact.ContactDetailsService
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion
+import ee.tuleva.onboarding.mandate.email.persistence.EmailType
 import ee.tuleva.onboarding.payment.event.PaymentCreatedEvent
+import ee.tuleva.onboarding.payment.event.SavingsPaymentCancelledEvent
+import ee.tuleva.onboarding.payment.event.SavingsPaymentCreatedEvent
+import ee.tuleva.onboarding.payment.event.SavingsPaymentFailedEvent
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
 import spock.lang.Specification
 
@@ -67,5 +71,47 @@ class PaymentEmailSenderSpec extends Specification {
 
     then:
     0 * paymentEmailService.sendThirdPillarPaymentSuccessEmail(_, _, _)
+  }
+
+  def "send email on savings payment creation"() {
+    given:
+    def user = sampleUser().build()
+    def locale = ENGLISH
+
+    def savingsPaymentCreatedEvent = new SavingsPaymentCreatedEvent(this, user, locale)
+
+    when:
+    paymentEmailSender.sendEmails(savingsPaymentCreatedEvent)
+
+    then:
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, EmailType.SAVINGS_FUND_PAYMENT_SUCCESS, locale)
+  }
+
+  def "send email on savings payment cancel"() {
+    given:
+    def user = sampleUser().build()
+    def locale = ENGLISH
+
+    def savingsPaymentCancelledEvent = new SavingsPaymentCancelledEvent(this, user, locale)
+
+    when:
+    paymentEmailSender.sendEmails(savingsPaymentCancelledEvent)
+
+    then:
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, EmailType.SAVINGS_FUND_PAYMENT_CANCEL, locale)
+  }
+
+  def "send email on savings payment failure"() {
+    given:
+    def user = sampleUser().build()
+    def locale = ENGLISH
+
+    def savingsPaymentFailedEvent = new SavingsPaymentFailedEvent(this, user, locale)
+
+    when:
+    paymentEmailSender.sendEmails(savingsPaymentFailedEvent)
+
+    then:
+    1 * paymentEmailService.sendSavingsFundPaymentEmail(user, EmailType.SAVINGS_FUND_PAYMENT_FAIL, locale)
   }
 }

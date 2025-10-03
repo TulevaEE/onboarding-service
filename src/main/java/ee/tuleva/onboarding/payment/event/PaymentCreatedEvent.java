@@ -1,27 +1,22 @@
 package ee.tuleva.onboarding.payment.event;
 
 import ee.tuleva.onboarding.payment.Payment;
-import ee.tuleva.onboarding.payment.PaymentData.PaymentType;
+import ee.tuleva.onboarding.payment.PaymentData;
 import ee.tuleva.onboarding.user.User;
 import java.util.Locale;
 import lombok.Getter;
-import org.springframework.context.ApplicationEvent;
 
 @Getter
-public class PaymentCreatedEvent extends ApplicationEvent {
-
-  private final User user;
+public class PaymentCreatedEvent extends PaymentEvent {
   private final Payment payment;
-  private final Locale locale;
 
   public PaymentCreatedEvent(Object source, User user, Payment payment, Locale locale) {
-    super(source);
-    this.user = user;
+    super(source, user, locale);
     this.payment = payment;
-    this.locale = locale;
   }
 
-  public PaymentType getPaymentType() {
-    return payment.getPaymentType();
+  @Override
+  public PaymentData.PaymentType getPaymentType() {
+    return this.payment.getPaymentType();
   }
 }

@@ -6,6 +6,7 @@ import ee.tuleva.onboarding.mandate.Mandate
 import ee.tuleva.onboarding.mandate.email.PillarSuggestion
 import ee.tuleva.onboarding.mandate.email.persistence.Email
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
+import ee.tuleva.onboarding.mandate.email.persistence.EmailType
 import ee.tuleva.onboarding.notification.email.EmailService
 import spock.lang.Specification
 
@@ -14,6 +15,9 @@ import static ee.tuleva.onboarding.conversion.ConversionResponseFixture.notConve
 import static ee.tuleva.onboarding.currency.Currency.EUR
 import static ee.tuleva.onboarding.epis.contact.ContactDetailsFixture.contactDetailsFixture
 import static ee.tuleva.onboarding.mandate.email.EmailVariablesAttachments.getAttachments
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_PAYMENT_CANCEL
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_PAYMENT_FAIL
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SAVINGS_FUND_PAYMENT_SUCCESS
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_REMINDER_MANDATE
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE
 import static ee.tuleva.onboarding.payment.PaymentFixture.aNewSinglePayment
@@ -72,5 +76,33 @@ class PaymentEmailServiceSpec extends Specification {
     }) >> message
     1 * emailService.send(user, message, "third_pillar_payment_success_mandate_en") >> Optional.of(mandrillResponse)
     1 * emailPersistenceService.save(user, mandrillResponse.id, THIRD_PILLAR_PAYMENT_SUCCESS_MANDATE, mandrillResponse.status)
+  }
+
+  def "send savings fund payment emails"() {
+    given:
+    def user = sampleUser().build()
+    def message = new MandrillMessage()
+    var mergeVars = ["fname": user.firstName]
+    def tags = ["savings_fund"]
+    def locale = Locale.ENGLISH
+
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+
+    when:
+    paymentEmailService.sendSavingsFundPaymentEmail(user, emailType, locale)
+
+    then:
+    1 * emailService.send(user, message, templateName) >> Optional.of(mandrillResponse)
+    1 * emailService.newMandrillMessage(user.email, templateName, mergeVars, tags, null) >> message
+    1 * emailPersistenceService.save(user, mandrillResponse.id, emailType, mandrillResponse.status)
+
+    where:
+    emailType                    | templateName
+    SAVINGS_FUND_PAYMENT_SUCCESS | "savings_fund_payment_success_en"
+    SAVINGS_FUND_PAYMENT_FAIL    | "savings_fund_payment_failed_en"
+    SAVINGS_FUND_PAYMENT_CANCEL  | "savings_fund_payment_cancelled_en"
   }
 }

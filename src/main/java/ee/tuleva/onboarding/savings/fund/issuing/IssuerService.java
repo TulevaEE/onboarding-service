@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static java.math.RoundingMode.HALF_DOWN;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
@@ -33,6 +33,6 @@ class IssuerService {
     savingsFundLedger.issueFundUnitsFromReserved(user, cashAmount, unitsAmount, nav);
 
     // TODO payment status to ...
-    savingFundPaymentRepository.changeStatus(payment.getId(), PROCESSED);
+    savingFundPaymentRepository.changeStatus(payment.getId(), ISSUED);
   }
 }

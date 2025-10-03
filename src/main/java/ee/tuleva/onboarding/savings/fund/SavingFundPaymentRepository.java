@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.CREATED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.FROZEN;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RECEIVED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
@@ -176,7 +177,8 @@ public class SavingFundPaymentRepository {
             CREATED, Set.of(RECEIVED, PROCESSED),
             RECEIVED, Set.of(VERIFIED, FROZEN, TO_BE_RETURNED),
             VERIFIED, Set.of(RESERVED, TO_BE_RETURNED),
-            RESERVED, Set.of(PROCESSED),
+            RESERVED, Set.of(ISSUED),
+            ISSUED, Set.of(PROCESSED),
             PROCESSED, Set.of(),
             FROZEN, Set.of(),
             TO_BE_RETURNED, Set.of(RETURNED),

@@ -44,6 +44,7 @@ public class SavingFundPayment {
     RECEIVED,
     VERIFIED,
     RESERVED,
+    ISSUED,
     PROCESSED,
     FROZEN,
     TO_BE_RETURNED,

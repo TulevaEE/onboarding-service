@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIE
 import static java.util.UUID.randomUUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -111,8 +112,9 @@ class PaymentVerificationServiceTest {
     verify(userRepository).findByPersonalCode("37508295796");
     verify(savingsFundOnboardingService).isOnboardingCompleted(user);
     verify(savingsFundLedger).recordPaymentReceived(user, payment.getAmount(), payment.getId());
-    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
-    verify(savingFundPaymentRepository).attachUser(payment.getId(), 123L);
+    var inOrder = inOrder(savingFundPaymentRepository);
+    inOrder.verify(savingFundPaymentRepository).attachUser(payment.getId(), 123L);
+    inOrder.verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 

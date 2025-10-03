@@ -99,6 +99,156 @@ class IssuingJobTest {
   }
 
   @Test
+  @DisplayName("when running before 16:00, only includes payments from two working days before")
+  void before16TwoWorkingDaysBefore() {
+    var now = Instant.parse("2025-01-10T12:00:00Z"); // friday 3rd january 2025 before 16:00 cutoff
+    var clock = Clock.fixed(now, UTC);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
+
+    var nav = BigDecimal.ONE;
+
+    var reservedPaymentFromTwoDaysBefore =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("500.00"))
+            .currency(Currency.EUR)
+            .description("Monthly contribution")
+            .remitterIban("EE34370400440532013000")
+            .remitterName("John Doe")
+            .remitterIdCode("49002010976")
+            .beneficiaryIban("EE987654321098765432")
+            .beneficiaryName("Tuleva Savings Account")
+            .beneficiaryIdCode("87654321")
+            .externalId("EXT-12345")
+            .receivedBefore(clock.instant().minus(2, DAYS).minus(4, HOURS))
+            .status(RESERVED)
+            .build();
+
+    var reservedPaymentFromTwoDaysBeforeButMadeAfterCutoff =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("500.00"))
+            .currency(Currency.EUR)
+            .description("Monthly contribution")
+            .remitterIban("EE34370400440532013000")
+            .remitterName("John Doe")
+            .remitterIdCode("49002010976")
+            .beneficiaryIban("EE987654321098765432")
+            .beneficiaryName("Tuleva Savings Account")
+            .beneficiaryIdCode("87654321")
+            .externalId("EXT-12345")
+            .receivedBefore(clock.instant().minus(2, DAYS).plus(4, HOURS))
+            .status(RESERVED)
+            .build();
+
+    var reservedPaymentFromYesterday =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("500.00"))
+            .currency(Currency.EUR)
+            .description("Monthly contribution")
+            .remitterIban("EE34370400440532013000")
+            .remitterName("John Doe")
+            .remitterIdCode("49002010976")
+            .beneficiaryIban("EE987654321098765432")
+            .beneficiaryName("Tuleva Savings Account")
+            .beneficiaryIdCode("87654321")
+            .externalId("EXT-12345")
+            .receivedBefore(clock.instant().minus(1, DAYS))
+            .status(RESERVED)
+            .build();
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED))
+        .thenReturn(
+            List.of(
+                reservedPaymentFromTwoDaysBefore,
+                reservedPaymentFromYesterday,
+                reservedPaymentFromTwoDaysBeforeButMadeAfterCutoff));
+
+    issuingJob.runJob();
+
+    verify(issuerService, times(1)).processPayment(reservedPaymentFromTwoDaysBefore, nav);
+    verify(issuerService, never()).processPayment(reservedPaymentFromYesterday, nav);
+    verify(issuerService, never())
+        .processPayment(reservedPaymentFromTwoDaysBeforeButMadeAfterCutoff, nav);
+  }
+
+  @Test
+  @DisplayName("when running on weekend, only includes payments from two working days before")
+  void runOnWeekend() {
+    var now = Instant.parse("2025-01-12T14:00:00Z"); // sunday
+    var clock = Clock.fixed(now, UTC);
+    var issuingJob = new IssuingJob(clock, issuerService, paymentRepository);
+
+    var nav = BigDecimal.ONE;
+
+    var reservedPaymentFromTwoDaysBefore =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("500.00"))
+            .currency(Currency.EUR)
+            .description("Monthly contribution")
+            .remitterIban("EE34370400440532013000")
+            .remitterName("John Doe")
+            .remitterIdCode("49002010976")
+            .beneficiaryIban("EE987654321098765432")
+            .beneficiaryName("Tuleva Savings Account")
+            .beneficiaryIdCode("87654321")
+            .externalId("EXT-12345")
+            .receivedBefore(clock.instant().minus(4, DAYS).minus(4, HOURS))
+            .status(RESERVED)
+            .build();
+
+    var reservedPaymentFromTwoDaysBeforeButMadeAfterCutoff =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("500.00"))
+            .currency(Currency.EUR)
+            .description("Monthly contribution")
+            .remitterIban("EE34370400440532013000")
+            .remitterName("John Doe")
+            .remitterIdCode("49002010976")
+            .beneficiaryIban("EE987654321098765432")
+            .beneficiaryName("Tuleva Savings Account")
+            .beneficiaryIdCode("87654321")
+            .externalId("EXT-12345")
+            .receivedBefore(clock.instant().minus(3, DAYS).plus(4, HOURS))
+            .status(RESERVED)
+            .build();
+
+    var reservedPaymentFromYesterday =
+        SavingFundPayment.builder()
+            .id(UUID.randomUUID())
+            .amount(new BigDecimal("500.00"))
+            .currency(Currency.EUR)
+            .description("Monthly contribution")
+            .remitterIban("EE34370400440532013000")
+            .remitterName("John Doe")
+            .remitterIdCode("49002010976")
+            .beneficiaryIban("EE987654321098765432")
+            .beneficiaryName("Tuleva Savings Account")
+            .beneficiaryIdCode("87654321")
+            .externalId("EXT-12345")
+            .receivedBefore(clock.instant().minus(1, DAYS))
+            .status(RESERVED)
+            .build();
+
+    when(paymentRepository.findPaymentsWithStatus(RESERVED))
+        .thenReturn(
+            List.of(
+                reservedPaymentFromTwoDaysBefore,
+                reservedPaymentFromTwoDaysBeforeButMadeAfterCutoff,
+                reservedPaymentFromYesterday));
+
+    issuingJob.runJob();
+
+    verify(issuerService, times(1)).processPayment(reservedPaymentFromTwoDaysBefore, nav);
+    verify(issuerService, never()).processPayment(reservedPaymentFromYesterday, nav);
+    verify(issuerService, never())
+        .processPayment(reservedPaymentFromTwoDaysBeforeButMadeAfterCutoff, nav);
+  }
+
+  @Test
   @DisplayName(
       "processes RESERVED payments from yesterday before cutoff, ignores those from yesterday made after cutoff")
   void processMessagesPostCutoff() {

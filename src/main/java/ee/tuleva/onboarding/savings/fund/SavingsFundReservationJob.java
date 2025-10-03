@@ -18,9 +18,11 @@ public class SavingsFundReservationJob {
 
   @Scheduled(fixedRateString = "1m")
   public void runJob() {
+    log.info("Running Savings Fund Reservation Job");
     var verifiedPayments = savingFundPaymentRepository.findPaymentsWithStatus(VERIFIED);
     var paymentsToReserve =
         paymentReservationFilterService.filterPaymentsToReserve(verifiedPayments);
+    log.info("Found {} payments to be reserved", paymentsToReserve.size());
 
     paymentsToReserve.forEach(
         payment -> {

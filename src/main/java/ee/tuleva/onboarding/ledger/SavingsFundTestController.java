@@ -8,8 +8,10 @@ import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.AllArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,6 +45,15 @@ public class SavingsFundTestController {
   @PostMapping("/swedbank/statement")
   public void sendSwedbankRequest() {
     swedbankStatementFetcher.sendRequest(DEPOSIT_EUR);
+  }
+
+  @Operation(summary = "Trigger statement request")
+  @PostMapping("/swedbank/statement/historic")
+  public void sendSwedbankRequest(
+      @RequestParam(value = "account") SwedbankStatementFetcher.SwedbankAccount account,
+      @RequestParam(value = "fromDate") @DateTimeFormat(pattern = "YYYY-MM-dd") LocalDate fromDate,
+      @RequestParam(value = "toDate") @DateTimeFormat(pattern = "YYYY-MM-dd") LocalDate toDate) {
+    swedbankStatementFetcher.sendHistoricRequest(account, fromDate, toDate);
   }
 
   @Operation(summary = "Trigger message getter")

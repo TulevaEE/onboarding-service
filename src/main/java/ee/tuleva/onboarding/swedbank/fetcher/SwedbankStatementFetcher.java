@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.swedbank.fetcher;
 
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -49,12 +50,33 @@ public class SwedbankStatementFetcher {
 
     var id = UUID.randomUUID();
     log.info(
-        "Running Swedbank statement request sender for account={} (iban:{}) with id:{}",
+        "Running Swedbank intra day report request sender for account={} (iban:{}) with id:{}",
         account,
         accountIban,
         id);
 
     var requestEntity = swedbankGatewayClient.getIntraDayReportRequestEntity(accountIban, id);
+    swedbankGatewayClient.sendStatementRequest(requestEntity, id);
+  }
+
+  public void sendHistoricRequest(SwedbankAccount account, LocalDate fromDate, LocalDate toDate) {
+    var accountIban =
+        swedbankAccountConfiguration
+            .getAccountIban(account)
+            .orElseThrow(
+                () -> new IllegalStateException("No account iban found for account=" + account));
+
+    var id = UUID.randomUUID();
+    log.info(
+        "Running Swedbank historic statement request sender for account={} (iban:{}) with id:{}; from:{}, to:{}",
+        account,
+        accountIban,
+        id,
+        fromDate,
+        toDate);
+
+    var requestEntity =
+        swedbankGatewayClient.getHistoricReportRequestEntity(accountIban, id, fromDate, toDate);
     swedbankGatewayClient.sendStatementRequest(requestEntity, id);
   }
 }

@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.swedbank.http;
 
 import static ee.swedbank.gateway.iso.request.QueryType3Code.ALLL;
 import static ee.tuleva.onboarding.swedbank.SwedbankGatewayTime.SWEDBANK_GATEWAY_TIME_ZONE;
-import static java.time.temporal.ChronoUnit.DAYS;
 import static org.springframework.http.HttpMethod.DELETE;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpMethod.POST;
@@ -191,8 +190,8 @@ public class SwedbankGatewayClient {
     return objectFactory.createDocument(document);
   }
 
-  public JAXBElement<ee.swedbank.gateway.iso.request.Document>
-      getYesterdaysHistoricReportRequestEntity(String accountIban, UUID messageId) {
+  public JAXBElement<ee.swedbank.gateway.iso.request.Document> getHistoricReportRequestEntity(
+      String accountIban, UUID messageId, LocalDate fromDate, LocalDate toDate) {
     AccountReportingRequestV03 accountReportingRequest = new AccountReportingRequestV03();
 
     GroupHeader59 groupHeader = new GroupHeader59();
@@ -224,8 +223,6 @@ public class SwedbankGatewayClient {
 
     DatePeriodDetails1 datePeriodDetails = new DatePeriodDetails1();
 
-    var fromDate = LocalDate.now(clock).minus(1, DAYS);
-    var toDate = LocalDate.now(clock);
     datePeriodDetails.setFrDt(dateConverter.convert(fromDate));
     datePeriodDetails.setToDt(dateConverter.convert(toDate));
 

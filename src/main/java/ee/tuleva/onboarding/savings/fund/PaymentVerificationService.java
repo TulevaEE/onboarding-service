@@ -79,8 +79,10 @@ public class PaymentVerificationService {
 
     Optional.ofNullable(payment.getUserId())
         .flatMap(userRepository::findById)
-        .ifPresent(user -> applicationEventPublisher.publishEvent(
-                new SavingsPaymentFailedEvent(this, user, Locale.of("et"))));
+        .ifPresent(
+            user ->
+                applicationEventPublisher.publishEvent(
+                    new SavingsPaymentFailedEvent(this, user, Locale.of("et"))));
   }
 
   Optional<String> extractPersonalCode(String description) {

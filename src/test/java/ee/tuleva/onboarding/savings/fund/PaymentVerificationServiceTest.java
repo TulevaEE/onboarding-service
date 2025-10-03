@@ -136,6 +136,23 @@ class PaymentVerificationServiceTest {
   }
 
   @Test
+  void process_success_ignoreOtherValueInRemitterIdCode() {
+    var payment = createPayment("P1234", "to user 37508295796");
+    var user = User.builder().id(444L).firstName("PÄRT").lastName("ÕLEKÕRS").build();
+    when(userRepository.findByPersonalCode(any())).thenReturn(Optional.of(user));
+    when(savingsFundOnboardingService.isOnboardingCompleted(any())).thenReturn(true);
+
+    service.process(payment);
+
+    verify(userRepository).findByPersonalCode("37508295796");
+    verify(savingsFundOnboardingService).isOnboardingCompleted(user);
+    verify(savingsFundLedger).recordPaymentReceived(user, payment.getAmount(), payment.getId());
+    verify(savingFundPaymentRepository).changeStatus(payment.getId(), VERIFIED);
+    verify(savingFundPaymentRepository).attachUser(payment.getId(), 444L);
+    verifyNoMoreInteractions(savingFundPaymentRepository);
+  }
+
+  @Test
   void process_success_allowNameMismatchIfRemitterIdCodeMatches() {
     var payment = createPayment("37508295796", "to user 37508295796");
     var user = User.builder().id(123L).firstName("KEEGI").lastName("TEINE").build();

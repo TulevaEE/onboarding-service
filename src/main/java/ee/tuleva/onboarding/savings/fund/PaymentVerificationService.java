@@ -31,7 +31,7 @@ public class PaymentVerificationService {
   public void process(SavingFundPayment payment) {
     log.info("Processing payment {}", payment.getId());
 
-    var remitterPersonalCodeProvided = payment.getRemitterIdCode() != null;
+    var remitterPersonalCodeProvided = extractPersonalCode(payment.getRemitterIdCode()).isPresent();
 
     var personalCodeFromDescription = extractPersonalCode(payment.getDescription());
     if (personalCodeFromDescription.isEmpty()) {

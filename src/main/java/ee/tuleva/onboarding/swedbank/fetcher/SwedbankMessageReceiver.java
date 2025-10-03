@@ -21,7 +21,7 @@ public class SwedbankMessageReceiver {
     return swedbankMessageRepository.findById(id);
   }
 
-  @Scheduled(cron = "0 */15 9-17 * * MON-FRI")
+  @Scheduled(fixedRateString = "1m")
   public void getResponses() {
     getResponse();
   }

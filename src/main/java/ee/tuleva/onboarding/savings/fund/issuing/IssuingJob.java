@@ -27,7 +27,7 @@ public class IssuingJob {
   private final IssuerService issuerService;
   private final SavingFundPaymentRepository savingFundPaymentRepository;
 
-  @Scheduled(fixedRateString = "5m")
+  @Scheduled(fixedRateString = "1m")
   public void runJob() {
     var payments = getReservedPaymentsDependingOnCurrentTime();
     var nav = getNAV();

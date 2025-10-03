@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.auth.UserFixture.sampleUser;
-import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RESERVED;
 import static ee.tuleva.onboarding.time.TestClockHolder.clock;
 import static java.math.BigDecimal.ONE;
@@ -72,6 +72,6 @@ class IssuerServiceTest {
     var issuedUnits = paymentAmount.divide(nav, 5, HALF_DOWN);
     verify(savingsFundLedger, times(1)).issueFundUnitsFromReserved(user, TEN, issuedUnits, nav);
     verify(savingFundPaymentRepository, times(1))
-        .changeStatus(reservedPaymentFromYesterday.getId(), PROCESSED);
+        .changeStatus(reservedPaymentFromYesterday.getId(), ISSUED);
   }
 }

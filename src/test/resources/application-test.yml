@@ -58,4 +58,4 @@ swedbank-gateway:
   accounts:
     "deposit_eur": 'EE442200221092874625'
     "withdrawal_eur": 'EE987700771001802057'
-    "fund_investment_eur": 'EE123456789012345678'
+    "investment_eur": 'EE123456789012345678'

@@ -5,6 +5,7 @@ import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.*;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,7 +18,7 @@ public class SavingFundPaymentUpsertionService {
   private final SavingFundPaymentRepository repository;
   private final SavingFundPaymentDeadlinesService savingFundPaymentDeadlinesService;
 
-  public void upsert(SavingFundPayment payment) {
+  public void upsert(SavingFundPayment payment, Consumer<SavingFundPayment> onInsert) {
     // Check if payment with this external ID already exists
     if (payment.getExternalId() != null) {
       var existingById = repository.findByExternalId(payment.getExternalId());
@@ -29,9 +30,20 @@ public class SavingFundPaymentUpsertionService {
       }
     }
 
-    UUID paymentId = upsertPayment(payment);
+    var existingPayment = findExistingPayment(payment);
+    UUID paymentId;
 
-    // Outgoing payments (amount <= 0) go directly to PROCESSED, no need to process further
+    if (existingPayment.isPresent()) {
+      log.info("Found existing payment, updating: {}", existingPayment.get().getId());
+      updatePayment(existingPayment.get(), payment);
+      paymentId = existingPayment.get().getId();
+    } else {
+      log.info("No existing payment found, inserting new payment");
+      paymentId = repository.savePaymentData(payment);
+      onInsert.accept(payment);
+    }
+
+    // Incoming payments (amount > 0) go to RECEIVED, outgoing/zero go directly to PROCESSED
     var status = payment.getAmount().compareTo(BigDecimal.ZERO) > 0 ? RECEIVED : PROCESSED;
     repository.changeStatus(paymentId, status);
   }
@@ -54,21 +66,6 @@ public class SavingFundPaymentUpsertionService {
       throw new IllegalStateException("Payment cancellation deadline has passed");
     }
     repository.cancel(paymentId);
-  }
-
-  private UUID upsertPayment(SavingFundPayment payment) {
-    var existingPayment = findExistingPayment(payment);
-    UUID paymentId;
-
-    if (existingPayment.isPresent()) {
-      log.info("Found existing payment, updating: {}", existingPayment.get().getId());
-      updatePayment(existingPayment.get(), payment);
-      paymentId = existingPayment.get().getId();
-    } else {
-      log.info("No existing payment found, inserting new payment");
-      paymentId = repository.savePaymentData(payment);
-    }
-    return paymentId;
   }
 
   private Optional<SavingFundPayment> findExistingPayment(SavingFundPayment payment) {

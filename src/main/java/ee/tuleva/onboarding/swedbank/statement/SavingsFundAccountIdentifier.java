@@ -23,6 +23,10 @@ public class SavingsFundAccountIdentifier {
   }
 
   public boolean isAccountType(String iban, BankAccountType type) {
+    if (iban == null) {
+      return false;
+    }
+
     return identifyAccountType(iban).map(accountType -> accountType == type).orElse(false);
   }
 }

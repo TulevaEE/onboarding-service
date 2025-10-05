@@ -1,11 +1,15 @@
 package ee.tuleva.onboarding.swedbank.processor;
 
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 
+import ee.tuleva.onboarding.ledger.SavingsFundLedger;
+import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.swedbank.statement.SavingsFundAccountIdentifier;
 import ee.tuleva.onboarding.swedbank.statement.SwedbankBankStatementExtractor;
+import java.math.BigDecimal;
 import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +25,7 @@ class SwedbankBankStatementMessageProcessor {
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentUpsertionService paymentService;
   private final SavingsFundAccountIdentifier savingsFundAccountIdentifier;
+  private final SavingsFundLedger savingsFundLedger;
   private final Clock clock;
 
   @Transactional
@@ -52,8 +57,24 @@ class SwedbankBankStatementMessageProcessor {
 
     log.info("Successfully extracted {} payments from a bank statement", payments.size());
 
-    payments.forEach(paymentService::upsert);
+    payments.forEach(payment -> paymentService.upsert(payment, this::handleInsertedPayment));
 
     log.info("Successfully upserted {} payments", payments.size());
+  }
+
+  private void handleInsertedPayment(SavingFundPayment payment) {
+    // For new outgoing payments to fund investment account, create ledger entry
+    if (isOutgoingToFundAccount(payment)) {
+      log.info(
+          "Creating ledger entry for transfer to fund investment account: {}",
+          payment.getAmount().negate());
+      savingsFundLedger.transferToFundAccount(payment.getAmount().negate());
+    }
+  }
+
+  private boolean isOutgoingToFundAccount(SavingFundPayment payment) {
+    return payment.getAmount().compareTo(BigDecimal.ZERO) < 0
+        && savingsFundAccountIdentifier.isAccountType(
+            payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
   }
 }

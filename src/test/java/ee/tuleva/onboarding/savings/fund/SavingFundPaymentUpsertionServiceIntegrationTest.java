@@ -1,10 +1,15 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
+import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.currency.Currency;
+import ee.tuleva.onboarding.ledger.LedgerService;
+import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessage;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageRepository;
+import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount;
 import ee.tuleva.onboarding.swedbank.processor.SwedbankMessageDelegator;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
@@ -28,6 +33,8 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   @Autowired private SavingFundPaymentRepository repository;
   @Autowired private SwedbankMessageRepository swedbankMessageRepository;
   @Autowired private SwedbankMessageDelegator delegator;
+  @Autowired private LedgerService ledgerService;
+  @Autowired private SwedbankAccountConfiguration swedbankAccountConfiguration;
 
   private static final Instant NOW = Instant.parse("2025-10-01T12:00:00Z");
 
@@ -300,6 +307,73 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
     assertThat(savedPayment.getAmount()).isEqualByComparingTo(BigDecimal.ZERO);
     assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.PROCESSED);
     assertThat(savedPayment.getDescription()).isEqualTo("Zero payment");
+  }
+
+  @Test
+  void outgoingPaymentToInvestmentAccountCreatesLedgerEntry() {
+    // given - get the actual INVESTMENT_EUR IBAN from configuration
+    var investmentIban =
+        swedbankAccountConfiguration.getAccountIban(SwedbankAccount.INVESTMENT_EUR).orElseThrow();
+
+    // and - XML with outgoing DEBIT transaction to INVESTMENT_EUR account
+    var outgoingToInvestmentXml =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+            + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
+            + "<BkToCstmrAcctRpt> "
+            + "<GrpHdr> <MsgId>test</MsgId> <CreDtTm>2025-10-01T12:00:00</CreDtTm> </GrpHdr> "
+            + "<Rpt> "
+            + "<Id>test-investment</Id> "
+            + "<CreDtTm>2025-10-01T12:00:00</CreDtTm> "
+            + "<FrToDt> "
+            + "<FrDtTm>2025-10-01T00:00:00</FrDtTm> "
+            + "<ToDtTm>2025-10-01T12:00:00</ToDtTm> "
+            + "</FrToDt> "
+            + "<Acct> "
+            + "<Id> <IBAN>EE442200221092874625</IBAN> </Id> "
+            + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
+            + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> "
+            + "</Ownr> "
+            + "</Acct> "
+            + "<Ntry> "
+            + "<NtryRef>2025100112350-1</NtryRef>"
+            + "<Amt Ccy=\"EUR\">100.50</Amt> "
+            + "<CdtDbtInd>DBIT</CdtDbtInd> "
+            + "<Sts>BOOK</Sts> "
+            + "<BookgDt> <Dt>2025-10-01</Dt> </BookgDt> "
+            + "<NtryDtls> <TxDtls> "
+            + "<Refs> <AcctSvcrRef>2025100112350-1</AcctSvcrRef> </Refs> "
+            + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">100.50</Amt> </TxAmt> </AmtDtls> "
+            + "<RltdPties> "
+            + "<Cdtr> <Nm>Tuleva Fondid AS</Nm> </Cdtr> "
+            + "<CdtrAcct> <Id> <IBAN>"
+            + investmentIban
+            + "</IBAN> </Id> </CdtrAcct> "
+            + "</RltdPties> "
+            + "<RmtInf> <Ustrd>Transfer to investment account</Ustrd> </RmtInf> "
+            + "</TxDtls> </NtryDtls> "
+            + "</Ntry> "
+            + "</Rpt> "
+            + "</BkToCstmrAcctRpt> "
+            + "</Document>";
+
+    // when
+    processXmlMessage(outgoingToInvestmentXml);
+
+    // then - payment is created and marked as PROCESSED
+    assertThat(repository.findAll()).hasSize(1);
+    var savedPayment = repository.findAll().getFirst();
+    assertThat(savedPayment.getAmount()).isEqualByComparingTo(new BigDecimal("-100.50"));
+    assertThat(savedPayment.getStatus()).isEqualTo(SavingFundPayment.Status.PROCESSED);
+    assertThat(savedPayment.getBeneficiaryIban()).isEqualTo(investmentIban);
+
+    // and - ledger entry is created: INCOMING_PAYMENTS_CLEARING decreases,
+    // FUND_INVESTMENT_CASH_CLEARING increases
+    var incomingPaymentsAccount = ledgerService.getSystemAccount(INCOMING_PAYMENTS_CLEARING);
+    var fundInvestmentAccount = ledgerService.getSystemAccount(FUND_INVESTMENT_CASH_CLEARING);
+
+    assertThat(incomingPaymentsAccount.getBalance())
+        .isEqualByComparingTo(new BigDecimal("-100.50"));
+    assertThat(fundInvestmentAccount.getBalance()).isEqualByComparingTo(new BigDecimal("100.50"));
   }
 
   @Nested

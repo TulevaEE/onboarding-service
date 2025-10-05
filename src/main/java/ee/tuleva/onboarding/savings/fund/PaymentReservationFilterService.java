@@ -2,7 +2,6 @@ package ee.tuleva.onboarding.savings.fund;
 
 import ee.tuleva.onboarding.deadline.PublicHolidays;
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
@@ -19,8 +18,8 @@ public class PaymentReservationFilterService {
   private final PublicHolidays publicHolidays;
 
   public List<SavingFundPayment> filterPaymentsToReserve(List<SavingFundPayment> payments) {
-    var cutoffTime = getCutoffTime();
-    var oldPaymentThreshold = cutoffTime.minus(Duration.ofHours(24));
+    var cutoffTime = getCutoffTime(clock.instant());
+    var previousCutoffTime = getCutoffTime(cutoffTime.minusSeconds(1));
 
     var paymentsToReserve =
         payments.stream()
@@ -31,9 +30,9 @@ public class PaymentReservationFilterService {
 
     paymentsToReserve.forEach(
         payment -> {
-          if (payment.getReceivedBefore().isBefore(oldPaymentThreshold)) {
+          if (payment.getReceivedBefore().isBefore(previousCutoffTime)) {
             log.error(
-                "Old payment detected: payment {} was received at {} which is more than 24 hours before cutoff time {}",
+                "Old payment detected: payment {} was received at {} which is before the previous cutoff time {}",
                 payment.getId(),
                 payment.getReceivedBefore(),
                 cutoffTime);
@@ -43,13 +42,13 @@ public class PaymentReservationFilterService {
     return paymentsToReserve;
   }
 
-  private Instant getCutoffTime() {
+  private Instant getCutoffTime(Instant now) {
     var estonianZone = ZoneId.of("Europe/Tallinn");
-    var now = clock.instant().atZone(estonianZone);
-    var today = now.toLocalDate();
+    var nowZoned = now.atZone(estonianZone);
+    var today = nowZoned.toLocalDate();
 
     // If today is a working day and it's after 16:00, use today at 16:00
-    if (publicHolidays.isWorkingDay(today) && now.getHour() >= 16) {
+    if (publicHolidays.isWorkingDay(today) && nowZoned.getHour() >= 16) {
       return today.atTime(16, 0).atZone(estonianZone).toInstant();
     }
 

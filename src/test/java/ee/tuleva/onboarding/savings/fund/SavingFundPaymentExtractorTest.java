@@ -143,6 +143,80 @@ class SavingFundPaymentExtractorTest {
         .hasMessage("Bank transfer currency not supported: USD");
   }
 
+  @Test
+  void extractPayments_shouldNormalizeAmountWithTrailingZeros() {
+    // given - amount with trailing zeros (150.100 should become 150.10)
+    var account =
+        createBankStatementAccount("EE442200221092874625", "TULEVA FONDID AS", "14118923");
+
+    var creditEntry =
+        createCreditEntry(
+            new BigDecimal("150.100"),
+            "EE157700771001802057",
+            "Test Person",
+            "12345678901",
+            "Test payment",
+            "test-ref");
+
+    var statement = createBankStatement(account, List.of(creditEntry));
+
+    // when
+    List<SavingFundPayment> payments = extractor.extractPayments(statement);
+
+    // then
+    assertThat(payments).hasSize(1);
+    assertThat(payments.get(0).getAmount()).isEqualByComparingTo(new BigDecimal("150.10"));
+    assertThat(payments.get(0).getAmount().scale()).isEqualTo(2);
+  }
+
+  @Test
+  void extractPayments_shouldThrowExceptionForMoreThan2SignificantDecimalPlaces() {
+    // given - amount with more than 2 significant decimal places (150.101)
+    var account =
+        createBankStatementAccount("EE442200221092874625", "TULEVA FONDID AS", "14118923");
+
+    var creditEntry =
+        createCreditEntry(
+            new BigDecimal("150.101"),
+            "EE157700771001802057",
+            "Test Person",
+            "12345678901",
+            "Test payment",
+            "test-ref");
+
+    var statement = createBankStatement(account, List.of(creditEntry));
+
+    // when & then
+    assertThatThrownBy(() -> extractor.extractPayments(statement))
+        .isInstanceOf(PaymentProcessingException.class)
+        .hasMessageContaining("Amount has more than 2 significant decimal places: 150.101");
+  }
+
+  @Test
+  void extractPayments_shouldAcceptExactly2DecimalPlaces() {
+    // given - amount with exactly 2 decimal places
+    var account =
+        createBankStatementAccount("EE442200221092874625", "TULEVA FONDID AS", "14118923");
+
+    var creditEntry =
+        createCreditEntry(
+            new BigDecimal("150.10"),
+            "EE157700771001802057",
+            "Test Person",
+            "12345678901",
+            "Test payment",
+            "test-ref");
+
+    var statement = createBankStatement(account, List.of(creditEntry));
+
+    // when
+    List<SavingFundPayment> payments = extractor.extractPayments(statement);
+
+    // then
+    assertThat(payments).hasSize(1);
+    assertThat(payments.get(0).getAmount()).isEqualByComparingTo(new BigDecimal("150.10"));
+  }
+
   // Helper methods for manual BankStatement construction
 
   private BankStatement createBankStatement(

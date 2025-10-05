@@ -5,6 +5,7 @@ import ee.tuleva.onboarding.swedbank.statement.BankStatement;
 import ee.tuleva.onboarding.swedbank.statement.BankStatementAccount;
 import ee.tuleva.onboarding.swedbank.statement.BankStatementEntry;
 import ee.tuleva.onboarding.swedbank.statement.TransactionType;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -47,13 +48,22 @@ public class SavingFundPaymentExtractor {
 
     var currency = Currency.EUR;
 
+    // Normalize amount to 2 decimal places for EUR (e.g., 150.100 -> 150.10)
+    var normalizedAmount = entry.amount().setScale(2, RoundingMode.DOWN);
+
+    // Ensure we're not losing precision
+    if (entry.amount().compareTo(normalizedAmount) != 0) {
+      throw new PaymentProcessingException(
+          "Amount has more than 2 significant decimal places: " + entry.amount());
+    }
+
     var counterParty = entry.details();
 
     // For CREDIT: counterparty is remitter, account holder is beneficiary
     // For DEBIT: account holder is remitter, counterparty is beneficiary
     var builder =
         SavingFundPayment.builder()
-            .amount(entry.amount())
+            .amount(normalizedAmount)
             .currency(currency)
             .description(entry.remittanceInformation())
             .externalId(entry.externalId())

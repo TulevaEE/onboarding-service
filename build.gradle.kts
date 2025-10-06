@@ -23,7 +23,7 @@ val springCloudVersion = "2025.0.0"
 plugins {
     java
     groovy
-    id("org.springframework.boot") version "3.5.5"
+    id("org.springframework.boot") version "3.5.6"
     id("io.spring.dependency-management") version "1.1.7"
     id("com.gorylenko.gradle-git-properties") version "2.5.3"
     id("com.diffplug.spotless") version "7.2.1"
@@ -32,7 +32,7 @@ plugins {
 }
 
 lombok {
-    version = "1.18.38"
+    version = "1.18.42"
 }
 
 spotless {
@@ -103,8 +103,8 @@ dependencies {
     implementation("org.apache.commons:commons-lang3")
     implementation("org.springframework.boot:spring-boot-starter-cache")
     implementation("org.decampo:xirr:1.2")
-    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.7")
-    implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.2")
+    implementation("org.eclipse.persistence:org.eclipse.persistence.moxy:4.0.8")
+    implementation("jakarta.xml.bind:jakarta.xml.bind-api:4.0.4")
 
     xjc("org.glassfish.jaxb:jaxb-xjc:4.0.5")
 
@@ -120,8 +120,8 @@ dependencies {
     }
     implementation("org.apache.httpcomponents.client5:httpclient5")
 
-    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.21.1")
-    implementation("io.sentry:sentry-logback:8.21.1")
+    implementation("io.sentry:sentry-spring-boot-starter-jakarta:8.23.0")
+    implementation("io.sentry:sentry-logback:8.23.0")
 
     implementation("io.hypersistence:hypersistence-utils-hibernate-63:3.11.0")
 

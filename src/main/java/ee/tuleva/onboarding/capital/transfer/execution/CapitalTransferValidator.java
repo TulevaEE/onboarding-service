@@ -1,6 +1,5 @@
 package ee.tuleva.onboarding.capital.transfer.execution;
 
-import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
@@ -10,9 +9,7 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -29,8 +26,9 @@ public class CapitalTransferValidator {
           MemberCapitalEventType.WORK_COMPENSATION,
           MemberCapitalEventType.CAPITAL_ACQUIRED);
 
+  private static final BigDecimal ROUNDING_TOLERANCE = new BigDecimal("0.01");
+
   private final MemberCapitalEventRepository memberCapitalEventRepository;
-  private final AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
 
   public void validateContract(CapitalTransferContract contract) {
     if (contract == null) {
@@ -50,23 +48,33 @@ public class CapitalTransferValidator {
     List<MemberCapitalEvent> sellerEvents =
         memberCapitalEventRepository.findAllByMemberId(sellerId);
 
-    BigDecimal ownershipUnitPrice = getCurrentOwnershipUnitPrice();
-    Map<MemberCapitalEventType, BigDecimal> availableCapitalByType =
-        calculateAvailableCapital(sellerEvents, ownershipUnitPrice);
-
     for (CapitalTransferAmount transferAmount : contract.getTransferAmounts()) {
       if (shouldSkipTransfer(transferAmount)) {
         continue;
       }
 
       BigDecimal availableCapital =
-          availableCapitalByType.getOrDefault(transferAmount.type(), BigDecimal.ZERO);
+          calculateAvailableCapitalForType(
+              sellerEvents, transferAmount.type(), transferAmount.ownershipUnitPrice());
 
-      if (availableCapital.compareTo(transferAmount.bookValue()) < 0) {
+      BigDecimal difference = availableCapital.subtract(transferAmount.bookValue());
+
+      if (difference.compareTo(BigDecimal.ZERO) < 0
+          && difference.compareTo(ROUNDING_TOLERANCE.negate()) >= 0) {
+        log.info(
+            "Capital validation passed with rounding tolerance for type {}. "
+                + "Available: {}, Required: {}, Difference: {}",
+            transferAmount.type(),
+            availableCapital,
+            transferAmount.bookValue(),
+            difference);
+      }
+
+      if (difference.compareTo(ROUNDING_TOLERANCE.negate()) < 0) {
         throw new IllegalStateException(
             String.format(
-                "Seller has insufficient %s capital. Available: %s, Required: %s",
-                transferAmount.type(), availableCapital, transferAmount.bookValue()));
+                "Seller has insufficient %s capital. Available: %s, Required: %s (difference: %s)",
+                transferAmount.type(), availableCapital, transferAmount.bookValue(), difference));
       }
     }
   }
@@ -76,29 +84,18 @@ public class CapitalTransferValidator {
         || transferAmount.bookValue().compareTo(BigDecimal.ZERO) == 0;
   }
 
-  private Map<MemberCapitalEventType, BigDecimal> calculateAvailableCapital(
-      List<MemberCapitalEvent> events, BigDecimal ownershipUnitPrice) {
+  private BigDecimal calculateAvailableCapitalForType(
+      List<MemberCapitalEvent> events, MemberCapitalEventType type, BigDecimal ownershipUnitPrice) {
 
     return events.stream()
+        .filter(event -> event.getType() == type)
         .filter(event -> SELLABLE_CAPITAL_TYPES.contains(event.getType()))
-        .collect(
-            Collectors.groupingBy(
-                MemberCapitalEvent::getType,
-                Collectors.mapping(
-                    event ->
-                        event
-                            .getOwnershipUnitAmount()
-                            .multiply(ownershipUnitPrice)
-                            .setScale(5, RoundingMode.HALF_UP),
-                    Collectors.reducing(BigDecimal.ZERO, BigDecimal::add))));
-  }
-
-  private BigDecimal getCurrentOwnershipUnitPrice() {
-    return aggregatedCapitalEventRepository
-        .findLatestOwnershipUnitPrice()
-        .orElseThrow(
-            () ->
-                new IllegalStateException(
-                    "No aggregated capital events found - ownership unit price cannot be determined"));
+        .map(
+            event ->
+                event
+                    .getOwnershipUnitAmount()
+                    .multiply(ownershipUnitPrice)
+                    .setScale(5, RoundingMode.HALF_UP))
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 }

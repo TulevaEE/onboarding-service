@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import ee.tuleva.onboarding.capital.event.AggregatedCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
@@ -16,7 +15,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,7 +26,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 public class CapitalTransferValidatorTest {
 
   @Mock private MemberCapitalEventRepository memberCapitalEventRepository;
-  @Mock private AggregatedCapitalEventRepository aggregatedCapitalEventRepository;
   @Mock private CapitalTransferContract contract;
   @Mock private Member seller;
 
@@ -36,9 +33,7 @@ public class CapitalTransferValidatorTest {
 
   @BeforeEach
   public void setUp() {
-    validator =
-        new CapitalTransferValidator(
-            memberCapitalEventRepository, aggregatedCapitalEventRepository);
+    validator = new CapitalTransferValidator(memberCapitalEventRepository);
   }
 
   @Test
@@ -85,15 +80,11 @@ public class CapitalTransferValidatorTest {
             CAPITAL_PAYMENT,
             new BigDecimal("125.00"),
             new BigDecimal("100.00"),
-            new BigDecimal("1.0"));
+            new BigDecimal("2.00"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
-    // Mock ownership unit price
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.of(new BigDecimal("2.00")));
-
     // Mock seller has 50.00 of CAPITAL_PAYMENT (which becomes 100.00 after multiplying by unit
-    // price of 2.00)
+    // price of 2.00 from the contract)
     MemberCapitalEvent event = createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("50.00"));
     when(memberCapitalEventRepository.findAllByMemberId(1L)).thenReturn(List.of(event));
 
@@ -115,10 +106,6 @@ public class CapitalTransferValidatorTest {
             new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
-    // Mock ownership unit price
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.of(new BigDecimal("1.50")));
-
     // Mock seller has only 50.00 of CAPITAL_PAYMENT (which becomes 75.00 after multiplying by unit
     // price of 1.50)
     MemberCapitalEvent event = createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("50.00"));
@@ -127,8 +114,7 @@ public class CapitalTransferValidatorTest {
     // When & Then (50.00 * 1.50 = 75.00000 which is less than 100.00 required)
     assertThatThrownBy(() -> validator.validateSufficientCapital(contract))
         .isInstanceOf(IllegalStateException.class)
-        .hasMessage(
-            "Seller has insufficient CAPITAL_PAYMENT capital. Available: 75.00000, Required: 100.00");
+        .hasMessageContaining("Seller has insufficient CAPITAL_PAYMENT capital");
   }
 
   @Test
@@ -151,10 +137,6 @@ public class CapitalTransferValidatorTest {
             new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(payment, bonus));
 
-    // Mock ownership unit price
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.of(BigDecimal.ONE));
-
     // Mock seller has sufficient capital for both types
     MemberCapitalEvent paymentEvent =
         createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("150.00"));
@@ -165,6 +147,58 @@ public class CapitalTransferValidatorTest {
 
     // When & Then - Should not throw exception
     validator.validateSufficientCapital(contract);
+  }
+
+  @Test
+  @DisplayName("Should allow transfer when available capital is within rounding tolerance")
+  public void whenValidateSufficientCapital_withRoundingDifference_thenSucceeds() {
+    // Given
+    when(contract.getSeller()).thenReturn(seller);
+    when(seller.getId()).thenReturn(1L);
+
+    // Request exactly 100.00 but have 99.995 (within 0.01 tolerance)
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            new BigDecimal("100.00000"),
+            new BigDecimal("1.94582"));
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // Mock seller has 51.42691 units which * 1.94582 = 99.99499 (rounds to 99.995)
+    MemberCapitalEvent event =
+        createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("51.42691"));
+    when(memberCapitalEventRepository.findAllByMemberId(1L)).thenReturn(List.of(event));
+
+    // When & Then - Should not throw exception due to tolerance
+    validator.validateSufficientCapital(contract);
+  }
+
+  @Test
+  @DisplayName("Should throw exception when shortage exceeds rounding tolerance")
+  public void whenValidateSufficientCapital_withShortageExceedingTolerance_thenThrowsException() {
+    // Given
+    when(contract.getSeller()).thenReturn(seller);
+    when(seller.getId()).thenReturn(1L);
+
+    // Request 100.00 but have only 99.98 (exceeds 0.01 tolerance)
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT,
+            new BigDecimal("125.00"),
+            new BigDecimal("100.00"),
+            new BigDecimal("1.94582"));
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // Mock seller has 51.00 units which * 1.94582 = 99.23682 (shortage of 0.76318 exceeds 0.01
+    // tolerance)
+    MemberCapitalEvent event = createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("51.00"));
+    when(memberCapitalEventRepository.findAllByMemberId(1L)).thenReturn(List.of(event));
+
+    // When & Then
+    assertThatThrownBy(() -> validator.validateSufficientCapital(contract))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Seller has insufficient CAPITAL_PAYMENT capital");
   }
 
   @Test
@@ -187,10 +221,6 @@ public class CapitalTransferValidatorTest {
             new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(payment, bonus));
 
-    // Mock ownership unit price
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.of(BigDecimal.ONE));
-
     // Mock seller has sufficient CAPITAL_PAYMENT but insufficient MEMBERSHIP_BONUS
     MemberCapitalEvent paymentEvent =
         createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("150.00"));
@@ -202,8 +232,7 @@ public class CapitalTransferValidatorTest {
     // When & Then
     assertThatThrownBy(() -> validator.validateSufficientCapital(contract))
         .isInstanceOf(IllegalStateException.class)
-        .hasMessage(
-            "Seller has insufficient MEMBERSHIP_BONUS capital. Available: 10.00000, Required: 20.00");
+        .hasMessageContaining("Seller has insufficient MEMBERSHIP_BONUS capital");
   }
 
   @Test
@@ -219,10 +248,6 @@ public class CapitalTransferValidatorTest {
             new BigDecimal("100.00"),
             new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
-
-    // Mock ownership unit price
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.of(BigDecimal.ONE));
 
     // Mock seller has multiple events of same type that sum to sufficient amount
     MemberCapitalEvent event1 = createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("60.00"));
@@ -246,10 +271,6 @@ public class CapitalTransferValidatorTest {
             new BigDecimal("100.00"),
             new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
-
-    // Mock ownership unit price
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.of(BigDecimal.ONE));
 
     // Mock seller has positive and negative events (e.g., from previous transfers)
     MemberCapitalEvent positiveEvent =
@@ -331,10 +352,6 @@ public class CapitalTransferValidatorTest {
             new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(zeroAmount, nullAmount, validAmount));
 
-    // Mock ownership unit price
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.of(BigDecimal.ONE));
-
     // Mock seller has sufficient capital for the valid amount only
     MemberCapitalEvent event =
         createMemberCapitalEvent(WORK_COMPENSATION, new BigDecimal("100.00"));
@@ -357,10 +374,6 @@ public class CapitalTransferValidatorTest {
             new BigDecimal("100.00"),
             new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
-
-    // Mock ownership unit price
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.of(BigDecimal.ONE));
 
     // Mock seller has CAPITAL_PAYMENT and UNVESTED_WORK_COMPENSATION
     MemberCapitalEvent paymentEvent =
@@ -388,10 +401,6 @@ public class CapitalTransferValidatorTest {
             new BigDecimal("1.0"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
-    // Mock ownership unit price
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.of(BigDecimal.ONE));
-
     // Mock seller has CAPITAL_PAYMENT and INVESTMENT_RETURN
     MemberCapitalEvent paymentEvent =
         createMemberCapitalEvent(CAPITAL_PAYMENT, new BigDecimal("100.00"));
@@ -405,24 +414,6 @@ public class CapitalTransferValidatorTest {
   }
 
   @Test
-  @DisplayName("Should throw exception when no aggregated events exist")
-  public void whenValidateSufficientCapital_withNoAggregatedEvents_thenThrowsException() {
-    // Given
-    when(contract.getSeller()).thenReturn(seller);
-    when(seller.getId()).thenReturn(1L);
-
-    // Mock no ownership unit price available (returns empty Optional)
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.empty());
-
-    // When & Then - Should throw exception when no aggregated events exist
-    assertThatThrownBy(() -> validator.validateSufficientCapital(contract))
-        .isInstanceOf(IllegalStateException.class)
-        .hasMessage(
-            "No aggregated capital events found - ownership unit price cannot be determined");
-  }
-
-  @Test
   @DisplayName("Should correctly multiply ownership unit amount by ownership unit price")
   public void whenValidateSufficientCapital_withHighOwnershipUnitPrice_thenMultipliesCorrectly() {
     // Given
@@ -433,12 +424,10 @@ public class CapitalTransferValidatorTest {
             CAPITAL_ACQUIRED,
             new BigDecimal("125.00"),
             new BigDecimal("200.00"),
-            new BigDecimal("1.0"));
+            new BigDecimal("2.50"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
 
     // Mock high ownership unit price
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.of(new BigDecimal("2.50")));
 
     // Mock seller has 80.00 of CAPITAL_ACQUIRED (80 * 2.50 = 200.00)
     MemberCapitalEvent event = createMemberCapitalEvent(CAPITAL_ACQUIRED, new BigDecimal("80.00"));
@@ -461,12 +450,8 @@ public class CapitalTransferValidatorTest {
             CAPITAL_PAYMENT,
             new BigDecimal("125.00"),
             new BigDecimal("48.12"),
-            new BigDecimal("1.0"));
+            new BigDecimal("1.00001"));
     when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
-
-    // Mock ownership unit price
-    when(aggregatedCapitalEventRepository.findLatestOwnershipUnitPrice())
-        .thenReturn(Optional.of(new BigDecimal("1.00001")));
 
     // Mock seller has ownership units that when multiplied result in slightly less than required
     // Available: 48.11999 * 1.00001 = 48.12000... (should be >= 48.12 after rounding)

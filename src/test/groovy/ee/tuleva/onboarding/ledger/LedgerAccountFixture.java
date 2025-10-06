@@ -1,18 +1,21 @@
 package ee.tuleva.onboarding.ledger;
 
+import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.SYSTEM_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountPurpose.USER_ACCOUNT;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AccountType.*;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.EUR;
 import static ee.tuleva.onboarding.ledger.LedgerAccount.AssetType.FUND_UNIT;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
+import static java.math.BigDecimal.ZERO;
 
+import ee.tuleva.onboarding.ledger.LedgerAccount.LedgerAccountBuilder;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 
 public class LedgerAccountFixture {
 
-  public static LedgerAccount.LedgerAccountBuilder sampleLedgerAccount() {
+  public static LedgerAccountBuilder sampleLedgerAccount() {
     return LedgerAccount.builder()
         .name(CASH.name())
         .purpose(USER_ACCOUNT)
@@ -29,7 +32,7 @@ public class LedgerAccountFixture {
             .accountType(LIABILITY)
             .build();
 
-    if (balance.compareTo(BigDecimal.ZERO) != 0) {
+    if (balance.compareTo(ZERO) != 0) {
       // Create a transaction and add entry
       LedgerTransaction transaction =
           LedgerTransaction.builder()
@@ -53,7 +56,7 @@ public class LedgerAccountFixture {
             .accountType(LIABILITY)
             .build();
 
-    if (balance.compareTo(BigDecimal.ZERO) != 0) {
+    if (balance.compareTo(ZERO) != 0) {
       LedgerTransaction transaction =
           LedgerTransaction.builder()
               .transactionDate(Instant.now())
@@ -68,6 +71,10 @@ public class LedgerAccountFixture {
   }
 
   public static LedgerAccount cashAccountWithBalance(BigDecimal balance) {
+    return cashAccountWithBalance(balance, Instant.now());
+  }
+
+  public static LedgerAccount cashAccountWithBalance(BigDecimal balance, Instant transactionDate) {
     LedgerAccount account =
         LedgerAccount.builder()
             .name(CASH.name())
@@ -76,10 +83,10 @@ public class LedgerAccountFixture {
             .accountType(LIABILITY)
             .build();
 
-    if (balance.compareTo(BigDecimal.ZERO) != 0) {
+    if (balance.compareTo(ZERO) != 0) {
       LedgerTransaction transaction =
           LedgerTransaction.builder()
-              .transactionDate(Instant.now())
+              .transactionDate(transactionDate)
               .metadata(Map.of("test", "fixture"))
               .build();
 
@@ -99,7 +106,7 @@ public class LedgerAccountFixture {
             .accountType(LIABILITY)
             .build();
 
-    if (balance.compareTo(BigDecimal.ZERO) != 0) {
+    if (balance.compareTo(ZERO) != 0) {
       LedgerTransaction transaction =
           LedgerTransaction.builder()
               .transactionDate(Instant.now())
@@ -122,7 +129,7 @@ public class LedgerAccountFixture {
             .accountType(LIABILITY)
             .build();
 
-    if (balance.compareTo(BigDecimal.ZERO) != 0) {
+    if (balance.compareTo(ZERO) != 0) {
       LedgerTransaction transaction =
           LedgerTransaction.builder()
               .transactionDate(Instant.now())
@@ -145,7 +152,7 @@ public class LedgerAccountFixture {
             .accountType(INCOME)
             .build();
 
-    if (balance.compareTo(BigDecimal.ZERO) != 0) {
+    if (balance.compareTo(ZERO) != 0) {
       LedgerTransaction transaction =
           LedgerTransaction.builder()
               .transactionDate(Instant.now())
@@ -168,7 +175,7 @@ public class LedgerAccountFixture {
             .accountType(EXPENSE)
             .build();
 
-    if (balance.compareTo(BigDecimal.ZERO) != 0) {
+    if (balance.compareTo(ZERO) != 0) {
       LedgerTransaction transaction =
           LedgerTransaction.builder()
               .transactionDate(Instant.now())
@@ -180,5 +187,33 @@ public class LedgerAccountFixture {
     }
 
     return account;
+  }
+
+  public static LedgerAccount systemAccountWithBalance(
+      BigDecimal balance, Instant transactionDate) {
+    LedgerAccount account =
+        LedgerAccount.builder()
+            .name("SYSTEM_TEST_ACCOUNT")
+            .purpose(SYSTEM_ACCOUNT)
+            .assetType(EUR)
+            .accountType(ASSET)
+            .build();
+
+    if (balance.compareTo(ZERO) != 0) {
+      LedgerTransaction transaction =
+          LedgerTransaction.builder()
+              .transactionDate(transactionDate)
+              .metadata(Map.of("test", "fixture", "type", "system"))
+              .build();
+
+      // For ASSET accounts, positive amount = positive balance
+      transaction.addEntry(account, balance);
+    }
+
+    return account;
+  }
+
+  public static LedgerAccount systemAccountWithBalance(BigDecimal balance) {
+    return systemAccountWithBalance(balance, Instant.now());
   }
 }

@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class Reconciliator {
 
-  private LedgerService ledgerService;
+  private final LedgerService ledgerService;
 
   public void reconcile(BankStatement bankStatement) {
     checkBalanceMatch(bankStatement);
@@ -31,7 +31,7 @@ public class Reconciliator {
     var bankBalanceTime =
         closingBankBalance
             .time()
-            .atStartOfDay(ZoneId.of("Estonia/Tallinn"))
+            .atStartOfDay(ZoneId.of("Europe/Tallinn"))
             .with(LocalTime.MAX)
             .toInstant();
 

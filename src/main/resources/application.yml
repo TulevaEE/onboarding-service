@@ -37,6 +37,10 @@ spring:
         jdbc.lob.non_contextual_creation: true
   cache:
     type: simple
+  task:
+    scheduling:
+      pool:
+        size: 5
 
 mandrill:
   url: https://mandrillapp.com/api/1.0

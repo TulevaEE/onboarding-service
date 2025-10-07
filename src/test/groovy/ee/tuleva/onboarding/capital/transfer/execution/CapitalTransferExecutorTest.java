@@ -405,4 +405,226 @@ public class CapitalTransferExecutorTest {
     assertThat(sellerEvent.getType()).isEqualTo(CAPITAL_PAYMENT);
     assertThat(buyerEvent.getType()).isEqualTo(CAPITAL_ACQUIRED);
   }
+
+  @Test
+  @DisplayName("Should clamp to total when transfer amount is within 2 cents of available total")
+  public void whenExecuteTransfer_withAmountWithinTolerance_thenClampsToTotal() {
+    // Given
+    when(contract.getId()).thenReturn(1L);
+    when(contract.getSeller()).thenReturn(seller);
+    when(contract.getBuyer()).thenReturn(buyer);
+    when(seller.getUser()).thenReturn(sampleUser().id(1L).build());
+    when(buyer.getUser()).thenReturn(sampleUser().id(2L).build());
+    when(seller.getId()).thenReturn(101L);
+    when(buyer.getId()).thenReturn(102L);
+
+    // Setup: seller has 100.00400 units available
+    BigDecimal sellerTotalUnits = new BigDecimal("100.00400");
+    BigDecimal sellerTotalFiatValue = new BigDecimal("200.00");
+    BigDecimal ownershipUnitPrice = new BigDecimal("2.00");
+
+    // Transfer requests 100.00000 units (book value 200.00)
+    // Difference is 0.00400 units * 2.00 = 0.008 EUR (less than 0.02 tolerance)
+    BigDecimal bookValue = new BigDecimal("200.00");
+
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalUnits);
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalFiatValue);
+
+    when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
+        .thenAnswer(
+            invocation -> {
+              MemberCapitalEvent event = invocation.getArgument(0);
+              event.setId(System.nanoTime());
+              return event;
+            });
+
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT,
+            new BigDecimal("250.00"), // price
+            bookValue,
+            ownershipUnitPrice);
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // When
+    executor.execute(contract);
+
+    // Then
+    ArgumentCaptor<MemberCapitalEvent> eventCaptor =
+        ArgumentCaptor.forClass(MemberCapitalEvent.class);
+    verify(memberCapitalEventRepository, times(2)).save(eventCaptor.capture());
+
+    List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
+    MemberCapitalEvent sellerEvent = savedEvents.get(0);
+
+    // Verify that the TOTAL available units (100.00400) were used, not the calculated 100.00000
+    assertThat(sellerEvent.getOwnershipUnitAmount()).isEqualTo(sellerTotalUnits.negate());
+
+    // Verify the fiat value was calculated based on the total units
+    // Expected: (200.00 * 100.00400) / 100.00400 = 200.00
+    assertThat(sellerEvent.getFiatValue()).isEqualByComparingTo(sellerTotalFiatValue.negate());
+  }
+
+  @Test
+  @DisplayName("Should not clamp when transfer amount differs by more than 2 cents from total")
+  public void whenExecuteTransfer_withAmountExceedingTolerance_thenDoesNotClamp() {
+    // Given
+    when(contract.getId()).thenReturn(1L);
+    when(contract.getSeller()).thenReturn(seller);
+    when(contract.getBuyer()).thenReturn(buyer);
+    when(seller.getUser()).thenReturn(sampleUser().id(1L).build());
+    when(buyer.getUser()).thenReturn(sampleUser().id(2L).build());
+    when(seller.getId()).thenReturn(101L);
+    when(buyer.getId()).thenReturn(102L);
+
+    // Setup: seller has 100.10000 units available
+    BigDecimal sellerTotalUnits = new BigDecimal("100.10000");
+    BigDecimal sellerTotalFiatValue = new BigDecimal("200.20");
+    BigDecimal ownershipUnitPrice = new BigDecimal("2.00");
+
+    // Transfer requests 100.00000 units (book value 200.00)
+    // Difference is 0.10000 units * 2.00 = 0.20 EUR (exceeds 0.02 tolerance)
+    BigDecimal bookValue = new BigDecimal("200.00");
+    BigDecimal calculatedUnits = new BigDecimal("100.00000");
+
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalUnits);
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalFiatValue);
+
+    when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
+        .thenAnswer(
+            invocation -> {
+              MemberCapitalEvent event = invocation.getArgument(0);
+              event.setId(System.nanoTime());
+              return event;
+            });
+
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT,
+            new BigDecimal("250.00"), // price
+            bookValue,
+            ownershipUnitPrice);
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // When
+    executor.execute(contract);
+
+    // Then
+    ArgumentCaptor<MemberCapitalEvent> eventCaptor =
+        ArgumentCaptor.forClass(MemberCapitalEvent.class);
+    verify(memberCapitalEventRepository, times(2)).save(eventCaptor.capture());
+
+    List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
+    MemberCapitalEvent sellerEvent = savedEvents.get(0);
+
+    // Verify that the CALCULATED units (100.00000) were used, NOT the total (100.10000)
+    assertThat(sellerEvent.getOwnershipUnitAmount()).isEqualTo(calculatedUnits.negate());
+
+    // Verify the fiat value was calculated based on the calculated units
+    // Expected: (200.20 * 100.00000) / 100.10000 = 200.00000 (rounded)
+    BigDecimal expectedFiatValue = new BigDecimal("200.00000");
+    assertThat(sellerEvent.getFiatValue()).isEqualTo(expectedFiatValue.negate());
+  }
+
+  @Test
+  @DisplayName("Should fail when transfer request significantly exceeds available capital")
+  public void whenExecuteTransfer_withLargeOverdraft_thenThrowsException() {
+    // Given
+    when(contract.getSeller()).thenReturn(seller);
+    when(seller.getId()).thenReturn(101L);
+
+    // Setup: seller has only 95.00000 units available
+    BigDecimal sellerTotalUnits = new BigDecimal("95.00000");
+    BigDecimal ownershipUnitPrice = new BigDecimal("2.00");
+
+    // Transfer requests 100.00000 units (book value 200.00)
+    // Overdraft is 5.00000 units * 2.00 = 10.00 EUR (exceeds 0.02 EUR tolerance)
+    BigDecimal bookValue = new BigDecimal("200.00");
+
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalUnits);
+
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT,
+            new BigDecimal("250.00"), // price
+            bookValue,
+            ownershipUnitPrice);
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // When & Then - Should throw exception for large overdraft
+    assertThatThrownBy(() -> executor.execute(contract))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("Transfer request exceeds clamping tolerance of available capital")
+        .hasMessageContaining("Overdraft: 10.00000 EUR")
+        .hasMessageContaining("error in application creation");
+  }
+
+  @Test
+  @DisplayName("Should clamp when transfer request slightly exceeds available capital")
+  public void whenExecuteTransfer_withSmallOverdraft_thenClampsToAvailable() {
+    // Given
+    when(contract.getId()).thenReturn(1L);
+    when(contract.getSeller()).thenReturn(seller);
+    when(contract.getBuyer()).thenReturn(buyer);
+    when(seller.getUser()).thenReturn(sampleUser().id(1L).build());
+    when(buyer.getUser()).thenReturn(sampleUser().id(2L).build());
+    when(seller.getId()).thenReturn(101L);
+    when(buyer.getId()).thenReturn(102L);
+
+    // Setup: seller has 99.99000 units available
+    BigDecimal sellerTotalUnits = new BigDecimal("99.99000");
+    BigDecimal sellerTotalFiatValue = new BigDecimal("199.98");
+    BigDecimal ownershipUnitPrice = new BigDecimal("2.00");
+
+    // Transfer requests 100.00000 units (book value 200.00)
+    // Overdraft is 0.01000 units * 2.00 = 0.02 EUR (exactly at 0.02 tolerance)
+    BigDecimal bookValue = new BigDecimal("200.00");
+
+    when(memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalUnits);
+    when(memberCapitalEventRepository.getTotalFiatValueByMemberIdAndType(101L, CAPITAL_PAYMENT))
+        .thenReturn(sellerTotalFiatValue);
+
+    when(memberCapitalEventRepository.save(any(MemberCapitalEvent.class)))
+        .thenAnswer(
+            invocation -> {
+              MemberCapitalEvent event = invocation.getArgument(0);
+              event.setId(System.nanoTime());
+              return event;
+            });
+
+    CapitalTransferAmount transferAmount =
+        new CapitalTransferAmount(
+            CAPITAL_PAYMENT,
+            new BigDecimal("250.00"), // price
+            bookValue,
+            ownershipUnitPrice);
+    when(contract.getTransferAmounts()).thenReturn(List.of(transferAmount));
+
+    // When
+    executor.execute(contract);
+
+    // Then
+    ArgumentCaptor<MemberCapitalEvent> eventCaptor =
+        ArgumentCaptor.forClass(MemberCapitalEvent.class);
+    verify(memberCapitalEventRepository, times(2)).save(eventCaptor.capture());
+
+    List<MemberCapitalEvent> savedEvents = eventCaptor.getAllValues();
+    MemberCapitalEvent sellerEvent = savedEvents.get(0);
+
+    // Verify that the AVAILABLE units (99.99000) were used, not the requested (100.00000)
+    assertThat(sellerEvent.getOwnershipUnitAmount()).isEqualTo(sellerTotalUnits.negate());
+
+    // Verify the fiat value was calculated based on the available units
+    assertThat(sellerEvent.getFiatValue()).isEqualByComparingTo(sellerTotalFiatValue.negate());
+  }
 }

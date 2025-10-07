@@ -24,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class CapitalTransferExecutor {
 
+  private static final BigDecimal CLAMPING_TOLERANCE = new BigDecimal("0.02");
+
   private final CapitalTransferContractRepository contractRepository;
   private final MemberCapitalEventRepository memberCapitalEventRepository;
   private final CapitalTransferValidator validator;
@@ -48,7 +50,6 @@ public class CapitalTransferExecutor {
       executeTransferAmount(contract, transferAmount, accountingDate);
     }
 
-    // TODO use updateStateBySystem here
     contract.executed();
     contractRepository.save(contract);
 
@@ -84,10 +85,65 @@ public class CapitalTransferExecutor {
       CapitalTransferAmount transferAmount,
       LocalDate accountingDate) {
 
-    BigDecimal totalUnitsToTransfer =
+    BigDecimal requestedUnitsToTransfer =
         transferAmount
             .bookValue()
             .divide(transferAmount.ownershipUnitPrice(), 5, RoundingMode.HALF_UP);
+
+    Long sellerId = contract.getSeller().getId();
+    BigDecimal sellerAvailableUnits =
+        memberCapitalEventRepository.getTotalOwnershipUnitsByMemberIdAndType(
+            sellerId, transferAmount.type());
+
+    BigDecimal totalUnitsToTransfer;
+    if (shouldUseExactTotal(
+        requestedUnitsToTransfer, sellerAvailableUnits, transferAmount.ownershipUnitPrice())) {
+      totalUnitsToTransfer = sellerAvailableUnits;
+
+      BigDecimal difference = requestedUnitsToTransfer.subtract(sellerAvailableUnits);
+      BigDecimal valueDifference =
+          difference
+              .multiply(transferAmount.ownershipUnitPrice())
+              .setScale(5, RoundingMode.HALF_UP);
+
+      if (difference.compareTo(BigDecimal.ZERO) > 0) {
+        log.warn(
+            "Transfer request exceeds available capital for type {} by {} EUR. "
+                + "Using exact available amount: {} units instead of requested {} units.",
+            transferAmount.type(),
+            valueDifference,
+            sellerAvailableUnits,
+            requestedUnitsToTransfer);
+      } else {
+        log.info(
+            "Using exact total for type {} to avoid residuals. "
+                + "Requested: {} units, Using: {} units (difference: {} EUR)",
+            transferAmount.type(),
+            requestedUnitsToTransfer,
+            sellerAvailableUnits,
+            valueDifference.abs());
+      }
+    } else if (sellerAvailableUnits != null
+        && requestedUnitsToTransfer.compareTo(sellerAvailableUnits) > 0) {
+      BigDecimal overdraftUnits = requestedUnitsToTransfer.subtract(sellerAvailableUnits);
+      BigDecimal overdraftValue =
+          overdraftUnits
+              .multiply(transferAmount.ownershipUnitPrice())
+              .setScale(5, RoundingMode.HALF_UP);
+
+      throw new IllegalStateException(
+          String.format(
+              "Transfer request exceeds clamping tolerance of available capital for type %s. "
+                  + "Requested: %s units, Available: %s units, Overdraft: %s EUR (max allowed: %s EUR). "
+                  + "This indicates an error in application creation.",
+              transferAmount.type(),
+              requestedUnitsToTransfer,
+              sellerAvailableUnits,
+              overdraftValue,
+              CLAMPING_TOLERANCE));
+    } else {
+      totalUnitsToTransfer = requestedUnitsToTransfer;
+    }
 
     BigDecimal proportionalFiatValue =
         calculateProportionalFiatValue(contract, transferAmount, totalUnitsToTransfer);
@@ -177,5 +233,19 @@ public class CapitalTransferExecutor {
     return sellerTotalFiatValue
         .multiply(unitsToTransfer.abs())
         .divide(sellerTotalUnits, 5, RoundingMode.HALF_UP);
+  }
+
+  private boolean shouldUseExactTotal(
+      BigDecimal requestedUnits, BigDecimal availableUnits, BigDecimal ownershipUnitPrice) {
+
+    if (requestedUnits == null || availableUnits == null || ownershipUnitPrice == null) {
+      return false;
+    }
+
+    BigDecimal unitDifference = requestedUnits.subtract(availableUnits).abs();
+    BigDecimal valueDifference =
+        unitDifference.multiply(ownershipUnitPrice).setScale(5, RoundingMode.HALF_UP);
+
+    return valueDifference.compareTo(CLAMPING_TOLERANCE) <= 0;
   }
 }

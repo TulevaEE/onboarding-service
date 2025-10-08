@@ -1,23 +1,21 @@
 package ee.tuleva.onboarding.swedbank.fetcher;
 
 import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
-import java.time.Clock;
 import java.time.LocalDate;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 @RequiredArgsConstructor
 @Slf4j
 @Service
+@Profile("!staging")
 public class SwedbankStatementFetcher {
 
-  private final Clock clock;
-
-  private final SwedbankMessageRepository swedbankMessageRepository;
   private final SwedbankGatewayClient swedbankGatewayClient;
   private final SwedbankAccountConfiguration swedbankAccountConfiguration;
 
@@ -37,7 +35,11 @@ public class SwedbankStatementFetcher {
   @Scheduled(cron = "0 0 9-17 * * MON-FRI", zone = "Europe/Tallinn")
   public void sendRequests() {
     for (SwedbankAccount account : SwedbankAccount.values()) {
-      sendRequest(account);
+      try {
+        sendRequest(account);
+      } catch (Exception e) {
+        log.error("Swedbank statement request sender failed for account={}", account, e);
+      }
     }
   }
 
@@ -46,11 +48,13 @@ public class SwedbankStatementFetcher {
         swedbankAccountConfiguration
             .getAccountIban(account)
             .orElseThrow(
-                () -> new IllegalStateException("No account iban found for account=" + account));
+                () ->
+                    new IllegalStateException(
+                        "No account iban found for account=%s".formatted(account)));
 
     var id = UUID.randomUUID();
     log.info(
-        "Running Swedbank intra day report request sender for account={} (iban:{}) with id:{}",
+        "Running Swedbank intra day report request sender: account={}, iban={}, id={}",
         account,
         accountIban,
         id);
@@ -64,11 +68,13 @@ public class SwedbankStatementFetcher {
         swedbankAccountConfiguration
             .getAccountIban(account)
             .orElseThrow(
-                () -> new IllegalStateException("No account iban found for account=" + account));
+                () ->
+                    new IllegalStateException(
+                        "No account iban found for account=%s".formatted(account)));
 
     var id = UUID.randomUUID();
     log.info(
-        "Running Swedbank historic statement request sender for account={} (iban:{}) with id:{}; from:{}, to:{}",
+        "Running Swedbank historic statement request sender: account={}, iban={}, id={}, from={}, to={}",
         account,
         accountIban,
         id,

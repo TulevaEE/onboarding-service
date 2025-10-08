@@ -245,6 +245,58 @@ class MandateEmailServiceSpec extends Specification {
         paymentRateFulfillmentDate: "01.01.2022",
         newPaymentRate            : samplePaymentRates.pending.get(),
         oldPaymentRate            : samplePaymentRates.current,
+        decreased                 : false,  // 6 > 2, so not decreased
+        increased                 : true,   // 6 > 2, so increased
+        suggestPaymentRate        : pillarSuggestion.suggestPaymentRate,
+        suggestSecondPillar       : pillarSuggestion.suggestSecondPillar,
+        suggestThirdPillar        : pillarSuggestion.suggestThirdPillar,
+        suggestMembership         : pillarSuggestion.suggestMembership,
+    ]
+
+    authenticationHolder.getAuthenticatedPerson() >> authenticatedPerson
+    mandateDeadlinesService.getDeadlines(mandate.createdDate) >> sampleDeadlines()
+    secondPillarPaymentRateService.getPaymentRates(authenticatedPerson) >> samplePaymentRates
+    mandateDeadlinesService.getDeadlines() >> sampleDeadlines()
+    emailPersistenceService.hasEmailsFor(mandate) >> false
+
+    def tags = ["mandate", "pillar_2", "suggest_payment_rate", "suggest_3"]
+
+    def mandrillResponse = new MandrillMessageStatus().tap {
+      _id = "123"
+      status = "sent"
+    }
+
+    when:
+    mandateEmailService.sendMandate(user, mandate, pillarSuggestion, Locale.ENGLISH)
+
+    then:
+    1 * emailService.newMandrillMessage(user.email, "second_pillar_payment_rate_en", mergeVars, tags, !null) >> message
+    1 * emailService.send(user, message, "second_pillar_payment_rate_en") >> Optional.of(mandrillResponse)
+    1 * emailPersistenceService.save(user, mandrillResponse.id, SECOND_PILLAR_PAYMENT_RATE, mandrillResponse.status, mandate)
+  }
+
+  def "Send second pillar payment rate mandate email with decreased rate"() {
+    given:
+    def user = sampleUser().build()
+    def conversion = notConverted()
+    def contactDetails = contactDetailsFixture()
+    def mandate = sampleMandateWithPaymentRate()
+    def paymentRates = samplePaymentRates()
+    def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
+    def message = new MandrillMessage()
+    def authenticatedPerson = sampleAuthenticatedPersonAndMember().build()
+    def samplePaymentRates = new PaymentRates(
+        4, 2  // Decreasing from 4 to 2
+    )
+
+    def mergeVars = [
+        fname                     : user.firstName,
+        lname                     : user.lastName,
+        paymentRateFulfillmentDate: "01.01.2022",
+        newPaymentRate            : samplePaymentRates.pending.get(),
+        oldPaymentRate            : samplePaymentRates.current,
+        decreased                 : true,   // 2 < 4 and 2 == 2, so decreased
+        increased                 : false,  // not increased
         suggestPaymentRate        : pillarSuggestion.suggestPaymentRate,
         suggestSecondPillar       : pillarSuggestion.suggestSecondPillar,
         suggestThirdPillar        : pillarSuggestion.suggestThirdPillar,

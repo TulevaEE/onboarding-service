@@ -96,6 +96,14 @@ public class MandateEmailService {
                       new NoSuchElementException(
                           "No second pillar pending payment rate to send an email with")));
       mergeVars.put("oldPaymentRate", paymentRates.getCurrent());
+
+      // Add decreased/increased flags for template logic
+      Integer newRate = paymentRates.getPending().orElseThrow();
+      Integer oldRate = paymentRates.getCurrent();
+      boolean decreased = newRate < oldRate || newRate == 2;
+      mergeVars.put("decreased", decreased);
+      mergeVars.put("increased", !decreased);
+
       mergeVars.put(
           "paymentRateFulfillmentDate",
           mandateDeadlinesService

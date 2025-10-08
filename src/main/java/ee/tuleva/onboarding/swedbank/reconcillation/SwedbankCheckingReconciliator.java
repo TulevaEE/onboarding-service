@@ -13,7 +13,7 @@ public class SwedbankCheckingReconciliator {
   private final Reconciliator reconciliator;
 
   public void processMessage(String rawResponse) {
-    var statement = this.swedbankBankStatementExtractor.extractFromHistoricStatement(rawResponse);
+    var statement = swedbankBankStatementExtractor.extractFromHistoricStatement(rawResponse);
 
     try {
       reconciliator.reconcile(statement);

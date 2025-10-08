@@ -41,16 +41,21 @@ public class Reconciliator {
     var ledgerAccountBalance =
         ledgerService.getSystemAccount(ledgerSystemAccount).getBalanceAt(bankBalanceTime);
 
+    log.info(
+        "Reconciling: bankAccount={}, closingBalance={}, ledgerAccount={}, ledgerBalance={}",
+        bankStatementAccount,
+        closingBankBalance.balance(),
+        ledgerSystemAccount,
+        ledgerAccountBalance);
+
     if (ledgerAccountBalance.compareTo(closingBankBalance.balance()) != 0) {
       throw new IllegalStateException(
-          "Bank statement reconciliation failed: bankAccount="
-              + bankStatementAccount
-              + ", closingBalance="
-              + closingBankBalance.balance()
-              + ", ledgerAccount="
-              + ledgerSystemAccount
-              + ", ledgerBalance="
-              + ledgerAccountBalance);
+          "Bank statement reconciliation failed: bankAccount=%s, closingBalance=%s, ledgerAccount=%s, ledgerBalance=%s"
+              .formatted(
+                  bankStatementAccount,
+                  closingBankBalance.balance(),
+                  ledgerSystemAccount,
+                  ledgerAccountBalance));
     }
   }
 }

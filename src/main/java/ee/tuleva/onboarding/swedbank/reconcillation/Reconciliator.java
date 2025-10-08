@@ -43,13 +43,13 @@ public class Reconciliator {
 
     if (ledgerAccountBalance.compareTo(closingBankBalance.balance()) != 0) {
       throw new IllegalStateException(
-          "Bank account("
+          "Bank statement reconciliation failed: bankAccount="
               + bankStatementAccount
-              + ") closing balance="
+              + ", closingBalance="
               + closingBankBalance.balance()
-              + "does not match ledger account("
+              + ", ledgerAccount="
               + ledgerSystemAccount
-              + ") balance="
+              + ", ledgerBalance="
               + ledgerAccountBalance);
     }
   }

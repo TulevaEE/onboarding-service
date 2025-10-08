@@ -141,6 +141,12 @@ The application follows domain-driven design with these main domains:
   - Import constants and enum values statically
   - Import fixture methods statically
 - **Helper methods for readability**: Create helper methods to simplify complex operations (e.g., timezone conversions)
+- **Standardized log and exception messages**: Use consistent format for easier grepping:
+  - Format: `"Message description: param1=value1, param2=value2"`
+  - ✅ Good: `"Bank statement reconciliation failed: bankAccount=DEPOSIT_EUR, closingBalance=1000.00"`
+  - ❌ Bad: `"Bank account(DEPOSIT_EUR) closing balance=1000.00 does not match"`
+  - This applies to both log statements and exception messages
+  - Makes it easy to grep logs for specific parameters or patterns
 
 #### Assertions Best Practices
 - **Always use AssertJ** for assertions instead of JUnit assertions for better readability and error messages

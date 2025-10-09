@@ -6,7 +6,6 @@ import ee.tuleva.onboarding.auth.principal.AuthenticationHolder
 import ee.tuleva.onboarding.deadline.MandateDeadlinesService
 import ee.tuleva.onboarding.fund.FundRepository
 import ee.tuleva.onboarding.mandate.email.persistence.EmailPersistenceService
-import ee.tuleva.onboarding.mandate.email.persistence.EmailType
 import ee.tuleva.onboarding.notification.email.EmailService
 import ee.tuleva.onboarding.paymentrate.PaymentRates
 import ee.tuleva.onboarding.paymentrate.SecondPillarPaymentRateService
@@ -386,6 +385,23 @@ class MandateEmailServiceSpec extends Specification {
 
     then:
     0 * emailService.send(*_)
+  }
+
+  def "isPaymentRateDecreased returns correct value for all rate combinations"() {
+    expect:
+    mandateEmailService.isPaymentRateDecreased(oldRate, newRate) == isPaymentRateDecreased
+
+    where:
+    oldRate | newRate || isPaymentRateDecreased
+    2       | 2       || true
+    2       | 4       || false
+    2       | 6       || false
+    4       | 2       || true
+    4       | 4       || false
+    4       | 6       || false
+    6       | 2       || true
+    6       | 4       || true
+    6       | 6       || false
   }
 
 

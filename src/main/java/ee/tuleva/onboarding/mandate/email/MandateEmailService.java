@@ -100,7 +100,7 @@ public class MandateEmailService {
       // Add decreased/increased flags for template logic
       Integer newRate = paymentRates.getPending().orElseThrow();
       Integer oldRate = paymentRates.getCurrent();
-      boolean decreased = newRate < oldRate || newRate == 2;
+      boolean decreased = isPaymentRateDecreased(oldRate, newRate);
       mergeVars.put("decreased", decreased);
       mergeVars.put("increased", !decreased);
 
@@ -206,5 +206,9 @@ public class MandateEmailService {
             response ->
                 emailPersistenceService.save(
                     user, response.getId(), THIRD_PILLAR_SUGGEST_SECOND, response.getStatus()));
+  }
+
+  boolean isPaymentRateDecreased(Integer oldRate, Integer newRate) {
+    return newRate == 2 || newRate < oldRate;
   }
 }

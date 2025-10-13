@@ -137,8 +137,8 @@ class FundFixture {
         .pillar(null)
         .nameEnglish("Tuleva Additional Savings Fund")
         .nameEstonian("Tuleva täiendav kogumisfond")
-        .managementFeeRate(0.0049)
-        .ongoingChargesFigure(0.0049)
+        .managementFeeRate(0.002)
+        .ongoingChargesFigure(0.0045)
         .status(ACTIVE)
         .build()
   }

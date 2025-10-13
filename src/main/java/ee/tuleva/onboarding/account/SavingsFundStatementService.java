@@ -24,7 +24,7 @@ public class SavingsFundStatementService {
   private final LedgerService ledgerService;
   private final SavingsFundOnboardingService savingsFundOnboardingService;
 
-  private static final BigDecimal FEE_RATE = new BigDecimal("0.0049");
+  private static final BigDecimal FEE_RATE = new BigDecimal("0.0045");
   private static final Fund SAVINGS_FUND =
       Fund.builder()
           .fundManager(new FundManager("Tuleva", 1L))

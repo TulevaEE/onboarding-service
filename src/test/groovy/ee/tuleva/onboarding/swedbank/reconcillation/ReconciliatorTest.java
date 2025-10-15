@@ -66,6 +66,10 @@ class ReconciliatorTest {
         systemAccountWithBalance(matchingBalance, toEstonianTime(balanceDate.minusDays(1)));
 
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
+    when(paymentRepository.findPaymentsWithStatus(any())).thenReturn(new ArrayList<>());
+    when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
+    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
+        .thenReturn(Optional.of("EE987654321098765432"));
 
     // When & Then
     assertDoesNotThrow(() -> reconciliator.reconcile(bankStatement));
@@ -85,15 +89,17 @@ class ReconciliatorTest {
         new BankStatement(
             HISTORIC_STATEMENT, account, List.of(closingBalance), List.of(), Instant.now());
 
-    // Create LedgerAccount with different balance, dated before the balance check
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(ledgerBalance, toEstonianTime(balanceDate.minusDays(1)));
 
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
+    when(paymentRepository.findPaymentsWithStatus(any())).thenReturn(new ArrayList<>());
+    when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
+    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
+        .thenReturn(Optional.of("EE987654321098765432"));
 
     // When & Then
-    IllegalStateException exception =
-        assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
+    assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
   }
 
   @Test
@@ -134,11 +140,14 @@ class ReconciliatorTest {
             List.of(),
             Instant.now());
 
-    // Create LedgerAccount with the matching closing balance
     LedgerAccount ledgerAccount =
         systemAccountWithBalance(matchingBalance, toEstonianTime(balanceDate.minusDays(1)));
 
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
+    when(paymentRepository.findPaymentsWithStatus(any())).thenReturn(new ArrayList<>());
+    when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
+    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
+        .thenReturn(Optional.of("EE987654321098765432"));
 
     // When & Then
     assertDoesNotThrow(() -> reconciliator.reconcile(bankStatement));
@@ -156,7 +165,7 @@ class ReconciliatorTest {
             .status(TO_BE_RETURNED)
             .amount(new BigDecimal("100.00"))
             .remitterIban("EE123456789012345678")
-            .beneficiaryIban("EE111111111111111111") // Different IBAN to avoid confusion
+            .beneficiaryIban("EE111111111111111111")
             .build();
 
     SavingFundPayment returnedPayment =
@@ -172,8 +181,9 @@ class ReconciliatorTest {
         .thenReturn(List.of(toBeReturnedPayment));
     when(paymentRepository.findPaymentsWithStatus(RETURNED)).thenReturn(List.of(returnedPayment));
     when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
+    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
+        .thenReturn(Optional.of("EE987654321098765432"));
 
-    // Mock that entries don't exist yet
     when(savingsFundLedger.hasLedgerEntry(paymentId1)).thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(paymentId2)).thenReturn(false);
 
@@ -259,6 +269,10 @@ class ReconciliatorTest {
     when(paymentRepository.findPaymentsWithStatus(TO_BE_RETURNED)).thenReturn(List.of(payment));
     when(paymentRepository.findPaymentsWithStatus(RETURNED)).thenReturn(new ArrayList<>());
     when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
+    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
+        .thenReturn(Optional.of("EE987654321098765432"));
+
+    when(savingsFundLedger.hasLedgerEntry(paymentId)).thenReturn(false, true);
 
     // When - Call twice to test duplicate prevention
     reconciliator.detectAndFixMissingLedgerEntries();
@@ -295,6 +309,11 @@ class ReconciliatorTest {
         .thenReturn(List.of(payment1, payment2));
     when(paymentRepository.findPaymentsWithStatus(RETURNED)).thenReturn(new ArrayList<>());
     when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
+    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
+        .thenReturn(Optional.of("EE987654321098765432"));
+
+    when(savingsFundLedger.hasLedgerEntry(paymentId1)).thenReturn(false);
+    when(savingsFundLedger.hasLedgerEntry(paymentId2)).thenReturn(false);
 
     // First call throws exception, second succeeds
     doThrow(new RuntimeException("Test exception"))

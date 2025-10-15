@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.swedbank.reconcillation;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
+import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.INVESTMENT_EUR;
 import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 import static java.math.BigDecimal.ZERO;
 
@@ -10,7 +11,6 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentRepository;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount;
 import ee.tuleva.onboarding.swedbank.statement.BankStatement;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -40,7 +40,6 @@ public class Reconciliator {
   void detectAndFixMissingLedgerEntries() {
     log.info("Starting detection of missing ledger entries");
 
-    // 1. Find and fix unattributed payments without ledger entries
     List<SavingFundPayment> unrecordedUnattributed = findUnrecordedUnattributedPayments();
     if (!unrecordedUnattributed.isEmpty()) {
       log.info("Found {} potential unattributed payments to check", unrecordedUnattributed.size());
@@ -56,7 +55,6 @@ public class Reconciliator {
             savingsFundLedger.recordUnattributedPayment(payment.getAmount(), payment.getId());
             created++;
           } catch (Exception e) {
-            // This might happen if the entry was created between the check and creation
             log.info(
                 "Failed to record unattributed payment (may already exist): paymentId={}",
                 payment.getId(),
@@ -69,7 +67,6 @@ public class Reconciliator {
       }
     }
 
-    // 2. Find and fix bounce backs without ledger entries
     List<SavingFundPayment> unbouncedReturns = findUnbouncedReturns();
     if (!unbouncedReturns.isEmpty()) {
       log.info("Found {} potential return payments to check", unbouncedReturns.size());
@@ -83,13 +80,10 @@ public class Reconciliator {
                 returnPayment.getId(),
                 returnPayment.getAmount(),
                 returnPayment.getBeneficiaryIban());
-            // Note: amount is already negative for outgoing payments, so we negate it to make it
-            // positive
             savingsFundLedger.bounceBackUnattributedPayment(
                 returnPayment.getAmount().negate(), returnPayment.getId());
             created++;
           } catch (Exception e) {
-            // This might happen if the entry was created between the check and creation
             log.info(
                 "Failed to record bounce back (may already exist): paymentId={}",
                 returnPayment.getId(),
@@ -106,8 +100,6 @@ public class Reconciliator {
   }
 
   private List<SavingFundPayment> findUnrecordedUnattributedPayments() {
-    // Find payments that were marked TO_BE_RETURNED or RETURNED
-    // These should have unattributed ledger entries
     List<SavingFundPayment> unverifiedPayments = new ArrayList<>();
     unverifiedPayments.addAll(paymentRepository.findPaymentsWithStatus(TO_BE_RETURNED));
     unverifiedPayments.addAll(paymentRepository.findPaymentsWithStatus(RETURNED));
@@ -115,18 +107,14 @@ public class Reconciliator {
   }
 
   private List<SavingFundPayment> findUnbouncedReturns() {
-    // Find outgoing return payments (negative amount, not to investment account)
-    // These should have bounce back ledger entries
     List<SavingFundPayment> allPayments = paymentRepository.findAll();
 
     String investmentIban =
-        swedbankAccountConfiguration.getAccountIban(SwedbankAccount.INVESTMENT_EUR).orElse("");
+        swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR).orElseThrow();
 
     return allPayments.stream()
-        .filter(payment -> payment.getAmount().compareTo(ZERO) < 0) // outgoing
-        .filter(
-            payment ->
-                !investmentIban.equals(payment.getBeneficiaryIban())) // not to investment account
+        .filter(payment -> payment.getAmount().compareTo(ZERO) < 0)
+        .filter(payment -> !investmentIban.equals(payment.getBeneficiaryIban()))
         .toList();
   }
 

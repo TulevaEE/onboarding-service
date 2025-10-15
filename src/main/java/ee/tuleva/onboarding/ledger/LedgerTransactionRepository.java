@@ -5,4 +5,7 @@ import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-interface LedgerTransactionRepository extends CrudRepository<LedgerTransaction, UUID> {}
+interface LedgerTransactionRepository extends CrudRepository<LedgerTransaction, UUID> {
+
+  boolean existsByExternalReference(UUID externalReference);
+}

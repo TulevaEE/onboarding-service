@@ -27,6 +27,7 @@ import org.hibernate.dialect.PostgreSQLEnumJdbcType;
 @Entity
 @Table(name = "transaction", schema = "ledger")
 @Getter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @ToString(exclude = {"entries"})
@@ -50,9 +51,13 @@ public class LedgerTransaction {
 
   @NotNull private Instant transactionDate;
 
+  @Column(name = "external_reference")
+  private UUID externalReference;
+
   @Type(JsonType.class)
   @Column(columnDefinition = "JSONB")
   @NotNull
+  @Builder.Default
   private Map<String, Object> metadata = new HashMap<>();
 
   /*@Column(name = "event_log_id", nullable = false)
@@ -60,6 +65,7 @@ public class LedgerTransaction {
 
   @OneToMany(mappedBy = "transaction", cascade = CascadeType.ALL)
   @Size(min = 2, message = "Transaction must have at least 2 entries for double-entry bookkeeping")
+  @Builder.Default
   private List<LedgerEntry> entries = new ArrayList<>();
 
   @Column(nullable = false, updatable = false, insertable = false)
@@ -90,13 +96,5 @@ public class LedgerTransaction {
     account.addEntry(entry);
 
     return entry;
-  }
-
-  @Builder
-  public LedgerTransaction(
-      TransactionType transactionType, Instant transactionDate, Map<String, Object> metadata) {
-    this.transactionType = transactionType;
-    this.transactionDate = transactionDate;
-    this.metadata = metadata;
   }
 }

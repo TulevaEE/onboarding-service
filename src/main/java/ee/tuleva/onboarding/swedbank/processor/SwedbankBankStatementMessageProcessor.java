@@ -70,11 +70,12 @@ class SwedbankBankStatementMessageProcessor {
       savingsFundLedger.transferToFundAccount(payment.getAmount().negate());
     } else if (isOutgoingReturn(payment)) {
       log.info(
-          "Creating ledger entry for payment bounce back: amount={}, to={}",
+          "Creating ledger entry for payment bounce back: paymentId={}, amount={}, to={}",
+          payment.getId(),
           payment.getAmount().negate(),
           payment.getBeneficiaryIban());
       savingsFundLedger.bounceBackUnattributedPayment(
-          payment.getAmount().negate(), payment.getBeneficiaryIban());
+          payment.getAmount().negate(), payment.getId());
     }
   }
 

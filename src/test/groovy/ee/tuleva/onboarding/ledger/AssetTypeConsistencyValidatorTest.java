@@ -118,7 +118,11 @@ class AssetTypeConsistencyValidatorTest {
   @DisplayName("Should handle transaction with null entries")
   void shouldHandleNullEntries() {
     // Given
-    LedgerTransaction transaction = new LedgerTransaction(TRANSFER, Instant.now(), new HashMap<>());
+    LedgerTransaction transaction =
+        LedgerTransaction.builder()
+            .transactionType(TRANSFER)
+            .transactionDate(Instant.now())
+            .build();
 
     // When
     boolean isValid = customValidator.isValid(transaction, context);

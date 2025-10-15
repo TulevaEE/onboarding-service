@@ -56,30 +56,26 @@ public class SavingsFundLedger {
         Map.of(
             OPERATION_TYPE.key, PAYMENT_RECEIVED.name(),
             USER_ID.key, user.getId(),
-            PERSONAL_CODE.key, user.getPersonalCode(),
-            EXTERNAL_REFERENCE.key, externalReference);
+            PERSONAL_CODE.key, user.getPersonalCode());
 
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
+        externalReference,
         metadata,
         entry(incomingPaymentsAccount, amount),
         entry(userCashAccount, amount.negate()));
   }
 
   @Transactional
-  public LedgerTransaction recordUnattributedPayment(
-      BigDecimal amount, String payerIban, UUID externalReference) {
+  public LedgerTransaction recordUnattributedPayment(BigDecimal amount, UUID externalReference) {
     LedgerAccount unreconciledAccount = getUnreconciledBankReceiptsAccount();
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
 
-    Map<String, Object> metadata =
-        Map.of(
-            OPERATION_TYPE.key, UNATTRIBUTED_PAYMENT.name(),
-            PAYER_IBAN.key, payerIban,
-            EXTERNAL_REFERENCE.key, externalReference);
+    Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, UNATTRIBUTED_PAYMENT.name());
 
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
+        externalReference,
         metadata,
         entry(incomingPaymentsAccount, amount),
         entry(unreconciledAccount, amount.negate()));
@@ -144,15 +140,16 @@ public class SavingsFundLedger {
   }
 
   @Transactional
-  public LedgerTransaction bounceBackUnattributedPayment(BigDecimal amount, String payerIban) {
+  public LedgerTransaction bounceBackUnattributedPayment(
+      BigDecimal amount, UUID externalReference) {
     LedgerAccount unreconciledAccount = getUnreconciledBankReceiptsAccount();
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
 
-    Map<String, Object> metadata =
-        Map.of(OPERATION_TYPE.key, PAYMENT_BOUNCE_BACK.name(), PAYER_IBAN.key, payerIban);
+    Map<String, Object> metadata = Map.of(OPERATION_TYPE.key, PAYMENT_BOUNCE_BACK.name());
 
     return ledgerTransactionService.createTransaction(
         Instant.now(clock),
+        externalReference,
         metadata,
         entry(unreconciledAccount, amount),
         entry(incomingPaymentsAccount, amount.negate()));
@@ -322,5 +319,9 @@ public class SavingsFundLedger {
 
   private LedgerAccount getPayoutsCashClearingAccount() {
     return getSystemAccount(PAYOUTS_CASH_CLEARING);
+  }
+
+  public boolean hasLedgerEntry(UUID paymentId) {
+    return ledgerTransactionService.existsByExternalReference(paymentId);
   }
 }

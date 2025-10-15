@@ -36,9 +36,8 @@ class SavingsFundLedgerTest {
     LedgerTransaction transaction =
         savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
 
-    assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RECEIVED");
-    assertThat(transaction.getMetadata().get("externalReference")).isEqualTo(externalReference);
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
     assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
     assertThat(transaction.getMetadata().get("personalCode")).isEqualTo(testUser.getPersonalCode());
 
@@ -56,16 +55,13 @@ class SavingsFundLedgerTest {
   @DisplayName("Reconciliation flow: Unattributed payment should be recorded separately")
   void testRecordUnattributedPayment() {
     BigDecimal amount = new BigDecimal("500.00");
-    String payerIban = "EE123456789012345678";
     UUID externalReference = randomUUID();
 
     LedgerTransaction transaction =
-        savingsFundLedger.recordUnattributedPayment(amount, payerIban, externalReference);
+        savingsFundLedger.recordUnattributedPayment(amount, externalReference);
 
-    assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("UNATTRIBUTED_PAYMENT");
-    assertThat(transaction.getMetadata().get("payerIban")).isEqualTo(payerIban);
-    assertThat(transaction.getMetadata().get("externalReference")).isEqualTo(externalReference);
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
 
     assertThat(getUnreconciledBankReceiptsAccount().getBalance())
         .isEqualByComparingTo(amount.negate());
@@ -78,12 +74,10 @@ class SavingsFundLedgerTest {
   @DisplayName("Reconciliation flow: Late attribution should transfer from unreconciled to user")
   void testAttributeLatePayment() {
     BigDecimal amount = new BigDecimal("750.00");
-    String payerIban = "EE987654321098765432";
-    savingsFundLedger.recordUnattributedPayment(amount, payerIban, randomUUID());
+    savingsFundLedger.recordUnattributedPayment(amount, randomUUID());
 
     LedgerTransaction transaction = savingsFundLedger.attributeLatePayment(testUser, amount);
 
-    assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("LATE_ATTRIBUTION");
     assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
     assertThat(transaction.getMetadata().get("personalCode")).isEqualTo(testUser.getPersonalCode());
@@ -98,15 +92,14 @@ class SavingsFundLedgerTest {
   @DisplayName("Reconciliation flow: Bounce-back should reverse unattributed payment")
   void testBounceBackUnattributedPayment() {
     BigDecimal amount = new BigDecimal("300.00");
-    String payerIban = "EE555666777888999000";
-    savingsFundLedger.recordUnattributedPayment(amount, payerIban, randomUUID());
+    UUID externalReference = randomUUID();
+    savingsFundLedger.recordUnattributedPayment(amount, externalReference);
 
     LedgerTransaction transaction =
-        savingsFundLedger.bounceBackUnattributedPayment(amount, payerIban);
+        savingsFundLedger.bounceBackUnattributedPayment(amount, externalReference);
 
-    assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_BOUNCE_BACK");
-    assertThat(transaction.getMetadata().get("payerIban")).isEqualTo(payerIban);
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
 
     assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
@@ -128,8 +121,8 @@ class SavingsFundLedgerTest {
     // Step 2: Reserve payment for subscription (cash -> cash_reserved)
     LedgerTransaction reserveTransaction =
         savingsFundLedger.reservePaymentForSubscription(testUser, cashAmount);
-    assertThat(reserveTransaction).isNotNull();
     assertThat(reserveTransaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RESERVED");
+    assertThat(reserveTransaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
     assertThat(getUserCashAccount().getBalance()).isEqualByComparingTo(ZERO);
     assertThat(getUserCashReservedAccount().getBalance()).isEqualByComparingTo(cashAmount.negate());
 
@@ -137,7 +130,6 @@ class SavingsFundLedgerTest {
     LedgerTransaction subscriptionTransaction =
         savingsFundLedger.issueFundUnitsFromReserved(testUser, cashAmount, fundUnits, navPerUnit);
 
-    assertThat(subscriptionTransaction).isNotNull();
     assertThat(subscriptionTransaction.getMetadata().get("operationType"))
         .isEqualTo("FUND_SUBSCRIPTION");
     assertThat(subscriptionTransaction.getMetadata().get("navPerUnit")).isEqualTo(navPerUnit);
@@ -163,7 +155,6 @@ class SavingsFundLedgerTest {
 
     LedgerTransaction transaction = savingsFundLedger.transferToFundAccount(amount);
 
-    assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_TRANSFER");
 
     LedgerAccount incomingAccount = getIncomingPaymentsClearingAccount();
@@ -183,7 +174,6 @@ class SavingsFundLedgerTest {
 
     LedgerTransaction transaction = savingsFundLedger.transferFundToPayoutCash(amount);
 
-    assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("FUND_CASH_TRANSFER");
 
     assertThat(getFundInvestmentCashClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
@@ -266,7 +256,6 @@ class SavingsFundLedgerTest {
     LedgerTransaction transaction =
         savingsFundLedger.processRedemptionPayoutFromCashRedemption(testUser, amount, customerIban);
 
-    assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("REDEMPTION_PAYOUT");
     assertThat(transaction.getMetadata().get("customerIban")).isEqualTo(customerIban);
     assertThat(transaction.getMetadata().get("userId")).isEqualTo(testUser.getId());
@@ -281,6 +270,50 @@ class SavingsFundLedgerTest {
   }
 
   @Test
+  @DisplayName("hasLedgerEntry returns false for non-existent entries and true after recording")
+  void testHasLedgerEntry() {
+    BigDecimal amount = new BigDecimal("500.00");
+    UUID externalReference = randomUUID();
+
+    assertThat(savingsFundLedger.hasLedgerEntry(externalReference)).isFalse();
+
+    savingsFundLedger.recordUnattributedPayment(amount, externalReference);
+
+    assertThat(savingsFundLedger.hasLedgerEntry(externalReference)).isTrue();
+    assertThat(savingsFundLedger.hasLedgerEntry(randomUUID())).isFalse();
+  }
+
+  @Test
+  @DisplayName("hasLedgerEntry detects bounce back entries")
+  void testHasLedgerEntry_forBounceBack() {
+    BigDecimal amount = new BigDecimal("300.00");
+    UUID paymentId = randomUUID();
+    UUID bounceBackId = randomUUID();
+
+    assertThat(savingsFundLedger.hasLedgerEntry(paymentId)).isFalse();
+    assertThat(savingsFundLedger.hasLedgerEntry(bounceBackId)).isFalse();
+
+    savingsFundLedger.recordUnattributedPayment(amount, paymentId);
+    assertThat(savingsFundLedger.hasLedgerEntry(paymentId)).isTrue();
+
+    savingsFundLedger.bounceBackUnattributedPayment(amount, bounceBackId);
+    assertThat(savingsFundLedger.hasLedgerEntry(bounceBackId)).isTrue();
+  }
+
+  @Test
+  @DisplayName("hasLedgerEntry detects payment received entries")
+  void testHasLedgerEntry_forPaymentReceived() {
+    BigDecimal amount = new BigDecimal("1000.00");
+    UUID externalReference = randomUUID();
+
+    assertThat(savingsFundLedger.hasLedgerEntry(externalReference)).isFalse();
+
+    savingsFundLedger.recordPaymentReceived(testUser, amount, externalReference);
+
+    assertThat(savingsFundLedger.hasLedgerEntry(externalReference)).isTrue();
+  }
+
+  @Test
   @DisplayName("Should auto-create party and accounts for non-onboarded user")
   void testAutoCreatePartyForUnonboardedUser() {
     User unonboardedUser = sampleUser().personalCode("99999999999").build();
@@ -291,12 +324,11 @@ class SavingsFundLedgerTest {
     LedgerTransaction transaction =
         savingsFundLedger.recordPaymentReceived(unonboardedUser, amount, externalReference);
 
-    assertThat(transaction).isNotNull();
     assertThat(transaction.getMetadata().get("operationType")).isEqualTo("PAYMENT_RECEIVED");
     assertThat(transaction.getMetadata().get("userId")).isEqualTo(unonboardedUser.getId());
     assertThat(transaction.getMetadata().get("personalCode"))
         .isEqualTo(unonboardedUser.getPersonalCode());
-    assertThat(transaction.getMetadata().get("externalReference")).isEqualTo(externalReference);
+    assertThat(transaction.getExternalReference()).isEqualTo(externalReference);
 
     // Verify double-entry accounting is maintained
     verifyDoubleEntry(transaction);
@@ -321,27 +353,27 @@ class SavingsFundLedgerTest {
     verifyDoubleEntry(transfer);
 
     LedgerAccount userCashAccount = getUserCashAccount();
-    assertThat(userCashAccount.getEntries()).isNotNull();
+    assertThat(userCashAccount.getEntries()).isNotEmpty();
     assertThat(userCashAccount.getBalance()).isEqualByComparingTo(ZERO);
 
     LedgerAccount userCashReservedAccount = getUserCashReservedAccount();
-    assertThat(userCashReservedAccount.getEntries()).isNotNull();
+    assertThat(userCashReservedAccount.getEntries()).isNotEmpty();
     assertThat(userCashReservedAccount.getBalance()).isEqualByComparingTo(ZERO);
 
     LedgerAccount userUnitsAccount = getUserUnitsAccount();
-    assertThat(userUnitsAccount.getEntries()).isNotNull();
+    assertThat(userUnitsAccount.getEntries()).isNotEmpty();
     assertThat(userUnitsAccount.getBalance()).isEqualByComparingTo(new BigDecimal("-10.00000"));
 
     LedgerAccount fundSubscriptionsAccount = getUserSubscriptionsAccount();
-    assertThat(fundSubscriptionsAccount.getEntries()).isNotNull();
+    assertThat(fundSubscriptionsAccount.getEntries()).isNotEmpty();
     assertThat(fundSubscriptionsAccount.getBalance()).isEqualByComparingTo(amount.negate());
 
     LedgerAccount fundInvestmentAccount = getFundInvestmentCashClearingAccount();
-    assertThat(fundInvestmentAccount.getEntries()).isNotNull();
+    assertThat(fundInvestmentAccount.getEntries()).isNotEmpty();
     assertThat(fundInvestmentAccount.getBalance()).isEqualByComparingTo(amount);
 
     LedgerAccount incomingPaymentsAccount = getIncomingPaymentsClearingAccount();
-    assertThat(incomingPaymentsAccount.getEntries()).isNotNull();
+    assertThat(incomingPaymentsAccount.getEntries()).isNotEmpty();
     assertThat(incomingPaymentsAccount.getBalance()).isEqualByComparingTo(ZERO);
   }
 

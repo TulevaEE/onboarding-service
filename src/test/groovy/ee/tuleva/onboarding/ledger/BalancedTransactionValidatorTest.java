@@ -219,7 +219,11 @@ class BalancedTransactionValidatorTest {
   @DisplayName("Should handle transaction with null entries list")
   void shouldHandleTransactionWithNullEntries() {
     // Given
-    LedgerTransaction transaction = new LedgerTransaction(TRANSFER, Instant.now(), new HashMap<>());
+    LedgerTransaction transaction =
+        LedgerTransaction.builder()
+            .transactionType(TRANSFER)
+            .transactionDate(Instant.now())
+            .build();
     // Entries list is initialized as empty ArrayList by default
 
     // Setup mocks - even though we expect true, the validator still calls context methods

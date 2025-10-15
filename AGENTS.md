@@ -24,6 +24,13 @@ This file provides guidance to AI coding agents when working with code in this r
 - **Check formatting**: `./gradlew spotlessCheck`
 - **Check dependencies**: `./gradlew dependencyCheckAnalyze`
 
+### Git Operations
+- **ALWAYS add new files to git**: After creating any new file, immediately run `git add <filepath>`
+- **Check git status regularly**: Run `git status` to ensure all new files are tracked
+- **Add all new files**: `git add .` (be careful with this, check what you're adding first)
+- **Add specific file**: `git add src/main/java/path/to/NewFile.java`
+- **Important**: Untracked files won't be included in commits, always verify new files are added
+
 ### Database
 - **Run migrations**: Automatic with `dev` profile
 - **Generate migration**: Create file in `src/main/resources/db/migration/` following naming convention
@@ -135,6 +142,8 @@ The application follows domain-driven design with these main domains:
 - Snapshot testing for complex responses
 - MockServer for external service mocking
 - High coverage requirements for critical domains (AML, deadlines)
+- **Test method names should be descriptive**: Use the test method name itself to describe what it tests (e.g., `findByExternalReference_shouldReturnTransactionsWithMatchingExternalReference()`)
+- **Avoid @DisplayName annotations**: The method name should be self-documenting without needing a separate display name
 
 #### Test Location
 - **Java tests should be placed in the Groovy test directory**: Even when writing JUnit tests in Java, place them under `src/test/groovy/` alongside Groovy Spock tests
@@ -153,6 +162,30 @@ The application follows domain-driven design with these main domains:
   - This applies to both log statements and exception messages
   - Makes it easy to grep logs for specific parameters or patterns
 
+#### Clean Code Principles
+- **Self-documenting code over comments**: Follow clean code principles - code should be self-explanatory
+  - Use meaningful variable, method, and class names that clearly express intent
+  - Extract complex logic into well-named methods
+  - Only use comments when absolutely necessary (e.g., explaining WHY, not WHAT)
+  - ❌ Bad: `// Check if payment is negative and not to investment account`
+  - ✅ Good: Method name `isOutgoingReturnPayment()` with clear boolean logic
+- **Prefer code readability**: Write code that reads like well-written prose
+  - Method names should describe what they do: `hasLedgerEntry()`, `isOnboardingCompleted()`
+  - Variable names should describe what they contain: `unrecordedUnattributedPayments`, `closingBankBalance`
+  - Avoid abbreviations and cryptic names
+- **Avoid single letter variables** (with reasonable exceptions):
+  - Use descriptive names for variables with larger scope or complex logic
+  - ❌ Bad: `User u = userRepository.findById(id);`
+  - ✅ Good: `User user = userRepository.findById(id);`
+  - Exceptions where single letters are fine:
+    - Loop counters: `for (int i = 0; i < items.size(); i++)`
+    - Very short scopes: `catch (Exception e)`
+- **Avoid passing null as method parameters**:
+  - Use method overloading instead of passing null parameters
+  - ❌ Bad: `createTransaction(date, null, metadata, entries)`
+  - ✅ Good: Create overloaded method `createTransaction(date, metadata, entries)` that delegates to the full version
+  - This makes the API cleaner and prevents NullPointerExceptions
+
 #### Assertions Best Practices
 - **Always use AssertJ** for assertions instead of JUnit assertions for better readability and error messages
 - **Never assert on exception messages or log messages** - these are implementation details that can change:
@@ -164,7 +197,10 @@ The application follows domain-driven design with these main domains:
   - ✅ Good: `assertThat(list).containsExactly(item1, item2)`
 - **Compare complete objects/collections** instead of individual properties:
   - ❌ Bad: `assertThat(list).hasSize(1)` → Less informative on failure
+  - ❌ Bad: `assertThat(list.size()).isEqualTo(1)` → Even worse - cryptic error messages
   - ✅ Good: `assertThat(list).isEqualTo(List.of(expectedItem))` → Shows full comparison
+  - ✅ Good: `assertThat(list).singleElement().satisfies(item -> ...)` → Clear intent and good errors
+  - Always assert on the full collection/object to get meaningful failure messages
 - **DTOs should have meaningful toString() implementations** to support readable assertion failures
 - **Use AssertJ's descriptive methods**:
   - `containsExactly()` for ordered collections

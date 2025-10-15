@@ -23,7 +23,8 @@ public class SwedbankMessageReceiver {
     return swedbankMessageRepository.findById(id);
   }
 
-  @Scheduled(fixedRateString = "1m")
+  // @Scheduled(fixedRateString = "1m")
+  @Scheduled(cron = "0 0 9-17 * * MON-FRI", zone = "Europe/Tallinn")
   public void getResponses() {
     try {
       getResponse();

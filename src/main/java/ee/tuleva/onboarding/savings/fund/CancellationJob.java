@@ -1,5 +1,8 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.VERIFIED;
+
 import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,7 +21,7 @@ public class CancellationJob {
 
   @Scheduled(cron = "0 1 16-20 * * *", zone = "Europe/Tallinn")
   public void runJob() {
-    var payments = paymentRepository.findPaymentsWithStatus(SavingFundPayment.Status.VERIFIED);
+    var payments = paymentRepository.findPaymentsWithStatus(VERIFIED);
     for (SavingFundPayment payment : payments) {
       try {
         transactionTemplate.executeWithoutResult(ignored -> process(payment));
@@ -33,7 +36,7 @@ public class CancellationJob {
     var cancellationDeadline = deadlinesService.getCancellationDeadline(payment);
     if (cancellationDeadline.isAfter(Instant.now())) return;
     log.info("Completing payment cancellation for {}", payment.getId());
-    paymentRepository.changeStatus(payment.getId(), SavingFundPayment.Status.TO_BE_RETURNED);
+    paymentRepository.changeStatus(payment.getId(), TO_BE_RETURNED);
     paymentRepository.addReturnReason(payment.getId(), "Kasutaja soovil");
   }
 }

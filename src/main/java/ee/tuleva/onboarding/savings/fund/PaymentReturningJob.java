@@ -1,5 +1,7 @@
 package ee.tuleva.onboarding.savings.fund;
 
+import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,7 +18,7 @@ public class PaymentReturningJob {
   @Scheduled(fixedRateString = "1m")
   public void runJob() {
     savingFundPaymentRepository
-        .findPaymentsWithStatus(SavingFundPayment.Status.TO_BE_RETURNED)
+        .findPaymentsWithStatus(TO_BE_RETURNED)
         .forEach(
             payment -> {
               try {

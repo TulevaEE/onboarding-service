@@ -43,7 +43,8 @@ public class FundAccountPaymentJob {
   void createPaymentRequest() {
     var payments = savingFundPaymentRepository.findPaymentsWithStatus(ISSUED);
     var total = payments.stream().map(SavingFundPayment::getAmount).reduce(ZERO, BigDecimal::add);
-    payments.forEach(p -> savingFundPaymentRepository.changeStatus(p.getId(), PROCESSED));
+    payments.forEach(
+        payment -> savingFundPaymentRepository.changeStatus(payment.getId(), PROCESSED));
     var id = UUID.randomUUID();
     var paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(id)

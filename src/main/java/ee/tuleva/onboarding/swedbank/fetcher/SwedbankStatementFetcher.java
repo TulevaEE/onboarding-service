@@ -32,7 +32,8 @@ public class SwedbankStatementFetcher {
     }
   }
 
-  @Scheduled(cron = "0 0 9-17 * * MON-FRI", zone = "Europe/Tallinn")
+  // @Scheduled(cron = "0 0 9-17 * * MON-FRI", zone = "Europe/Tallinn")
+  @Scheduled(cron = "0 0 12 * * TUE", zone = "Europe/Tallinn")
   public void sendRequests() {
     for (SwedbankAccount account : SwedbankAccount.values()) {
       try {

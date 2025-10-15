@@ -93,20 +93,37 @@ class SavingsFundPaymentIntegrationTest {
     // Step 1: Process XML message → Payment should be RECEIVED
     swedbankMessageDelegator.processMessages();
 
-    var payments = paymentRepository.findAll();
-    assertThat(payments).hasSize(1);
-    var payment = payments.iterator().next();
+    // Build expected payment
+    var expectedPayment =
+        SavingFundPayment.builder()
+            .amount(new BigDecimal("100.50"))
+            .currency(Currency.EUR)
+            .status(RECEIVED)
+            .remitterName("Jüri Tamm")
+            .remitterIdCode("39910273027")
+            .remitterIban("EE157700771001802057")
+            .beneficiaryIban("EE442200221092874625")
+            .description("Test payment 39910273027")
+            .externalId("2025092412345-1")
+            .build();
 
-    assertThat(payment.getStatus()).isEqualTo(RECEIVED);
-    assertThat(payment.getAmount()).isEqualByComparingTo(new BigDecimal("100.50"));
-    assertThat(payment.getCurrency()).isEqualTo(Currency.EUR);
-    assertThat(payment.getDescription()).isEqualTo("Test payment 39910273027");
-    assertThat(payment.getRemitterIban()).isEqualTo("EE157700771001802057");
-    assertThat(payment.getRemitterIdCode()).isEqualTo("39910273027");
-    assertThat(payment.getRemitterName()).isEqualTo("Jüri Tamm");
-    assertThat(payment.getBeneficiaryIban()).isEqualTo("EE442200221092874625");
-    assertThat(payment.getExternalId()).isEqualTo("2025092412345-1");
-    assertThat(payment.getUserId()).isNull(); // Not yet attached
+    var payments = paymentRepository.findAll();
+
+    assertThat(payments)
+        .usingRecursiveFieldByFieldElementComparatorOnFields(
+            "amount",
+            "currency",
+            "status",
+            "remitterName",
+            "remitterIdCode",
+            "remitterIban",
+            "beneficiaryIban",
+            "description",
+            "externalId")
+        .containsExactly(expectedPayment);
+
+    var payment = payments.getFirst();
+    assertThat(payment.getUserId()).as("Payment should not be attached to any user yet").isNull();
     var paymentId = payment.getId();
 
     // Step 2: Run verification job → Payment should be VERIFIED and attached to user
@@ -312,5 +329,186 @@ class SavingsFundPaymentIntegrationTest {
 
   private LedgerAccount getFundUnitsOutstandingAccount() {
     return ledgerService.getSystemAccount(FUND_UNITS_OUTSTANDING);
+  }
+
+  private LedgerAccount getUnreconciledBankReceiptsAccount() {
+    return ledgerService.getSystemAccount(UNRECONCILED_BANK_RECEIPTS);
+  }
+
+  @Test
+  @DisplayName(
+      "Unverified payment flow: XML → RECEIVED → TO_BE_RETURNED with bounce back ledger entries")
+  void unverifiedPaymentWithBounceBack() {
+    // Create a user with different personal code (for mismatch scenario)
+    var differentUser =
+        userRepository.save(
+            User.builder()
+                .firstName("Maria")
+                .lastName("Mets")
+                .personalCode("48806046007")
+                .email("maria.mets@example.com")
+                .phoneNumber("+372 5555 6666")
+                .build());
+
+    // Mark this user as onboarded to savings fund
+    jdbcTemplate.update(
+        "insert into savings_fund_onboarding (user_id) values (:user_id)",
+        Map.of("user_id", differentUser.getId()));
+
+    // Given - XML message with payment that cannot be verified (wrong personal code)
+    var xml = createUnverifiablePaymentXml();
+    persistXmlMessage(xml, NOW);
+
+    // Step 1: Process XML message → Payment should be RECEIVED
+    swedbankMessageDelegator.processMessages();
+
+    // Build expected payment
+    var expectedPayment =
+        SavingFundPayment.builder()
+            .amount(new BigDecimal("50.00"))
+            .currency(Currency.EUR)
+            .status(RECEIVED)
+            .remitterName("Jüri Tamm")
+            .remitterIdCode("39910273027")
+            .remitterIban("EE982200221234567890")
+            .beneficiaryIban("EE442200221092874625")
+            .description("Payment for 48806046007")
+            .externalId("2025092909000-1")
+            .build();
+
+    var payments = paymentRepository.findAll();
+
+    // Compare the actual fields we care about (ID and timestamps will be generated)
+    assertThat(payments)
+        .usingRecursiveFieldByFieldElementComparatorOnFields(
+            "amount",
+            "currency",
+            "status",
+            "remitterName",
+            "remitterIdCode",
+            "remitterIban",
+            "beneficiaryIban",
+            "description",
+            "externalId")
+        .containsExactly(expectedPayment);
+
+    var payment = payments.getFirst();
+    var paymentId = payment.getId();
+
+    // Step 2: Run verification job → Payment should be TO_BE_RETURNED
+    paymentVerificationJob.runJob();
+
+    payment = paymentRepository.findById(paymentId).orElseThrow();
+    assertThat(payment.getStatus()).isEqualTo(TO_BE_RETURNED);
+    assertThat(payment.getUserId()).isNull(); // Not attached to any user
+    assertThat(payment.getReturnReason())
+        .isEqualTo("selgituses olev isikukood ei klapi maksja isikukoodiga");
+
+    // Assert ledger: payment recorded as unattributed
+    var paymentAmount = new BigDecimal("50.00");
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance())
+        .isEqualByComparingTo(paymentAmount.negate());
+    assertThat(getIncomingPaymentsClearingAccount().getBalance())
+        .isEqualByComparingTo(paymentAmount);
+
+    // Step 3: Process outgoing return XML → Ledger should record bounce back
+    var returnXml = createReturnPaymentXml();
+    persistXmlMessage(returnXml, NOW);
+    swedbankMessageDelegator.processMessages();
+
+    // Verify return payment was created
+    var allPayments = paymentRepository.findAll();
+    assertThat(allPayments).hasSize(2); // Original incoming + return
+    var returnPayment =
+        allPayments.stream()
+            .filter(p -> p.getAmount().compareTo(ZERO) < 0)
+            .findFirst()
+            .orElseThrow();
+    assertThat(returnPayment.getAmount()).isEqualByComparingTo(paymentAmount.negate());
+    assertThat(returnPayment.getStatus()).isEqualTo(PROCESSED);
+
+    // Assert final ledger: bounce back recorded, clearing accounts balanced
+    assertThat(getUnreconciledBankReceiptsAccount().getBalance()).isEqualByComparingTo(ZERO);
+    assertThat(getIncomingPaymentsClearingAccount().getBalance()).isEqualByComparingTo(ZERO);
+  }
+
+  private String createUnverifiablePaymentXml() {
+    return "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+        + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
+        + "<BkToCstmrAcctRpt> "
+        + "<GrpHdr> <MsgId>test-unverifiable</MsgId> <CreDtTm>2025-09-29T09:00:00</CreDtTm> </GrpHdr> "
+        + "<Rpt> "
+        + "<Id>test-unverifiable-1</Id> "
+        + "<CreDtTm>2025-09-29T09:00:00</CreDtTm> "
+        + "<FrToDt> "
+        + "<FrDtTm>2025-09-29T00:00:00</FrDtTm> "
+        + "<ToDtTm>2025-09-29T09:00:00</ToDtTm> "
+        + "</FrToDt> "
+        + "<Acct> "
+        + "<Id> <IBAN>EE442200221092874625</IBAN> </Id> "
+        + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
+        + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> "
+        + "</Ownr> "
+        + "</Acct> "
+        + "<Ntry> "
+        + "<NtryRef>2025092909000-1</NtryRef>"
+        + "<Amt Ccy=\"EUR\">50.00</Amt> "
+        + "<CdtDbtInd>CRDT</CdtDbtInd> "
+        + "<Sts>BOOK</Sts> "
+        + "<BookgDt> <Dt>2025-09-29</Dt> </BookgDt> "
+        + "<NtryDtls> <TxDtls> "
+        + "<Refs> <AcctSvcrRef>2025092909000-1</AcctSvcrRef> </Refs> "
+        + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">50.00</Amt> </TxAmt> </AmtDtls> "
+        + "<RltdPties> "
+        + "<Dbtr> <Nm>Jüri Tamm</Nm> "
+        + "<Id> <PrvtId> <Othr> <Id>39910273027</Id> </Othr> </PrvtId> </Id> "
+        + "</Dbtr> "
+        + "<DbtrAcct> <Id> <IBAN>EE982200221234567890</IBAN> </Id> </DbtrAcct> "
+        + "</RltdPties> "
+        + "<RmtInf> <Ustrd>Payment for 48806046007</Ustrd> </RmtInf> "
+        + "</TxDtls> </NtryDtls> "
+        + "</Ntry> "
+        + "</Rpt> "
+        + "</BkToCstmrAcctRpt> "
+        + "</Document>";
+  }
+
+  private String createReturnPaymentXml() {
+    return "<?xml version=\"1.0\" encoding=\"UTF-8\"?> "
+        + "<Document xmlns=\"urn:iso:std:iso:20022:tech:xsd:camt.052.001.02\"> "
+        + "<BkToCstmrAcctRpt> "
+        + "<GrpHdr> <MsgId>test-return</MsgId> <CreDtTm>2025-09-29T14:00:00</CreDtTm> </GrpHdr> "
+        + "<Rpt> "
+        + "<Id>test-return-1</Id> "
+        + "<CreDtTm>2025-09-29T14:00:00</CreDtTm> "
+        + "<FrToDt> "
+        + "<FrDtTm>2025-09-29T00:00:00</FrDtTm> "
+        + "<ToDtTm>2025-09-29T14:00:00</ToDtTm> "
+        + "</FrToDt> "
+        + "<Acct> "
+        + "<Id> <IBAN>EE442200221092874625</IBAN> </Id> "
+        + "<Ownr> <Nm>TULEVA FONDID AS</Nm> "
+        + "<Id> <OrgId> <Othr> <Id>14118923</Id> </Othr> </OrgId> </Id> "
+        + "</Ownr> "
+        + "</Acct> "
+        + "<Ntry> "
+        + "<NtryRef>2025092914000-1</NtryRef>"
+        + "<Amt Ccy=\"EUR\">50.00</Amt> "
+        + "<CdtDbtInd>DBIT</CdtDbtInd> "
+        + "<Sts>BOOK</Sts> "
+        + "<BookgDt> <Dt>2025-09-29</Dt> </BookgDt> "
+        + "<NtryDtls> <TxDtls> "
+        + "<Refs> <AcctSvcrRef>2025092914000-1</AcctSvcrRef> </Refs> "
+        + "<AmtDtls> <TxAmt> <Amt Ccy=\"EUR\">50.00</Amt> </TxAmt> </AmtDtls> "
+        + "<RltdPties> "
+        + "<Cdtr> <Nm>Jüri Tamm</Nm> </Cdtr> "
+        + "<CdtrAcct> <Id> <IBAN>EE982200221234567890</IBAN> </Id> </CdtrAcct> "
+        + "</RltdPties> "
+        + "<RmtInf> <Ustrd>Tagastus: selgituses olev isikukood ei klapi maksja isikukoodiga</Ustrd> </RmtInf> "
+        + "</TxDtls> </NtryDtls> "
+        + "</Ntry> "
+        + "</Rpt> "
+        + "</BkToCstmrAcctRpt> "
+        + "</Document>";
   }
 }

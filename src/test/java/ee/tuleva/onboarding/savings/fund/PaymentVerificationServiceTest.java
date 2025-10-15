@@ -39,6 +39,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "selgituses puudub isikukood");
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getRemitterIban(), payment.getId());
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -51,6 +53,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "selgituses olev isikukood ei klapi maksja isikukoodiga");
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getRemitterIban(), payment.getId());
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -65,6 +69,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "isik ei ole Tuleva klient");
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getRemitterIban(), payment.getId());
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -82,6 +88,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "see isik ei ole täiendava kogumisfondiga liitunud");
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getRemitterIban(), payment.getId());
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -97,6 +105,8 @@ class PaymentVerificationServiceTest {
     verify(savingFundPaymentRepository).changeStatus(payment.getId(), TO_BE_RETURNED);
     verify(savingFundPaymentRepository)
         .addReturnReason(payment.getId(), "maksja nimi ei klapi Tuleva andmetega");
+    verify(savingsFundLedger)
+        .recordUnattributedPayment(payment.getAmount(), payment.getRemitterIban(), payment.getId());
     verifyNoMoreInteractions(savingFundPaymentRepository);
   }
 
@@ -214,6 +224,7 @@ class PaymentVerificationServiceTest {
         .id(randomUUID())
         .amount(new BigDecimal("100.00"))
         .remitterName("PÄRT ÕLEKÕRS")
+        .remitterIban("EE123456789012345678")
         .remitterIdCode(remitterIdCode)
         .description(description)
         .build();

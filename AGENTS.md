@@ -123,6 +123,11 @@ The application follows domain-driven design with these main domains:
 
 ### Testing Strategy
 
+#### CRITICAL: Always Write and Run Tests
+- **Write tests for every change**: Every code modification must have corresponding unit or integration tests
+- **Run tests before committing**: Always execute tests to ensure they pass before finalizing changes
+- **Fix broken tests immediately**: Never leave failing tests in the codebase
+
 #### Test Framework
 - Spock framework (Groovy) for unit and integration tests
 - JUnit 5 tests are also acceptable

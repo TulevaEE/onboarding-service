@@ -77,6 +77,9 @@ public class PaymentVerificationService {
     savingFundPaymentRepository.changeStatus(payment.getId(), TO_BE_RETURNED);
     savingFundPaymentRepository.addReturnReason(payment.getId(), reason);
 
+    savingsFundLedger.recordUnattributedPayment(
+        payment.getAmount(), payment.getRemitterIban(), payment.getId());
+
     Optional.ofNullable(payment.getUserId())
         .flatMap(userRepository::findById)
         .ifPresent(

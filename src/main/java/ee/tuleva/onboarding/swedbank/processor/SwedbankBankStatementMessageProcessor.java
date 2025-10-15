@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.swedbank.processor;
 
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
+import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -9,7 +10,6 @@ import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
 import ee.tuleva.onboarding.swedbank.statement.SavingsFundAccountIdentifier;
 import ee.tuleva.onboarding.swedbank.statement.SwedbankBankStatementExtractor;
-import java.math.BigDecimal;
 import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,13 +42,13 @@ class SwedbankBankStatementMessageProcessor {
               throw new IllegalArgumentException("Message type not supported: " + messageType);
         };
     log.info(
-        "Successfully extracted bank statement message with {} entries",
+        "Successfully extracted bank statement message: entries={}",
         bankStatement.getEntries().size());
 
     var accountIban = bankStatement.getBankStatementAccount().iban();
     if (!savingsFundAccountIdentifier.isAccountType(accountIban, DEPOSIT_EUR)) {
       log.info(
-          "Skipping payment processing for account {} as it is not a DEPOSIT_EUR account",
+          "Skipping payment processing as it is not a DEPOSIT_EUR account: account={}",
           accountIban);
       return;
     }
@@ -63,18 +63,30 @@ class SwedbankBankStatementMessageProcessor {
   }
 
   private void handleInsertedPayment(SavingFundPayment payment) {
-    // For new outgoing payments to fund investment account, create ledger entry
     if (isOutgoingToFundAccount(payment)) {
       log.info(
-          "Creating ledger entry for transfer to fund investment account: {}",
+          "Creating ledger entry for transfer to fund investment account: amount={}",
           payment.getAmount().negate());
       savingsFundLedger.transferToFundAccount(payment.getAmount().negate());
+    } else if (isOutgoingReturn(payment)) {
+      log.info(
+          "Creating ledger entry for payment bounce back: amount={}, to={}",
+          payment.getAmount().negate(),
+          payment.getBeneficiaryIban());
+      savingsFundLedger.bounceBackUnattributedPayment(
+          payment.getAmount().negate(), payment.getBeneficiaryIban());
     }
   }
 
   private boolean isOutgoingToFundAccount(SavingFundPayment payment) {
-    return payment.getAmount().compareTo(BigDecimal.ZERO) < 0
+    return payment.getAmount().compareTo(ZERO) < 0
         && savingsFundAccountIdentifier.isAccountType(
+            payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
+  }
+
+  private boolean isOutgoingReturn(SavingFundPayment payment) {
+    return payment.getAmount().compareTo(ZERO) < 0
+        && !savingsFundAccountIdentifier.isAccountType(
             payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
   }
 }

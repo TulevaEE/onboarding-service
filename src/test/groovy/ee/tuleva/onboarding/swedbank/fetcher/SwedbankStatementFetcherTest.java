@@ -1,6 +1,6 @@
 package ee.tuleva.onboarding.swedbank.fetcher;
 
-import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -29,7 +29,7 @@ class SwedbankStatementFetcherTest {
 
     fetcher = new SwedbankStatementFetcher(swedbankGatewayClient, configuration);
 
-    when(configuration.getAccountIban(DEPOSIT_EUR)).thenReturn(Optional.of(testIban));
+    when(configuration.getAccountIban(DEPOSIT_EUR)).thenReturn(testIban);
   }
 
   @Test

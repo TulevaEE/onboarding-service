@@ -8,9 +8,8 @@ import ee.tuleva.onboarding.ledger.SavingsFundLedger;
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentExtractor;
 import ee.tuleva.onboarding.savings.fund.SavingFundPaymentUpsertionService;
-import ee.tuleva.onboarding.swedbank.statement.SavingsFundAccountIdentifier;
+import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.statement.SwedbankBankStatementExtractor;
-import java.time.Clock;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,9 +23,8 @@ class SwedbankBankStatementMessageProcessor {
   private final SwedbankBankStatementExtractor swedbankBankStatementExtractor;
   private final SavingFundPaymentExtractor paymentExtractor;
   private final SavingFundPaymentUpsertionService paymentService;
-  private final SavingsFundAccountIdentifier savingsFundAccountIdentifier;
+  private final SwedbankAccountConfiguration swedbankAccountConfiguration;
   private final SavingsFundLedger savingsFundLedger;
-  private final Clock clock;
 
   @Transactional
   public void processMessage(String rawResponse, SwedbankMessageType messageType) {
@@ -46,7 +44,7 @@ class SwedbankBankStatementMessageProcessor {
         bankStatement.getEntries().size());
 
     var accountIban = bankStatement.getBankStatementAccount().iban();
-    if (!savingsFundAccountIdentifier.isAccountType(accountIban, DEPOSIT_EUR)) {
+    if (swedbankAccountConfiguration.getAccountType(accountIban) != DEPOSIT_EUR) {
       log.info(
           "Skipping payment processing as it is not a DEPOSIT_EUR account: account={}",
           accountIban);
@@ -81,13 +79,13 @@ class SwedbankBankStatementMessageProcessor {
 
   private boolean isOutgoingToFundAccount(SavingFundPayment payment) {
     return payment.getAmount().compareTo(ZERO) < 0
-        && savingsFundAccountIdentifier.isAccountType(
-            payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
+        && swedbankAccountConfiguration.getAccountType(payment.getBeneficiaryIban())
+            == FUND_INVESTMENT_EUR;
   }
 
   private boolean isOutgoingReturn(SavingFundPayment payment) {
     return payment.getAmount().compareTo(ZERO) < 0
-        && !savingsFundAccountIdentifier.isAccountType(
-            payment.getBeneficiaryIban(), FUND_INVESTMENT_EUR);
+        && swedbankAccountConfiguration.getAccountType(payment.getBeneficiaryIban())
+            != FUND_INVESTMENT_EUR;
   }
 }

@@ -1,7 +1,5 @@
 package ee.tuleva.onboarding.swedbank.statement;
 
-import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
-
 import ee.swedbank.gateway.iso.response.report.AccountReport11;
 import ee.swedbank.gateway.iso.response.report.GenericOrganisationIdentification1;
 import ee.swedbank.gateway.iso.response.report.OrganisationIdentification4;
@@ -13,10 +11,6 @@ import java.util.Optional;
 
 public record BankStatementAccount(
     String iban, String accountHolderName, String accountHolderIdCode) {
-
-  public BankAccountType getBankAccountType() {
-    return DEPOSIT_EUR;
-  }
 
   static BankStatementAccount from(AccountReport11 report) {
     var iban = Require.notNullOrBlank(report.getAcct().getId().getIBAN(), "account IBAN");

@@ -3,6 +3,7 @@ package ee.tuleva.onboarding.savings.fund;
 import static ee.tuleva.onboarding.ledger.SystemAccount.*;
 import static ee.tuleva.onboarding.ledger.UserAccount.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static java.math.BigDecimal.ZERO;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -14,7 +15,6 @@ import ee.tuleva.onboarding.savings.fund.issuing.IssuingJob;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessage;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageRepository;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount;
 import ee.tuleva.onboarding.swedbank.processor.SwedbankMessageDelegator;
 import ee.tuleva.onboarding.time.ClockHolder;
 import ee.tuleva.onboarding.user.User;
@@ -175,10 +175,7 @@ class SavingsFundPaymentIntegrationTest {
     payment = paymentRepository.findById(paymentId).orElseThrow();
     assertThat(payment.getStatus()).isEqualTo(PROCESSED);
 
-    // Step 6: Outgoing transfer to fund investment account → Ledger updated
-    // Get the actual INVESTMENT_EUR IBAN from configuration
-    var investmentIban =
-        swedbankAccountConfiguration.getAccountIban(SwedbankAccount.INVESTMENT_EUR).orElseThrow();
+    var investmentIban = swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
 
     var outgoingToInvestmentXml =
         createOutgoingToInvestmentAccountXml(investmentIban, paymentAmount);

@@ -1,11 +1,11 @@
 package ee.tuleva.onboarding.ledger;
 
-import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
 
 import ee.tuleva.onboarding.auth.principal.AuthenticatedPerson;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageReceiver;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount;
+import ee.tuleva.onboarding.swedbank.statement.BankAccountType;
 import ee.tuleva.onboarding.user.User;
 import ee.tuleva.onboarding.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -53,7 +53,7 @@ public class SavingsFundTestController {
   @Operation(summary = "Trigger statement request")
   @PostMapping("/swedbank/statement/historic")
   public void sendSwedbankRequest(
-      @RequestParam(value = "account") SwedbankAccount account,
+      @RequestParam(value = "account") BankAccountType account,
       @RequestParam(value = "fromDate") @DateTimeFormat(pattern = "YYYY-MM-dd") LocalDate fromDate,
       @RequestParam(value = "toDate") @DateTimeFormat(pattern = "YYYY-MM-dd") LocalDate toDate) {
     swedbankStatementFetcher.sendHistoricRequest(account, fromDate, toDate);

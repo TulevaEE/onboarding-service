@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
-import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.DEPOSIT_EUR;
-import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.INVESTMENT_EUR;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
@@ -16,7 +16,6 @@ import ee.tuleva.onboarding.swedbank.http.SwedbankGatewayClient;
 import ee.tuleva.onboarding.swedbank.payment.PaymentRequest;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -43,10 +42,9 @@ class FundAccountPaymentJobTest {
                 .amount(new BigDecimal("50.40"))
                 .build());
     when(savingFundPaymentRepository.findPaymentsWithStatus(ISSUED)).thenReturn(payments);
-    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
-        .thenReturn(Optional.of("investment-IBAN"));
-    when(swedbankAccountConfiguration.getAccountIban(DEPOSIT_EUR))
-        .thenReturn(Optional.of("deposit-IBAN"));
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("investment-IBAN");
+    when(swedbankAccountConfiguration.getAccountIban(DEPOSIT_EUR)).thenReturn("deposit-IBAN");
 
     job.createPaymentRequest();
 

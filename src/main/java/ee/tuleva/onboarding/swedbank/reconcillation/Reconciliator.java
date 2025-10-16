@@ -2,7 +2,7 @@ package ee.tuleva.onboarding.swedbank.reconcillation;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.RETURNED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.TO_BE_RETURNED;
-import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.INVESTMENT_EUR;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 import static java.math.BigDecimal.ZERO;
 
@@ -109,8 +109,7 @@ public class Reconciliator {
   private List<SavingFundPayment> findUnbouncedReturns() {
     List<SavingFundPayment> allPayments = paymentRepository.findAll();
 
-    String investmentIban =
-        swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR).orElseThrow();
+    String investmentIban = swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
 
     return allPayments.stream()
         .filter(payment -> payment.getAmount().compareTo(ZERO) < 0)
@@ -132,7 +131,13 @@ public class Reconciliator {
             .with(LocalTime.MAX)
             .toInstant();
 
-    var bankStatementAccount = bankStatement.getBankStatementAccount().getBankAccountType();
+    var iban = bankStatement.getBankStatementAccount().iban();
+    var bankStatementAccount = swedbankAccountConfiguration.getAccountType(iban);
+
+    if (bankStatementAccount == null) {
+      log.error("Unknown account type: iban={}", iban);
+      return;
+    }
 
     var ledgerSystemAccount = bankStatementAccount.getLedgerAccount();
     var ledgerAccountBalance =

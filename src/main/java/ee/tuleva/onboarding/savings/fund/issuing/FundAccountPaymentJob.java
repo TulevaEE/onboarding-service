@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.savings.fund.issuing;
 
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.ISSUED;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.PROCESSED;
-import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.DEPOSIT_EUR;
-import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.INVESTMENT_EUR;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static java.math.BigDecimal.ZERO;
 
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment;
@@ -48,10 +48,9 @@ public class FundAccountPaymentJob {
     var id = UUID.randomUUID();
     var paymentRequest =
         PaymentRequest.tulevaPaymentBuilder(id)
-            .remitterIban(swedbankAccountConfiguration.getAccountIban(DEPOSIT_EUR).orElseThrow())
+            .remitterIban(swedbankAccountConfiguration.getAccountIban(DEPOSIT_EUR))
             .beneficiaryName("Tuleva Fondid AS")
-            .beneficiaryIban(
-                swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR).orElseThrow())
+            .beneficiaryIban(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
             .amount(total)
             .description("Subscriptions")
             .build();

@@ -2,6 +2,7 @@ package ee.tuleva.onboarding.savings.fund;
 
 import static ee.tuleva.onboarding.ledger.SystemAccount.FUND_INVESTMENT_CASH_CLEARING;
 import static ee.tuleva.onboarding.ledger.SystemAccount.INCOMING_PAYMENTS_CLEARING;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ee.tuleva.onboarding.currency.Currency;
@@ -9,7 +10,6 @@ import ee.tuleva.onboarding.ledger.LedgerService;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankAccountConfiguration;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessage;
 import ee.tuleva.onboarding.swedbank.fetcher.SwedbankMessageRepository;
-import ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount;
 import ee.tuleva.onboarding.swedbank.processor.SwedbankMessageDelegator;
 import ee.tuleva.onboarding.time.ClockHolder;
 import java.math.BigDecimal;
@@ -312,8 +312,7 @@ class SavingFundPaymentUpsertionServiceIntegrationTest {
   @Test
   void outgoingPaymentToInvestmentAccountCreatesLedgerEntry() {
     // given - get the actual INVESTMENT_EUR IBAN from configuration
-    var investmentIban =
-        swedbankAccountConfiguration.getAccountIban(SwedbankAccount.INVESTMENT_EUR).orElseThrow();
+    var investmentIban = swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR);
 
     // and - XML with outgoing DEBIT transaction to INVESTMENT_EUR account
     var outgoingToInvestmentXml =

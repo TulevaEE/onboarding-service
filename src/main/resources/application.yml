@@ -69,9 +69,9 @@ swedbank-gateway:
   client-id: ''
   agreement-id: ''
   accounts:
-    "deposit_eur": ''
-    "withdrawal_eur": ''
-    "investment_eur": ''
+    DEPOSIT_EUR: ''
+    WITHDRAWAL_EUR: ''
+    FUND_INVESTMENT_EUR: ''
 
 springdoc:
   swagger-ui:
@@ -196,9 +196,9 @@ swedbank-gateway:
   client-id: ${SWEDBANK_GATEWAY_CLIENT_ID:mock_client_id}
   agreement-id: ${SWEDBANK_GATEWAY_AGREEMENT_ID:1234}
   accounts:
-    "deposit_eur": ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN:EE_TEST_IBAN}
-    "withdrawal_eur": ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN:EE_TEST_IBAN_2}
-    "investment_eur": ${SWEDBANK_GATEWAY_INVESTMENT_EUR_ACCOUNT_IBAN:EE_TEST_IBAN_3}
+    DEPOSIT_EUR: ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN:EE_TEST_IBAN}
+    WITHDRAWAL_EUR: ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN:EE_TEST_IBAN_2}
+    FUND_INVESTMENT_EUR: ${SWEDBANK_GATEWAY_INVESTMENT_EUR_ACCOUNT_IBAN:EE_TEST_IBAN_3}
 ---
 spring:
   flyway:
@@ -256,9 +256,9 @@ swedbank-gateway:
   agreement-id: ${SWEDBANK_GATEWAY_AGREEMENT_ID}
   url: 'https://psd2.api.swedbank.com/partner/v1/sgw/'
   accounts:
-    "deposit_eur": ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN}
-    "withdrawal_eur": ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN}
-    "investment_eur": ${SWEDBANK_GATEWAY_INVESTMENT_EUR_ACCOUNT_IBAN}
+    DEPOSIT_EUR: ${SWEDBANK_GATEWAY_DEPOSIT_EUR_ACCOUNT_IBAN}
+    WITHDRAWAL_EUR: ${SWEDBANK_GATEWAY_WITHDRAWAL_EUR_ACCOUNT_IBAN}
+    FUND_INVESTMENT_EUR: ${SWEDBANK_GATEWAY_INVESTMENT_EUR_ACCOUNT_IBAN}
 
 epis:
   service:

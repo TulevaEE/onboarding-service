@@ -3,8 +3,8 @@ package ee.tuleva.onboarding.swedbank.reconcillation;
 import static ee.tuleva.onboarding.ledger.LedgerAccountFixture.systemAccountWithBalance;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status.*;
 import static ee.tuleva.onboarding.savings.fund.SavingFundPaymentFixture.aPayment;
-import static ee.tuleva.onboarding.swedbank.fetcher.SwedbankStatementFetcher.SwedbankAccount.INVESTMENT_EUR;
 import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.DEPOSIT_EUR;
+import static ee.tuleva.onboarding.swedbank.statement.BankAccountType.FUND_INVESTMENT_EUR;
 import static ee.tuleva.onboarding.swedbank.statement.BankStatement.BankStatementType.HISTORIC_STATEMENT;
 import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.CLOSE;
 import static ee.tuleva.onboarding.swedbank.statement.BankStatementBalance.StatementBalanceType.OPEN;
@@ -29,7 +29,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,8 +67,10 @@ class ReconciliatorTest {
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
     when(paymentRepository.findPaymentsWithStatus(any())).thenReturn(new ArrayList<>());
     when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
-    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
-        .thenReturn(Optional.of("EE987654321098765432"));
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE987654321098765432");
+    when(swedbankAccountConfiguration.getAccountType("EE123456789012345678"))
+        .thenReturn(DEPOSIT_EUR);
 
     // When & Then
     assertDoesNotThrow(() -> reconciliator.reconcile(bankStatement));
@@ -95,8 +96,10 @@ class ReconciliatorTest {
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
     when(paymentRepository.findPaymentsWithStatus(any())).thenReturn(new ArrayList<>());
     when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
-    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
-        .thenReturn(Optional.of("EE987654321098765432"));
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE987654321098765432");
+    when(swedbankAccountConfiguration.getAccountType("EE987700771001802057"))
+        .thenReturn(DEPOSIT_EUR);
 
     // When & Then
     assertThrows(IllegalStateException.class, () -> reconciliator.reconcile(bankStatement));
@@ -146,8 +149,10 @@ class ReconciliatorTest {
     when(ledgerService.getSystemAccount(DEPOSIT_EUR.getLedgerAccount())).thenReturn(ledgerAccount);
     when(paymentRepository.findPaymentsWithStatus(any())).thenReturn(new ArrayList<>());
     when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
-    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
-        .thenReturn(Optional.of("EE987654321098765432"));
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE987654321098765432");
+    when(swedbankAccountConfiguration.getAccountType("EE123456789012345678"))
+        .thenReturn(DEPOSIT_EUR);
 
     // When & Then
     assertDoesNotThrow(() -> reconciliator.reconcile(bankStatement));
@@ -181,8 +186,8 @@ class ReconciliatorTest {
         .thenReturn(List.of(toBeReturnedPayment));
     when(paymentRepository.findPaymentsWithStatus(RETURNED)).thenReturn(List.of(returnedPayment));
     when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
-    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
-        .thenReturn(Optional.of("EE987654321098765432"));
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE987654321098765432");
 
     when(savingsFundLedger.hasLedgerEntry(paymentId1)).thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(paymentId2)).thenReturn(false);
@@ -213,8 +218,8 @@ class ReconciliatorTest {
 
     when(paymentRepository.findPaymentsWithStatus(any())).thenReturn(new ArrayList<>());
     when(paymentRepository.findAll()).thenReturn(List.of(returnPayment));
-    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
-        .thenReturn(Optional.of(investmentIban));
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn(investmentIban);
 
     // Mock that bounce back entry doesn't exist yet
     when(savingsFundLedger.hasLedgerEntry(paymentId)).thenReturn(false);
@@ -243,8 +248,8 @@ class ReconciliatorTest {
 
     when(paymentRepository.findPaymentsWithStatus(any())).thenReturn(new ArrayList<>());
     when(paymentRepository.findAll()).thenReturn(List.of(investmentTransfer));
-    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
-        .thenReturn(Optional.of(investmentIban));
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn(investmentIban);
 
     // When
     reconciliator.detectAndFixMissingLedgerEntries();
@@ -269,8 +274,8 @@ class ReconciliatorTest {
     when(paymentRepository.findPaymentsWithStatus(TO_BE_RETURNED)).thenReturn(List.of(payment));
     when(paymentRepository.findPaymentsWithStatus(RETURNED)).thenReturn(new ArrayList<>());
     when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
-    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
-        .thenReturn(Optional.of("EE987654321098765432"));
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE987654321098765432");
 
     when(savingsFundLedger.hasLedgerEntry(paymentId)).thenReturn(false, true);
 
@@ -309,8 +314,8 @@ class ReconciliatorTest {
         .thenReturn(List.of(payment1, payment2));
     when(paymentRepository.findPaymentsWithStatus(RETURNED)).thenReturn(new ArrayList<>());
     when(paymentRepository.findAll()).thenReturn(new ArrayList<>());
-    when(swedbankAccountConfiguration.getAccountIban(INVESTMENT_EUR))
-        .thenReturn(Optional.of("EE987654321098765432"));
+    when(swedbankAccountConfiguration.getAccountIban(FUND_INVESTMENT_EUR))
+        .thenReturn("EE987654321098765432");
 
     when(savingsFundLedger.hasLedgerEntry(paymentId1)).thenReturn(false);
     when(savingsFundLedger.hasLedgerEntry(paymentId2)).thenReturn(false);

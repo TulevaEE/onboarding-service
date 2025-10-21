@@ -18,7 +18,7 @@ public class ScheduledUnitOwnerSynchronizationJob {
   private final UnitOwnerSynchronizer unitOwnerSynchronizer;
 
   @Schedules({
-    @Scheduled(cron = "0 07 10 21 10 ?", zone = "Europe/Tallinn"),
+    @Scheduled(cron = "0 05 11 21 10 ?", zone = "Europe/Tallinn"),
     @Scheduled(cron = "0 30 4 ? * MON", zone = "Europe/Tallinn")
   })
   public void runDailySync() {

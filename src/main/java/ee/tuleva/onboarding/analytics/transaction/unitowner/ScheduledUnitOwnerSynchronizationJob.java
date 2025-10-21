@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.annotation.Schedules;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -16,7 +17,10 @@ public class ScheduledUnitOwnerSynchronizationJob {
 
   private final UnitOwnerSynchronizer unitOwnerSynchronizer;
 
-  @Scheduled(cron = "0 30 4 ? * MON", zone = "Europe/Tallinn")
+  @Schedules({
+    @Scheduled(cron = "0 07 10 21 10 ?", zone = "Europe/Tallinn"),
+    @Scheduled(cron = "0 30 4 ? * MON", zone = "Europe/Tallinn")
+  })
   public void runDailySync() {
     LocalDate snapshotDate = LocalDate.now(ClockHolder.clock());
     log.info(

@@ -24,7 +24,7 @@ public class PillarSuggestion {
       ContactDetails contactDetails,
       ConversionResponse conversion,
       PaymentRates paymentRates) {
-    this.suggestPaymentRate = !paymentRates.canIncrease();
+    this.suggestPaymentRate = paymentRates.canIncrease();
     this.suggestSecondPillar =
         !contactDetails.isSecondPillarActive()
             || !conversion.isSecondPillarPartiallyConverted()

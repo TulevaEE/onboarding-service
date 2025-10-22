@@ -17,4 +17,13 @@ public class PaymentRates {
   public boolean hasIncreased() {
     return (current != null && current > 2) || (pending != null && pending > 2);
   }
+
+  public boolean canIncrease() {
+    return !isMax();
+  }
+
+  private boolean isMax() {
+    return (pending != null && pending == 6)
+        || (current != null && current == 6 && pending == null);
+  }
 }

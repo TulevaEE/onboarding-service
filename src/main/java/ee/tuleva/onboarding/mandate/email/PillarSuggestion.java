@@ -4,6 +4,7 @@ import ee.tuleva.onboarding.conversion.ConversionResponse;
 import ee.tuleva.onboarding.epis.contact.ContactDetails;
 import ee.tuleva.onboarding.paymentrate.PaymentRates;
 import ee.tuleva.onboarding.user.User;
+import java.math.BigDecimal;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
@@ -23,11 +24,19 @@ public class PillarSuggestion {
       ContactDetails contactDetails,
       ConversionResponse conversion,
       PaymentRates paymentRates) {
-    this.suggestPaymentRate = !paymentRates.hasIncreased();
+    this.suggestPaymentRate = !paymentRates.canIncrease();
     this.suggestSecondPillar =
-        !contactDetails.isSecondPillarActive() || !conversion.isSecondPillarPartiallyConverted();
+        !contactDetails.isSecondPillarActive()
+            || !conversion.isSecondPillarPartiallyConverted()
+            || (conversion.getSecondPillarWeightedAverageFee() != null
+                && conversion.getSecondPillarWeightedAverageFee().compareTo(new BigDecimal("0.005"))
+                    > 0);
     this.suggestThirdPillar =
-        !contactDetails.isThirdPillarActive() || !conversion.isThirdPillarPartiallyConverted();
+        !contactDetails.isThirdPillarActive()
+            || !conversion.isThirdPillarPartiallyConverted()
+            || (conversion.getThirdPillarWeightedAverageFee() != null
+                && conversion.getThirdPillarWeightedAverageFee().compareTo(new BigDecimal("0.005"))
+                    > 0);
     this.suggestMembership = !user.isMember();
   }
 }

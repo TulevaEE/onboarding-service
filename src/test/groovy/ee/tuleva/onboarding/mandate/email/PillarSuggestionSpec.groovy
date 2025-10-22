@@ -17,34 +17,38 @@ class PillarSuggestionSpec extends Specification {
     when:
     contactDetails.isSecondPillarActive() >> secondPillarActive
     conversion.isSecondPillarPartiallyConverted() >> secondPillarPartiallyConverted
+    conversion.getSecondPillarWeightedAverageFee() >> secondPillarWeightedAverageFee
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
     then:
     pillarSuggestion.isSuggestSecondPillar() == suggestSecondPillar
 
     where:
-    secondPillarActive | secondPillarPartiallyConverted | suggestSecondPillar
-    false              | false                          | true
-    true               | false                          | true
-    false              | true                           | true
-    true               | true                           | false
+    secondPillarActive | secondPillarPartiallyConverted | secondPillarWeightedAverageFee | suggestSecondPillar
+    false              | false                          | null                           | true
+    true               | false                          | null                           | true
+    false              | true                           | null                           | true
+    true               | true                           | 0.003                          | false
+    true               | true                           | 0.006                          | true
   }
 
   def "suggests third pillar"() {
     when:
     contactDetails.isThirdPillarActive() >> thirdPillarActive
     conversion.isThirdPillarPartiallyConverted() >> thirdPillarPartiallyConverted
+    conversion.getThirdPillarWeightedAverageFee() >> thirdPillarWeightedAverageFee
     def pillarSuggestion = new PillarSuggestion(user, contactDetails, conversion, paymentRates)
 
     then:
     pillarSuggestion.isSuggestThirdPillar() == suggestThirdPillar
 
     where:
-    thirdPillarActive | thirdPillarPartiallyConverted | suggestThirdPillar
-    false             | false                         | true
-    true              | false                         | true
-    false             | true                          | true
-    true              | true                          | false
+    thirdPillarActive | thirdPillarPartiallyConverted | thirdPillarWeightedAverageFee | suggestThirdPillar
+    false             | false                         | null                          | true
+    true              | false                         | null                          | true
+    false             | true                          | null                          | true
+    true              | true                          | 0.003                         | false
+    true              | true                          | 0.006                         | true
   }
 
   def "suggests membership"() {

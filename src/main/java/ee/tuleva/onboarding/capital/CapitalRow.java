@@ -19,8 +19,7 @@ public record CapitalRow(
     Currency currency) {
 
   public BigDecimal getValue() {
-    return ZERO.add(contributions != null ? contributions : ZERO)
-        .add(profit != null ? profit : ZERO);
+    return CapitalCalculations.calculateCapitalValue(unitCount, unitPrice);
   }
 
   public static CapitalRow rounded(CapitalRow row) {

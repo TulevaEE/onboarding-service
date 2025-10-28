@@ -639,7 +639,7 @@ class CapitalTransferContractServiceTest {
                     CAPITAL_PAYMENT,
                     BigDecimal.valueOf(0.1),
                     BigDecimal.valueOf(0.9),
-                    BigDecimal.valueOf(1),
+                    BigDecimal.valueOf(0.5),
                     BigDecimal.valueOf(10),
                     Currency.EUR)));
 

@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.capital.transfer.execution;
 
+import ee.tuleva.onboarding.capital.CapitalCalculations;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEvent;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventRepository;
 import ee.tuleva.onboarding.capital.event.member.MemberCapitalEventType;
@@ -7,7 +8,6 @@ import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContract.CapitalTransferAmount;
 import ee.tuleva.onboarding.capital.transfer.CapitalTransferContractState;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
@@ -92,10 +92,8 @@ public class CapitalTransferValidator {
         .filter(event -> SELLABLE_CAPITAL_TYPES.contains(event.getType()))
         .map(
             event ->
-                event
-                    .getOwnershipUnitAmount()
-                    .multiply(ownershipUnitPrice)
-                    .setScale(5, RoundingMode.HALF_UP))
+                CapitalCalculations.calculateCapitalValue(
+                    event.getOwnershipUnitAmount(), ownershipUnitPrice))
         .reduce(BigDecimal.ZERO, BigDecimal::add);
   }
 }

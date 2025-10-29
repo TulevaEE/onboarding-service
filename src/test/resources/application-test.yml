@@ -6,16 +6,13 @@ spring:
     banner-mode: off
   cache:
     type: NONE
-  datasource:
-    username: sa
-    password:
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=KEY,VALUE
   jpa:
     hibernate:
       ddl-auto: none
-  flyway:
-    baseline-on-migrate: true
-    locations: classpath:/db/migration, classpath:/db/dev, classpath:/db/test
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
   sql:
     init:
       mode: always
@@ -23,6 +20,31 @@ spring:
   test:
     database:
       replace: none
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: "!ci"
+  datasource:
+    username: sa
+    password:
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;NON_KEYWORDS=KEY,VALUE
+  flyway:
+    baseline-on-migrate: true
+    locations: classpath:/db/migration, classpath:/db/dev, classpath:/db/h2
+
+---
+
+spring:
+  config:
+    activate:
+      on-profile: "ci"
+  flyway:
+    locations: classpath:/db/migration, classpath:/db/dev
+
+---
 
 epis:
   service:

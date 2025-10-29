@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 import static org.junit.jupiter.params.provider.EnumSource.Mode.EXCLUDE;
+import static org.springframework.transaction.annotation.Propagation.NOT_SUPPORTED;
 
 import ee.tuleva.onboarding.savings.fund.SavingFundPayment.Status;
 import ee.tuleva.onboarding.user.User;
@@ -247,15 +248,21 @@ class SavingFundPaymentRepositoryTest {
   }
 
   @Test
+  @Transactional(propagation = NOT_SUPPORTED)
   void attachUser_unknownUser() {
     var id = repository.savePaymentData(createPayment().build());
 
-    assertThatThrownBy(() -> repository.attachUser(id, 123L)).isInstanceOf(RuntimeException.class);
+    try {
+      assertThatThrownBy(() -> repository.attachUser(id, 123L))
+          .isInstanceOf(RuntimeException.class);
 
-    var payments = repository.findPaymentsWithStatus(CREATED);
+      var payments = repository.findPaymentsWithStatus(CREATED);
 
-    assertThat(payments).hasSize(1);
-    assertThat(payments.getFirst().getUserId()).isNull();
+      assertThat(payments).hasSize(1);
+      assertThat(payments.getFirst().getUserId()).isNull();
+    } finally {
+      jdbcTemplate.update("DELETE FROM saving_fund_payment WHERE id=:id", Map.of("id", id));
+    }
   }
 
   @Test
@@ -275,9 +282,11 @@ class SavingFundPaymentRepositoryTest {
     repository.changeStatus(id1, RECEIVED);
 
     assertThat(repository.findUserPayments(user1)).hasSize(2);
-    assertThat(repository.findUserPayments(user1)).extracting("id").containsExactly(id1, id2);
+    assertThat(repository.findUserPayments(user1))
+        .extracting("id")
+        .containsExactlyInAnyOrder(id1, id2);
     assertThat(repository.findUserPayments(user2)).hasSize(1);
-    assertThat(repository.findUserPayments(user2)).extracting("id").containsExactly(id3);
+    assertThat(repository.findUserPayments(user2)).extracting("id").containsExactlyInAnyOrder(id3);
   }
 
   @Test

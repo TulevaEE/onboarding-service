@@ -14,8 +14,10 @@ public enum EmailType {
   SECOND_PILLAR_WITHDRAWAL_CANCELLATION("second_pillar_withdrawal_cancellation"),
   SECOND_PILLAR_TRANSFER_CANCELLATION("second_pillar_transfer_cancellation"),
   SECOND_PILLAR_PAYMENT_RATE("second_pillar_payment_rate"),
+
   SECOND_PILLAR_LEAVERS("second_pillar_leavers"),
   SECOND_PILLAR_EARLY_WITHDRAWAL("second_pillar_early_withdrawal"),
+  PAYMENT_RATE_ABANDONMENT("payment_rate_abandonment"),
 
   THIRD_PILLAR_SUGGEST_SECOND("third_pillar_suggest_second"),
   THIRD_PILLAR_PAYMENT_REMINDER_MANDATE("third_pillar_payment_reminder_mandate"),
@@ -36,7 +38,8 @@ public enum EmailType {
 
   SAVINGS_FUND_PAYMENT_SUCCESS("savings_fund_payment_success"),
   SAVINGS_FUND_PAYMENT_CANCEL("savings_fund_payment_cancelled"),
-  SAVINGS_FUND_PAYMENT_FAIL("savings_fund_payment_failed");
+  SAVINGS_FUND_PAYMENT_FAIL("savings_fund_payment_failed"),
+  ;
 
   private final String templateName;
 

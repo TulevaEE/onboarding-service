@@ -1,0 +1,5 @@
+org.springframework.test.context.ContextCustomizerFactory=\
+ee.tuleva.onboarding.config.CiProfileActivatorFactory
+
+org.springframework.test.context.TestExecutionListener=\
+ee.tuleva.onboarding.testsupport.UtcTimezoneTestExecutionListener

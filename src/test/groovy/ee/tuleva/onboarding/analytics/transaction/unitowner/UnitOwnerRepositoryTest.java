@@ -70,8 +70,6 @@ class UnitOwnerRepositoryTest {
 
   private static final String DELETE_BALANCES = "DELETE FROM unit_owner_balance;";
   private static final String DELETE_OWNERS = "DELETE FROM unit_owner;";
-  private static final String RESET_OWNER_SEQUENCE =
-      "ALTER TABLE unit_owner ALTER COLUMN id RESTART WITH 1;";
 
   @BeforeAll
   static void createSchema(@Autowired DataSource dataSource) throws Exception {
@@ -90,7 +88,6 @@ class UnitOwnerRepositoryTest {
         Statement stmt = conn.createStatement()) {
       stmt.execute(DELETE_BALANCES);
       stmt.execute(DELETE_OWNERS);
-      stmt.execute(RESET_OWNER_SEQUENCE);
     }
   }
 

@@ -13,8 +13,8 @@ import org.springframework.test.context.MergedContextConfiguration;
  * Registers Testcontainers configuration for all tests. The actual container is only created when
  * the "ci" profile is active (set via SPRING_PROFILES_ACTIVE=ci,test in CircleCI).
  *
- * <p>This factory is needed because {@link TestcontainersConfiguration} uses {@code
- * @TestConfiguration}, which is not component-scanned. The {@code @Profile("ci")} on
+ * <p>This factory is needed because {@link TestcontainersConfiguration} uses
+ * {@code @TestConfiguration}, which is not component-scanned. The {@code @Profile("ci")} on
  * TestcontainersConfiguration ensures the PostgreSQL container is only created in CI.
  *
  * <p>The PostgreSQL container setup is handled by {@link TestcontainersConfiguration} using Spring

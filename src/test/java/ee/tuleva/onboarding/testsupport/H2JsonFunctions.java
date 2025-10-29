@@ -26,7 +26,7 @@ public class H2JsonFunctions {
         json.append(value);
       } else if ("true".equalsIgnoreCase(value) || "false".equalsIgnoreCase(value)) {
         json.append(value.toLowerCase());
-      } else if (isInteger(value)) {
+      } else if (isNumeric(value)) {
         json.append(value);
       } else {
         json.append("\"").append(value).append("\"");
@@ -36,12 +36,12 @@ public class H2JsonFunctions {
     return json.toString();
   }
 
-  private static boolean isInteger(String value) {
+  private static boolean isNumeric(String value) {
     if (value == null || value.isEmpty()) {
       return false;
     }
     try {
-      Integer.parseInt(value);
+      Double.parseDouble(value);
       return true;
     } catch (NumberFormatException e) {
       return false;

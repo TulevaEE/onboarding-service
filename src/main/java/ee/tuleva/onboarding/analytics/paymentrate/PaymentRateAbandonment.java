@@ -9,12 +9,12 @@ import lombok.Getter;
 
 @Builder
 public record PaymentRateAbandonment(
-    @Getter String personalCode,
-    @Getter String firstName,
-    @Getter String lastName,
-    @Getter String email,
+    @Getter(onMethod_ = @Override) String personalCode,
+    @Getter(onMethod_ = @Override) String firstName,
+    @Getter(onMethod_ = @Override) String lastName,
+    @Getter(onMethod_ = @Override) String email,
     String language,
-    @Getter LocalDateTime lastEmailSentDate,
+    LocalDateTime lastEmailSentDate,
     Integer count,
     String path,
     Integer currentRate,

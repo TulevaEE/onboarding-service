@@ -22,7 +22,8 @@ class H2JsonFunctionsTest {
   @Test
   void jsonBuildObject_shouldThrowException_whenOddNumberOfArgs() {
     assertThrows(
-        IllegalArgumentException.class, () -> H2JsonFunctions.jsonBuildObject("key1", "value1", "key2"));
+        IllegalArgumentException.class,
+        () -> H2JsonFunctions.jsonBuildObject("key1", "value1", "key2"));
   }
 
   @Test
@@ -46,8 +47,7 @@ class H2JsonFunctionsTest {
         H2JsonFunctions.jsonBuildObject(
             "doubleValue", "3.14159", "negativeDouble", "-2.71828", "scientific", "1.23e10");
     assertThat(result)
-        .isEqualTo(
-            "{\"doubleValue\":3.14159,\"negativeDouble\":-2.71828,\"scientific\":1.23e10}");
+        .isEqualTo("{\"doubleValue\":3.14159,\"negativeDouble\":-2.71828,\"scientific\":1.23e10}");
   }
 
   @Test
@@ -65,7 +65,8 @@ class H2JsonFunctionsTest {
   @Test
   void jsonBuildObject_shouldHandleBooleanValues() {
     String result =
-        H2JsonFunctions.jsonBuildObject("isActive", "true", "isDeleted", "false", "UPPERCASE", "TRUE");
+        H2JsonFunctions.jsonBuildObject(
+            "isActive", "true", "isDeleted", "false", "UPPERCASE", "TRUE");
     assertThat(result).isEqualTo("{\"isActive\":true,\"isDeleted\":false,\"UPPERCASE\":true}");
   }
 

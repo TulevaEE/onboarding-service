@@ -69,7 +69,7 @@ public class PaymentController {
     log.info("Processing savings payment return redirect");
     return paymentService
         .processSavingsPaymentToken(serializedToken)
-        .map(_ -> new RedirectView(frontendUrl + "/savings-fund/payment/success"))
+        .map(result -> new RedirectView(frontendUrl + "/savings-fund/payment/success"))
         .orElseGet(() -> new RedirectView(frontendUrl + "/savings-fund/payment"));
   }
 

@@ -4,8 +4,10 @@ import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.notification.email.Emailable;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import lombok.Builder;
 import lombok.Getter;
 
+@Builder
 public record PaymentRateAbandonment(
     @Getter String personalCode,
     @Getter String firstName,

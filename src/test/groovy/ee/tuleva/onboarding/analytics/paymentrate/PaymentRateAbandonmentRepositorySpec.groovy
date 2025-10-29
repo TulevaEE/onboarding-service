@@ -11,6 +11,8 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.aPaymentRateAbandonment
+import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.uniqueEmail
+import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.uniquePersonalCode
 
 @IgnoreIf({ System.getenv('CI') != 'true' })
 @DataJdbcTest
@@ -26,9 +28,10 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
   def "fetches payment rate abandonments for users who viewed the page"() {
     given:
     def abandonment = aPaymentRateAbandonment()
-        .withUniqueId(1)
-        .withCount(5)
-        .withCurrentRate(2)
+        .personalCode(uniquePersonalCode(1))
+        .email(uniqueEmail(1))
+        .count(5)
+        .currentRate(2)
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)
@@ -48,10 +51,11 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
   def "includes users who have never been emailed"() {
     given:
     def abandonment = aPaymentRateAbandonment()
-        .withUniqueId(2)
-        .withCount(3)
-        .withCurrentRate(4)
-        .withoutLastEmailSentDate()
+        .personalCode(uniquePersonalCode(2))
+        .email(uniqueEmail(2))
+        .count(3)
+        .currentRate(4)
+        .lastEmailSentDate(null)
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)
@@ -71,13 +75,15 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
   def "returns only rows from the latest snapshot"() {
     given:
     def newest = aPaymentRateAbandonment()
-        .withUniqueId(3)
-        .withCount(2)
+        .personalCode(uniquePersonalCode(3))
+        .email(uniqueEmail(3))
+        .count(2)
         .build()
 
     def older = aPaymentRateAbandonment()
-        .withUniqueId(4)
-        .withCount(1)
+        .personalCode(uniquePersonalCode(4))
+        .email(uniqueEmail(4))
+        .count(1)
         .build()
 
     def newestSnapshotDate = LocalDate.of(2025, 1, 31)
@@ -102,21 +108,24 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
   def "only fetches users with current rate 2 or 4"() {
     given:
     def rate2User = aPaymentRateAbandonment()
-        .withUniqueId(5)
-        .withCount(1)
-        .withCurrentRate(2)
+        .personalCode(uniquePersonalCode(5))
+        .email(uniqueEmail(5))
+        .count(1)
+        .currentRate(2)
         .build()
 
     def rate4User = aPaymentRateAbandonment()
-        .withUniqueId(6)
-        .withCount(2)
-        .withCurrentRate(4)
+        .personalCode(uniquePersonalCode(6))
+        .email(uniqueEmail(6))
+        .count(2)
+        .currentRate(4)
         .build()
 
     def rate6User = aPaymentRateAbandonment()
-        .withUniqueId(7)
-        .withCount(1)
-        .withCurrentRate(6)
+        .personalCode(uniquePersonalCode(7))
+        .email(uniqueEmail(7))
+        .count(1)
+        .currentRate(6)
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)
@@ -142,30 +151,37 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
   def "excludes users with pending rate 4 or 6"() {
     given:
     def noPendingRate = aPaymentRateAbandonment()
-        .withUniqueId(8)
-        .withCount(1)
-        .withCurrentRate(2)
+        .personalCode(uniquePersonalCode(8))
+        .email(uniqueEmail(8))
+        .count(1)
+        .currentRate(2)
         .build()
 
     def pendingRate4 = aPaymentRateAbandonment()
-        .withUniqueId(9)
-        .withCount(1)
-        .withCurrentRate(2)
-        .withPendingRate(4, LocalDate.of(2025, 3, 1))
+        .personalCode(uniquePersonalCode(9))
+        .email(uniqueEmail(9))
+        .count(1)
+        .currentRate(2)
+        .pendingRate(4)
+        .pendingRateDate(LocalDate.of(2025, 3, 1))
         .build()
 
     def pendingRate6 = aPaymentRateAbandonment()
-        .withUniqueId(10)
-        .withCount(1)
-        .withCurrentRate(4)
-        .withPendingRate(6, LocalDate.of(2025, 3, 1))
+        .personalCode(uniquePersonalCode(10))
+        .email(uniqueEmail(10))
+        .count(1)
+        .currentRate(4)
+        .pendingRate(6)
+        .pendingRateDate(LocalDate.of(2025, 3, 1))
         .build()
 
     def pendingRate2 = aPaymentRateAbandonment()
-        .withUniqueId(11)
-        .withCount(1)
-        .withCurrentRate(2)
-        .withPendingRate(2, LocalDate.of(2025, 3, 1))
+        .personalCode(uniquePersonalCode(11))
+        .email(uniqueEmail(11))
+        .count(1)
+        .currentRate(2)
+        .pendingRate(2)
+        .pendingRateDate(LocalDate.of(2025, 3, 1))
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)
@@ -194,18 +210,21 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
   def "filters events by date range"() {
     given:
     def inRange = aPaymentRateAbandonment()
-        .withUniqueId(12)
-        .withCount(1)
+        .personalCode(uniquePersonalCode(12))
+        .email(uniqueEmail(12))
+        .count(1)
         .build()
 
     def beforeRange = aPaymentRateAbandonment()
-        .withUniqueId(13)
-        .withCount(1)
+        .personalCode(uniquePersonalCode(13))
+        .email(uniqueEmail(13))
+        .count(1)
         .build()
 
     def afterRange = aPaymentRateAbandonment()
-        .withUniqueId(14)
-        .withCount(1)
+        .personalCode(uniquePersonalCode(14))
+        .email(uniqueEmail(14))
+        .count(1)
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)
@@ -230,8 +249,9 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
   def "counts multiple page views per user"() {
     given:
     def multipleViews = aPaymentRateAbandonment()
-        .withUniqueId(15)
-        .withCount(7)
+        .personalCode(uniquePersonalCode(15))
+        .email(uniqueEmail(15))
+        .count(7)
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)

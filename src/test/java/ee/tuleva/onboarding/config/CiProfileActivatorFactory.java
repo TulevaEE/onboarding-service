@@ -34,7 +34,6 @@ public class CiProfileActivatorFactory implements ContextCustomizerFactory {
         context.getEnvironment().addActiveProfile("ci");
 
         // Configure Flyway to exclude H2-specific migrations when using PostgreSQL
-        System.setProperty("spring.flyway.locations", "classpath:/db/migration,classpath:/db/dev");
 
         // Register TestcontainersConfiguration so Spring can auto-configure datasource
         // via @ServiceConnection when the "ci" profile is active

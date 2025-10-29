@@ -10,11 +10,15 @@ import org.springframework.test.context.ContextCustomizerFactory;
 import org.springframework.test.context.MergedContextConfiguration;
 
 /**
- * Automatically activates "ci" profile when CI=true environment variable is set. This enables all
- * tests to automatically use PostgreSQL via Testcontainers in CI without any manual configuration.
+ * Registers Testcontainers configuration for all tests. The actual container is only created when
+ * the "ci" profile is active (set via SPRING_PROFILES_ACTIVE=ci,test in CircleCI).
  *
- * <p>The actual PostgreSQL container setup is handled by {@link TestcontainersConfiguration} using
- * Spring Boot's {@code @ServiceConnection} for idiomatic container management.
+ * <p>This factory is needed because {@link TestcontainersConfiguration} uses {@code
+ * @TestConfiguration}, which is not component-scanned. The {@code @Profile("ci")} on
+ * TestcontainersConfiguration ensures the PostgreSQL container is only created in CI.
+ *
+ * <p>The PostgreSQL container setup is handled by {@link TestcontainersConfiguration} using Spring
+ * Boot's {@code @ServiceConnection} for idiomatic container management.
  */
 public class CiProfileActivatorFactory implements ContextCustomizerFactory {
 
@@ -29,20 +33,13 @@ public class CiProfileActivatorFactory implements ContextCustomizerFactory {
     @Override
     public void customizeContext(
         ConfigurableApplicationContext context, MergedContextConfiguration mergedConfig) {
-      String ciEnv = System.getenv("CI");
-      if ("true".equalsIgnoreCase(ciEnv)) {
-        context.getEnvironment().addActiveProfile("ci");
-
-        // Configure Flyway to exclude H2-specific migrations when using PostgreSQL
-
-        // Register TestcontainersConfiguration so Spring can auto-configure datasource
-        // via @ServiceConnection when the "ci" profile is active
-        BeanDefinitionRegistry registry = (BeanDefinitionRegistry) context.getBeanFactory();
-        if (!registry.containsBeanDefinition("testcontainersConfiguration")) {
-          registry.registerBeanDefinition(
-              "testcontainersConfiguration",
-              new RootBeanDefinition(TestcontainersConfiguration.class));
-        }
+      // Register TestcontainersConfiguration (@TestConfiguration is not component-scanned)
+      // The @Profile("ci") on the configuration ensures it only activates in CI
+      BeanDefinitionRegistry registry = (BeanDefinitionRegistry) context.getBeanFactory();
+      if (!registry.containsBeanDefinition("testcontainersConfiguration")) {
+        registry.registerBeanDefinition(
+            "testcontainersConfiguration",
+            new RootBeanDefinition(TestcontainersConfiguration.class));
       }
     }
 

@@ -9,6 +9,7 @@ jobs:
   build:
     environment:
       TERM: dumb
+      SPRING_PROFILES_ACTIVE: ci,test
     docker:
       - image: cimg/openjdk:21.0
     resource_class: large

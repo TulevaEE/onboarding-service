@@ -1,5 +1,6 @@
 package ee.tuleva.onboarding.analytics.thirdpillar;
 
+import static java.time.Clock.systemUTC;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import jakarta.persistence.EntityManager;
@@ -100,13 +101,6 @@ class AnalyticsRecentThirdPillarRepositoryTest {
                 FROM "analytics"."v_third_pillar_api_weekly"
             )
             """;
-  private static final String TRUNCATE_TABLES =
-      """
-            SET REFERENTIAL_INTEGRITY FALSE;
-            TRUNCATE TABLE "analytics"."unit_owner";
-            TRUNCATE TABLE "analytics"."unit_owner_balance";
-            SET REFERENTIAL_INTEGRITY TRUE;
-            """;
 
   @BeforeAll
   static void setupDatabase(@Autowired DataSource ds) throws Exception {
@@ -135,7 +129,8 @@ class AnalyticsRecentThirdPillarRepositoryTest {
   void cleanUpData() throws Exception {
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
-      stmt.execute(TRUNCATE_TABLES);
+      stmt.execute("DELETE FROM analytics.unit_owner_balance;");
+      stmt.execute("DELETE FROM analytics.unit_owner;");
     }
   }
 
@@ -208,7 +203,7 @@ class AnalyticsRecentThirdPillarRepositoryTest {
         .setParameter(3, firstName)
         .setParameter(4, lastName)
         .setParameter(5, snapshotDate)
-        .setParameter(6, LocalDateTime.now())
+        .setParameter(6, LocalDateTime.now(systemUTC()))
         .executeUpdate();
   }
 
@@ -224,7 +219,7 @@ class AnalyticsRecentThirdPillarRepositoryTest {
         .setParameter(2, ownerId)
         .setParameter(3, balance)
         .setParameter(4, securityShortName)
-        .setParameter(5, LocalDateTime.now())
+        .setParameter(5, LocalDateTime.now(systemUTC()))
         .executeUpdate();
   }
 }

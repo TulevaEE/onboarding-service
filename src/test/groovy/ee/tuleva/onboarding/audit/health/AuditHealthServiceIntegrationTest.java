@@ -34,7 +34,8 @@ class AuditHealthServiceIntegrationTest {
 
   private static final String CREATE_AUDIT_SCHEMA_IF_NOT_EXISTS =
       "CREATE SCHEMA IF NOT EXISTS audit";
-  private static final String CREATE_LOGGED_ACTIONS_TABLE_H2 =
+
+  private static final String CREATE_LOGGED_ACTIONS_TABLE =
       """
             CREATE TABLE IF NOT EXISTS audit.logged_actions (
                 event_id BIGSERIAL PRIMARY KEY,
@@ -42,38 +43,34 @@ class AuditHealthServiceIntegrationTest {
                 table_name TEXT NOT NULL DEFAULT 'test_table',
                 relid BIGINT NOT NULL DEFAULT 0,
                 session_user_name TEXT,
-                action_tstamp_tx TIMESTAMP WITH TIME ZONE NOT NULL,
-                action_tstamp_stm TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                action_tstamp_clk TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                action_tstamp_tx TIMESTAMP NOT NULL,
+                action_tstamp_stm TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                action_tstamp_clk TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 transaction_id BIGINT,
                 application_name TEXT,
                 client_addr VARCHAR(255),
                 client_port INTEGER,
                 client_query TEXT,
                 action TEXT NOT NULL,
-                row_data OTHER,
-                changed_fields OTHER,
+                row_data JSONB,
+                changed_fields JSONB,
                 statement_only BOOLEAN NOT NULL DEFAULT FALSE
             );
             """;
-  private static final String TRUNCATE_LOGGED_ACTIONS_TABLE =
-      "TRUNCATE TABLE audit.logged_actions RESTART IDENTITY";
 
   @BeforeAll
   static void setupDatabase(@Autowired DataSource ds) throws Exception {
-    // given
     try (Connection conn = ds.getConnection();
         Statement stmt = conn.createStatement()) {
       stmt.execute(CREATE_AUDIT_SCHEMA_IF_NOT_EXISTS);
-      stmt.execute(CREATE_LOGGED_ACTIONS_TABLE_H2);
+      stmt.execute(CREATE_LOGGED_ACTIONS_TABLE);
     }
   }
 
   @BeforeEach
-  void setUp() {
-    // given
+  void setUp() throws Exception {
     ClockHolder.setClock(fixedClock);
-    jdbcTemplate.execute(TRUNCATE_LOGGED_ACTIONS_TABLE);
+    jdbcTemplate.execute("DELETE FROM audit.logged_actions;");
   }
 
   @AfterEach
@@ -96,6 +93,10 @@ class AuditHealthServiceIntegrationTest {
     Field field = AuditHealthService.class.getDeclaredField("maxIntervalThreshold");
     field.setAccessible(true);
     return (Duration) field.get(auditHealthService);
+  }
+
+  private void truncateLoggedActionsTable() throws Exception {
+    jdbcTemplate.execute("DELETE FROM audit.logged_actions;");
   }
 
   @Test
@@ -134,7 +135,7 @@ class AuditHealthServiceIntegrationTest {
     assertThat(getMaxIntervalThresholdFromService()).isEqualTo(Duration.ZERO);
 
     // given
-    jdbcTemplate.execute(TRUNCATE_LOGGED_ACTIONS_TABLE);
+    truncateLoggedActionsTable();
     saveLogViaSql(baseTime, "D");
     // when
     auditHealthService.initializeOrRefreshThreshold();
@@ -169,7 +170,7 @@ class AuditHealthServiceIntegrationTest {
     // then
     assertThat(notDelayed).isFalse();
 
-    jdbcTemplate.execute(TRUNCATE_LOGGED_ACTIONS_TABLE);
+    truncateLoggedActionsTable();
     saveLogViaSql(baseTime, "I");
     saveLogViaSql(baseTime.plus(Duration.ofHours(1)), "U");
     auditHealthService.initializeOrRefreshThreshold();
@@ -197,7 +198,7 @@ class AuditHealthServiceIntegrationTest {
     assertThat(isDelayedWithExistingLog).isFalse();
 
     // given
-    jdbcTemplate.execute(TRUNCATE_LOGGED_ACTIONS_TABLE);
+    truncateLoggedActionsTable();
     auditHealthService.initializeOrRefreshThreshold();
     // when
     boolean isDelayedWithNoLogs = auditHealthService.isAuditLogDelayed();

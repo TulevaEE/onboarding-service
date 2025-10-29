@@ -49,13 +49,9 @@ class AmlCheckHealthRepositoryTest {
           type VARCHAR(255) NOT NULL,
           success BOOLEAN NOT NULL,
           metadata VARCHAR(4000),
-          created_time TIMESTAMP WITH TIME ZONE NOT NULL
+          created_time TIMESTAMP NOT NULL
       );
       """;
-  private static final String TRUNCATE_AML_CHECK_TABLE =
-      "SET REFERENTIAL_INTEGRITY FALSE;"
-          + "TRUNCATE TABLE public.aml_check RESTART IDENTITY;"
-          + "SET REFERENTIAL_INTEGRITY TRUE;";
 
   @BeforeAll
   static void setupDatabase(@Autowired DataSource ds) throws Exception {
@@ -76,7 +72,7 @@ class AmlCheckHealthRepositoryTest {
   void cleanUpDataAndResetClock() throws Exception {
     try (Connection conn = dataSource.getConnection();
         Statement stmt = conn.createStatement()) {
-      stmt.execute(TRUNCATE_AML_CHECK_TABLE);
+      stmt.execute("DELETE FROM public.aml_check;");
     }
     ClockHolder.setClock(FIXED_CLOCK);
   }

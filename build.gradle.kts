@@ -149,6 +149,9 @@ dependencies {
         exclude(group = "org.apache.groovy")
     }
     testImplementation("org.apache.groovy:groovy-all:4.0.28")
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:postgresql")
+    testImplementation("org.testcontainers:jdbc")
 
     // TODO: migrate to WireMock
     testImplementation("org.mock-server:mockserver-netty:5.15.0")

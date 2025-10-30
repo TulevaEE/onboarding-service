@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.data.jdbc.DataJdbcTest
 import org.springframework.context.annotation.Import
 import org.springframework.jdbc.core.simple.JdbcClient
-import spock.lang.IgnoreIf
+import spock.lang.Requires
 import spock.lang.Specification
 
 import java.time.LocalDate
@@ -14,7 +14,7 @@ import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentF
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.uniqueEmail
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.uniquePersonalCode
 
-@IgnoreIf({ System.getenv('CI') != 'true' })
+@Requires({ System.getenv('CI') == 'true' || System.getenv('SPRING_PROFILES_ACTIVE')?.contains('ci') })
 @DataJdbcTest
 @Import(PaymentRateAbandonmentRepository)
 class PaymentRateAbandonmentRepositorySpec extends Specification {

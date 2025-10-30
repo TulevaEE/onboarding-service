@@ -13,11 +13,19 @@ This file provides guidance to AI coding agents when working with code in this r
 - **Clean build**: `./gradlew clean build`
 
 ### Testing
-- **Run all tests**: `./gradlew test`
+- **Run all tests**: `./gradlew test` (runs against H2 in-memory database)
+- **Run tests with PostgreSQL**: `SPRING_PROFILES_ACTIVE=ci,test ./gradlew test` (uses Testcontainers PostgreSQL)
 - **Run specific test class**: `./gradlew test --tests MyTest`
 - **Run with test output**: `./gradlew test --info`
 - **Code coverage report**: `./gradlew jacocoTestReport` (report in `build/reports/jacoco/test/html/index.html`)
 - **Integration tests**: `./gradlew integrationTest`
+
+#### Test Database Profiles
+- **Default (no profile or without 'ci')**: Tests run against H2 in-memory database
+- **With 'ci' profile**: Tests run against PostgreSQL via Testcontainers (e.g., `SPRING_PROFILES_ACTIVE=ci,test`)
+  - **Requires Docker to be running** for Testcontainers to work
+- **CI environment**: Tests automatically use PostgreSQL when `CI=true` environment variable is set
+- Some tests require PostgreSQL-specific features (jsonb, advanced queries) and will be skipped when running against H2
 
 ### Code Quality
 - **Apply formatting**: `./gradlew spotlessApply`

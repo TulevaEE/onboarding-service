@@ -189,6 +189,15 @@ tasks {
         }
         useJUnitPlatform()
         shouldRunAfter(spotlessCheck)
+
+        // Enable parallel test execution for faster builds
+        // CircleCI Large has 4 vCPUs, so use all 4 cores
+        maxParallelForks =
+            if (System.getenv("CI") == "true") {
+                4 // CircleCI Large: 4 vCPUs
+            } else {
+                (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1) // Use half of available cores locally
+            }
     }
 
     bootRun {
@@ -388,5 +397,11 @@ tasks.withType<Test> {
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp/heapdump.hprof",
     )
-    maxHeapSize = "8g"
+    // CircleCI Large: 8GB RAM, 4 parallel forks = 1.5GB per fork (6GB total, 2GB for OS/container)
+    maxHeapSize =
+        if (System.getenv("CI") == "true") {
+            "1536m"
+        } else {
+            "2g" // More generous heap for local development
+        }
 }

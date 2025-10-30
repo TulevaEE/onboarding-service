@@ -326,7 +326,7 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
   private void insertEmail(PaymentRateAbandonment abandonment, String type, LocalDateTime createdDate) {
     if (createdDate != null) {
       jdbcClient.sql("""
-            INSERT INTO public.email (personal_code, type, status, created_date)
+            INSERT INTO email (personal_code, type, status, created_date)
             VALUES (:personal_code, :type, :status, :created_date)""")
           .param("personal_code", abandonment.personalCode())
           .param("type", type)

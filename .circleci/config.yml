@@ -10,6 +10,7 @@ jobs:
     environment:
       TERM: dumb
       SPRING_PROFILES_ACTIVE: ci,test
+      GRADLE_OPTS: -Dorg.gradle.parallel=true -Dorg.gradle.workers.max=4
     docker:
       - image: cimg/openjdk:21.0
     resource_class: large
@@ -19,12 +20,12 @@ jobs:
           docker_layer_caching: true
       - restore_cache:
           keys:
-            - v1-dependencies-{{ arch }}-{{ checksum "build.gradle.kts" }}
-            # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
+            - v2-gradle-{{ arch }}-{{ checksum "build.gradle.kts" }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
+            - v2-gradle-{{ arch }}-{{ checksum "build.gradle.kts" }}
+            - v2-gradle-{{ arch }}-
       - run:
           name: Build
-          command: ./gradlew build --no-daemon --stacktrace
+          command: ./gradlew build --no-daemon --stacktrace --build-cache
 
       - run:
           name: Copy heap dump if it exists
@@ -55,9 +56,11 @@ jobs:
       - codecov/upload
 
       - save_cache:
-          key: v1-dependencies-{{ arch }}-{{ checksum "build.gradle.kts" }}
+          key: v2-gradle-{{ arch }}-{{ checksum "build.gradle.kts" }}-{{ checksum "gradle/wrapper/gradle-wrapper.properties" }}
           paths:
-            - ~/.gradle
+            - ~/.gradle/caches
+            - ~/.gradle/wrapper
+            - .gradle
 
       - persist_to_workspace:
           root: .

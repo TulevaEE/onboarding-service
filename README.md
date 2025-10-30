@@ -36,6 +36,17 @@ Java 21, Spring Boot, Gradle, Spock for testing
 
 Running locally: `./gradlew bootRun`
 
+**Testing**
+
+Tests can run against either H2 in-memory database or PostgreSQL via Testcontainers:
+
+- `./gradlew test` - runs against H2 in-memory database (default, fast)
+- `SPRING_PROFILES_ACTIVE=ci,test ./gradlew test` - runs against PostgreSQL via Testcontainers (requires Docker to be running)
+
+Some tests require PostgreSQL-specific features (jsonb, advanced queries) and will be skipped when running against H2. These tests are annotated with `@Requires` to only run when the `ci` profile is active or `CI=true` environment variable is set.
+
+**Note:** Docker must be running for Testcontainers to work when using the `ci` profile.
+
 **Frontend**
 
 React, TypeScript, scss, custom bootstrap, react-testing-library

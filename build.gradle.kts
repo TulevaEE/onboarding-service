@@ -397,11 +397,12 @@ tasks.withType<Test> {
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp/heapdump.hprof",
     )
-    // CircleCI Large: 8GB RAM, 4 parallel forks = 1.5GB per fork (6GB total, 2GB for OS/container)
+    // CircleCI Large: 15GB RAM, 4 parallel forks = 3GB per fork (12GB for tests, 3GB for OS/container/Gradle)
+    // Local dev: Assume 16GB+ RAM (most devs have 16-32GB)
     maxHeapSize =
         if (System.getenv("CI") == "true") {
-            "1536m"
+            "3g" // CircleCI Large has 15GB RAM
         } else {
-            "2g" // More generous heap for local development
+            "4g" // Generous for local dev (16GB+ RAM)
         }
 }

@@ -114,4 +114,8 @@ public class EmailPersistenceService {
     return emailRepository.findAllByPersonalCodeAndTypeAndStatusInOrderByCreatedDateDesc(
         person.getPersonalCode(), type, List.of(SCHEDULED, QUEUED));
   }
+
+  public boolean hasEmailTypeBeenSentBefore(EmailType type) {
+    return emailRepository.existsByType(type);
+  }
 }

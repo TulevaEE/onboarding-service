@@ -189,4 +189,28 @@ class EmailPersistenceServiceSpec extends Specification {
     then:
     lastEmailDate.get() == date
   }
+
+  def "can check if email type has been sent before"() {
+    given:
+    def type = SECOND_PILLAR_LEAVERS
+
+    when:
+    emailRepository.existsByType(type) >> true
+    def hasBeenSent = emailPersistenceService.hasEmailTypeBeenSentBefore(type)
+
+    then:
+    hasBeenSent
+  }
+
+  def "returns false when email type has not been sent before"() {
+    given:
+    def type = SECOND_PILLAR_LEAVERS
+
+    when:
+    emailRepository.existsByType(type) >> false
+    def hasBeenSent = emailPersistenceService.hasEmailTypeBeenSentBefore(type)
+
+    then:
+    !hasBeenSent
+  }
 }

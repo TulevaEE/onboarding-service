@@ -31,13 +31,13 @@ public class AutoEmailSender {
 
   // checks every day at 12:00
   @Scheduled(cron = "0 0 12 * * *", zone = "Europe/Tallinn")
-  public void sendMonthlyEmails() {
+  public void sendAutoEmails() {
     for (final var autoEmailRepository : autoEmailRepositories) {
       EmailType emailType = autoEmailRepository.getEmailType();
       LocalDate startDate = LocalDate.now(clock).minusMonths(1).withDayOfMonth(1);
       LocalDate endDate = LocalDate.now(clock);
       log.info(
-          "Checking monthly emails for: emailType={}, startDate={}, endDate={}",
+          "Checking auto emails for: emailType={}, startDate={}, endDate={}",
           emailType,
           startDate,
           endDate);
@@ -45,18 +45,22 @@ public class AutoEmailSender {
 
       int estimatedSendCount = getEstimatedEmailCount(emailablePeople, emailType);
 
-      if (estimatedSendCount > 100) {
-        throw new IllegalStateException(
-            "Too many people for monthly emails: emailType="
-                + emailType
-                + ", estimatedSendCount="
-                + estimatedSendCount);
+      boolean isFirstTimeEmail = !emailPersistenceService.hasEmailTypeBeenSentBefore(emailType);
+      int maxRecipients = isFirstTimeEmail ? 1000 : 100;
+
+      if (estimatedSendCount > maxRecipients) {
+        log.error(
+            "Too many people for auto emails, skipping: emailType={}, estimatedSendCount={}, maxRecipients={}, isFirstTimeEmail={}",
+            emailType,
+            estimatedSendCount,
+            maxRecipients,
+            isFirstTimeEmail);
+        continue;
       }
 
-      log.info("Sending monthly emails: emailType={}, to={}", emailType, emailablePeople.size());
+      log.info("Sending auto emails: emailType={}, to={}", emailType, emailablePeople.size());
       int emailsSent = sendEmails(emailablePeople, emailType);
-      log.info(
-          "Successfully sent monthly emails: emailType={}, emailsSent={}", emailType, emailsSent);
+      log.info("Successfully sent auto emails: emailType={}, emailsSent={}", emailType, emailsSent);
     }
   }
 
@@ -75,15 +79,13 @@ public class AutoEmailSender {
       String personalCode = emailablePerson.getPersonalCode();
       if (hasReceivedEmailRecently(emailablePerson, emailType)) {
         log.info(
-            "Already sent monthly email, skipping: personalCode={}, emailType={}",
+            "Already sent auto email, skipping: personalCode={}, emailType={}",
             personalCode,
             emailType);
         continue;
       }
       log.info(
-          "Sending monthly email to person: personalCode={}, emailType={}",
-          personalCode,
-          emailType);
+          "Sending auto email to person: personalCode={}, emailType={}", personalCode, emailType);
 
       try {
         mailchimpService.sendEvent(
@@ -91,7 +93,7 @@ public class AutoEmailSender {
         emailsSent++;
       } catch (HttpClientErrorException.NotFound e) {
         log.info(
-            "Email not found in Mailchimp, skipping monthly email: personalCode={}, emailType={}",
+            "Email not found in Mailchimp, skipping auto email: personalCode={}, emailType={}",
             personalCode,
             emailType);
         continue;

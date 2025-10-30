@@ -1,7 +1,6 @@
 package ee.tuleva.onboarding.notification.email.auto;
 
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_EARLY_WITHDRAWAL;
-import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS;
+import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.*;
 
 import ee.tuleva.onboarding.mandate.email.persistence.EmailType;
 import java.util.Arrays;
@@ -10,7 +9,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum EmailEvent {
   NEW_LEAVER(SECOND_PILLAR_LEAVERS),
-  NEW_EARLY_WITHDRAWAL(SECOND_PILLAR_EARLY_WITHDRAWAL);
+  NEW_EARLY_WITHDRAWAL(SECOND_PILLAR_EARLY_WITHDRAWAL),
+  NEW_PAYMENT_RATE_ABANDONMENT(PAYMENT_RATE_ABANDONMENT),
+  ;
 
   private final EmailType emailType;
 

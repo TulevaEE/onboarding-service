@@ -27,4 +27,6 @@ public interface EmailRepository extends CrudRepository<Email, Long> {
 
   Optional<Email> findFirstByPersonalCodeAndTypeOrderByCreatedDateDesc(
       String personalCode, EmailType type);
+
+  boolean existsByType(EmailType type);
 }

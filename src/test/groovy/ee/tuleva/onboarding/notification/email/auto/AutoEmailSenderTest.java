@@ -8,7 +8,6 @@ import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PI
 import static ee.tuleva.onboarding.mandate.email.persistence.EmailType.SECOND_PILLAR_LEAVERS;
 import static ee.tuleva.onboarding.notification.email.auto.EmailEvent.NEW_EARLY_WITHDRAWAL;
 import static ee.tuleva.onboarding.notification.email.auto.EmailEvent.NEW_LEAVER;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -82,9 +81,13 @@ class AutoEmailSenderTest {
         .thenReturn(List.of());
     when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.empty());
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(true);
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(true);
 
     // When
-    autoEmailSender.sendMonthlyEmails();
+    autoEmailSender.sendAutoEmails();
 
     // Then
     verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
@@ -92,8 +95,8 @@ class AutoEmailSenderTest {
   }
 
   @Test
-  @DisplayName("Does not send leaver emails over threshold")
-  void rejectsLeaverEmailsOverThreshold() {
+  @DisplayName("Does not send leaver emails over threshold, skips that email type")
+  void skipsLeaverEmailsOverThreshold() {
     List<ExchangeTransactionLeaver> recentLeavers =
         Stream.generate(ExchangeTransactionLeaverFixture::leaverFixture).limit(101).toList();
 
@@ -104,17 +107,23 @@ class AutoEmailSenderTest {
 
     when(leaversRepository.fetch(eq(LocalDate.of(2019, 12, 1)), eq(LocalDate.of(2020, 1, 1))))
         .thenReturn(leavers);
+    when(withdrawalsRepository.fetch(eq(LocalDate.of(2019, 12, 1)), eq(LocalDate.of(2020, 1, 1))))
+        .thenReturn(List.of());
     when(emailPersistenceService.getLastEmailSendDate(
             eq(leaverFixture()), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.empty());
     when(emailPersistenceService.getLastEmailSendDate(
             eq(leaverFixture2()), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.of(ZonedDateTime.now(clock).minusMonths(2).toInstant()));
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(true);
 
-    assertThrows(
-        IllegalStateException.class,
-        () -> autoEmailSender.sendMonthlyEmails(),
-        "Too many people for monthly emails: emailType=SECOND_PILLAR_LEAVERS, estimatedSendCount=101");
+    // When
+    autoEmailSender.sendAutoEmails();
+
+    // Then - should not send any emails for SECOND_PILLAR_LEAVERS due to threshold
+    verify(mailchimpService, never()).sendEvent(anyString(), eq(NEW_LEAVER));
+    verify(emailPersistenceService, never()).save(any(), eq(SECOND_PILLAR_LEAVERS), any());
   }
 
   @Test
@@ -138,8 +147,12 @@ class AutoEmailSenderTest {
     when(emailPersistenceService.getLastEmailSendDate(
             eq(leaverFixture2()), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.of(ZonedDateTime.now(clock).minusMonths(2).toInstant()));
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(true);
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(true);
 
-    autoEmailSender.sendMonthlyEmails();
+    autoEmailSender.sendAutoEmails();
 
     verify(mailchimpService, times(10)).sendEvent(leaverFixture().email(), NEW_LEAVER);
     verify(emailPersistenceService, times(10))
@@ -162,9 +175,13 @@ class AutoEmailSenderTest {
     Instant recentEmailDate = ZonedDateTime.now(clock).minusMonths(2).toInstant();
     when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.of(recentEmailDate));
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(true);
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(true);
 
     // When
-    autoEmailSender.sendMonthlyEmails();
+    autoEmailSender.sendAutoEmails();
 
     // Then
     verify(mailchimpService, never()).sendEvent(leaver.email(), NEW_LEAVER);
@@ -187,9 +204,13 @@ class AutoEmailSenderTest {
     Instant oldEmailDate = ZonedDateTime.now(clock).minusMonths(5).toInstant();
     when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.of(oldEmailDate));
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(true);
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(true);
 
     // When
-    autoEmailSender.sendMonthlyEmails();
+    autoEmailSender.sendAutoEmails();
 
     // Then
     verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
@@ -210,9 +231,13 @@ class AutoEmailSenderTest {
     when(emailPersistenceService.getLastEmailSendDate(
             eq(earlyWithdrawal), eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
         .thenReturn(Optional.empty());
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(true);
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(true);
 
     // When
-    autoEmailSender.sendMonthlyEmails();
+    autoEmailSender.sendAutoEmails();
 
     // Then
     verify(mailchimpService, times(1)).sendEvent(earlyWithdrawal.email(), NEW_EARLY_WITHDRAWAL);
@@ -234,13 +259,17 @@ class AutoEmailSenderTest {
         .thenReturn(List.of());
     when(emailPersistenceService.getLastEmailSendDate(eq(leaver), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.empty());
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(true);
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(true);
 
     doThrow(HttpClientErrorException.NotFound.class)
         .when(mailchimpService)
         .sendEvent(leaver.email(), NEW_LEAVER);
 
     // When
-    autoEmailSender.sendMonthlyEmails();
+    autoEmailSender.sendAutoEmails();
 
     // Then
     verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
@@ -266,9 +295,13 @@ class AutoEmailSenderTest {
     when(emailPersistenceService.getLastEmailSendDate(
             eq(earlyWithdrawal), eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
         .thenReturn(Optional.empty());
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(true);
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(true);
 
     // When
-    autoEmailSender.sendMonthlyEmails();
+    autoEmailSender.sendAutoEmails();
 
     // Then
     verify(mailchimpService, times(1)).sendEvent(leaver.email(), NEW_LEAVER);
@@ -295,13 +328,71 @@ class AutoEmailSenderTest {
     when(emailPersistenceService.getLastEmailSendDate(
             any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS)))
         .thenReturn(Optional.empty());
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(true);
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(true);
 
     // When
-    autoEmailSender.sendMonthlyEmails();
+    autoEmailSender.sendAutoEmails();
 
     // Then
     verify(mailchimpService, times(2)).sendEvent(anyString(), eq(NEW_LEAVER));
     verify(emailPersistenceService, times(2))
         .save(any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS), eq(SCHEDULED));
+  }
+
+  @Test
+  @DisplayName("Allows first-time emails up to 1000 recipients")
+  void allowsFirstTimeEmailsUpTo1000Recipients() {
+    // Given - 600 recipients for a first-time email
+    List<ExchangeTransactionLeaver> recentLeavers =
+        Stream.generate(ExchangeTransactionLeaverFixture::leaverFixture).limit(600).toList();
+
+    when(leaversRepository.fetch(eq(LocalDate.of(2019, 12, 1)), eq(LocalDate.of(2020, 1, 1))))
+        .thenReturn(recentLeavers);
+    when(withdrawalsRepository.fetch(eq(LocalDate.of(2019, 12, 1)), eq(LocalDate.of(2020, 1, 1))))
+        .thenReturn(List.of());
+    when(emailPersistenceService.getLastEmailSendDate(
+            eq(leaverFixture()), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.empty());
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(false); // First-time email
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_EARLY_WITHDRAWAL)))
+        .thenReturn(true);
+
+    // When
+    autoEmailSender.sendAutoEmails();
+
+    // Then - should send all 600 emails
+    verify(mailchimpService, times(600)).sendEvent(anyString(), eq(NEW_LEAVER));
+    verify(emailPersistenceService, times(600))
+        .save(any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS), eq(SCHEDULED));
+  }
+
+  @Test
+  @DisplayName("Skips first-time emails over 1000 recipients")
+  void skipsFirstTimeEmailsOver1000Recipients() {
+    // Given - 1001 recipients for a first-time email (over 1000 limit)
+    List<ExchangeTransactionLeaver> recentLeavers =
+        Stream.generate(ExchangeTransactionLeaverFixture::leaverFixture).limit(1001).toList();
+
+    when(leaversRepository.fetch(eq(LocalDate.of(2019, 12, 1)), eq(LocalDate.of(2020, 1, 1))))
+        .thenReturn(recentLeavers);
+    when(withdrawalsRepository.fetch(eq(LocalDate.of(2019, 12, 1)), eq(LocalDate.of(2020, 1, 1))))
+        .thenReturn(List.of());
+    when(emailPersistenceService.getLastEmailSendDate(
+            eq(leaverFixture()), eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(Optional.empty());
+    when(emailPersistenceService.hasEmailTypeBeenSentBefore(eq(SECOND_PILLAR_LEAVERS)))
+        .thenReturn(false); // First-time email
+
+    // When
+    autoEmailSender.sendAutoEmails();
+
+    // Then - should not send any emails (over 1000 limit)
+    verify(mailchimpService, never()).sendEvent(anyString(), eq(NEW_LEAVER));
+    verify(emailPersistenceService, never())
+        .save(any(ExchangeTransactionLeaver.class), eq(SECOND_PILLAR_LEAVERS), any());
   }
 }

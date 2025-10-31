@@ -2,8 +2,8 @@ package ee.tuleva.onboarding.analytics.paymentrate;
 
 import ee.tuleva.onboarding.auth.principal.Person;
 import ee.tuleva.onboarding.notification.email.Emailable;
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -14,8 +14,9 @@ public record PaymentRateAbandonment(
     @Getter String lastName,
     @Getter String email,
     String language,
-    LocalDateTime lastEmailSentDate,
+    Instant lastEmailSentDate,
     Integer count,
+    Instant timestamp,
     String path,
     Integer currentRate,
     Integer pendingRate,

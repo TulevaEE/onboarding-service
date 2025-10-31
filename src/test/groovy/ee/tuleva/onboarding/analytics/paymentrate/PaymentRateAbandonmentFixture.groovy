@@ -1,7 +1,7 @@
 package ee.tuleva.onboarding.analytics.paymentrate
 
 
-import java.time.LocalDateTime
+import java.time.Instant
 
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonment.PaymentRateAbandonmentBuilder
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonment.builder
@@ -15,8 +15,9 @@ class PaymentRateAbandonmentFixture {
         .lastName("Doe")
         .email(uniqueEmail(0))
         .language("EST")
-        .lastEmailSentDate(LocalDateTime.parse("2024-01-15T10:00:00"))
+        .lastEmailSentDate(Instant.parse("2024-01-15T10:00:00Z"))
         .count(5)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
         .path("/2nd-pillar-payment-rate")
         .currentRate(2)
         .pendingRate(null)

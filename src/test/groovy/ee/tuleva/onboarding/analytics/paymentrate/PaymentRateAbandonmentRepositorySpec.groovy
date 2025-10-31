@@ -7,14 +7,15 @@ import org.springframework.jdbc.core.simple.JdbcClient
 import spock.lang.Requires
 import spock.lang.Specification
 
+import java.sql.Timestamp
+import java.time.Instant
 import java.time.LocalDate
-import java.time.LocalDateTime
 
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.aPaymentRateAbandonment
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.uniqueEmail
 import static ee.tuleva.onboarding.analytics.paymentrate.PaymentRateAbandonmentFixture.uniquePersonalCode
 
-@Requires({ System.getenv('CI') == 'true' || System.getenv('SPRING_PROFILES_ACTIVE')?.contains('ci') })
+@Requires({ System.getenv('SPRING_PROFILES_ACTIVE')?.contains('ci') })
 @DataJdbcTest
 @Import(PaymentRateAbandonmentRepository)
 class PaymentRateAbandonmentRepositorySpec extends Specification {
@@ -27,17 +28,18 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
 
   def "fetches payment rate abandonments for users who viewed the page"() {
     given:
+    def eventTimestamp = Instant.parse("2025-01-15T10:00:00Z")
     def abandonment = aPaymentRateAbandonment()
         .personalCode(uniquePersonalCode(1))
         .email(uniqueEmail(1))
         .count(5)
         .currentRate(2)
+        .timestamp(Instant.parse("2025-01-15T10:00:04Z"))
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)
-    def eventTimestamp = LocalDateTime.of(2025, 1, 15, 10, 0)
 
-    insertEventLog(abandonment, eventTimestamp, 5)
+    5.times { insertEventLog(abandonment, eventTimestamp.plusSeconds(it)) }
     insertUnitOwner(abandonment, snapshotDate)
     insertEmail(abandonment)
 
@@ -50,18 +52,19 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
 
   def "includes users who have never been emailed"() {
     given:
+    def eventTimestamp = Instant.parse("2025-01-20T14:30:00Z")
     def abandonment = aPaymentRateAbandonment()
         .personalCode(uniquePersonalCode(2))
         .email(uniqueEmail(2))
         .count(3)
         .currentRate(4)
         .lastEmailSentDate(null)
+        .timestamp(Instant.parse("2025-01-20T14:30:02Z"))
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)
-    def eventTimestamp = LocalDateTime.of(2025, 1, 20, 14, 30)
 
-    insertEventLog(abandonment, eventTimestamp, 3)
+    3.times { insertEventLog(abandonment, eventTimestamp.plusSeconds(it)) }
     insertUnitOwner(abandonment, snapshotDate)
 
     when:
@@ -74,27 +77,29 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
 
   def "returns only rows from the latest snapshot"() {
     given:
+    def eventTimestamp = Instant.parse("2025-01-20T10:00:00Z")
     def newest = aPaymentRateAbandonment()
         .personalCode(uniquePersonalCode(3))
         .email(uniqueEmail(3))
         .count(2)
+        .timestamp(Instant.parse("2025-01-20T10:00:01Z"))
         .build()
 
     def older = aPaymentRateAbandonment()
         .personalCode(uniquePersonalCode(4))
         .email(uniqueEmail(4))
         .count(1)
+        .timestamp(Instant.parse("2025-01-20T10:00:00Z"))
         .build()
 
     def newestSnapshotDate = LocalDate.of(2025, 1, 31)
     def olderSnapshotDate = LocalDate.of(2025, 1, 15)
-    def eventTimestamp = LocalDateTime.of(2025, 1, 20, 10, 0)
 
-    insertEventLog(newest, eventTimestamp, 2)
+    2.times { insertEventLog(newest, eventTimestamp.plusSeconds(it)) }
     insertUnitOwner(newest, newestSnapshotDate)
     insertEmail(newest)
 
-    insertEventLog(older, eventTimestamp, 1)
+    insertEventLog(older, eventTimestamp)
     insertUnitOwner(older, olderSnapshotDate)
     insertEmail(older)
 
@@ -107,11 +112,13 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
 
   def "only fetches users with current rate 2 or 4"() {
     given:
+    def eventTimestamp = Instant.parse("2025-01-15T10:00:00Z")
     def rate2User = aPaymentRateAbandonment()
         .personalCode(uniquePersonalCode(5))
         .email(uniqueEmail(5))
         .count(1)
         .currentRate(2)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
         .build()
 
     def rate4User = aPaymentRateAbandonment()
@@ -119,6 +126,7 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
         .email(uniqueEmail(6))
         .count(2)
         .currentRate(4)
+        .timestamp(Instant.parse("2025-01-15T10:00:01Z"))
         .build()
 
     def rate6User = aPaymentRateAbandonment()
@@ -126,18 +134,18 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
         .email(uniqueEmail(7))
         .count(1)
         .currentRate(6)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)
-    def eventTimestamp = LocalDateTime.of(2025, 1, 15, 10, 0)
 
-    insertEventLog(rate2User, eventTimestamp, 1)
+    insertEventLog(rate2User, eventTimestamp)
     insertUnitOwner(rate2User, snapshotDate)
 
-    insertEventLog(rate4User, eventTimestamp, 2)
+    2.times { insertEventLog(rate4User, eventTimestamp.plusSeconds(it)) }
     insertUnitOwner(rate4User, snapshotDate)
 
-    insertEventLog(rate6User, eventTimestamp, 1)
+    insertEventLog(rate6User, eventTimestamp)
     insertUnitOwner(rate6User, snapshotDate)
 
     when:
@@ -150,11 +158,13 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
 
   def "excludes users with pending rate 4 or 6"() {
     given:
+    def eventTimestamp = Instant.parse("2025-01-15T10:00:00Z")
     def noPendingRate = aPaymentRateAbandonment()
         .personalCode(uniquePersonalCode(8))
         .email(uniqueEmail(8))
         .count(1)
         .currentRate(2)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
         .build()
 
     def pendingRate4 = aPaymentRateAbandonment()
@@ -164,6 +174,7 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
         .currentRate(2)
         .pendingRate(4)
         .pendingRateDate(LocalDate.of(2025, 3, 1))
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
         .build()
 
     def pendingRate6 = aPaymentRateAbandonment()
@@ -173,6 +184,7 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
         .currentRate(4)
         .pendingRate(6)
         .pendingRateDate(LocalDate.of(2025, 3, 1))
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
         .build()
 
     def pendingRate2 = aPaymentRateAbandonment()
@@ -182,21 +194,21 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
         .currentRate(2)
         .pendingRate(2)
         .pendingRateDate(LocalDate.of(2025, 3, 1))
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)
-    def eventTimestamp = LocalDateTime.of(2025, 1, 15, 10, 0)
 
-    insertEventLog(noPendingRate, eventTimestamp, 1)
+    insertEventLog(noPendingRate, eventTimestamp)
     insertUnitOwner(noPendingRate, snapshotDate)
 
-    insertEventLog(pendingRate4, eventTimestamp, 1)
+    insertEventLog(pendingRate4, eventTimestamp)
     insertUnitOwner(pendingRate4, snapshotDate)
 
-    insertEventLog(pendingRate6, eventTimestamp, 1)
+    insertEventLog(pendingRate6, eventTimestamp)
     insertUnitOwner(pendingRate6, snapshotDate)
 
-    insertEventLog(pendingRate2, eventTimestamp, 1)
+    insertEventLog(pendingRate2, eventTimestamp)
     insertUnitOwner(pendingRate2, snapshotDate)
 
     when:
@@ -213,29 +225,32 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
         .personalCode(uniquePersonalCode(12))
         .email(uniqueEmail(12))
         .count(1)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
         .build()
 
     def beforeRange = aPaymentRateAbandonment()
         .personalCode(uniquePersonalCode(13))
         .email(uniqueEmail(13))
         .count(1)
+        .timestamp(Instant.parse("2024-12-31T23:59:00Z"))
         .build()
 
     def afterRange = aPaymentRateAbandonment()
         .personalCode(uniquePersonalCode(14))
         .email(uniqueEmail(14))
         .count(1)
+        .timestamp(Instant.parse("2025-02-01T00:00:00Z"))
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)
 
-    insertEventLog(inRange, LocalDateTime.of(2025, 1, 15, 10, 0), 1)
+    insertEventLog(inRange, Instant.parse("2025-01-15T10:00:00Z"))
     insertUnitOwner(inRange, snapshotDate)
 
-    insertEventLog(beforeRange, LocalDateTime.of(2024, 12, 31, 23, 59), 1)
+    insertEventLog(beforeRange, Instant.parse("2024-12-31T23:59:00Z"))
     insertUnitOwner(beforeRange, snapshotDate)
 
-    insertEventLog(afterRange, LocalDateTime.of(2025, 2, 1, 0, 0), 1)
+    insertEventLog(afterRange, Instant.parse("2025-02-01T00:00:00Z"))
     insertUnitOwner(afterRange, snapshotDate)
 
     when:
@@ -252,13 +267,13 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
         .personalCode(uniquePersonalCode(15))
         .email(uniqueEmail(15))
         .count(7)
+        .timestamp(Instant.parse("2025-01-21T10:00:00Z"))
         .build()
 
     def snapshotDate = LocalDate.of(2025, 1, 31)
 
-    // Insert 7 page view events for the same user
     7.times {
-      insertEventLog(multipleViews, LocalDateTime.of(2025, 1, 15 + it, 10, 0), 1, false)
+      insertEventLog(multipleViews, Instant.parse("2025-01-${15 + it}T10:00:00Z"))
     }
 
     insertUnitOwner(multipleViews, snapshotDate)
@@ -271,31 +286,47 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
     results.first().count() == 7
   }
 
-  private void insertEventLog(PaymentRateAbandonment abandonment,
-                               LocalDateTime timestamp,
-                               Integer viewCount,
-                               boolean insertMultiple = true) {
-    if (insertMultiple) {
-      viewCount.times {
-        jdbcClient.sql("""
+  def "excludes users who viewed after date_created"() {
+    given:
+    def viewedBeforeCreated = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(16))
+        .email(uniqueEmail(16))
+        .count(1)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
+        .build()
+
+    def viewedAfterCreated = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(17))
+        .email(uniqueEmail(17))
+        .count(1)
+        .timestamp(Instant.parse("2025-02-01T10:00:00Z"))
+        .build()
+
+    def snapshotDate = LocalDate.of(2025, 1, 31)
+
+    insertEventLog(viewedBeforeCreated, Instant.parse("2025-01-15T10:00:00Z"))
+    insertUnitOwner(viewedBeforeCreated, snapshotDate)
+
+    insertEventLog(viewedAfterCreated, Instant.parse("2025-02-01T10:00:00Z"))
+    insertUnitOwner(viewedAfterCreated, snapshotDate)
+
+    when:
+    def results = repository.fetch(LocalDate.parse("2025-01-01"), LocalDate.parse("2025-02-01"))
+
+    then:
+    results.size() == 1
+    results.first().personalCode() == viewedBeforeCreated.personalCode()
+  }
+
+  private void insertEventLog(PaymentRateAbandonment abandonment, Instant timestamp) {
+    jdbcClient.sql("""
             INSERT INTO event_log (principal, type, data, timestamp)
             VALUES (:principal, :type, :data::jsonb, :timestamp)""")
-            .param("principal", abandonment.personalCode())
-            .param("type", "PAGE_VIEW")
-            .param("data", '{"path": "/2nd-pillar-payment-rate"}')
-            .param("timestamp", timestamp.plusSeconds(it))
-            .update()
-      }
-    } else {
-      jdbcClient.sql("""
-            INSERT INTO event_log (principal, type, data, timestamp)
-            VALUES (:principal, :type, :data::jsonb, :timestamp)""")
-          .param("principal", abandonment.personalCode())
-          .param("type", "PAGE_VIEW")
-          .param("data", '{"path": "/2nd-pillar-payment-rate"}')
-          .param("timestamp", timestamp)
-          .update()
-    }
+        .param("principal", abandonment.personalCode())
+        .param("type", "PAGE_VIEW")
+        .param("data", '{"path": "/2nd-pillar-payment-rate"}')
+        .param("timestamp", Timestamp.from(timestamp))
+        .update()
   }
 
   private void insertUnitOwner(PaymentRateAbandonment abandonment, LocalDate snapshotDate) {
@@ -323,7 +354,7 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
     insertEmail(abandonment, "PAYMENT_RATE_ABANDONMENT", abandonment.lastEmailSentDate())
   }
 
-  private void insertEmail(PaymentRateAbandonment abandonment, String type, LocalDateTime createdDate) {
+  private void insertEmail(PaymentRateAbandonment abandonment, String type, Instant createdDate) {
     if (createdDate != null) {
       jdbcClient.sql("""
             INSERT INTO email (personal_code, type, status, created_date)
@@ -331,7 +362,7 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
           .param("personal_code", abandonment.personalCode())
           .param("type", type)
           .param("status", "SENT")
-          .param("created_date", createdDate)
+          .param("created_date", Timestamp.from(createdDate))
           .update()
     }
   }

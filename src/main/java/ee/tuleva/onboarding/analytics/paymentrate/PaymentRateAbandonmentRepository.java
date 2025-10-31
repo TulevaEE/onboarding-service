@@ -24,14 +24,15 @@ public class PaymentRateAbandonmentRepository
         """
                 WITH filtered_event_log AS (
                   SELECT
-                    event_log.principal AS personal_code,
+                    event_log.principal         AS personal_code,
                     event_log.data #>> '{path}' AS path,
-                    COUNT(*) AS view_count
+                    COUNT(*)                    AS view_count,
+                    MAX(event_log."timestamp")  AS "timestamp"
                   FROM event_log
                   WHERE event_log.type = 'PAGE_VIEW'
                     AND event_log.data #>> '{path}' = '/2nd-pillar-payment-rate'
                     AND event_log."timestamp" >= :startDate
-                    AND event_log."timestamp" <  :endDate
+                    AND event_log."timestamp" <= :endDate
                   GROUP BY event_log.principal, event_log.data #>> '{path}'
                 ),
 
@@ -44,7 +45,8 @@ public class PaymentRateAbandonmentRepository
                     unit_owner.p2_next_rate,
                     unit_owner.p2_next_rate_date,
                     unit_owner.email,
-                    unit_owner.language_preference
+                    unit_owner.language_preference,
+                    unit_owner.date_created
                   FROM unit_owner
                   WHERE unit_owner.snapshot_date = (SELECT MAX(snapshot_date) FROM unit_owner)
                 ),
@@ -63,6 +65,7 @@ public class PaymentRateAbandonmentRepository
                   latest_unit_owner_snapshot.first_name             AS first_name,
                   latest_unit_owner_snapshot.last_name              AS last_name,
                   filtered_event_log.view_count                     AS count,
+                  filtered_event_log."timestamp"                    AS "timestamp",
                   filtered_event_log.path                           AS path,
                   latest_unit_owner_snapshot.p2_rate                AS current_rate,
                   latest_unit_owner_snapshot.p2_next_rate           AS pending_rate,
@@ -80,9 +83,10 @@ public class PaymentRateAbandonmentRepository
                     latest_unit_owner_snapshot.p2_next_rate IS NULL
                     OR latest_unit_owner_snapshot.p2_next_rate NOT IN (4, 6)
                   )
+                  AND filtered_event_log."timestamp" < latest_unit_owner_snapshot.date_created
                 ORDER BY
-                  filtered_event_log.view_count DESC;
-            """;
+                  filtered_event_log."timestamp" DESC;
+                """;
 
     return jdbcClient
         .sql(sql)

@@ -318,6 +318,77 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
     results.first().personalCode() == viewedBeforeCreated.personalCode()
   }
 
+  def "excludes events from December"() {
+    given:
+    def novemberEvent = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(18))
+        .email(uniqueEmail(18))
+        .count(1)
+        .timestamp(Instant.parse("2024-11-15T10:00:00Z"))
+        .build()
+
+    def decemberEvent = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(19))
+        .email(uniqueEmail(19))
+        .count(1)
+        .timestamp(Instant.parse("2024-12-15T10:00:00Z"))
+        .build()
+
+    def snapshotDate = LocalDate.of(2024, 11, 30)
+
+    insertEventLog(novemberEvent, Instant.parse("2024-11-15T10:00:00Z"))
+    insertUnitOwner(novemberEvent, snapshotDate)
+
+    insertEventLog(decemberEvent, Instant.parse("2024-12-15T10:00:00Z"))
+    insertUnitOwner(decemberEvent, snapshotDate)
+
+    when:
+    def results = repository.fetch(LocalDate.parse("2024-11-01"), LocalDate.parse("2024-12-31"))
+
+    then:
+    results.size() == 1
+    results.first().personalCode() == novemberEvent.personalCode()
+  }
+
+  def "uses latest non-December snapshot"() {
+    given:
+    def abandonment = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(20))
+        .email(uniqueEmail(20))
+        .count(1)
+        .timestamp(Instant.parse("2024-11-15T10:00:00Z"))
+        .build()
+
+    def novemberSnapshotDate = LocalDate.of(2024, 11, 30)
+    def decemberSnapshotDate = LocalDate.of(2024, 12, 31)
+
+    insertEventLog(abandonment, Instant.parse("2024-11-15T10:00:00Z"))
+
+    // Insert older November snapshot
+    insertUnitOwner(abandonment, novemberSnapshotDate)
+
+    // Insert newer December snapshot with different data
+    def decemberAbandonment = aPaymentRateAbandonment()
+        .personalCode(abandonment.personalCode())
+        .email(abandonment.email())
+        .firstName("UpdatedFirstName")
+        .lastName("UpdatedLastName")
+        .count(1)
+        .timestamp(abandonment.timestamp())
+        .currentRate(4)  // Different rate in December snapshot
+        .build()
+    insertUnitOwner(decemberAbandonment, decemberSnapshotDate)
+
+    when:
+    def results = repository.fetch(LocalDate.parse("2024-11-01"), LocalDate.parse("2024-12-31"))
+
+    then:
+    results.size() == 1
+    // Should use November snapshot data, not December
+    results.first().currentRate() == 2
+    results.first().firstName() == abandonment.firstName()
+  }
+
   private void insertEventLog(PaymentRateAbandonment abandonment, Instant timestamp) {
     jdbcClient.sql("""
             INSERT INTO event_log (principal, type, data, timestamp)

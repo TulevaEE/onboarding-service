@@ -33,7 +33,15 @@ public class PaymentRateAbandonmentRepository
                     AND event_log.data #>> '{path}' = '/2nd-pillar-payment-rate'
                     AND event_log."timestamp" >= :startDate
                     AND event_log."timestamp" <= :endDate
+                    AND EXTRACT(MONTH FROM event_log."timestamp") BETWEEN 1 AND 11
                   GROUP BY event_log.principal, event_log.data #>> '{path}'
+                ),
+
+                latest_non_december_snapshot_date AS (
+                  SELECT
+                    MAX(snapshot_date) AS snapshot_date
+                  FROM unit_owner
+                  WHERE EXTRACT(MONTH FROM snapshot_date) BETWEEN 1 AND 11
                 ),
 
                 latest_unit_owner_snapshot AS (
@@ -48,7 +56,8 @@ public class PaymentRateAbandonmentRepository
                     unit_owner.language_preference,
                     unit_owner.date_created
                   FROM unit_owner
-                  WHERE unit_owner.snapshot_date = (SELECT MAX(snapshot_date) FROM unit_owner)
+                  JOIN latest_non_december_snapshot_date
+                    ON unit_owner.snapshot_date = latest_non_december_snapshot_date.snapshot_date
                 ),
 
                 last_email AS (

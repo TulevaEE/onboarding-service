@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.annotation.Schedules;
 import org.springframework.stereotype.Component;
 
 @Slf4j
@@ -16,7 +17,10 @@ public class ScheduledFundBalanceSynchronizationJob {
 
   private final FundBalanceSynchronizer fundBalanceSynchronizer;
 
-  @Scheduled(cron = "0 0 18 * * ?", zone = "Europe/Tallinn")
+  @Schedules({
+    @Scheduled(cron = "0 0 11 3 11 ?", zone = "Europe/Tallinn"),
+    @Scheduled(cron = "0 0 18 * * ?", zone = "Europe/Tallinn")
+  })
   public void runDailySync() {
     LocalDate syncDate = LocalDate.now(ClockHolder.clock()).minusDays(1);
     log.info("Starting scheduled fund balance synchronization job for previous day {}.", syncDate);

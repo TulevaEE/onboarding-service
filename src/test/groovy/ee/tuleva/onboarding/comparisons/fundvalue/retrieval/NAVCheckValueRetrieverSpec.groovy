@@ -7,9 +7,7 @@ import org.springframework.http.MediaType
 import org.springframework.test.web.client.MockRestServiceServer
 import spock.lang.Specification
 
-import java.nio.charset.StandardCharsets
 import java.time.LocalDate
-import java.util.zip.GZIPOutputStream
 
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess

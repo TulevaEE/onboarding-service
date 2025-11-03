@@ -35,7 +35,15 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
           "0P0000YXER.F",
           "0P00006OK2.F",
           "0P0001A3RC.F",
-          "0P0000STQT.F");
+          "0P0000STQT.F",
+          "ESGM.DE",
+          "XRSM.DE",
+          "D5BH.DE",
+          "USAS.PA",
+          "V3YA.DE",
+          "EEUX.DE",
+          "PAC.DE",
+          "EJAP.DE");
 
   private final RestClient restClient;
 

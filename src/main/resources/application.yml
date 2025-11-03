@@ -80,6 +80,7 @@ springdoc:
 epis:
   service:
     url: http://localhost:9005/v1
+    long-request-url: http://localhost:9005/v1
 
 frontend:
   url: http://localhost:3000
@@ -263,6 +264,7 @@ swedbank-gateway:
 epis:
   service:
     url: https://epis-service.tuleva.ee/v1
+    long-request-url: https://direct-epis-service.tuleva.ee/v1  # Direct ALB URL to bypass Cloudflare 2min timeout
 
 frontend:
   url: https://pension.tuleva.ee
@@ -334,6 +336,11 @@ spring:
     activate:
       on-profile:
         - staging
+
+epis:
+  service:
+    url: https://epis-service-staging.tuleva.ee/v1
+    long-request-url: https://epis-service-staging.tuleva.ee/v1  # Staging uses regular URL (no Cloudflare bypass needed yet)
 
 sentry:
   environment: staging

@@ -66,6 +66,7 @@ class EpisServiceTest {
   @BeforeEach
   void setUp() {
     ReflectionTestUtils.setField(service, "episServiceUrl", "http://epis");
+    ReflectionTestUtils.setField(service, "episServiceLongRequestUrl", "http://epis");
   }
 
   @AfterEach

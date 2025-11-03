@@ -65,6 +65,10 @@ public class EpisService {
   @Nullable
   String episServiceUrl;
 
+  @Value("${epis.service.long-request-url}")
+  @Nullable
+  String episServiceLongRequestUrl;
+
   @Cacheable(value = APPLICATIONS_CACHE_NAME, key = "#person.personalCode", sync = true)
   public List<ApplicationDTO> getApplications(Person person) {
     String url = episServiceUrl + "/applications";
@@ -226,13 +230,15 @@ public class EpisService {
         endDate);
 
     String url =
-        UriComponentsBuilder.fromUriString(episServiceUrl)
+        UriComponentsBuilder.fromUriString(episServiceLongRequestUrl)
             .pathSegment("transactions")
             .queryParam("startDate", startDate)
             .queryParam("endDate", endDate)
             .toUriString();
 
-    log.debug("Calling remote transactions endpoint at URL: {}", url);
+    log.debug(
+        "Calling remote transactions endpoint at URL: {} (using long-request URL to bypass Cloudflare timeout)",
+        url);
 
     ThirdPillarTransactionDto[] responseArray =
         episRestTemplate
@@ -260,7 +266,7 @@ public class EpisService {
         pikFlag);
 
     UriComponentsBuilder urlBuilder =
-        UriComponentsBuilder.fromUriString(episServiceUrl)
+        UriComponentsBuilder.fromUriString(episServiceLongRequestUrl)
             .pathSegment("exchange-transactions")
             .queryParam("startDate", startDate)
             .queryParam("pikFlag", pikFlag);
@@ -269,7 +275,9 @@ public class EpisService {
     securityTo.ifPresent(st -> urlBuilder.queryParam("securityTo", st));
 
     String url = urlBuilder.toUriString();
-    log.debug("Calling remote exchange transactions endpoint at URL: {}", url);
+    log.debug(
+        "Calling remote exchange transactions endpoint at URL: {} (using long-request URL to bypass Cloudflare timeout)",
+        url);
 
     ExchangeTransactionDto[] responseArray =
         episRestTemplate
@@ -292,14 +300,16 @@ public class EpisService {
         toDate);
 
     String url =
-        UriComponentsBuilder.fromUriString(episServiceUrl)
+        UriComponentsBuilder.fromUriString(episServiceLongRequestUrl)
             .pathSegment("fund-transactions")
             .queryParam("isin", isin)
             .queryParam("fromDate", fromDate)
             .queryParam("toDate", toDate)
             .toUriString();
 
-    log.debug("Calling remote fund transactions endpoint at URL: {}", url);
+    log.debug(
+        "Calling remote fund transactions endpoint at URL: {} (using long-request URL to bypass Cloudflare timeout)",
+        url);
 
     ResponseEntity<FundTransactionDto[]> response =
         episRestTemplate.exchange(
@@ -312,12 +322,14 @@ public class EpisService {
     log.info("Fetching fund balances from EPIS service for date: {}", requestDate);
 
     String url =
-        UriComponentsBuilder.fromUriString(episServiceUrl)
+        UriComponentsBuilder.fromUriString(episServiceLongRequestUrl)
             .pathSegment("fund-balances")
             .queryParam("requestDate", requestDate)
             .toUriString();
 
-    log.debug("Calling remote fund balances endpoint at URL: {}", url);
+    log.debug(
+        "Calling remote fund balances endpoint at URL: {} (using long-request URL to bypass Cloudflare timeout)",
+        url);
 
     ResponseEntity<TransactionFundBalanceDto[]> response =
         episRestTemplate.exchange(
@@ -333,9 +345,13 @@ public class EpisService {
     log.info("Fetching unit owners from EPIS service.");
 
     String url =
-        UriComponentsBuilder.fromUriString(episServiceUrl).pathSegment("unit-owners").toUriString();
+        UriComponentsBuilder.fromUriString(episServiceLongRequestUrl)
+            .pathSegment("unit-owners")
+            .toUriString();
 
-    log.debug("Calling remote unit owners endpoint at URL: {}", url);
+    log.debug(
+        "Calling remote unit owners endpoint at URL: {} (using long-request URL to bypass Cloudflare timeout)",
+        url);
 
     ResponseEntity<UnitOwnerDto[]> response =
         episRestTemplate.exchange(

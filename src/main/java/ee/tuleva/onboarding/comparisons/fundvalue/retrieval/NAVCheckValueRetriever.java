@@ -113,7 +113,7 @@ public class NAVCheckValueRetriever implements ComparisonIndexRetriever {
     long startEpoch = startDate.atStartOfDay(utcZoneId).minusDays(1).toEpochSecond();
     long endEpoch = endDate.atStartOfDay(utcZoneId).plusDays(1).toEpochSecond();
 
-    return UriComponentsBuilder.fromHttpUrl(
+    return UriComponentsBuilder.fromUriString(
             "https://query1.finance.yahoo.com/v7/finance/chart/{ticker}")
         .query("interval=1d")
         .query("events=history")

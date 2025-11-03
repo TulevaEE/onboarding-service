@@ -389,6 +389,114 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
     results.first().firstName() == abandonment.firstName()
   }
 
+  def "excludes users with p2_rava_status = 'R'"() {
+    given:
+    def withoutRavaStatus = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(21))
+        .email(uniqueEmail(21))
+        .count(1)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
+        .build()
+
+    def withRavaStatusR = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(22))
+        .email(uniqueEmail(22))
+        .count(1)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
+        .build()
+
+    def snapshotDate = LocalDate.of(2025, 1, 31)
+
+    insertEventLog(withoutRavaStatus, Instant.parse("2025-01-15T10:00:00Z"))
+    insertUnitOwner(withoutRavaStatus, snapshotDate, null, null)
+
+    insertEventLog(withRavaStatusR, Instant.parse("2025-01-15T10:00:00Z"))
+    insertUnitOwner(withRavaStatusR, snapshotDate, "R", null)
+
+    when:
+    def results = repository.fetch(LocalDate.parse("2025-01-01"), LocalDate.parse("2025-02-01"))
+
+    then:
+    results.size() == 1
+    results.first().personalCode() == withoutRavaStatus.personalCode()
+  }
+
+  def "includes users with p2_rava_status other than 'R'"() {
+    given:
+    def withRavaStatusNull = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(23))
+        .email(uniqueEmail(23))
+        .count(1)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
+        .build()
+
+    def withRavaStatusA = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(24))
+        .email(uniqueEmail(24))
+        .count(1)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
+        .build()
+
+    def withRavaStatusP = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(25))
+        .email(uniqueEmail(25))
+        .count(1)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
+        .build()
+
+    def snapshotDate = LocalDate.of(2025, 1, 31)
+
+    insertEventLog(withRavaStatusNull, Instant.parse("2025-01-15T10:00:00Z"))
+    insertUnitOwner(withRavaStatusNull, snapshotDate, null, null)
+
+    insertEventLog(withRavaStatusA, Instant.parse("2025-01-15T10:00:00Z"))
+    insertUnitOwner(withRavaStatusA, snapshotDate, "A", null)
+
+    insertEventLog(withRavaStatusP, Instant.parse("2025-01-15T10:00:00Z"))
+    insertUnitOwner(withRavaStatusP, snapshotDate, "P", null)
+
+    when:
+    def results = repository.fetch(LocalDate.parse("2025-01-01"), LocalDate.parse("2025-02-01"))
+
+    then:
+    results.size() == 3
+    results.collect { it.personalCode() }.sort() ==
+        [withRavaStatusNull.personalCode(), withRavaStatusA.personalCode(), withRavaStatusP.personalCode()].sort()
+  }
+
+  def "excludes users with p2_duty_end set"() {
+    given:
+    def withoutDutyEnd = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(26))
+        .email(uniqueEmail(26))
+        .count(1)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
+        .build()
+
+    def withDutyEnd = aPaymentRateAbandonment()
+        .personalCode(uniquePersonalCode(27))
+        .email(uniqueEmail(27))
+        .count(1)
+        .timestamp(Instant.parse("2025-01-15T10:00:00Z"))
+        .build()
+
+    def snapshotDate = LocalDate.of(2025, 1, 31)
+    def dutyEndDate = LocalDate.of(2025, 2, 15)
+
+    insertEventLog(withoutDutyEnd, Instant.parse("2025-01-15T10:00:00Z"))
+    insertUnitOwner(withoutDutyEnd, snapshotDate, null, null)
+
+    insertEventLog(withDutyEnd, Instant.parse("2025-01-15T10:00:00Z"))
+    insertUnitOwner(withDutyEnd, snapshotDate, null, dutyEndDate)
+
+    when:
+    def results = repository.fetch(LocalDate.parse("2025-01-01"), LocalDate.parse("2025-02-01"))
+
+    then:
+    results.size() == 1
+    results.first().personalCode() == withoutDutyEnd.personalCode()
+  }
+
   private void insertEventLog(PaymentRateAbandonment abandonment, Instant timestamp) {
     jdbcClient.sql("""
             INSERT INTO event_log (principal, type, data, timestamp)
@@ -401,13 +509,20 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
   }
 
   private void insertUnitOwner(PaymentRateAbandonment abandonment, LocalDate snapshotDate) {
+    insertUnitOwner(abandonment, snapshotDate, null, null)
+  }
+
+  private void insertUnitOwner(PaymentRateAbandonment abandonment, LocalDate snapshotDate,
+                                String p2RavaStatus, LocalDate p2DutyEnd) {
     jdbcClient.sql("""
             INSERT INTO unit_owner
               (personal_id, first_name, last_name, email, language_preference,
-               p2_rate, p2_next_rate, p2_next_rate_date, snapshot_date, date_created)
+               p2_rate, p2_next_rate, p2_next_rate_date, snapshot_date, date_created,
+               p2_rava_status, p2_duty_end)
             VALUES
               (:personal_id, :first_name, :last_name, :email, :language_preference,
-               :p2_rate::INTEGER, :p2_next_rate::INTEGER, :p2_next_rate_date, :snapshot_date, :date_created)""")
+               :p2_rate::INTEGER, :p2_next_rate::INTEGER, :p2_next_rate_date, :snapshot_date, :date_created,
+               :p2_rava_status, :p2_duty_end)""")
         .param("personal_id", abandonment.personalCode())
         .param("first_name", abandonment.firstName())
         .param("last_name", abandonment.lastName())
@@ -418,6 +533,8 @@ class PaymentRateAbandonmentRepositorySpec extends Specification {
         .param("p2_next_rate_date", abandonment.pendingRateDate())
         .param("snapshot_date", snapshotDate)
         .param("date_created", snapshotDate.atStartOfDay())
+        .param("p2_rava_status", p2RavaStatus)
+        .param("p2_duty_end", p2DutyEnd)
         .update()
   }
 

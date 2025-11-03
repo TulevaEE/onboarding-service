@@ -54,7 +54,9 @@ public class PaymentRateAbandonmentRepository
                     unit_owner.p2_next_rate_date,
                     unit_owner.email,
                     unit_owner.language_preference,
-                    unit_owner.date_created
+                    unit_owner.date_created,
+                    unit_owner.p2_rava_status,
+                    unit_owner.p2_duty_end
                   FROM unit_owner
                   JOIN latest_non_december_snapshot_date
                     ON unit_owner.snapshot_date = latest_non_december_snapshot_date.snapshot_date
@@ -92,6 +94,11 @@ public class PaymentRateAbandonmentRepository
                     latest_unit_owner_snapshot.p2_next_rate IS NULL
                     OR latest_unit_owner_snapshot.p2_next_rate NOT IN (4, 6)
                   )
+                  AND (
+                    latest_unit_owner_snapshot.p2_rava_status IS NULL
+                    OR latest_unit_owner_snapshot.p2_rava_status <> 'R'
+                  )
+                  AND latest_unit_owner_snapshot.p2_duty_end IS NULL
                   AND filtered_event_log."timestamp" < latest_unit_owner_snapshot.date_created
                 ORDER BY
                   filtered_event_log."timestamp" DESC;

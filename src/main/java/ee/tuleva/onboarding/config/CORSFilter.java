@@ -26,11 +26,20 @@ public class CORSFilter extends GenericFilterBean {
   @Value("${frontend.url}")
   private String frontendUrl;
 
+  @Value("${ecs.frontend.url:#{null}}")
+  private String ecsPensionFrontendUrl;
+
   private List<String> allowedOrigins;
 
   @PostConstruct
   public void init() {
-    allowedOrigins = Arrays.asList(frontendUrl, "https://tuleva.ee");
+    allowedOrigins = new java.util.ArrayList<>(Arrays.asList(frontendUrl, "https://tuleva.ee"));
+
+    if (ecsPensionFrontendUrl != null && !ecsPensionFrontendUrl.isEmpty()) {
+      allowedOrigins.add(ecsPensionFrontendUrl);
+    }
+
+    log.info("CORS: Allowed origins: {}", allowedOrigins);
   }
 
   @Override

@@ -269,6 +269,10 @@ epis:
 frontend:
   url: https://pension.tuleva.ee
 
+ecs:
+  frontend:
+    url: https://ecs-pension.tuleva.ee
+
 api:
   url: https://onboarding-service.tuleva.ee/v1
 

@@ -46,7 +46,7 @@ public class AutoEmailSender {
       int estimatedSendCount = getEstimatedEmailCount(emailablePeople, emailType);
 
       boolean isFirstTimeEmail = !emailPersistenceService.hasEmailTypeBeenSentBefore(emailType);
-      int maxRecipients = isFirstTimeEmail ? 1000 : 100;
+      int maxRecipients = isFirstTimeEmail ? 1000 : 200;
 
       if (estimatedSendCount > maxRecipients) {
         log.error(

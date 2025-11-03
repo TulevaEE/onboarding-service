@@ -98,7 +98,7 @@ class AutoEmailSenderTest {
   @DisplayName("Does not send leaver emails over threshold, skips that email type")
   void skipsLeaverEmailsOverThreshold() {
     List<ExchangeTransactionLeaver> recentLeavers =
-        Stream.generate(ExchangeTransactionLeaverFixture::leaverFixture).limit(101).toList();
+        Stream.generate(ExchangeTransactionLeaverFixture::leaverFixture).limit(201).toList();
 
     List<ExchangeTransactionLeaver> alreadyReceivedLeavers =
         Stream.generate(ExchangeTransactionLeaverFixture::leaverFixture2).limit(50).toList();
